@@ -9,7 +9,7 @@ from unittest.mock import Mock
 import pytest
 
 from app import crud
-from app.core.enums import DwellerStatusEnum, RarityEnum
+from app.core.enums import DwellerStatusEnum, GenderEnum, RarityEnum
 from app.core.game_config import game_config
 from app.models.objective import Objective
 from app.models.outfit import Outfit
@@ -56,9 +56,19 @@ def objective_events(async_session):
     current_session_maker.reset(token)
 
 
-@pytest.mark.parametrize("cohort", ["legacy", "continuity"])
+@pytest.mark.parametrize(
+    ("cohort", "scenario_number", "scenario"),
+    [
+        ("legacy", None, None),
+        ("continuity", None, None),
+        ("continuity", 67, "vault_67_short_rations"),
+        ("continuity", 68, "vault_68_test"),
+        ("continuity", 69, "vault_69_test"),
+    ],
+    ids=["legacy", "standard", "short-rations", "ratio", "inverse-ratio"],
+)
 async def test_starter_cohorts_reach_office_without_random_loot(
-    async_session, superuser, objective_events, monkeypatch, tmp_path, cohort
+    async_session, superuser, objective_events, monkeypatch, tmp_path, cohort, scenario_number, scenario
 ):
     if cohort == "legacy":
         (tmp_path / "starter.json").write_text(
@@ -70,8 +80,10 @@ async def test_starter_cohorts_reach_office_without_random_loot(
     # A random twin birth would push the deterministic 18-dweller arc to 19.
     monkeypatch.setattr(game_config.breeding, "twin_chance", 0.0)
     monkeypatch.setattr(game_config.breeding, "triplet_chance", 0.0)
-    vault = await vault_service.initiate_vault(async_session, VaultNumber(number=random_vault_number()), superuser.id)
-    initial_population = await crud.dweller.count_living_in_vault(async_session, vault.id)
+    start = VaultNumber(number=scenario_number or random_vault_number(), scenario=scenario)
+    vault = await vault_service.initiate_vault(async_session, start, superuser.id)
+    founders = {dweller.id for dweller in await crud.dweller.get_living_in_vault(async_session, vault.id)}
+    initial_population = len(founders)
     storage = await crud.storage.storage.get_by_vault(async_session, vault.id)
     initial_rooms = await crud.room.get_all_by_vault(async_session, vault.id)
     assert initial_population == 9
@@ -79,6 +91,19 @@ async def test_starter_cohorts_reach_office_without_random_loot(
     if cohort == "continuity":
         housing = next(o for o in await read_objectives(async_session, vault.id) if o.objective_type == "build")
         assert housing.progress == 0, "A fresh vault must earn additional housing through construction"
+    if scenario_number in (68, 69):
+        expected_variants = (
+            {"Cal Vane", "Milo Rusk", "Galen Shaw", "Nolan Beck"}
+            if scenario_number == 68
+            else {"Iris Dane", "Ada Flint", "Mae Calder"}
+        )
+        advertised_recruits = {
+            step.reward.removeprefix("dweller:")
+            for step in await read_objectives(async_session, vault.id)
+            if step.category == "starter" and step.reward.startswith("dweller:")
+        }
+        assert len(advertised_recruits) == 9
+        assert expected_variants <= advertised_recruits
     production_seconds = 0
     granted_residents = 0
 
@@ -209,6 +234,10 @@ async def test_starter_cohorts_reach_office_without_random_loot(
         missions = await quest_service.get_quests_for_vault(async_session, vault.id, available_only=True)
         first_mission = next(q for q in missions if q.title == "Getting Started")
         residents = await crud.dweller.get_living_in_vault(async_session, vault.id)
+        if scenario_number in (68, 69):
+            recruits = [dweller for dweller in residents if dweller.id not in founders]
+            assert {dweller.display_name for dweller in recruits} == advertised_recruits
+            assert sum(dweller.gender == GenderEnum.MALE for dweller in recruits) == (8 if scenario_number == 68 else 1)
         party = [d for d in residents if d.is_mature and d.room_id is None and d.status == DwellerStatusEnum.IDLE][:3]
         assert len(party) == 3
         for model, item_crud in ((Weapon, crud.weapon), (Outfit, crud.outfit)):

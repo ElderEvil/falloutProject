@@ -69,6 +69,7 @@ class VaultBase(SQLModel):
 
 class Vault(BaseUUIDModel, VaultBase, TimeStampMixin, SoftDeleteMixin, table=True):
     user_id: UUID = Field(default=None, foreign_key="user.id", index=True)
+    scenario_key: str | None = Field(default=None, max_length=64, exclude=True)
     last_exit_request_at: datetime | None = Field(sa_type=UTCDateTime, default=None)
     arena_morale_awarded_at: datetime | None = Field(sa_type=UTCDateTime, default=None)
 

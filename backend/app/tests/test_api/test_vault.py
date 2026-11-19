@@ -12,6 +12,7 @@ from app.schemas.vault import VaultCreateWithUserID
 from app.services import catalog_service as data_loader
 from app.services.vault_service import vault_service
 from app.tests.factory.vaults import create_fake_vault
+from app.utils.seed_objectives import seed_objectives_from_json
 
 pytestmark = pytest.mark.asyncio(scope="module")
 
@@ -562,48 +563,17 @@ async def test_vault_scenarios_list_vault_1(
     response = await async_client.get("/vaults/scenarios", headers=superuser_token_headers)
     assert response.status_code == 200
     scenarios = response.json()
-    assert scenarios == [
-        {
-            "number": 1,
-            "key": "vault_1_test",
-            "title": "Vault 1 — Wasteland Test",
-            "description": (
-                "Boosted by default. Seeds one named dweller per expedition site, each already "
-                "scouting with its site reported in the bell, at mixed levels with varied weapons and pets. "
-                "Starter objectives skipped."
-            ),
-            "requires_boosted": False,
-            "default_boosted": True,
-            "default_on": True,
-            "expedition": True,
-        },
-        {
-            "number": 68,
-            "key": "vault_68_test",
-            "title": "Vault 68 — The Ratio",
-            "description": (
-                "99 men and 1 woman: a Vault-Tec gender-ratio experiment. Requires Boosted Start; "
-                "no expedition scout. Starter objectives skipped."
-            ),
-            "requires_boosted": True,
-            "default_boosted": False,
-            "default_on": False,
-            "expedition": False,
-        },
-        {
-            "number": 69,
-            "key": "vault_69_test",
-            "title": "Vault 69 — 99 Women, 1 Man",
-            "description": (
-                "99 women and 1 man: a Vault-Tec gender-ratio experiment. Requires Boosted Start; "
-                "no expedition scout. Starter objectives skipped."
-            ),
-            "requires_boosted": True,
-            "default_boosted": False,
-            "default_on": False,
-            "expedition": False,
-        },
+    assert [(scenario["number"], scenario["key"]) for scenario in scenarios] == [
+        (1, "vault_1_test"),
+        (67, "vault_67_short_rations"),
+        (68, "vault_68_test"),
+        (69, "vault_69_test"),
     ]
+    test_start, *experiments = scenarios
+    assert test_start["default_boosted"]
+    assert test_start["expedition"]
+    assert all(not scenario["default_on"] for scenario in scenarios)
+    assert all(not scenario["requires_boosted"] and not scenario["expedition"] for scenario in experiments)
 
 
 @pytest.mark.asyncio
@@ -648,12 +618,12 @@ async def test_vault_initiate_scenario_seeds_dwellers_scouting_every_site(
 @pytest.mark.parametrize(
     ("number", "key", "expected_men", "expected_women"),
     [
-        (68, "vault_68_test", 99, 1),
-        (69, "vault_69_test", 1, 99),
+        (68, "vault_68_test", 8, 1),
+        (69, "vault_69_test", 1, 8),
     ],
 )
 @pytest.mark.asyncio
-async def test_vault_initiate_lore_scenario_requires_boosted(
+async def test_vault_initiate_ratio_scenario_keeps_the_starter_journey(
     async_client: AsyncClient,
     async_session: AsyncSession,
     superuser_token_headers: dict[str, str],
@@ -662,38 +632,49 @@ async def test_vault_initiate_lore_scenario_requires_boosted(
     expected_men: int,
     expected_women: int,
 ):
-    rejected = await async_client.post(
+    await seed_objectives_from_json(async_session)
+    response = await async_client.post(
         "/vaults/initiate",
         headers=superuser_token_headers,
         json={"number": number, "scenario": key},
     )
-    assert rejected.status_code == 400
-    assert "requires Boosted Start" in rejected.text
-
-    response = await async_client.post(
-        "/vaults/initiate",
-        headers=superuser_token_headers,
-        json={"number": number, "scenario": key, "boosted": True},
-    )
     assert response.status_code == 201, response.text
     vault_id = UUID(response.json()["id"])
 
+    persisted = await crud.vault.get(async_session, vault_id)
+    assert persisted.scenario_key == key
     dwellers = await crud.dweller.get_multi_by_vault(async_session, vault_id, limit=200)
-    assert len(dwellers) == 100
+    assert len(dwellers) == 9
     assert sum(dweller.gender == GenderEnum.MALE for dweller in dwellers) == expected_men
     assert sum(dweller.gender == GenderEnum.FEMALE for dweller in dwellers) == expected_women
-    assert not any(dweller.display_name == "Scout Scenario" for dweller in dwellers)
-    stored_vault = await crud.vault.get(async_session, vault_id)
-    assert stored_vault is not None
-    assert stored_vault.population_max == 100
-
+    rooms = await crud.room.get_all_by_vault(async_session, vault_id)
+    assert not any(room.name == "Overseer's Office" for room in rooms)
     assert await crud.exploration.get_by_vault(async_session, vault_id=vault_id, active_only=True) == []
     objectives = await objective_crud.get_multi_for_vault(async_session, vault_id)
-    assert not any(objective.category is ObjectiveCategoryEnum.STARTER for objective in objectives)
+    assert any(objective.category is ObjectiveCategoryEnum.STARTER for objective in objectives)
 
 
 @pytest.mark.asyncio
-async def test_vault_initiate_without_scenario_creates_no_exploration(
+async def test_vault_67_starts_with_half_the_standard_food_and_water(
+    async_client: AsyncClient,
+    superuser_token_headers: dict[str, str],
+):
+    baseline = await async_client.post("/vaults/initiate", headers=superuser_token_headers, json={"number": 66})
+    challenge = await async_client.post(
+        "/vaults/initiate",
+        headers=superuser_token_headers,
+        json={"number": 67, "scenario": "vault_67_short_rations", "boosted": True},
+    )
+    assert baseline.status_code == challenge.status_code == 201
+    standard, short_rations = baseline.json(), challenge.json()
+    for field in ("power", "food_max", "water_max", "bottle_caps", "population_max"):
+        assert short_rations[field] == standard[field]
+    for field in ("food", "water"):
+        assert short_rations[field] == standard[field] // 2
+
+
+@pytest.mark.asyncio
+async def test_named_vault_without_scenario_uses_the_ordinary_start(
     async_client: AsyncClient,
     async_session: AsyncSession,
     superuser_token_headers: dict[str, str],
@@ -701,7 +682,7 @@ async def test_vault_initiate_without_scenario_creates_no_exploration(
     response = await async_client.post(
         "/vaults/initiate",
         headers=superuser_token_headers,
-        json={"number": 2},
+        json={"number": 67},
     )
     assert response.status_code == 201
 

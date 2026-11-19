@@ -11,6 +11,7 @@ from pathlib import Path
 import pytest
 from alembic import command
 from alembic.config import Config
+from alembic.script import ScriptDirectory
 from sqlalchemy.ext.asyncio import create_async_engine
 from typer.testing import CliRunner
 
@@ -64,7 +65,7 @@ def test_baseline_matches_full_history_and_bootstrap(harness: MigrationHarness) 
     # The imported harness creates its own UUID-named database and cleans it up.
     harness.execute("DROP SCHEMA public CASCADE")
     harness.execute("CREATE SCHEMA public")
-    command.upgrade(_config(), "head")
+    command.upgrade(_config(), BASELINE)
     actual_schema = schema_state(harness)
     assert actual_schema == expected_schema
     for table, expected in seeds.items():
@@ -86,25 +87,46 @@ def test_stamping_completed_history_preserves_all_rows_and_schema(harness: Migra
     )
     expected_schema = schema_state(harness)
     expected_rows = {table: _rows(harness, table) for (table,) in tables}
-    command.stamp(_config(), "head", purge=True)
-    command.upgrade(_config(), "head")
+    command.stamp(_config(), BASELINE, purge=True)
+    command.upgrade(_config(), BASELINE)
     assert harness.scalar("SELECT version_num FROM alembic_version") == BASELINE
     assert schema_state(harness) == expected_schema
     assert {table: _rows(harness, table) for (table,) in tables} == expected_rows
 
 
-def test_followup_revision_upgrades_and_downgrades(harness: MigrationHarness, tmp_path: Path) -> None:
+def test_scenario_opt_in_migration_preserves_numbered_vaults(harness: MigrationHarness) -> None:
+    config = _config()
+    command.upgrade(config, BASELINE)
+    vault_id = legacy._seed_vault(harness, number=69)
+    command.upgrade(config, "head")
+    columns = harness.fetch(
+        "SELECT is_nullable FROM information_schema.columns WHERE table_schema = 'public' "
+        "AND table_name = 'vault' AND column_name = 'scenario_key'"
+    )
+    assert columns == [("YES",)]
+    assert harness.fetch("SELECT number, scenario_key FROM vault WHERE id = :id", id=vault_id) == [(69, None)]
+    command.downgrade(config, BASELINE)
+    assert harness.scalar("SELECT number FROM vault WHERE id = :id", id=vault_id) == 69
+
+
+def _config_with_probe_revision(tmp_path: Path) -> Config:
+    config = _config()
+    parent = ScriptDirectory.from_config(config).get_current_head()
     versions = tmp_path / "versions"
     shutil.copytree(BACKEND / "app/alembic/baseline_versions", versions)
     (versions / "followup.py").write_text(
         "from alembic import op\nimport sqlalchemy as sa\n"
         'revision = "squash_followup"\n'
-        f'down_revision = "{BASELINE}"\n'
+        f'down_revision = "{parent}"\n'
         'def upgrade():\n    op.create_table("squash_probe", sa.Column("id", sa.Integer(), primary_key=True))\n'
         'def downgrade():\n    op.drop_table("squash_probe")\n'
     )
-    config = _config()
     config.set_main_option("version_locations", str(versions))
+    return config
+
+
+def test_followup_revision_upgrades_and_downgrades(harness: MigrationHarness, tmp_path: Path) -> None:
+    config = _config_with_probe_revision(tmp_path)
     command.upgrade(config, "head")
     assert harness.scalar("SELECT to_regclass('public.squash_probe')::text") == "squash_probe"
     command.downgrade(config, BASELINE)
@@ -212,18 +234,7 @@ def test_baseline_graph_matches_models(harness: MigrationHarness) -> None:
 
 
 def test_adoption_accepts_a_descendant_baseline_revision(harness: MigrationHarness, tmp_path: Path) -> None:
-    versions = tmp_path / "versions"
-    shutil.copytree(BACKEND / "app/alembic/baseline_versions", versions)
-    (versions / "followup.py").write_text(
-        "from alembic import op\nimport sqlalchemy as sa\n"
-        'revision = "squash_followup"\n'
-        f'down_revision = "{BASELINE}"\n'
-        'def upgrade():\n    op.create_table("squash_probe", sa.Column("id", sa.Integer(), primary_key=True))\n'
-        'def downgrade():\n    op.drop_table("squash_probe")\n'
-    )
-    config = Config()
-    config.set_main_option("script_location", str(BACKEND / "app/alembic"))
-    config.set_main_option("version_locations", str(versions))
+    config = _config_with_probe_revision(tmp_path)
     harness.upgrade(LEGACY_HEAD)
     database = baseline_tools.make_url(harness.url).database
     result = asyncio.run(baseline_tools.inspect_database(database, apply=True, baseline_config=config))

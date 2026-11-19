@@ -216,7 +216,12 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
         return await super().create(db_session, obj_in)
 
     async def create_with_user_id(
-        self, *, db_session: AsyncSession, obj_in: VaultCreate | VaultNumber | dict, user_id: UUID
+        self,
+        *,
+        db_session: AsyncSession,
+        obj_in: VaultCreate | VaultNumber | dict,
+        user_id: UUID,
+        scenario_key: str | None = None,
     ) -> Vault:
         """Create a vault and claim its atlas slot in one transaction.
 
@@ -232,7 +237,7 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
         obj_in = VaultCreateWithUserID(**obj_data)
         _validate_vault_number(obj_in.number)
 
-        vault = Vault.model_validate(obj_in)
+        vault = Vault.model_validate(obj_in, update={"scenario_key": scenario_key})
         try:
             db_session.add(vault)
             await db_session.flush()

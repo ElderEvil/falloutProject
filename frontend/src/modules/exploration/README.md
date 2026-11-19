@@ -97,8 +97,8 @@ rules apply, including adulthood, health, and site level requirements.
 
 ### Vault 1 test scenario
 
-Creating a vault numbered 1 pre-selects the `vault_1_test` scenario and Boosted Start; both stay
-toggleable. The scenario seeds one named dweller per non-scenario site, fast-forwards each journey
+Enter vault number 1 and enable Wasteland Test in setup to select `vault_1_test`.
+Standard mode uses the expanded seed for this scenario. The scenario seeds one named dweller per non-scenario site, fast-forwards each journey
 past its site, and sends the real discovery report, so the bell lists every shipped site while each
 dweller keeps a long outbound window before turning home. Starter objectives are skipped.
 

@@ -5,10 +5,13 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 import pytest_asyncio
+from sqlalchemy import event
+from sqlalchemy.ext.asyncio import AsyncConnection
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
 from app.core.enums import AgeGroupEnum, GenderEnum, NotificationType, RarityEnum, RoomTypeEnum, SPECIALEnum
+from app.core.event_bus import event_bus
 from app.core.game_config import game_config
 from app.crud.notification import notification as notification_crud
 from app.models.dweller import Dweller
@@ -330,6 +333,78 @@ async def test_recruit_dweller_fresh_when_pool_empty(
         assert dweller.last_name is not None
     else:
         assert dweller.last_name is None
+
+
+@pytest.mark.parametrize(
+    ("scenario_key", "majority", "minority"),
+    [
+        ("vault_68_test", GenderEnum.MALE, GenderEnum.FEMALE),
+        ("vault_69_test", GenderEnum.FEMALE, GenderEnum.MALE),
+    ],
+)
+async def test_ratio_vault_rolls_gender_for_fresh_rare_and_recycled_radio_recruits(
+    async_session: AsyncSession,
+    vault: Vault,
+    radio_dweller: Dweller,
+    deleted_dweller: Dweller,
+    scenario_key: str,
+    majority: GenderEnum,
+    minority: GenderEnum,
+):
+    vault.scenario_key = scenario_key
+    deleted_dweller.gender = minority
+    await async_session.commit()
+    with (
+        patch("random.random", return_value=0.0),
+        patch("random.randrange", return_value=7) as gender_roll,
+        patch.object(game_config.radio, "rare_chance", new=1.0),
+    ):
+        recruit = await RadioService.check_for_recruitment(async_session, vault.id)
+    gender_roll.assert_called_once_with(9)
+    assert recruit is not None
+    assert recruit.gender == majority
+    assert recruit.rarity == RarityEnum.RARE
+    assert recruit.id != deleted_dweller.id
+
+    with patch("random.random", return_value=0.0), patch("random.randrange", return_value=8):
+        recruit, recycled = await RadioService.manual_recruit(async_session, vault.id, caps_cost=0)
+    assert recycled
+    assert recruit.id == deleted_dweller.id
+    assert recruit.gender == minority
+
+
+async def test_failed_ratio_recruit_preserves_caps_and_emits_no_success(
+    async_session: AsyncSession,
+    db_connection: AsyncConnection,
+    vault: Vault,
+    radio_dweller: Dweller,
+):
+    vault.scenario_key = "vault_69_test"
+    vault.bottle_caps = 1000
+    await async_session.commit()
+    vault_id = vault.id
+    initial_population = await crud.dweller.count_living_in_vault(async_session, vault_id)
+
+    def fail_recruit_insert(_connection, _cursor, statement, _parameters, _context, _executemany):
+        if statement.startswith("INSERT INTO dweller "):
+            raise RuntimeError("recruit insert failed")
+
+    event.listen(db_connection.sync_connection, "before_cursor_execute", fail_recruit_insert)
+    try:
+        with (
+            patch.object(event_bus, "emit", wraps=event_bus.emit) as delivered,
+            patch.object(game_config.radio, "recycle_enabled", new=False),
+            pytest.raises(RuntimeError, match="recruit insert failed"),
+        ):
+            await RadioService.manual_recruit(async_session, vault_id, caps_cost=100)
+    finally:
+        event.remove(db_connection.sync_connection, "before_cursor_execute", fail_recruit_insert)
+    await async_session.rollback()
+
+    reloaded = await crud.vault.get(async_session, vault_id)
+    assert reloaded.bottle_caps == 1000
+    assert await crud.dweller.count_living_in_vault(async_session, vault_id) == initial_population
+    delivered.assert_not_awaited()
 
 
 @pytest.mark.asyncio

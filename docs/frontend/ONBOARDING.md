@@ -4,6 +4,26 @@
 > the full first-session journey remains unverified. Current real-service findings are
 > recorded below. Deferred work is tracked in [`../ROADMAP.md`](../ROADMAP.md).
 
+## Choosing a new vault
+
+Standard is the recommended first run. The review points players to their reserves
+and the starter Objectives. Survival keeps the same opening and makes deaths permanent.
+
+The creation screen offers three optional experiments. Vault 67 (Short Rations) is
+an original scenario with half the usual starting food and water and 25% lower
+food and water production, including room rushes. Vaults 68 and 69
+adapt the population imbalance in the [Fallout Bible](https://www.duckandcover.cx/official/bible/bible.html)
+to nine residents (8:1 and 1:8 respectively). Each has a fixed nine-person starter
+reward cohort with the same ratio, the same SPECIAL budgets per reward, and
+scenario-specific residents shown in Objectives before claiming. Manual and
+passive radio recruits use weighted odds, including recycled residents. These
+starts keep the starter journey through housing, equipment, and the first mission.
+
+Boosted Start is available in Standard mode when no scenario is selected. The
+creation screen hides the switch while a scenario is selected. Vault 1’s optional
+Wasteland Test uses the expanded start preset in Standard mode. Ongoing experiment
+rules apply to vaults created with a recorded opt-in.
+
 ## Implemented behaviour
 
 A first-session guide that shows one useful action at a time, then hands off to the Briefing.
@@ -214,6 +234,26 @@ the onboarding module.
   replaying and reloading never replay a reward.
 
 ## Validation record
+
+### Experimental starts and new-vault handoff
+
+An ordinary verified account created a fresh Standard vault in Chromium against
+isolated PostgreSQL and Redis. The browser walkthrough covered login, creation,
+the reserves and staffing lessons, the 50-cap staffing claim, and construction
+of additional Living Quarters. The authenticated API continued through equipment,
+a first roam, the nine earned recruits, and the Overseer’s Office. The vault had
+18 residents and 600 caps after claiming the Office reward, then dispatched
+three eligible, equipped residents on Getting Started. Manual game ticks advanced
+production, so this run verifies the route and budget without measuring natural
+waiting times or mission completion.
+
+At 390px with touch emulation, a second ordinary account skipped account setup and
+the vault number field received focus. Browser creation confirmed nine residents
+and starter objectives in all three experiments. Vault 67 began with 37 food and
+37 water, compared with 75 each in Standard. Vault 68 opened at 8:1 and Vault 69
+at 1:8. Automated service tests also take each experiment through the Office and
+first mission dispatch.
+
 
 ### Real-service objective context repair — 2026-11-06
 

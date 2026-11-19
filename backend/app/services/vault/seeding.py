@@ -260,7 +260,13 @@ def roll_initial_rarity(is_boosted: bool) -> RarityEnum:
 
 
 async def seed_working_dweller(
-    db_session: AsyncSession, vault_id: UUID, room: Room, boosted_stat: SPECIALEnum, is_boosted: bool
+    db_session: AsyncSession,
+    vault_id: UUID,
+    room: Room,
+    boosted_stat: SPECIALEnum,
+    is_boosted: bool,
+    *,
+    gender: GenderEnum | None = None,
 ) -> Dweller:
     """Create a dweller and assign it to a room as a worker."""
     from app.services.dweller_service import dweller_service
@@ -268,8 +274,8 @@ async def seed_working_dweller(
     dweller_obj = await dweller_service.create_random_dweller(
         db_session,
         vault_id,
-        DwellerCreateCommonOverride(special_boost=boosted_stat),
-        rarity=roll_initial_rarity(is_boosted),
+        DwellerCreateCommonOverride(special_boost=boosted_stat, gender=gender),
+        rarity=RarityEnum.COMMON if gender else roll_initial_rarity(is_boosted),
         enforce_capacity=False,  # vault bootstrap: fill a fresh vault
     )
     await dweller_crud.update(
@@ -352,6 +358,8 @@ async def create_initial_dwellers(
     created_capacity_rooms: list[Room],
     is_boosted: bool,
     created_crafting_rooms: list[Room] | None = None,
+    *,
+    majority_gender: GenderEnum | None = None,
 ) -> None:
     """Create and assign initial dwellers to production, training, and crafting rooms."""
     from app.services.dweller_service import dweller_service
@@ -370,7 +378,9 @@ async def create_initial_dwellers(
                 continue
             count = production_crew * room.segment_count - (1 if room.id in apprentice_ids else 0)
             for _ in range(count):
-                worker = await seed_working_dweller(db_session, vault_id, room, room.ability, is_boosted)
+                worker = await seed_working_dweller(
+                    db_session, vault_id, room, room.ability, is_boosted, gender=majority_gender
+                )
                 if is_boosted:
                     await equip_boosted_worker_outfit(db_session, worker, room.ability)
                 workers.append(worker)
@@ -437,7 +447,7 @@ async def create_initial_dwellers(
                     db_session,
                     vault_id,
                     dweller_data,
-                    rarity=roll_initial_rarity(is_boosted),
+                    rarity=RarityEnum.COMMON if majority_gender else roll_initial_rarity(is_boosted),
                     enforce_capacity=False,  # vault bootstrap: fill a fresh vault
                 )
                 if is_boosted and dweller.charisma != game_config.dweller.boosted_stat_value:
@@ -453,7 +463,9 @@ async def create_initial_dwellers(
                 living.append(dweller)
                 logger.info("Dweller %s assigned to living quarters for socializing", dweller.id)
 
-        await seed_seeded_families(db_session, vault_id, apprentice_rooms, workers, living, is_boosted)
+        await seed_seeded_families(
+            db_session, vault_id, apprentice_rooms, workers, living, is_boosted, child_gender=majority_gender
+        )
 
     except Exception:
         logger.exception("Failed to create dwellers")
@@ -505,6 +517,8 @@ async def seed_family_child(
     father: Dweller,
     room: Room | None,
     is_boosted: bool,
+    *,
+    child_gender: GenderEnum | None = None,
 ) -> Dweller:
     """Create a child linked to both parents; teens apprentice at the working parent's production room."""
     from app.services.bio_service import bio_service, make_entry
@@ -514,8 +528,8 @@ async def seed_family_child(
     child = await dweller_service.create_random_dweller(
         db_session,
         vault_id,
-        DwellerCreateCommonOverride(special_boost=room.ability if room else None),
-        rarity=roll_initial_rarity(is_boosted),
+        DwellerCreateCommonOverride(special_boost=room.ability if room else None, gender=child_gender),
+        rarity=RarityEnum.COMMON if child_gender else roll_initial_rarity(is_boosted),
         enforce_capacity=False,  # vault bootstrap: fill a fresh vault
     )
     surname = father.last_name or child.last_name
@@ -581,6 +595,8 @@ async def seed_seeded_families(
     workers: list[Dweller],
     living: list[Dweller],
     is_boosted: bool,
+    *,
+    child_gender: GenderEnum | None = None,
 ) -> None:
     """Pair seeded adults into households; teens apprentice only in rooms with a reserved slot."""
     pool = [d for d in (*workers, *living) if d is not None]
@@ -601,7 +617,7 @@ async def seed_seeded_families(
             room = next((r for r in rooms if r.id not in used_rooms), None)
         if room is not None:
             used_rooms.add(room.id)
-        await seed_family_child(db_session, vault_id, mother, father, room, is_boosted)
+        await seed_family_child(db_session, vault_id, mother, father, room, is_boosted, child_gender=child_gender)
 
 
 async def start_dweller_training(db_session: AsyncSession, dweller: Dweller, room: Room) -> None:

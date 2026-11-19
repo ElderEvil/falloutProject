@@ -23,7 +23,6 @@ from app.schemas.vault import (
 from app.services.dweller_assignment_service import dweller_assignment_service
 from app.services.vault.scenario_service import vault_scenario_service
 from app.services.vault_service import vault_service
-from app.utils.exceptions import ValidationException
 
 router = APIRouter(prefix="/vaults", tags=["Vault"])
 
@@ -89,7 +88,7 @@ async def list_scenario_options(
             default_on=scenario.default_on,
             expedition=scenario.expedition,
         )
-        for scenario in vault_scenario_service.list()
+        for scenario in vault_scenario_service.list_options()
     ]
 
 
@@ -151,25 +150,12 @@ async def start_vault(
     Returns:
         The newly initiated vault.
     """
-    scenario = vault_scenario_service.get(vault_data.scenario) if vault_data.scenario else None
-    if vault_data.scenario and scenario is None:
-        raise ValidationException(f"Unknown vault scenario: {vault_data.scenario}")
-    if scenario is not None and scenario.number != vault_data.number:
-        raise ValidationException(f"Vault {scenario.number} is required for this scenario")
-    if scenario is not None and scenario.requires_boosted and not vault_data.boosted:
-        raise ValidationException(f"{scenario.title} requires Boosted Start")
-
-    is_boosted = vault_data.boosted
-    vault = await vault_service.initiate_vault(
+    return await vault_service.initiate_vault(
         db_session=db_session,
         obj_in=vault_data,
         user_id=user.id,
-        is_boosted=is_boosted,
-        scenario_start=scenario is not None,
+        is_boosted=vault_data.boosted,
     )
-    if scenario is not None:
-        await vault_scenario_service.seed(db_session, vault, scenario)
-    return vault
 
 
 @router.post("/update_resources", status_code=200)

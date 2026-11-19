@@ -7,9 +7,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app import crud
 from app.core.enums import GenderEnum
 from app.models.vault import Vault
-from app.schemas.dweller import DwellerCreateCommonOverride
-from app.services.dweller_service import dweller_service
-from app.services.exploration.expedition_scenario_service import expedition_scenario_service
+from app.utils.exceptions import ValidationException
 
 
 @dataclass(frozen=True)
@@ -35,9 +33,13 @@ class VaultScenario:
     single_scene_only: bool = True
     choice_only: bool = True
     site_id: str | None = None
-    male_dwellers: int | None = None
-    female_dwellers: int | None = None
+    majority_gender: GenderEnum | None = None
+    ration_divisor: int = 1
+    food_water_multiplier: float = 1.0
     variety: bool = False
+
+
+SHORT_RATIONS_SCENARIO = "vault_67_short_rations"
 
 
 VAULT_SCENARIOS = (
@@ -46,52 +48,70 @@ VAULT_SCENARIOS = (
         key="vault_1_test",
         title="Vault 1 — Wasteland Test",
         description=(
-            "Boosted by default. Seeds one named dweller per expedition site, each already "
+            "One named scout per expedition site, each already "
             "scouting with its site reported in the bell, at mixed levels with varied weapons and pets. "
-            "Starter objectives skipped."
+            "Standard starts with expanded facilities. Starter objectives skipped."
         ),
         default_boosted=True,
-        default_on=True,
         expedition=True,
         multi=True,
         dweller_level=5,
         variety=True,
     ),
     VaultScenario(
+        number=67,
+        key=SHORT_RATIONS_SCENARIO,
+        title="Vault 67 — Short Rations",
+        description=(
+            "An original experiment. Open with half the usual food and water. "
+            "The vault produces 25% less food and water, including room rushes."
+        ),
+        ration_divisor=2,
+        food_water_multiplier=0.75,
+    ),
+    VaultScenario(
         number=68,
         key="vault_68_test",
         title="Vault 68 — The Ratio",
         description=(
-            "99 men and 1 woman: a Vault-Tec gender-ratio experiment. Requires Boosted Start; "
-            "no expedition scout. Starter objectives skipped."
+            "Inspired by the Fallout Bible. Start with eight male residents and one female resident. "
+            "The nine starter recruits follow the same ratio. Radio recruitment uses 8-to-1 odds."
         ),
-        requires_boosted=True,
-        male_dwellers=99,
-        female_dwellers=1,
+        majority_gender=GenderEnum.MALE,
     ),
     VaultScenario(
         number=69,
         key="vault_69_test",
-        title="Vault 69 — 99 Women, 1 Man",
+        title="Vault 69 — The Inverse Ratio",
         description=(
-            "99 women and 1 man: a Vault-Tec gender-ratio experiment. Requires Boosted Start; "
-            "no expedition scout. Starter objectives skipped."
+            "Inspired by the Fallout Bible. Start with eight female residents and one male resident. "
+            "The nine starter recruits follow the same ratio. Radio recruitment uses 8-to-1 odds."
         ),
-        requires_boosted=True,
-        male_dwellers=1,
-        female_dwellers=99,
+        majority_gender=GenderEnum.FEMALE,
     ),
 )
 
 
 class VaultScenarioService:
-    def list(self) -> list[VaultScenario]:
+    def list_options(self) -> list[VaultScenario]:
         return list(VAULT_SCENARIOS)
 
-    def get(self, key: str) -> VaultScenario | None:
-        return next((scenario for scenario in VAULT_SCENARIOS if scenario.key == key), None)
+    def get(self, key: str | None) -> VaultScenario | None:
+        return next((scenario for scenario in VAULT_SCENARIOS if scenario.key == key), None) if key else None
+
+    def resolve(self, key: str | None, number: int) -> VaultScenario | None:
+        if key is None:
+            return None
+        scenario = self.get(key)
+        if scenario is None:
+            raise ValidationException(f"Unknown vault scenario: {key}")
+        if scenario.number != number:
+            raise ValidationException(f"Vault {scenario.number} is required for this scenario")
+        return scenario
 
     async def seed(self, db_session: AsyncSession, vault: Vault, scenario: VaultScenario) -> None:
+        from app.services.exploration.expedition_scenario_service import expedition_scenario_service
+
         if scenario.expedition:
             if scenario.multi:
                 await expedition_scenario_service.setup_multi(
@@ -118,10 +138,6 @@ class VaultScenarioService:
                     scenario_site_id=scenario.site_id,
                     choice_only=scenario.choice_only,
                 )
-        if scenario.male_dwellers is not None and scenario.female_dwellers is not None:
-            await self._seed_population(db_session, vault, scenario.male_dwellers, scenario.female_dwellers)
-            await db_session.commit()
-            await db_session.refresh(vault)
 
     @staticmethod
     async def _raise_population_capacity(db_session: AsyncSession, vault: Vault) -> None:
@@ -131,40 +147,6 @@ class VaultScenarioService:
         if (vault.population_max or 0) >= len(dwellers):
             return
         vault.population_max = len(dwellers)
-        db_session.add(vault)
-
-    @staticmethod
-    async def _seed_population(
-        db_session: AsyncSession,
-        vault: Vault,
-        male_dwellers: int,
-        female_dwellers: int,
-    ) -> None:
-        """Fill a scenario vault to its authored gender split and expand its population cap."""
-        target_total = male_dwellers + female_dwellers
-        await db_session.refresh(vault)
-        current = list(await crud.dweller.get_multi_by_vault(db_session, vault.id, limit=target_total + 1))
-        majority = GenderEnum.MALE if male_dwellers >= female_dwellers else GenderEnum.FEMALE
-        for dweller in current:
-            if dweller.gender == majority:
-                continue
-            await crud.dweller.update(db_session, dweller.id, {"gender": majority})
-            dweller.gender = majority
-        male_count = sum(dweller.gender == GenderEnum.MALE for dweller in current)
-        female_count = len(current) - male_count
-        for gender, missing in (
-            (GenderEnum.MALE, male_dwellers - male_count),
-            (GenderEnum.FEMALE, female_dwellers - female_count),
-        ):
-            for _ in range(max(0, missing)):
-                await dweller_service.create_random_dweller(
-                    db_session,
-                    vault.id,
-                    DwellerCreateCommonOverride(gender=gender),
-                    enforce_capacity=False,  # bootstrap: the scenario grows population_max to fit below
-                )
-        await db_session.refresh(vault)
-        vault.population_max = max(vault.population_max or 0, target_total)
         db_session.add(vault)
 
 

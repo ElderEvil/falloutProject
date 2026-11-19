@@ -5,6 +5,7 @@ from pathlib import Path
 
 from sqlmodel import SQLModel
 
+from app.core.enums import GenderEnum
 from app.schemas.dweller import DwellerTemplate
 from app.schemas.junk import JunkCreate
 from app.schemas.objective import ObjectiveCreate
@@ -137,6 +138,8 @@ class StaticGameData:
         rarity: str,
         rng: random.Random | None = None,
         exclude_names: set[str] | None = None,
+        *,
+        gender: GenderEnum | None = None,
     ) -> DwellerTemplate | None:
         """Pick a random template for *rarity*, excluding *exclude_names*.
 
@@ -145,6 +148,8 @@ class StaticGameData:
         Returns ``None`` when no eligible template remains.
         """
         pool = self.get_dwellers_by_rarity(rarity)
+        if gender is not None:
+            pool = [template for template in pool if template.gender == gender]
         if exclude_names:
             excluded = {n.casefold() for n in exclude_names}
             pool = [d for d in pool if f"{d.first_name} {d.last_name or ''}".strip().casefold() not in excluded]

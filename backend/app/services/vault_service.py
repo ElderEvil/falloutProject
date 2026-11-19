@@ -20,7 +20,9 @@ from app.models.vault import Vault
 from app.schemas.vault import MedicalTransferResponse, VaultNumber, VaultReadWithNumbers, VaultUpdate
 from app.services.broadcast_service import delete_audio_keys
 from app.services.resource_manager_service import compute_medical_capacity
+from app.services.rewards.starter_residents import starter_reward_overrides
 from app.services.vault import economy, reads, seeding
+from app.services.vault.scenario_service import vault_scenario_service
 
 
 class VaultService:
@@ -35,7 +37,6 @@ class VaultService:
         obj_in: VaultNumber,
         user_id: UUID,
         is_boosted: bool = False,
-        scenario_start: bool = False,
     ) -> Vault:
         """Create a new vault for a user and initialize it with essential rooms and dwellers.
 
@@ -55,18 +56,27 @@ class VaultService:
           plus a 3-dweller legendary roster; the fused size-6 generator's
           enlarged crew reuses the same slots, so the headcount is unchanged).
 
-        Scenario starts add living capacity and skip starter objectives while
-        keeping the requested normal population and resource start.
+        Expedition test starts add living capacity and skip starter objectives.
+        Player experiments change initial supplies or demographics on the standard layout.
         """
+        scenario = vault_scenario_service.resolve(obj_in.scenario, obj_in.number)
+        expedition_start = scenario is not None and scenario.expedition
+        is_boosted = is_boosted and (scenario is None or expedition_start)
+        ration_divisor = scenario.ration_divisor if scenario else 1
+        majority_gender = scenario.majority_gender if scenario else None
+        reward_overrides = starter_reward_overrides(majority_gender)
+
         # Create vault and storage
-        vault_db_obj = await vault_crud.create_with_user_id(db_session=db_session, obj_in=obj_in, user_id=user_id)
+        vault_db_obj = await vault_crud.create_with_user_id(
+            db_session=db_session, obj_in=obj_in, user_id=user_id, scenario_key=scenario.key if scenario else None
+        )
         await vault_crud.create_storage(db_session=db_session, vault_id=vault_db_obj.id)
         await db_session.refresh(vault_db_obj)
 
         # Prepare room data
         game_data_store = await get_static_game_data()
         rooms = game_data_store.rooms
-        prepared = seeding.prepare_initial_rooms(rooms, vault_db_obj.id, is_boosted, scenario_start=scenario_start)
+        prepared = seeding.prepare_initial_rooms(rooms, vault_db_obj.id, is_boosted, scenario_start=expedition_start)
 
         # Create rooms and get created production/training/misc rooms
         vault_db_obj, created = await seeding.create_initial_rooms(db_session, vault_db_obj, prepared)
@@ -78,8 +88,8 @@ class VaultService:
         # Set initial resources to the configured share of max capacity
         vault_start = game_config.vault_start
         initial_power = int(vault_db_obj.power_max * vault_start.initial_resource_pct)
-        initial_food = int(vault_db_obj.food_max * vault_start.initial_resource_pct)
-        initial_water = int(vault_db_obj.water_max * vault_start.initial_resource_pct)
+        initial_food = int(vault_db_obj.food_max * vault_start.initial_resource_pct) // ration_divisor
+        initial_water = int(vault_db_obj.water_max * vault_start.initial_resource_pct) // ration_divisor
 
         vault_db_obj = await vault_crud.update(
             db_session=db_session,
@@ -110,6 +120,7 @@ class VaultService:
             created_capacity_rooms,
             is_boosted,
             created_crafting_rooms=created.crafting,
+            majority_gender=majority_gender,
         )
 
         if is_boosted:
@@ -125,7 +136,10 @@ class VaultService:
         from app.crud.objective import objective_crud
 
         assigned = await objective_crud.assign_initial(
-            db_session, vault_db_obj.id, is_boosted=is_boosted or scenario_start
+            db_session,
+            vault_db_obj.id,
+            is_boosted=is_boosted or expedition_start,
+            starter_reward_overrides=reward_overrides,
         )
         if assigned == 0:
             self.logger.warning("No objectives found for vault %s", vault_db_obj.id)
@@ -139,6 +153,9 @@ class VaultService:
 
         # Create initial weapons, outfits, and (boosted) crafting materials for testing
         await seeding.create_initial_items(db_session, vault_db_obj.id, is_boosted)
+
+        if scenario is not None and scenario.expedition:
+            await vault_scenario_service.seed(db_session, vault_db_obj, scenario)
 
         return vault_db_obj
 

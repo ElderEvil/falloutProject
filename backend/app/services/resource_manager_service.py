@@ -24,6 +24,7 @@ from app.schemas.vault import (
     ResourceTickEvents,
     VaultUpdate,
 )
+from app.services.vault.scenario_service import vault_scenario_service
 from app.utils.resource_warnings import get_resource_warnings
 
 logger = logging.getLogger(__name__)
@@ -145,11 +146,14 @@ class ResourceManager:
         stocks = {key: float(getattr(vault, key)) + remainders.get(key, 0.0) for key in ("power", "food", "water")}
         consumption = dict.fromkeys(stocks, 0.0)
         production = dict.fromkeys((*stocks, "stimpack", "radaway"), 0.0)
+        scenario = vault_scenario_service.get(vault.scenario_key)
+        food_water_multiplier = scenario.food_water_multiplier if scenario else 1.0
         elapsed = 0
         while elapsed < seconds_passed:
             step = min(60, seconds_passed - elapsed)
             used = self._calculate_consumption(rooms, dweller_count, step)
             made = self._calculate_production(rooms_with_dwellers, step, stocks["power"], rival_pairs=rival_pairs)
+            self.apply_food_water_multiplier(made, food_water_multiplier)
             offline = (
                 state is not None
                 and (state.last_tick_time + timedelta(seconds=elapsed) - state.last_activity_time).total_seconds() > 600
@@ -207,6 +211,11 @@ class ResourceManager:
             "food": round(food_consumption, 2),
             "water": round(water_consumption, 2),
         }
+
+    @staticmethod
+    def apply_food_water_multiplier(production: dict[str, float], multiplier: float) -> None:
+        production["food"] *= multiplier
+        production["water"] *= multiplier
 
     def calculate_room_production(
         self,

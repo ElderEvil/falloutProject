@@ -741,17 +741,20 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         The payload carries ``_bio_places`` map metadata that the caller registers
         via the map service; ``seed`` makes the output deterministic for dev/QA seeding.
         """
+        gender = obj_in.gender if obj_in else None
         has_custom_name = bool(obj_in and (obj_in.first_name is not None or obj_in.last_name is not None))
         if rarity in (RarityEnum.RARE, RarityEnum.LEGENDARY) and not has_custom_name:
             rng = random.Random(seed) if seed is not None else None
             active_names = await self.lock_vault_for_template(db_session, vault_id)
-            template = game_data_store.pick_template(rarity.value, rng=rng, exclude_names=active_names or None)
+            template = game_data_store.pick_template(
+                rarity.value, rng=rng, exclude_names=active_names or None, gender=gender
+            )
             if template is not None:
                 return await self.prepare_template_dweller(db_session, vault_id, template.template_id, seed=seed)
             rarity = RarityEnum.COMMON
-        dweller_data = create_random_common_dweller(seed=seed, rarity=rarity)
+        dweller_data = create_random_common_dweller(gender=gender, seed=seed, rarity=rarity)
         if obj_in:
-            new_dweller_data = obj_in.model_dump(exclude_unset=True)
+            new_dweller_data = obj_in.model_dump(exclude_unset=True, exclude={"gender"})
             if stat := new_dweller_data.get("special_boost"):
                 dweller_data[stat.value.lower()] = game_config.dweller.boosted_stat_value
                 new_dweller_data.pop("special_boost")

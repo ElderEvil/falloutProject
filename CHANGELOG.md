@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 3.3.6 (2026-11-19)
+
+### Bug Fixes
+
+* **death:** hold the vault row lock across the revival deduction ([#1433](https://github.com/ElderEvil/falloutProject/issues/1433)) 7bcd025, closes #1437
+
 ## 3.3.5 (2026-11-19)
 
 ### Bug Fixes

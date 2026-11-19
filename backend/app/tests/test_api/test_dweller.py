@@ -919,3 +919,22 @@ async def test_unvaulted_dweller_actions_return_not_found(
     await async_session.commit()
     response = await async_client.post(f"/dwellers/{dweller.id}/{action}", headers=superuser_token_headers)
     assert response.status_code == 404
+
+
+async def test_read_dweller_does_not_refetch_what_the_access_check_loaded(
+    async_client: AsyncClient, dweller, superuser_token_headers: dict[str, str], monkeypatch
+):
+    """The access check loads the dweller; the handler must reuse it, not re-read it."""
+    calls = {"n": 0}
+    original_get = crud.dweller.get
+
+    async def counted_get(*args, **kwargs):
+        calls["n"] += 1
+        return await original_get(*args, **kwargs)
+
+    monkeypatch.setattr(crud.dweller, "get", counted_get)
+
+    response = await async_client.get(f"/dwellers/{dweller.id}", headers=superuser_token_headers)
+
+    assert response.status_code == 200
+    assert calls["n"] == 1

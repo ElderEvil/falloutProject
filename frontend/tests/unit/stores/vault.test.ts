@@ -8,6 +8,8 @@ import { useToast } from '@/core/composables/useToast'
 import axios from '@/core/plugins/axios'
 import { useRouter } from 'vue-router'
 
+import { setAuthTokenProvider } from '@/core/utils/authToken'
+
 const sseMock = vi.hoisted(() => ({
   event: null as unknown,
   start: vi.fn().mockResolvedValue(undefined),
@@ -45,6 +47,7 @@ describe('Vault Store', () => {
 
   beforeEach(() => {
     setActivePinia(createPinia())
+    setAuthTokenProvider(() => 'test-token')
     localStorage.clear()
     vi.clearAllMocks()
     sseMock.event = ref(null) as Ref<unknown>
@@ -155,19 +158,17 @@ describe('Vault Store', () => {
 
       vi.mocked(axios.get).mockResolvedValueOnce(mockResponse)
 
-      await store.fetchVaults('test-token')
+      await store.fetchVaults()
 
       expect(store.vaults).toEqual(mockResponse.data)
-      expect(axios.get).toHaveBeenCalledWith('/api/v1/vaults/my', {
-        headers: { Authorization: 'Bearer test-token' },
-      })
+      expect(axios.get).toHaveBeenCalledWith('/api/v1/vaults/my')
     })
 
     it('should handle fetch error gracefully', async () => {
       const store = useVaultStore()
       vi.mocked(axios.get).mockRejectedValueOnce(new Error('Fetch failed'))
 
-      await store.fetchVaults('test-token')
+      await store.fetchVaults()
 
       expect(store.vaults).toEqual([])
     })
@@ -181,7 +182,7 @@ describe('Vault Store', () => {
         data: [mockVault, { ...mockVault, id: 'vault-2' }, { ...mockVault, id: 'vault-3' }],
       })
 
-      expect(await store.createVault(104, false, 'test-token')).toBe(null)
+      expect(await store.createVault(104, false)).toBe(null)
       expect(axios.post).not.toHaveBeenCalled()
     })
 
@@ -189,7 +190,7 @@ describe('Vault Store', () => {
       const store = useVaultStore()
       vi.mocked(axios.get).mockRejectedValueOnce(new Error('Fetch failed'))
 
-      expect(await store.createVault(104, false, 'test-token')).toBe(null)
+      expect(await store.createVault(104, false)).toBe(null)
       expect(axios.post).not.toHaveBeenCalled()
     })
 
@@ -200,13 +201,13 @@ describe('Vault Store', () => {
         .mockResolvedValueOnce({ data: [] })
         .mockResolvedValueOnce({ data: [mockVault] })
 
-      await store.createVault(101, false, 'test-token')
+      await store.createVault(101, false)
 
-      expect(axios.post).toHaveBeenCalledWith(
-        '/api/v1/vaults/initiate',
-        { number: 101, boosted: false, vault_mode: 'standard' },
-        { headers: { Authorization: 'Bearer test-token' } }
-      )
+      expect(axios.post).toHaveBeenCalledWith('/api/v1/vaults/initiate', {
+        number: 101,
+        boosted: false,
+        vault_mode: 'standard',
+      })
       expect(store.vaults).toEqual([mockVault])
     })
 
@@ -215,12 +216,12 @@ describe('Vault Store', () => {
       vi.mocked(axios.post).mockResolvedValueOnce({ data: { id: 'vault-1' } })
       vi.mocked(axios.get).mockResolvedValueOnce({ data: [] }).mockResolvedValueOnce({ data: [] })
 
-      expect(await store.createVault(101, false, 'test-token', 'survival')).toBe('vault-1')
-      expect(axios.post).toHaveBeenCalledWith(
-        '/api/v1/vaults/initiate',
-        { number: 101, boosted: false, vault_mode: 'survival' },
-        { headers: { Authorization: 'Bearer test-token' } }
-      )
+      expect(await store.createVault(101, false, 'survival')).toBe('vault-1')
+      expect(axios.post).toHaveBeenCalledWith('/api/v1/vaults/initiate', {
+        number: 101,
+        boosted: false,
+        vault_mode: 'survival',
+      })
     })
 
     it('posts the selected scenario key', async () => {
@@ -228,19 +229,13 @@ describe('Vault Store', () => {
       vi.mocked(axios.post).mockResolvedValueOnce({ data: { id: 'vault-1' } })
       vi.mocked(axios.get).mockResolvedValueOnce({ data: [] }).mockResolvedValueOnce({ data: [] })
 
-      expect(await store.createVault(1, false, 'test-token', 'standard', 'vault_1_test')).toBe(
-        'vault-1'
-      )
-      expect(axios.post).toHaveBeenCalledWith(
-        '/api/v1/vaults/initiate',
-        {
-          number: 1,
-          boosted: false,
-          vault_mode: 'standard',
-          scenario: 'vault_1_test',
-        },
-        { headers: { Authorization: 'Bearer test-token' } }
-      )
+      expect(await store.createVault(1, false, 'standard', 'vault_1_test')).toBe('vault-1')
+      expect(axios.post).toHaveBeenCalledWith('/api/v1/vaults/initiate', {
+        number: 1,
+        boosted: false,
+        vault_mode: 'standard',
+        scenario: 'vault_1_test',
+      })
     })
 
     it('fetches opt-in scenario options', async () => {
@@ -257,11 +252,9 @@ describe('Vault Store', () => {
       }
       vi.mocked(axios.get).mockResolvedValueOnce({ data: [scenario] })
 
-      expect(await store.fetchScenarioOptions('test-token')).toBe(true)
+      expect(await store.fetchScenarioOptions()).toBe(true)
       expect(store.scenarioOptions).toEqual([scenario])
-      expect(axios.get).toHaveBeenCalledWith('/api/v1/vaults/scenarios', {
-        headers: { Authorization: 'Bearer test-token' },
-      })
+      expect(axios.get).toHaveBeenCalledWith('/api/v1/vaults/scenarios')
     })
 
     it('reports success when the vault is created even if the refresh fails', async () => {
@@ -271,7 +264,7 @@ describe('Vault Store', () => {
         .mockResolvedValueOnce({ data: [] })
         .mockRejectedValueOnce(new Error('Fetch failed'))
 
-      expect(await store.createVault(101, false, 'test-token')).toBe('vault-1')
+      expect(await store.createVault(101, false)).toBe('vault-1')
       expect(axios.post).toHaveBeenCalled()
     })
 
@@ -280,7 +273,7 @@ describe('Vault Store', () => {
       vi.mocked(axios.get).mockResolvedValueOnce({ data: [] })
       vi.mocked(axios.post).mockRejectedValueOnce(new Error('Create failed'))
 
-      await store.createVault(101, false, 'test-token')
+      await store.createVault(101, false)
 
       expect(store.vaults).toEqual([])
     })
@@ -296,7 +289,7 @@ describe('Vault Store', () => {
 
       vi.mocked(axios.delete).mockResolvedValueOnce({})
 
-      await store.deleteVault('vault-1', 'test-token')
+      await store.deleteVault('vault-1')
 
       expect(store.vaults).toHaveLength(1)
       expect(store.vaults[0].id).toBe('vault-2')
@@ -316,7 +309,7 @@ describe('Vault Store', () => {
 
       vi.mocked(axios.delete).mockResolvedValueOnce({})
 
-      await store.deleteVault('vault-1', 'test-token')
+      await store.deleteVault('vault-1')
 
       expect(store.activeVaultId).toBe('vault-2')
       expect(store.selectedVaultId).toBe('vault-2')
@@ -327,7 +320,7 @@ describe('Vault Store', () => {
       store.vaults = [mockVault]
       vi.mocked(axios.delete).mockRejectedValueOnce(new Error('Delete failed'))
 
-      await store.deleteVault('vault-1', 'test-token')
+      await store.deleteVault('vault-1')
 
       expect(store.vaults).toHaveLength(1)
     })
@@ -338,7 +331,7 @@ describe('Vault Store', () => {
       const store = useVaultStore()
       vi.mocked(axios.get).mockResolvedValueOnce({ data: mockVault })
 
-      await store.ensureVaultLoaded('vault-1', 'test-token')
+      await store.ensureVaultLoaded('vault-1')
 
       expect(store.loadedVaults['vault-1']).toEqual(mockVault)
       expect(store.activeVaultId).toBe('vault-1')
@@ -355,7 +348,7 @@ describe('Vault Store', () => {
         return { data: mockVault }
       })
 
-      await store.ensureVaultLoaded('vault-1', 'test-token')
+      await store.ensureVaultLoaded('vault-1')
 
       expect(loadingDuringFetch).toBe(true)
       expect(store.isLoading).toBe(false)
@@ -366,7 +359,7 @@ describe('Vault Store', () => {
       const error = new Error('Load failed')
       vi.mocked(axios.get).mockRejectedValueOnce(error)
 
-      await expect(store.ensureVaultLoaded('vault-1', 'test-token')).rejects.toThrow('Load failed')
+      await expect(store.ensureVaultLoaded('vault-1')).rejects.toThrow('Load failed')
       expect(store.isLoading).toBe(false)
     })
 
@@ -374,8 +367,8 @@ describe('Vault Store', () => {
       const store = useVaultStore()
       vi.mocked(axios.get).mockResolvedValueOnce({ data: mockVault })
 
-      const first = store.ensureVaultLoaded('vault-1', 'test-token')
-      const second = store.ensureVaultLoaded('vault-1', 'test-token')
+      const first = store.ensureVaultLoaded('vault-1')
+      const second = store.ensureVaultLoaded('vault-1')
       await Promise.all([first, second])
 
       expect(axios.get).toHaveBeenCalledTimes(1)
@@ -387,8 +380,8 @@ describe('Vault Store', () => {
       const store = useVaultStore()
       store.loadedVaults = { 'vault-1': mockVault }
 
-      await store.ensureVaultLoaded('vault-1', 'test-token')
-      await store.ensureVaultLoaded('vault-1', 'test-token')
+      await store.ensureVaultLoaded('vault-1')
+      await store.ensureVaultLoaded('vault-1')
 
       expect(axios.get).not.toHaveBeenCalled()
       expect(store.activeVaultId).toBe('vault-1')
@@ -407,10 +400,10 @@ describe('Vault Store', () => {
           })
       )
 
-      const loadA = store.ensureVaultLoaded('vault-1', 'test-token')
+      const loadA = store.ensureVaultLoaded('vault-1')
       const vaultB = { ...mockVault, id: 'vault-2' }
       vi.mocked(axios.get).mockResolvedValueOnce({ data: vaultB })
-      await store.ensureVaultLoaded('vault-2', 'test-token')
+      await store.ensureVaultLoaded('vault-2')
 
       expect(store.activeVaultId).toBe('vault-2')
 
@@ -430,22 +423,21 @@ describe('Vault Store', () => {
         'vault-1': mockVault,
         'vault-2': { ...mockVault, id: 'vault-2' },
       }
-      await store.ensureVaultLoaded('vault-1', 'test-token')
+      await store.ensureVaultLoaded('vault-1')
       store.gameState = { is_paused: true }
       store.stopResourcePolling()
 
-      await store.ensureVaultLoaded('vault-2', 'test-token')
+      await store.ensureVaultLoaded('vault-2')
 
       expect(store.activeVaultId).toBe('vault-2')
       expect(store.gameState).toBeNull()
       expect(sseMock.start).toHaveBeenCalledTimes(2)
     })
 
-    it('is a no-op without an id or token', async () => {
+    it('is a no-op without an id', async () => {
       const store = useVaultStore()
 
-      await store.ensureVaultLoaded('', 'test-token')
-      await store.ensureVaultLoaded('vault-1', '')
+      await store.ensureVaultLoaded('')
 
       expect(axios.get).not.toHaveBeenCalled()
       expect(store.activeVaultId).toBeNull()
@@ -460,8 +452,8 @@ describe('Vault Store', () => {
         .mockResolvedValueOnce({ data: { ...mockVault, bottle_caps: 1200 } })
         .mockResolvedValueOnce({ data: { ...mockVault, bottle_caps: 1400 } })
 
-      await store.revalidateVault('vault-1', 'test-token')
-      await store.revalidateVault('vault-1', 'test-token')
+      await store.revalidateVault('vault-1')
+      await store.revalidateVault('vault-1')
 
       expect(axios.get).toHaveBeenCalledTimes(2)
       expect(store.loadedVaults['vault-1'].bottle_caps).toBe(1400)
@@ -477,8 +469,8 @@ describe('Vault Store', () => {
           })
       )
 
-      const headerLoad = store.ensureVaultLoaded('vault-1', 'test-token')
-      const routeLoad = store.revalidateVault('vault-1', 'test-token')
+      const headerLoad = store.ensureVaultLoaded('vault-1')
+      const routeLoad = store.revalidateVault('vault-1')
       resolveLoad({ data: mockVault })
       await Promise.all([headerLoad, routeLoad])
 
@@ -498,9 +490,9 @@ describe('Vault Store', () => {
           })
       )
 
-      const oldLoad = store.ensureVaultLoaded('vault-1', 'test-token')
+      const oldLoad = store.ensureVaultLoaded('vault-1')
       vi.mocked(axios.get).mockResolvedValueOnce({ data: { ...mockVault, id: 'vault-2' } })
-      await store.ensureVaultLoaded('vault-2', 'test-token')
+      await store.ensureVaultLoaded('vault-2')
       rejectOldLoad(new Error('Old vault failed'))
 
       await expect(oldLoad).rejects.toThrow('Old vault failed')
@@ -513,7 +505,7 @@ describe('Vault Store', () => {
       const store = useVaultStore()
       vi.mocked(axios.get).mockResolvedValueOnce({ data: mockVault })
 
-      await store.refreshVault('vault-1', 'test-token')
+      await store.refreshVault('vault-1')
 
       expect(store.activeVaultId).toBe('vault-1')
       expect(store.selectedVaultId).toBe('vault-1')
@@ -526,7 +518,7 @@ describe('Vault Store', () => {
     it('only caches a late refresh after another vault becomes active', async () => {
       const store = useVaultStore()
       store.loadedVaults = { 'vault-1': mockVault }
-      await store.ensureVaultLoaded('vault-1', 'test-token')
+      await store.ensureVaultLoaded('vault-1')
       let resolveRefresh!: (value: unknown) => void
       vi.mocked(axios.get).mockImplementationOnce(
         () =>
@@ -534,10 +526,10 @@ describe('Vault Store', () => {
             resolveRefresh = resolve
           })
       )
-      const refresh = store.refreshVault('vault-1', 'test-token')
+      const refresh = store.refreshVault('vault-1')
 
       store.loadedVaults['vault-2'] = { ...mockVault, id: 'vault-2' }
-      await store.ensureVaultLoaded('vault-2', 'test-token')
+      await store.ensureVaultLoaded('vault-2')
       resolveRefresh({ data: { ...mockVault, bottle_caps: 1200 } })
       await refresh
 

@@ -64,7 +64,7 @@ async function refresh(): Promise<void> {
   try {
     const [, , items] = await Promise.all([
       explorations.fetchExplorationsByVault(vaultId),
-      dwellers.filter.fetchAllDwellers(vaultId, token, true),
+      dwellers.filter.fetchAllDwellers(vaultId, true),
       storageService.getStorageItems(vaultId),
     ])
     if (request !== generation || props.vaultId !== vaultId) return

@@ -128,7 +128,7 @@ describe('DwellerDetailContainer', () => {
       .find((button) => button.text() === 'Save')!
       .trigger('click')
     await flushPromises()
-    expect(rename).toHaveBeenCalledWith('dweller-1', 'Lucy', 'mock-token', 'MacLean')
+    expect(rename).toHaveBeenCalledWith('dweller-1', 'Lucy', 'MacLean')
     wrapper.unmount()
   })
 
@@ -136,7 +136,7 @@ describe('DwellerDetailContainer', () => {
     const wrapper = await mountAt('/vault/vault-1/dwellers/dweller-1?tab=SPECIAL&stat=SPECIAL')
     const pane = wrapper.findComponent({ name: 'DwellerDetailPane' })
     expect(pane.exists()).toBe(true)
-    expect(dwellerStore.fetchDwellerDetails).toHaveBeenCalledWith('dweller-1', 'mock-token')
+    expect(dwellerStore.fetchDwellerDetails).toHaveBeenCalledWith('dweller-1')
   })
 
   it('shows not-found when no :dwellerId param is present', async () => {

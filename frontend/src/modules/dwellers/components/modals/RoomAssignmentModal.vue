@@ -82,7 +82,7 @@ async function loadChoices() {
     if (!auth.token) throw new Error('Sign in again to load rooms.')
     const [roomResult] = await Promise.all([
       roomStore.fetchRooms(props.vaultId, true),
-      filter.fetchAllDwellers(props.vaultId, auth.token, true),
+      filter.fetchAllDwellers(props.vaultId, true),
     ])
     if (sequence !== loadSequence) return
     if (roomResult !== 'loaded') throw new Error('Rooms changed while loading. Try again.')
@@ -102,7 +102,7 @@ async function assignSelected() {
   saving.value = true
   error.value = null
   try {
-    await management.assignDwellerToRoom(props.dweller.id, choice.room.id, auth.token)
+    await management.assignDwellerToRoom(props.dweller.id, choice.room.id)
     toast.success(`${getDwellerDisplayName(props.dweller)} assigned to ${choice.room.name}`)
     emit('assigned')
     emit('update:open', false)

@@ -228,14 +228,14 @@ describe('App', () => {
     await flushPromises()
     const firstChat = wrapper.findComponent(DwellerChatModal)
     expect(firstChat.exists()).toBe(true)
-    expect(fetchDweller).toHaveBeenCalledWith('dweller-1', 'mock-token')
+    expect(fetchDweller).toHaveBeenCalledWith('dweller-1')
 
     routeQuery.chat = 'dweller-2'
     await flushPromises()
 
     const secondChat = wrapper.findComponent(DwellerChatModal)
     expect(secondChat.props('dwellerId')).toBe('dweller-2')
-    expect(fetchDweller).toHaveBeenCalledWith('dweller-2', 'mock-token')
+    expect(fetchDweller).toHaveBeenCalledWith('dweller-2')
     wrapper.unmount()
   })
 

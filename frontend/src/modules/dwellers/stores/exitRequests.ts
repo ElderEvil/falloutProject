@@ -1,12 +1,11 @@
 import { ref } from 'vue'
 import { defineStore } from 'pinia'
-import axios from '@/core/plugins/axios'
+import { getExitRequests, grantExit, refuseExit } from '../api/exitRequests'
 import type { components } from '@/core/types/api.generated'
 import { notifyErrorOnce, getErrorMessage } from '@/core/utils/errorHandler'
 import { useToast } from '@/core/composables/useToast'
 
 type ExitRequest = components['schemas']['ExitRequestRead']
-type ExitDecision = components['schemas']['ExitDecisionResponse']
 
 export const useExitRequestStore = defineStore('exitRequests', () => {
   const toast = useToast()
@@ -19,10 +18,7 @@ export const useExitRequestStore = defineStore('exitRequests', () => {
     const sequence = ++loadSequence
     isLoading.value = true
     try {
-      const response = await axios.get<ExitRequest[]>(
-        `/api/v1/dwellers/vault/${vaultId}/exit-requests`
-      )
-      const loaded = response.data ?? []
+      const loaded = await getExitRequests(vaultId)
       if (sequence === loadSequence) requests.value = loaded
     } catch (error) {
       notifyErrorOnce(error, `Failed to load exit requests: ${getErrorMessage(error)}`)
@@ -31,10 +27,9 @@ export const useExitRequestStore = defineStore('exitRequests', () => {
     }
   }
 
-  async function grant(vaultId: string, dwellerId: string): Promise<boolean> {
+  async function grant(dwellerId: string): Promise<boolean> {
     try {
-      const response = await axios.post<ExitDecision>(`/api/v1/dwellers/${dwellerId}/grant-exit`)
-      const decision = response.data
+      const decision = await grantExit(dwellerId)
       requests.value = requests.value.filter((request) => request.dweller_id !== dwellerId)
       toast.warning(`${decision.dweller_name} walked out and did not look back.`)
       return true
@@ -44,14 +39,9 @@ export const useExitRequestStore = defineStore('exitRequests', () => {
     }
   }
 
-  async function refuse(
-    vaultId: string,
-    dwellerId: string,
-    happinessPenalty: number
-  ): Promise<boolean> {
+  async function refuse(dwellerId: string, happinessPenalty: number): Promise<boolean> {
     try {
-      const response = await axios.post<ExitDecision>(`/api/v1/dwellers/${dwellerId}/refuse-exit`)
-      const decision = response.data
+      const decision = await refuseExit(dwellerId)
       requests.value = requests.value.filter((request) => request.dweller_id !== dwellerId)
       toast.warning(
         `${decision.dweller_name} stays. The vault loses ${happinessPenalty} happiness.`

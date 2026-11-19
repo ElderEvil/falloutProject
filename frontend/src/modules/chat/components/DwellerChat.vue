@@ -216,7 +216,7 @@ const { isPerformingAction, handleActionConfirm, refreshAfterChat } = useChatAct
 const restoreDwellerRoom = async (roomId: string | null) => {
   if (!roomId || !authStore.token) return
   try {
-    await dwellerManagementStore.assignDwellerToRoom(props.dwellerId, roomId, authStore.token)
+    await dwellerManagementStore.assignDwellerToRoom(props.dwellerId, roomId)
   } catch {
     // Best-effort rollback; the send failure is already surfaced to the user.
   }
@@ -238,11 +238,11 @@ const handleChatSendConfirm = async (payload: {
 
   try {
     if (originalRoomId && props.vaultId && authStore.token) {
-      await dwellerManagementStore.unassignDwellerFromRoom(props.dwellerId, authStore.token)
+      await dwellerManagementStore.unassignDwellerFromRoom(props.dwellerId)
       releasedRoom = true
     }
     const sent = await sendWasteland.confirm(payload, async () => {
-      await dwellerStore.fetchDwellerDetails(props.dwellerId, authStore.token as string, true)
+      await dwellerStore.fetchDwellerDetails(props.dwellerId, true)
     })
     if (!sent) {
       if (releasedRoom) await restoreDwellerRoom(originalRoomId)
@@ -274,7 +274,7 @@ const handleRevive = async () => {
   if (isReviving.value || !canRevive.value || !authStore.token) return
   isReviving.value = true
   try {
-    const result = await dwellerDeathStore.reviveDweller(props.dwellerId, authStore.token)
+    const result = await dwellerDeathStore.reviveDweller(props.dwellerId)
     if (result) locallyRevived.value = true
   } finally {
     isReviving.value = false

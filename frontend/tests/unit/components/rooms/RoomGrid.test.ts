@@ -710,11 +710,7 @@ describe('RoomGrid', () => {
       await dropOn(wrapper, 'dweller-123')
 
       // Verify assignDwellerToRoom was called
-      expect(assignDwellerSpy).toHaveBeenCalledWith(
-        'dweller-123',
-        'training-room-123',
-        'mock-token'
-      )
+      expect(assignDwellerSpy).toHaveBeenCalledWith('dweller-123', 'training-room-123')
 
       // Verify startTraining was called after assignment
       expect(startTrainingSpy).toHaveBeenCalledWith('dweller-123', 'training-room-123')
@@ -974,7 +970,7 @@ describe('RoomGrid', () => {
       const wrapper = mount(RoomGrid, { props: { incidents: [] } })
       await dropOn(wrapper, 'teen-1')
 
-      expect(assignSpy).toHaveBeenCalledWith('teen-1', 'production-room-123', 'mock-token')
+      expect(assignSpy).toHaveBeenCalledWith('teen-1', 'production-room-123')
     })
 
     it('still blocks an adult when all worker slots are taken', async () => {
@@ -1004,7 +1000,7 @@ describe('RoomGrid', () => {
       const wrapper = mount(RoomGrid, { props: { incidents: [] } })
       await dropOn(wrapper, 'adult-3')
 
-      expect(assignSpy).toHaveBeenCalledWith('adult-3', 'production-room-123', 'mock-token')
+      expect(assignSpy).toHaveBeenCalledWith('adult-3', 'production-room-123')
     })
   })
 

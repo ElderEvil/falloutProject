@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## 3.3.5 (2026-11-19)
+
+### Bug Fixes
+
+* **frontend:** guard the remaining async paths against session switches b043a77
+
+### Code Refactoring
+
+* **frontend:** finish the HTTP boundary migration (1/2) ([#1431](https://github.com/ElderEvil/falloutProject/issues/1431)) 07f22ca, closes #1428 #1426 #1426
+* **frontend:** finish the HTTP boundary migration in all modules b841c38, closes #1428
+
 ## 3.3.4 (2026-11-18)
 
 ### Bug Fixes

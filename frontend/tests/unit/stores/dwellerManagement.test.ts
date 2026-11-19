@@ -33,19 +33,18 @@ describe('useDwellerManagementStore', () => {
     vi.mocked(axios.patch).mockResolvedValue({
       data: { id: 'd1', first_name: 'Jane', last_name: 'Smith' },
     })
-    await management.renameDweller('d1', 'Jane', 'token', 'Smith')
-    expect(axios.patch).toHaveBeenCalledWith(
-      '/api/v1/dwellers/d1/rename',
-      { first_name: 'Jane', last_name: 'Smith' },
-      { headers: { Authorization: 'Bearer token' } }
-    )
+    await management.renameDweller('d1', 'Jane', 'Smith')
+    expect(axios.patch).toHaveBeenCalledWith('/api/v1/dwellers/d1/rename', {
+      first_name: 'Jane',
+      last_name: 'Smith',
+    })
     expect(filter.dwellers[0]).toMatchObject({ first_name: 'Jane', last_name: 'Smith' })
     expect(filter.detailedDwellers.d1).toMatchObject({ first_name: 'Jane', last_name: 'Smith' })
   })
 
   it('keeps Gary feedback in a single rename confirmation', async () => {
     vi.mocked(axios.patch).mockResolvedValueOnce({ data: { id: 'd1', first_name: 'Gary' } })
-    await useDwellerManagementStore().renameDweller('d1', 'Gary', 'token')
+    await useDwellerManagementStore().renameDweller('d1', 'Gary')
     expect(mockToast.success).toHaveBeenCalledTimes(1)
     expect(mockToast.success).toHaveBeenCalledWith(
       expect.stringContaining('VAULT 108 PROTOCOL ACTIVATED'),
@@ -62,14 +61,13 @@ describe('useDwellerManagementStore', () => {
       data: { assigned_count: 2, assignments: [] },
     })
 
-    const result = await managementStore.autoAssignProductionDwellers('vault-1', 'token-1')
+    const result = await managementStore.autoAssignProductionDwellers('vault-1')
 
     expect(axios.post).toHaveBeenCalledWith(
       '/api/v1/vaults/vault-1/dwellers/auto-assign-production',
-      null,
-      { headers: { Authorization: 'Bearer token-1' } }
+      null
     )
-    expect(refreshSpy).toHaveBeenCalledWith('vault-1', 'token-1')
+    expect(refreshSpy).toHaveBeenCalledWith('vault-1')
     expect(result).toEqual({ assigned_count: 2, assignments: [] })
   })
 
@@ -90,11 +88,9 @@ describe('useDwellerManagementStore', () => {
     ] as never
     vi.mocked(axios.post).mockResolvedValue({ data: { id: 'youth-1', room_id: 'room-2' } })
 
-    const result = await managementStore.assignApprenticeToRoom('youth-1', 'vault-1', 'token-1')
+    const result = await managementStore.assignApprenticeToRoom('youth-1', 'vault-1')
 
-    expect(axios.post).toHaveBeenCalledWith('/api/v1/dwellers/youth-1/move_to/room-2', null, {
-      headers: { Authorization: 'Bearer token-1' },
-    })
+    expect(axios.post).toHaveBeenCalledWith('/api/v1/dwellers/youth-1/move_to/room-2')
     expect(result).toEqual({ id: 'youth-1', room_id: 'room-2' })
   })
 
@@ -112,7 +108,7 @@ describe('useDwellerManagementStore', () => {
       { id: 'youth-9', room_id: 'room-1', apprentice_stat: 'strength' },
     ] as never
 
-    const result = await managementStore.assignApprenticeToRoom('youth-1', 'vault-1', 'token-1')
+    const result = await managementStore.assignApprenticeToRoom('youth-1', 'vault-1')
 
     expect(result).toBeNull()
     expect(axios.post).not.toHaveBeenCalled()
@@ -122,7 +118,7 @@ describe('useDwellerManagementStore', () => {
     const managementStore = useDwellerManagementStore()
     vi.mocked(axios.post).mockResolvedValue({ data: { id: 'dweller-1', room_id: 'room-2' } })
 
-    const result = await managementStore.assignDwellerToRoom('dweller-1', 'room-2', 'token-1')
+    const result = await managementStore.assignDwellerToRoom('dweller-1', 'room-2')
 
     expect(result).toEqual({ id: 'dweller-1', room_id: 'room-2' })
     expect(audioManager.play).toHaveBeenCalledWith('cardDrop', 'ui')
@@ -134,7 +130,7 @@ describe('useDwellerManagementStore', () => {
     const pending = deferred<{ data: unknown }>()
     vi.mocked(axios.post).mockReturnValueOnce(pending.promise as never)
 
-    const call = useDwellerManagementStore().assignDwellerToRoom('d1', 'room-2', 'token-1')
+    const call = useDwellerManagementStore().assignDwellerToRoom('d1', 'room-2')
     expect(filter.dwellers[0]?.room_id).toBe('room-2')
 
     pending.resolve({ data: { id: 'd1', room_id: 'room-2', status: 'working' } })
@@ -150,7 +146,7 @@ describe('useDwellerManagementStore', () => {
     })
 
     await expect(
-      useDwellerManagementStore().assignDwellerToRoom('d1', 'room-2', 'token-1')
+      useDwellerManagementStore().assignDwellerToRoom('d1', 'room-2')
     ).rejects.toBeTruthy()
 
     expect(filter.dwellers[0]).toMatchObject({ room_id: 'room-1', status: 'working' })
@@ -165,8 +161,8 @@ describe('useDwellerManagementStore', () => {
       .mockResolvedValueOnce({ data: { id: 'd1', room_id: 'room-3', status: 'working' } })
 
     const management = useDwellerManagementStore()
-    const first = management.assignDwellerToRoom('d1', 'room-2', 'token-1')
-    const second = management.assignDwellerToRoom('d1', 'room-3', 'token-1')
+    const first = management.assignDwellerToRoom('d1', 'room-2')
+    const second = management.assignDwellerToRoom('d1', 'room-3')
     await second
     expect(filter.dwellers[0]).toMatchObject({ room_id: 'room-3' })
 
@@ -186,8 +182,8 @@ describe('useDwellerManagementStore', () => {
       .mockReturnValueOnce(second.promise as never)
 
     const management = useDwellerManagementStore()
-    const firstCall = management.assignDwellerToRoom('d1', 'room-2', 'token-1')
-    const secondCall = management.assignDwellerToRoom('d1', 'room-3', 'token-1')
+    const firstCall = management.assignDwellerToRoom('d1', 'room-2')
+    const secondCall = management.assignDwellerToRoom('d1', 'room-3')
     expect(filter.dwellers[0]).toMatchObject({ room_id: 'room-3' })
 
     first.reject({ response: { status: 400, data: { detail: 'Room 2 is full' } } })
@@ -207,7 +203,7 @@ describe('useDwellerManagementStore', () => {
     const pending = deferred<{ data: unknown }>()
     vi.mocked(axios.post).mockReturnValueOnce(pending.promise as never)
 
-    const call = useDwellerManagementStore().assignDwellerToRoom('d1', 'room-2', 'token-1')
+    const call = useDwellerManagementStore().assignDwellerToRoom('d1', 'room-2')
     expect(filter.detailedDwellers.d1?.room?.id).toBe('room-2')
 
     pending.resolve({ data: { id: 'd1', room_id: 'room-2', status: 'working' } })
@@ -223,12 +219,34 @@ describe('useDwellerManagementStore', () => {
     const pending = deferred<{ data: unknown }>()
     vi.mocked(axios.post).mockReturnValueOnce(pending.promise as never)
 
-    const call = useDwellerManagementStore().assignDwellerToRoom('d1', 'room-2', 'token-1')
+    const call = useDwellerManagementStore().assignDwellerToRoom('d1', 'room-2')
     auth.token = 'token-2'
     pending.reject({ response: { status: 400, data: { detail: 'Room is full' } } })
     await expect(call).rejects.toBeTruthy()
 
     expect(filter.detailedDwellers.d1).toBeUndefined()
+  })
+
+  it('ignores a previous session success when a later assignment fails', async () => {
+    const auth = useAuthStore()
+    const filter = useDwellerFilterStore()
+    filter.dwellers = [{ id: 'd1', room_id: 'room-1', status: 'idle' }] as never
+    const stale = deferred<{ data: unknown }>()
+    vi.mocked(axios.post).mockReturnValueOnce(stale.promise as never)
+
+    const management = useDwellerManagementStore()
+    const staleCall = management.assignDwellerToRoom('d1', 'room-old')
+    auth.sessionGeneration += 1
+    stale.resolve({ data: { id: 'd1', room_id: 'room-old', status: 'working' } })
+    await staleCall
+
+    filter.dwellers = [{ id: 'd1', room_id: 'room-1', status: 'idle' }] as never
+    vi.mocked(axios.post).mockRejectedValueOnce({
+      response: { status: 400, data: { detail: 'Room is full' } },
+    })
+    await expect(management.assignDwellerToRoom('d1', 'room-new')).rejects.toBeTruthy()
+
+    expect(filter.dwellers[0]).toMatchObject({ room_id: 'room-1', status: 'idle' })
   })
 
   it('clears the room before the unassign response arrives', async () => {
@@ -237,7 +255,7 @@ describe('useDwellerManagementStore', () => {
     const pending = deferred<{ data: unknown }>()
     vi.mocked(axios.put).mockReturnValueOnce(pending.promise as never)
 
-    const call = useDwellerManagementStore().unassignDwellerFromRoom('d1', 'token-1')
+    const call = useDwellerManagementStore().unassignDwellerFromRoom('d1')
     expect(filter.dwellers[0]).toMatchObject({ room_id: null, status: 'idle' })
 
     pending.resolve({ data: { id: 'd1', room_id: null, status: 'idle' } })
@@ -251,7 +269,7 @@ describe('useDwellerManagementStore', () => {
       data: { id: 'dweller-1', room_id: null, status: 'idle' },
     })
 
-    const result = await managementStore.unassignDwellerFromRoom('dweller-1', 'token-1')
+    const result = await managementStore.unassignDwellerFromRoom('dweller-1')
 
     expect(result).toEqual({ id: 'dweller-1', room_id: null, status: 'idle' })
     expect(audioManager.play).toHaveBeenCalledWith('cardDrop', 'ui')
@@ -263,7 +281,7 @@ describe('useDwellerManagementStore', () => {
       response: { status: 409, data: { detail: 'Name already taken' } },
     })
 
-    const result = await managementStore.renameDweller('d1', 'Jane', 'token-1', 'Smith')
+    const result = await managementStore.renameDweller('d1', 'Jane', 'Smith')
 
     expect(result).toBeNull()
     expect(mockToast.error).toHaveBeenCalledTimes(1)
@@ -276,7 +294,7 @@ describe('useDwellerManagementStore', () => {
       response: { status: 400, data: { detail: 'Vault is locked down' } },
     })
 
-    const result = await managementStore.unassignAllDwellers('vault-1', 'token-1')
+    const result = await managementStore.unassignAllDwellers('vault-1')
 
     expect(result).toBeNull()
     expect(mockToast.error).toHaveBeenCalledTimes(1)
@@ -291,7 +309,7 @@ describe('useDwellerManagementStore', () => {
       response: { status: 400, data: { detail: 'No eligible dwellers' } },
     })
 
-    const result = await managementStore.autoAssignProductionDwellers('vault-1', 'token-1')
+    const result = await managementStore.autoAssignProductionDwellers('vault-1')
 
     expect(result).toBeNull()
     expect(mockToast.error).toHaveBeenCalledTimes(1)

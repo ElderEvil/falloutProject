@@ -130,7 +130,7 @@ const placeRoom = async (x: number, y: number, repeat: boolean) => {
         : `${selectedRoom.name} built successfully!`
     toast.success(message)
     if (result === 'extended') {
-      await dwellerStore.fetchDwellersByVault(vaultId, authStore.token as string)
+      await dwellerStore.fetchDwellersByVault(vaultId)
     }
   } catch (error) {
     notifyErrorOnce(error, error instanceof Error ? error.message : 'Failed to build room')
@@ -225,7 +225,7 @@ const handleDrop = async (event: DragEvent, roomId: string) => {
     }
 
     // Assign dweller to room
-    await dwellerManagementStore.assignDwellerToRoom(dwellerId, roomId, authStore.token as string)
+    await dwellerManagementStore.assignDwellerToRoom(dwellerId, roomId)
 
     // If it's a training room, start a training session
     if (targetRoom?.category?.toLowerCase() === 'training') {
@@ -307,7 +307,7 @@ const handleRoomUpdated = async () => {
   const vaultId = route.params.id as string
   if (vaultId && authStore.token) {
     await roomStore.fetchRooms(vaultId)
-    await dwellerStore.fetchDwellersByVault(vaultId, authStore.token)
+    await dwellerStore.fetchDwellersByVault(vaultId)
   }
   // The open modal holds its own room snapshot; re-point it at the refreshed
   // row so an expansion's new size and capacity show without reopening.

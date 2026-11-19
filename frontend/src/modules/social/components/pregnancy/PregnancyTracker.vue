@@ -109,7 +109,7 @@ async function deliverBaby(pregnancyId: string) {
     const result = await pregnancyStore.deliverBaby(pregnancyId)
     if (result) {
       // Refresh dwellers to show new baby
-      await dwellerStore.fetchDwellersByVault(vaultId, authStore.token!)
+      await dwellerStore.fetchDwellersByVault(vaultId)
     }
   } finally {
     deliveringId.value = null

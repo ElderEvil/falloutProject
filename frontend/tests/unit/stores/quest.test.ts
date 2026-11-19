@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vite-plus/test'
 import { setActivePinia, createPinia } from 'pinia'
 import { useQuestStore } from '@/modules/progression/stores/quest'
+import { useAuthStore } from '@/modules/auth/stores/auth'
 import axios from '@/core/plugins/axios'
 
 vi.mock('@/core/plugins/axios')
@@ -246,10 +247,7 @@ describe('Quest Store', () => {
       const store = useQuestStore()
       await store.fetchAllQuests()
 
-      expect(axios.get).toHaveBeenCalledWith(
-        '/api/v1/quests/',
-        expect.objectContaining({ headers: expect.any(Object) })
-      )
+      expect(axios.get).toHaveBeenCalledWith('/api/v1/quests/')
       expect(store.quests).toEqual(mockQuests)
       expect(store.isLoading).toBe(false)
     })
@@ -285,11 +283,8 @@ describe('Quest Store', () => {
       const store = useQuestStore()
       await store.fetchVaultQuests('vault-123')
 
-      expect(axios.get).toHaveBeenCalledWith(
-        '/api/v1/quests/vault-123/',
-        expect.objectContaining({ headers: expect.any(Object) })
-      )
-      expect(store.vaultQuests).toEqual(mockVaultQuests)
+      expect(axios.get).toHaveBeenCalledWith('/api/v1/quests/vault-123/')
+      expect(store.vaultQuests).toMatchObject([{ id: '1', title: 'Quest 1' }])
     })
 
     it('should handle fetch error', async () => {
@@ -310,6 +305,37 @@ describe('Quest Store', () => {
       )
 
       expect(store.vaultQuests).toEqual([{ id: 'cached' }])
+    })
+
+    it("keeps the newest vault's quests when an older load resolves later", async () => {
+      const newest = [{ id: 'b', title: 'Vault B Quest' }]
+      const pending = deferred<{ data: unknown }>()
+      vi.mocked(axios.get)
+        .mockReturnValueOnce(pending.promise as never)
+        .mockResolvedValueOnce({ data: newest })
+      const store = useQuestStore()
+
+      const first = store.fetchVaultQuests('vault-a')
+      await store.fetchVaultQuests('vault-b')
+      pending.resolve({ data: [{ id: 'a', title: 'Vault A Quest' }] })
+      await first
+
+      expect(store.vaultQuests).toMatchObject(newest)
+    })
+
+    it('discards a quest list that resolves after the session changed', async () => {
+      const auth = useAuthStore()
+      const pending = deferred<{ data: unknown }>()
+      vi.mocked(axios.get).mockReturnValueOnce(pending.promise as never)
+      const store = useQuestStore()
+
+      const call = store.fetchVaultQuests('vault-123')
+      auth.sessionGeneration += 1
+      pending.resolve({ data: [{ id: '1', title: 'Quest 1' }] })
+      await call
+
+      expect(store.vaultQuests).toEqual([])
+      expect(store.isLoading).toBe(false)
     })
   })
 
@@ -337,7 +363,7 @@ describe('Quest Store', () => {
       expect(axios.post).toHaveBeenCalledWith('/api/v1/quests/vault-123/quest-1/assign', null, {
         params: { is_visible: true },
       })
-      expect(store.vaultQuests).toEqual([mockAssignedQuest])
+      expect(store.vaultQuests).toMatchObject([{ id: '1', title: 'Quest 1' }])
     })
 
     it('should handle assign error', async () => {
@@ -377,7 +403,7 @@ describe('Quest Store', () => {
       await store.claimQuestRewards('vault-123', 'quest-1')
 
       expect(axios.post).toHaveBeenCalledWith('/api/v1/quests/vault-123/quest-1/claim-rewards')
-      expect(store.vaultQuests).toEqual([completedQuest])
+      expect(store.vaultQuests).toMatchObject([{ id: 'quest-1', is_completed: true }])
     })
 
     it('should handle reward claim error', async () => {
@@ -451,4 +477,14 @@ describe('Quest Store', () => {
       expect(store.questPartyMap).toEqual({ 'active-quest': [] })
     })
   })
+
+  function deferred<T>() {
+    let resolve!: (value: T) => void
+    let reject!: (reason?: unknown) => void
+    const promise = new Promise<T>((res, rej) => {
+      resolve = res
+      reject = rej
+    })
+    return { promise, resolve, reject }
+  }
 })

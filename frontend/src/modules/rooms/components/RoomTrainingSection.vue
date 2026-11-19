@@ -74,7 +74,7 @@ const refresh = async () => {
       )
       trainings.value = records
       if (finishedRound) {
-        await dwellerStore.fetchDwellersByVault(vaultId, token)
+        await dwellerStore.fetchDwellersByVault(vaultId)
       }
     }
   } finally {

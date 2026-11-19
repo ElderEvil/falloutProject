@@ -15,16 +15,18 @@ export function useActivateRadio(vaultId: Ref<string>) {
   const vaultStore = useVaultStore()
 
   const { run, isLoading: isActivatingRadio } = useAsyncAction(
-    async (currentVaultId: string, token: string) => {
+    async (currentVaultId: string) => {
+      const session = authStore.sessionGeneration
       await setRadioMode(currentVaultId, 'happiness')
-      await vaultStore.refreshVault(currentVaultId, token)
+      if (session !== authStore.sessionGeneration) return
+      await vaultStore.refreshVault(currentVaultId)
     },
     { context: 'Failed to activate radio mode' }
   )
 
   const handleActivateRadio = async () => {
     if (!vaultId.value || !authStore.token || isActivatingRadio.value) return
-    await run(vaultId.value, authStore.token)
+    await run(vaultId.value)
   }
 
   return { isActivatingRadio, handleActivateRadio }

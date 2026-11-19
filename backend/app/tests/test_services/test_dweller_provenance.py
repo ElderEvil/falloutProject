@@ -8,6 +8,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
 from app.core.enums import ContentProvenanceEnum, GenderEnum, RarityEnum
+from app.models.dweller import Dweller
 from app.models.vault import Vault
 from app.schemas.dweller import DwellerCreate, DwellerCreateCommonOverride
 from app.services.dweller_service import dweller_service
@@ -112,6 +113,52 @@ async def test_named_item_dweller_is_curated(async_session: AsyncSession, vault:
 
     dweller = await crud.dweller.get(async_session, UUID(result["dweller_id"]))
     assert dweller.content_provenance == ContentProvenanceEnum.CURATED
+
+
+async def test_grant_dweller_rolls_each_special_independently(async_session: AsyncSession, vault: Vault) -> None:
+    """Unnamed rewards must not arrive as seven identical numbers.
+
+    A single draw reused for every SPECIAL made each starter clone arrive as all
+    1s, all 2s or all 3s; the roll is now per stat.
+    """
+    from unittest.mock import patch
+
+    with patch("app.services.rewards.items.random.randint", side_effect=[1, 2, 3, 4, 5, 6, 7]):
+        result = await items.grant_dweller(
+            async_session,
+            vault.id,
+            {"first_name": "Rolled", "last_name": "Resident", "rarity": "common"},
+        )
+
+    dweller = await async_session.get(Dweller, UUID(result["dweller_id"]))
+    assert dweller is not None
+    assert (
+        dweller.strength,
+        dweller.perception,
+        dweller.endurance,
+        dweller.charisma,
+        dweller.intelligence,
+        dweller.agility,
+        dweller.luck,
+    ) == (1, 2, 3, 4, 5, 6, 7)
+
+
+async def test_grant_dweller_prefers_curated_stats_over_the_roll(async_session: AsyncSession, vault: Vault) -> None:
+    """A template that supplies a stat keeps it; the roll only fills the gaps."""
+    from unittest.mock import patch
+
+    with patch("app.services.rewards.items.random.randint", side_effect=[2, 2, 2, 2, 2, 2]):
+        result = await items.grant_dweller(
+            async_session,
+            vault.id,
+            {"first_name": "Curated", "last_name": "Stats", "rarity": "common", "strength": 5, "luck": 7},
+        )
+
+    dweller = await async_session.get(Dweller, UUID(result["dweller_id"]))
+    assert dweller is not None
+    assert dweller.strength == 5
+    assert dweller.luck == 7
+    assert dweller.perception == 2
 
 
 async def test_grant_dweller_uses_supplied_provenance(async_session: AsyncSession, vault: Vault) -> None:

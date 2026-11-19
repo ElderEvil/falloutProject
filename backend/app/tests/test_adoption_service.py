@@ -133,6 +133,9 @@ async def test_family_tick_reports_adoptions(async_session):
         async def _update_room_relationships(self, *_args, **_kwargs):
             return {"relationships_updated": 0}
 
+        async def _update_apart_relationships(self, *_args, **_kwargs):
+            return {"relationships_updated": 0}
+
         async def _process_pregnancies_and_births(self, *_args, **_kwargs):
             return {"conceptions": 0, "births": 0}
 

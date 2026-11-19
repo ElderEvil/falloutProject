@@ -163,6 +163,9 @@ def backfill_unlock_discoveries(
                     max_vaults=max_vaults,
                 )
 
+            # --all-active returned above, so a vault id must be present here.
+            if vault is None:
+                raise ValueError("Either --vault or --all-active must be provided")
             vault_id = await fetch_vault_id(session, vault, not_found_message=f"Vault {vault} not found")
             return await discovery_backfill_service.unlock_discoveries_for_vault(session, vault_id)
 
@@ -290,6 +293,9 @@ def backfill_dweller_names(
                 )
                 return result.summaries, result.omitted
 
+            # --all-active returned above, so a vault id must be present here.
+            if vault is None:
+                raise ValueError("Either --vault or --all-active must be provided")
             vault_id = await fetch_vault_id(session, vault, not_found_message=f"Vault {vault} not found or deleted")
             return (
                 {

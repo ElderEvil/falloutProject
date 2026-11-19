@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 3.4.1 (2026-11-19)
+
+### Bug Fixes
+
+* **a11y:** status chip naming, explorer-card contrast, radio toggle name ([#1436](https://github.com/ElderEvil/falloutProject/issues/1436)) a0b1ad6, closes #cd853f #e0a258
+
 ## 3.4.0 (2026-11-19)
 
 ### Features

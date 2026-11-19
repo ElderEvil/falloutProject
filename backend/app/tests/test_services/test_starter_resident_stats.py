@@ -33,7 +33,8 @@ def test_every_stat_is_within_the_common_range() -> None:
     for name, profile in _profiles().items():
         for key in SPECIAL_KEYS:
             value = profile[key]
-            assert isinstance(value, int), f"{name}.{key} is not an int: {value!r}"
+            # type(...) is int (not isinstance) so a JSON true can't masquerade as 1.
+            assert type(value) is int, f"{name}.{key} is not an int: {value!r}"
             assert 1 <= value <= 10, f"{name}.{key} out of range: {value}"
 
 

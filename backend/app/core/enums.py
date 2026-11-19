@@ -34,11 +34,10 @@ class RadioModeEnum(StrEnum):
 
 
 class VaultModeEnum(CaseInsensitiveEnum):
-    """Per-vault difficulty mode.
+    """Per-vault difficulty mode, chosen at creation and immutable afterwards.
 
-    Chosen once at vault creation and immutable afterwards. ``SURVIVAL`` makes every
-    dweller death permanent (immediate permanent-death memorial, no caps revival
-    window). Stored as a plain string column, mirroring ``Vault.radio_mode``.
+    SURVIVAL makes every death permanent (immediate memorial, no caps revival window).
+    Stored as a plain string column.
     """
 
     STANDARD = "standard"
@@ -73,11 +72,10 @@ class DeathCauseEnum(CaseInsensitiveEnum):
 
 
 class LifecycleEnum(CaseInsensitiveEnum):
-    """Canonical dweller lifecycle — exactly one of these, independent of availability.
+    """Canonical dweller lifecycle — exactly one, independent of availability.
 
-    ``WASTELAND`` is a living unaffiliated person, not a simulated journey; a departure
-    is not a death and must never surface in the graveyard. ``is_dead`` /
-    ``is_permanently_dead`` are compatibility projections over this state.
+    WASTELAND is a living unaffiliated person, not a journey; a departure is not a death and
+    must never surface in the graveyard. is_dead/is_permanently_dead are compatibility projections.
     """
 
     ALIVE = "alive"
@@ -87,11 +85,10 @@ class LifecycleEnum(CaseInsensitiveEnum):
 
 
 class AvailabilityEnum(CaseInsensitiveEnum):
-    """Canonical availability — where a person currently exists, not a death.
+    """Canonical availability — where a person exists, not a death; exactly one, enforced by the application.
 
-    Exactly one of these, enforced by the application (and later constraints). Death
-    metadata exists only for ``DEAD_PERMANENT``; neither soft deletion nor a paid sale
-    is a death. ``ARCHIVE`` is retired content; ``DEPARTURE`` is a private living departure.
+    Death metadata exists only for DEAD_PERMANENT; soft deletion and paid sales are not deaths.
+    ARCHIVE is retired content; DEPARTURE is a private living departure.
     """
 
     VAULT = "vault"
@@ -104,8 +101,8 @@ class AvailabilityEnum(CaseInsensitiveEnum):
 class ContentProvenanceEnum(CaseInsensitiveEnum):
     """Who authored a person's identity content, for safe cross-vault reuse.
 
-    Stored as VARCHAR (not a PostgreSQL enum): only system-authored or curated content
-    may be reused. ``None`` means unknown provenance and defaults to private departure.
+    Stored as VARCHAR, not a PostgreSQL enum; only system-authored or curated content may be
+    reused. None means unknown provenance (defaults to private departure).
     """
 
     CURATED = "curated"
@@ -347,9 +344,8 @@ class DwellerLocationRelationEnum(StrEnum):
 class HazardTeam(CaseInsensitiveEnum):
     """A standing hazard-response team a dweller earns a place on.
 
-    Membership is earned from service, never assigned: a dweller qualifies by
-    fighting incidents of the team's hazard (see ``models/incident.py`` for the
-    type mapping and ``services/hazard_team_service.py`` for the rule).
+    Membership is earned by fighting incidents of the team's hazard, never assigned (type
+    mapping in models/incident.py, rule in services/hazard_team_service.py).
     """
 
     FIRE = "fire"
@@ -357,9 +353,8 @@ class HazardTeam(CaseInsensitiveEnum):
 
 
 class DamageChannel(StrEnum):
-    """The damage channel a dweller can reduce; each channel has its own source set.
-
-    Resolved once per dweller per channel by ``utils/damage_reductions.py``.
+    """Damage channel a dweller can reduce; each channel has its own source set, resolved once
+    per dweller per channel by utils/damage_reductions.py.
     """
 
     PHYSICAL = "physical"
@@ -434,26 +429,22 @@ class IncidentObjective(StrEnum):
 class NotificationType(StrEnum):
     """Types of notifications"""
 
-    # Dweller events
     EXPLORATION_UPDATE = "exploration_update"  # Found item, low health, etc.
     EXPLORATION_COMPLETE = "exploration_complete"
     LEVEL_UP = "level_up"
     TRAINING_COMPLETE = "training_complete"
     TRAINING_STARTED = "training_started"
 
-    # Crafting events
     CRAFTING_COMPLETE = "crafting_complete"
     RECIPE_UNLOCKED = "recipe_unlocked"
 
     STORAGE_ITEM_DEGRADED = "storage_item_degraded"
     STORAGE_ITEM_UPGRADED = "storage_item_upgraded"
 
-    # Social events
     RELATIONSHIP_FORMED = "relationship_formed"
     PREGNANCY_DETECTED = "pregnancy_detected"
     BABY_BORN = "baby_born"
 
-    # Combat events
     COMBAT_STARTED = "combat_started"
     COMBAT_VICTORY = "combat_victory"
     COMBAT_DEFEAT = "combat_defeat"
@@ -461,22 +452,17 @@ class NotificationType(StrEnum):
     DWELLER_INJURED = "dweller_injured"
     DWELLER_DIED = "dweller_died"
 
-    # Exit events
     DWELLER_EXIT_REQUESTED = "dweller_exit_requested"
 
-    # Hazard team events
     HAZARD_TEAM_JOINED = "hazard_team_joined"
 
-    # Resource events
     RESOURCE_LOW = "resource_low"
     RESOURCE_CRITICAL = "resource_critical"
     POWER_OUTAGE = "power_outage"
 
-    # Room Rush events
     RUSH_SUCCEEDED = "rush_succeeded"
     RUSH_FAILED = "rush_failed"
 
-    # System events
     QUEST_COMPLETE = "quest_complete"
     OBJECTIVE_COMPLETED = "objective_completed"
     OBJECTIVES_REFRESHED = "objectives_refreshed"
@@ -486,7 +472,6 @@ class NotificationType(StrEnum):
     RADIO_AUTO_SWITCHED_TO_HAPPINESS = "radio_auto_switched_to_happiness"
     MAP_REGISTRATION_FAILED = "map_registration_failed"
 
-    # Map point events
     LOCATION_CLEARED = "location_cleared"
     LOCATION_READY = "location_ready"
 

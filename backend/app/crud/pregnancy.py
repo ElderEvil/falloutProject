@@ -23,12 +23,9 @@ class CRUDPregnancy(CRUDBase[Pregnancy, PregnancyCreate, PregnancyUpdate]):
         db_session: AsyncSession,
         pregnancy_id: UUID,
     ) -> tuple[Pregnancy, Dweller]:
-        """Get a pregnancy and its mother; callers own any access verification.
+        """Get a pregnancy and its mother; callers own access verification.
 
-        :param db_session: Database session
-        :param pregnancy_id: Pregnancy ID to fetch
-        :returns: Tuple of (pregnancy, mother) if found
-        :raises ResourceNotFoundException: If pregnancy or mother not found
+        Raises ResourceNotFoundException if either is missing.
         """
         pregnancy = (await db_session.execute(select(Pregnancy).where(Pregnancy.id == pregnancy_id))).scalars().first()
         pregnancy = ensure_found(pregnancy, Pregnancy, identifier=pregnancy_id)
@@ -44,8 +41,7 @@ class CRUDPregnancy(CRUDBase[Pregnancy, PregnancyCreate, PregnancyUpdate]):
         vault_id: UUID,
         cooldown_hours: int,
     ) -> set[UUID]:
-        """Mothers who cannot conceive now: currently pregnant, or delivered
-        within the post-birth cooldown window."""
+        """Mothers who cannot conceive now: pregnant, or delivered within the post-birth cooldown."""
         cooldown_start = utcnow() - timedelta(hours=cooldown_hours)
 
         pregnant_query = (

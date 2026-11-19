@@ -1,13 +1,8 @@
-"""Persistent synchronous-to-async bridge for long-lived Dramatiq worker threads.
+"""Persistent sync-to-async bridge for long-lived Dramatiq worker threads.
 
-Dramatiq actor functions are synchronous and default to ``asyncio.run``, which
-creates and closes a new event loop for every message. The database engine and
-its asyncpg pool are bound to the loop that created them, so a fresh loop also
-forces a fresh engine, connection setup and type introspection on every tick.
-
-Worker threads are long-lived, so keep one loop per thread and run each actor
-coroutine on it. This is process-local by design; the web app keeps using its
-own loop and engine.
+The engine and asyncpg pool are bound to the loop that created them, so asyncio.run per
+message would force a fresh engine and type introspection every tick. One loop per worker
+thread; process-local by design (the web app keeps its own loop/engine).
 """
 
 import asyncio

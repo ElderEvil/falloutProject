@@ -1,15 +1,4 @@
-"""CLI commands for retroactive backfills.
-
-Thin wrappers over the service layer per AGENTS.md.
-
-Usage (from backend/):
-    uv run fo-cli backfill-bio-places --vault <UUID>
-    uv run fo-cli backfill-bio-places --all-active --max-dwellers 50 --max-vaults 10
-    uv run fo-cli backfill-unlock-discoveries --vault <UUID>
-    uv run fo-cli backfill-unlock-discoveries --all-active
-    uv run fo-cli backfill backfill-dweller-names --vault <UUID>
-    uv run fo-cli backfill backfill-dweller-names --all-active --apply
-"""
+"""CLI commands for retroactive backfills; thin wrappers over the service layer."""
 
 from __future__ import annotations
 
@@ -189,9 +178,9 @@ def backfill_vault_layout(
         typer.Option(help="Persist the re-lay; without it the command is a dry run"),
     ] = False,
 ) -> None:
-    """Re-lay vaults onto the unit grid: elevator shaft beside the vault door,
-    one elevator per floor, resource rooms to the left of the shaft and every
-    other room to the right."""
+    """Re-lay vaults onto the unit grid: elevator shaft beside the door, one elevator per
+    floor, resource rooms left of the shaft, all others right.
+    """
 
     async def _run() -> dict[UUID, dict]:
         from app.services.vault_layout_backfill_service import vault_layout_backfill_service

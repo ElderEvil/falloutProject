@@ -26,11 +26,8 @@ class CRUDArenaState:
 
     @staticmethod
     async def get_or_create(db_session: AsyncSession, room_id: UUID) -> ArenaState:
-        """Get or create state, race-safe against concurrent creation.
-
-        The insert is issued as ``INSERT ... ON CONFLICT DO NOTHING`` so the
-        loser of a creation race gets a no-op instead of an IntegrityError,
-        then the winner's row is re-selected and returned to both racers.
+        """Get or create state, race-safe: INSERT ... ON CONFLICT DO NOTHING, then re-select so
+        both racers get the winner's row.
         """
         state = await CRUDArenaState.get(db_session, room_id)
         if state is None:

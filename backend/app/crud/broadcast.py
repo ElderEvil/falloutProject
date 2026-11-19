@@ -17,10 +17,7 @@ def _day_bounds(day: date) -> tuple[datetime, datetime]:
 
 
 async def get_today_broadcast(db: AsyncSession, vault_id: UUID) -> Broadcast | None:
-    """Get today's broadcast for the vault, if one exists.
-
-    Returns the existing broadcast row or None.
-    """
+    """Get today's broadcast for the vault, or None."""
     today_start, tomorrow_start = _day_bounds(utcnow().date())
 
     query = (
@@ -73,9 +70,8 @@ async def count_trigger_on_date(
     trigger: str,
     trigger_date: date,
 ) -> int:
-    """Count broadcasts of *trigger* for *vault_id* on *trigger_date*.
-
-    Used to enforce the manual-regeneration rate limit.
+    """Count broadcasts of a trigger for a vault on a date; enforces the manual-regeneration
+    rate limit.
     """
     day_start, day_end = _day_bounds(trigger_date)
 

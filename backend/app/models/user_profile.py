@@ -24,7 +24,6 @@ class UserProfileBase(SQLModel):
     total_incidents_won: int = Field(default=0, ge=0, description="Total vault incidents resolved successfully")
     total_incidents_lost: int = Field(default=0, ge=0, description="Total vault incidents failed")
 
-    # Life & Death Statistics
     total_dwellers_born: int = Field(default=0, ge=0, description="Total dwellers born via breeding")
     total_dwellers_died: int = Field(default=0, ge=0, description="Total dweller deaths")
     deaths_by_health: int = Field(default=0, ge=0, description="Deaths from health reaching 0")

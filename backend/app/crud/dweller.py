@@ -63,12 +63,7 @@ NEEDS_CARE_HEALTH_PERCENT = 50
 
 
 def determine_status_for_room(room_category: RoomTypeEnum | None, room_name: str | None = None) -> DwellerStatusEnum:
-    """
-    Determine the appropriate dweller status based on room category.
-
-    :param room_category: The category of the room, or None if unassigning
-    :returns: The appropriate DwellerStatusEnum
-    """
+    """Determine the dweller status for a room category (None when unassigning)."""
     if room_category is None:
         return DwellerStatusEnum.IDLE
     if room_category == RoomTypeEnum.TRAINING:
@@ -105,7 +100,6 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
             )
         )
 
-        # Filter out soft-deleted dwellers by default
         if not include_deleted:
             query = query.where(~self.model.is_deleted)
 
@@ -114,10 +108,10 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         return ensure_found(db_obj, self.model, identifier=id)
 
     async def get_ancestry_rows(self, db_session: AsyncSession, dweller_ids: Sequence[UUID]) -> list[tuple]:
-        """Parent links for *dweller_ids*: ``(id, vault_id, parent_1_id, parent_2_id, is_deleted)``.
+        """Parent links for dweller_ids: (id, vault_id, parent_1_id, parent_2_id, is_deleted).
 
-        Generation counting only walks parent links, so this skips the
-        relationship eager loads ``get`` performs — five statements each.
+        Generation counting only walks parent links, so this skips the relationship eager loads
+        get performs — five statements each.
         """
         if not dweller_ids:
             return []
@@ -131,10 +125,10 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         return [tuple(row) for row in (await db_session.execute(query)).all()]
 
     async def get_many_with_relations(self, db_session: AsyncSession, dweller_ids: Sequence[UUID]) -> list[Dweller]:
-        """Live dwellers among *dweller_ids* with the detail graph eager-loaded.
+        """Live dwellers among dweller_ids with the detail graph eager-loaded.
 
-        One query per relationship regardless of how many ids are asked for, so a
-        caller rendering N relatives costs the same as rendering one.
+        One query per relationship regardless of id count, so rendering N relatives costs the
+        same as rendering one.
         """
         if not dweller_ids:
             return []
@@ -151,10 +145,8 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         return list((await db_session.execute(query)).scalars().all())
 
     async def get_with_equipment(self, db_session: AsyncSession, dweller_id: UUID) -> Dweller | None:
-        """One dweller with weapon, outfit and pet eager-loaded, or None when absent.
-
-        Live combat reads (``expedition_combat_profile``, dispatch party power)
-        need the equipped weapon, outfit and pet without raising on a missing row.
+        """One dweller with weapon, outfit and pet eager-loaded, or None when absent (live combat
+        reads must not raise on a missing row).
         """
         query = (
             select(self.model)
@@ -212,7 +204,6 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         """Get multiple dwellers by vault ID with optional filtering and sorting."""
         query = self._vault_query(vault_id)
 
-        # Filter out soft-deleted dwellers by default
         if not include_deleted:
             query = query.where(~self.model.is_deleted)
 
@@ -242,19 +233,15 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
                     )
                 )
 
-        # Filter by status
         if status:
             query = query.where(self.model.status == status)
 
-        # Filter by age group
         if age_group:
             query = query.where(self.model.age_group == age_group)
 
-        # Filter by gender
         if gender:
             query = query.where(self.model.gender == gender)
 
-        # Filter by rarity
         if rarity is not None:
             query = query.where(self.model.rarity == rarity)
 
@@ -265,14 +252,12 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         if faction:
             query = query.where(identity_attrs["faction"].as_string() == faction)
 
-        # Search by name
         if search:
             search_pattern = f"%{search}%"
             query = query.where(
                 (self.model.first_name.ilike(search_pattern)) | (self.model.last_name.ilike(search_pattern))
             )
 
-        # Sorting
         if sort_by == "health" and care_health_ratio is not None:
             sort_column = care_health_ratio
             if order.lower() == "asc":
@@ -280,7 +265,6 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
             else:
                 query = query.order_by(sort_column.desc(), self.model.id.asc())
         elif sort_by == "name":
-            # Special handling for name sorting - sort by first_name, then last_name
             if order.lower() == "asc":
                 query = query.order_by(self.model.first_name.asc(), self.model.last_name.asc())
             else:
@@ -519,8 +503,8 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
     async def get_tick_snapshot(self, db_session: AsyncSession, vault_id: UUID) -> Sequence[Row]:
         """One-row-per-dweller projection for the tick SSE snapshot (single SELECT).
 
-        The equipped pet name comes from a scalar subquery rather than an outer
-        join: ``Pet.dweller_id`` is not unique, so a join could fan out rows.
+        The equipped pet name comes from a scalar subquery, not an outer join: Pet.dweller_id is
+        not unique, so a join could fan out rows.
         """
         pet_name = select(Pet.name).where(Pet.dweller_id == Dweller.id).limit(1).scalar_subquery().label("pet_name")
         query = select(
@@ -703,7 +687,6 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         """Get dwellers by status."""
         query = self._vault_query(vault_id, self.model.status == status)
 
-        # Filter out soft-deleted dwellers by default
         if not include_deleted:
             query = query.where(~self.model.is_deleted)
 
@@ -738,8 +721,8 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
     ) -> dict[str, Any]:
         """Build the random-dweller payload (template reservation included) for the caller to persist.
 
-        The payload carries ``_bio_places`` map metadata that the caller registers
-        via the map service; ``seed`` makes the output deterministic for dev/QA seeding.
+        The payload carries _bio_places map metadata the caller registers via the map service;
+        seed makes the output deterministic for dev/QA seeding.
         """
         has_custom_name = bool(obj_in and (obj_in.first_name is not None or obj_in.last_name is not None))
         if rarity in (RarityEnum.RARE, RarityEnum.LEGENDARY) and not has_custom_name:
@@ -772,8 +755,8 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
     ) -> dict[str, Any]:
         """Build a curated-template payload, enforcing per-vault reservation.
 
-        The vault row is locked and the template's canonical name checked against
-        active dwellers, so no caller can bypass per-vault uniqueness.
+        The vault row is locked and the template's canonical name checked against active
+        dwellers, so no caller can bypass per-vault uniqueness.
         """
         template = game_data_store.get_dweller(template_id)
         if template is None:
@@ -817,13 +800,12 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
     ) -> Sequence[Dweller]:
         """Living, in-vault super mutants and synths whose provenance was never classified.
 
-        Only NULL provenance rows are candidates: rows created after the provenance
-        invariant shipped already carry a value, and a completed backfill marks its
-        rows GENERATED, so re-runs are no-ops. The caller still narrows synth
-        generation and curated names.
+        Only NULL provenance rows are candidates: rows created after the invariant shipped carry
+        a value, and a completed backfill marks its rows GENERATED, so re-runs are no-ops. The
+        caller still narrows synth generation and curated names.
 
-        ``for_update`` locks the selected rows until the caller commits, so an
-        in-flight player rename cannot be overwritten by a stale backfill write.
+        for_update locks the selected rows until the caller commits, so an in-flight player
+        rename cannot be overwritten by a stale backfill write.
         """
         identity_attrs = self.model.__table__.c.visual_attributes
         query = (
@@ -853,21 +835,17 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         return (await db_session.execute(query)).scalars().all()
 
     async def lock_vault(self, db_session: AsyncSession, vault_id: UUID) -> None:
-        """Take a row lock on the vault so a check-then-claim flow is atomic.
-
-        The lock is held until the caller's next commit/rollback. SQLite test
-        engines ignore FOR UPDATE; PostgreSQL enforces it in production.
+        """Take a row lock on the vault so a check-then-claim flow is atomic; held until the
+        caller's next commit/rollback. SQLite ignores FOR UPDATE; PostgreSQL enforces it.
         """
         await db_session.execute(select(Vault).where(Vault.id == vault_id).with_for_update())
 
     async def lock_vault_for_template(self, db_session: AsyncSession, vault_id: UUID) -> set[str]:
         """Take a row lock on the vault so template reservation is atomic, then return active names.
 
-        The lock is held until the caller's next commit/rollback — the shared
-        persist path commits, which makes the check-then-insert reservation
-        atomic under concurrency (a second creator blocks on the lock and then
-        sees the committed dweller in its fresh name snapshot). SQLite test
-        engines ignore FOR UPDATE; PostgreSQL enforces it in production.
+        Held until the caller's next commit/rollback — the shared persist path commits, making
+        check-then-insert atomic (a second creator blocks, then sees the committed dweller in its
+        fresh name snapshot). SQLite ignores FOR UPDATE; PostgreSQL enforces it.
         """
         await self.lock_vault(db_session, vault_id)
         return await self.get_active_template_names(db_session, vault_id)
@@ -927,16 +905,7 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         skip: int = 0,
         limit: int = 100,
     ) -> Sequence[Dweller]:
-        """
-        Get dead dwellers for a vault.
-
-        :param db_session: Database session
-        :param vault_id: Vault ID to filter by
-        :param include_permanent: If True, include permanently dead dwellers
-        :param skip: Number of records to skip
-        :param limit: Maximum number of records to return
-        :returns: List of dead dwellers
-        """
+        """Get dead dwellers for a vault; include_permanent adds permanently dead ones."""
         query = select(self.model).where(self.model.vault_id == vault_id).where(self.model.is_dead.is_(True))
 
         if not include_permanent:
@@ -953,15 +922,7 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         skip: int = 0,
         limit: int = 100,
     ) -> Sequence[Dweller]:
-        """
-        Get soft-deleted dwellers for a specific vault.
-
-        :param db_session: Database session
-        :param vault_id: Vault ID to filter by
-        :param skip: Number of records to skip
-        :param limit: Maximum number of records to return
-        :returns: List of soft-deleted dwellers
-        """
+        """Get soft-deleted dwellers for a vault with skip/limit pagination."""
         query = (
             select(self.model)
             .where(self.model.vault_id == vault_id)
@@ -995,8 +956,8 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
     ) -> Sequence[Dweller]:
         """Soft-deleted, non-dead dwellers, newest deletions first, weapon/outfit/pet eager-loaded.
 
-        Optionally scoped to one vault (``vault_id``) or to every other vault
-        (``exclude_vault_id``), optionally capped at ``limit``.
+        Optionally scoped to one vault (vault_id) or every other vault (exclude_vault_id),
+        optionally capped at limit.
         """
         query = (
             select(self.model)
@@ -1149,15 +1110,7 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         skip: int = 0,
         limit: int = 100,
     ) -> Sequence[Dweller]:
-        """
-        Get permanently dead dwellers (graveyard).
-
-        :param db_session: Database session
-        :param vault_id: Vault ID to filter by
-        :param skip: Number of records to skip
-        :param limit: Maximum number of records to return
-        :returns: List of permanently dead dwellers
-        """
+        """Get permanently dead dwellers (graveyard) for a vault with skip/limit pagination."""
         query = (
             select(self.model)
             .where(self.model.vault_id == vault_id)

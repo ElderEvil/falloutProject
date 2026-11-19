@@ -1,9 +1,6 @@
-"""Dev/QA event-bus and objective debugging.
+"""Dev/QA event-bus and objective debugging CLI; replaces the old /debug HTTP router.
 
-Replaces the old development-only ``/debug`` HTTP router: the same operator
-tooling now lives behind the CLI, with no network surface, no unauthenticated
-state mutation, and objective evaluators wired exactly as app startup wires
-them.
+Objective evaluators are wired exactly as app startup wires them.
 """
 
 from __future__ import annotations

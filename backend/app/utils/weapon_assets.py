@@ -60,10 +60,8 @@ _FALLBACK_IMAGE_FILE = "10mm pistol FOS.png"
 
 @cache
 def _disk_index() -> dict[str, str]:
-    """Casefolded filename stem -> actual filename for vendored weapon art.
-
-    Built once so variant cards resolve by naming convention without growing
-    the hand-authored map per entry.
+    """Casefolded filename stem → actual filename for vendored weapon art; built once so
+    variant cards resolve by naming convention without growing the hand-authored map.
     """
     return (
         {path.name.casefold(): path.name for path in _WEAPON_IMAGE_DIR.iterdir()} if _WEAPON_IMAGE_DIR.is_dir() else {}
@@ -71,10 +69,9 @@ def _disk_index() -> dict[str, str]:
 
 
 def _convention_lookup(weapon_name: str) -> str | None:
-    """Family icon by filename convention (case-insensitive).
-
-    Variants share their family look: "Hardened Gauss pistol" resolves to the
-    Gauss pistol icon. Only true icons match — stat cards are never returned.
+    """Family icon by filename convention (case-insensitive): variants share the family look
+    ("Hardened Gauss pistol" → Gauss pistol icon). Only true icons match — stat cards never
+    returned.
     """
     index = _disk_index()
     lowered = weapon_name.strip().casefold()
@@ -85,11 +82,10 @@ def _convention_lookup(weapon_name: str) -> str | None:
 
 
 def get_weapon_image_url(weapon_name: str | None) -> str | None:
-    """Return an exact weapon image when available, otherwise a generic weapon image.
+    """Exact weapon image when available, else a generic one.
 
-    Resolution order: hand-authored map, family icon by filename convention
-    (variants share the family look), family base image after stripping the
-    variant prefix, then the generic 10mm pistol fallback.
+    Resolution order: hand-authored map → family icon by filename convention → family base
+    image after stripping the variant prefix → generic 10mm pistol fallback.
     """
     if not weapon_name:
         filename = _FALLBACK_IMAGE_FILE

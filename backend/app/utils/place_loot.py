@@ -1,9 +1,7 @@
 """Loot-table catalog for clearable place groups.
 
-Layer-safe home (no DB, no services) for the per-risk loot pools a cleared map
-point draws from. Tables reference item type + rarity floor only — the actual
-item catalogs live in ``app/data/items/`` and are resolved by the loot
-calculator at roll time, keeping one source of truth per item.
+Layer-safe (no DB, no services); tables reference item type + rarity floor only — item
+catalogs live in app/data/items/ and resolve at roll time (one source of truth per item).
 """
 
 from __future__ import annotations
@@ -28,8 +26,8 @@ def _is_int(value: Any) -> bool:
 def load_place_loot() -> dict[str, Any]:
     """Load and validate the loot-table catalog (cached).
 
-    Every table needs a caps range with ``0 <= min <= max`` and a non-empty
-    items list whose entries reference a known item type and rarity.
+    Every table needs a caps range with 0 <= min <= max and a non-empty items list
+    referencing known item types and rarities.
     """
     with LOOT_FILE.open(encoding="utf-8") as f:
         data: dict[str, Any] = json.load(f)

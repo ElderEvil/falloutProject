@@ -21,7 +21,6 @@ class ObjectiveBase(SQLModel):
         description="Objective category: daily, weekly, or achievement",
     )
 
-    # Automation fields
     objective_type: str | None = Field(
         default=None,
         index=True,

@@ -20,10 +20,8 @@ class CRUDChatMessage(CRUDBase[ChatMessage, ChatMessageCreate, ChatMessageRead])
         limit: int = 100,
         offset: int = 0,
     ) -> list[ChatMessage]:
-        """
-        Get conversation history between:
-        - User and Dweller (provide user_id and dweller_id)
-        - Dweller and Dweller (provide dweller_to_dweller tuple)
+        """Get conversation history: user↔dweller (user_id + dweller_id) or dweller↔dweller
+        (dweller_to_dweller tuple).
         """
         if dweller_to_dweller:
             dweller_1, dweller_2 = dweller_to_dweller
@@ -31,9 +29,7 @@ class CRUDChatMessage(CRUDBase[ChatMessage, ChatMessageCreate, ChatMessageRead])
                 select(ChatMessage)
                 .where(
                     or_(
-                        # Dweller 1 -> Dweller 2
                         ((ChatMessage.from_dweller_id == dweller_1) & (ChatMessage.to_dweller_id == dweller_2)),
-                        # Dweller 2 -> Dweller 1
                         ((ChatMessage.from_dweller_id == dweller_2) & (ChatMessage.to_dweller_id == dweller_1)),
                     )
                 )
@@ -46,9 +42,7 @@ class CRUDChatMessage(CRUDBase[ChatMessage, ChatMessageCreate, ChatMessageRead])
                 select(ChatMessage)
                 .where(
                     or_(
-                        # User -> Dweller
                         ((ChatMessage.from_user_id == user_id) & (ChatMessage.to_dweller_id == dweller_id)),
-                        # Dweller -> User
                         ((ChatMessage.from_dweller_id == dweller_id) & (ChatMessage.to_user_id == user_id)),
                     )
                 )

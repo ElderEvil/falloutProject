@@ -21,13 +21,8 @@ class CRUDExploration(CRUDBase[Exploration, ExplorationCreate, ExplorationUpdate
         vault_id: UUID,
         active_only: bool = False,
     ) -> list[Exploration]:
-        """Get all explorations for a vault, optionally filtering to ongoing only.
-
-        Args:
-            db_session: Database session.
-            vault_id: Vault ID to filter by.
-            active_only: If True, only return explorations that are still in progress
-                (exploring or on the return leg).
+        """Get all explorations for a vault; active_only keeps only in-progress runs (exploring or
+        on the return leg).
         """
         query = select(Exploration).where(Exploration.vault_id == vault_id)
         if active_only:
@@ -45,9 +40,8 @@ class CRUDExploration(CRUDBase[Exploration, ExplorationCreate, ExplorationUpdate
     async def get_for_update(self, db_session: AsyncSession, exploration_id: UUID) -> Exploration | None:
         """One exploration locked FOR UPDATE (reward claiming serialization).
 
-        ``populate_existing`` refreshes the instance even when the row is already in
-        the session's identity map, so a tick that loaded the run earlier revalidates
-        against the current committed state instead of a stale one.
+        populate_existing refreshes the instance even when already in the identity map, so a
+        tick that loaded the run earlier revalidates against current committed state.
         """
         result = await db_session.execute(
             select(Exploration)
@@ -78,9 +72,8 @@ class CRUDExploration(CRUDBase[Exploration, ExplorationCreate, ExplorationUpdate
     ) -> list[Exploration]:
         """Any open (exploring or returning) run for any of the given dwellers.
 
-        A dispatch party spans the anchor (``Exploration.dweller_id``) and the
-        ``TeamMember`` roster, so both are matched — otherwise a non-anchor
-        member reads as free.
+        A dispatch party spans the anchor (Exploration.dweller_id) and the TeamMember roster, so
+        both are matched — otherwise a non-anchor member reads as free.
         """
         if not dweller_ids:
             return []

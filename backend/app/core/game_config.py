@@ -1,14 +1,5 @@
-"""Game balance configuration using Pydantic Settings.
-
-This module provides type-safe, validated configuration for all game balance constants.
-Values can be overridden via environment variables (e.g., INCIDENT_SPAWN_CHANCE=0.10).
-
-Usage:
-    from app.core.game_config import game_config
-
-    # Access nested configs
-    spawn_rate = game_config.incident.get_spawn_rate(room_count=12)
-    training_time = game_config.training.base_duration_seconds
+"""Game balance configuration (Pydantic Settings); every value can be overridden via
+environment variables, e.g. INCIDENT_SPAWN_CHANCE=0.10.
 """
 
 import logging
@@ -104,7 +95,6 @@ class IncidentConfig(BaseSettings):
         ge=0,
     )
 
-    # Difficulty ranges by type
     difficulty_fire: tuple[int, int] = (2, 4)
     difficulty_radroach: tuple[int, int] = (1, 3)
     difficulty_mole_rat: tuple[int, int] = (2, 5)
@@ -146,11 +136,10 @@ class IncidentConfig(BaseSettings):
     def get_spawn_weights(
         self, population: int | None = None, mode: str = VaultModeEnum.STANDARD.value
     ) -> dict[IncidentType, int]:
-        """Spawn weights, optionally limited to the threats a population qualifies for.
+        """Spawn weights, optionally limited to threats a population qualifies for.
 
-        ``population=None`` returns the full balance table (display/CLI); passing a *living*
-        population drops every threat whose minimum the vault has not reached yet, so an
-        under-grown vault never rolls a Deathclaw.
+        population=None returns the full balance table (display/CLI); a living population drops
+        threats whose minimum the vault has not reached.
         """
         weights = {
             IncidentType.FIRE: self.weight_fire,
@@ -256,8 +245,8 @@ class CombatConfig(BaseSettings):
         description="Seconds of dweller-damage from one unit of threat power (higher = softer incidents)",
         ge=1,
     )
-    # A fire/containment hazard fills at ``power / threat * seconds / divisor``; a higher
-    # divisor makes containment take more rounds, so the fight is long enough to react to.
+    # A fire/containment hazard fills at ``power / threat * seconds / divisor``; a higher divisor makes containment
+    # take more rounds, so the fight is long enough to react to.
     incident_containment_progress_divisor: int = Field(
         default=50,
         description="Seconds of equal-power response per unit of containment progress (higher = longer fires)",
@@ -273,9 +262,8 @@ class CombatConfig(BaseSettings):
         le=120,
         description="Minimum containment rounds; floors threat health relative to responder power",
     )
-    # Tankier mid-tier threats without raising their damage: the multiplier applies only
-    # to progress denominators, so fights last longer while incoming damage is unchanged.
-    # Fire and Deathclaw are intentionally absent.
+    # Tankier mid-tier threats without raising their damage: the multiplier applies only to progress denominators, so
+    # fights last longer while incoming damage is unchanged. Fire and Deathclaw are intentionally absent.
     incident_threat_health_multipliers: dict[str, Annotated[float, Field(gt=0, allow_inf_nan=False)]] = Field(
         default_factory=lambda: {
             IncidentType.RAIDER_ATTACK.value: 2.0,
@@ -320,18 +308,15 @@ class CombatConfig(BaseSettings):
             merged[weapon_type] = {**merged[weapon_type], **weights}
         return merged
 
-    # Loot
     loot_caps_min: int = Field(default=25, ge=0)
     loot_caps_max_per_difficulty: int = Field(default=50, ge=0)
     caps_reward_base: int = Field(default=50, ge=0)
     caps_reward_per_difficulty: int = Field(default=20, ge=0)
 
-    # Item drop chances
     weapon_drop_chance: float = Field(default=0.15, ge=0.0, le=1.0)
     outfit_drop_chance: float = Field(default=0.10, ge=0.0, le=1.0)
     junk_drop_chance: float = Field(default=0.30, ge=0.0, le=1.0)
 
-    # XP rewards
     xp_per_difficulty: int = Field(default=30, description="Base XP per difficulty level", ge=0)
     perfect_bonus_multiplier: float = Field(default=1.5, description="50% bonus for no damage", ge=1.0)
 
@@ -345,8 +330,8 @@ class HealthConfig(BaseSettings):
     starvation_threshold: float = Field(default=0.0, description="Food % below which no regen", ge=0.0, le=1.0)
     dehydration_threshold: float = Field(default=0.0, description="Water % below which no regen", ge=0.0, le=1.0)
 
-    # Radiation saturates at the dweller's own max health, so the health ceiling
-    # bottoms out at 1 HP instead of the bar overflowing past the health pool.
+    # Radiation saturates at the dweller's own max health, so the health ceiling bottoms out at 1 HP instead of the
+    # bar overflowing past the health pool.
     dehydration_radiation_per_tick: int = Field(
         default=1,
         description="Master switch for dehydration radiation; rate now comes from flat/percent per window",
@@ -396,20 +381,16 @@ class HappinessConfig(BaseSettings):
     high_health_bonus: float = Field(default=0.5, description="Bonus when health >80%", ge=0.0)
     partner_nearby_bonus: float = Field(default=1.0, description="Bonus when partner in same room", ge=0.0)
 
-    # Room-specific bonuses
     living_quarters_bonus: float = Field(default=1.5, ge=0.0)
     training_room_bonus: float = Field(default=0.5, ge=0.0)
     radio_room_bonus: float = Field(default=1.0, ge=0.0)
 
-    # Status modifiers
     combat_penalty: float = Field(default=2.0, description="Fighting is stressful", ge=0.0)
     training_gain: float = Field(default=0.5, description="Learning is fulfilling", ge=0.0)
 
-    # Vault-wide bonuses
     high_vault_resources_bonus: float = Field(default=0.5, description="Bonus when all resources >80%", ge=0.0)
     no_incidents_bonus: float = Field(default=0.3, description="Bonus when no active incidents", ge=0.0)
 
-    # Thresholds
     high_health_threshold: float = Field(default=0.8, ge=0.0, le=1.0)
     critical_resource_threshold: float = Field(default=0.05, ge=0.0, le=1.0)
     radiation_penalty_threshold: int = Field(default=50, description="RAD level above which happiness drops", ge=0)
@@ -434,13 +415,7 @@ class HappinessConfig(BaseSettings):
     )
 
     def get_happiness_delta(self, sentiment: int) -> int:
-        """Get happiness delta for a given sentiment score.
-
-        Returns the mapped delta value, or 0 if sentiment not found in mapping.
-
-        :param sentiment: Sentiment score (-5 to +5)
-        :return: Happiness delta (-10 to +10), or 0 if not found
-        """
+        """Map a sentiment score (-5..+5) to a happiness delta (-10..+10); 0 when unmapped."""
         return self.sentiment_delta_mapping.get(sentiment, 0)
 
 
@@ -457,7 +432,6 @@ class TrainingConfig(BaseSettings):
     tier_2_multiplier: float = Field(default=0.75, ge=0.1, le=2.0)
     tier_3_multiplier: float = Field(default=0.6, ge=0.1, le=2.0)
 
-    # SPECIAL limits
     special_stat_min: int = Field(default=1, ge=1)
     special_stat_max: int = Field(default=10, ge=1)
 
@@ -485,7 +459,6 @@ class ResourceConfig(BaseSettings):
 
     model_config = SettingsConfigDict(env_prefix="RESOURCE_")
 
-    # Production
     base_production_rate: float = Field(
         default=0.0012,
         description=(
@@ -510,18 +483,15 @@ class ResourceConfig(BaseSettings):
     tier_2_multiplier: float = Field(default=1.5, ge=0.0)
     tier_3_multiplier: float = Field(default=2.0, ge=0.0)
 
-    # Consumption
     power_consumption_rate: float = Field(default=0.4 / 60, description="Per room per tier per second", ge=0.0)
     food_consumption_per_dweller: float = Field(default=0.30 / 60, description="Per dweller per second", ge=0.0)
     water_consumption_per_dweller: float = Field(default=0.30 / 60, description="Per dweller per second", ge=0.0)
 
     offline_reserve_fraction: float = Field(default=0.25, ge=0.0, le=1.0)
 
-    # Thresholds
     low_threshold: float = Field(default=0.2, description="20% of max", ge=0.0, le=1.0)
     critical_threshold: float = Field(default=0.05, description="5% of max", ge=0.0, le=1.0)
 
-    # Room destruction refund
     destroy_room_refund_rate: float = Field(
         default=0.5, description="Percentage of room cost refunded when destroyed", ge=0.0, le=1.0
     )
@@ -591,7 +561,6 @@ class RelationshipConfig(BaseSettings):
     marriage_threshold: int = Field(default=85, description="Affinity required for marriage", ge=0, le=100)
     married_happiness_bonus: int = Field(default=15, description="Extra happiness bonus from being married", ge=0)
 
-    # Compatibility calculation settings
     max_special_diff: int = Field(
         default=70, description="Maximum SPECIAL stat difference for compatibility (7 stats * 10)", ge=1
     )
@@ -669,7 +638,6 @@ class BreedingConfig(BaseSettings):
     adoption_min_happiness: int = Field(default=60, ge=0, le=100)
     adoption_max_youth_per_family: int = Field(default=2, ge=1)
 
-    # Youth maturity
     child_growth_duration_hours: int = Field(default=60, description="Total hours from child to adult", ge=2)
     child_special_multiplier: float = Field(default=0.5, description="Children have 50% of adult stats", ge=0.0, le=1.0)
     child_consumption_multiplier: float = Field(
@@ -689,15 +657,14 @@ class LevelingConfig(BaseSettings):
     hp_gain_per_level: int = Field(default=5, description="Health gained per level up", ge=1)
     max_level: int = Field(default=50, description="Maximum dweller level", ge=1, le=100)
 
-    # Starting level bands for generated dwellers, canon-shaped (Fallout Shelter
-    # rare ~6-10, legendary 19-43). Commons always start at level 1.
+    # Starting level bands for generated dwellers, canon-shaped (Fallout Shelter rare ~6-10, legendary 19-43). Commons
+    # always start at level 1.
     base_max_health: int = Field(default=100, description="Max health at level 1", ge=1)
     rare_start_level_min: int = Field(default=6, ge=1)
     rare_start_level_max: int = Field(default=10, ge=1)
     legendary_start_level_min: int = Field(default=19, ge=1)
     legendary_start_level_max: int = Field(default=43, ge=1)
 
-    # XP sources
     exploration_xp_per_distance: int = Field(default=10, description="Per mile traveled", ge=0)
     exploration_xp_per_enemy: int = Field(default=50, description="Per enemy defeated", ge=0)
     exploration_xp_per_event: int = Field(default=20, description="Per event encountered", ge=0)
@@ -718,7 +685,6 @@ class RadioConfig(BaseSettings):
     happiness_rate_multiplier: float = Field(default=0.01, description="+1% per happiness %", ge=0.0)
     manual_recruitment_cost: int = Field(default=500, description="Caps to recruit manually", ge=0)
 
-    # Tier multipliers
     tier_1_multiplier: float = Field(default=1.0, ge=0.0)
     tier_2_multiplier: float = Field(default=1.5, ge=0.0)
     tier_3_multiplier: float = Field(default=2.0, ge=0.0)
@@ -778,39 +744,22 @@ class DeathConfig(BaseSettings):
 
     model_config = SettingsConfigDict(env_prefix="DEATH_")
 
-    # Permanent death timing
     permanent_death_days: int = Field(
         default=7, description="Days after death before permanent (cannot revive)", ge=1, le=30
     )
 
-    # Tiered revival cost (Option B)
-    # Levels 1-5: level x tier_1_multiplier
-    # Levels 6-10: level x tier_2_multiplier
-    # Levels 11+: level x tier_3_multiplier, capped at max
     revival_cost_tier_1_multiplier: int = Field(default=50, description="Caps per level for levels 1-5", ge=1)
     revival_cost_tier_2_multiplier: int = Field(default=75, description="Caps per level for levels 6-10", ge=1)
     revival_cost_tier_3_multiplier: int = Field(default=100, description="Caps per level for levels 11+", ge=1)
     revival_cost_max: int = Field(default=2000, description="Maximum revival cost cap", ge=100)
 
-    # Health after revival
     revival_health_percent: float = Field(
         default=0.5, description="Health restored as percentage of max (50%)", ge=0.1, le=1.0
     )
 
-    # Radiation threshold for death
     def calculate_revival_cost(self, level: int) -> int:
-        """
-        Calculate revival cost based on dweller level (tiered).
-
-        Levels 1-5: level x 50 (50-250 caps)
-        Levels 6-10: level x 75 (450-750 caps)
-        Levels 11+: level x 100 (1100-2000 caps, capped)
-
-        :param level: Dweller level to calculate revival cost for.
-        :type level: int
-        :returns: Revival cost in caps based on tiered levels.
-        :rtype: int
-        :raises ValueError: if level is less than 1 (invalid level)
+        """Tiered revival cost: levels 1-5 cost level x 50, 6-10 level x 75, 11+ level x 100
+        (capped at 2000). Raises ValueError below level 1.
         """
         if level <= 5:
             cost = level * self.revival_cost_tier_1_multiplier
@@ -832,8 +781,8 @@ class DwellerConfig(BaseSettings):
         default=5, description="Starting SPECIAL stat value for boosted dwellers", ge=1, le=10
     )
 
-    # Race distribution for generated dwellers — global (standard and boosted
-    # vaults share it). Env: DWELLER_RACE_WEIGHTS='{"human":85,"ghoul":7,...}'.
+    # Race distribution for generated dwellers — global (standard and boosted vaults share it). Env:
+    # DWELLER_RACE_WEIGHTS='{"human":85,"ghoul":7,...}'.
     race_weights: dict[str, int] = Field(
         default_factory=lambda: {"human": 85, "ghoul": 7, "synth": 5, "super_mutant": 3},
         description="Seeded race roll weights; keys must cover every RaceOption",
@@ -851,9 +800,8 @@ class DwellerConfig(BaseSettings):
         ),
     )
 
-    # Faction-weighting policy: humans stay lore-coherent with vault_dweller
-    # dominant (strictly largest weight, enforced below). Non-human races draw
-    # uniformly from faction_restrictions[race] (options/factions.py) — the
+    # Faction-weighting policy: humans stay lore-coherent with vault_dweller dominant (strictly largest weight,
+    # enforced below). Non-human races draw uniformly from faction_restrictions[race] (options/factions.py) — the
     # canonical table is not duplicated here.
     human_faction_weights: dict[str, int] = Field(
         default_factory=lambda: {
@@ -875,12 +823,11 @@ class DwellerConfig(BaseSettings):
     @field_validator("race_weights", "human_faction_weights", mode="before")
     @classmethod
     def _validate_weight_map(cls, value: Any, info: ValidationInfo) -> dict[str, int]:
-        """Strictly validate weight maps before rng.choices can see them.
+        """Strictly validate weight maps before rng.choices sees them.
 
-        race_weights must cover every RaceOption; human_faction_weights may be a
-        subset of the human faction_restrictions but must keep vault_dweller
-        dominant. Keys are normalized ("Super Mutant"/"super-mutant" →
-        super_mutant); weights must be integers >= 0 with a positive total.
+        race_weights must cover every RaceOption; human_faction_weights may be a subset of
+        faction_restrictions but must keep vault_dweller dominant. Keys are normalized; weights
+        must be integers >= 0 with a positive total.
         """
         if info.field_name == "race_weights":
             valid_keys = {race.value for race in RaceOption}
@@ -958,12 +905,9 @@ class DwellerConfig(BaseSettings):
 
 
 class VaultStartConfig(BaseSettings):
-    """Vault start tuning (env prefix ``VAULT_START_``).
+    """Vault start tuning (env prefix VAULT_START_); boosted: bool remains the only start toggle.
 
-    Internal tuning only — ``boosted: bool`` remains the only start toggle.
-
-    Vault seeding reads its rarity chances from this config; radio recruitment
-    keeps ``RadioConfig.rare_chance``.
+    Vault seeding reads rarity chances here; radio recruitment keeps RadioConfig.rare_chance.
     """
 
     model_config = SettingsConfigDict(
@@ -993,16 +937,14 @@ class DispatchConfig(BaseSettings):
     base_travel_hours: int = Field(default=1, ge=0, description="Base travel time for a dispatch, in whole hours")
     travel_hours_per_unit: float = Field(default=0.1, ge=0.0, description="Travel hours added per distance unit")
 
-    # Deterministic combat (issue 772): threat = difficulty * power_per_difficulty,
-    # victory when the party's total combat power meets it; damage = difficulty *
-    # damage_per_difficulty, raised up to 2x by the power shortfall ratio (derived,
-    # no extra knob). `combat.base_raider_power` (=10) is deliberately NOT reused:
-    # it is calibrated for in-vault incident waves fought by multiple defenders,
-    # and would be far too harsh for a 1-3 dweller dispatch.
+    # Deterministic combat (issue 772): threat = difficulty * power_per_difficulty, victory when the party's total
+    # combat power meets it; damage = difficulty * damage_per_difficulty, raised up to 2x by the power shortfall ratio
+    # (derived, no extra knob). `combat.base_raider_power` (=10) is deliberately NOT reused: it is calibrated for in-
+    # vault incident waves fought by multiple defenders, and would be far too harsh for a 1-3 dweller dispatch.
     power_per_difficulty: float = Field(default=3.0, ge=0.0, description="Threat power per difficulty level")
     damage_per_difficulty: float = Field(default=1.0, ge=0.0, description="Damage per difficulty level")
-    # Tier at/above which a member reduced to 0 health dies instead of being
-    # clamped at 1 (below it, dispatch losses are non-lethal).
+    # Tier at/above which a member reduced to 0 health dies instead of being clamped at 1 (below it, dispatch losses
+    # are non-lethal).
     lethal_tier: int = Field(default=2, ge=0, description="Tier at which dispatch damage can kill")
 
 
@@ -1011,7 +953,6 @@ class ExplorationConfig(BaseSettings):
 
     model_config = SettingsConfigDict(env_prefix="EXPLORATION_")
 
-    # Event timing
     event_interval_seconds: int = Field(default=600, description="10 minutes between events", ge=0)
     first_event_delay_seconds: int = Field(default=300, description="5 minutes until first event", ge=0)
 
@@ -1026,7 +967,6 @@ class ExplorationConfig(BaseSettings):
         default=0.10, ge=0.0, le=1.0, description="10% chance per event of discovering a location"
     )
 
-    # Stat calculation formulas
     luck_multiplier_min: float = Field(default=0.5, description="Luck 1 = 0.5x", ge=0.0)
     luck_multiplier_max: float = Field(default=2.0, description="Luck 10 = 2.0x", ge=0.0)
 
@@ -1035,7 +975,6 @@ class ExplorationConfig(BaseSettings):
 
     endurance_stamina_bonus: float = Field(default=0.5, description="Max 50% more events with high endurance", ge=0.0)
 
-    # Combat formulas
     combat_success_base: float = Field(default=0.3, description="30% base success chance", ge=0.0, le=1.0)
     combat_success_max: float = Field(default=0.9, description="90% max success chance", ge=0.0, le=1.0)
     combat_stat_multiplier: float = Field(default=0.06, description="6% per combined combat stat point", ge=0.0)
@@ -1043,23 +982,19 @@ class ExplorationConfig(BaseSettings):
         default=0.25, description="Combat power added per point of equipped weapon average damage", ge=0.0
     )
 
-    # Loot rarity by luck
     rarity_common_base: float = Field(default=70.0, ge=0.0)
     rarity_rare_base: float = Field(default=25.0, ge=0.0)
     rarity_legendary_base: float = Field(default=5.0, ge=0.0)
 
-    # Loot type weights
     loot_type_junk: float = Field(default=60.0, ge=0.0)
     loot_type_weapon: float = Field(default=25.0, ge=0.0)
     loot_type_outfit: float = Field(default=15.0, ge=0.0)
 
-    # Caps rewards
     caps_base_min: int = Field(default=10, ge=0)
     caps_base_max: int = Field(default=30, ge=0)
     caps_perception_multiplier: int = Field(default=2, ge=0)
     caps_luck_multiplier: int = Field(default=3, ge=0)
 
-    # Health changes
     rest_health_min: int = Field(default=3, ge=0)
     rest_health_max: int = Field(default=8, ge=0)
 
@@ -1068,7 +1003,6 @@ class ExplorationConfig(BaseSettings):
     rarity_priority_rare: int = Field(default=2, description="Priority for rare items", ge=0)
     rarity_priority_common: int = Field(default=1, description="Priority for common items", ge=0)
 
-    # Junk values by rarity
     junk_value_common: int = Field(default=2, description="Value of common junk", ge=0)
     junk_value_rare: int = Field(default=50, description="Value of rare junk", ge=0)
     junk_value_legendary: int = Field(default=200, description="Value of legendary junk", ge=0)
@@ -1076,7 +1010,6 @@ class ExplorationConfig(BaseSettings):
     # Dispatch (clearable map points)
     dispatch: DispatchConfig = Field(default_factory=DispatchConfig)
 
-    # Scrap probabilities
     same_rarity_junk_probability: float = Field(
         default=0.4, description="Probability of getting same rarity junk when scrapping", ge=0.0, le=1.0
     )
@@ -1138,10 +1071,8 @@ class CraftingConfig(BaseSettings):
     @field_validator("caps_cost_by_rarity", "order_seconds_by_rarity", mode="before")
     @classmethod
     def validate_cost_maps(cls, v: dict[str, int]) -> dict[str, int]:
-        """Require every rarity and non-negative costs.
-
-        ``caps_cost`` falls back to the ``common`` entry, so a map without it
-        raises KeyError on lookup.
+        """Require every rarity and non-negative costs; caps_cost falls back to the common entry,
+        so a map without it raises KeyError on lookup.
         """
         normalized = {str(key).lower(): cost for key, cost in v.items()}
         required = {rarity.value for rarity in RarityEnum}
@@ -1161,10 +1092,8 @@ class CraftingConfig(BaseSettings):
     @field_validator("junk_recipe_by_rarity", mode="before")
     @classmethod
     def validate_junk_recipe(cls, v: dict[str, dict[str, int]]) -> dict[str, dict[str, int]]:
-        """Require a material breakdown for every craftable rarity.
-
-        A missing item rarity would KeyError on lookup, and a negative material
-        count would consume the wrong junk.
+        """Require a material breakdown for every craftable rarity; missing rarities KeyError on
+        lookup and negative counts would consume the wrong junk.
         """
         required = {rarity.value for rarity in RarityEnum}
         normalized: dict[str, dict[str, int]] = {}
@@ -1334,7 +1263,6 @@ class GameConfig(BaseSettings):
 
     model_config = SettingsConfigDict(env_prefix="GAME_", env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
-    # Nested configs
     game_loop: GameLoopConfig = Field(default_factory=GameLoopConfig)
     incident: IncidentConfig = Field(default_factory=IncidentConfig)
     vault_event: VaultEventConfig = Field(default_factory=VaultEventConfig)
@@ -1362,10 +1290,8 @@ class GameConfig(BaseSettings):
     rush: RushConfig = Field(default_factory=RushConfig)
 
 
-# Singleton instance
 game_config = GameConfig()
 
-# Log configuration on initialization
 logger.info("Game configuration loaded successfully")
 logger.info(f"Game loop tick interval: {game_config.game_loop.tick_interval}s")
 logger.info(f"Incident spawn tiers: {game_config.incident.room_rate_tiers} (rooms to per-hour)")

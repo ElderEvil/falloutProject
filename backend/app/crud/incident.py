@@ -54,9 +54,8 @@ class CRUDIncident:
     async def get_for_update(db_session: AsyncSession, incident_id: UUID) -> Incident | None:
         """One incident locked FOR UPDATE (overflow claiming serialization).
 
-        ``populate_existing`` forces a refresh even when the row is already in the
-        session's identity map, so a caller that loaded the incident earlier sees
-        the current committed state under the lock.
+        populate_existing forces a refresh even when already in the identity map, so a caller
+        that loaded the incident earlier sees current committed state under the lock.
         """
         result = await db_session.execute(
             select(Incident)
@@ -218,5 +217,4 @@ class CRUDIncident:
         return count
 
 
-# Global instance
 incident_crud = CRUDIncident()

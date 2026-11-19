@@ -26,12 +26,9 @@ class CRUDGameState:
     async def get_or_create(db_session: AsyncSession, vault_id: UUID, *, commit: bool = True) -> GameState:
         """Get or create state, race-safe against concurrent first ticks.
 
-        Concurrent first ticks can both see "no row" and both INSERT; the loser
-        hits the unique constraint on ``vault_id``. The insert is issued as
-        ``INSERT ... ON CONFLICT DO NOTHING`` so the loser's statement is a
-        no-op instead of an error — no exception, no rollback, no change to the
-        caller's transaction topology — then the row is re-selected and the
-        winner's state is returned to both racers.
+        INSERT ... ON CONFLICT DO NOTHING makes the loser's insert a no-op instead of a
+        unique-violation rollback, then the row is re-selected and the winner's state returned
+        to both racers.
         """
         game_state = await CRUDGameState.get_by_vault_id(db_session, vault_id)
 
@@ -107,5 +104,4 @@ class CRUDGameState:
         return list(result.scalars().all())
 
 
-# Global instance
 game_state_crud = CRUDGameState()

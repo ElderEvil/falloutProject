@@ -1,9 +1,8 @@
-"""Vault slot placement: how a persisted slot maps to shared-atlas coordinates.
+"""Vault slot placement: persisted slot → shared-atlas coordinates.
 
-The atlas is one shared slot grid (see ``game_config.vault_slots``); each vault
-occupies one unique slot and is discoverable by every player. Slot order is
-scattered, not row-major, so vaults look randomly placed while staying stable and
-non-overlapping. Coordinates are registry space (0-100).
+One shared slot grid (game_config.vault_slots); each vault occupies one unique slot,
+discoverable by every player. Slot order is scattered, not row-major — random-looking
+but stable and non-overlapping. Coordinates are registry space (0-100).
 """
 
 from functools import cache

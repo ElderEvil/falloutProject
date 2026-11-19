@@ -27,8 +27,6 @@ from .user import user
 from .vault import vault
 from .vault_recipe_unlock import vault_recipe_unlock
 from .vault_theme import vault_theme
-
-# Create CRUD instances directly using CRUDItem
 from .weapon import weapon
 from .world_location import world_location
 

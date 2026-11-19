@@ -1,13 +1,9 @@
 """Compatibility readers for the canonical dweller lifecycle and availability.
 
-``lifecycle`` / ``availability`` are the authority. The legacy ``is_dead`` /
-``is_permanently_dead`` / ``is_deleted`` / ``is_traded`` columns are compatibility
-projections: these readers derive them from canonical state when a row is classified,
-and fall back to the legacy column while a row is still NULL (pre-cutover). ``is_traded``
-stays the existing sale-settlement marker and is intentionally not derived.
-
-This lives in ``app/utils`` rather than ``app/services`` so CRUD may share it, mirroring
-``app.utils.dweller_availability``.
+lifecycle/availability are the authority; legacy is_dead/is_permanently_dead/is_deleted
+are projections derived from canonical state when classified, falling back to the legacy
+column while NULL (pre-cutover). is_traded stays the sale-settlement marker, intentionally
+not derived. Lives in app/utils so CRUD may share it.
 """
 
 from datetime import datetime
@@ -53,11 +49,10 @@ def is_traded(dweller: Dweller) -> bool:
 
 
 def graveyard_conditions() -> tuple:
-    """WHERE conditions for a memorial: canonical ``dead_permanent``, never a soft-delete flag.
+    """WHERE conditions for a memorial: canonical dead_permanent, never a soft-delete flag.
 
-    A reclassified legacy EXILE departure still carries ``is_permanently_dead``; keying on
-    the canonical lifecycle excludes it. The NULL branch keeps genuine deaths written before
-    the writers cut over visible.
+    Reclassified legacy EXILE departures still carry is_permanently_dead; keying on the
+    canonical lifecycle excludes them. The NULL branch keeps pre-cutover deaths visible.
     """
     return (
         or_(
@@ -68,9 +63,8 @@ def graveyard_conditions() -> tuple:
 
 
 def excluded_from_public_offers_conditions() -> tuple:
-    """WHERE conditions excluding departures and retired archive content from public browsing.
-
-    NULL availability (legacy rows) passes so the market keeps working before cutover.
+    """WHERE conditions excluding departures and retired archive content from public browsing;
+    NULL availability (legacy rows) passes so the market keeps working pre-cutover.
     """
     return (
         or_(
@@ -83,9 +77,9 @@ def excluded_from_public_offers_conditions() -> tuple:
 def pool_eligible_conditions(now: datetime) -> tuple:
     """WHERE conditions for the shared recruitment pool.
 
-    A person is claimable once they are a living departure, past the eligibility delay,
-    and their content is safe to reuse: system/curated, or player-authored with explicit
-    sharing consent. Unknown provenance stays private and is never listed.
+    Claimable once a living departure past the eligibility delay whose content is safe to
+    reuse: system/curated, or player-authored with explicit sharing consent. Unknown
+    provenance stays private and is never listed.
     """
     return (
         col(Dweller.availability) == AvailabilityEnum.DEPARTURE,
@@ -110,10 +104,9 @@ def memorial_conditions() -> tuple:
 def not_memorial_conditions() -> tuple:
     """WHERE conditions excluding memorials from recycle/purge paths.
 
-    A permanent death is a memorial: its row is not resurrected into a living person or
-    hard-deleted, even when it also carries a legacy soft-delete flag. Written as an explicit
-    predicate rather than the negation of ``memorial_conditions`` so an unclassified row
-    (``lifecycle IS NULL``, not permanently dead) is included rather than dropped by NULL.
+    A permanent death is never resurrected or hard-deleted, even with a legacy soft-delete
+    flag. Explicit predicate rather than negated memorial_conditions so unclassified rows
+    (lifecycle IS NULL) are included, not dropped by NULL.
     """
     return (
         or_(

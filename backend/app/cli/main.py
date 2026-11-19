@@ -1,23 +1,4 @@
-"""Unified CLI entry point for Fallout Shelter management commands.
-
-Usage:
-    uv run fo-cli --help
-    uv run fo-cli createsuperuser
-    uv run fo-cli seed
-    uv run fo-cli seed-prompts
-    uv run fo-cli version-prompt chat --template-file /path/to/chat-v2.txt
-    uv run fo-cli merge-users --source <uuid|email|username> --target <uuid|email|username> [--apply]
-    uv run fo-cli family-scenario --help
-    uv run fo-cli apprentice-scenario --help
-    uv run fo-cli expedition-scenario --help
-    uv run fo-cli trivia-scenario --help
-    uv run fo-cli backfill --help
-    uv run fo-cli ops --help
-    uv run fo-cli simulate-exploration --help
-    uv run fo-cli wiki-images --help
-    uv run fo-cli merge-users --source old@example.com --target new@example.com
-    uv run fo-cli merge-users --source <uuid> --target <uuid> --apply --reason "duplicate account"
-"""
+"""Unified CLI entry point for Fallout Shelter management commands (fo-cli)."""
 
 import asyncio
 import logging
@@ -57,7 +38,6 @@ cli = typer.Typer(
     no_args_is_help=True,
 )
 
-# Register sub-command groups
 cli.add_typer(family_scenario, name="family-scenario", help="Dev/QA: build family/breeding test scenarios")
 cli.add_typer(jev_eval, name="jev-eval", help="Dev/QA: measure Jev guardrail accuracy and calibrate thresholds")
 cli.add_typer(apprentice_scenario, name="apprentice-scenario", help="Dev/QA: build youth apprenticeship test scenarios")
@@ -82,18 +62,15 @@ cli.command(name="simulate-happiness", help="Run the happiness balance simulator
 cli.command(name="simulate-incidents", help="Run the incident balance simulator")(simulate_incidents)
 cli.command(name="simulate-resources", help="Run the resource economy simulator")(simulate_resources)
 
-# Re-register pregen-dwellers as a flat command
 cli.command(name="pregen-dwellers", help="Dev/QA: seed dwellers with deterministic bios + world-map place markers")(
     _pregen_dwellers
 )
 
-# Re-register dweller-bios as a flat command
 cli.command(
     name="dweller-bios",
     help="Dev/QA: fill missing bios for existing dwellers + world-map place markers",
 )(_dweller_bios)
 
-# Register seed-places as a flat command
 cli.command(
     name="seed-places",
     help="Ensure canonical world-place registry rows from seed_places.json",
@@ -124,9 +101,7 @@ def createsuperuser(
 ) -> None:
     """Create an admin superuser interactively or via flags.
 
-    Prompts for username, email, and password interactively, or pass
-    --no-input with --username/--email/--password to run non-interactively.
-    Falls back to settings.FIRST_SUPERUSER_* values when not provided.
+    --no-input runs non-interactively; missing values fall back to settings.FIRST_SUPERUSER_*.
     """
     if no_input and (not username or not email or not password):
         typer.echo(
@@ -145,7 +120,6 @@ def createsuperuser(
 
     async def _create() -> None:
         async with async_session_maker() as session:
-            # Check if user already exists
             existing = await crud.user.get_by_email(db_session=session, email=email)
             if existing:
                 typer.echo(f"Error: User with email '{email}' already exists (id={existing.id}).", err=True)

@@ -99,21 +99,8 @@ async def seed_from_json[T: BaseModel, M](
     validate_fn: Callable[[T], list[str]] | None = None,
     file_pattern: str = "*.json",
 ) -> int:
-    """
-    Generic seeding helper that loads JSON files, validates with Pydantic, and seeds database.
-
-    Args:
-        db_session: Database session
-        model_class: SQLModel database model class (e.g., Quest, Objective)
-        schema_class: Pydantic schema class for validation (e.g., QuestJSON, ObjectiveCreate)
-        directory: Directory containing JSON files
-        unique_field: Field name to check for duplicates (e.g., "title", "challenge")
-        transform_fn: Function to transform schema instance to model instance
-        validate_fn: Optional function to validate data after schema validation
-        file_pattern: Glob pattern for JSON files (default: "*.json")
-
-    Returns:
-        Number of records seeded
+    """Generic seeding helper: load JSON files, validate with the Pydantic schema, dedupe on
+    unique_field, insert via transform_fn; returns the number seeded.
     """
     try:
         all_data = await _load_json_files(directory, file_pattern, schema_class)

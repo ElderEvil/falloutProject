@@ -1,7 +1,6 @@
 """CRUD for the persisted generated-world snapshot.
 
-Reads never regenerate: the snapshot row is written explicitly once per
-(world_id, generator_version) and fetched thereafter.
+Reads never regenerate: one row per (world_id, generator_version), written explicitly once.
 """
 
 from __future__ import annotations
@@ -20,10 +19,8 @@ class CRUDWorldSnapshot:
     async def get_version(
         self, db_session: AsyncSession, *, world_id: str, generator_version: int, for_update: bool = False
     ) -> WorldSnapshot | None:
-        """The persisted snapshot for an explicitly selected world version, or None.
-
-        Selection is by exact ``(world_id, generator_version)`` — never "the newest" —
-        so generating a later version cannot silently change what an existing reader sees.
+        """Persisted snapshot for an exact (world_id, generator_version), or None — never "the
+        newest", so a later version cannot silently change what existing readers see.
         """
         statement = select(WorldSnapshot).where(
             WorldSnapshot.world_id == world_id,

@@ -39,7 +39,6 @@ if TYPE_CHECKING:
 
 
 class DwellerBaseWithoutStats(SQLModel):
-    # General info
     first_name: str = Field(min_length=2, max_length=32)
     last_name: str | None = Field(default=None, max_length=32)
     age_group: AgeGroupEnum = Field(default=AgeGroupEnum.ADULT)
@@ -57,17 +56,15 @@ class DwellerBaseWithoutStats(SQLModel):
         """Full display name, tolerating a missing last name."""
         return f"{self.first_name} {self.last_name or ''}".strip()
 
-    # Backstory and appearance
     bio: str | None = Field(default=None, max_length=BIO_MAX_CHARS)
     bio_entries: list[dict[str, Any]] = Field(default_factory=list, sa_column=sa.Column(JSONB, nullable=False))
     image_url: str | None = Field(default=None, max_length=255)
     thumbnail_url: str | None = Field(default=None, max_length=255)
 
-    # Trading Post: sale proceeds already collected; sold dwellers stay on the
-    # market for others but can no longer be sold again by the original vault.
+    # Trading Post: sale proceeds already collected; sold dwellers stay on the market for others but can no longer be
+    # sold again by the original vault.
     is_traded: bool = Field(default=False)
 
-    # Stats
     level: int = Field(default=1, ge=1, le=50)
     experience: int = Field(default=0, ge=0)
     max_health: int = Field(default=50, ge=50, le=1_500)  # Increased to allow for leveling gains
@@ -80,11 +77,9 @@ class DwellerBaseWithoutStats(SQLModel):
         """Maximum health available after radiation damage."""
         return max(1, self.max_health + pet_modifiers_for(self).max_health - self.radiation)
 
-    # Inventory
     stimpack: int = Field(default=0, ge=0, le=15)
     radaway: int = Field(default=0, ge=0, le=15)
 
-    # Status
     status: DwellerStatusEnum = Field(default=DwellerStatusEnum.IDLE, index=True)
 
     @property
@@ -92,19 +87,16 @@ class DwellerBaseWithoutStats(SQLModel):
         """Whether the dweller's travel status places them inside the vault."""
         return self.status not in (DwellerStatusEnum.EXPLORING, DwellerStatusEnum.QUESTING)
 
-    # Exit requests: a dweller in despair asks to leave once they have been unhappy long enough;
-    # the ask is resolved by granting or refusing it, or withdrawn when their mood recovers.
+    # Exit requests: a dweller in despair asks to leave once they have been unhappy long enough; the ask is resolved
+    # by granting or refusing it, or withdrawn when their mood recovers.
     exit_requested_at: datetime | None = Field(sa_type=UTCDateTime, default=None)
     despair_since: datetime | None = Field(sa_type=UTCDateTime, default=None)
 
-    # Death system
     is_dead: bool = Field(default=False)
     death_timestamp: datetime | None = Field(sa_type=UTCDateTime, default=None)
     death_cause: DeathCauseEnum | None = Field(default=None)
     is_permanently_dead: bool = Field(default=False)
     epitaph: str | None = Field(default=None, max_length=255)
-
-    # TBD
 
 
 class DwellerBase(DwellerBaseWithoutStats, SPECIALModel):
@@ -203,7 +195,6 @@ class Dweller(BaseUUIDModel, DwellerBase, TimeStampMixin, SoftDeleteMixin, table
         super().restore()
         self.is_traded = False
 
-    # Relationships and Family
     partner_id: UUID | None = Field(
         default=None,
         sa_column=sa.Column(sa.UUID, sa.ForeignKey("dweller.id", ondelete="SET NULL"), nullable=True),
@@ -217,7 +208,6 @@ class Dweller(BaseUUIDModel, DwellerBase, TimeStampMixin, SoftDeleteMixin, table
         sa_column=sa.Column(sa.UUID, sa.ForeignKey("dweller.id", ondelete="SET NULL"), nullable=True),
     )
 
-    # Inventory
     weapon: "Weapon" = Relationship(back_populates="dweller", cascade_delete=True)
     outfit: "Outfit" = Relationship(back_populates="dweller", cascade_delete=True)
     pet: "Pet" = Relationship(back_populates="dweller", cascade_delete=True)
@@ -238,7 +228,6 @@ class Dweller(BaseUUIDModel, DwellerBase, TimeStampMixin, SoftDeleteMixin, table
 
         return float(_combat_power(self))
 
-    # Training
     trainings: list["Training"] = Relationship(back_populates="dweller", cascade_delete=True)
 
     sent_notifications: list["Notification"] = Relationship(

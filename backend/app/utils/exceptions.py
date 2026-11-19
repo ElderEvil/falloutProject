@@ -1,9 +1,8 @@
-"""Domain exceptions.
+"""Domain exceptions, transport-free by contract.
 
-Transport-free by contract (``docs/backend/SERVICE_LAYER.md``): these classes carry HTTP semantics
-as plain data attributes (``status_code``/``detail``/``headers``) but never inherit
-``fastapi.HTTPException``. Services raise them; the API layer (``main.py``) owns the single mapping
-to responses via ``domain_exception_handler``.
+HTTP semantics ride as plain data attributes (status_code/detail/headers); never inherit
+fastapi.HTTPException. Services raise them; main.py owns the single mapping via
+domain_exception_handler.
 """
 
 from typing import Any
@@ -56,23 +55,10 @@ class ResourceNotFoundException(DomainError):
 
 
 def ensure_found[T](obj: T | None, model: type[SQLModel], identifier: str | UUID, *, identifier_type: str = "id") -> T:
-    """Return ``obj``, raising ``ResourceNotFoundException`` when it is ``None``.
+    """Return obj, raising ResourceNotFoundException when None.
 
-    Collapses the repeated two-line not-found guard into a single expression.
-    Reassigning the result (``obj = ensure_found(obj, ...)``) narrows ``T | None``
-    to ``T`` for type checkers.
-
-    Args:
-        obj: The fetched object, or ``None`` when the lookup found nothing.
-        model: The SQLModel class the lookup targeted.
-        identifier: The identifier used for the lookup.
-        identifier_type: The kind of identifier (e.g. "id", "name", "email").
-
-    Returns:
-        The object, guaranteed non-``None``.
-
-    Raises:
-        ResourceNotFoundException: If ``obj`` is ``None``.
+    Reassigning the result (obj = ensure_found(obj, ...)) narrows T | None to T for type
+    checkers.
     """
     if obj is None:
         raise ResourceNotFoundException(model, identifier, identifier_type)
@@ -103,10 +89,8 @@ class ContentNoChangeException(DomainError):
 
 
 class ValidationException(DomainError, ValueError):
-    """Raised when validation fails for a domain operation.
-
-    Also a ``ValueError`` so existing CLI/worker callers that catch ``ValueError``
-    keep working while services stop raising the bare builtin.
+    """Raised when domain validation fails; also a ValueError so existing CLI/worker callers
+    catching ValueError keep working.
     """
 
     status_code = status.HTTP_400_BAD_REQUEST

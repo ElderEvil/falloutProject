@@ -22,19 +22,8 @@ class CRUDUserProfile(CRUDBase[UserProfile, UserProfileBase, ProfileUpdate]):
         return response.scalar_one_or_none()
 
     async def create_for_user(self, db_session: AsyncSession, user_id: UUID) -> UserProfile:
-        """
-        Create a new profile for a user with race condition handling.
-
-        If a concurrent request already created the profile (IntegrityError due to
-        unique constraint on user_id), this method rolls back and returns the
-        existing profile instead of raising an error.
-
-        :param db_session: Database session
-        :type db_session: AsyncSession
-        :param user_id: User ID to create profile for
-        :type user_id: UUID
-        :returns: The created or existing profile
-        :rtype: UserProfile
+        """Create a user profile, race-safe: on unique-violation from a concurrent create, roll
+        back and return the existing profile instead of raising.
         """
         db_obj = UserProfile(user_id=user_id)
         db_session.add(db_obj)
@@ -45,7 +34,6 @@ class CRUDUserProfile(CRUDBase[UserProfile, UserProfileBase, ProfileUpdate]):
             # Race condition: another request created the profile first
             logger.debug("Profile already exists for user %s, fetching existing", user_id)
             await db_session.rollback()
-            # Re-fetch the existing profile
             existing = await self.get_by_user_id(db_session, user_id)
             if existing:
                 return existing

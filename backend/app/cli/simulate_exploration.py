@@ -1,17 +1,5 @@
-"""Vault Balance Simulator — multi-system simulation for Fallout Shelter.
-
-Simulates wasteland exploration, resource economy, incident system,
-population growth, and medical production to help balance the game.
-Run standalone without the full backend.
-
-Usage:
-    cd backend
-    uv run fo-cli simulate-exploration
-    uv run fo-cli simulate-exploration --days 7 --runs 100
-    uv run fo-cli simulate-exploration --sweep discovery_chance
-
-Output:
-    Prints statistics about all game systems and their interactions.
+"""Vault balance simulator: wasteland exploration, resource economy, incidents, population
+growth and medical production. Runs standalone without the full backend.
 """
 
 from __future__ import annotations

@@ -1,8 +1,6 @@
 """PostgreSQL advisory locks and connectivity probe for background workers.
 
-Tick actors (incidents, arena, spawning) serialize across workers with
-advisory locks; the health check pings the database. Single home for the raw
-SQL so services stay query-free and the layer guard keeps passing.
+Single home for the raw SQL so services stay query-free (layer guard).
 """
 
 from __future__ import annotations
@@ -27,31 +25,24 @@ _UNLOCK_SQL = text("SELECT pg_advisory_unlock(hashtextextended(:lock_key, 0))")
 
 @asynccontextmanager
 async def hold_advisory_lock(source: AsyncSession, lock_key: str) -> AsyncGenerator[bool]:
-    """Hold a session-level advisory lock for a whole block, on one dedicated connection.
+    """Hold a session-level advisory lock for a whole block on one dedicated connection.
 
-    A tick spans many commits, so the lock must not ride the caller's session: after
-    each commit SQLAlchemy may hand back a different connection, and the unlock then
-    lands on a connection that does not own the lock. PostgreSQL keeps a
-    session-level lock on the backend that took it, so it outlives the tick and every
-    other worker's ``pg_try_advisory_lock`` returns false - the tick silently stops
-    advancing instead of running twice. Holding the lock on a dedicated connection
-    keeps acquire and release on the same backend for the whole block, and closing
-    that connection releases the lock even if the block raises.
+    A tick spans many commits; on the caller's session SQLAlchemy may hand back a different
+    connection after each commit, stranding the unlock and leaving the lock held forever
+    (other workers' pg_try_advisory_lock then returns false and ticks silently stop). The
+    dedicated connection keeps acquire/release on one backend and releases on close even if
+    the block raises.
 
-    Yields whether the lock was acquired. Outside PostgreSQL (tests, SQLite) it
-    yields True without locking, since SQLite serializes writers itself.
-
-    Needs a session bound to an engine in production. A caller-owned connection must
-    already be autocommit: its isolation level cannot be changed after a transaction
-    has begun, and an idle transaction here could be reaped mid-tick.
+    Yields whether the lock was acquired; outside PostgreSQL yields True (SQLite serializes
+    writers itself). A caller-owned connection must already be autocommit: isolation level
+    cannot change mid-transaction and an idle transaction could be reaped mid-tick.
     """
     opened: AsyncConnection | None = None
     bind = source.bind
     if isinstance(bind, AsyncEngine):
-        # AUTOCOMMIT: the lock connection only runs the lock/unlock statements, so a
-        # default implicit transaction would sit idle-in-transaction for the whole
-        # tick and could be terminated by idle_in_transaction_session_timeout,
-        # dropping the lock the tick is relying on.
+        # AUTOCOMMIT: the lock connection only runs the lock/unlock statements, so a default implicit transaction
+        # would sit idle-in-transaction for the whole tick and could be terminated by
+        # idle_in_transaction_session_timeout, dropping the lock the tick is relying on.
         opened = await bind.execution_options(isolation_level="AUTOCOMMIT").connect()
         connection: AsyncConnection | None = opened
     elif isinstance(bind, AsyncConnection):
@@ -98,9 +89,8 @@ async def try_advisory_xact_lock(db_session: AsyncSession, lock_key: str) -> boo
 async def advisory_xact_lock(db_session: AsyncSession, lock_key: str) -> None:
     """Wait for a transaction-scoped advisory lock; no-op outside PostgreSQL.
 
-    Use when a read-modify-write must be serialized across worker processes rather
-    than only within one event loop. The lock releases when the surrounding
-    transaction ends, so the critical section must commit (or roll back) promptly.
+    Releases when the surrounding transaction ends, so the critical section must commit or
+    roll back promptly.
     """
     if db_session.get_bind().dialect.name != "postgresql":
         return

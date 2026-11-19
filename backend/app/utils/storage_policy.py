@@ -1,10 +1,8 @@
 """Space-free admission policy for vault storage.
 
-Nuka-Cola bottles are deliberately storage-space free (game-design mutation,
-documented in ``docs/backend/GAME_MECHANICS.md``). The rule has to hold on both
-sides of the storage ledger: counting stored rows (``crud.storage``) excludes
-them, and granting new bottles (``rewards.items``) skips the capacity check.
-Both sides import the predicate from here so the policy cannot drift.
+Nuka-Cola bottles are deliberately storage-space free (game-design mutation). Both
+sides of the ledger import the predicate from here: crud.storage excludes them from
+counting, rewards.items skips the capacity check when granting.
 """
 
 import re

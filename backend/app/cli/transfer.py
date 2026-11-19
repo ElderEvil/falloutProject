@@ -27,8 +27,8 @@ def transfer_dweller(
 ) -> None:
     """Transfer a single dweller to another vault.
 
-    Cleans up partner links and cross-vault relationships/pregnancies.
-    The dweller is unassigned from its room and becomes idle in the new vault.
+    Cleans up partner links and cross-vault relationships/pregnancies; the dweller is
+    unassigned from its room and becomes idle in the new vault.
     """
 
     async def _run() -> None:

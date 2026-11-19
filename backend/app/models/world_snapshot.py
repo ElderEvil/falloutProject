@@ -1,9 +1,8 @@
 """Persisted generated world snapshot (recipe + terrain + slots in one row).
 
-One row per (world_id, generator_version): a generated snapshot is written explicitly
-once and read back; requests never regenerate it. Terrain and slots live in JSONB
-columns (the repo's existing JSON-column pattern) alongside the recipe fingerprint and
-a snapshot checksum, so deployment needs no filesystem artifacts.
+One row per (world_id, generator_version), written explicitly once and read back; never
+regenerated on request. Terrain/slots are JSONB alongside the recipe fingerprint and a
+checksum — deployment needs no filesystem artifacts.
 """
 
 from sqlalchemy import Column, UniqueConstraint

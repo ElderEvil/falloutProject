@@ -26,9 +26,8 @@ class CRUDCraftingOrder(CRUDBase[CraftingOrder, CraftingOrderCreate, CraftingOrd
     async def get_active_by_vault_for_update(self, db_session: AsyncSession, vault_id: UUID) -> list[CraftingOrder]:
         """Lock active orders for the tick so a concurrent cancel cannot be overwritten.
 
-        ``skip_locked`` lets a tick skip an order a cancel already holds; after
-        waiting, PostgreSQL re-checks the ACTIVE predicate, so a committed
-        cancellation is never resurrected as completed.
+        skip_locked lets a tick skip an order a cancel already holds; after waiting, PostgreSQL
+        re-checks the ACTIVE predicate, so a committed cancellation is never resurrected as completed.
         """
         result = await db_session.execute(
             select(CraftingOrder)

@@ -1,8 +1,5 @@
-"""Outfit protection against vault hazards.
-
-Pure helpers over an already-loaded outfit: no session, no lazy IO. Both hazard
-channels (fire and radiation) read their outfit share here, so the damage
-resolver (``utils/damage_reductions.py``) has one home for outfit resists.
+"""Outfit protection against vault hazards: pure helpers over an already-loaded outfit
+(no session, no lazy IO). Both fire and radiation read their outfit share here.
 """
 
 from typing import TYPE_CHECKING
@@ -20,11 +17,9 @@ def outfit_fire_resist(outfit: "Outfit | None") -> float:
     return float(getattr(outfit, "fire_resist", 0.0) or 0.0)
 
 
-# Outfit radiation resist is name-derived like SPECIAL bonuses (see
-# utils/item_factory.build_outfit): type base, specific names override.
-# Values are shares of incoming RAD removed, 0.0-1.0. Only power armor (by
-# type) and hazmat suits (by name) grant rad resist; other outfits get none
-# unless they declare radiation_resist.
+# Outfit radiation resist is name-derived like SPECIAL bonuses (see utils/item_factory.build_outfit): type base,
+# specific names override. Values are shares of incoming RAD removed, 0.0-1.0. Only power armor (by type) and hazmat
+# suits (by name) grant rad resist; other outfits get none unless they declare radiation_resist.
 OUTFIT_RADIATION_RESIST_BY_TYPE = {
     OutfitTypeEnum.POWER_ARMOR: 0.75,
     OutfitTypeEnum.COMMON: 0.0,

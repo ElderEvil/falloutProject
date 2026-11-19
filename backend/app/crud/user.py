@@ -104,10 +104,9 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
     async def lock_users_for_merge(self, db_session: SAAsyncSession, user_ids: Iterable[UUID]) -> dict[UUID, User]:
         """Lock merge participants one at a time in ascending UUID order.
 
-        Sequential ``FOR UPDATE`` locks keep concurrent merges sharing accounts
-        from deadlocking (A→B and B→A acquire the same order). ``get_for_update``
-        does not filter ``is_deleted``, so a previously tombstoned source row is
-        still locked and revalidated by the caller.
+        Sequential FOR UPDATE locks keep concurrent merges sharing accounts from deadlocking
+        (A→B and B→A acquire the same order). get_for_update does not filter is_deleted, so
+        tombstoned source rows are still locked and revalidated by the caller.
         """
         locked: dict[UUID, User] = {}
         for user_id in sorted(set(user_ids)):
@@ -149,8 +148,8 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
         link = OAuthAccount(provider=provider, provider_user_id=provider_user_id, user_id=db_obj.id)
         try:
             db_session.add(db_obj)
-            # Flush the parent first: oauth_account.user_id has an FK but no ORM
-            # relationship, so the unit of work could otherwise insert it first.
+            # Flush the parent first: oauth_account.user_id has an FK but no ORM relationship, so the unit of work
+            # could otherwise insert it first.
             await db_session.flush()
             db_session.add(UserProfile(user_id=db_obj.id))
             db_session.add(link)

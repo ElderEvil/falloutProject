@@ -26,8 +26,8 @@ logger = getLogger(__name__)
 def _validate_vault_number(number: int) -> None:
     """Reject numbers claimed by seeded NPC vault signals.
 
-    A player vault reusing a seeded number would adopt the NPC marker row
-    (wrong coordinates, signal description) instead of its own (50, 50) home.
+    A player vault reusing a seeded number would adopt the NPC marker row (wrong
+    coordinates, signal description) instead of its own (50, 50) home.
     """
     if number in get_seeded_vault_numbers():
         raise ValidationException(f"Vault number {number} is reserved for a seeded wasteland vault signal.")
@@ -81,8 +81,8 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
     async def lock_for_update(self, db_session: AsyncSession, vault_id: UUID) -> Vault:
         """Lock a vault row and return its current committed state.
 
-        Spending services (crafting) serialize on this row so two concurrent
-        requests cannot both validate the same caps and materials.
+        Spending services (crafting) serialize here so two concurrent requests cannot both
+        validate the same caps and materials.
         """
         result = await db_session.execute(
             select(self.model)
@@ -95,11 +95,9 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
     async def get_for_update(self, db_session: AsyncSession, vault_id: UUID) -> Vault | None:
         """One vault row locked FOR UPDATE, or None when missing.
 
-        The shared vault/site claim for expedition sites: entry, terminal
-        transitions, and the finale payout serialize on this row so a cooldown
-        check and a run insert cannot interleave with a run finishing.
-        ``populate_existing`` refreshes the instance even when the row is already
-        in the session's identity map.
+        Expedition site entry, terminal transitions and finale payout serialize on this row so
+        a cooldown check and run insert cannot interleave with a run finishing.
+        populate_existing refreshes past the identity map.
         """
         result = await db_session.execute(
             select(self.model)
@@ -111,10 +109,10 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
 
     @staticmethod
     async def get_population(*, db_session: AsyncSession, vault_id: UUID) -> int:
-        """Current living population (dead and soft-deleted dwellers excluded).
+        """Current living population (dead and soft-deleted excluded).
 
-        The one population definition shared by breeding, transfers, objectives and
-        the vault display, matching the radio recruitment cap.
+        The one definition shared by breeding, transfers, objectives, vault display and the
+        radio recruitment cap.
         """
         from app.crud.dweller import dweller as dweller_crud
 
@@ -122,29 +120,27 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
 
     @staticmethod
     def population_limit_reached(population_max: int | None, population: int) -> bool:
-        """True when a vault at ``population_max`` cannot take another dweller.
-
-        ``None`` is an unbounded (legacy) cap; ``0`` means no living space at all.
+        """True when a vault at population_max cannot take another dweller; None is an unbounded
+        (legacy) cap, 0 means no living space at all.
         """
         return population_max is not None and population >= population_max
 
     @staticmethod
     def available_population_slots(population_max: int | None, population: int, *, reserved: int = 0) -> int | None:
-        """Free dweller slots, or None when the vault is unbounded (legacy data).
+        """Free dweller slots, or None when unbounded (legacy data).
 
-        ``reserved`` holds slots claimed by in-flight arrivals (e.g. active
-        pregnancies) so callers cannot over-book the same slot twice.
+        reserved holds slots claimed by in-flight arrivals (e.g. active pregnancies) so callers
+        cannot over-book the same slot twice.
         """
         if population_max is None:
             return None
         return max(0, population_max - population - reserved)
 
     async def lock_population_for_update(self, db_session: AsyncSession, vault_id: UUID) -> tuple[Vault, int]:
-        """Lock the vault row and return ``(vault, living population)``.
+        """Lock the vault row and return (vault, living population).
 
-        One atomic read for every capacity-sensitive mutation — recruitment, reward
-        grants, breeding and transfers serialize on this row lock against the same
-        living-population definition.
+        One atomic read for every capacity-sensitive mutation — recruitment, reward grants,
+        breeding, transfers — against the same living-population definition.
         """
         vault = await self.lock_for_update(db_session, vault_id)
         population = await self.get_population(db_session=db_session, vault_id=vault_id)
@@ -161,9 +157,8 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
     async def get_population_space(self, *, db_session: AsyncSession, vault_id: UUID) -> tuple[int | None, int]:
         """Population cap with total living-dweller count; (None, 0) when the vault is missing.
 
-        Counts every living dweller, assigned or not — an unassigned dweller
-        still occupies a bunk. This matches the canonical ``get_population``
-        definition; the old assigned-only counting let vaults overflow.
+        Counts every living dweller, assigned or not — an unassigned dweller still occupies a
+        bunk (assigned-only counting let vaults overflow).
         """
         population = await self.get_population(db_session=db_session, vault_id=vault_id)
         vault_check = await db_session.execute(select(Vault.population_max).where(Vault.id == vault_id))
@@ -220,10 +215,8 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
     ) -> Vault:
         """Create a vault and claim its atlas slot in one transaction.
 
-        The vault is added and flushed (not committed); the slot claim inserts under
-        savepoints without committing; a single commit makes both durable or neither.
-        An allocation failure rolls the vault back, so a vault is never persisted
-        without a slot.
+        Vault flushed, slot claim inserted under savepoints, single commit makes both durable
+        or neither; an allocation failure rolls the vault back.
         """
         from app.crud.vault_slot import vault_slot as vault_slot_crud
 
@@ -248,11 +241,10 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
         return vault
 
     async def delete(self, db_session: AsyncSession, id: UUID, soft: bool = True) -> Vault:
-        """Delete vault and its associated gamestate.
+        """Delete vault and its gamestate.
 
-        On soft delete the vault's map slot is released in the same transaction,
-        so deleted vaults cannot exhaust slot capacity. Hard delete relies on the
-        slot's ``CASCADE`` and keeps the base-class path.
+        Soft delete releases the map slot in the same transaction so deleted vaults cannot
+        exhaust slot capacity; hard delete relies on the slot's CASCADE.
         """
         # First, delete the associated gamestate if it exists
         result = await db_session.execute(select(GameState).where(GameState.vault_id == id))
@@ -283,8 +275,8 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
     async def restore(self, db_session: AsyncSession, id: UUID) -> Vault:
         """Restore a soft-deleted vault, claiming a fresh map slot first.
 
-        The claim happens before ``is_deleted`` is cleared and commits with it,
-        so a full atlas fails the restore instead of partially reviving the vault.
+        The claim commits with clearing is_deleted, so a full atlas fails the restore instead
+        of partially reviving the vault.
         """
         from app.crud.vault_slot import vault_slot as vault_slot_crud
 

@@ -66,10 +66,8 @@ class IncidentEffects:
 
 
 def effects_for_incident_type(incident_type: IncidentType) -> IncidentEffects:
-    """The damage/radiation contract for an incident type.
-
-    FIRE deals fire damage; RADSCORPION_ATTACK deals physical damage and also
-    irradiates; every other type deals physical damage without radiation.
+    """Damage/radiation contract per incident type: FIRE deals fire damage; RADSCORPION_ATTACK
+    deals physical damage and irradiates; every other type deals physical damage only.
     """
     if incident_type == IncidentType.FIRE:
         return IncidentEffects(DamageChannel.FIRE, irradiates=False)
@@ -109,7 +107,6 @@ class IncidentBase(SQLModel):
     end_time: datetime | None = Field(sa_type=UTCDateTime, default=None)
     duration: int = Field(default=60, ge=10, description="Duration in seconds before auto-spreading")
 
-    # Damage tracking
     damage_dealt: int = Field(default=0, ge=0, description="Total damage dealt to dwellers")
     enemies_defeated: int = Field(default=0, ge=0, description="Number of enemies defeated")
     combat_progress: float = Field(
@@ -118,7 +115,6 @@ class IncidentBase(SQLModel):
         description="Cumulative fractional enemies defeated (survives int truncation between ticks)",
     )
 
-    # Loot/rewards
     loot: dict | None = Field(default=None, sa_column=sa.Column(JSONB), description="Rewards from incident")
     # Overflow loot awaiting a per-item take/sell decision in the aftermath.
     unclaimed_loot: list[dict] = Field(
@@ -126,7 +122,6 @@ class IncidentBase(SQLModel):
         sa_column=sa.Column(JSONB, nullable=False),
     )
 
-    # Spread tracking
     rooms_affected: list[str] = Field(default_factory=list, sa_column=sa.Column(JSONB))
     spread_count: int = Field(default=0, ge=0, description="Number of times incident has spread")
 
@@ -137,7 +132,6 @@ class Incident(BaseUUIDModel, IncidentBase, TimeStampMixin, table=True):
     vault_id: UUID = Field(foreign_key="vault.id", index=True, ondelete="CASCADE")
     room_id: UUID = Field(foreign_key="room.id", index=True, ondelete="CASCADE")
 
-    # Relationships
     teams: list["Team"] = Relationship(
         back_populates="incident",
         sa_relationship_kwargs={"cascade": "all, delete-orphan"},
@@ -171,11 +165,9 @@ class Incident(BaseUUIDModel, IncidentBase, TimeStampMixin, table=True):
 class IncidentParticipant(BaseUUIDModel, TimeStampMixin, table=True):
     """A dweller who stood in an incident as a defender.
 
-    There is no other ledger of participation: responders are re-resolved from
-    room occupancy every round, so this row is the only durable record of who
-    actually fought. One row per (incident, dweller) so a long incident cannot
-    count twice, written inside the round's transaction so a round that fails
-    leaves no trace.
+    The only durable participation ledger — responders are re-resolved from room occupancy
+    every round. One row per (incident, dweller) so a long incident cannot count twice;
+    written inside the round's transaction so a failed round leaves no trace.
     """
 
     __tablename__ = "incident_participant"

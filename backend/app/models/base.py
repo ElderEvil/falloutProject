@@ -9,10 +9,8 @@ from app.utils.types import UTCDateTime
 
 
 class TimeStampMixin(SQLModel):
-    """Store timestamps as timezone-aware UTC.
-
-    PostgreSQL uses ``timestamptz``; SQLite stores naive UTC text and
-    :class:`UTCDateTime` re-attaches UTC on read.
+    """Timestamps as timezone-aware UTC: PostgreSQL timestamptz; SQLite stores naive UTC text
+    and UTCDateTime re-attaches UTC on read.
     """
 
     created_at: datetime | None = Field(sa_type=UTCDateTime, default_factory=utcnow)

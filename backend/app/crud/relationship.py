@@ -66,14 +66,7 @@ class CRUDRelationship(CRUDBase[Relationship, RelationshipCreate, RelationshipUp
         dweller_1_id: UUID,
         dweller_2_id: UUID,
     ) -> Relationship | None:
-        """
-        Get relationship between two dwellers (order doesn't matter).
-
-        :param db: Database session
-        :param dweller_1_id: First dweller ID
-        :param dweller_2_id: Second dweller ID
-        :returns: Relationship if exists, None otherwise
-        """
+        """Get the relationship between two dwellers (order doesn't matter), or None."""
         query = (
             select(Relationship)
             .where(
@@ -105,12 +98,11 @@ class CRUDRelationship(CRUDBase[Relationship, RelationshipCreate, RelationshipUp
         relationship_id: UUID,
         affinity: int | None = None,
     ) -> bool:
-        """Atomically transition a PARTNER relationship to MARRIED.
+        """Atomically transition PARTNER to MARRIED via conditional UPDATE so only one concurrent
+        request wins.
 
-        Uses a conditional UPDATE so only one concurrent request wins: it only
-        updates rows that are still PARTNER. Returns True if this call performed
-        the transition (and so should apply the one-time bonus/notification),
-        False if the relationship was already not PARTNER (another request won).
+        Returns True if this call performed the transition (apply the one-time
+        bonus/notification), False if another request won.
         """
         values: dict = {"relationship_type": "MARRIED", "updated_at": utcnow()}
         if affinity is not None:
@@ -128,16 +120,7 @@ class CRUDRelationship(CRUDBase[Relationship, RelationshipCreate, RelationshipUp
         db: AsyncSession,
         dweller_id: UUID,
     ) -> list[Relationship]:
-        """
-        Get all relationships for a specific dweller.
-
-        Args:
-            db: Database session
-            dweller_id: Dweller ID
-
-        Returns:
-            List of relationships for dweller
-        """
+        """Get all relationships for a dweller."""
         query = select(Relationship).where(
             (Relationship.dweller_1_id == dweller_id) | (Relationship.dweller_2_id == dweller_id)
         )
@@ -149,16 +132,7 @@ class CRUDRelationship(CRUDBase[Relationship, RelationshipCreate, RelationshipUp
         db: AsyncSession,
         vault_id: UUID,
     ) -> list[Relationship]:
-        """
-        Get all relationships for dwellers in a vault.
-
-        Args:
-            db: Database session
-            vault_id: Vault ID
-
-        Returns:
-            List of relationships in the vault
-        """
+        """Get all relationships for dwellers in a vault."""
         from sqlalchemy.orm import aliased
 
         from app.models.dweller import Dweller
@@ -224,19 +198,7 @@ class CRUDRelationship(CRUDBase[Relationship, RelationshipCreate, RelationshipUp
         relationship_type: str = "acquaintance",
         affinity: int = 0,
     ) -> Relationship:
-        """
-        Create a relationship with default values.
-
-        Args:
-            db: Database session
-            dweller_1_id: First dweller ID
-            dweller_2_id: Second dweller ID
-            relationship_type: Initial relationship type
-            affinity: Initial affinity
-
-        Returns:
-            Created relationship
-        """
+        """Create a relationship with default values."""
         relationship = Relationship(
             dweller_1_id=dweller_1_id,
             dweller_2_id=dweller_2_id,
@@ -249,5 +211,4 @@ class CRUDRelationship(CRUDBase[Relationship, RelationshipCreate, RelationshipUp
         return relationship
 
 
-# Create singleton instance
 relationship_crud = CRUDRelationship(Relationship)

@@ -9,9 +9,8 @@ from app.utils.types import UTCDateTime
 class VaultRecipeUnlock(SQLModel, table=True):
     """Per-vault unlock progress for a gated crafting recipe.
 
-    A row exists only for recipes the vault has worked toward; absence means the
-    recipe is ungated. ``unlocked_at`` stays null until the scrapped count reaches
-    the recipe's threshold.
+    A row exists only for recipes the vault has worked toward; absence means ungated.
+    unlocked_at stays null until the scrapped count reaches the recipe's threshold.
     """
 
     __tablename__ = "vault_recipe_unlock"

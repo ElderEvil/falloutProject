@@ -1,13 +1,4 @@
-"""CLI commands: pregen-dwellers and dweller-bios — dev/QA bio + map seeding.
-
-Thin wrappers over :class:`app.services.pregen_service.PregenService`; all
-business logic (dweller creation, bio composition, map registration) lives in
-the service layer per AGENTS.md.
-
-Usage:
-    uv run fo-cli pregen-dwellers --vault-id <UUID> [--count 5] [--seed 42] [--origin "Megaton"]
-    uv run fo-cli dweller-bios --vault-id <UUID> [--count 5] [--seed 42] [--origin "Megaton"] [--force]
-"""
+"""CLI: pregen-dwellers and dweller-bios — dev/QA bio + map seeding via PregenService."""
 
 from __future__ import annotations
 
@@ -82,14 +73,9 @@ def pregen_dwellers(
     seed: Annotated[int | None, typer.Option("--seed", "-s", help="Deterministic RNG seed")] = None,
     origin: Annotated[str | None, typer.Option("--origin", "-o", help="Override origin for all dwellers")] = None,
 ) -> None:
-    """Pre-generate dwellers with deterministic bios and world-map place markers.
+    """Pre-generate dwellers with deterministic template bios and world-map place markers.
 
-    Each dweller gets a cheap template-based bio that mentions an origin
-    settlement and 0-3 visited places.  Place names are drawn from the
-    exploration discovery-name pools and registered on the world map so the
-    frontend bio-linkify feature lights up immediately.
-
-    Intended for dev/QA seeding — no LLM calls, no quota consumption, cheap.
+    Dev/QA seeding: no LLM calls, no quota consumption.
     """
 
     async def _run() -> None:
@@ -121,15 +107,7 @@ def dweller_bios(
         typer.Option("--force", help="Overwrite bios even for dwellers that already have one"),
     ] = False,
 ) -> None:
-    """Fill missing bios for existing dwellers in a vault.
-
-    Each dweller without a bio gets a cheap template-based bio that mentions
-    an origin settlement and 0-3 visited places.  Place names are drawn from
-    the exploration discovery-name pools and registered on the world map so the
-    frontend bio-linkify feature lights up immediately.
-
-    Intended for dev/QA seeding — no LLM calls, no quota consumption, cheap.
-    """
+    """Fill missing bios for existing dwellers with template bios and map markers; no LLM calls."""
 
     async def _run() -> None:
         await _run_pregen(

@@ -1,10 +1,8 @@
 """Terrain helpers shared by spatial movement and discovery placement.
 
-Registry space is 0-100 with x east and y south; the world snapshot stores
-terrain row-major as ``terrain[y * width + x]`` over the same orientation, so
-registry coordinates map to tiles with no flip. The fog radii in
-``frontend/src/modules/map/utils/fog.ts`` are counted in snapshot tiles; use
-``reveal_radius_registry`` to translate them into registry space.
+Registry space is 0-100, x east / y south; the snapshot stores terrain row-major as
+terrain[y * width + x] in the same orientation (no flip). Frontend fog radii are counted
+in snapshot tiles — use reveal_radius_registry to translate.
 """
 
 from __future__ import annotations
@@ -32,10 +30,8 @@ ARRIVAL_RADIUS = 2.0
 def segment_passes_near(
     start: tuple[float, float], end: tuple[float, float], point: tuple[float, float], radius: float
 ) -> bool:
-    """True when a point lies within *radius* of the segment, endpoints included.
-
-    Catches arrivals that a single endpoint check would leapfrog over long
-    offline catch-ups.
+    """True when a point lies within radius of the segment, endpoints included; catches
+    arrivals an endpoint-only check would leapfrog over long offline catch-ups.
     """
     segment_dx, segment_dy = end[0] - start[0], end[1] - start[1]
     length_sq = segment_dx * segment_dx + segment_dy * segment_dy

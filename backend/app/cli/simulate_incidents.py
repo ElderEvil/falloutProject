@@ -1,20 +1,8 @@
-"""Incident Balance Simulator — focused combat and incident system simulation.
+"""Incident balance simulator: spawning, combat, spread, deaths and resource impact.
 
-Simulates incident spawning, combat resolution, spread mechanics, deaths,
-and resource impact to help balance vault defenses and incident difficulty.
-Incident kinds, spawn weights, difficulty ranges and the tuning baseline are
-read from ``game_config``, so the check always covers every kind the game can
-roll. Combat is resolved by the pure kernel in
-``app.services.combat.incident_sim`` — a faithful mirror of the production
-round engine — seeded either from synthetic defenders or from a real vault's
-healthy adults. Run standalone without the full backend.
-
-Usage:
-    cd backend
-    uv run fo-cli simulate-incidents
-    uv run fo-cli simulate-incidents --days 3 --runs 50
-    uv run fo-cli simulate-incidents --sweep spawn_chance_per_hour
-    uv run fo-cli simulate-incidents --vault-id <uuid>
+Kinds, weights and difficulty come from game_config; combat uses the pure kernel in
+app.services.combat.incident_sim, a faithful mirror of the production round engine.
+Runs standalone without the full backend.
 """
 
 from __future__ import annotations
@@ -62,8 +50,8 @@ DEFAULT_AVG_LEVEL = 5
 DEFAULT_RESOURCE_DRAIN_PER_TICK = 0.5
 DEFAULT_HAPPINESS_PENALTY_SPREAD = 3.0
 
-# Incident knobs come from game_config, not a second copy, so new kinds and
-# tuning changes flow straight into the balance check.
+# Incident knobs come from game_config, not a second copy, so new kinds and tuning changes flow straight into the
+# balance check.
 DEFAULT_TICK_INTERVAL = game_config.game_loop.tick_interval
 DEFAULT_INCIDENT_DT = game_config.game_loop.incident_tick_seconds
 DEFAULT_SPAWN_CHANCE_PER_HOUR = game_config.incident.get_spawn_rate(0)
@@ -124,8 +112,8 @@ class IncidentConfig:
     heal_per_tick: int = DEFAULT_HEAL_PER_TICK
     hazard_team: HazardTeam | None = None
     team_size: int = 3
-    #: Defenders wearing the matching team outfit; ``None`` follows ``team_size``
-    #: so places and gear travel together unless a condition deliberately splits them.
+    # : Defenders wearing the matching team outfit; ``None`` follows ``team_size``
+    # : so places and gear travel together unless a condition deliberately splits them.
     outfit_count: int | None = None
 
     power_max: float = 100.0
@@ -705,11 +693,10 @@ def _parse_matchup(value: str) -> tuple[IncidentType, int]:
 def run_matchup(
     config: IncidentConfig, incident_type: IncidentType, difficulty: int, runs: int, seed: int | None = None
 ) -> list[IncidentOutcome]:
-    """Resolve ``runs`` single incidents of one type/difficulty against a fresh roster each run.
+    """Resolve runs single incidents of one type/difficulty against a fresh roster each run.
 
-    Production responder count is whoever is in the affected room, so each run
-    samples ``1..defenders_per_incident`` responders from the configured
-    (team-aware) roster; the seed reproduces the exact sample sequence.
+    Each run samples 1..defenders_per_incident responders (production responder count is
+    whoever is in the affected room); the seed reproduces the exact sample sequence.
     """
     rng = random.Random(seed)
     profiles = synthetic_roster(config)

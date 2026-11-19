@@ -16,12 +16,9 @@ class CRUDVaultSlot:
     async def claim_next(self, *, db_session: AsyncSession, vault_id: UUID) -> VaultSlot:
         """Claim the lowest free slot for a vault, atomically.
 
-        Candidate indices come from a single snapshot query, then each is inserted
-        under a savepoint; the unique constraint on ``slot_index`` rejects a losing
-        race, the savepoint rolls back so the next index is tried, and one commit
-        makes the claim durable. Callers must have a transaction open (the flush
-        before this call does); ``IntegrityError`` inside ``begin_nested`` is caught
-        here because the savepoint rolls back before it propagates.
+        Candidates come from one snapshot query; each is inserted under a savepoint, the unique
+        slot_index constraint rejects losing races, and one commit makes the claim durable.
+        Callers must have a transaction open.
         """
         used = set((await db_session.execute(select(VaultSlot.slot_index))).scalars().all())
         for slot_index in range(game_config.vault_slots.count):
@@ -41,10 +38,8 @@ class CRUDVaultSlot:
     async def claim_for_new_vault(self, *, db_session: AsyncSession, vault_id: UUID) -> int:
         """Claim a slot without committing, for an enclosing vault transaction.
 
-        Insert-only (no pre-read snapshot): each candidate is inserted under a
-        savepoint and a unique-constraint violation rolls it back and tries the next
-        index. Returns the claimed index; the caller's commit makes vault + slot
-        durable together, so an allocation failure cannot leave a vault without a slot.
+        Insert-only (no pre-read): savepoint per candidate, unique-violation rolls back and
+        tries the next index; the caller's commit makes vault + slot durable together.
         """
         for slot_index in range(game_config.vault_slots.count):
             try:

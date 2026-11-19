@@ -1,9 +1,7 @@
-"""CLI command group: trivia-scenario — one-command raider trivia demo.
+"""CLI group trivia-scenario: one-command raider trivia demo.
 
-Creates a vault with a Scout on an active legacy journey. Every level-eligible
-expedition site is offered, so the same Scout can play the raider trivia and
-every other site one by one. Profiles choose the Scout's power: demo (10/7),
-balanced (5/4), or hard (3/3).
+Creates a vault with a Scout on an active legacy journey and offers every level-eligible
+site. Profiles set the Scout's power: demo (10/7), balanced (5/4), hard (3/3).
 """
 
 from __future__ import annotations
@@ -96,8 +94,8 @@ def setup(
 ) -> None:
     """Create a ready-to-play trivia scenario with every site available.
 
-    Profiles: demo (level 10, SPECIAL 7), balanced (level 5, SPECIAL 4), hard
-    (level 3, SPECIAL 3). Explicit --dweller-level/--special override the profile.
+    Profiles: demo (level 10, SPECIAL 7), balanced (5/4), hard (3/3); explicit
+    --dweller-level/--special override the profile.
     """
     try:
         level, special_value = resolve_profile(profile, dweller_level, special)

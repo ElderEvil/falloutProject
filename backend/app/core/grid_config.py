@@ -1,15 +1,13 @@
-"""Vault grid geometry shared by persistence, validation, and CRUD layers.
+"""Vault grid geometry shared by persistence, validation and CRUD.
 
-The grid is measured in *units*: a standard room spans ``UNITS_PER_ROOM`` units,
-an elevator a single unit, and a room's persisted footprint is
-``coordinate_x .. coordinate_x + size - 1``.
+Measured in units: a standard room spans UNITS_PER_ROOM units, an elevator one; a room's
+persisted footprint is coordinate_x .. coordinate_x + size - 1.
 """
 
 UNITS_PER_ROOM = 3
 ELEVATOR_UNITS = 1
 
-# One floor: the vault-door region holds two room slots, then the elevator shaft,
-# then the room slots to its right.
+# One floor: the vault-door region holds two room slots, then the elevator shaft, then the room slots to its right.
 DOOR_UNITS = 6
 SHAFT_X = DOOR_UNITS
 RIGHT_SLOT_COUNT = 7

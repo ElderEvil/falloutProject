@@ -90,9 +90,8 @@ def _executable_bind(db_session: AsyncSession) -> Connection | Engine | None:
 def tick_sql_phase(db_session: AsyncSession, name: str) -> Generator[None]:
     """Record cursor execution time only.
 
-    ``AsyncSession.execute`` may also hydrate ORM rows and run selectin loads;
-    this context captures the database cursor time so the caller can attribute
-    the remaining execute wall time separately.
+    AsyncSession.execute may also hydrate ORM rows and run selectin loads; this captures
+    cursor time so the caller can attribute the remaining wall time separately.
     """
     profile = _current_profile.get()
     bind = _executable_bind(db_session) if profile is not None else None

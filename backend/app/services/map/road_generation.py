@@ -280,19 +280,30 @@ def generate_roads(*, terrain: list[str], width: int, height: int, seed: str, ba
 
     # Local branches attach to exact existing vertices. A few later branches can
     # join earlier ones, but a location being occupied never influences this list.
-    distances = {c: min((_distance(center(c), center(n)) for n in network), default=0) for c in branch_candidates}
+    @cache
+    def centres(cell: int) -> Point:
+        return center(cell)
+
+    distances = {c: min((_distance(centres(c), centres(n)) for n in network), default=0) for c in branch_candidates}
+    # Exclusion is monotone, so mark it once per accepted branch instead of
+    # re-measuring every candidate against hubs + branches on all 70 passes:
+    # that scan alone was 18M distance calls and ~6 s per layer.
+    excluded: set[int] = set()
     branches: list[int] = []
     for _ in range(70):
-        options = [c for c in branch_candidates if all(_distance(center(c), center(b)) >= 5.5 for b in hubs + branches)]
+        options = [c for c in branch_candidates if c not in excluded]
         if not options or not network:
             break
         start = max(
             options,
             key=lambda c: distances[c] * (1.2 if terrain[c] == "ruins" else 1),
         )
-        goal = min(sorted(network), key=lambda c: _distance(center(c), center(start)))
+        goal = min(sorted(network), key=lambda c: _distance(centres(c), centres(start)))
         branches.append(start)
-        if _distance(center(start), center(goal)) < 3:
+        for candidate in branch_candidates:
+            if candidate not in excluded and _distance(centres(candidate), centres(start)) < 5.5:
+                excluded.add(candidate)
+        if _distance(centres(start), centres(goal)) < 3:
             continue
         path = _route(start, goal, land, terrain, width)
         if not path:
@@ -303,7 +314,7 @@ def generate_roads(*, terrain: list[str], width: int, height: int, seed: str, ba
         fresh = set(path) - network
         for c in branch_candidates:
             distances[c] = min(
-                distances[c], min((_distance(center(c), center(n)) for n in fresh), default=distances[c])
+                distances[c], min((_distance(centres(c), centres(n)) for n in fresh), default=distances[c])
             )
         network.update(path)
 

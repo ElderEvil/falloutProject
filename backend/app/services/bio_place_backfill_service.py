@@ -44,14 +44,10 @@ _VISITED_RE = _build_visited_regex(get_visited_places())
 
 
 def extract_places_from_bio(bio: str | None) -> tuple[str | None, list[str]]:
-    """Scan *bio* for known origin and visited place names.
+    """Scan bio for known origin and visited place names.
 
-    Returns ``(origin_place, visited_places)``:
-    - *origin_place*: the first matched origin place (preserving original casing
-      from the known origin list), or ``None``.
-    - *visited_places*: deduplicated list of visited place matches (preserving
-      the trimmed canonical form from the known visited list), excluding any
-      place that was already picked as the origin.
+    Returns (origin_place, visited_places): first matched origin in its known-list casing; visited matches
+    deduplicated in canonical trimmed form, excluding the origin.
     """
     if not bio:
         return None, []

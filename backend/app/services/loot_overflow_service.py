@@ -1,10 +1,5 @@
-"""Shared policy for loot a full vault had to leave behind.
-
-Exploration and incidents each own an ``unclaimed_loot`` column and their own
-template for how a held entry looks. This service owns the rules those owners
-share: what fits in storage, what a held entry is worth in caps, how one entry
-leaves a held list when the player takes or sells it, and how a held entry
-becomes a storage row.
+"""Shared policy for loot a full vault had to leave behind: storage fit, caps valuation, take/sell removal,
+and held-to-storage materialization. Exploration and incidents own their unclaimed_loot columns/templates.
 """
 
 import logging
@@ -30,12 +25,12 @@ from app.utils.static_data import game_data_store
 
 logger = logging.getLogger(__name__)
 
-# Medication returns through its own stock counters, never through storage rows,
-# so a held stimpak or radaway is a bug rather than a player decision.
+# Medication returns through its own stock counters, never through storage rows, so a held stimpak or radaway is a bug
+# rather than a player decision.
 MEDICAL_ITEM_TYPES = frozenset({"stimpak", "radaway"})
 
-# Rarities a held entry may declare; a value outside this set falls back to COMMON,
-# matching how the rest of the reward path tolerates a rogue catalog string.
+# Rarities a held entry may declare; a value outside this set falls back to COMMON, matching how the rest of the
+# reward path tolerates a rogue catalog string.
 _KNOWN_RARITIES = frozenset(rarity.value for rarity in RarityEnum)
 
 
@@ -64,9 +59,8 @@ class LootOverflowService:
     def unit_value_of(self, loot_item: dict) -> int:
         """Caps paid for one unit of a held entry, priced from the shipped catalogs.
 
-        Weapons and outfits carry their own catalog price; junk is priced by
-        rarity. Gear missing from the catalog is salvaged at its rarity value so
-        a catalog-miss overflow entry can still be sold and cleared.
+        Weapons/outfits use catalog price, junk rarity; gear missing from the catalog is salvaged at rarity value
+        so a catalog-miss entry can still be sold and cleared.
         """
         if loot_item.get("item_type", "junk") not in {"weapon", "outfit"}:
             rarity = str(loot_item.get("rarity", "common"))
@@ -85,11 +79,8 @@ class LootOverflowService:
     ) -> Weapon | Outfit | Junk | None:
         """Materialize one held entry as a storage row, priced as its sale would be.
 
-        Catalog weapons and outfits resolve by name (case-insensitively) from the
-        shipped catalogs and are built through ``item_factory`` so every catalog-owned
-        column is populated; junk is priced by rarity and described by the owner.
-        Returns ``None`` when the catalog has no matching row, so a caller can stop
-        that stack instead of persisting a defaulted item.
+        Catalog gear resolves case-insensitively by name through item_factory; junk is priced by rarity. Returns
+        None on catalog miss so the caller stops that stack instead of persisting a defaulted item.
         """
         name = self.item_name(loot_item)
         item_type = loot_item.get("item_type", "junk")
@@ -143,9 +134,8 @@ class LootOverflowService:
     def grant_or_hold(self, items: list[dict], available_space: int) -> tuple[list[dict], list[dict]]:
         """Greedy rarity-first split into what storage takes and what is held.
 
-        Every stored unit occupies one slot, so an entry whose quantity crosses
-        the remaining space is split across both lists. Pure policy: no session,
-        no I/O.
+        One slot per stored unit: an entry crossing the remaining space is split across both lists. Pure policy,
+        no session or I/O.
         """
         granted: list[dict] = []
         held: list[dict] = []
@@ -205,9 +195,7 @@ class LootOverflowService:
     ) -> tuple[dict, list[dict]]:
         """Shared take flow: pop, reject medical, require space, build rows, stage.
 
-        The owner loads and persists its own row and supplies the junk prose; row
-        construction itself is shared. Returns the taken entry and the remaining
-        list so the caller can credit collection after its commit.
+        Owner loads/persists its row and supplies junk prose; collection credit happens after the caller's commit.
         """
         loot_item = self.pop_decision(unclaimed, index, owner=owner, owner_id=owner_id)
         self.reject_medical(loot_item)
@@ -243,9 +231,8 @@ class LootOverflowService:
     ) -> tuple[int, list[dict]]:
         """Shared sell flow: pop, reject medical, credit caps without committing.
 
-        The caller persists its owner row and commits, so a later failure rolls
-        the credit back with everything else. Returns the caps actually credited
-        and remainder; the caller emits the collection event after commit.
+        The caller persists and commits, so a later failure rolls the credit back; collection event emits after
+        commit.
         """
         from app.services.vault_service import vault_service
 

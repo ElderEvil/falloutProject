@@ -1,9 +1,4 @@
-"""Dweller-phase tick logic for the game loop.
-
-Extracted verbatim from ``GameLoopService``: wasteland explorations, work XP and
-level-ups, deaths and dehydration radiation, youth apprenticeships, training
-sessions, and happiness. ``GameLoopService`` keeps same-named thin delegates.
-"""
+"""Dweller-phase tick logic for the game loop; GameLoopService keeps same-named thin delegates."""
 
 import logging
 from functools import partial
@@ -53,9 +48,8 @@ async def _drought_ticks(db_session: AsyncSession, vault_id: UUID) -> int:
 async def process_explorations(db_session: AsyncSession, vault_id: UUID) -> ExplorationStats:
     """Process all in-progress explorations for a vault.
 
-    - Generate events for explorations that are due
-    - Send a dweller home when exploring ends (loot and rewards wait for arrival)
-    - Finalize the run once the dweller is back
+    Events fire when due; send the dweller home at duration end (loot/rewards wait for arrival), finalize once
+    back.
     """
     stats: ExplorationStats = {
         "active_count": 0,
@@ -74,8 +68,8 @@ async def process_explorations(db_session: AsyncSession, vault_id: UUID) -> Expl
 
         stats["active_count"] = len(active_explorations)
 
-        # Iterate the ids captured up front: recover_session expires the ORM
-        # instances, so a later iteration must not read one to build its label.
+        # Iterate the ids captured up front: recover_session expires the ORM instances, so a later iteration must not
+        # read one to build its label.
         exploration_ids = [exploration.id for exploration in active_explorations]
         for index, exploration_id in enumerate(exploration_ids):
             error = await guard_phase(
@@ -96,9 +90,8 @@ async def process_explorations(db_session: AsyncSession, vault_id: UUID) -> Expl
 
 
 async def _process_single_exploration(db_session: AsyncSession, stats: ExplorationStats, exploration) -> None:
-    # Re-read under the shared vault claim (claim -> exploration) so the site-run
-    # check below cannot race a concurrent site entry; the bulk-loaded instance
-    # may be stale.
+    # Re-read under the shared vault claim (claim -> exploration) so the site-run check below cannot race a concurrent
+    # site entry; the bulk-loaded instance may be stale.
     locked = await lock_exploration_with_vault_claim(
         db_session, exploration.id, missing_ok=True, vault_id=exploration.vault_id
     )
@@ -106,9 +99,8 @@ async def _process_single_exploration(db_session: AsyncSession, stats: Explorati
         return
     exploration = locked
 
-    # Spatial runs move through the world; advance() owns their movement clock,
-    # the forward->return transition, and arrival detection. Events still fire
-    # during the forward phase (with name-derived registry placement suppressed).
+    # Spatial runs move through the world; advance() owns their movement clock, the forward->return transition, and
+    # arrival detection. Events still fire during the forward phase (with name-derived registry placement suppressed).
     if exploration.heading_degrees is not None:
         was_active = exploration.is_active()
         exploration = await exploration_service.advance(db_session, exploration.id, exploration=exploration)
@@ -126,8 +118,8 @@ async def _process_single_exploration(db_session: AsyncSession, stats: Explorati
         await expedition_service.discover_sites(db_session, exploration.id)
         if exploration.is_returning():
             return
-        # A paused encounter freezes the travel clock: never expire the run while
-        # the dweller is inside, or a long site visit would force an early return.
+        # A paused encounter freezes the travel clock: never expire the run while the dweller is inside, or a long
+        # site visit would force an early return.
         if exploration.paused_at is not None:
             return
     elif exploration.is_returning():
@@ -169,8 +161,8 @@ async def _process_single_exploration(db_session: AsyncSession, stats: Explorati
     if exploration.is_dispatch_run():
         return
 
-    # While a site run is open, random events pause and `paused_at` freezes the
-    # journey clock, so the expiry branch above cannot fire mid-run.
+    # While a site run is open, random events pause and `paused_at` freezes the journey clock, so the expiry branch
+    # above cannot fire mid-run.
     if await crud_expedition_run.get_open_for_exploration(db_session, exploration.id) is not None:
         return
 
@@ -182,16 +174,7 @@ async def _process_single_exploration(db_session: AsyncSession, stats: Explorati
 
 
 async def award_work_xp(db_session: AsyncSession, dweller, room) -> WorkXpStats:
-    """Award work XP to a dweller and check for level-up.
-
-    Args:
-        db_session: Database session
-        dweller: Dweller model instance
-        room: Room model instance
-
-    Returns:
-        dict: Statistics with 'xp_awarded' and 'leveled_up' counts
-    """
+    """Award work XP to a dweller and check for level-up."""
     from app.services.leveling_service import leveling_service
 
     stats: WorkXpStats = {"xp_awarded": 0, "leveled_up": 0}
@@ -231,10 +214,8 @@ async def process_dwellers(
 ) -> DwellersStats:
     """Process dweller updates for a vault.
 
-    - Irradiate in-vault dwellers with 1% RAD per tick once the grace period at zero water expires
-    - Award work XP to dwellers in production rooms
-    - Check for level-ups
-    - Check for deaths (health <= 0)
+    1% RAD per tick to in-vault dwellers once the zero-water grace expires; work XP for production rooms,
+    level-up checks, death checks (health <= 0).
     """
     from app.core.enums import DeathCauseEnum, DwellerStatusEnum
     from app.services.exit_request_service import exit_request_service
@@ -363,12 +344,7 @@ async def process_apprenticeships(db_session: AsyncSession, vault_id: UUID) -> A
 
 
 async def process_training(db_session: AsyncSession, vault_id: UUID) -> TrainingStats:
-    """Process all active training sessions for a vault.
-
-    - Update training progress
-    - Auto-complete trainings that have finished
-    - Track statistics
-    """
+    """Process all active training sessions for a vault."""
     from app.crud import training as training_crud
     from app.utils.exceptions import ResourceConflictException
 
@@ -463,11 +439,6 @@ async def _process_single_training(
 
 
 async def process_happiness(db_session: AsyncSession, vault_id: UUID, seconds_passed: int) -> dict:
-    """Process happiness updates for all dwellers in a vault.
-
-    - Calculate happiness changes based on vault conditions
-    - Update individual dweller happiness
-    - Update vault-wide average happiness
-    """
+    """Process happiness updates for all dwellers in a vault."""
     # Happiness service handles its own errors internally, no wrapper needed
     return await happiness_service.update_vault_happiness(db_session, vault_id, seconds_passed)

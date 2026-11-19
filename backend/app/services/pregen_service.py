@@ -27,8 +27,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-# ------------------------------------------------------------------
-# bio templates — cheap, deterministic, NO LLM
+# ------------------------------------------------------------------ bio templates — cheap, deterministic, NO LLM
 # ------------------------------------------------------------------
 
 ADULT_BIO_TEMPLATES: list[str] = [
@@ -58,8 +57,7 @@ class PregenResult:
     bio_length: int
 
 
-# ------------------------------------------------------------------
-# pure helpers (testable, no I/O)
+# ------------------------------------------------------------------ pure helpers (testable, no I/O)
 # ------------------------------------------------------------------
 
 
@@ -138,8 +136,8 @@ class PregenService:
         await crud.dweller.update(db_session, id=dweller.id, obj_in=DwellerUpdate(bio=bio))
         await map_service.register_bio_places(
             db_session=db_session,
-            # ORM Dweller declares vault_id nullable; both call sites only pass
-            # persisted vault dwellers, but the structural protocol wants non-null.
+            # ORM Dweller declares vault_id nullable; both call sites only pass persisted vault dwellers, but the
+            # structural protocol wants non-null.
             dweller=cast("Any", dweller),
             origin_place=origin_place,
             visited_places=visited_places,
@@ -162,16 +160,10 @@ class PregenService:
         seed: int | None = None,
         origin: str | None = None,
     ) -> list[PregenResult]:
-        """Create ``count`` random dwellers with deterministic bios + map markers.
+        """Create count random dwellers with deterministic bios + map markers.
 
-        Each dweller gets a cheap template-based bio that mentions an origin
-        settlement and 0-3 visited places. Place names are drawn from the
-        exploration discovery-name pools and registered on the world map so the
-        frontend bio-linkify feature lights up immediately.
-
-        When ``seed`` is provided the whole run (names, stats, bio, places) is
-        reproducible. Intended for dev/QA seeding — no LLM calls, no quota
-        consumption, cheap.
+        Template bios mention an origin settlement and 0-3 visited places drawn from discovery-name pools and
+        registered on the world map. With seed the whole run is reproducible; dev/QA only — no LLM calls or quota.
         """
         await self._ensure_vault_exists(db_session, vault_id)
         from app.services.dweller_service import dweller_service

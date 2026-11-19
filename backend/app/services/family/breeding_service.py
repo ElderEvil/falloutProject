@@ -80,19 +80,7 @@ class BreedingService:
         *,
         relationships: dict[tuple[UUID, UUID], Relationship] | None = None,
     ) -> float:
-        """Get relationship affinity and calculate conception chance.
-
-        :param db_session: Database session
-        :type db_session: AsyncSession
-        :param dweller: First dweller in the pair
-        :type dweller: Dweller
-        :param partner: Partner dweller
-        :type partner: Dweller
-        :param relationships: Prefetched relationships keyed in both directions
-        :type relationships: dict[tuple[UUID, UUID], Relationship] | None
-        :returns: Conception chance as decimal (0.0 to 1.0)
-        :rtype: float
-        """
+        """Get relationship affinity and calculate conception chance."""
         if relationships is None:
             relationship = await relationship_crud.get_by_dweller_pair(db_session, dweller.id, partner.id)
         else:
@@ -113,19 +101,7 @@ class BreedingService:
         *,
         commit: bool = True,
     ) -> Pregnancy | None:
-        """Roll random chance and create pregnancy if successful.
-
-        :param db_session: Database session
-        :type db_session: AsyncSession
-        :param dweller: First dweller in the pair
-        :type dweller: Dweller
-        :param partner: Partner dweller
-        :type partner: Dweller
-        :param conception_chance: Probability of conception (0.0 to 1.0)
-        :type conception_chance: float
-        :returns: Created pregnancy if successful, None otherwise
-        :rtype: Pregnancy | None
-        """
+        """Roll random chance and create pregnancy if successful."""
         roll = random.random()
         if roll >= conception_chance:
             return None
@@ -148,12 +124,7 @@ class BreedingService:
         db_session: AsyncSession,
         vault_id: UUID,
     ) -> list[Pregnancy]:
-        """Check all partner pairs in living quarters and roll for conception.
-
-        :param db_session: Database session
-        :param vault_id: Vault ID to check
-        :returns: List of newly created pregnancies
-        """
+        """Check all partner pairs in living quarters and roll for conception."""
         living_quarters = await room_crud.get_living_quarters(db_session, vault_id)
         if not living_quarters:
             return []
@@ -242,20 +213,7 @@ class BreedingService:
         *,
         commit: bool = True,
     ) -> Pregnancy:
-        """Create a new pregnancy record.
-
-        Args:
-            db_session: Database session
-            mother_id: Mother dweller ID
-            father_id: Father dweller ID
-
-        Returns:
-            Created pregnancy
-
-        Raises:
-            ResourceNotFoundException: If either parent does not exist.
-            ValueError: If either parent is not an adult, or mother is not female, or father is not male.
-        """
+        """Create a new pregnancy record."""
         from app.core.enums import AgeGroupEnum, GenderEnum
 
         mother = await dweller_crud.get(db_session, mother_id)
@@ -444,21 +402,8 @@ class BreedingService:
     ) -> list[Dweller]:
         """Deliver a pregnancy.
 
-        A single newborn by default; ``BreedingConfig.twin_chance`` plus the
-        mother's equipped Twins-chance pet bonus rolls twins, then a hit
-        ``BreedingConfig.triplet_chance`` upgrades twins to triplets.
-
-        Args:
-            db_session: Database session
-            pregnancy_id: Pregnancy ID
-
-        Returns:
-            Newly created child dwellers (one, two for twins, three for triplets)
-
-        Raises:
-            ResourceNotFoundException: If pregnancy or parents not found.
-            NoLivingSpaceError: If the vault is already at population capacity.
-            ValueError: If pregnancy is not due yet or the mother has no vault.
+        twin_chance plus the mother's equipped Twins-chance pet bonus rolls twins; a hit triplet_chance then
+        upgrades twins to triplets.
         """
         pregnancy = await pregnancy_crud.get(db_session, pregnancy_id)
 
@@ -474,8 +419,8 @@ class BreedingService:
             msg = "Newborn has no home vault"
             raise ValidationException(detail=msg)
 
-        # Only the mother's pet counts: Fallout Shelter FAQ §5.2 puts the pet on
-        # the female at birth, so the father's pet never influences the roll.
+        # Only the mother's pet counts: Fallout Shelter FAQ §5.2 puts the pet on the female at birth, so the father's
+        # pet never influences the roll.
         twin_chance = min(1.0, game_config.breeding.twin_chance + pet_modifiers_for(mother).twin_chance_pct)
 
         vault, population = await vault_crud.lock_population_for_update(db_session, vault_id)
@@ -510,8 +455,8 @@ class BreedingService:
             await db_session.refresh(child)
         await db_session.refresh(pregnancy)
 
-        # Emit only after commit: the objectives evaluator reads population
-        # through its own session and would undercount pre-commit.
+        # Emit only after commit: the objectives evaluator reads population through its own session and would
+        # undercount pre-commit.
         for child in children:
             await event_bus.emit(GameEvent.DWELLER_ADDED, vault_id, {"dweller_id": str(child.id)})
 
@@ -540,15 +485,7 @@ class BreedingService:
 
     @staticmethod
     def _calculate_inherited_stats(mother: Dweller, father: Dweller) -> dict:
-        """Calculate child's inherited SPECIAL stats.
-
-        Args:
-            mother: Mother dweller
-            father: Father dweller
-
-        Returns:
-            Dictionary of SPECIAL stats for child
-        """
+        """Calculate child's inherited SPECIAL stats."""
         special_attrs = SPECIAL_STATS
 
         child_stats = {}
@@ -575,15 +512,7 @@ class BreedingService:
 
     @staticmethod
     def _calculate_inherited_rarity(mother: Dweller, father: Dweller) -> RarityEnum:
-        """Calculate child's inherited rarity.
-
-        Args:
-            mother: Mother dweller
-            father: Father dweller
-
-        Returns:
-            Rarity enum for child
-        """
+        """Calculate child's inherited rarity."""
         # Get highest parent rarity
         rarity_order = [RarityEnum.COMMON, RarityEnum.RARE, RarityEnum.LEGENDARY]
 
@@ -603,12 +532,10 @@ class BreedingService:
         db_session: AsyncSession,
         vault_id: UUID,
     ) -> list[Dweller]:
-        """Advance children to teens halfway through maturity, teens to adults at completion,
-        and human adults past the elder threshold to elders.
+        """Advance children to teens at half maturity, teens to adults at completion, human adults to elders.
 
-        Fallout rule: non-human races never senesce, so ageless adults are left
-        untouched even with an ancient ``birth_date``. Youth maturation still
-        runs for every race so a newborn can reach adulthood.
+        Non-human races never senesce: ageless adults stay untouched even with an ancient birth_date; youth
+        maturation still runs for every race.
         """
         now = utcnow()
         maturity_hours = game_config.breeding.child_growth_duration_hours

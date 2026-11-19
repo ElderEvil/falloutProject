@@ -96,18 +96,8 @@ async def register_bio_places(
 ) -> bool:
     """Upsert bio origin + rarity-scaled visited location rows — best-effort.
 
-    *effective origin* = *explicit_origin* when truthy, else *origin_place*.
-    If the effective origin normalises to a generic skip token we suppress it.
-    Every visited name (max 64 chars, skip-list applied) is upserted, capped
-    at ``game_config.bio.max_visited`` for the dweller's rarity. The cap is
-    uniform: curated templates obey it too (they author the best N places,
-    not every mention).
-
-    A failed attempt rolls back its savepoint before retrying. With commit=False,
-    the caller owns persistence and must notify failure after its own commit.
-
-    Returns ``True`` when the registration succeeded (or nothing needed to be
-    done), and ``False`` when it failed after the internal retry.
+    Visited names cap at game_config.bio.max_visited per rarity — curated templates obey the cap too. A failed
+    attempt rolls back its savepoint before retry; with commit=False the caller notifies failure after its commit.
     """
     map_dweller = _MapDwellerSnapshot(
         id=dweller.id,

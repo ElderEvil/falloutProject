@@ -26,8 +26,7 @@ from app.utils.time import utcnow
 
 logger = logging.getLogger(__name__)
 
-# Journal actor names: one attacker line and one target line per hit, mirroring
-# the Arena's "X hits Y for N" phrasing.
+# Journal actor names: one attacker line and one target line per hit, mirroring the Arena's "X hits Y for N" phrasing.
 THREAT_ACTOR: dict[IncidentType, str] = {
     IncidentType.FIRE: "Fire",
     IncidentType.RADROACH_INFESTATION: "Radroach",
@@ -53,8 +52,8 @@ async def no_defender_outcome(db_session: AsyncSession, incident: Incident) -> I
     """An active incident nobody responds to: grace, then spread it, keep waiting, or lose it."""
     grace = game_config.incident.response_grace_seconds
     if grace > 0 and incident.elapsed_time() < grace:
-        # Fresh incident: give the player time to respond instead of failing on
-        # the first no-defender round. Nothing mutated, nothing to commit.
+        # Fresh incident: give the player time to respond instead of failing on the first no-defender round. Nothing
+        # mutated, nothing to commit.
         return IncidentRoundResult(no_defenders=True)
     if (
         incident.elapsed_time() >= incident.duration
@@ -181,8 +180,8 @@ async def resolve_victory(db_session: AsyncSession, incident: Incident, dwellers
         try:
             await reward_service.grant_item(db_session, incident.vault_id, item)
         except ResourceConflictException:
-            # A full vault must not turn a win into a stuck incident: the fight
-            # still resolves and the item waits for a take/sell decision.
+            # A full vault must not turn a win into a stuck incident: the fight still resolves and the item waits for
+            # a take/sell decision.
             held.append(item)
             continue
         stored_items.append(item)
@@ -219,20 +218,19 @@ async def process_incident(db_session: AsyncSession, incident: Incident, seconds
     if not dwellers:
         return await no_defender_outcome(db_session, incident)
 
-    # Credit the round's defenders before any damage lands; the ledger and any
-    # team place it earns ride this round's single commit, so a failed round
-    # leaves no participation behind.
+    # Credit the round's defenders before any damage lands; the ledger and any team place it earns ride this round's
+    # single commit, so a failed round leaves no participation behind.
     from app.services.hazard_team_service import hazard_team_service
 
     team_result = await hazard_team_service.record_participation(db_session, incident, dwellers)
 
-    # Active members of the team matching this incident's hazard respond with
-    # extra power and take less damage; bench/reserve members get nothing.
+    # Active members of the team matching this incident's hazard respond with extra power and take less damage;
+    # bench/reserve members get nothing.
     team = hazard_team_for(incident.type)
     active_ids = team_result.active_ids
 
-    # The declared objective picks the flow: containment suppresses a hazard
-    # rather than defeating enemies. Combat objectives keep the combat loop.
+    # The declared objective picks the flow: containment suppresses a hazard rather than defeating enemies. Combat
+    # objectives keep the combat loop.
     definition = get_incident_definition(incident.type)
     dweller_power = incident_math.dweller_combat_power(dwellers)
     if active_ids:
@@ -251,8 +249,8 @@ async def process_incident(db_session: AsyncSession, incident: Incident, seconds
         response_progress = incident_math.damage_to_raiders(dweller_power, seconds_passed) / effective_threat
         damage_to_raiders = response_progress * effective_threat
 
-    # Journal lines are built before apply_damage: a death expires the dweller
-    # instance, so reading its power or name afterwards would trigger lazy IO.
+    # Journal lines are built before apply_damage: a death expires the dweller instance, so reading its power or name
+    # afterwards would trigger lazy IO.
     round_entries: list[tuple[str, str, dict | None]] = []
     if definition.objective == IncidentObjective.CONTAIN:
         round_entries.append(("turn", "Responders contain the hazard", None))
@@ -272,8 +270,8 @@ async def process_incident(db_session: AsyncSession, incident: Incident, seconds
             )
     else:
         round_entries.append(("turn", "Responders attack", None))
-        # The team bonus is already inside damage_to_raiders (it scales the total
-        # power), so the per-attacker breakdown stays proportional to raw power.
+        # The team bonus is already inside damage_to_raiders (it scales the total power), so the per-attacker
+        # breakdown stays proportional to raw power.
         shares = incident_math.split_proportional(
             damage_to_raiders,
             [combat_power(dweller) for dweller in dwellers],
@@ -324,8 +322,8 @@ async def process_incident(db_session: AsyncSession, incident: Incident, seconds
     # Track total damage dealt by raiders
     incident.damage_dealt += total_damage
 
-    # Track enemies defeated — accumulate fractional kills so weak defenders
-    # still make progress instead of stalling at int() == 0 every tick.
+    # Track enemies defeated — accumulate fractional kills so weak defenders still make progress instead of stalling
+    # at int() == 0 every tick.
     enemies_this_tick = 0
     if threat_power > 0:
         previous_kills = incident.enemies_defeated
@@ -348,8 +346,7 @@ async def process_incident(db_session: AsyncSession, incident: Incident, seconds
 
     db_session.add(incident)
     await db_session.commit()
-    # Death notifications parked by mark_as_dead(commit=False) deliver only
-    # once the round actually persisted.
+    # Death notifications parked by mark_as_dead(commit=False) deliver only once the round actually persisted.
     await notification_service.deliver_deferred_notifications(db_session)
     # Incident level-ups parked the same way: emit and notify post-commit.
     from app.services.leveling_service import leveling_service
@@ -365,10 +362,9 @@ async def process_incident(db_session: AsyncSession, incident: Incident, seconds
             incident, "incident_resolved", success=True, caps_earned=caps_earned, experience_earned=experience_earned
         )
 
-    # Auto-equip runs last, after the round committed: outfit_crud.equip commits
-    # internally, so it must not ride the round's transaction. It also recovers
-    # from a failed equip with a rollback, which expires loaded instances — so
-    # nothing may read the round's ORM objects once this has run.
+    # Auto-equip runs last, after the round committed: outfit_crud.equip commits internally and must not ride the
+    # round's transaction. Its failure rollback expires loaded instances, so nothing may read the round's ORM objects
+    # once this has run.
     if team and team_result.active_gainers:
         await hazard_team_service.equip_hazard_outfits(db_session, incident.vault_id, team_result.active_gainers, team)
 
@@ -383,16 +379,7 @@ async def process_incident(db_session: AsyncSession, incident: Incident, seconds
 
 
 async def award_combat_xp(db_session: AsyncSession, incident: Incident, dwellers: list[Dweller]) -> int:
-    """Award experience to dwellers who participated in combat.
-
-    Args:
-        db_session: Database session
-        incident: Resolved incident
-        dwellers: List of dwellers who fought
-
-    Returns:
-        Total experience granted across responders.
-    """
+    """Award experience to dwellers who participated in combat."""
 
     if not dwellers:
         return 0
@@ -415,8 +402,8 @@ async def award_combat_xp(db_session: AsyncSession, incident: Incident, dwellers
         dweller.experience = max(0, dweller.experience + xp_per_dweller)
         db_session.add(dweller)
 
-        # The level-up write and its notification ride the round's single commit;
-        # process_incident drains the parked deliveries afterwards.
+        # The level-up write and its notification ride the round's single commit; process_incident drains the parked
+        # deliveries afterwards.
         leveled_up, levels_gained = await leveling_service.check_level_up(db_session, dweller, commit=False)
         if leveled_up:
             await leveling_service.settle_level_up(

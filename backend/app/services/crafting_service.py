@@ -1,14 +1,8 @@
 """Workshop crafting — recipe listing and the timed order queue.
 
-Recipes are the existing item catalogs filtered by their ``craftable`` flag;
-costs derive from rarity. Materials are junk of the crafted item's rarity or
-better, spent cheapest-first, so scrapping duplicates feeds crafting. Materials
-are consumed when an order starts; the item is collected once the tick marks
-the order complete.
-
-The Theme workshop uses the same queue, but a theme order grants permanent
-vault ownership instead of a storage item: collecting it writes ``crafted_at``
-to ``vault_theme`` and the theme becomes selectable on eligible rooms.
+Recipes are catalog items flagged craftable; materials are junk of the crafted rarity or better, spent
+cheapest-first, consumed at order start; the item is collected when the tick completes the order. Theme
+orders grant permanent vault ownership (crafted_at on vault_theme) instead of a storage item.
 """
 
 import logging
@@ -196,8 +190,8 @@ class CraftingService:
         storage = await crud.storage.get_storage_by_vault(db_session, vault_id)
         junk: list[Junk] = await crud.junk.get_in_storage(db_session, storage.id) if storage else []
 
-        # The recipe view reports what the crew would achieve, so the panel never
-        # has to infer timing or stock from other endpoints.
+        # The recipe view reports what the crew would achieve, so the panel never has to infer timing or stock from
+        # other endpoints.
         room = await self._workshop_room(db_session, vault_id, self.workshop_name(item_type))
         crew = await crud.dweller.get_by_room(db_session, room.id) if room else []
 
@@ -290,11 +284,6 @@ class CraftingService:
 
         Materials are taken at start, not collection, so the queue cannot be
         filled with orders the vault cannot pay for.
-
-        Raises:
-            ValidationException: Unknown item type, unknown/uncraftable item, or missing workshop.
-            ResourceNotFoundException: Vault has no storage row.
-            InsufficientResourcesException: Not enough eligible junk or caps.
         """
         if item_type not in CRAFTABLE_ITEM_TYPES:
             raise ValidationException(f"Unknown craftable item type: {item_type}")
@@ -438,13 +427,7 @@ class CraftingService:
         return completed
 
     async def collect_order(self, db_session: AsyncSession, vault_id: UUID, order_id: UUID) -> CraftResultRead:
-        """Move a finished order's item into storage.
-
-        Raises:
-            ResourceNotFoundException: Unknown order, or vault has no storage row.
-            ValidationException: The order is still in the queue.
-            ResourceConflictException: Storage cannot hold the crafted item.
-        """
+        """Move a finished order's item into storage."""
         order = await crud.crafting_order.get_for_vault_for_update(db_session, order_id, vault_id)
         order = ensure_found(order, CraftingOrder, order_id)
         if not order.is_completed():

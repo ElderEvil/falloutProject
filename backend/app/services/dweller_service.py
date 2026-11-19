@@ -109,11 +109,7 @@ class DwellerService:
     async def delete_dweller(self, db_session: AsyncSession, dweller_id: UUID, *, soft: bool = True) -> None:
         """Delete a dweller and close any in-progress journey in one transaction.
 
-        A deleted dweller cannot keep exploring; leaving the journey active would
-        orphan it (the detail endpoint could no longer resolve the dweller). A
-        shared party journey is closed for every member, not just the deleted one.
-
-        Journeys are locked vault -> exploration -> run before the dweller row,
+        A shared party journey closes for every member. Lock order vault -> exploration -> run before the dweller row,
         matching site-combat resolution so the two paths cannot deadlock.
         """
         explorations = await crud.exploration.get_in_progress_for_dwellers(db_session, [dweller_id])
@@ -176,14 +172,9 @@ class DwellerService:
     ) -> Dweller:
         """Create a dweller and record the overseer's lifetime total.
 
-        ``content_provenance`` defaults to the private/player-authored value; system
-        generators pass ``GENERATED`` and curated templates pass ``CURATED`` so future
-        backfills can exclude content they must not rewrite.
-
-        ``enforce_capacity=False`` is reserved for vault-bootstrap flows (seeding,
-        pregen) that must be able to fill a fresh vault.
-
-        A ``commit=False`` caller owns the commit and must emit the DWELLER_ADDED event itself after committing.
+        content_provenance defaults to private/player-authored; generators pass GENERATED, templates CURATED so
+        backfills can exclude them. enforce_capacity=False is for vault bootstrap only. commit=False callers own the
+        commit and must emit DWELLER_ADDED themselves after committing.
         """
         vault_id = obj_in.vault_id
         if vault_id is not None and enforce_capacity:
@@ -405,8 +396,8 @@ class DwellerService:
 
         await validate_room_assignment(db_session, dweller_obj, room_obj)
 
-        # Work assignment never changes population: the dweller is already
-        # counted, assigned or not. No capacity gate here.
+        # Work assignment never changes population: the dweller is already counted, assigned or not. No capacity gate
+        # here.
 
         new_status = determine_status_for_room(room_obj.category, room_obj.name)
 

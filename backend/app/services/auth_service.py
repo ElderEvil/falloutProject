@@ -33,20 +33,7 @@ class AuthService:
         password: str,
         redis_client: Redis,
     ) -> Token:
-        """Authenticate user and return tokens.
-
-        Args:
-            db_session: Database session
-            email: User email
-            password: User password
-            redis_client: Redis client for refresh token storage
-
-        Returns:
-            Token with access and refresh tokens
-
-        Raises:
-            ValidationException: If credentials are invalid or user is inactive
-        """
+        """Authenticate user and return tokens."""
         user = await crud.user.authenticate(
             db_session=db_session,
             email=email,
@@ -84,20 +71,7 @@ class AuthService:
         refresh_token: str,
         redis_client: Redis,
     ) -> Token:
-        """Refresh an access token using a refresh token.
-
-        Args:
-            db_session: Database session
-            refresh_token: Refresh token to validate
-            redis_client: Redis client
-
-        Returns:
-            New Token with refreshed access and refresh tokens
-
-        Raises:
-            ValidationException: If refresh token is invalid or user inactive
-            ResourceNotFoundException: If user not found
-        """
+        """Refresh an access token using a refresh token."""
         user_id = await security.verify_refresh_token(refresh_token, redis_client)
         if not user_id:
             raise ValidationException(detail="Invalid refresh token")
@@ -122,25 +96,13 @@ class AuthService:
         )
 
     async def logout(self, redis_client: Redis, user_id: str) -> None:
-        """Invalidate the user's refresh token.
-
-        Args:
-            redis_client: Redis client
-            user_id: User ID to invalidate tokens for
-        """
+        """Invalidate the user's refresh token."""
         await security.invalidate_refresh_token(user_id, redis_client)
 
     async def forgot_password(self, db_session: AsyncSession, email: EmailStr) -> dict:
         """Request password reset email.
 
         Always returns success to prevent email enumeration.
-
-        Args:
-            db_session: Database session
-            email: User email
-
-        Returns:
-            Response message
         """
         user = await crud.user.get_by_email(db_session, email=email)
 
@@ -172,21 +134,7 @@ class AuthService:
         new_password: str,
         redis_client: Redis,
     ) -> dict:
-        """Reset password using token from email.
-
-        Args:
-            db_session: Database session
-            token: Password reset token
-            new_password: New password (min 8 chars)
-            redis_client: Redis client
-
-        Returns:
-            Response message
-
-        Raises:
-            ValidationException: If token is invalid or expired
-            ResourceNotFoundException: If user not found
-        """
+        """Reset password using token from email."""
         # Verify token
         email = security.verify_password_reset_token(token)
         if not email:
@@ -231,21 +179,7 @@ class AuthService:
         new_password: str,
         redis_client: Redis,
     ) -> dict:
-        """Change password for authenticated user.
-
-        Args:
-            db_session: Database session
-            user: Current authenticated user
-            current_password: Current password for verification
-            new_password: New password (min 8 chars)
-            redis_client: Redis client
-
-        Returns:
-            Response message
-
-        Raises:
-            ValidationException: If current password is incorrect
-        """
+        """Change password for authenticated user."""
         if user.hashed_password is None:
             raise ValidationException(detail="No password set for this account; use the password reset flow")
 
@@ -269,19 +203,7 @@ class AuthService:
         return {"msg": "Password changed successfully"}
 
     async def verify_email(self, db_session: AsyncSession, token: str) -> dict:
-        """Verify user email using token from email.
-
-        Args:
-            db_session: Database session
-            token: Email verification token
-
-        Returns:
-            Response message
-
-        Raises:
-            ValidationException: If token is invalid or expired
-            ResourceNotFoundException: If user not found
-        """
+        """Verify user email using token from email."""
         # Verify token
         user_id = security.verify_email_token(token)
         if not user_id:
@@ -307,19 +229,7 @@ class AuthService:
         return {"msg": "Email verified successfully"}
 
     async def resend_verification_email(self, db_session: AsyncSession, user: User) -> dict:
-        """Resend verification email to user.
-
-        Args:
-            db_session: Database session
-            user: Current authenticated user
-
-        Returns:
-            Response message
-
-        Raises:
-            ValidationException: If email already verified
-            ResourceNotFoundException: If the user row no longer exists
-        """
+        """Resend verification email to user."""
         locked_user = await crud.user.get_for_update(db_session, user.id)
         locked_user = ensure_found(locked_user, User, identifier=str(user.id))
 

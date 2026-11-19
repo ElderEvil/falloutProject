@@ -1,14 +1,7 @@
-"""Objective evaluators that automatically track progress via EventBus subscriptions.
+"""Objective evaluators tracking progress via EventBus subscriptions; re-exports keep the public import surface.
 
-This is a package now: the ABC + session machinery live in ``base``, the concrete
-evaluators in ``concrete``, and the manager in ``manager``. The public surface is
-re-exported here so ``from app.services.progression.objectives.evaluators import X``
-keeps working.
-
-Mutable module state — ``current_session_maker`` / ``set_current_session_maker`` and
-the ``async_session_maker`` patch point — lives in ``base``. Tests monkeypatch
-``app.services.progression.objectives.evaluators.base.async_session_maker``, not this
-package's re-export; patching here would not forward.
+Mutable state (current_session_maker, async_session_maker patch point) lives in base: tests must monkeypatch
+...evaluators.base.async_session_maker — patching this package's re-export would not forward.
 """
 
 from app.services.progression.objectives.evaluators.base import (

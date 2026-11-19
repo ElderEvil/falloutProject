@@ -24,15 +24,7 @@ class LevelingService:
 
     @staticmethod
     def calculate_xp_for_level_range(current_level: int, target_level: int) -> int:
-        """Calculate XP needed to go from current_level to target_level.
-
-        Args:
-            current_level: Starting level
-            target_level: Ending level
-
-        Returns:
-            XP difference between the two levels
-        """
+        """Calculate XP needed to go from current_level to target_level."""
         if target_level <= current_level:
             return 0
         return LevelingService.calculate_xp_required(target_level) - LevelingService.calculate_xp_required(
@@ -42,16 +34,7 @@ class LevelingService:
     async def check_level_up(
         self, db_session: AsyncSession, dweller: Dweller, *, commit: bool = True
     ) -> tuple[bool, int]:
-        """Check if dweller has enough XP to level up.
-
-        Args:
-            db_session: Database session
-            dweller: Dweller to check
-            commit: Whether the level-up write commits (False lets a caller batch it)
-
-        Returns:
-            Tuple of (leveled_up: bool, levels_gained: int)
-        """
+        """Check if dweller has enough XP to level up."""
         if dweller.level >= game_config.leveling.max_level:
             logger.debug(f"Dweller {dweller.id} already at max level {dweller.level}")
             return False, 0
@@ -83,19 +66,8 @@ class LevelingService:
     ) -> Dweller:
         """Level up a dweller.
 
-        Increases:
-        - Level
-        - Max health (hp_gain_per_level per level)
-        - Current health (to match new max if below)
-
-        Args:
-            db_session: Database session
-            dweller: Dweller to level up
-            levels: Number of levels to gain (default 1)
-            commit: Whether the level-up write commits (False lets a caller batch it)
-
-        Returns:
-            Updated dweller
+        Max health grows by hp_gain_per_level per level; current health tops up to the new max if below.
+        commit=False lets a caller batch the write.
         """
         if dweller.level >= game_config.leveling.max_level:
             logger.debug(f"Dweller {dweller.id} already at max level, skipping level-up")
@@ -142,10 +114,8 @@ class LevelingService:
     ) -> None:
         """Emit DWELLER_LEVEL_UP and notify the owner; no-op when deferred or vaultless.
 
-        The single surfacing entry point for every XP path (quest rewards, work
-        ticks, incidents, arena, exploration). Pass commit=False where the caller
-        drains deferred deliveries after its own commit (incident rounds): the
-        event and notification park until then instead of leaking pre-commit.
+        Single surfacing point for every XP path. commit=False parks the event/notification until the caller's
+        own commit (incident rounds) instead of leaking pre-commit.
         """
         from app.crud import vault as crud_vault
         from app.services.notification_service import notification_service

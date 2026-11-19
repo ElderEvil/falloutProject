@@ -38,14 +38,7 @@ class EventGenerator:
     """Generates exploration events."""
 
     def can_generate_event(self, exploration: Exploration) -> bool:
-        """Check if enough time has passed to generate a new event.
-
-        Args:
-            exploration: Active exploration
-
-        Returns:
-            True if event should be generated
-        """
+        """Check if enough time has passed to generate a new event."""
         if not exploration.is_active():
             return False
 
@@ -69,15 +62,7 @@ class EventGenerator:
     def generate_event(
         self, exploration: Exploration, profile: ExpeditionCombatProfile | None = None
     ) -> ExplorationEvent | None:
-        """Generate a random wasteland event.
-
-        Args:
-            exploration: Active exploration
-            profile: Live combat inputs for the explorer; None uses the departure snapshot
-
-        Returns:
-            Event schema or None if no event should be generated
-        """
+        """Generate a random wasteland event."""
         if not self.can_generate_event(exploration):
             return None
 
@@ -103,10 +88,8 @@ class EventGenerator:
             k=1,
         )[0]
 
-        # Generate event based on type
-        # Only combat reads the live equipment profile; loot odds, danger/radiation
-        # and rest healing keep the departure snapshot so an upgrade never changes
-        # loot probabilities or health/radiation rules (issue #765 boundary).
+        # Only combat reads the live equipment profile; loot odds, danger/radiation and rest healing keep the
+        # departure snapshot so an upgrade never changes loot probabilities or health/radiation rules.
         if event_type == "combat":
             return self._generate_combat_event(exploration, profile)
         if event_type == "loot":

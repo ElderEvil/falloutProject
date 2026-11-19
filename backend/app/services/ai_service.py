@@ -1,18 +1,6 @@
-"""AI service module that handles AI provider configuration lazily.
-
-This module can be imported without API keys set - AI features will simply
-not be available until a provider is configured.
-
-Migration Guide:
-    - New projects: Use PYDANTIC_AI_GATEWAY_API_KEY (recommended)
-    - Existing projects: Direct provider keys still work but emit deprecation warnings
-    - Set AI_PROVIDER to choose the upstream provider when using Gateway
-
-Architecture Notes:
-    - Chat/Text: Uses PydanticAI Gateway when PYDANTIC_AI_GATEWAY_API_KEY is set
-    - Image (DALL-E): Uses direct OpenAI client (Gateway ImageGenerationTool requires Agent pattern)
-    - Audio (TTS/Whisper): Uses direct OpenAI client (Gateway does not support OpenAI native audio APIs)
-    - For image/audio: Set both PYDANTIC_AI_GATEWAY_API_KEY AND OPENAI_API_KEY for full functionality
+"""AI provider configuration, lazy: importable without API keys; features stay off until a provider is set.
+Chat uses PydanticAI Gateway when PYDANTIC_AI_GATEWAY_API_KEY is set; image/audio use the direct OpenAI client
+(Gateway lacks native audio; ImageGenerationTool needs the Agent pattern) — set OPENAI_API_KEY too for those.
 """
 
 import asyncio
@@ -85,12 +73,6 @@ class AIService:
         """Initialize AI provider based on configuration priority.
 
         Priority: 1. Gateway (recommended), 2. Direct (deprecated), 3. Ollama, 4. LM Studio, 5. Disabled
-
-        Args:
-            mode: Optional forced mode (used by ``reconfigure`` when the DB
-                profile forces a local provider). Defaults to ``settings.ai_provider_mode``.
-            base_url: Optional base URL override forwarded to the gateway and
-                direct provider initializers.
         """
         config = config or settings
         mode = mode or config.ai_provider_mode
@@ -108,12 +90,7 @@ class AIService:
                 logger.warning("No AI provider configured. AI features disabled.")
 
     def _initialize_gateway(self, base_url: str | None = None, *, config: Settings = settings) -> None:
-        """Initialize using Pydantic AI Gateway (recommended approach).
-
-        Args:
-            base_url: Optional Gateway proxy URL override (defaults to
-                ``PYDANTIC_AI_GATEWAY_BASE_URL``).
-        """
+        """Initialize using Pydantic AI Gateway (recommended approach)."""
         if not config.PYDANTIC_AI_GATEWAY_API_KEY:
             return
         try:
@@ -274,14 +251,8 @@ class AIService:
     async def generate_image(self, *, prompt: str, return_bytes: bool = False, size: str = "1024x1024") -> str | bytes:
         """Generate an image using OpenAI's image model.
 
-        Uses the configured AI_IMAGE_MODEL (default: gpt-image-1) and the
-        requested ``size`` (defaults to square; e.g. "1536x1024" for landscape).
-        Falls back to URL-based fetching for legacy model responses, but the new
-        gpt-image-* models return b64_json directly.
-
-        Note: Image generation uses direct OpenAI client, not Gateway.
-        Gateway's ImageGenerationTool requires Agent pattern which is incompatible
-        with the current service architecture. Set OPENAI_API_KEY for image features.
+        Uses AI_IMAGE_MODEL (default gpt-image-1); gpt-image-* returns b64_json directly, legacy models fall back
+        to URL fetching. Direct OpenAI client, not Gateway — needs OPENAI_API_KEY.
         """
         self._ensure_client_available()
         if self._client is None:

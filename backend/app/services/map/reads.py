@@ -249,12 +249,9 @@ def _site_marker(
 async def _expedition_site_markers(db_session: AsyncSession, vault: Vault) -> list[ExpeditionSiteMarkerRead]:
     """Journey-offered sites across in-progress spatial runs, else the legacy catalog.
 
-    Every in-progress spatial journey contributes the sites near its traveled
-    trail (consumed ones drop out), carrying its exploration id so the client can
-    route entry to the right journey. Legacy journeys keep the catalog with
-    anti-farm cooldowns. With no in-progress journey there are no temporary
-    markers at all — they expire with the journey rather than reverting to a
-    permanent catalog.
+    Spatial journeys contribute sites near their traveled trail (consumed ones drop out) with their exploration
+    id for routing; legacy journeys keep the catalog with anti-farm cooldowns. Temporary markers expire with the
+    journey — no journey, no markers.
     """
     explorations = await exploration_crud.get_by_vault(db_session, vault_id=vault.id, active_only=True)
     spatial = [exploration for exploration in explorations if exploration.heading_degrees is not None]

@@ -1,15 +1,8 @@
 """Re-lay existing vaults onto the unit grid.
 
-Backend rooms are stored in a unit space where a room occupies
-``coordinate_x .. coordinate_x + size - 1`` (a standard room is 3 units, an
-elevator 1). Older vaults were laid out with one room per column, which overlaps
-under unit semantics, so they are re-laid floor by floor:
-
-    door | elevator shaft | rooms to the right
-    resource rooms fill the slots to the LEFT of the shaft
-
-Every room keeps its floor, and every level gets an elevator in the shaft beside
-the vault door.
+Rooms occupy coordinate_x .. coordinate_x + size - 1 (standard 3 units, elevator 1); old one-room-per-column
+layouts overlap under unit semantics. Re-laid floor by floor: door | elevator shaft | rooms right, resource
+rooms left of the shaft; every room keeps its floor, every level gets a shaft elevator beside the door.
 """
 
 from __future__ import annotations
@@ -161,8 +154,8 @@ class VaultLayoutBackfillService:
                 _, start, end = span
                 if index + 1 < len(level) and level[index + 1][1] <= end:
                     overlaps += 1
-                # Elevators are anchored by the shaft above them, so a level holding
-                # only the shaft is valid rather than floating.
+                # Elevators are anchored by the shaft above them, so a level holding only the shaft is valid rather
+                # than floating.
                 if span in elevator_spans:
                     continue
                 touches = (index > 0 and level[index - 1][2] + 1 == start) or (

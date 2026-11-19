@@ -1,13 +1,8 @@
 """Roster sources for the incident simulator: real vault snapshots and synthetic defenders.
 
-``snapshot_vault_defenders`` loads a vault's healthy adults through CRUD and
-turns each into a ``DefenderProfile`` using the same pure helpers the production
-engine uses (``combat_power``, ``damage_reductions``), including the active
-hazard-team places the dweller already holds. ``synthetic_defenders`` builds
-profiles from small local stubs — never real ``Weapon``/``Outfit``/``Junk``
-models (the item-factory architecture guard bans bare constructor calls) — so the
-synthetic path is formula-locked to the real game without database writes.
-Outfits use the validated catalog schemas (resists + SPECIAL), not ORM rows.
+Both paths use production's pure helpers (combat_power, damage_reductions). Synthetic profiles use local
+stubs and validated catalog schemas — never bare Weapon/Outfit/Junk constructors (item-factory architecture
+guard) — so no database writes.
 """
 
 from dataclasses import dataclass
@@ -95,17 +90,10 @@ def synthetic_defenders(
     team_size: int = 0,
     outfit_count: int | None = None,
 ) -> list[DefenderProfile]:
-    """Build ``count`` synthetic defender profiles without constructing item models.
+    """Build count synthetic defender profiles without constructing item models.
 
-    The first ``team_size`` defenders hold an active place on ``hazard_team`` and
-    the first ``outfit_count`` (defaulting to ``team_size``) wear the team's
-    catalog outfit, mirroring production's ``equip_hazard_outfits``. Splitting the
-    two lets the balance playtest isolate the team place from the matching gear:
-    gear without a place (``team_size=0``, ``outfit_count>0``) and a place without
-    gear (``outfit_count=0``). Power and reductions are computed by the same pure
-    helpers the production engine uses (``combat_power``, ``damage_reductions``),
-    so the synthetic path is formula-locked to the real game. Health follows the
-    dweller max-health formula: ``50 + (level - 1) * hp_gain_per_level``.
+    First team_size hold an active hazard_team place; first outfit_count (default team_size) wear the team outfit
+    — split to isolate place from gear. Production's pure helpers; health = 50 + (level-1) * hp_gain_per_level.
     """
     from app.core.game_config import game_config
 

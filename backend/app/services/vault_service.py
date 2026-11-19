@@ -31,14 +31,11 @@ class VaultService:
         is_boosted: bool = False,
         scenario_start: bool = False,
     ) -> Vault:
-        """Create a vault with its rooms and dwellers; `is_boosted` seeds the full build.
+        """Create a vault with its rooms and dwellers; is_boosted seeds the full build.
 
-        Standard: infrastructure, production rooms with workers, storage, one living room.
-        Boosted adds radio/office/response station/arena, all seven training rooms, both
-        crafting workshops, extra storage with junk stock, and a 36-dweller roster.
-
-        Scenario starts add living capacity and skip starter objectives while
-        keeping the requested normal population and resource start.
+        Boosted adds radio/office/response station/arena, all seven training rooms, both crafting workshops, extra
+        storage with junk stock, and a 36-dweller roster. Scenario starts add living capacity and skip starter
+        objectives while keeping the requested population and resource start.
         """
         # Create vault and storage
         vault_db_obj = await vault_crud.create_with_user_id(db_session=db_session, obj_in=obj_in, user_id=user_id)

@@ -34,16 +34,7 @@ class ElevenLabsTtsService:
         voice_id: str | None = None,
         model_id: str | None = None,
     ) -> bytes:
-        """Generate speech audio via ElevenLabs and return raw bytes.
-
-        Args:
-            text: The line to speak.
-            voice_id: ElevenLabs voice; defaults to the shared echo voice.
-            model_id: ElevenLabs model; defaults to DEFAULT_MODEL_ID.
-
-        Raises:
-            ElevenLabsProviderException: On HTTP or transport errors from the API.
-        """
+        """Generate speech audio via ElevenLabs and return raw bytes."""
         if not self.is_enabled:
             raise ElevenLabsProviderException(detail="ElevenLabs is not configured")
 
@@ -70,8 +61,8 @@ class ElevenLabsTtsService:
                     json=payload,
                 )
         except httpx.RequestError as e:
-            # Transport-level failures (timeout, DNS, connect) must also hit the
-            # caller's degradation path, not leak out as unhandled errors.
+            # Transport-level failures (timeout, DNS, connect) must also hit the caller's degradation path, not leak
+            # out as unhandled errors.
             logger.warning("ElevenLabs TTS transport error: %s", e)
             raise ElevenLabsProviderException(detail=f"ElevenLabs unreachable: {e}") from e
 

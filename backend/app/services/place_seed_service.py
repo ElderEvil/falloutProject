@@ -53,11 +53,9 @@ async def seed_places_from_json(db_session: AsyncSession, *, commit: bool = True
         existing = await world_location_crud.get_registry_by_normalized(db_session, normalized)
         if existing is not None:
             changed = False
-            # The seed owns canonical lore and the site-type group. Descriptions
-            # only refresh for seed rows (emergent rows may carry place-specific
-            # text), but grouping is a shared taxonomy fact, so it backfills any
-            # row whose name is now in the roster — the retroactive-update path
-            # for registries that predate a group (or a newly added instance).
+            # The seed owns canonical lore and the site-type group. Descriptions refresh only for seed rows (emergent
+            # rows may carry place-specific text), but grouping is shared taxonomy: it backfills any row whose name is
+            # now in the roster, covering registries that predate a group.
             if existing.source == "seed" and entry.get("description") != existing.description:
                 existing.description = entry.get("description")
                 changed = True

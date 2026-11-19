@@ -1,19 +1,6 @@
-"""Pure, deterministic incident combat kernel mirroring the production round engine.
-
-``resolve_incident`` reproduces the combat loop of
-``app.services.combat.incident_round.process_incident`` — the same threat,
-damage, suppression, damage-split, hazard-team response, radiation and victory
-formulas — but synchronous, deterministic and roster-driven, so the balance
-simulator can run thousands of incidents without a database. It calls the same
-pure helpers production uses (``incident_math``, ``damage_reductions``,
-``combat_power``) rather than duplicating any formula.
-
-Simulation limitations: without room topology, unopposed spread is modeled as an
-extended escalation window, not adjacent-room spawning. Responders are supplied
-by the caller, so the simulator's roster choice (not production's room occupancy
-plus auto-dispatch) decides who fights. Team place earning and outfit
-auto-equip are not simulated: a defender is configured with the team places and
-outfit reductions it is assumed to already hold.
+"""Pure, deterministic incident combat kernel for the balance simulator (no database).
+Reuses production's pure helpers (incident_math, damage_reductions, combat_power) — no formula duplication.
+No topology: spread is an escalation window; callers supply responders; no team-place earning or auto-equip.
 """
 
 from dataclasses import dataclass, field
@@ -78,24 +65,9 @@ def resolve_incident(
     base_raider_power: float | None = None,
     response_grace_seconds: int = 0,
 ) -> IncidentOutcome:
-    """Resolve one incident to completion against the given responders.
-
-    Mirrors ``incident_round.process_incident``: active members of the incident's
-    matching hazard team add ``TEAM_RESPONSE_BONUS`` power each and resist
-    ``TEAM_HAZARD_RESIST`` on the incident's channel; each sub-tick of ``dt``
-    seconds deals ``incident_math`` damage to the living responders (split
-    evenly, the first ones take the remainder), accumulates suppression progress,
-    and — for irradiating incidents — adds ``min(taken-1, taken//2)`` RAD after
-    outfit/team reduction, clamping health to ``max(1, max_health - radiation)``.
-    FIRE wins at ``progress >= 1``; every other type wins at
-    ``int(progress) >= difficulty * 2``. With no living responders and spread
-    disabled the incident fails on that round once ``response_grace_seconds``
-    has elapsed, like production's no-defender outcome — it does not burn
-    sub-ticks to the duration.
-    ``max_spread_count`` is accepted for signature parity with the
-    production engine; when > 0 it extends the effective duration (one extra
-    ``duration`` per spread) as an unopposed-spread window, otherwise the
-    default path fails at ``duration`` only while spread could still occur.
+    """Resolve one incident against the given responders, mirroring incident_round.process_incident.
+    FIRE wins at progress >= 1; others at int(progress) >= difficulty*2; no defenders fails after the grace window.
+    max_spread_count > 0 adds one duration per spread as an unopposed-spread window.
     """
     threat = incident_math.raider_power(difficulty) if base_raider_power is None else difficulty * base_raider_power
     if threat <= 0:

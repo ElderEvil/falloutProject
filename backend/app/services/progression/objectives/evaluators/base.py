@@ -1,15 +1,7 @@
 """Objective evaluator base: the shared event-handling engine.
 
-Each evaluator listens for specific game events, finds matching active objectives
-for the vault, updates progress, and marks rewards ready when the target is reached.
-
-Example flow:
-    Player collects 100 caps
-    -> Game code emits RESOURCE_COLLECTED event
-    -> CollectEvaluator receives event
-    -> Finds "Collect 100 Caps" objective for vault
-    -> Updates progress: 50 -> 100
-    -> Makes the reward ready to claim
+Evaluators listen for game events, find matching active vault objectives, update progress, and mark rewards
+ready at target.
 """
 
 import abc
@@ -27,11 +19,9 @@ from app.models.vault_objective import VaultObjectiveProgressLink
 
 logger = logging.getLogger(__name__)
 
-# Loop-local session maker: dramatiq worker threads keep one event loop each
-# (``app.core.async_runtime.run_async``), so handlers must open sessions from the
-# maker bound to the loop that emitted the event (not the module-global one,
-# which would share an asyncpg connection across loops and trigger InterfaceError
-# collisions).
+# Loop-local session maker: dramatiq worker threads keep one event loop each (run_async), so handlers must open
+# sessions from the maker bound to the emitting loop — the module-global maker would share an asyncpg connection
+# across loops and trigger InterfaceError collisions.
 current_session_maker: contextvars.ContextVar[Any] = contextvars.ContextVar("current_session_maker", default=None)
 
 
@@ -45,12 +35,10 @@ def set_current_session_maker(maker: Any) -> contextvars.Token:
 
 
 def _expand_payloads(data: dict[str, Any]) -> list[dict[str, Any]]:
-    """Split a batched ``resources`` payload into one payload per resource.
+    """Split a batched resources payload into one payload per resource.
 
-    Production emits one event per vault carrying every positive resource, so
-    the evaluator credits the whole window in one handler session, with one
-    vault lock and objectives query instead of one per resource. Single-resource
-    events pass through unchanged.
+    Production emits one event per vault with every positive resource, so the whole window is credited in one
+    handler session — one vault lock and objectives query. Single-resource events pass through.
     """
     resources = data.get("resources")
     if not isinstance(resources, dict):
@@ -60,12 +48,7 @@ def _expand_payloads(data: dict[str, Any]) -> list[dict[str, Any]]:
 
 
 class ObjectiveEvaluator(abc.ABC):
-    """Base class for objective evaluators.
-
-    Each evaluator handles a specific objective_type (e.g. "collect", "build")
-    by subscribing to relevant GameEvent types and updating progress when
-    matching events are emitted.
-    """
+    """Base class for objective evaluators."""
 
     objective_type: str
     subscribed_events: tuple[GameEvent, ...]
@@ -141,8 +124,8 @@ class ObjectiveEvaluator(abc.ABC):
         """A qualifying dweller can contribute once to a distinct-dweller objective."""
         from app.crud.objective import objective_crud
 
-        # A previous objective commit releases locks on the remaining loaded
-        # links. Reload this link under its own lock before crediting the event.
+        # A previous objective commit releases locks on the remaining loaded links. Reload this link under its own
+        # lock before crediting the event.
         from app.crud.vault import vault as vault_crud
 
         await vault_crud.lock_for_update(db_session, vault_id)

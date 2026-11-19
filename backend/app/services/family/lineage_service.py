@@ -25,16 +25,7 @@ class LineageService:
         generation: int,
         partner_context: Mapping[UUID, tuple[RelationshipTypeEnum, int]] | None = None,
     ) -> list[LineageMember]:
-        """Map dwellers to LineageMember records at the given generation.
-
-        Args:
-            dwellers: Dwellers to map
-            generation: Generation number for the members
-            partner_context: Optional per-partner relationship stage/affinity (only for partners)
-
-        Returns:
-            List of LineageMember records
-        """
+        """Map dwellers to LineageMember records at the given generation."""
         context = partner_context or {}
         return [
             LineageMember(
@@ -79,9 +70,6 @@ class LineageService:
         """Find the dweller's partner(s): reciprocal partner_id plus MARRIED/PARTNER relationships.
 
         Takes the already-loaded dweller: re-reading it here cost six statements.
-
-        Returns:
-            Tuple of partner dwellers and a mapping of partner_id to (relationship_type, affinity).
         """
         partner_ids = set()
         context: dict[UUID, tuple[RelationshipTypeEnum, int]] = {}
@@ -161,9 +149,6 @@ class LineageService:
 
         Pass *dweller* when the caller already loaded it (the detail endpoint does);
         otherwise it is fetched here.
-
-        Raises:
-            ResourceNotFoundException: If the dweller does not exist.
         """
         dweller = dweller or await dweller_crud.get(db_session, dweller_id)
         vault_id = dweller.vault_id
@@ -175,8 +160,8 @@ class LineageService:
         parents_by_id = {
             parent.id: parent for parent in await dweller_crud.get_many_with_relations(db_session, parent_ids)
         }
-        # Iterate parent_ids, not the query result: the batched query has no ORDER BY,
-        # and the response must keep parent_1 before parent_2.
+        # Iterate parent_ids, not the query result: the batched query has no ORDER BY, and the response must keep
+        # parent_1 before parent_2.
         parents = [
             parents_by_id[parent_id]
             for parent_id in parent_ids

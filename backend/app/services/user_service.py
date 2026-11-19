@@ -59,15 +59,7 @@ class UserService:
         password: str | None = None,
         email: EmailStr | None = None,
     ) -> User:
-        """Validate and persist every supplied account change in one transaction.
-
-        Raises:
-            ValidationException: 400 if the username violates length bounds.
-            ResourceNotFoundException: 404 if the locked user row disappeared.
-            ResourceConflictException: 409 if the username or email is taken.
-            AccountChangeCooldownException: 429 while a change cooldown is active.
-            EmailDeliveryException: 502 when the account was saved but the mail could not be sent.
-        """
+        """Validate and persist every supplied account change in one transaction."""
         locked_user = await crud.user.get_for_update(db_session, user.id)
         locked_user = ensure_found(locked_user, User, identifier=str(user.id))
 

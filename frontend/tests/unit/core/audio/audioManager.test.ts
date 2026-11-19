@@ -5,6 +5,7 @@ import {
   MUSIC_MANIFEST,
   AMBIENCE_MANIFEST,
   ROOM_AMBIENCE_MANIFEST,
+  THEMED_ROOM_AMBIENCE,
 } from '@/core/audio/soundManifest'
 import { existsSync } from 'node:fs'
 import { resolve } from 'node:path'
@@ -15,6 +16,7 @@ it('ships every manifest audio file in the public directory', () => {
     ...Object.values(AMBIENCE_MANIFEST),
     ...Object.values(ROOM_AMBIENCE_MANIFEST),
     ...Object.values(MUSIC_MANIFEST).flat(),
+    ...Object.values(THEMED_ROOM_AMBIENCE),
   ]
   for (const src of sources) {
     expect(existsSync(resolve('public', src.slice(1))), `Missing audio asset: ${src}`).toBe(true)
@@ -455,6 +457,118 @@ describe('audioManager preview overlap', () => {
     expect(preview.pause).toHaveBeenCalled()
     expect(MockAudio.instances.filter((a) => !a.paused)).toHaveLength(1)
   })
+
+  it('keeps a playing loop untouched when previewing the music bus', async () => {
+    const manager = await freshManager()
+    manager.setMuted(false)
+    window.dispatchEvent(new Event('pointerdown'))
+    manager.playLoop('vaultAmbient')
+
+    const loop = MockAudio.instances.filter((a) => a.src.includes('vault-ambient')).at(-1)!
+    loop.currentTime = 42
+    loop.play.mockClear()
+
+    manager.setVolume('music', 0.8)
+    manager.previewMusic()
+
+    expect(MockAudio.instances.filter((a) => a.src.includes('vault-ambient'))).toHaveLength(1)
+    expect(loop.play).not.toHaveBeenCalled()
+    expect(loop.currentTime).toBe(42)
+    expect(loop.volume).toBeCloseTo(0.8 ** 2)
+  })
+
+  it('previews the music bus over a ducked (silent) loop for slider feedback', async () => {
+    const manager = await freshManager()
+    manager.setMuted(false)
+    window.dispatchEvent(new Event('pointerdown'))
+    manager.playLoop('vaultAmbient')
+
+    manager.duckMusic(500)
+    vi.advanceTimersByTime(600)
+    const loop = MockAudio.instances.filter((a) => a.src.includes('vault-ambient')).at(-1)!
+    expect(loop.paused).toBe(true)
+
+    manager.previewMusic()
+
+    const previews = MockAudio.instances.filter(
+      (a) => a.src.includes('vault-ambient') && a !== loop
+    )
+    expect(previews).toHaveLength(1)
+    expect(previews[0].play).toHaveBeenCalled()
+  })
+
+  it('stops a preview started while ducked when the loop is restored', async () => {
+    const manager = await freshManager()
+    manager.setMuted(false)
+    window.dispatchEvent(new Event('pointerdown'))
+    manager.playLoop('vaultAmbient')
+
+    const loop = MockAudio.instances.filter((a) => a.src.includes('vault-ambient')).at(-1)!
+    manager.duckMusic(500)
+    vi.advanceTimersByTime(600)
+    manager.previewMusic()
+    const preview = MockAudio.instances.filter((a) => a.src.includes('vault-ambient')).at(-1)!
+    expect(preview).not.toBe(loop)
+
+    manager.restoreMusic(0)
+    vi.advanceTimersByTime(1)
+
+    expect(preview.paused).toBe(true)
+    expect(
+      MockAudio.instances.filter((a) => a.src.includes('vault-ambient') && !a.paused)
+    ).toHaveLength(1)
+  })
+
+  it('stops an ambience preview started while ducked when ambience is restored', async () => {
+    const manager = await freshManager()
+    manager.setMuted(false)
+    window.dispatchEvent(new Event('pointerdown'))
+    manager.playAmbience('production')
+
+    manager.duckMusic(500)
+    vi.advanceTimersByTime(600)
+    manager.previewAmbience()
+    const previews = MockAudio.instances.filter(
+      (a) => a.src.includes('/audio/ambience/') && !a.loop
+    )
+    expect(previews).toHaveLength(1)
+
+    manager.restoreMusic(0)
+    vi.advanceTimersByTime(1)
+
+    expect(previews[0].paused).toBe(true)
+    expect(
+      MockAudio.instances.filter((a) => a.src.includes('/audio/ambience/') && !a.paused)
+    ).toHaveLength(1)
+  })
+
+  it('still previews the music bus when no loop is playing', async () => {
+    const manager = await freshManager()
+    manager.setMuted(false)
+    window.dispatchEvent(new Event('pointerdown'))
+
+    manager.previewMusic()
+
+    const preview = MockAudio.instances.filter((a) => a.src.includes('vault-ambient')).at(-1)!
+    expect(preview.play).toHaveBeenCalled()
+  })
+
+  it('keeps a live ambience loop untouched when previewing the ambience bus', async () => {
+    const manager = await freshManager()
+    manager.setMuted(false)
+    window.dispatchEvent(new Event('pointerdown'))
+    manager.playAmbience('production')
+
+    const ambience = MockAudio.instances.filter((a) => a.src.includes('/audio/ambience/')).at(-1)!
+    ambience.currentTime = 30
+    ambience.play.mockClear()
+
+    manager.previewAmbience()
+
+    expect(MockAudio.instances.filter((a) => a.src.includes('/audio/ambience/'))).toHaveLength(1)
+    expect(ambience.play).not.toHaveBeenCalled()
+    expect(ambience.currentTime).toBe(30)
+  })
 })
 
 describe('audioManager ambience bus', () => {
@@ -794,5 +908,228 @@ describe('audioManager alarm toggle', () => {
 
     expect(handler).toHaveBeenCalledTimes(1)
     expect(handler.mock.calls[0][0].alarmEnabled).toBe(false)
+  })
+})
+
+describe('audioManager restore fade slider', () => {
+  beforeEach(() => {
+    MockAudio.instances = []
+    localStorage.clear()
+    vi.stubGlobal('Audio', MockAudio)
+    vi.useFakeTimers()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.unstubAllGlobals()
+  })
+
+  async function unlockedManager() {
+    const manager = await freshManager()
+    manager.setMuted(false)
+    window.dispatchEvent(new Event('pointerdown'))
+    return manager
+  }
+
+  it('retargets the music restore fade when the slider moves between ticks', async () => {
+    const manager = await unlockedManager()
+    manager.playLoop('vaultAmbient')
+    const loop = MockAudio.instances.find((a) => a.src.includes('/audio/music/'))!
+    manager.duckMusic(500)
+    vi.advanceTimersByTime(600)
+    expect(loop.paused).toBe(true)
+
+    manager.restoreMusic(0, 1000)
+    vi.advanceTimersByTime(1) // restore fires; fade-in starts (20 ticks of 50ms)
+    vi.advanceTimersByTime(200) // 4 ticks toward the original 0.4 slider target
+    const midFade = loop.volume
+    expect(midFade).toBeGreaterThan(0)
+    expect(midFade).toBeLessThan(0.4 ** 2)
+
+    manager.setVolume('music', 0.9)
+    vi.advanceTimersByTime(50) // next tick must not snap back to the old target
+    expect(loop.volume).toBeGreaterThanOrEqual(midFade)
+    vi.advanceTimersByTime(800) // fade completes at the latest slider value
+
+    expect(loop.volume).toBeCloseTo(0.9 ** 2)
+    expect(loop.paused).toBe(false)
+  })
+
+  it('retargets the ambience restore fade when the slider moves between ticks', async () => {
+    const manager = await unlockedManager()
+    manager.playAmbience('production')
+    const ambience = MockAudio.instances.find((a) => a.src.includes('/audio/ambience/'))!
+    manager.duckMusic(500)
+    vi.advanceTimersByTime(600)
+    expect(ambience.paused).toBe(true)
+
+    manager.restoreMusic(0, 1000)
+    vi.advanceTimersByTime(201) // restore fires, then 4 fade ticks
+    manager.setVolume('ambience', 0.7)
+    vi.advanceTimersByTime(850)
+
+    expect(ambience.volume).toBeCloseTo(0.7 ** 2)
+    expect(ambience.paused).toBe(false)
+  })
+
+  it('lets a duck fade finish at zero and pause even if the slider moves', async () => {
+    const manager = await unlockedManager()
+    manager.playLoop('vaultAmbient')
+    const loop = MockAudio.instances.find((a) => a.src.includes('/audio/music/'))!
+
+    manager.duckMusic(1000)
+    vi.advanceTimersByTime(200)
+    manager.setVolume('music', 0.9)
+    vi.advanceTimersByTime(850)
+
+    expect(loop.pause).toHaveBeenCalled()
+    expect(loop.paused).toBe(true)
+    expect(loop.volume).toBeCloseTo(0)
+  })
+})
+
+describe('audioManager themed room music', () => {
+  beforeEach(() => {
+    MockAudio.instances = []
+    localStorage.clear()
+    vi.stubGlobal('Audio', MockAudio)
+    vi.useFakeTimers()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.unstubAllGlobals()
+  })
+
+  async function unlockedManager() {
+    const manager = await freshManager()
+    manager.setMuted(false)
+    window.dispatchEvent(new Event('pointerdown'))
+    return manager
+  }
+
+  const themedTrack = (file: string) =>
+    MockAudio.instances.find(
+      (a) => a.src.includes('/audio/ambience/themed/') && a.src.includes(file)
+    )!
+  const playlistLoop = () =>
+    MockAudio.instances.find((a) => a.src.includes('/audio/music/vault-ambient'))!
+
+  it('suspends the playlist for the themed track and restores it in place', async () => {
+    const manager = await unlockedManager()
+    manager.playLoop('vaultAmbient')
+    const loop = playlistLoop()
+    loop.currentTime = 10
+    loop.play.mockClear()
+
+    manager.playThemedRoomMusic('diner:xmas')
+
+    const themed = themedTrack('diner-xmas')
+    expect(themed).toBeDefined()
+    expect(themed.loop).toBe(true)
+    expect(themed.paused).toBe(false)
+    expect(loop.paused).toBe(true)
+    expect(loop.currentTime).toBe(10)
+
+    manager.setVolume('music', 0.9)
+    // The themed track fades in; the slider retargets the fade to the new value.
+    vi.advanceTimersByTime(700)
+    expect(themed.volume).toBeCloseTo(0.9 ** 2)
+
+    manager.stopThemedRoomMusic()
+
+    expect(themed.paused).toBe(true)
+    expect(loop.paused).toBe(false)
+    expect(loop.currentTime).toBe(10)
+    expect(loop.play).toHaveBeenCalled()
+  })
+
+  it('swaps themed rooms while the playlist stays suspended', async () => {
+    const manager = await unlockedManager()
+    manager.playLoop('vaultAmbient')
+    manager.playThemedRoomMusic('diner:xmas')
+    manager.playThemedRoomMusic('diner:brotherhood')
+
+    expect(themedTrack('diner-xmas').paused).toBe(true)
+    expect(themedTrack('diner-brotherhood').paused).toBe(false)
+    expect(playlistLoop().paused).toBe(true)
+
+    manager.stopThemedRoomMusic()
+    expect(playlistLoop().paused).toBe(false)
+  })
+
+  it('resumes the themed track after mute instead of the suspended playlist', async () => {
+    const manager = await unlockedManager()
+    manager.playLoop('vaultAmbient')
+    manager.playThemedRoomMusic('diner:xmas')
+
+    manager.setMuted(true)
+    manager.setMuted(false)
+
+    expect(themedTrack('diner-xmas').paused).toBe(false)
+    expect(playlistLoop().paused).toBe(true)
+
+    manager.stopThemedRoomMusic()
+    expect(playlistLoop().paused).toBe(false)
+  })
+
+  it('ducks and restores themed room music while the playlist stays suspended', async () => {
+    const manager = await unlockedManager()
+    manager.playLoop('vaultAmbient')
+    manager.playThemedRoomMusic('diner:xmas')
+
+    manager.duckMusic(500)
+    vi.advanceTimersByTime(600)
+    const themed = themedTrack('diner-xmas')
+    expect(themed.paused).toBe(true)
+
+    manager.restoreMusic(0)
+    vi.advanceTimersByTime(1)
+
+    expect(themed.paused).toBe(false)
+    expect(playlistLoop().paused).toBe(true)
+
+    manager.stopThemedRoomMusic()
+    expect(playlistLoop().paused).toBe(false)
+  })
+
+  it('starts the suspended playlist when the themed modal closes before the duck restores', async () => {
+    const manager = await unlockedManager()
+    manager.playLoop('vaultAmbient')
+    manager.playThemedRoomMusic('diner:xmas')
+
+    manager.duckMusic(500)
+    vi.advanceTimersByTime(600)
+    manager.stopThemedRoomMusic()
+    expect(playlistLoop().paused).toBe(true)
+
+    manager.restoreMusic(0)
+    vi.advanceTimersByTime(1)
+
+    expect(playlistLoop().paused).toBe(false)
+  })
+
+  it('hands the music bus back when a playlist starts over a themed room', async () => {
+    const manager = await unlockedManager()
+    manager.playLoop('vaultAmbient')
+    manager.playThemedRoomMusic('diner:xmas')
+
+    manager.playLoop('exploration')
+
+    const exploration = MockAudio.instances.find((a) => a.src.includes('exploration-1'))!
+    expect(exploration.paused).toBe(false)
+    expect(themedTrack('diner-xmas').paused).toBe(true)
+    expect(playlistLoop().paused).toBe(true)
+  })
+
+  it('defers the music preview while the themed track plays', async () => {
+    const manager = await unlockedManager()
+    manager.playLoop('vaultAmbient')
+    manager.playThemedRoomMusic('diner:xmas')
+
+    const before = MockAudio.instances.filter((a) => a.src.includes('vault-ambient')).length
+    manager.previewMusic()
+
+    expect(MockAudio.instances.filter((a) => a.src.includes('vault-ambient'))).toHaveLength(before)
   })
 })

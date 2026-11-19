@@ -1764,6 +1764,54 @@ describe('RoomDetailModal', () => {
       playSpy.mockRestore()
     })
 
+    it('plays the theme music and the plain ambience loop for a themed room', () => {
+      const musicSpy = vi.spyOn(audioManager, 'playThemedRoomMusic')
+      const ambienceSpy = vi.spyOn(audioManager, 'playAmbience')
+      mount(RoomDetailModal, {
+        props: {
+          room: { ...mockRoom, name: 'Diner', category: 'diner', room_style: 'xmas' },
+          modelValue: true,
+        },
+      })
+
+      expect(musicSpy).toHaveBeenCalledWith('diner:xmas')
+      expect(ambienceSpy).toHaveBeenCalledWith('diner')
+      expect(ambienceSpy).not.toHaveBeenCalledWith('diner:xmas')
+      musicSpy.mockRestore()
+      ambienceSpy.mockRestore()
+    })
+
+    it('stops the theme music when the modal closes', async () => {
+      const musicSpy = vi.spyOn(audioManager, 'playThemedRoomMusic')
+      const stopSpy = vi.spyOn(audioManager, 'stopThemedRoomMusic')
+      const wrapper = mount(RoomDetailModal, {
+        props: {
+          room: { ...mockRoom, name: 'Diner', category: 'diner', room_style: 'xmas' },
+          modelValue: true,
+        },
+      })
+
+      await wrapper.setProps({ modelValue: false })
+
+      expect(musicSpy).toHaveBeenCalledWith('diner:xmas')
+      expect(stopSpy).toHaveBeenCalled()
+      musicSpy.mockRestore()
+      stopSpy.mockRestore()
+    })
+
+    it('stops the theme music for a room without a theme', () => {
+      const musicSpy = vi.spyOn(audioManager, 'playThemedRoomMusic')
+      const stopSpy = vi.spyOn(audioManager, 'stopThemedRoomMusic')
+      mount(RoomDetailModal, {
+        props: { room: mockRoom, modelValue: true },
+      })
+
+      expect(musicSpy).not.toHaveBeenCalled()
+      expect(stopSpy).toHaveBeenCalled()
+      musicSpy.mockRestore()
+      stopSpy.mockRestore()
+    })
+
     it('falls back to the category loop for a room with no per-room ambience', () => {
       const ambienceSpy = vi.spyOn(audioManager, 'playAmbience')
       mount(RoomDetailModal, {

@@ -9,6 +9,17 @@ export function useSound() {
   const stopMusic = () => audioManager.stopLoop()
   const playAmbience = (key: AmbienceKey) => audioManager.playAmbience(key)
   const stopAmbience = () => audioManager.stopAmbience()
+  const playThemedRoomMusic = (key: AmbienceKey) => audioManager.playThemedRoomMusic(key)
+  const stopThemedRoomMusic = () => audioManager.stopThemedRoomMusic()
 
-  return { playSound, stopSound, playMusic, stopMusic, playAmbience, stopAmbience }
+  return {
+    playSound,
+    stopSound,
+    playMusic,
+    stopMusic,
+    playAmbience,
+    stopAmbience,
+    playThemedRoomMusic,
+    stopThemedRoomMusic,
+  }
 }

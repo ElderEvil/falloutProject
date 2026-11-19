@@ -40,7 +40,7 @@ import StorageMaintenancePanel from '@/modules/storage/components/StorageMainten
 import OverseerBriefing from '@/modules/vault/components/shell/OverseerBriefing.vue'
 import type { OverseerBriefingData } from '@/modules/vault/models/overseerBriefing'
 import { useSound } from '@/core/composables/useSound'
-import { getRoomAmbienceKey } from '@/core/audio/soundManifest'
+import { getRoomAmbienceKey, isThemedRoomKey } from '@/core/audio/soundManifest'
 import { useIncidentStore } from '@/modules/combat/stores/incident'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 
@@ -180,7 +180,8 @@ const {
   confirmRush,
 } = useRoomRush(roomRef, vaultIdRef, modelValueRef)
 
-const { playSound, playAmbience, stopAmbience } = useSound()
+const { playSound, playAmbience, stopAmbience, playThemedRoomMusic, stopThemedRoomMusic } =
+  useSound()
 
 // Clear error when modal closes; start ambience on open and when the room changes.
 watch(
@@ -195,19 +196,34 @@ watch(
       actionError.value = null
       assignmentMode.value = null
       stopAmbience()
+      stopThemedRoomMusic()
       return
     }
     if (open !== oldValues?.[0]) {
       playSound('modalOpen')
     }
     const ambience = getRoomAmbienceKey(props.room)
-    if (ambience) playAmbience(ambience)
-    else stopAmbience()
+    if (ambience && isThemedRoomKey(ambience)) {
+      // A themed room plays its theme music on the music bus while the
+      // ambience bus keeps the room's plain loop, so the same track never
+      // plays twice at once.
+      playThemedRoomMusic(ambience)
+      const baseKey = getRoomAmbienceKey({ ...props.room, room_style: null })
+      if (baseKey) playAmbience(baseKey)
+      else stopAmbience()
+    } else {
+      stopThemedRoomMusic()
+      if (ambience) playAmbience(ambience)
+      else stopAmbience()
+    }
   },
   { immediate: true }
 )
 
-onUnmounted(stopAmbience)
+onUnmounted(() => {
+  stopAmbience()
+  stopThemedRoomMusic()
+})
 </script>
 
 <template>

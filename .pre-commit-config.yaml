@@ -8,6 +8,9 @@ repos:
     rev: v6.0.0
     hooks:
       - id: check-added-large-files
+        # Curated audio assets are legitimately large; the guard is for
+        # accidental blobs elsewhere in the repo.
+        exclude: ^frontend/public/audio/.*\.(mp3|wav)$
       - id: check-json
       - id: check-toml
       - id: check-yaml

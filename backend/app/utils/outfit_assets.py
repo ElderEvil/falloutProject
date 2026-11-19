@@ -1,15 +1,13 @@
-"""Outfit name to apparel image mapping.
-
-Centralizes the mapping between in-game outfit names and their static image
-assets. Unmapped outfits fall back to the generic equipment icon in the UI.
+"""Outfit name → apparel image mapping; unmapped outfits fall back to the generic
+equipment icon in the UI.
 """
 
 from pathlib import Path
 
 from app.utils.image_assets import lookup_image_url
 
-# Maps canonical lower-cased outfit names to the actual filename in
-# backend/app/static/apparel_images/. Keep this sorted alphabetically by key.
+# Maps canonical lower-cased outfit names to the actual filename in backend/app/static/apparel_images/. Keep this
+# sorted alphabetically by key.
 OUTFIT_NAME_TO_IMAGE_FILE: dict[str, str] = {
     "abraham's relaxedwear": "FOS Formal Wear.png",
     "accountant outfit": "FOS Accountant outfit.png",

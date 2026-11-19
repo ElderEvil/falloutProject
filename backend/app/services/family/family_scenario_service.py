@@ -1,22 +1,7 @@
-"""Service for building deterministic family/breeding test scenarios.
+"""Deterministic family/breeding test scenarios (dev/QA): couples at controlled stage/affinity, co-located
+for game-loop ticks, with backdated pregnancies/deliveries/children.
 
-Dev/QA tooling for manually testing the family feature: pair couples at a
-controlled relationship stage and affinity, co-locate them in a living
-quarters room (so the game-loop affinity ticks drive real progression), and
-create pregnancies, postpartum deliveries, and children with controlled
-timestamps so timing-driven behaviour (due dates, the 6h postpartum cooldown,
-3h child growth) can be observed on a real timeline.
-
-The API exposes no way to set affinity directly — the romance/partner/marry
-endpoints only enforce thresholds — so scenario construction works at the
-service/DB layer, like the pregen-service dev/QA commands. CLI commands in
-``app/cli/app/family_scenario.py`` are thin wrappers over this service
-(AGENTS.md: business logic lives in services, not CLI scripts).
-
-Usage (from backend/):
-    uv run fo-cli family-scenario setup --vault-id <UUID>
-    uv run fo-cli family-scenario status --vault-id <UUID>
-    uv run fo-cli family-scenario reset --vault-id <UUID>
+Affinity has no API setter, so scenarios are built at the service/DB layer; CLI commands are thin wrappers.
 """
 
 from __future__ import annotations
@@ -122,8 +107,7 @@ def _fmt_delta(delta: timedelta) -> str:
 class FamilyScenarioService:
     """Deterministic family/breeding test-scenario builder."""
 
-    # ------------------------------------------------------------------
-    # lookups
+    # ------------------------------------------------------------------ lookups
     # ------------------------------------------------------------------
 
     @staticmethod
@@ -159,8 +143,7 @@ class FamilyScenarioService:
             raise ValueError("Family scenarios require Living Quarters")
         return room
 
-    # ------------------------------------------------------------------
-    # couple pairing
+    # ------------------------------------------------------------------ couple pairing
     # ------------------------------------------------------------------
 
     @classmethod
@@ -171,11 +154,10 @@ class FamilyScenarioService:
         count: int,
         seed: int | None,
     ) -> list[tuple[Dweller, Dweller]]:
-        """Auto-pick ``count`` couples from the vault's adults.
+        """Auto-pick count couples from the vault's adults.
 
-        Pairs are built male+female first (breeding requires opposite
-        genders), then leftover dwellers are paired in list order. Throws a
-        clear ValueError if there are not enough adults.
+        Male+female pairs first (breeding requires opposite genders), then leftovers in list order; ValueError
+        if not enough adults.
         """
         adults = await cls.list_adults(db_session, vault_id)
         rng = random.Random(seed)
@@ -219,10 +201,8 @@ class FamilyScenarioService:
     ) -> Couple:
         """Create a relationship between two dwellers at a fixed stage/affinity.
 
-        For partner/MARRIED stages the reciprocal ``partner_id`` is set on both
-        dwellers (mirroring RelationshipService._set_partner_ids). If ``room_id``
-        is given, both dwellers are moved there so the game loop's affinity tick
-        and conception check can operate on the couple.
+        Partner/MARRIED stages set reciprocal partner_id on both dwellers; room_id moves both so the game loop
+        can tick affinity/conception on the couple.
         """
         dweller_1 = await cls._get_dweller(db_session, dweller_1_id)
         dweller_2 = await cls._get_dweller(db_session, dweller_2_id)
@@ -264,8 +244,7 @@ class FamilyScenarioService:
         db_session.add_all([couple.dweller_1, couple.dweller_2])
         await db_session.commit()
 
-    # ------------------------------------------------------------------
-    # pregnancy / postpartum / children
+    # ------------------------------------------------------------------ pregnancy / postpartum / children
     # ------------------------------------------------------------------
 
     @classmethod
@@ -299,13 +278,10 @@ class FamilyScenarioService:
         couple: Couple,
         delivered_hours_ago: float,
     ) -> Pregnancy:
-        """Create a DELIVERED pregnancy whose ``updated_at`` is ``delivered_hours_ago`` in the past.
+        """Create a DELIVERED pregnancy whose updated_at is delivered_hours_ago in the past.
 
-        The postpartum-cooldown check (``_get_postpartum_mother_ids``) reads
-        ``Pregnancy.updated_at`` and excludes mothers whose delivery falls
-        within ``birth_cooldown_hours`` (default 6h). Backdating ``updated_at``
-        is what makes the cooldown testable without waiting: e.g. 2h ago = still
-        cooling down (excluded from conception), 7h ago = cooldown expired.
+        The cooldown check reads Pregnancy.updated_at against birth_cooldown_hours (default 6h): backdating makes
+        it testable — 2h ago still cooling down, 7h ago expired.
         """
         mother = next((d for d in (couple.dweller_1, couple.dweller_2) if d.gender == GenderEnum.FEMALE), None)
         father = next((d for d in (couple.dweller_1, couple.dweller_2) if d is not mother), None)
@@ -335,11 +311,10 @@ class FamilyScenarioService:
         age_hours: float,
         seed: int | None,
     ) -> Dweller:
-        """Create a child of the couple whose ``birth_date`` is ``age_hours`` ago.
+        """Create a child of the couple whose birth_date is age_hours ago.
 
-        The growth check (``age_children``) advances children to teens halfway
-        through ``child_growth_duration_hours`` and to adults at its end (60h by
-        default). Backdating makes lifecycle states testable on the next tick.
+        age_children advances to teens halfway through child_growth_duration_hours and to adults at its end
+        (default 60h); backdating makes lifecycle states testable on the next tick.
         """
         from app.services.dweller_service import dweller_service
 
@@ -359,8 +334,7 @@ class FamilyScenarioService:
         await db_session.refresh(child)
         return child
 
-    # ------------------------------------------------------------------
-    # status / reset
+    # ------------------------------------------------------------------ status / reset
     # ------------------------------------------------------------------
 
     @staticmethod
@@ -500,8 +474,7 @@ class FamilyScenarioService:
 
         return counts
 
-    # ------------------------------------------------------------------
-    # setup orchestration
+    # ------------------------------------------------------------------ setup orchestration
     # ------------------------------------------------------------------
 
     @classmethod
@@ -523,22 +496,13 @@ class FamilyScenarioService:
     ) -> ScenarioResult:
         """Create couples (auto-paired or explicit) plus optional pregnancies/children.
 
-        - ``pairs``: explicit ``(dweller_1_id, dweller_2_id)`` list; takes
-          precedence over ``count``.
-        - ``stage``/``affinity``: relationship stage (and affinity override) for
-          every created couple.
-        - ``pregnancy_due_minutes``: per-couple due offsets, e.g. ``[15, 60]``
-          makes the 1st couple pregnant due in 15m and the 2nd due in 60m.
-        - ``postpartum_hours``: per-couple delivered timestamps (hours ago),
-          e.g. ``[2, 7]`` → 1st mother still cooling down, 2nd cooldown expired.
-        - ``child_ages_hours``: per-couple child ages (hours), e.g. ``[1, 4]``.
-        - ``co_locate``: move every couple into a living-quarters room so the
-          game loop can tick affinity/conception on them (default True).
+        Explicit pairs take precedence over count; co_locate (default True) puts couples in living quarters so
+        the game loop ticks affinity/conception on them.
         """
         raw_pairs = pairs or [(a.id, b.id) for a, b in await cls.auto_pair(db_session, vault_id, count, seed)]
 
-        # Resolve and validate the co-location room before creating any couples,
-        # so an invalid or cross-vault room is rejected up front.
+        # Resolve and validate the co-location room before creating any couples, so an invalid or cross-vault room is
+        # rejected up front.
         room = None
         if co_locate:
             if room_id is not None:

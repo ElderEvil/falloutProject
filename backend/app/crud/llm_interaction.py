@@ -12,11 +12,10 @@ from app.schemas.llm_interaction import LLMInteractionCreate
 
 
 def estimate_token_count(text: str) -> int:
-    """Estimate token count from text when the provider reports no usage.
+    """Estimate token count when the provider reports no usage (~4 chars/token).
 
-    Roughly 4 characters per token; used for local providers (LM Studio,
-    Ollama) that omit usage metadata so their chats still count toward the
-    AI usage statistics and quota.
+    Used for local providers (LM Studio, Ollama) so their chats still count toward AI usage
+    statistics and quota.
     """
     return max(1, len(text) // 4)
 

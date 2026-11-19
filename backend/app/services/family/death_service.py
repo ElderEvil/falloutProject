@@ -42,24 +42,7 @@ class DeathService:
         commit: bool = True,
         permanent: bool = False,
     ) -> Dweller:
-        """Mark a dweller as dead.
-
-        :param db_session: Database session
-        :type db_session: AsyncSession
-        :param dweller: Dweller to mark as dead
-        :type dweller: Dweller
-        :param cause: Cause of death
-        :type cause: DeathCauseEnum
-        :param epitaph: Optional memorial message
-        :type epitaph: Optional[str]
-        :param commit: Whether to commit the change
-        :type commit: bool
-        :param permanent: Skip the caps-revival window. Forced on for survival-mode vaults.
-        :type permanent: bool
-        :returns: Updated dweller
-        :rtype: Dweller
-        :raises ContentNoChangeException: If dweller is already dead
-        """
+        """Mark a dweller as dead."""
         if dweller.is_dead:
             raise ContentNoChangeException(detail="Dweller is already dead")
 
@@ -73,9 +56,7 @@ class DeathService:
         if not epitaph:
             epitaph = self._generate_epitaph(dweller, cause)
 
-        # Update dweller death state
-        # NOTE: Using naive datetime to match database TIMESTAMP WITHOUT TIME ZONE
-        # This is a temporary fix - should migrate to timezone-aware in future
+        # Naive datetime to match the database TIMESTAMP WITHOUT TIME ZONE (temporary; migrate to tz-aware later).
         now_naive = utcnow()
         bio_entries = bio_service.with_entry(
             dweller,
@@ -154,15 +135,6 @@ class DeathService:
 
         Ownership is enforced through the shared vault policy, so the API layer and
         this service cannot drift apart on who may revive.
-
-        :param db_session: Database session
-        :param dweller_id: ID of the dweller to revive
-        :param user: User attempting the revival
-        :returns: The revived dweller alongside the caps spent and left
-        :raises ResourceNotFoundException: If dweller not found
-        :raises AccessDeniedException: If the user does not own the vault
-        :raises ContentNoChangeException: If dweller is not dead or permanently dead
-        :raises InsufficientResourcesException: If not enough caps
         """
         dweller = await dweller_crud.get(db_session, dweller_id)
 
@@ -173,10 +145,8 @@ class DeathService:
         vault = await vault_crud.lock_for_update(db_session, self._require_vault_id(dweller))
         assert_vault_owner(vault, user)
 
-        # Recheck revival eligibility under the lock: a concurrent revival may
-        # have committed between the pre-check and lock acquisition, and the
-        # session's identity map still holds the stale dead row. Refresh from
-        # the database so a duplicate request fails before any deduction.
+        # Recheck revival eligibility under the lock: a concurrent revival may have committed since the pre-check and
+        # the identity map still holds the stale dead row. Refresh so a duplicate request fails before any deduction.
         await db_session.refresh(dweller)
         self._require_revivable(dweller)
 
@@ -190,11 +160,9 @@ class DeathService:
         # Calculate health after revival
         revival_health = min(int(dweller.max_health * game_config.death.revival_health_percent), dweller.max_health)
 
-        # This service owns the transaction: the caps deduction and the revival
-        # stage under the vault row lock and commit together. Committing the
-        # caps write first would release the lock before the dweller is revived,
-        # letting a concurrent request read stale state; a failed revival must
-        # roll the deduction back, not strand it.
+        # This service owns the transaction: caps deduction and revival stage under the vault row lock and commit
+        # together. Committing caps first would release the lock early and let a concurrent request read stale state;
+        # a failed revival must roll the deduction back.
         remaining_caps = vault.bottle_caps - revival_cost
         try:
             await vault_crud.update(
@@ -244,15 +212,7 @@ class DeathService:
         dweller_id: UUID,
         user: User,
     ) -> RevivalCostResponse:
-        """Quote the revival cost for a dead dweller, reusing the single cost path.
-
-        :param db_session: Database session
-        :param dweller_id: ID of the dead dweller
-        :param user: User requesting the quote
-        :raises ResourceNotFoundException: If dweller not found
-        :raises AccessDeniedException: If the user does not own the vault
-        :raises ContentNoChangeException: If the dweller is living or permanently dead
-        """
+        """Quote the revival cost for a dead dweller, reusing the single cost path."""
         dweller = await dweller_crud.get(db_session, dweller_id)
         dweller = ensure_found(dweller, Dweller, identifier=dweller_id)
 
@@ -290,26 +250,12 @@ class DeathService:
     def get_revival_cost(self, level: int) -> int:
         """Calculate the revival cost for a dweller based on their level.
 
-        Tiered pricing:
-        - Levels 1-5: level x 50 (50-250 caps)
-        - Levels 6-10: level x 75 (450-750 caps)
-        - Levels 11+: level x 100 (1100-2000 caps, capped)
-
-        :param level: Dweller level
-        :type level: int
-        :returns: Revival cost in caps
-        :rtype: int
+        Tiered: levels 1-5 cost level x 50, 6-10 level x 75, 11+ level x 100 (capped at 2000 caps).
         """
         return game_config.death.calculate_revival_cost(level)
 
     def get_days_until_permanent(self, dweller: Dweller) -> int | None:
-        """Calculate days until dweller's death becomes permanent.
-
-        :param dweller: Dead dweller to check
-        :type dweller: Dweller
-        :returns: Days remaining, or None if not dead or already permanent
-        :rtype: Optional[int]
-        """
+        """Calculate days until dweller's death becomes permanent."""
         if not is_dead(dweller) or is_permanently_dead(dweller) or not dweller.death_timestamp:
             return None
 
@@ -325,11 +271,6 @@ class DeathService:
         """Check all dead dwellers and mark those past the threshold as permanently dead.
 
         This should be called by a scheduled task (cron job).
-
-        :param db_session: Database session
-        :type db_session: AsyncSession
-        :returns: Number of dwellers marked as permanently dead
-        :rtype: int
         """
         cutoff_date = utcnow() - timedelta(days=game_config.death.permanent_death_days)
 
@@ -358,15 +299,7 @@ class DeathService:
         return count
 
     async def get_death_statistics(self, db_session: AsyncSession, user_id: UUID) -> dict:
-        """Get life/death statistics for a user.
-
-        :param db_session: Database session
-        :type db_session: AsyncSession
-        :param user_id: User ID
-        :type user_id: UUID
-        :returns: Dictionary with death statistics
-        :rtype: dict
-        """
+        """Get life/death statistics for a user."""
         profile = await profile_crud.get_by_user_id(db_session, user_id)
         if not profile:
             return {

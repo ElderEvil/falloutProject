@@ -22,10 +22,8 @@ WEBSOCKET_SEND_TIMEOUT = 5
 
 
 class ConnectionManager:
-    """Manages WebSocket connections with Redis pub/sub for distributed setup.
-
-    Supports both personal notifications and chat sessions with automatic
-    reconnection handling and cross-instance message broadcasting.
+    """WebSocket connection manager with Redis pub/sub for cross-instance broadcasting;
+    personal notifications and chat sessions.
     """
 
     def __init__(self):
@@ -51,8 +49,8 @@ class ConnectionManager:
             try:
                 await asyncio.wait_for(ready.wait(), timeout=5)
             except TimeoutError:
-                # A late subscription must also close streams which connected
-                # after startup timed out, so they reload notifications missed here.
+                # A late subscription must also close streams which connected after startup timed out, so they reload
+                # notifications missed here.
                 ready.set()
                 logger.warning("Redis subscription is not ready; listener will continue connecting")
 
@@ -110,8 +108,8 @@ class ConnectionManager:
             try:
                 async for message in pubsub.listen():
                     if message["type"] == "subscribe":
-                        # redis-py can reconnect/resubscribe internally. Force SSE clients
-                        # to catch up from persisted notifications after any gap.
+                        # redis-py can reconnect/resubscribe internally. Force SSE clients to catch up from persisted
+                        # notifications after any gap.
                         if ready.is_set():
                             await sse_manager.close(topic="notifications")
                         self._redis_retry_delay = 1
@@ -152,8 +150,8 @@ class ConnectionManager:
             if self.redis is not None:
                 await self.redis.publish(self.redis_channel, encoded)
             else:
-                # Worker threads use different event loops. A publisher-only client
-                # belongs to this call, rather than a process-global listener loop.
+                # Worker threads use different event loops. A publisher-only client belongs to this call, rather than
+                # a process-global listener loop.
                 async with Redis.from_url(settings.redis_url, decode_responses=True) as publisher:
                     await publisher.publish(self.redis_channel, encoded)
         except RedisError, RedisConnectionError:
@@ -163,26 +161,14 @@ class ConnectionManager:
             logger.debug("Redis publish skipped (event loop closed)")
 
     async def connect(self, websocket: WebSocket, user_id: UUID):
-        """Connect WebSocket for user notifications.
-
-        :param websocket: WebSocket connection
-        :type websocket: WebSocket
-        :param user_id: User ID
-        :type user_id: UUID
-        """
+        """Connect WebSocket for user notifications."""
         await websocket.accept()
         await self.start_redis()
 
         self.active_connections.setdefault(user_id, []).append(websocket)
 
     def disconnect(self, websocket: WebSocket, user_id: UUID):
-        """Disconnect WebSocket for user notifications.
-
-        :param websocket: WebSocket connection
-        :type websocket: WebSocket
-        :param user_id: User ID
-        :type user_id: UUID
-        """
+        """Disconnect WebSocket for user notifications."""
         if user_id not in self.active_connections:
             return
 
@@ -193,13 +179,7 @@ class ConnectionManager:
             del self.active_connections[user_id]
 
     async def send_personal_message(self, message: dict[str, Any], user_id: UUID):
-        """Send message to all user connections across instances.
-
-        :param message: Message payload
-        :type message: dict[str, Any]
-        :param user_id: Target user ID
-        :type user_id: UUID
-        """
+        """Send message to all user connections across instances."""
         await self._send_personal_local(message, user_id)
         await self._publish(
             {
@@ -234,27 +214,11 @@ class ConnectionManager:
         vault_id: UUID,
         user_ids: list[UUID],
     ):
-        """Broadcast message to all users in a vault.
-
-        :param message: Message payload
-        :type message: dict[str, Any]
-        :param vault_id: Vault ID (unused, kept for API compatibility)
-        :type vault_id: UUID
-        :param user_ids: List of user IDs to broadcast to
-        :type user_ids: list[UUID]
-        """
+        """Broadcast message to all given users; vault_id is unused, kept for API compatibility."""
         await asyncio.gather(*[self.send_personal_message(message, uid) for uid in user_ids])
 
     async def connect_chat(self, websocket: WebSocket, user_id: UUID, dweller_id: UUID):
-        """Connect WebSocket for chat session.
-
-        :param websocket: WebSocket connection
-        :type websocket: WebSocket
-        :param user_id: User ID
-        :type user_id: UUID
-        :param dweller_id: Dweller ID
-        :type dweller_id: UUID
-        """
+        """Connect WebSocket for chat session."""
         await websocket.accept()
         await self.start_redis()
 
@@ -262,15 +226,7 @@ class ConnectionManager:
         self.chat_connections.setdefault(chat_key, []).append(websocket)
 
     def disconnect_chat(self, websocket: WebSocket, user_id: UUID, dweller_id: UUID):
-        """Disconnect WebSocket for chat session.
-
-        :param websocket: WebSocket connection
-        :type websocket: WebSocket
-        :param user_id: User ID
-        :type user_id: UUID
-        :param dweller_id: Dweller ID
-        :type dweller_id: UUID
-        """
+        """Disconnect WebSocket for chat session."""
         chat_key = (user_id, dweller_id)
         if chat_key not in self.chat_connections:
             return
@@ -282,15 +238,7 @@ class ConnectionManager:
             del self.chat_connections[chat_key]
 
     async def send_chat_message(self, message: dict[str, Any], user_id: UUID, dweller_id: UUID):
-        """Send message to all chat session connections across instances.
-
-        :param message: Message payload
-        :type message: dict[str, Any]
-        :param user_id: User ID
-        :type user_id: UUID
-        :param dweller_id: Dweller ID
-        :type dweller_id: UUID
-        """
+        """Send message to all chat session connections across instances."""
         await self._send_chat_local(message, user_id, dweller_id)
         await self._publish(
             {
@@ -318,17 +266,7 @@ class ConnectionManager:
         is_typing: bool,
         sender: str = "dweller",
     ):
-        """Send typing indicator to chat participants.
-
-        :param user_id: User ID
-        :type user_id: UUID
-        :param dweller_id: Dweller ID
-        :type dweller_id: UUID
-        :param is_typing: Whether typing is active
-        :type is_typing: bool
-        :param sender: Who is typing, defaults to "dweller"
-        :type sender: str
-        """
+        """Send typing indicator to chat participants."""
         await self.send_chat_message(
             {"type": "typing", "is_typing": is_typing, "sender": sender},
             user_id,

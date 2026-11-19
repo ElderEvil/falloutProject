@@ -1,10 +1,4 @@
-"""Run deterministic resource scenarios with the production ResourceManager.
-
-Usage:
-    cd backend
-    uv run fo-cli simulate-resources
-    uv run fo-cli simulate-resources --duration-minutes 120 --population 20
-"""
+"""Run deterministic resource scenarios with the production ResourceManager."""
 
 from __future__ import annotations
 
@@ -60,9 +54,8 @@ def _make_room(name: str, tier: int, size: int | None) -> Room:
         raise ValueError(f"Production room data missing for {name}")
 
     room_size = size if size is not None else room_data.size_min
-    # Production evaluates the output formula with the tier and multiplies the
-    # result by the tier multiplier (see room_service.upgrade_room), so tier
-    # drives both output and throughput.
+    # Production evaluates the output formula with the tier and multiplies the result by the tier multiplier (see
+    # room_service.upgrade_room), so tier drives both output and throughput.
     return Room(
         name=room_data.name,
         category=RoomTypeEnum.PRODUCTION,

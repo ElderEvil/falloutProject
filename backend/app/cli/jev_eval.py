@@ -1,13 +1,4 @@
-"""CLI command group: jev-eval — measure Jev guardrail accuracy and calibrate thresholds.
-
-Runs a labelled synthetic corpus through the real guardrail on live Jev, then
-reports per-kind accuracy, a false-positive/false-negative split, and a threshold
-sweep so the confidence bar can be tuned on evidence rather than guesses.
-
-Usage (from backend/):
-    uv run fo-cli jev-eval run
-    uv run fo-cli jev-eval run --json
-"""
+"""CLI group jev-eval: run a labelled synthetic corpus through the live Jev guardrail, report accuracy and sweep thresholds."""
 
 from __future__ import annotations
 

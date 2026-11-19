@@ -31,8 +31,8 @@ class BioEntryOwner(Protocol):
 BIO_ENTRY_CAP = 12
 BIO_MIN_ENTRY_CHARS = 8
 
-# Single authority for how entry sources group into dossier sections; the
-# frontend mirrors these keys for labels and falls back for anything unknown.
+# Single authority for how entry sources group into dossier sections; the frontend mirrors these keys for labels and
+# falls back for anything unknown.
 BIO_SECTIONS: dict[str, tuple[str, ...]] = {
     "origin": ("template", "legacy"),
     "service": ("hazard",),
@@ -139,12 +139,7 @@ class BioService:
         text: str,
         ref: dict[str, Any] | None = None,
     ) -> Dweller:
-        """Append one entry and recompile the rendered bio.
-
-        Raises:
-            ValidationException: The text is blank or shorter than the entry floor.
-            ContentNoChangeException: An identical dialogue entry is already recorded.
-        """
+        """Append one entry and recompile the rendered bio."""
         normalized = text.strip()
         if len(normalized) < BIO_MIN_ENTRY_CHARS:
             raise ValidationException(f"Biography entries need at least {BIO_MIN_ENTRY_CHARS} characters")
@@ -164,9 +159,6 @@ class BioService:
 
         For callers inside a tick: refetching and refreshing the row would expire
         the relationships that round has eagerly loaded.
-
-        Raises:
-            ValidationException: The text is blank or shorter than the entry floor.
         """
         normalized = text.strip()
         if len(normalized) < BIO_MIN_ENTRY_CHARS:

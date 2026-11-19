@@ -1,19 +1,6 @@
-"""Backend-owned world generation core (pure, deterministic, framework-free).
-
-This is the Python replacement for frontend-owned geography: a small generator that
-produces terrain and land-safe vault slots from an explicit recipe. It does **not**
-attempt TypeScript parity — reproducibility is defined by this implementation and any
-output change bumps ``GENERATOR_VERSION``.
-
-Design rules (see docs/features/WORLD_GENERATION_CONTRACT.md):
-- Deterministic hashing (blake2b), never Python's process-dependent ``hash()``.
-- One seeded PRNG per named stream, stable call order, so adding a stream never
-  shifts another.
-- Terrain and slots derive only from seed + config + version — never on vault
--   occupancy or discoveries. Public anchors participate in the recipe
--   fingerprint (recipe versioning), not in shaping geography: slots are
--   placement markers on the fixed world, never terrain shapers.
-- Generation is a pure function: same recipe -> identical output.
+"""Pure, deterministic world generation; any output change bumps GENERATOR_VERSION (no TypeScript parity).
+blake2b hashing (never hash()); one seeded PRNG per named stream, stable call order so streams never shift.
+Terrain/slots derive only from seed+config+version (never occupancy); anchors fingerprint, never shape.
 """
 
 from __future__ import annotations
@@ -32,8 +19,8 @@ WORLD_ID = "wasteland-atlas"
 
 TerrainType = Literal["wasteland", "forest", "ruins", "hills", "water"]
 
-# Traversability cost per terrain; water is impassable. Kept here so validation and
-# reachability share one table with the snapshot.
+# Traversability cost per terrain; water is impassable. Kept here so validation and reachability share one table with
+# the snapshot.
 TRAVEL_COST: dict[TerrainType, float] = {
     "wasteland": 1.0,
     "forest": 1.15,
@@ -244,9 +231,8 @@ def _is_traversable(terrain: list[TerrainType], width: int, x: int, y: int) -> b
 def _largest_traversable_component(terrain: list[TerrainType], width: int, height: int) -> set[int]:
     """Tile indices in the biggest 4-connected traversable region.
 
-    Restricting slots (and thus vaults) to one component keeps every pair mutually
-    reachable under TRAVEL_COST; island clusters would otherwise satisfy the
-    land/spacing checks while being unreachable from each other.
+    One component keeps every vault pair mutually reachable under TRAVEL_COST; islands would pass land/spacing
+    checks while being unreachable.
     """
     seen: set[int] = set()
     largest: set[int] = set()
@@ -322,9 +308,8 @@ def generate_world(recipe: WorldRecipe) -> GeneratedWorld:
 def canonical_payload(world: GeneratedWorld) -> str:
     """Canonical JSON of terrain + slots (sorted keys, fixed separators, no spaces).
 
-    Required so the snapshot checksum is stable: "byte-identical" needs canonical
-    serialization and defined numeric precision (coordinates are already rounded to
-    4 dp in ``generate_slots``), not just a seeded PRNG.
+    Stable snapshot checksums need canonical serialization and defined precision (coordinates rounded to 4 dp
+    in generate_slots), not just a seeded PRNG.
     """
     return json.dumps(
         {

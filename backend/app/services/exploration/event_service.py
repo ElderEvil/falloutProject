@@ -42,8 +42,8 @@ from app.utils.radiation import (
 
 logger = logging.getLogger(__name__)
 
-# Equip bell entries are parked during the event transaction and sent after its
-# commit: sending mid-event would commit the loot/equip work prematurely.
+# Equip bell entries are parked during the event transaction and sent after its commit: sending mid-event would commit
+# the loot/equip work prematurely.
 _PENDING_EQUIP_NOTIFICATIONS = "pending_exploration_equip_notifications"
 
 
@@ -93,11 +93,8 @@ async def apply_exploration_damage(
 ) -> None:
     """Apply damage to the explorer, marking death when health hits zero.
 
-    Shared by timed events and expedition sites so both kill exactly the same way.
-    The keyword-only overrides exist for party dispatch: a member other than the
-    anchor takes the hit, ``lethal=False`` clamps below-tier damage at 1 instead
-    of killing, and ``delete_held=False`` leaves the shared haul alone so one
-    member's death does not wipe what the survivors carry.
+    Party-dispatch overrides: a non-anchor member can take the hit; lethal=False clamps below-tier damage at 1;
+    delete_held=False keeps the shared haul so one death doesn't wipe what survivors carry.
     """
     target_id = dweller_id if dweller_id is not None else exploration.dweller_id
 
@@ -117,10 +114,8 @@ async def apply_exploration_damage(
         return
 
     if new_health <= 0:
-        # Dweller dies in the wasteland. Delete held mid-run upgrades BEFORE
-        # mark_as_dead so the death and the cleanup land in the caller's
-        # transaction; the equipped upgrade stays on the corpse. The death
-        # notification is parked and delivered after the caller commits.
+        # Delete held mid-run upgrades BEFORE mark_as_dead so death and cleanup land in the caller's transaction; the
+        # equipped upgrade stays on the corpse. The death notification is parked until the caller commits.
         from app.core.enums import DeathCauseEnum
         from app.crud import outfit as outfit_crud
         from app.crud import weapon as weapon_crud
@@ -179,10 +174,8 @@ def apply_loot_find(
 async def auto_use_supplies(db_session: AsyncSession, exploration: Exploration) -> list[dict]:
     """Auto-use a RadAway then a Stimpak when the explorer needs them; returns the item_use records.
 
-    RadAway fires first once radiation has cut the ceiling by at least
-    radaway_auto_use_threshold_pct of max health — it raises the ceiling so the
-    Stimpak can heal into it. The Stimpak gate uses FULL max health, so radiation
-    never hides a wound.
+    RadAway fires first once radiation cuts the ceiling by radaway_auto_use_threshold_pct of max health, raising
+    it so the Stimpak can heal into it; the Stimpak gate uses FULL max health so radiation never hides a wound.
     """
     dweller_obj = await dweller_crud.get(db_session, exploration.dweller_id)
     if dweller_obj.is_dead:
@@ -231,18 +224,10 @@ class EventService:
     """Applies generated wasteland events to explorations and dwellers."""
 
     async def process_event(self, db_session: AsyncSession, exploration: Exploration) -> Exploration:
-        """Generate and process an event for an active exploration.
-
-        Args:
-            db_session: Database session
-            exploration: Active exploration
-
-        Returns:
-            Updated exploration
-        """
+        """Generate and process an event for an active exploration."""
         db_session.info.pop(_PENDING_EQUIP_NOTIFICATIONS, None)
-        # Drop death notifications parked by a failed earlier operation on this
-        # session; the current operation's are delivered after its commit.
+        # Drop death notifications parked by a failed earlier operation on this session; the current operation's are
+        # delivered after its commit.
         db_session.info.pop("deferred_notification_deliveries", None)
         dweller_with_equipment = await dweller_crud.get_with_equipment(db_session, exploration.dweller_id)
         profile = None
@@ -253,19 +238,17 @@ class EventService:
         if not event:
             return exploration
 
-        # Resolve a discovery's world-map location before persisting so the event
-        # can carry location_id + coordinates for deep-linking and route drawing.
-        # Spatial runs discover what they pass: an existing place within the fog's
-        # site radius is claimed in place, else a new place is snapped near the
-        # current position. Legacy runs keep the name-derived registry placement.
+        # Resolve the discovery's world-map location before persisting so the event carries location_id+coordinates.
+        # Spatial runs claim an existing place within the fog's site radius in place, else snap a new place near the
+        # current position; legacy runs keep name-derived registry placement.
         location_name = getattr(event, "location_name", None)
         location = await _register_event_discovery(db_session, exploration, location_name)
         location_id = location.id if location else None
         coord_x = location.coord_x if location else None
         coord_y = location.coord_y if location else None
         if location is not None:
-            # The journal, map, and bio all describe the resolved place — never
-            # the generated name when it pointed somewhere else.
+            # The journal, map, and bio all describe the resolved place — never the generated name when it pointed
+            # somewhere else.
             location_name = location.name
             description = describe_discovery(location.name)
         else:
@@ -305,8 +288,8 @@ class EventService:
         if isinstance(event, RestEventSchema) and event.health_restored:
             actual_healing = await self._apply_health_restoration(db_session, exploration, event.health_restored)
             if actual_healing != event.health_restored:
-                # Radiation reduced the heal: the journey log must record what the
-                # dweller actually received, not the requested amount.
+                # Radiation reduced the heal: the journey log must record what the dweller actually received, not the
+                # requested amount.
                 event_record["health_restored"] = actual_healing
                 event_record["description"] = event_record["description"].replace(
                     str(event.health_restored), str(actual_healing), 1
@@ -328,8 +311,8 @@ class EventService:
         await db_session.commit()
         await db_session.refresh(exploration)
 
-        # Death notifications parked by mark_as_dead(commit=False) ride the
-        # caller's commit; deliver them now that the death is durable.
+        # Death notifications parked by mark_as_dead(commit=False) ride the caller's commit; deliver them now that the
+        # death is durable.
         await notification_service.deliver_deferred_notifications(db_session)
 
         dweller_obj = await dweller_crud.get(db_session, exploration.dweller_id)
@@ -430,9 +413,7 @@ class EventService:
     ) -> dict | None:
         """Equip a found weapon/outfit immediately when it beats the equipped one.
 
-        The displaced item is held on the exploration (not sent to storage) and the
-        loot entry is marked equipped so settlement skips it. Returns the equip event
-        record, or None when the find is not an upgrade or the explorer is dead.
+        The displaced item is held on the exploration and its loot entry marked equipped so settlement skips it.
         """
         if await self._get_living_dweller(db_session, exploration) is None:
             return None

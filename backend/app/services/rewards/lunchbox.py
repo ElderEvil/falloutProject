@@ -1,10 +1,7 @@
-"""Lunchbox minting, rolling, and opening.
+"""Lunchbox minting, rolling, and opening; contents roll only on open.
 
-``grant_lunchbox`` mints unopened lunchbox Items; their contents only roll when
-the player opens each one. Opening consumes the box, verifies storage space
-first (a full storage fails cleanly without losing the box), and settles the
-whole opening in one deferred transaction. Public entry points are called
-through the facade in ``app.services.reward_service``.
+Opening verifies storage space before consuming the box and settles in one deferred transaction. Public
+entry points go through the reward_service facade.
 """
 
 import logging
@@ -63,14 +60,8 @@ async def grant_lunchbox(db_session: AsyncSession, vault_id: UUID, amount: int =
 async def open_lunchbox(db_session: AsyncSession, vault_id: UUID, item_id: UUID) -> dict[str, Any]:
     """Consume one unopened lunchbox and roll its contents.
 
-    Space for the rolled items is verified before the lunchbox row is
-    consumed, so a full storage fails cleanly without losing the box.
-    The box itself frees one slot, so only the two net additional slots
-    are required. The whole opening settles in one deferred transaction.
-
-    Raises:
-        ResourceNotFoundException: Unknown, foreign-vault, or non-lunchbox row.
-        ResourceConflictException: Storage cannot fit the rolled contents.
+    Space is verified before the box is consumed (full storage fails without losing it); the box frees one
+    slot, so only the two net additional slots are required. One deferred transaction settles the opening.
     """
     from app.crud.storage import get_unopened_lunchbox
 

@@ -1,10 +1,8 @@
 """Resolution engine for interactive expedition sites (experimental).
 
-Runs hand-authored multi-room sites (see ``data/exploration/expedition_sites.json``):
-combat reuses ``combat_calculator``, loot reuses ``loot_calculator`` plus the shared
-``apply_loot_find``/``apply_exploration_damage`` appliers, so site numbers stay
-consistent with timed events. Every resolution appends a ``site`` record to the
-exploration event log; run state lives in ``expedition_run`` rows.
+Hand-authored multi-room sites reuse combat_calculator/loot_calculator and the shared appliers so numbers stay
+consistent with timed events. Each resolution appends a site record to the event log; run state lives in
+expedition_run rows.
 """
 
 import logging
@@ -634,9 +632,8 @@ class ExpeditionService:
             finally:
                 notification_service.discard_deferred_notifications(db_session)
 
-        # The finale pays the reward vault; re-check eligibility under the claim
-        # so a run that outlived a terminal sibling cannot pay into a locked site.
-        # Spatial runs check journey consumption instead of the vault cooldown.
+        # The finale pays the reward vault; re-check eligibility under the claim so a run that outlived a terminal
+        # sibling cannot pay into a locked site. Spatial runs check journey consumption instead of the vault cooldown.
         if room.node.kind == "finale":
             if exploration.heading_degrees is not None:
                 consumed = await crud.expedition_run.get_consumed_for_exploration_site(
@@ -652,8 +649,8 @@ class ExpeditionService:
         result = BranchResult()
         pending = run.flags.get("pending_fight")
         if pending is not None and pending.get("room_id") == room.id:
-            # Push-on after a defeat: replay the recorded pack; never re-roll the
-            # original choice/check that led to the failed branch.
+            # Push-on after a defeat: replay the recorded pack; never re-roll the original choice/check that led to
+            # the failed branch.
             await _fight_pack(
                 db_session, exploration, [EnemySpec(**spec_dict) for spec_dict in pending["enemies"]], result
             )

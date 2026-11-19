@@ -7,7 +7,6 @@ from app.utils.serialize_types import UTCDateTimeJSON
 
 
 class OutfitCreate(OutfitBase):
-    # Optional fields - can be omitted, but if provided must be valid UUID
     storage_id: UUID | None = None
 
 

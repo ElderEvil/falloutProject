@@ -1,19 +1,10 @@
-"""Shared constructors for catalog-backed weapons, outfits, junk, pets, and generic items.
+"""Shared constructors for catalog-backed weapons, outfits, junk, pets and generic items.
 
-Both reward settlement and crafting build items from the same JSON catalogs
-(`items/weapons.json`, `items/outfits/*.json`), so the mapping from catalog
-shape to ORM model lives here exactly once. Junk rows carry no catalog row:
-pricing and prose stay caller-owned because incidents and exploration value
-and describe held junk differently. Pets carry no catalog-owned stats either —
-bonuses resolve by name at read time (`app.options.pet_modifiers`). Generic
-``Item`` rows (consumables, lunchboxes, misc) carry no catalog columns at all;
-``build_item`` exists so the factory remains the single item constructor.
-
-These are the only sanctioned constructors for these models — building an item
-directly leaves every catalog-owned column at its default, a state no test can
-distinguish from a legitimate one. `tests/test_architecture/test_item_factory_guard.py`
-enforces that. ``rarity`` is normalized to ``RarityEnum`` here so callers may pass the
-raw catalog string.
+Reward settlement and crafting map the same JSON catalogs to ORM here exactly once. Junk
+carries no catalog row (pricing/prose caller-owned); pet bonuses resolve by name at read
+time (app.options.pet_modifiers); generic Item rows carry no catalog columns. These are
+the only sanctioned constructors — test_item_factory_guard.py enforces it. rarity is
+normalized to RarityEnum so callers may pass raw catalog strings.
 """
 
 from dataclasses import asdict
@@ -124,11 +115,9 @@ def build_junk(
 
 
 def build_pet(data: dict[str, Any], rarity: RarityEnum | str, storage_id: UUID | None = None) -> Pet:
-    """Build a Pet from reward data; art resolves from the pet name.
-
-    Pets persist identity and ownership only — no effect columns — so the only
-    derived value here is the image URL, preferring an explicit one and falling
-    back to the name-keyed art map.
+    """Build a Pet from reward data; pets persist identity/ownership only (no effect columns),
+    so the only derived value is the image URL — explicit one preferred, else the name-keyed
+    art map.
     """
     name = str(data["name"])
     return Pet(
@@ -149,12 +138,10 @@ def build_item(
     value: int | None = None,
     image_url: str | None = None,
 ) -> Item:
-    """Build a generic ``Item`` row for reward categories with no dedicated model.
+    """Build a generic Item row (consumables, lunchboxes, misc) with no catalog columns.
 
-    ``Item`` is the catch-all for consumables, lunchboxes and misc: it owns no
-    catalog columns, so nothing can be silently dropped here. It is still built
-    through the factory so ``item_factory`` stays the single item constructor
-    (the architecture guard counts bare ``Item(...)`` calls like any other).
+    Still built through the factory: the architecture guard counts bare Item(...) calls like
+    any other.
     """
     return Item(
         name=name,
@@ -177,9 +164,8 @@ def build_catalog_item(
 ) -> Weapon | Outfit | None:
     """Build a catalog-backed weapon/outfit by name; None when the catalog has no such row.
 
-    The loot schemas used mid-exploration are a reduced shape (``OutfitSchema`` carries
-    no SPECIAL bonuses), so callers materialize the full catalog row by name instead of
-    building from the schema dump.
+    Mid-exploration loot schemas are a reduced shape (OutfitSchema has no SPECIAL bonuses),
+    so callers materialize the full catalog row by name.
     """
     if item_type == "weapon":
         weapon_data = next((w for w in weapons_data if str(w["name"]).lower() == name.lower()), None)

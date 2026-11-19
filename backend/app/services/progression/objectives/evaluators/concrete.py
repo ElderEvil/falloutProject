@@ -1,9 +1,4 @@
-"""Concrete objective evaluators: the per-type event-matching rules.
-
-All evaluators share the engine in ``base.ObjectiveEvaluator``; each class here
-declares its ``objective_type``, the events it listens for, and how event data
-matches an objective's ``target_entity``.
-"""
+"""Concrete objective evaluators: per-type event-matching rules on the base.ObjectiveEvaluator engine."""
 
 from typing import Any
 from uuid import UUID
@@ -80,9 +75,7 @@ class EquipEvaluator(ObjectiveEvaluator):
 class ScrapEvaluator(ObjectiveEvaluator):
     """Evaluates 'scrap' objectives (e.g. 'Scrap a Rare Weapon').
 
-    Listens to ITEM_SCRAPPED events. Matches target_entity["item_type"]
-    ("weapon"/"outfit"; absent/"*"/"any" = any) and target_entity["rarity"]
-    ("common"/"rare"/"legendary"; absent/"*"/"any" = any).
+    ITEM_SCRAPPED events; matches target_entity item_type and rarity (absent/"*"/"any" = any).
     """
 
     objective_type = "scrap"
@@ -180,10 +173,7 @@ class AssignEvaluator(ObjectiveEvaluator):
 class AssignCorrectEvaluator(ObjectiveEvaluator):
     """Evaluates 'assign_correct' objectives (e.g. 'Correctly Assign 5 Dwellers').
 
-    A "correct" assignment means the dweller's highest SPECIAL stat matches
-    the room's primary production stat (e.g., Strength for Power Plant).
-
-    Listens to DWELLER_ASSIGNED_CORRECTLY events.
+    "Correct" = the dweller's highest SPECIAL stat matches the room's primary production stat.
     """
 
     objective_type = "assign_correct"
@@ -210,12 +200,7 @@ class ExploreEvaluator(ObjectiveEvaluator):
 class ReachEvaluator(ObjectiveEvaluator):
     """Evaluates 'reach' objectives (e.g. 'Reach 10 Dwellers', 'Reach Level 5').
 
-    Listens to DWELLER_LEVEL_UP, DWELLER_ASSIGNED and DWELLER_ADDED events.
-    For dweller count targets, checks current vault population.
-    For level targets, checks if the leveled dweller meets the target.
-
-    Note: 'reach' objectives use absolute values, not increments.
-    Progress is set to the current value rather than incremented.
+    Absolute values, not increments: progress is set to the current population or the leveled dweller's level.
     """
 
     objective_type = "reach"
@@ -304,9 +289,7 @@ class ExpeditionEvaluator(ObjectiveEvaluator):
 class LevelUpEvaluator(ObjectiveEvaluator):
     """Evaluates 'level_up' objectives (e.g. 'Level up 2 Dwellers to Lv.5+').
 
-    Listens to DWELLER_LEVEL_UP events.
-    Matches if the new level >= target_entity["min_level"].
-    Increments progress for each dweller meeting the level requirement.
+    DWELLER_LEVEL_UP events; increments per dweller whose new level >= target_entity min_level.
     """
 
     objective_type = "level_up"

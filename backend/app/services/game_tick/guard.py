@@ -22,11 +22,8 @@ logger = logging.getLogger(__name__)
 async def refresh_after_recovery(db_session: "AsyncSession", entities: Iterable[object]) -> None:
     """Re-load instances expired by a rollback so the next step may touch them.
 
-    ``recover_session`` expires every loaded ORM instance, so a sweep that keeps
-    iterating its originally-loaded list would trip an implicit async refresh
-    (``MissingGreenlet``) on the next attribute access. Call this with the
-    remaining entities after a recovery; an entity whose row is gone stays
-    expired and is skipped by the caller's own error handling.
+    recover_session expires every loaded instance; iterating the original list would trip an implicit async
+    refresh (MissingGreenlet). Entities whose row is gone stay expired for the caller's error handling.
     """
     for entity in entities:
         if not isinstance(entity, SQLModel):
@@ -38,10 +35,7 @@ async def refresh_after_recovery(db_session: "AsyncSession", entities: Iterable[
 async def recover_session(db_session: "AsyncSession") -> None:
     """Restore a session after a failed statement and drop deferred side effects.
 
-    A failed statement aborts the transaction, so every later statement on the
-    same session fails until it is rolled back — one bad entity would otherwise
-    fail the rest of the sweep. Rolling back is not enough on its own:
-    notifications and level-ups queued for delivery after the next commit
+    A failed statement aborts the transaction until rollback; queued post-commit notifications/level-ups
     describe work that no longer exists, so they are discarded with it.
     """
     from app.services.leveling_service import leveling_service

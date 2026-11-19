@@ -1,10 +1,8 @@
 """Cap, resource, experience, and medication grants for reward settlement.
 
-Each grant is one transaction owner: caps and resources deposit into the vault,
-experience levels dwellers, and stimpak/radaway medication rides the dweller
-stock path so it stays usable for treatment. Deferred delivery defers the
-commit (see ``app.utils.reward_delivery``). Public entry points are called
-through the facade in ``app.services.reward_service``.
+Each grant owns one transaction; medication rides the dweller stock path so it stays usable for treatment.
+Deferred delivery defers the commit (app.utils.reward_delivery); entry points go through the reward_service
+facade.
 """
 
 import logging

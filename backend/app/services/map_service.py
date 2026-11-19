@@ -1,13 +1,8 @@
 """World-map service: register bio places, discoveries, and build map responses.
 
-Thin facade over the ``app.services.map`` domain package: ``MapService`` keeps
-the public surface — and the ``map_service`` singleton — stable for its diverse
-callers, delegating each entry point to the role-named collaborators
-(``bio_registration``, ``discovery``, and ``reads``).
-
-All ``register_*`` methods are best-effort — failures are logged at
-``logger.exception`` level and NEVER raised to the caller.  This is
-load-bearing because bio generation must not fail on map bookkeeping.
+Thin facade over app.services.map keeping the MapService surface and singleton stable. All register_* methods
+are best-effort: failures logged at logger.exception, NEVER raised — bio generation must not fail on map
+bookkeeping.
 """
 
 from __future__ import annotations

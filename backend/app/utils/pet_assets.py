@@ -1,17 +1,13 @@
-"""Pet name to companion image mapping.
-
-Starter plus full FOS breed roster (cats, dogs, parrots): breed names and
-legendary unique names resolve to their breed art. Pets are owned inventory
-entities (``Pet`` rows) equipped to a dweller; quest and lunchbox rewards mint
-them directly. Unmapped pets fall back to the generic icon in the UI.
+"""Pet name → companion image mapping: starter plus full FOS breed roster; breed and
+legendary unique names resolve to breed art. Unmapped pets fall back to the generic UI icon.
 """
 
 from pathlib import Path
 
 from app.utils.image_assets import lookup_image_url
 
-# Maps canonical lower-cased pet names to the actual filename in
-# backend/app/static/pet_images/. Keep this sorted alphabetically by key.
+# Maps canonical lower-cased pet names to the actual filename in backend/app/static/pet_images/. Keep this sorted
+# alphabetically by key.
 PET_NAME_TO_IMAGE_FILE: dict[str, str] = {
     "rollerbrain": "FOS Rollerbrain.png",
     "abyssinian": "FOS Abyssinian.png",

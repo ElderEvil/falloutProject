@@ -44,8 +44,8 @@ def decode_token_subject(
 ) -> str:
     """Verify signed, expiring credentials for exactly one purpose.
 
-    Legacy untyped sessions are intentionally rejected. Email/reset links retain
-    their existing purpose values and signing key.
+    Legacy untyped sessions are intentionally rejected; email/reset links keep their existing
+    purpose values and signing key.
     """
     try:
         payload = jwt.decode(
@@ -136,9 +136,7 @@ async def invalidate_refresh_token(subject: str, redis_client: Redis) -> None:
 
 
 def create_email_verification_token(subject: str | Any) -> str:
-    """
-    Create a token for email verification (7 day expiry).
-    """
+    """Create a token for email verification (7 day expiry)."""
     expire = utcnow() + timedelta(days=7)
     # Opaque JWT id: v4 keeps the token free of an ordering/time signal.
     to_encode = {"exp": expire, "sub": str(subject), "type": "email_verification", "jti": uuid4().hex}
@@ -146,9 +144,7 @@ def create_email_verification_token(subject: str | Any) -> str:
 
 
 def verify_email_token(token: str) -> str | None:
-    """
-    Verify email verification token and return user ID.
-    """
+    """Verify email verification token and return user ID."""
     try:
         return decode_token_subject(token, "email_verification")
     except JWTError:
@@ -156,18 +152,14 @@ def verify_email_token(token: str) -> str | None:
 
 
 def create_password_reset_token(subject: str | Any) -> str:
-    """
-    Create a token for password reset (1 hour expiry).
-    """
+    """Create a token for password reset (1 hour expiry)."""
     expire = utcnow() + timedelta(hours=1)
     to_encode = {"exp": expire, "sub": str(subject), "type": "password_reset"}
     return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
 
 def verify_password_reset_token(token: str) -> str | None:
-    """
-    Verify password reset token and return user ID/email.
-    """
+    """Verify password reset token and return user ID/email."""
     try:
         return decode_token_subject(token, "password_reset")
     except JWTError:

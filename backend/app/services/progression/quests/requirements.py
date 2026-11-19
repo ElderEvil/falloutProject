@@ -1,9 +1,7 @@
 """Requirement policy for quests: stateless decision rules, CRUD-backed vault gate.
 
-Replaces the former ``prerequisite_service`` singleton. This is a policy, not a
-service — no orchestration, no transactions, no events, no state. The vault-level
-entry point reads through CRUD; the party-level entry point and all party
-validators are pure.
+A policy, not a service — no orchestration, transactions, events, or state; vault entry reads through CRUD,
+party entry and validators are pure.
 """
 
 import logging
@@ -27,10 +25,8 @@ logger = logging.getLogger(__name__)
 async def vault_requirement_states(db_session: AsyncSession, vault_id: UUID, quest: Quest) -> dict[UUID, bool]:
     """Per-requirement vault-scoped verdicts keyed by requirement id.
 
-    The read path's honest per-row gate display: every requirement (mandatory or
-    optional) is evaluated through the same fail-closed ``_check_requirement``
-    dispatch the availability gate uses, so the UI shows *which* requirement
-    blocks a quest instead of inferring it from the lock verdict.
+    Every requirement (mandatory or optional) goes through the same fail-closed _check_requirement dispatch as
+    the availability gate, so the UI shows which requirement blocks a quest.
     """
     states: dict[UUID, bool] = {}
     for req in quest.quest_requirements:
@@ -41,9 +37,8 @@ async def vault_requirement_states(db_session: AsyncSession, vault_id: UUID, que
 async def vault_missing_requirements(db_session: AsyncSession, vault_id: UUID, quest: Quest) -> list[str]:
     """Vault-level requirement gates for a quest, as human-readable reasons.
 
-    Only mandatory requirements gate a quest; an unmet *optional* one is
-    debug-logged and skipped. Dispatch is fail-closed: an unknown requirement type
-    or a validator error is logged and treated as not met.
+    Only mandatory requirements gate; unmet optional ones are debug-logged and skipped. Fail-closed: unknown
+    types or validator errors are logged and treated as not met.
     """
     missing: list[str] = []
     requirements: list[QuestRequirement] = quest.quest_requirements
@@ -182,10 +177,8 @@ async def _check_requirement(db_session: AsyncSession, vault_id: UUID, requireme
 async def vault_missing_item_requirements(db_session: AsyncSession, vault_id: UUID, quest: Quest) -> list[str]:
     """Unmet mandatory ITEM gates, as human-readable reasons.
 
-    ITEM is vault-scoped, not a party burden: an item counts when it is in storage or
-    equipped by any dweller in the vault, so the start path applies the same rule the
-    read path already used. Folding this into the party gate made a quest read as
-    available and then refuse to start when the wearer stayed home.
+    ITEM is vault-scoped: counts when in storage or equipped by any vault dweller, matching the read path.
+    Party-gating it made quests read available then refuse to start when the wearer stayed home.
     """
     missing: list[str] = []
     for req in quest.quest_requirements:
@@ -199,10 +192,8 @@ async def vault_missing_item_requirements(db_session: AsyncSession, vault_id: UU
 def party_missing_requirements(party_dwellers: Sequence[Dweller], quest: Quest) -> list[str]:
     """Missing party-level requirements for a quest, given the dwellers being sent.
 
-    LEVEL, ATTACK and STAT gates are checked against the party itself — the dwellers
-    actually dispatched — while ITEM, ROOM, DWELLER_COUNT and QUEST_COMPLETED are
-    vault-level and keep their validation in ``vault_missing_requirements`` (ITEM via
-    ``vault_missing_item_requirements`` on the start path).
+    LEVEL/ATTACK/STAT check the dispatched party; ITEM/ROOM/DWELLER_COUNT/QUEST_COMPLETED stay vault-level in
+    vault_missing_requirements.
     """
     missing: list[str] = []
     for req in quest.quest_requirements:
@@ -226,11 +217,8 @@ def party_missing_requirements(party_dwellers: Sequence[Dweller], quest: Quest) 
 def individual_meets_requirement(dweller: Dweller, requirement: QuestRequirement) -> bool:
     """Whether a single dweller satisfies a requirement's per-individual threshold.
 
-    Count-independent: a candidate who meets the gate's threshold qualifies even
-    when the requirement needs ``count > 1`` — the aggregate count is enforced on
-    the party by ``party_missing_requirements`` at start. Optional gates and
-    vault-level gates (ROOM, DWELLER_COUNT, QUEST_COMPLETED) are not judged
-    per-individual and never disqualify a candidate.
+    Count-independent: aggregate count is enforced on the party at start. Optional and vault-level gates (ROOM,
+    DWELLER_COUNT, QUEST_COMPLETED) never disqualify a candidate per-individual.
     """
     if not requirement.is_mandatory:
         return True

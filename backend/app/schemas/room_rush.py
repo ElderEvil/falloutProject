@@ -19,10 +19,8 @@ class RoomRushResourceGain(BaseModel):
 
 
 class RoomRushQuote(BaseModel):
-    """Server-computed rush risk and payout preview for one room.
-
-    Chances are percentages in ``0..100``; the service keeps internal
-    probabilities in ``0..1``.
+    """Server-computed rush risk/payout preview; chances are percentages 0..100
+    (the service keeps internal probabilities in 0..1).
     """
 
     can_rush: bool

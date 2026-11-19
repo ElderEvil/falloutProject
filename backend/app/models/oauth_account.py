@@ -7,10 +7,8 @@ from app.models.base import BaseUUIDModel, TimeStampMixin
 
 
 class OAuthAccount(BaseUUIDModel, TimeStampMixin, table=True):
-    """Link between a local user and a provider identity.
-
-    ``provider`` is a plain varchar: no PG enum, so adding a provider needs no
-    enum migration.
+    """Link between a local user and a provider identity; provider is a plain varchar (no PG
+    enum), so adding a provider needs no enum migration.
     """
 
     __tablename__ = "oauth_account"

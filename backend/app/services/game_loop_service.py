@@ -65,12 +65,8 @@ class GameLoopService:
     ) -> GameTickResult:
         """Process a single game tick for all active vaults.
 
-        Each vault runs on its own session, bounded by ``max_concurrency``. An
-        expected vault failure is isolated to that vault; an unexpected error is
-        re-raised only after every vault task has settled.
-
-        Returns:
-            dict: Statistics about the tick processing
+        Each vault runs on its own session, bounded by max_concurrency; expected failures isolate to that vault,
+        unexpected errors re-raise only after every vault task settles.
         """
         stats: GameTickResult = {
             "vaults_processed": 0,
@@ -81,8 +77,8 @@ class GameLoopService:
 
         start_time = utcnow()
 
-        # Read plain IDs before spawning: recovering a failed vault expires every
-        # loaded ORM instance, so touching vault attributes afterwards would lazy-load.
+        # Read plain IDs before spawning: recovering a failed vault expires every loaded ORM instance, so touching
+        # vault attributes afterwards would lazy-load.
         async with session_maker() as db_session:
             active_vaults = await self._get_active_vaults(db_session)
             vault_ids = [vault.id for vault in active_vaults]
@@ -127,16 +123,7 @@ class GameLoopService:
     async def process_vault_tick(
         self, db_session: AsyncSession, vault_id: UUID, tick_id: str | None = None
     ) -> VaultTickResult:
-        """Process a single tick for a specific vault.
-
-        Args:
-            db_session: Database session
-            vault_id: UUID of the vault to process
-            tick_id: Dispatch id used to make redeliveries idempotent
-
-        Returns:
-            dict: Results of the tick processing
-        """
+        """Process a single tick for a specific vault."""
         # Get or create game state
         with tick_phase("game_state"):
             game_state = await self._get_or_create_game_state(db_session, vault_id)
@@ -179,10 +166,9 @@ class GameLoopService:
                 with tick_phase("resources.persist"):
                     await vault_crud.update(db_session, vault_id, resource_update)
 
-                    # Advance the tick boundary in the same transaction as the resource
-                    # update: if a later phase raises and game_tick retries, the retried
-                    # tick recomputes seconds_passed from this boundary instead of
-                    # reapplying the same production window and duplicating events.
+                    # Advance the tick boundary in the same transaction as the resource update: a retried tick
+                    # recomputes seconds_passed from this boundary instead of reapplying the same production window
+                    # and duplicating events.
                     game_state.update_tick(seconds_passed)
                     if resource_update.water is not None:
                         if resource_update.water <= 0 and game_state.water_empty_since is None:
@@ -203,9 +189,8 @@ class GameLoopService:
                 "events": resource_events.model_dump(),
             }
         except (SQLAlchemyError, ResourceNotFoundException, VaultOperationException) as e:
-            # Recover before the remaining phases: a poisoned session would fail
-            # every one of them, not just the resource update. The rollback expires
-            # game_state, so reload it before the later phases read it.
+            # Recover before the remaining phases: a poisoned session would fail every one of them, not just the
+            # resource update. The rollback expires game_state, so reload it before the later phases read it.
             await recover_session(db_session)
             self.logger.error(f"Error updating resources for vault {vault_id}: {e}", exc_info=True)
             results["updates"]["resources"] = {"error": str(e)}

@@ -22,7 +22,6 @@ class LadderEntry:
 
 
 class WeaponCreate(WeaponBase):
-    # Optional fields - can be omitted, but if provided must be valid UUID
     storage_id: UUID | None = None
 
 

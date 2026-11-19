@@ -1,9 +1,7 @@
 """Canonical world-place registry and per-vault fog state.
 
-Phase 1 of the shared places registry (see ``docs/WORLD_MAP_PLAN.md``): the global
-``WorldLocation`` authority plus per-vault ``VaultLocationState``. Both are
-backfilled from the retired per-vault ``wastelandlocation`` table; the service
-layer is rewired onto these in phase 2.
+Global WorldLocation authority plus per-vault VaultLocationState, both backfilled from
+the retired per-vault wastelandlocation table.
 """
 
 from __future__ import annotations
@@ -28,18 +26,18 @@ class WorldLocationBase(SQLModel):
     coord_x: float = Field(ge=0, le=100)
     coord_y: float = Field(ge=0, le=100)
     description: str | None = Field(default=None, max_length=1000)
-    # Site-type archetype key (see data/places/place_groups.json). A data-defined
-    # string rather than an enum so new site types need no migration.
+    # Site-type archetype key (see data/places/place_groups.json). A data-defined string rather than an enum so new
+    # site types need no migration.
     group_key: str | None = Field(default=None, max_length=32, index=True)
     source: str = Field(default="emergent", max_length=16)
 
 
 class WorldLocation(BaseUUIDModel, WorldLocationBase, TimeStampMixin, table=True):
-    """Global canonical place; ``normalized_name`` is the unique merge key.
+    """Global canonical place; normalized_name is the unique merge key.
 
-    Coordinates are name-derived (``schematic_coords`` plus a registry-level
-    collision nudge) and therefore stable for every viewer. ``vault_number`` is
-    set only for real-vault rows and is uniquely constrained among them.
+    Coordinates are name-derived (schematic_coords plus a registry collision nudge), stable
+    for every viewer. vault_number is set only for real-vault rows, uniquely constrained
+    among them.
     """
 
     __tablename__ = "worldlocation"
@@ -72,9 +70,8 @@ class VaultLocationStateBase(SQLModel):
 
 
 class VaultLocationState(BaseUUIDModel, VaultLocationStateBase, TimeStampMixin, table=True):
-    """Per-vault visibility state (origin / visited / discovery / home) for a location.
-
-    ``type`` stays per-vault: one vault's origin is another vault's discovery.
+    """Per-vault visibility state (origin/visited/discovery/home); type stays per-vault — one
+    vault's origin is another vault's discovery.
     """
 
     __tablename__ = "vaultlocationstate"
@@ -83,8 +80,8 @@ class VaultLocationState(BaseUUIDModel, VaultLocationStateBase, TimeStampMixin, 
     location_id: UUID = Field(foreign_key="worldlocation.id", index=True, ondelete="CASCADE")
     exploration_id: UUID | None = Field(default=None, foreign_key="exploration.id", nullable=True, ondelete="SET NULL")
 
-    # Map-point clear state (issue 772). NULL / 0 is the "never cleared" state;
-    # reclear_available_at is cleared_at + the place group's reclear_hours.
+    # Map-point clear state (issue 772). NULL / 0 is the "never cleared" state; reclear_available_at is cleared_at +
+    # the place group's reclear_hours.
     cleared_at: datetime | None = Field(sa_type=UTCDateTime, default=None)
     reclear_available_at: datetime | None = Field(sa_type=UTCDateTime, default=None)
     clear_count: int = Field(default=0, ge=0, description="Successful clears; drives escalation tier")
@@ -102,10 +99,8 @@ class VaultLocationState(BaseUUIDModel, VaultLocationStateBase, TimeStampMixin, 
         return max(0, int((self.reclear_available_at - now).total_seconds()))
 
     def is_dispatchable(self, now: datetime) -> bool:
-        """True when the point is not currently cleared.
-
-        Group clearability is the caller's concern (checked against the place
-        group before dispatch); this only reflects the per-vault clear window.
+        """True when the point is not currently cleared (per-vault clear window only; group
+        clearability is checked by the caller before dispatch).
         """
         return not self.is_cleared(now)
 

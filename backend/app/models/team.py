@@ -1,12 +1,9 @@
 """Reusable team roster primitive: a named squad of dwellers for one purpose.
 
-A ``Team`` serves exactly one purpose — a quest, an incident, a standing
-hazard team, or an exploration dispatch — enforced by ``ck_team_one_purpose``.
-Quest teams are one per ``(vault_id, quest_id)`` (``uq_team_vault_quest``);
-incident teams are one per ``(vault_id, incident_id)`` (``uq_team_vault_incident``)
-and cascade with their incident; hazard teams are one per ``(vault_id, hazard_team)``
-(``uq_team_vault_hazard``) and hold the earned fire/radiation rosters; dispatch
-teams are one per ``(vault_id, exploration_id)`` (``uq_team_vault_exploration``).
+ck_team_one_purpose enforces exactly one purpose. Quest teams: one per (vault_id,
+quest_id). Incident teams: one per (vault_id, incident_id), cascading with the incident.
+Hazard teams: one per (vault_id, hazard_team), holding earned fire/radiation rosters.
+Dispatch teams: one per (vault_id, exploration_id).
 """
 
 from typing import TYPE_CHECKING, Optional
@@ -24,15 +21,15 @@ if TYPE_CHECKING:
     from app.models.quest import Quest
     from app.models.vault import Vault
 
-#: Shared membership-status vocabulary for every team purpose, homed here.
-#: Quest/incident lifecycle: a member is ``assigned``, then ``in_progress``,
-#: ``completed``, or ``failed``. Hazard teams use ``active`` (holds a slot) and
-#: ``reserve`` (bench).
+# : Shared membership-status vocabulary for every team purpose, homed here.
+# : Quest/incident lifecycle: a member is ``assigned``, then ``in_progress``,
+# : ``completed``, or ``failed``. Hazard teams use ``active`` (holds a slot) and
+# : ``reserve`` (bench).
 ACTIVE_STATUS = "active"
 RESERVE_STATUS = "reserve"
-#: Distinguishes hazard auto-dispatch from manual assignment; both return after the incident.
+# : Distinguishes hazard auto-dispatch from manual assignment; both return after the incident.
 DISPATCHED_STATUS = "dispatched"
-#: Incident responders awaiting settlement, regardless of manual or automatic dispatch.
+# : Incident responders awaiting settlement, regardless of manual or automatic dispatch.
 COMMITTED_MEMBER_STATUSES: frozenset[str] = frozenset({"assigned", DISPATCHED_STATUS})
 
 
@@ -85,7 +82,6 @@ class Team(BaseUUIDModel, TimeStampMixin, table=True):
     )
     name: str | None = Field(default=None, max_length=64, description="Optional display name")
 
-    # Relationships
     vault: "Vault" = Relationship(back_populates="teams")
     quest: Optional["Quest"] = Relationship(back_populates="teams")
     incident: Optional["Incident"] = Relationship(back_populates="teams")
@@ -94,8 +90,8 @@ class Team(BaseUUIDModel, TimeStampMixin, table=True):
         sa_relationship_kwargs={"cascade": "all, delete-orphan"},
     )
 
-    # One team per (vault, quest), per (vault, incident), per (vault, hazard),
-    # and per (vault, exploration); exactly one purpose.
+    # One team per (vault, quest), per (vault, incident), per (vault, hazard), and per (vault, exploration); exactly
+    # one purpose.
     __table_args__ = (
         sa.UniqueConstraint("vault_id", "quest_id", name="uq_team_vault_quest"),
         sa.UniqueConstraint("vault_id", "incident_id", name="uq_team_vault_incident"),
@@ -129,11 +125,9 @@ class Team(BaseUUIDModel, TimeStampMixin, table=True):
 class TeamMember(BaseUUIDModel, TimeStampMixin, table=True):
     """One dweller's slot on a team roster.
 
-    ``slot_number`` is purpose-scoped: for hazard teams it mirrors placement —
-    1-3 for ``active`` members (assigned in seniority order by ``created_at``),
-    ``NULL`` for ``reserve`` bench members. For incident teams it is always
-    ``NULL`` ("no fixed slot", see ``crud/team.py:add_incident_team_members``).
-    Quest teams use it for the party slot.
+    slot_number is purpose-scoped: hazard teams mirror placement — 1-3 for active members
+    (seniority by created_at), NULL for reserve bench. Incident teams always NULL (no fixed
+    slot). Quest teams use it for the party slot.
     """
 
     __tablename__ = "team_member"
@@ -155,10 +149,9 @@ class TeamMember(BaseUUIDModel, TimeStampMixin, table=True):
         default="assigned",
         description="assigned, in_progress, completed, failed (quest/incident); active, reserve (hazard)",
     )
-    # Dispatch provenance: the room an incident responder was posted in before
-    # being moved into the incident room, for both manual and automatic dispatch.
-    # NULL for previously unassigned responders and non-incident rosters; deletion clears it
-    # (SET NULL), which correctly means "no posting to restore".
+    # Dispatch provenance: the room an incident responder was posted in before being moved into the incident room, for
+    # both manual and automatic dispatch. NULL for previously unassigned responders and non-incident rosters; deletion
+    # clears it (SET NULL), which correctly means "no posting to restore".
     origin_room_id: UUID | None = Field(
         default=None,
         foreign_key="room.id",
@@ -167,7 +160,6 @@ class TeamMember(BaseUUIDModel, TimeStampMixin, table=True):
         description="Pre-dispatch posting of an incident responder; NULL when unassigned or unknown",
     )
 
-    # Relationships
     team: "Team" = Relationship(back_populates="members")
     dweller: "Dweller" = Relationship(back_populates="team_memberships")
 

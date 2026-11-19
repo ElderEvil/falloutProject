@@ -43,8 +43,8 @@ class CRUDObjective(CRUDBase[Objective, ObjectiveCreate, ObjectiveUpdate]):
     async def count_claimable_for_vault(self, db_session: AsyncSession, vault_id: UUID) -> int:
         """Count unlocked vault objectives whose reward is ready but unclaimed.
 
-        Mirrors the frontend's claimable rule: progress met, not yet marked
-        completed (claim settles that flag).
+        Mirrors the frontend claimable rule: progress met, not yet marked completed (claim
+        settles that flag).
         """
         query = (
             select(func.count())
@@ -211,11 +211,10 @@ class CRUDObjective(CRUDBase[Objective, ObjectiveCreate, ObjectiveUpdate]):
     ) -> int:
         """Assign the deterministic starter objective set for a new vault.
 
-        Standard vaults get the full ``starter`` arc (ordered by ``sequence``)
-        plus the first daily and first weekly objective. Boosted vaults skip the
-        arc (the Overseer's Office is already seeded) and draw 8 objectives from
-        every category except ``daily``/``weekly``/``starter``.
-        A starter override is pinned on its vault link for both reads and claims.
+        Standard vaults get the full starter arc (ordered by sequence) plus the first daily and
+        weekly. Boosted vaults skip the arc (Overseer's Office already seeded) and draw 8
+        objectives from every category except daily/weekly/starter. Starter reward overrides
+        are pinned on their vault links for reads and claims.
         """
         overrides = starter_reward_overrides or {}
         try:
@@ -305,12 +304,8 @@ class CRUDObjective(CRUDBase[Objective, ObjectiveCreate, ObjectiveUpdate]):
     async def get_multi_complete(
         self, db_session: AsyncSession, skip: int = 0, limit: int = 100
     ) -> Sequence[Objective]:
-        """Get objectives with all required fields for completion tracking.
-
-        Complete objectives have:
-        - objective_type is not None
-        - target_entity is not None (can be None for some types like assign)
-        - target_amount >= 1
+        """Objectives with all fields required for completion tracking: objective_type set and
+        target_amount >= 1 (target_entity may be None for types like assign).
         """
         query = (
             select(self.model)

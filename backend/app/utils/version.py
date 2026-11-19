@@ -1,8 +1,4 @@
-"""
-Utility functions to read application version information.
-
-Reads version from pyproject.toml and provides system info.
-"""
+"""Read application version information from pyproject.toml and provide system info."""
 
 import sys
 import tomllib
@@ -10,12 +6,7 @@ from pathlib import Path
 
 
 def get_app_version() -> str:
-    """
-    Read application version from pyproject.toml.
-
-    :returns: Application version string or "unknown" if not found
-    :rtype: str
-    """
+    """Read application version from pyproject.toml, or "unknown" if not found."""
     pyproject_path = Path(__file__).parent.parent.parent / "pyproject.toml"
 
     try:
@@ -27,22 +18,12 @@ def get_app_version() -> str:
 
 
 def get_python_version() -> str:
-    """
-    Get current Python version.
-
-    :returns: Python version string (e.g., "3.13.1")
-    :rtype: str
-    """
+    """Get current Python version."""
     return f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
 
 
 def parse_changelog(changelog_path: Path) -> list[dict]:
-    """
-    Parse CHANGELOG.md and return structured data.
-
-    :param changelog_path: Path to CHANGELOG.md file
-    :returns: List of version entries with changes
-    """
+    """Parse CHANGELOG.md into structured version entries."""
     import re
     from datetime import datetime
 
@@ -93,12 +74,7 @@ def parse_changelog(changelog_path: Path) -> list[dict]:
 
 
 def version_tuple(version_str: str) -> tuple[int, ...]:
-    """
-    Convert version string to tuple for comparison/sorting.
-
-    :param version_str: Version string (e.g., "2.6.0")
-    :returns: Tuple of version components
-    """
+    """Convert a version string to a tuple for comparison/sorting."""
     parts = version_str.split(".")
     while len(parts) < 3:
         parts.append("0")

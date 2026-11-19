@@ -8,10 +8,7 @@ class AIUsageStats(SQLModel):
 
 
 class AIOperationStats(SQLModel):
-    """Token breakdown for one operation tag (LLMInteraction.usage).
-
-    NULL usage is reported as "unknown"; legacy tags may also appear.
-    """
+    """Token breakdown per operation tag; NULL usage reports as "unknown", legacy tags may appear."""
 
     operation: str
     prompt_tokens: int = Field(default=0, ge=0)
@@ -32,13 +29,9 @@ class QuotaInfo(SQLModel):
 
 
 class AIUsageResponse(SQLModel):
-    """Per-user AI usage with quota status.
-
-    by_operation covers the current month so operation shares align with
-    quota_used ("bio generation: 40% of quota"). Cost estimation is
-    intentionally deferred: honest pricing needs per-interaction provider/model
-    rates (input/output prices differ; image/audio are not token-priced).
-    LLMInteraction already snapshots provider/model to support that later.
+    """Per-user AI usage with quota status; by_operation covers the current month
+    so shares align with quota_used. Cost estimation is deferred: it needs
+    per-interaction provider/model rates (snapshotted on LLMInteraction).
     """
 
     all_time: AIUsageStats

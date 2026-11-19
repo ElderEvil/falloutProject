@@ -1,15 +1,7 @@
-"""AI Usage Service - Token aggregation for user quotas.
+"""AI Usage Service - token aggregation for user quotas.
 
-IMPORTANT - Caching Strategy for Quota Enforcement:
-- The AIUsageResponse now includes quota fields (quota_limit, quota_used, etc.)
-- Quota data should NOT be cached for real-time enforcement
-- Cache invalidation MUST happen when tokens are recorded (see QuotaService.record_usage)
-- The cache key pattern is: user:{user_id}:ai_usage
-
-Why quota cannot be cached:
-- Users must see real-time quota status to avoid exceeding limits
-- Warning (80%) and blocking (100%) require fresh data
-- Cache invalidation happens in QuotaService.record_usage() via Redis DELETE
+Quota data must NOT be cached: 80% warning and 100% blocking need real-time values. QuotaService.record_usage
+invalidates the user:{user_id}:ai_usage cache key via Redis DELETE when tokens are recorded.
 """
 
 import logging

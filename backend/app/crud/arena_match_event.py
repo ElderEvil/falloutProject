@@ -36,9 +36,8 @@ class CRUDArenaMatchEvent:
 
     @staticmethod
     async def get_vault_snapshot(db_session: AsyncSession, vault_id: UUID):
-        """One statement observes match flags and the latest 40 events coherently.
-
-        Rank only this vault's journal; no roster loads, row creation or combat locks.
+        """One statement observes match flags and the latest 40 events coherently; ranks only this
+        vault's journal, no roster loads, row creation or combat locks.
         """
         ranked = (
             select(

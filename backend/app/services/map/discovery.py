@@ -74,9 +74,8 @@ async def register_discovery(
         )
         await _link_discovery(db_session, vault_id, exploration_id, dweller_id, location)
     except Exception:
-        # A failed flush leaves SQLAlchemy's transaction unusable. This
-        # registration is best-effort and runs before the event mutation,
-        # so reset it and let the discovery event continue without a link.
+        # A failed flush leaves SQLAlchemy's transaction unusable. This registration is best-effort and runs before
+        # the event mutation, so reset it and let the discovery event continue without a link.
         await db_session.rollback()
         logger.exception(
             "register_discovery failed: vault=%s exploration=%s name=%r",
@@ -123,11 +122,9 @@ async def register_spatial_discovery(
 ) -> WorldLocation | None:
     """Register a discovery found while moving: nearby place, else journey-scoped.
 
-    An existing PLACE row within the fog's site radius is claimed where it
-    stands (its coordinates never move); otherwise a new place is created
-    at the explorer's position snapped to the nearest land tile, keyed to
-    the journey so distant same-name rows can never hijack it.
-    Best-effort like ``register_discovery``.
+    An existing PLACE within the fog's site radius is claimed where it stands (coordinates never move); else a
+    new place snaps to the nearest land tile at the explorer's position, keyed to the journey so distant
+    same-name rows cannot hijack it. Best-effort.
     """
     try:
         coord_x, coord_y = position
@@ -163,11 +160,8 @@ async def register_spatial_discovery(
 async def get_discovery_routes(db_session: AsyncSession, vault_id: UUID) -> list[DiscoveryRouteRead]:
     """Project a journey into ordered map coordinates.
 
-    Spatial runs use their persisted movement trail: the durable path
-    segments the fog corridor follows. Legacy runs use discovery events —
-    a ``WastelandLocation`` is de-duplicated by place name, so it cannot
-    faithfully represent repeated visits, and event records are the journey
-    authority there. Older events without coordinate fields are omitted.
+    Spatial runs use the persisted movement trail; legacy runs use discovery events (WastelandLocation dedupes
+    by name and cannot represent repeated visits). Older events without coordinates are omitted.
     """
     explorations = await exploration_crud.get_by_vault(db_session, vault_id=vault_id)
     routes: list[DiscoveryRouteRead] = []

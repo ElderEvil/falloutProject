@@ -56,8 +56,8 @@ class Settings(BaseSettings):
     POSTGRES_MAX_CONNECTIONS: int = Field(default=100, ge=1)
     POSTGRES_RESERVED_CONNECTIONS: int = Field(default=3, ge=0)
 
-    # API engine. Uvicorn reads WEB_CONCURRENCY when no --workers flag is given;
-    # pinning it to 1 keeps one bounded API pool per pod.
+    # API engine. Uvicorn reads WEB_CONCURRENCY when no --workers flag is given; pinning it to 1 keeps one bounded API
+    # pool per pod.
     WEB_CONCURRENCY: int = Field(default=1, ge=1)
     API_DB_POOL_SIZE: int = Field(default=10, ge=1)
     API_DB_MAX_OVERFLOW: int = Field(default=5, ge=0)
@@ -76,7 +76,6 @@ class Settings(BaseSettings):
 
     ASYNC_DATABASE_URI: PostgresDsn | str = ""
 
-    # Storage Provider - RustFS (S3-compatible)
     RUSTFS_HOSTNAME: str | None = None
     RUSTFS_PORT: str | None = None
     RUSTFS_USE_HTTPS: bool = True
@@ -98,7 +97,6 @@ class Settings(BaseSettings):
         "room-images",
     ]
 
-    # AI Configuration
     PYDANTIC_AI_GATEWAY_API_KEY: str | None = None
     PYDANTIC_AI_GATEWAY_ROUTE: str | None = None
     PYDANTIC_AI_GATEWAY_BASE_URL: str | None = None
@@ -124,22 +122,14 @@ class Settings(BaseSettings):
     TYPESAFE_API_KEY: str | None = None
     JEV_MODEL: str = "jev-latest"
     JEV_ENABLED: bool = False
-    #: Minimum confidence to block a chat message as injection/toxic.
+    # : Minimum confidence to block a chat message as injection/toxic.
     JEV_GUARDRAIL_CONFIDENCE: float = 0.7
-    #: Hard deadline for one Jev decision, including any provider retries.
+    # : Hard deadline for one Jev decision, including any provider retries.
     JEV_TIMEOUT_SECONDS: float = 2.0
 
     @property
     def ai_provider_mode(self) -> Literal["gateway", "direct", "ollama", "lmstudio", "disabled"]:
-        """Determine which AI provider mode to use.
-
-        Priority:
-        1. Pydantic AI Gateway (recommended)
-        2. Direct provider API keys (deprecated)
-        3. Ollama local
-        4. LM Studio local
-        5. Disabled
-        """
+        """AI provider mode priority: gateway > direct API keys (deprecated) > Ollama > LM Studio > disabled."""
         if self.PYDANTIC_AI_GATEWAY_API_KEY:
             return "gateway"
         if self.OPENAI_API_KEY:
@@ -181,8 +171,8 @@ class Settings(BaseSettings):
     def effective_ai_mode(self, profile: AIProfileProtocol | None) -> str:
         """Effective mode from profile-forced provider + env keys.
 
-        A profile-forced local provider (lmstudio/ollama with a base URL)
-        wins over gateway/direct env modes; otherwise env secrets decide.
+        A profile-forced local provider (lmstudio/ollama with a base URL) wins over
+        gateway/direct env modes; otherwise env secrets decide.
         """
         eff_provider = self.effective_ai_provider(profile)
         eff_base_url = self.effective_ai_base_url(profile)
@@ -196,16 +186,11 @@ class Settings(BaseSettings):
             return "direct"
         return "disabled"
 
-    # Email Configuration
-    # Local dev sends via Mailpit (SMTP sink on localhost:1025). Production sends
-    # real mail through a self-hosted Mailcow server on Hetzner (see
-    # docs/DEPLOYMENT.md "Production Email: Mailcow on Hetzner"). All values are
-    # env-driven; nothing here is a real production endpoint.
-    #
-    # TLS note (naming is inverted vs. convention, matches email.py):
-    #   SMTP_TLS=true -> implicit TLS (aiosmtplib use_tls)  -> port 465
-    #   SMTP_SSL=true -> STARTTLS (aiosmtplib start_tls)    -> port 587
-    # Recommended Mailcow submission is 587 STARTTLS => SMTP_SSL=true.
+    # Local dev sends via Mailpit (SMTP sink on localhost:1025). Production sends real mail through a self-hosted
+    # Mailcow server on Hetzner (see docs/DEPLOYMENT.md "Production Email: Mailcow on Hetzner"). All values are env-
+    # driven; nothing here is a real production endpoint. TLS note (naming is inverted vs. convention, matches
+    # email.py): SMTP_TLS=true -> implicit TLS (aiosmtplib use_tls)  -> port 465 SMTP_SSL=true -> STARTTLS (aiosmtplib
+    # start_tls)    -> port 587 Recommended Mailcow submission is 587 STARTTLS => SMTP_SSL=true.
     SMTP_HOST: str = "localhost"
     SMTP_PORT: int = 1025  # Mailpit default for local dev; Mailcow uses 587/465
     SMTP_USER: str | None = None
@@ -223,25 +208,22 @@ class Settings(BaseSettings):
     GITHUB_CLIENT_SECRET: str | None = None
     OAUTH_REDIRECT_BASE: str = "http://localhost:8000"
 
-    # Logging Configuration
     LOG_LEVEL: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
     LOG_JSON_FORMAT: bool = False  # True for production (JSON), False for development (human-readable)
-    LOG_FILE_PATH: str | None = None  # Optional: "/var/log/fallout_shelter/app.log"
-    LOG_FILE_RETENTION_DAYS: int = 14  # Number of days to retain log files
+    LOG_FILE_PATH: str | None = None
+    LOG_FILE_RETENTION_DAYS: int = 14
 
     INCIDENT_RETENTION_DAYS: int = Field(default=7, ge=1)
-    # Read *or dismissed* notifications age out quickly; unread rows are user
-    # state and get a longer window. Production is ~93% unread, so a single
-    # read-only prune would barely shrink the table.
+    # Read *or dismissed* notifications age out quickly; unread rows are user state and get a longer window.
+    # Production is ~93% unread, so a single read-only prune would barely shrink the table.
     NOTIFICATION_READ_RETENTION_DAYS: int = Field(default=30, ge=1)
     NOTIFICATION_UNREAD_RETENTION_DAYS: int = Field(default=90, ge=1)
     CLEANUP_BATCH_SIZE: int = Field(default=500, ge=1, le=10_000)
 
-    # Crafting is wall-clock-driven (``advance_orders`` only detects completion),
-    # so the checker can run every Nth tick without changing completion times.
+    # Crafting is wall-clock-driven (``advance_orders`` only detects completion), so the checker can run every Nth
+    # tick without changing completion times.
     CRAFTING_ADVANCE_EVERY_N_TICKS: int = Field(default=5, ge=1)
 
-    # Logfire Observability (optional)
     LOGFIRE_TOKEN: str | None = None  # Get token from https://logfire.pydantic.dev
 
     @property
@@ -249,8 +231,7 @@ class Settings(BaseSettings):
         """Check if Logfire observability is configured."""
         return bool(self.LOGFIRE_TOKEN)
 
-    # Security & Rate Limiting Configuration (fastapi-guard)
-    ENABLE_RATE_LIMITING: bool = True  # Enable/disable rate limiting
+    ENABLE_RATE_LIMITING: bool = True
     RATE_LIMIT_REQUESTS: int = 600  # Requests per window per client IP
     RATE_LIMIT_WINDOW: int = 60  # Time window in seconds
     AUTO_BAN_THRESHOLD: int = 10  # Number of blocked requests before auto-ban
@@ -264,12 +245,10 @@ class Settings(BaseSettings):
     # Keep the API available when Redis (the shared rate-limit store) is down.
     SECURITY_REDIS_FAIL_OPEN: bool = True
 
-    # Quota Configuration
     QUOTA_DISABLED: bool = False  # Disable token quotas (useful for local dev/testing)
 
     QUEST_DURATION_MULTIPLIER: float = Field(default=1.0, gt=0, le=1)
 
-    # SSE Configuration
     SSE_HEARTBEAT_INTERVAL: int = Field(
         default=30,
         description="Default heartbeat interval (seconds) for SSE stream keep-alive. "
@@ -291,11 +270,8 @@ class Settings(BaseSettings):
 
     @property
     def peak_database_connections(self) -> int:
-        """Worst-case total connections against ``max_connections``.
-
-        Sums the application pools plus the superuser slots that PostgreSQL
-        reserves out of ``max_connections``; the remaining difference is the
-        safety headroom.
+        """Worst-case total connections against max_connections: application pools plus
+        PostgreSQL's reserved superuser slots.
         """
         return self.POSTGRES_RESERVED_CONNECTIONS + self.api_pool_connections + self.task_pool_connections
 
@@ -315,7 +291,6 @@ class Settings(BaseSettings):
     @property
     def project_root(self) -> Path:
         """Get the project root directory (where CHANGELOG.md is located)."""
-        # Go up from backend/app/core/config.py to project root
         return Path(__file__).parent.parent.parent.parent
 
     @field_validator("ASYNC_DATABASE_URI", mode="after")

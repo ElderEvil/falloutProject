@@ -3,7 +3,7 @@ from pathlib import Path
 
 # Map internal room names (from rooms.json) to asset keys (from wiki filenames)
 ROOM_NAME_TO_ASSET_KEY = {
-    "Vault Door": "Vault Door Adv",  # Special case
+    "Vault Door": "Vault Door Adv",
     "Elevator": "Elevator",  # Special case - no tier/size variants
     "Living room": "Living Quarters",
     "Power Generator": "Power",
@@ -43,8 +43,8 @@ SPECIAL_CASE_ROOMS = {
 # Workshops use different naming (no tier-segment)
 WORKSHOP_ROOMS = ["Weapon workshop", "Outfit workshop", "Theme workshop"]
 
-# Curated room-wide theme art. These files are deliberately single images, not
-# tier/segment variants; the style is cosmetic and applies to the whole room.
+# Curated room-wide theme art. These files are deliberately single images, not tier/segment variants; the style is
+# cosmetic and applies to the whole room.
 ROOM_STYLE_IMAGES: dict[str, dict[str, str]] = {
     "Diner": {
         "party": "FOS Diner Party.png",
@@ -94,23 +94,12 @@ def _find_image_with_fallback(base_path: Path, asset_key: str, tier: int, segmen
             if (base_path / filename).exists():
                 return f"/static/room_images/{filename}"
 
-    # No matching file found
     return None
 
 
 def get_room_image_url(room_name: str, tier: int = 1, size: int = 3, style: str = "default") -> str | None:
-    """
-    Generate the image URL for a room based on its name, tier, and size.
-
-    Falls back to larger segments or tier 1 if specific image doesn't exist.
-
-    Args:
-        room_name: Internal room name (e.g., "Power Generator", "Living room")
-        tier: Room tier/level (1-3)
-        size: Room size (3, 6, or 9)
-
-    Returns:
-        URL path to the room image, or None if not found
+    """Image URL for a room by name, tier and size; falls back to larger segments or tier 1
+    when the specific image is missing, None if not found.
     """
     themed_image = ROOM_STYLE_IMAGES.get(room_name, {}).get(style)
     if themed_image:
@@ -120,7 +109,6 @@ def get_room_image_url(room_name: str, tier: int = 1, size: int = 3, style: str 
     if room_name in SPECIAL_CASE_ROOMS:
         return f"/static/room_images/{SPECIAL_CASE_ROOMS[room_name].format(size=size)}"
 
-    # Get asset key
     asset_key = ROOM_NAME_TO_ASSET_KEY.get(room_name)
     if not asset_key:
         return None
@@ -133,7 +121,6 @@ def get_room_image_url(room_name: str, tier: int = 1, size: int = 3, style: str 
     if room_name == "Overseer's Office":
         return f"/static/room_images/FOS {asset_key} {tier}.png"
 
-    # Calculate segment and find image with fallback
     segment = math.ceil(size / 3)
     base_path = Path(__file__).parent.parent / "static" / "room_images"
     return _find_image_with_fallback(base_path, asset_key, tier, segment)

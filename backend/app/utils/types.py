@@ -13,10 +13,9 @@ from app.utils.time import as_naive_utc, as_utc
 class UTCDateTime(TypeDecorator[datetime]):
     """Persist one UTC instant and read it back aware on every backend.
 
-    PostgreSQL maps to ``timestamptz``. SQLite has no timezone storage, so a naive
-    value is written after conversion to UTC and UTC is re-attached on read.
-    Only ORM bind/result values are normalized: assigning a naive datetime to an
-    instance does not coerce it, so comparisons before flush still need ``as_utc``.
+    PostgreSQL maps to timestamptz; SQLite writes naive UTC and re-attaches UTC on read.
+    Only ORM bind/result values are normalized — assigning a naive datetime does not coerce
+    it, so pre-flush comparisons still need as_utc.
     """
 
     impl = DateTime(timezone=True)

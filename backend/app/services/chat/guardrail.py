@@ -1,13 +1,8 @@
 """Jev guardrail screening for dweller chat input.
 
-Screens a player message with two typed yes/no questions (prompt-injection,
-toxic content) and blocks only on a high-confidence affirmative. Any Jev
-failure fails **open** (allow) so chat never breaks when Jev is down, and the
-verdict is advisory: it is a filter, not the authority on whether a turn runs.
-
-Jev is a decision model, not a moderator: it answers the exact question written,
-so a guard built on it belongs alongside deterministic checks, not instead of
-them. See the Jev docs on adversarial text before widening its remit.
+Two typed yes/no questions (prompt-injection, toxic); blocks only on high-confidence affirmative. Any Jev
+failure fails OPEN so chat never breaks; the verdict is advisory, a filter alongside deterministic checks —
+Jev answers the exact question written, not a moderator.
 """
 
 import logging

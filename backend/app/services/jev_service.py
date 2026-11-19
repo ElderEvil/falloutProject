@@ -1,14 +1,7 @@
-"""TypeSafe Jev decision-model client — typed questions with confidence.
+"""TypeSafe Jev decision-model client — typed questions with confidence, not a language model.
 
-Jev is not a language model: it answers each field of a Pydantic output type as
-a typed question and returns a probability per field. It is complementary to the
-chat agent (which writes text); callers ask Jev to *decide* something concrete.
-
-The decision contracts and the model shape rules a caller's output type must
-respect live in :mod:`app.schemas.jev`; this module owns the client only.
-
-The service degrades to "disabled" without a key so no caller needs secrets at
-import time; every entry point returns a typed :class:`JevDecision`.
+Jev answers each field of a Pydantic output type with a probability; contracts live in app.schemas.jev.
+Degrades to "disabled" without a key so import needs no secrets.
 """
 
 import asyncio
@@ -44,21 +37,10 @@ class JevService:
         instructions: str | None = None,
         model: str | None = None,
     ) -> JevDecision[OutputT]:
-        """Judge ``state`` against ``output_type``'s fields.
+        """Judge state against output_type's fields.
 
-        Bounded by ``JEV_TIMEOUT_SECONDS`` and usage-accounted: callers sit inside
-        chat transactions, so a slow provider must fail (to their fallback) rather
-        than hold a transaction open. The SDK's own retries are disabled so the
-        deadline bounds the whole operation, not one attempt.
-
-        Args:
-            state: the material being judged (the prompt).
-            output_type: a Pydantic model; each field is one typed question.
-            instructions: optional framing (not a question - Jev judges text).
-            model: override the configured Jev model (e.g. a pinned version).
-
-        Raises:
-            FeatureDisabledException: Jev is not enabled/keyed.
+        Bounded by JEV_TIMEOUT_SECONDS with SDK retries disabled so the deadline bounds the whole operation:
+        callers sit inside chat transactions and a slow provider must fail to their fallback, not hold one open.
         """
         if not is_configured():
             raise FeatureDisabledException(detail="Jev is not configured (set JEV_ENABLED and TYPESAFE_API_KEY).")
@@ -108,11 +90,8 @@ class JevService:
     ) -> None:
         """Persist one Jev call as an LLM interaction so it appears in AI usage stats.
 
-        Jev decides but is not the chat model, so the row is tagged ``jev_decision``
-        and carries the same provenance (provider, model, tokens) as a chat call.
-        The write runs in its own savepoint: a failed flush aborts the transaction,
-        and catching that exception without rolling back to a savepoint would leave
-        the shared session unusable for the rest of the request.
+        Tagged jev_decision. The write runs in its own savepoint: a failed flush aborts the transaction, and
+        catching it without rolling back to the savepoint would leave the shared session unusable.
         """
         from app.core.ai_constants import JEV_OPERATION
         from app.crud.llm_interaction import llm_interaction as llm_interaction_crud
@@ -146,9 +125,8 @@ class JevService:
     ) -> Any:
         """Build the Jev agent lazily so importing this module needs no SDK/key.
 
-        The API key is passed explicitly: ``settings`` is loaded from ``.env`` and is
-        NOT the process environment, so ``Agent("typesafe:...")`` by name would read an
-        absent env var and fail auth. ``TypeSafeProvider`` takes the key directly.
+        The key is passed explicitly: settings loads .env, not the process environment, so Agent("typesafe:...")
+        by name would read an absent env var and fail auth.
         """
         from pydantic_ai import Agent
         from pydantic_ai.models.typesafe import TypeSafeModel

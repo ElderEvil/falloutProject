@@ -21,12 +21,9 @@ logger = logging.getLogger(__name__)
 
 
 def generate_rewards_string(quest_json: QuestJSON) -> str:
-    """Generate a human-readable rewards string from structured quest_rewards.
-
-    Prefers the text "Rewards" field if available and valid (>= 3 chars),
-    otherwise generates from structured quest_rewards.
+    """Human-readable rewards string: prefers the authored "Rewards" text when valid
+    (>= 3 chars), else generates from structured quest_rewards.
     """
-    # Prefer the text Rewards field if it exists and is valid
     if quest_json.rewards and len(quest_json.rewards) >= 3:
         return quest_json.rewards
 
@@ -51,7 +48,6 @@ def generate_rewards_string(quest_json: QuestJSON) -> str:
         if rtype == "DWELLER":
             return "New dweller"
 
-        # Generic fallback
         item = data.get("item_name", "")
         return f"{qty}x {item}" if item and qty > 1 else (item or rtype.lower().replace("_", " "))
 
@@ -61,11 +57,9 @@ def generate_rewards_string(quest_json: QuestJSON) -> str:
 def _quest_text_fields(quest_json: QuestJSON) -> dict[str, str]:
     """Resolve the display-text fields shared by the create and sync paths.
 
-    ``rewards`` goes through :func:`generate_rewards_string` rather than the raw
-    authored text: most catalog quests leave "Rewards" empty and describe their
-    rewards structurally, and the model rejects text shorter than 3 characters.
-    Resolving both paths here keeps them from drifting apart - a raw ``rewards``
-    here would have blanked 24 of 35 quests on every re-seed.
+    rewards goes through generate_rewards_string, not raw authored text: most catalog
+    quests leave "Rewards" empty and describe rewards structurally, and the model rejects
+    text under 3 chars. Raw rewards here would blank 24 of 35 quests on every re-seed.
     """
     reqs = quest_json.requirements
     req_str = ""
@@ -388,14 +382,8 @@ def _update_existing_quest_metadata(
 
 
 async def seed_quests_from_json(db_session: AsyncSession, quest_dir: Path | None = None) -> int:
-    """Seed quests from JSON files into database if they don't already exist.
-
-    Args:
-        db_session: Database session
-        quest_dir: Directory containing quest JSON files (defaults to app/data/quests)
-
-    Returns:
-        Number of quests seeded
+    """Seed quests from JSON files if they don't already exist (default dir app/data/quests);
+    returns the number seeded.
     """
     quest_chains = load_all_quest_chain_files(quest_dir)
     all_quest_jsons, quest_chain_ids = _load_quest_jsons(quest_chains)

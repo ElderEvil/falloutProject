@@ -47,7 +47,6 @@ class JunkSchema(ItemSchema):
     """Schema for junk items - only needs base ItemSchema fields."""
 
 
-# Union type for any loot item
 LootItemSchema = WeaponSchema | OutfitSchema | JunkSchema
 
 
@@ -139,5 +138,4 @@ class DiscoveryEventSchema(BaseModel):
     location_name: str = Field(..., max_length=64, description="Name of the discovered location")
 
 
-# Union type for all event types
 ExplorationEvent = CombatEventSchema | LootEventSchema | DangerEventSchema | RestEventSchema | DiscoveryEventSchema

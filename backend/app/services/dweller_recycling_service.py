@@ -31,18 +31,7 @@ class DwellerRecyclingService:
         min_age_days: int = 7,
         limit: int = 10,
     ) -> list[Dweller]:
-        """Get soft-deleted dwellers older than min_age_days for recycling.
-
-        Args:
-            db_session: Database session
-            gender: Optional gender filter
-            rarity: Optional rarity filter
-            min_age_days: Minimum days since deletion to be eligible for recycling
-            limit: Maximum number of dwellers to return
-
-        Returns:
-            List of recyclable soft-deleted dwellers
-        """
+        """Get soft-deleted dwellers older than min_age_days for recycling."""
         cutoff_date = utcnow() - timedelta(days=min_age_days)
 
         return list(
@@ -62,21 +51,7 @@ class DwellerRecyclingService:
         target_vault_id: UUID,
         reset_stats: bool = True,
     ) -> Dweller:
-        """Restore a soft-deleted dweller to a new vault.
-
-        Args:
-            db_session: Database session
-            dweller_id: ID of the soft-deleted dweller to recycle
-            target_vault_id: ID of the vault to restore the dweller to
-            reset_stats: If True, reset dweller stats to defaults
-
-        Returns:
-            The recycled/restored dweller
-
-        Raises:
-            ResourceNotFoundException: If dweller or vault not found
-            ResourceConflictException: If dweller is not soft-deleted
-        """
+        """Restore a soft-deleted dweller to a new vault."""
         # Verify target vault exists
         vault = await vault_crud.get(db_session, target_vault_id)
 

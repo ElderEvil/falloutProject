@@ -16,9 +16,6 @@ class ChatMessage(BaseModel):
     message: str = Field(..., min_length=1, description="The chat message text")
 
 
-# --- Action Suggestion Discriminated Union ---
-
-
 class AssignToRoomAction(BaseModel):
     """Suggestion to assign dweller to a specific room."""
 
@@ -122,9 +119,6 @@ ActionSuggestion = Annotated[
 ]
 
 
-# --- Chat Response Schema ---
-
-
 class UnlockedPlace(BaseModel):
     """A map location newly revealed by a conversation."""
 
@@ -135,8 +129,7 @@ class UnlockedPlace(BaseModel):
 class ChatGuardrail(BaseModel):
     """Screen a player chat message before the dweller agent answers."""
 
-    # Each field is a Jev yes/no question; attribute docstrings are the questions,
-    # and BoolCriteria explains what true/false mean.
+    # Jev yes/no questions: attribute docstrings are the questions; BoolCriteria defines true/false.
 
     model_config = ConfigDict(use_attribute_docstrings=True)
 
@@ -168,10 +161,8 @@ class ChatGuardrailDebug(BaseModel):
 
 
 class ChatJevField(BaseModel):
-    """One judged Jev field, answer and confidence together.
-
-    ``confidence`` is the probability of ``answer``; a ``False`` at 0.96 means
-    "96% sure it is not this", so the pair must be read together.
+    """One judged Jev field. confidence is the probability of answer: False at
+    0.96 means 96% sure it is not this — read the pair together.
     """
 
     answer: bool = Field(..., description="The field's answer")
@@ -189,11 +180,8 @@ class ChatJevDecision(BaseModel):
 
 
 class ChatDebug(BaseModel):
-    """Dev-only diagnostics for one chat turn. Populated only when opt-in requested.
-
-    Never persisted: this rides the live response (and the streamed done event) so
-    stored history stays bounded, and any message-shaped schema may embed it as an
-    optional field.
+    """Dev-only, opt-in diagnostics for one chat turn; never persisted — rides the
+    live response and streamed done event so stored history stays bounded.
     """
 
     provider: str | None = Field(None, description="Provider id used for this turn")
@@ -209,11 +197,7 @@ class ChatDebug(BaseModel):
 
 
 class DwellerChatResponse(BaseModel):
-    """Response schema for dweller chat interactions.
-
-    Includes the AI-generated response, happiness impact analysis,
-    and optional action suggestions.
-    """
+    """Response schema for dweller chat interactions."""
 
     response: str = Field(..., description="The dweller's chat response text")
     dweller_message_id: UUID = Field(..., description="ID of the dweller's chat message in database")

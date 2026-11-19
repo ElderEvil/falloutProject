@@ -1,13 +1,9 @@
 """Semi-random, race-aware appearance rolls with parent inheritance.
 
-Fills ``visual_attributes`` for any newly created/generated dweller and derives
-newborn appearance from the parents, with a configurable trait-mutation chance.
-Every emitted value stays inside the canonical per-race option lists
-(``app.options.appearance``).
-
-Deterministic: takes an injectable ``random.Random`` (or the ``random`` module)
-like ``roll_child_identity``; no AI dependency. The AI visual-attributes agent
-remains an optional enhancement and is never overwritten by these rolls.
+Fills visual_attributes for new dwellers; newborns inherit from parents with a
+configurable mutation chance. Every value stays inside the canonical per-race option
+lists (app.options.appearance). Deterministic via injectable random.Random, no AI
+dependency — the AI visual-attributes agent is an optional enhancement, never overwritten.
 """
 
 from __future__ import annotations
@@ -35,9 +31,7 @@ if TYPE_CHECKING:
 
     from app.schemas.dweller_catalog import AppearancePools
 
-# ---------------------------------------------------------------------------
 # Default expression pool (used when no archetype pools are provided)
-# ---------------------------------------------------------------------------
 
 _DEFAULT_EXPRESSIONS: tuple[str, ...] = ("neutral", "stoic", "determined")
 
@@ -102,14 +96,9 @@ def roll_appearance(
 ) -> dict[str, Any]:
     """Roll a complete, race-valid appearance profile for a new dweller.
 
-    When ``appearance_pools`` (from a preset archetype entry) is provided,
-    each listed trait is sampled from the corresponding pool rather than
-    the full canonical list.  Unconstrained traits fall back to canonical.
-    Facial hair is gender-gated.
-
-    When no pools are given the behaviour is unchanged except that the
-    expression picks from the small neutral-leaning default pool
-    ``(_DEFAULT_EXPRESSIONS)`` rather than being hardcoded to ``"neutral"``.
+    appearance_pools (preset archetype) samples listed traits from the pool; unconstrained
+    traits fall back to canonical. Facial hair is gender-gated. Without pools, expression
+    picks from the neutral-leaning _DEFAULT_EXPRESSIONS instead of hardcoded neutral.
     """
     pools: AppearancePools = appearance_pools or {}
     appearance: dict[str, Any] = {
@@ -134,11 +123,8 @@ def roll_appearance(
 def describe_appearance(appearance: dict[str, Any], gender: GenderEnum, race: RaceOption) -> str:
     """Build a single first-person appearance sentence.
 
-    Example: ``"I'm a tall, stocky woman with ashen skin, stringy gray hair, and gray eyes."``
-
-    Gender word: man/woman.  Facial hair is appended when present and not "None".
-    Race-specific phrasing trails the sentence for non-humans (one variant each,
-    deterministic).
+    Gender word man/woman; facial hair appended when present and not "None"; non-humans get
+    a deterministic race-specific phrase trailing the sentence.
     """
     gender_word = "woman" if gender == GenderEnum.FEMALE else "man"
     height_word = str(appearance.get("height", "average")).lower()
@@ -148,7 +134,6 @@ def describe_appearance(appearance: dict[str, Any], gender: GenderEnum, race: Ra
     hair_color = appearance.get("hair_color", "")
     eye_color = appearance.get("eye_color", "")
 
-    # Start the sentence.
     article = "an" if height_word.startswith(("a", "e", "i", "o", "u")) else "a"
     sentence = f"I'm {article} {height_word}, {build_word} {gender_word}"
 
@@ -160,9 +145,8 @@ def describe_appearance(appearance: dict[str, Any], gender: GenderEnum, race: Ra
     else:
         sentence += f" with {gender_word.lower()}'s skin"
 
-    # Hair. Styles like "Short Hair" or "Wavy Hair" already end in "hair" —
-    # strip the suffix so we don't render "short hair blonde hair".
-    # Bare scalps and exposed hardware never invent a hair color.
+    # Hair. Styles like "Short Hair" or "Wavy Hair" already end in "hair" — strip the suffix so we don't render "short
+    # hair blonde hair". Bare scalps and exposed hardware never invent a hair color.
     style_word = hair_style.lower()
     if style_word.endswith("hair"):
         style_word = style_word.removesuffix("hair").strip()
@@ -175,10 +159,8 @@ def describe_appearance(appearance: dict[str, Any], gender: GenderEnum, race: Ra
     elif hair_color:
         sentence += f", {hair_color} hair"
 
-    # Eyes.
     sentence += f" and {eye_color} eyes"
 
-    # Facial hair.
     facial_hair = appearance.get("facial_hair", "None")
     if facial_hair and facial_hair != "None":
         sentence += f", sporting a {facial_hair.lower()}"
@@ -202,9 +184,8 @@ def inherit_appearance_for_child(
 ) -> dict[str, Any]:
     """Build the child's appearance: inherit from parents, race-correct for the child.
 
-    Every inherited value is re-validated against the child's race options;
-    values that cannot transfer (e.g. human skin tones onto a ghoul) re-roll
-    cleanly.
+    Inherited values are re-validated against the child's race options; values that cannot
+    transfer (e.g. human skin tones onto a ghoul) re-roll cleanly.
     """
     appearance: dict[str, Any] = {
         "skin_tone": _inherit(rng, mother, father, "skin_tone", skin_tone_options, child_race),

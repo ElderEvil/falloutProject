@@ -28,10 +28,9 @@ class CRUDTeam(CRUDBase[Team, None, None]):
     ) -> Team | None:
         """The vault's team row for one purpose, members and dwellers eager-loaded, or None.
 
-        ``refresh`` forces a read even when the row is already in the session's identity
-        map. Incident readers need it so a reassignment sees the committed roster; quest
-        readers must not use it, because a caller may hold uncommitted dweller changes
-        (e.g. the state-objective backfill) that a refresh would discard.
+        refresh forces a read past the identity map: incident readers need committed rosters;
+        quest readers must not refresh because callers may hold uncommitted dweller changes
+        (e.g. state-objective backfill) a refresh would discard.
         """
         statement = (
             select(Team)
@@ -146,11 +145,9 @@ class CRUDTeam(CRUDBase[Team, None, None]):
     ) -> list[TeamMember]:
         """Append dwellers to the vault's incident roster; never removes members.
 
-        The roster is the set of responders sent for the incident; combat presence
-        stays derived from the room, so appending keeps them consistent. Dwellers
-        already on the roster are skipped (no ``uq_team_member_dweller`` violation).
-        ``status`` defaults to the player-assignment marker; hazard auto-dispatch
-        passes ``DISPATCHED_STATUS`` so the return-to-work pass can find its own.
+        Combat presence stays derived from the room; existing members are skipped (no
+        uq_team_member_dweller violation). status defaults to the player-assignment marker;
+        hazard auto-dispatch passes DISPATCHED_STATUS so the return-to-work pass finds its own.
         """
         team = await self.get_or_create_incident_team(db_session, incident_id, vault_id)
         existing_ids = {member.dweller_id for member in team.members}
@@ -166,8 +163,8 @@ class CRUDTeam(CRUDBase[Team, None, None]):
     def _hazard_members_query(self, vault_id: UUID, team: HazardTeam, *, status: str | None = None):
         """Living members of a vault's hazard team, scoped by the team's purpose column.
 
-        A fallen or removed member must not occupy a place, or the team keeps a
-        phantom slot and no bench member can ever step up.
+        Fallen/removed members must not occupy a place, or the team keeps a phantom slot no
+        bench member can ever fill.
         """
         query = (
             select(TeamMember)
@@ -236,9 +233,8 @@ class CRUDTeam(CRUDBase[Team, None, None]):
     async def get_or_create_hazard_team(self, db_session: AsyncSession, vault_id: UUID, team: HazardTeam) -> Team:
         """The vault's hazard team, created on first qualification (flushed so the id is usable).
 
-        Deliberately reads without ``populate_existing``: this runs inside the
-        incident round, where a refresh would expire the combatants' eager-loaded
-        equipment.
+        Deliberately no populate_existing: inside the incident round a refresh would expire the
+        combatants' eager-loaded equipment.
         """
         row = await self._team_row(db_session, Team.hazard_team, team, vault_id)
         if row is not None:
@@ -250,13 +246,11 @@ class CRUDTeam(CRUDBase[Team, None, None]):
         return row
 
     async def free_dead_hazard_slots(self, db_session: AsyncSession, vault_id: UUID, team: HazardTeam) -> None:
-        """Bench the fallen members of a hazard team so their place can be refilled.
+        """Bench fallen hazard-team members so their slot can be refilled.
 
-        A dead member's row persists, but its slot must be freed or the unique slot
-        constraint blocks the promotion that fills the place the loss opened. The
-        member is demoted to ``reserve`` at the same time: holding a slot is what
-        makes a member ``active``, so a slot-less active row would count as a
-        responder again if the dweller were later revived.
+        The dead member's row persists but its slot must be freed or the unique slot constraint
+        blocks promotion. Demote to reserve at the same time: holding a slot is what makes a
+        member active, so a slot-less active row would count as a responder again if revived.
         """
         await db_session.execute(
             update(TeamMember)

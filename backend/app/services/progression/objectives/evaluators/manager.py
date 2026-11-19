@@ -25,13 +25,9 @@ logger = logging.getLogger(__name__)
 class ObjectiveEvaluatorManager:
     """Manages all objective evaluators, initializing them with the event bus.
 
-    Provides a centralized point for registration/unregistration of evaluators.
-    Use the module-level `evaluator_manager` singleton instance.
-
-    ``initialize``/``shutdown`` are serialized with a thread lock: dramatiq worker
-    threads start concurrently, and two racing initializers would both pass the
-    ``_initialized`` check and register duplicate evaluator instances on the shared
-    event bus — one objective event would then progress the same objective twice.
+    Use the module-level evaluator_manager singleton. initialize/shutdown are serialized with a thread lock:
+    racing dramatiq initializers would both pass _initialized and register duplicates, progressing one objective
+    twice per event.
     """
 
     def __init__(self, event_bus: EventBus) -> None:

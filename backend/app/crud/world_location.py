@@ -59,11 +59,10 @@ class CRUDWorldLocation:
     async def get_nearest_within(
         self, db_session: AsyncSession, coord_x: float, coord_y: float, radius: float
     ) -> WorldLocation | None:
-        """The closest PLACE row within *radius* registry units, or None.
+        """Closest PLACE row within radius registry units, or None.
 
-        Vault markers are excluded — a vault is not a discovery. A coordinate
-        box narrows the candidates, then true distance decides, so the circle
-        (not the box corner) is the boundary.
+        Vault markers excluded (a vault is not a discovery); a coordinate box narrows
+        candidates, then true distance decides — the circle, not the box corner, is the boundary.
         """
         result = await db_session.execute(
             select(WorldLocation).where(
@@ -93,17 +92,13 @@ class CRUDWorldLocation:
         normalized_name: str | None = None,
         commit: bool = True,
     ) -> WorldLocation:
-        """Get or create a canonical PLACE row, merging on ``normalized_name``.
+        """Get or create a canonical PLACE row, merging on normalized_name.
 
-        Without ``coords`` the name derives deterministic schematic coordinates,
-        nudged against every occupied registry coordinate. With ``coords`` the
-        caller's placement is authoritative and no nudge is applied (spatial
-        discovery follows the explorer, not a name hash). Pass an explicit
-        ``normalized_name`` to disambiguate a same-name row that must not be
-        reused. On IntegrityError (concurrent insert of the same name) we roll
-        back and re-select; there is no coordinate unique constraint, so no
-        retry loop is needed. When ``commit`` is false, inserts are flushed
-        into the caller's transaction.
+        Without coords the name derives deterministic schematic coordinates, nudged against
+        occupied registry coordinates; with coords the caller's placement is authoritative (no
+        nudge). Explicit normalized_name disambiguates same-name rows that must not be reused.
+        IntegrityError → rollback + re-select (no coordinate unique constraint, so no retry
+        loop). commit=False flushes into the caller's transaction.
         """
         normalized = normalized_name or normalize_place_name(name)
 
@@ -194,14 +189,14 @@ class CRUDWorldLocation:
     ) -> WorldLocation:
         """Idempotent home-vault registry row at the vault's placement.
 
-        Callers pass the vault's slot coordinates so the home marker sits where the
-        vault was placed (defaults to the map centre when a vault has no slot).
+        Callers pass the vault's slot coordinates (defaults to map centre when the vault has no
+        slot).
         """
         vault_name = f"Vault {vault.number:03}"
         normalized = normalize_place_name(vault_name)
 
-        # Fast path — already exists. A bio mention may have registered the same
-        # name earlier as a schematic PLACE row; promote it to the VAULT marker.
+        # Fast path — already exists. A bio mention may have registered the same name earlier as a schematic PLACE
+        # row; promote it to the VAULT marker.
         existing = await self.get_registry_by_normalized(db_session, normalized)
         if existing is not None:
             return await self._promote_to_home_marker(
@@ -269,8 +264,8 @@ class CRUDWorldLocation:
     async def is_location_unlocked(self, db_session: AsyncSession, vault_id: UUID, location_id: UUID) -> bool:
         """True when a dweller in the vault has unlocked this location.
 
-        Mirrors the map's visibility rule: a place is known to the vault only once a
-        dweller link marks it unlocked, so the registry row alone is not enough.
+        Mirrors map visibility: the registry row alone is not enough; a dweller link must mark
+        it unlocked.
         """
         result = await db_session.execute(
             select(DwellerLocation.id)
@@ -315,10 +310,9 @@ class CRUDWorldLocation:
     ) -> list[tuple[WorldLocation, VaultLocationState]]:
         """States whose reclear window has elapsed, joined to their location.
 
-        Rows are locked (FOR UPDATE, a no-op on SQLite) so overlapping sweeps
-        serialize: the loser blocks until the winner commits, then reads the
-        nulled window and skips instead of double-notifying. Eligibility is
-        rechecked after the lock in case a dispatch set a new window meanwhile.
+        Rows locked FOR UPDATE (no-op on SQLite) so overlapping sweeps serialize: the loser
+        blocks, then reads the nulled window and skips instead of double-notifying. Eligibility
+        is rechecked after the lock in case a dispatch set a new window.
         """
         result = await db_session.execute(
             select(WorldLocation, VaultLocationState)
@@ -361,12 +355,10 @@ class CRUDWorldLocation:
         exploration_id: UUID | None = None,
         commit: bool = True,
     ) -> VaultLocationState:
-        """Get or create a vault's fog entry; ``location_type`` is first-write-wins.
+        """Get or create a vault's fog entry; location_type is first-write-wins.
 
-        An existing state is returned unchanged (matching the old per-vault
-        ``get_or_create`` semantics). On IntegrityError (concurrent insert) we
-        roll back and re-select. When ``commit`` is false, inserts are flushed
-        and remain part of the caller's outer transaction.
+        Existing state returned unchanged; IntegrityError → rollback + re-select. commit=False
+        flushes into the caller's outer transaction.
         """
         # Fast path: already exists
         existing = await self.get_state(db_session, vault_id, location_id)
@@ -414,9 +406,8 @@ class CRUDWorldLocation:
     ) -> VaultLocationState:
         """Get or create the vault's HOME_VAULT fog entry, promoting any other type.
 
-        ``get_or_create_state`` is first-write-wins, so a bio registration may
-        already hold an ORIGIN entry on the home pair. The owning vault's home
-        state must read HOME_VAULT, hence the promotion.
+        get_or_create_state is first-write-wins, so a bio registration may already hold an
+        ORIGIN entry on the home pair; the owning vault's home state must read HOME_VAULT.
         """
         state = await self.get_or_create_state(
             db_session, vault_id, location_id, LocationTypeEnum.HOME_VAULT, description=description
@@ -468,11 +459,9 @@ class CRUDWorldLocation:
         is_unlocked: bool = False,
         commit: bool = True,
     ) -> DwellerLocation:
-        """Idempotent get-or-insert a dweller-location link.
+        """Idempotent get-or-insert a dweller-location link (IntegrityError → rollback + re-select).
 
-        Uses the same IntegrityError-rollback-re-select pattern. When
-        ``commit`` is False the insert is flushed and remains part of the
-        caller's outer transaction.
+        commit=False flushes into the caller's outer transaction.
         """
         # Fast path: already linked
         stmt = select(DwellerLocation).where(
@@ -534,11 +523,10 @@ class CRUDWorldLocation:
     async def get_dweller_refs(
         self, db_session: AsyncSession, vault_id: UUID, location_ids: list[UUID]
     ) -> dict[UUID, list[dict]]:
-        """Batch-load dweller references for a list of location ids.
+        """Batch-load dweller references for location ids in one query (no N+1).
 
-        Only dwellers belonging to ``vault_id`` are returned: registry rows are
-        shared globally, but each vault sees just its own dwellers. A single
-        query — no N+1.
+        Only dwellers of vault_id are returned: registry rows are shared globally, each vault
+        sees just its own.
         """
         if not location_ids:
             return {}
@@ -597,5 +585,4 @@ class CRUDWorldLocation:
         return [(location_id, location_names[location_id]) for location_id in location_ids]
 
 
-# Module-level singleton — matches the convention used by other crud modules.
 world_location = CRUDWorldLocation()

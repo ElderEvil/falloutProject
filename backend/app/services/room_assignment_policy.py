@@ -75,25 +75,20 @@ def adult_assignment_conditions() -> tuple:
 async def validate_room_worker_capacity(db_session: AsyncSession, room: Room) -> None:
     """Refuse to overfill a room's worker slots, whose count must follow its footprint.
 
-    The automatic path selects rooms through ``calculate_room_capacity`` (2 workers
-    per 3 size units); the manual path enforces the same count here so a move into
-    a full room is rejected instead of persisted. Production apprentices sit
-    outside worker capacity (see ``DwellerAssignmentService._get_available_slots``);
-    every other room counts all occupants.
+    2 workers per 3 size units (calculate_room_capacity); manual moves enforce the same count. Apprentices sit
+    outside worker capacity; every other room counts all occupants.
     """
-    # Count-then-move is a TOCTOU race: two assignments can both read the last free
-    # slot and both proceed. A transaction-scoped lock taken before the count is
-    # held until ``move_to_room`` commits, so the check and the move that follows it
-    # are one critical section (a no-op True outside PostgreSQL).
+    # Count-then-move is a TOCTOU race: two assignments can both read the last free slot. A transaction-scoped lock
+    # taken before the count is held until move_to_room commits, making check and move one critical section (a no-op
+    # True outside PostgreSQL).
     if not await db_locks.try_advisory_xact_lock(db_session, room_occupancy_lock_key(room.id)):
         raise ResourceConflictException(detail=f"{room.name} is busy — try again")
 
     room_size = room.size if room.size is not None else room.size_min
     capacity = calculate_room_capacity(room_size)
     if capacity <= 0:
-        # No footprint-based slots (unsized rooms, sub-3 fixtures): the formula
-        # does not speak for these rooms, so manual assignment keeps its
-        # existing behaviour there.
+        # No footprint-based slots (unsized rooms, sub-3 fixtures): the formula does not speak for these rooms, so
+        # manual assignment keeps its existing behaviour there.
         return
 
     from app.crud.dweller import dweller as dweller_crud

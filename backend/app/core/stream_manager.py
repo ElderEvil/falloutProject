@@ -1,7 +1,5 @@
-"""SSE (Server-Sent Events) connection manager for real-time streaming.
-
-Parallel to websocket_manager.py but for one-directional server→client SSE streams.
-Uses asyncio.Queue per subscriber for fan-out.
+"""SSE connection manager for one-directional server→client streams; asyncio.Queue per
+subscriber for fan-out.
 """
 
 import asyncio
@@ -15,12 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 class SSEManager:
-    """Manages SSE subscriptions via in-memory pub/sub.
-
-    Each (topic, user_id) pair can have multiple subscriber queues.
-    Services publish events via publish(); SSE endpoint generators
-    consume via subscribe().
-    """
+    """In-memory SSE pub/sub: each (topic, user_id) pair can have multiple subscriber queues."""
 
     def __init__(self) -> None:
         self._subscribers: dict[str, dict[UUID, set[asyncio.Queue]]] = {}
@@ -33,18 +26,8 @@ class SSEManager:
         *,
         _after_id: str | None = None,
     ) -> AsyncIterator[dict[str, Any]]:
-        """Subscribe to events on a topic for a user.
-
-        Yields dicts published to this topic+user. Cleans up the
-        subscriber queue on exit (disconnect or CancelledError).
-
-        Args:
-            user_id: Target user UUID.
-            topic: Event topic (e.g. "notifications", "game_ticks", "exploration").
-            after_id: If set, reserved for future Last-Event-ID resume.
-
-        Yields:
-            Dicts with at least an ``event_id`` and ``data`` key.
+        """Subscribe to events on a topic for a user; yields published dicts and cleans up the
+        subscriber queue on exit. after_id is reserved for future Last-Event-ID resume.
         """
         queue: asyncio.Queue[dict[str, Any] | None] = asyncio.Queue(maxsize=self._queue_maxsize)
         self._subscribers.setdefault(topic, {}).setdefault(user_id, set()).add(queue)
@@ -81,15 +64,8 @@ class SSEManager:
         topic: str,
         data: dict[str, Any],
     ) -> None:
-        """Publish an event to all subscribers of (topic, user_id).
-
-        Best-effort: drops events for queues that are full to avoid
-        blocking the publisher.
-
-        Args:
-            user_id: Target user UUID.
-            topic: Event topic.
-            data: Event payload (should include ``event_id``).
+        """Publish an event to all subscribers of (topic, user_id); best-effort, drops events for
+        full queues to avoid blocking the publisher.
         """
         user_queues = self._subscribers.get(topic, {}).get(user_id)
         if not user_queues:
@@ -120,14 +96,7 @@ class SSEManager:
         data: dict[str, Any],
         user_ids: list[UUID],
     ) -> None:
-        """Publish the same event to all users in a vault.
-
-        Args:
-            vault_id: Vault UUID (unused, kept for API compatibility).
-            topic: Event topic.
-            data: Event payload.
-            user_ids: List of user UUIDs to broadcast to.
-        """
+        """Publish the same event to all given users; vault_id is unused, kept for API compatibility."""
         await asyncio.gather(*[self.publish(uid, topic, data) for uid in user_ids])
 
     async def close(self, *, topic: str | None = None) -> None:
@@ -137,8 +106,8 @@ class SSEManager:
             user_map = self._subscribers.pop(name, {})
             for _user_id, queues in list(user_map.items()):
                 for queue in list(queues):
-                    # Drain one item at a time to make room for the sentinel,
-                    # without stealing data from concurrent subscribers.
+                    # Drain one item at a time to make room for the sentinel, without stealing data from concurrent
+                    # subscribers.
                     for _ in range(self._queue_maxsize + 1):
                         try:
                             queue.put_nowait(None)
@@ -151,5 +120,4 @@ class SSEManager:
         logger.info("SSE subscriptions closed (topic=%s)", topic or "all")
 
 
-# Global singleton — mirrors websocket_manager.manager
 sse_manager = SSEManager()

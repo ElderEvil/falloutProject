@@ -84,27 +84,17 @@ class StaticGameData:
     def rooms(self) -> list[RoomCreateWithoutVaultID]:
         if self._rooms is None:
             self._rooms = self.load_data(DATA_DIR / "vault/rooms.json", RoomCreateWithoutVaultID)
-            # Set image_url for each room based on its name, tier, and size
             for room in self._rooms:
                 room_size = room.size if room.size is not None else room.size_min
                 room.image_url = get_room_image_url(room.name, tier=room.tier, size=room_size)
         return self._rooms
 
     def get_buildable_rooms(self, blocked_room_names: set[str]) -> list[RoomCreateWithoutVaultID]:
-        """
-        Get list of rooms that can be built in a vault.
-
-        Filters out:
-        - Vault door (never buildable by user)
-        - Unique rooms already grown to ``size_max`` (a unique room below its maximum
-          still merges an adjacent segment, so it stays offered)
-
-        :param blocked_room_names: Lowercase names of unique rooms already at size_max
-        :returns: List of buildable room definitions
+        """Buildable room definitions: excludes the vault door and unique rooms already at
+        size_max (below-max unique rooms still merge, so they stay offered).
         """
         buildable_rooms = []
         for room in self.rooms:
-            # Always exclude vault door
             if room.name.lower() == "vault door":
                 continue
 
@@ -141,11 +131,8 @@ class StaticGameData:
         *,
         gender: GenderEnum | None = None,
     ) -> DwellerTemplate | None:
-        """Pick a random template for *rarity*, excluding *exclude_names*.
-
-        ``rng`` may be a ``random.Random`` instance for reproducibility; when
-        ``None`` the global ``random`` is used. Names are compared casefolded.
-        Returns ``None`` when no eligible template remains.
+        """Pick a random template for rarity, excluding exclude_names (casefolded comparison);
+        rng may be a random.Random for reproducibility. None when no eligible template remains.
         """
         pool = self.get_dwellers_by_rarity(rarity)
         if gender is not None:

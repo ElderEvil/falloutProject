@@ -98,11 +98,6 @@ async def deliver_baby(
     )
 
 
-# =============================================================================
-# Debug Endpoints (Superuser only)
-# =============================================================================
-
-
 @router.post("/debug/force-conception", response_model=PregnancyRead)
 async def force_conception(
     mother_id: UUID,

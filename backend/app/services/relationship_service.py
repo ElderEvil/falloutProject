@@ -24,9 +24,9 @@ from app.utils.time import utcnow
 
 logger = logging.getLogger(__name__)
 
-#: Neutral SPECIAL baseline: the Charisma point where relationship modifiers are 1.0x.
+# : Neutral SPECIAL baseline: the Charisma point where relationship modifiers are 1.0x.
 _CHARISMA_BASELINE = 5
-#: Lowest affinity a non-committed relationship can reach (model invariant).
+# : Lowest affinity a non-committed relationship can reach (model invariant).
 _AFFINITY_MIN = -100
 
 
@@ -202,16 +202,7 @@ class RelationshipService:
         dweller_1_id: UUID,
         dweller_2_id: UUID,
     ) -> Relationship | None:
-        """Get existing relationship between two dwellers.
-
-        Args:
-            db_session: Database session
-            dweller_1_id: First dweller ID
-            dweller_2_id: Second dweller ID
-
-        Returns:
-            Relationship if exists, None otherwise
-        """
+        """Get existing relationship between two dwellers."""
         return await relationship_crud.get_by_dweller_pair(db_session, dweller_1_id, dweller_2_id)
 
     @staticmethod
@@ -220,16 +211,7 @@ class RelationshipService:
         dweller_1_id: UUID,
         dweller_2_id: UUID,
     ) -> Relationship:
-        """Create a new relationship or get existing one.
-
-        Args:
-            db_session: Database session
-            dweller_1_id: First dweller ID
-            dweller_2_id: Second dweller ID
-
-        Returns:
-            Relationship object
-        """
+        """Create a new relationship or get existing one."""
         # Check if relationship already exists
         existing = await relationship_crud.get_by_dweller_pair(db_session, dweller_1_id, dweller_2_id)
         if existing:
@@ -259,19 +241,7 @@ class RelationshipService:
         relationship: Relationship | None = None,
         commit: bool = True,
     ) -> Relationship:
-        """Increase affinity between two dwellers.
-
-        Args:
-            db_session: Database session
-            dweller_1_id: First dweller ID
-            dweller_2_id: Second dweller ID
-            amount: Affinity increase amount
-            relationship: Already-loaded relationship, avoiding a pair lookup
-            commit: Whether to commit; pass False to let the caller own the transaction
-
-        Returns:
-            Updated relationship
-        """
+        """Increase affinity between two dwellers."""
         if relationship is None:
             relationship = await relationship_crud.get_by_dweller_pair(db_session, dweller_1_id, dweller_2_id)
         if not relationship:
@@ -298,11 +268,9 @@ class RelationshipService:
             elif current_type == RelationshipTypeEnum.FRIEND:
                 update_data["relationship_type"] = RelationshipTypeEnum.ROMANTIC
             elif current_type == RelationshipTypeEnum.ROMANTIC:
-                # Skip the promotion if either dweller is already committed to a
-                # third dweller (game-loop tick path: log and keep ROMANTIC rather
-                # than raising, which would break the vault). Lock both dweller
-                # rows first so a concurrent manual make_partners cannot race the
-                # guard (the tick holds a per-vault advisory lock, endpoints do not).
+                # Skip promotion if either dweller is committed to a third: log and keep ROMANTIC; raising would break
+                # the vault tick. Lock both rows first so a concurrent make_partners cannot race the guard (the tick
+                # holds a per-vault advisory lock, endpoints do not).
                 await db_session.flush()
                 await RelationshipService._lock_dwellers(
                     db_session, relationship.dweller_1_id, relationship.dweller_2_id
@@ -332,11 +300,9 @@ class RelationshipService:
         )
         committed = False
         if is_marriage_transition:
-            # Defense-in-depth: skip the transition if either dweller is already
-            # committed to a third dweller (pre-existing corrupt data). Log and
-            # persist only the affinity bump rather than raising. Lock both
-            # dweller rows first so a concurrent manual make_partners cannot race
-            # the guard (the tick holds a per-vault advisory lock, endpoints do not).
+            # Defense-in-depth for corrupt data: if either dweller is committed to a third, log and persist only the
+            # affinity bump. Lock both rows first so a concurrent make_partners cannot race the guard (tick holds a
+            # per-vault advisory lock, endpoints do not).
             await db_session.flush()
             await RelationshipService._lock_dwellers(db_session, relationship.dweller_1_id, relationship.dweller_2_id)
             if await RelationshipService._committed_partner_elsewhere(
@@ -392,9 +358,7 @@ class RelationshipService:
     ) -> Relationship:
         """Lower affinity; non-committed stages can demote into rivalry.
 
-        PARTNER and MARRIED links survive any affinity drop and end only through
-        ``break_up``. Relationship changes stay silent; a first rivalry is
-        narrated into both bios instead of the notification bell.
+        PARTNER/MARRIED links survive any drop and end only via break_up; a first rivalry is narrated into both bios.
         """
         if amount <= 0:
             msg = "Affinity decrease amount must be positive"
@@ -467,19 +431,7 @@ class RelationshipService:
         dweller_1_id: UUID,
         dweller_2_id: UUID,
     ) -> Relationship:
-        """Initiate romantic relationship between two dwellers.
-
-        Args:
-            db_session: Database session
-            dweller_1_id: First dweller ID
-            dweller_2_id: Second dweller ID
-
-        Returns:
-            Updated relationship
-
-        Raises:
-            ValueError: If relationship affinity is too low
-        """
+        """Initiate romantic relationship between two dwellers."""
         relationship = await relationship_crud.get_by_dweller_pair(db_session, dweller_1_id, dweller_2_id)
         if not relationship:
             msg = "Relationship not found between dwellers"
@@ -507,19 +459,7 @@ class RelationshipService:
         dweller_1_id: UUID,
         dweller_2_id: UUID,
     ) -> Relationship:
-        """Make two dwellers partners (committed relationship).
-
-        Args:
-            db_session: Database session
-            dweller_1_id: First dweller ID
-            dweller_2_id: Second dweller ID
-
-        Returns:
-            Updated relationship
-
-        Raises:
-            ValueError: If no relationship exists or affinity is too low
-        """
+        """Make two dwellers partners (committed relationship)."""
         relationship = await relationship_crud.get_by_dweller_pair(db_session, dweller_1_id, dweller_2_id)
         if not relationship:
             msg = "Relationship not found between dwellers"
@@ -532,8 +472,8 @@ class RelationshipService:
             msg = f"Affinity too low for partnership ({relationship.affinity} < {threshold})"
             raise ValidationException(detail=msg)
 
-        # Serialize concurrent commitment transitions: lock both dweller rows
-        # before the guard so two racing make_partners calls cannot both pass it.
+        # Serialize concurrent commitment transitions: lock both dweller rows before the guard so two racing
+        # make_partners calls cannot both pass it.
         await RelationshipService._lock_dwellers(db_session, dweller_1_id, dweller_2_id)
 
         # Guard: neither dweller may already be committed to a third dweller.
@@ -579,11 +519,8 @@ class RelationshipService:
     async def _lock_dwellers(db_session: AsyncSession, id_a: UUID, id_b: UUID) -> None:
         """Lock both dweller rows FOR UPDATE in deterministic id order.
 
-        Serializes concurrent commitment transitions (make_partners / marry /
-        affinity auto-promotion) so the ``_committed_partner_elsewhere`` guard
-        cannot be raced by two requests both passing it. Locks are held until
-        the caller's next commit/rollback; SQLite test engines ignore FOR
-        UPDATE, PostgreSQL enforces it in production.
+        Serializes commitment transitions so the _committed_partner_elsewhere guard cannot be raced; held until
+        the caller's commit/rollback. SQLite test engines ignore FOR UPDATE; PostgreSQL enforces it.
         """
         for dweller_id in sorted((id_a, id_b), key=str):
             await dweller_crud.get_for_update(db_session, dweller_id)
@@ -596,9 +533,7 @@ class RelationshipService:
     ) -> Relationship | None:
         """Return the first committed relationship whose other side is not in except_ids.
 
-        ``get_partner_links_involving`` is the source of truth for committed
-        (PARTNER/MARRIED) relationships; ``except_ids`` lets callers exclude the
-        relationship currently being formed so it does not count as a conflict.
+        except_ids excludes the relationship being formed so it does not count as a conflict.
         """
         links = await relationship_crud.get_partner_links_involving(db_session, dweller_id)
         for link in links:
@@ -615,15 +550,7 @@ class RelationshipService:
         *,
         commit: bool = True,
     ) -> None:
-        """Apply the one-time happiness bonus to both newly married dwellers.
-
-        Args:
-            db_session: Database session
-            dweller_1_id: First dweller ID
-            dweller_2_id: Second dweller ID
-            commit: Whether to commit the bonus (default True); pass False to defer
-                the commit so it lands in the same transaction as the relationship update.
-        """
+        """Apply the one-time happiness bonus to both newly married dwellers."""
         for dweller_id in (dweller_1_id, dweller_2_id):
             dweller = await dweller_crud.get(db_session, dweller_id)
             bonus = game_config.relationship.partner_happiness_bonus + game_config.relationship.married_happiness_bonus
@@ -634,12 +561,7 @@ class RelationshipService:
 
     @staticmethod
     async def marry(db_session: AsyncSession, relationship_id: UUID) -> Relationship:
-        """Marry two partners with affinity at or above the marriage threshold.
-
-        Raises:
-            ValidationException: If the relationship is not found, is not PARTNER,
-                or affinity is below the threshold.
-        """
+        """Marry two partners with affinity at or above the marriage threshold."""
         try:
             relationship = await relationship_crud.get(db_session, relationship_id)
         except ResourceNotFoundException:
@@ -659,13 +581,12 @@ class RelationshipService:
             db_session, (relationship.dweller_1_id, relationship.dweller_2_id)
         )
 
-        # Serialize concurrent commitment transitions: lock both dweller rows
-        # before the guard so a racing make_partners/affinity promotion cannot
-        # slip a second commitment in between the guard and the transition.
+        # Serialize concurrent commitment transitions: lock both dweller rows before the guard so a racing
+        # make_partners/affinity promotion cannot slip a second commitment in between the guard and the transition.
         await RelationshipService._lock_dwellers(db_session, relationship.dweller_1_id, relationship.dweller_2_id)
 
-        # Defense-in-depth: reject if either dweller is already committed to a
-        # third dweller (pre-existing corrupt data).
+        # Defense-in-depth: reject if either dweller is already committed to a third dweller (pre-existing corrupt
+        # data).
         for dweller_id in (relationship.dweller_1_id, relationship.dweller_2_id):
             committed = await RelationshipService._committed_partner_elsewhere(
                 db_session,
@@ -676,8 +597,8 @@ class RelationshipService:
                 msg = f"Dweller {dweller_id} is already {committed.relationship_type.value} to another dweller"
                 raise ValidationException(msg)
 
-        # Conditional PARTNER->MARRIED update: only one concurrent request wins;
-        # the loser raises so it applies no bonus/notification.
+        # Conditional PARTNER->MARRIED update: only one concurrent request wins; the loser raises so it applies no
+        # bonus/notification.
         if not await relationship_crud.transition_partner_to_married(db_session, relationship_id):
             msg = "Only partners can marry"
             raise ValidationException(msg)
@@ -741,12 +662,7 @@ class RelationshipService:
         db_session: AsyncSession,
         relationship_id: UUID,
     ) -> None:
-        """Break up a relationship.
-
-        Args:
-            db_session: Database session
-            relationship_id: Relationship ID to break up
-        """
+        """Break up a relationship."""
         # Get relationship via CRUD, handle ResourceNotFoundException
         try:
             relationship = await relationship_crud.get(db_session, relationship_id)
@@ -827,16 +743,7 @@ class RelationshipService:
         dweller_1: Dweller,
         dweller_2: Dweller,
     ) -> float:
-        """Backward-compatible wrapper for calculate_compatibility_score.
-
-        Args:
-            db_session: Database session
-            dweller_1: First dweller object
-            dweller_2: Second dweller object
-
-        Returns:
-            Compatibility score as a float (0.0-1.0)
-        """
+        """Backward-compatible wrapper for calculate_compatibility_score."""
         result = await RelationshipService.calculate_compatibility_score(db_session, dweller_1.id, dweller_2.id)
         return result.score
 

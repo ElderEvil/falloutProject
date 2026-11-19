@@ -162,11 +162,8 @@ def infer_item_type(name: str, item_data: QuestItemData | dict[str, Any] | None 
 
 
 def resolve_item_image_url(item_name: str, item_type: str | None) -> str | None:
-    """Resolve reward art from the same asset maps the item factory uses.
-
-    Weapon/outfit/junk/pet rewards get their catalog picture; dweller,
-    consumable and lunchbox rewards have no photo and keep the themed icon
-    fallback. Unmapped names return None rather than a generic stand-in.
+    """Resolve reward art from the item factory's asset maps; photo-less types
+    (dweller/consumable/lunchbox) and unmapped names return None, not a stand-in.
     """
     resolver = {
         "weapon": get_weapon_image_url,
@@ -231,7 +228,6 @@ class QuestRewardJSON(SQLModel):
 class QuestJSON(SQLModel):
     """Schema for individual quests in JSON files with field aliases for JSON compatibility."""
 
-    # Support both "Quest name" (space) and "quest_name" (snake_case) formats
     quest_name: str = Field(default="", alias="Quest name", validation_alias=AliasChoices("quest_name", "Quest name"))
     long_description: str = Field(
         default="", alias="Long description", validation_alias=AliasChoices("long_description", "Long description")
@@ -243,14 +239,11 @@ class QuestJSON(SQLModel):
         default="", alias="Requirements", validation_alias=AliasChoices("requirements", "Requirements")
     )
     rewards: str = Field(default="", alias="Rewards", validation_alias=AliasChoices("rewards", "Rewards"))
-    # Quest objective can be a string or list of objects in the JSON
     quest_objective: str | list[QuestObjectiveJSON] | None = Field(
         default=None, alias="Quest objective", validation_alias=AliasChoices("quest_objective", "Quest objective")
     )
-    # Structured requirements and rewards
     quest_requirements: list[QuestRequirementJSON] = Field(default_factory=list, validation_alias="quest_requirements")
     quest_rewards: list[QuestRewardJSON] = Field(default_factory=list, validation_alias="quest_rewards")
-    # Quest chain metadata
     quest_type: str | None = Field(default=None, validation_alias="quest_type")
     quest_category: str | None = Field(default=None, validation_alias="quest_category")
     chain_order: int = Field(default=0, validation_alias="chain_order")

@@ -36,18 +36,7 @@ class ExplorationCoordinator:
     async def start_return(
         self, db_session: AsyncSession, exploration_id: UUID, *, recalled: bool = False, arrived: bool = False
     ) -> Exploration:
-        """Send a dweller home; rewards and loot wait until the return leg finishes.
-
-        Args:
-            db_session: Database session
-            exploration_id: Exploration ID
-            recalled: True for a player-initiated early recall, False for a natural finish
-            arrived: True when a spatial dispatch reached its target; arrival finishes
-                the outbound leg regardless of remaining planned time
-
-        Returns:
-            Exploration: The exploration now in RETURNING state
-        """
+        """Send a dweller home; rewards and loot wait until the return leg finishes."""
         exploration = await lock_exploration_with_vault_claim(db_session, exploration_id)
 
         if not exploration.is_active():
@@ -55,8 +44,8 @@ class ExplorationCoordinator:
         if not recalled and not arrived and exploration.time_remaining_seconds() > 0:
             raise ValidationException(detail="Exploration has not finished yet; recall the dweller to end it early")
 
-        # Clock expiry and recall both force-retreat an open site run before the
-        # return leg starts, all in this one transaction.
+        # Clock expiry and recall both force-retreat an open site run before the return leg starts, all in this one
+        # transaction.
         await close_open_site_run(db_session, exploration_id)
 
         from app.services.exploration_service import exploration_service
@@ -78,16 +67,8 @@ class ExplorationCoordinator:
     async def finalize_return(self, db_session: AsyncSession, exploration_id: UUID) -> RewardsSchema:
         """Finalize an arrived exploration: restore the dweller, release loot, grant rewards.
 
-        The terminal transition, the dweller restore and the reward settlement commit
-        exactly once. A failure rolls all three back, so the run stays RETURNING and the
-        next tick retries it instead of leaving an arrived run with no rewards.
-
-        Args:
-            db_session: Database session
-            exploration_id: Exploration ID
-
-        Returns:
-            dict: Rewards summary
+        Terminal transition, dweller restore, and reward settlement commit exactly once; failure rolls all three
+        back so the run stays RETURNING and the next tick retries.
         """
         exploration = await lock_exploration_with_vault_claim(db_session, exploration_id)
 

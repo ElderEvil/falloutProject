@@ -1,9 +1,5 @@
-"""Deterministic world-map place utilities.
-
-Pure functions only: no DB access, no randomness, no time, no I/O. The same
-input always yields the same output across calls and processes, so map
-markers derived from place names and a fixed world seed are stable and
-reproducible — and identical for every viewer (shared world).
+"""Deterministic world-map place utilities: pure functions (no DB, randomness, time or
+I/O), so name-derived markers are stable across calls, processes and viewers.
 """
 
 from __future__ import annotations
@@ -20,21 +16,18 @@ WORLD_SCALE = 1.6
 
 
 def normalize_place_name(name: str) -> str:
-    """Normalize a place name for stable matching and deduplication.
-
-    Strips outer whitespace, lowercases, collapses internal whitespace runs
-    to a single space, and removes trailing ``.``/``,``/``!`` characters.
+    """Normalize a place name for stable matching/dedup: trim, lowercase, collapse whitespace
+    runs, strip trailing .,! characters.
     """
     collapsed = " ".join(name.strip().casefold().split())
     return collapsed.rstrip(".,!")
 
 
 def schematic_coords(normalized_name: str) -> tuple[float, float]:
-    """Derive deterministic schematic coordinates for a normalized place name.
+    """Deterministic schematic coordinates from a normalized name.
 
-    The first four bytes of the sha256 digest of the UTF-8 name are read as
-    two big-endian uint16 values; each maps into the 10.0-89.9 band with one
-    decimal of resolution.
+    First four sha256 bytes of the UTF-8 name read as two big-endian uint16s, each mapped
+    into the 10.0-89.9 band with one decimal of resolution.
     """
     digest = hashlib.sha256(normalized_name.encode("utf-8")).digest()
     h1 = int.from_bytes(digest[0:2], "big")
@@ -43,10 +36,8 @@ def schematic_coords(normalized_name: str) -> tuple[float, float]:
 
 
 def _spiral_offsets() -> list[tuple[float, float]]:
-    """Deterministic 1.5-scaled spiral offsets, up to 16 candidates.
-
-    Two expanding rings; within each ring the four cardinal neighbors are
-    tried before the four diagonal neighbors.
+    """Deterministic 1.5-scaled spiral offsets, up to 16 candidates: two expanding rings,
+    cardinals before diagonals within each ring.
     """
     offsets: list[tuple[int, int]] = []
     for ring in (1, 2):
@@ -63,10 +54,8 @@ def _clamp_to_grid(coord: float) -> float:
 
 
 def collision_nudge(base: tuple[float, float], occupied: set[tuple[float, float]]) -> tuple[float, float]:
-    """Return ``base`` if free, else the first free spiral offset.
-
-    Candidates are clamped into the 0..100 grid; when every candidate is
-    occupied the clamped ``base`` itself is returned.
+    """Return base if free, else the first free spiral offset; candidates clamped to the 0..100
+    grid, and when all are occupied the clamped base itself is returned.
     """
     if base not in occupied:
         return base

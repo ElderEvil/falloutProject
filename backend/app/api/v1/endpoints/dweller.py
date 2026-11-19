@@ -109,8 +109,8 @@ async def read_dweller(
     Returns:
         DwellerReadFull: Full dweller details.
     """
-    # The access check already loaded this dweller with its equipment graph;
-    # re-reading it here bought nothing but six statements.
+    # The access check already loaded this dweller with its equipment graph; re-reading it here bought nothing but six
+    # statements.
     return await verify_dweller_access(dweller_id, user, db_session)
 
 
@@ -466,11 +466,6 @@ async def auto_assign_to_room(
     return ensure_found(assigned, Dweller, identifier=dweller_id)
 
 
-# ============================================
-# Death System Endpoints
-# ============================================
-
-
 @router.get("/vault/{vault_id}/dead", response_model=list[DwellerDeadRead])
 async def get_dead_dwellers(
     vault_id: UUID,
@@ -548,11 +543,6 @@ async def revive_dweller(
     return await death_service.revive_dweller(db_session, dweller_id, user)
 
 
-# ============================================================================
-# Soft Delete Endpoints
-# ============================================================================
-
-
 @router.post("/{dweller_id}/soft-delete", response_model=DwellerRead)
 async def soft_delete_dweller(
     dweller_id: UUID,
@@ -603,9 +593,7 @@ async def read_deleted_dwellers_by_vault(
     )
 
 
-# ============================================================================
-# Exit Requests — dwellers who ask to leave the vault. Granting is one-way.
-# ============================================================================
+# Exit requests: granting is one-way.
 
 
 def _to_exit_request_read(dweller: Dweller) -> ExitRequestRead:

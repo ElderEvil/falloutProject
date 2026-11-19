@@ -33,16 +33,7 @@ class HappinessService:
         vault_id: UUID,
         seconds_passed: int = 60,
     ) -> dict:
-        """Update happiness for all dwellers in a vault based on conditions.
-
-        Args:
-            db_session: Database session
-            vault_id: Vault ID
-            seconds_passed: Seconds since last update
-
-        Returns:
-            Dictionary with update statistics
-        """
+        """Update happiness for all dwellers in a vault based on conditions."""
         try:
             vault = await vault_crud.get(db_session, vault_id)
         except ResourceNotFoundException:
@@ -149,16 +140,7 @@ class HappinessService:
 
     @staticmethod
     async def _calculate_vault_factors(vault: Vault, active_incidents: list[Incident], radio_rooms: list[Room]) -> dict:
-        """Calculate vault-wide factors affecting happiness.
-
-        Args:
-            vault: Vault object
-            active_incidents: List of active incidents
-            radio_rooms: List of radio rooms
-
-        Returns:
-            Dictionary of factors
-        """
+        """Calculate vault-wide factors affecting happiness."""
         # Resource status
         power_ratio = vault.power / vault.power_max if vault.power_max > 0 else 0
         food_ratio = vault.food / vault.food_max if vault.food_max > 0 else 0
@@ -203,21 +185,7 @@ class HappinessService:
         dwellers_by_room: dict[UUID, list[Dweller]] | None = None,
         rivals_by_dweller: dict[UUID, set[UUID]] | None = None,
     ) -> float:
-        """Calculate happiness change for a single dweller.
-
-        Args:
-            db_session: Database session
-            dweller: Dweller object
-            vault_factors: Vault-wide factors
-            seconds_passed: Seconds since last update
-            rooms_by_id: Prefetched rooms keyed by room ID
-            partners_by_id: Prefetched partners keyed by dweller ID
-            dwellers_by_room: Prefetched coworkers grouped by room ID
-            rivals_by_dweller: Rival IDs keyed by dweller ID
-
-        Returns:
-            Happiness change amount
-        """
+        """Calculate happiness change for a single dweller."""
         # Normalize to 60-second ticks
         tick_multiplier = seconds_passed / 60.0
 
@@ -352,15 +320,7 @@ class HappinessService:
         db_session: AsyncSession,
         dweller_id: UUID,
     ) -> dict:
-        """Get detailed breakdown of happiness modifiers for a dweller.
-
-        Args:
-            db_session: Database session
-            dweller_id: Dweller ID
-
-        Returns:
-            Dictionary with modifier breakdown
-        """
+        """Get detailed breakdown of happiness modifiers for a dweller."""
         dweller = await dweller_crud.get_or_none(db_session, dweller_id, include_deleted=True)
         if not dweller:
             return {"error": "Dweller not found"}

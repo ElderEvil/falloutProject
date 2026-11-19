@@ -1,10 +1,8 @@
-"""Pure damage-reduction resolver: one place that answers what a dweller resists per channel.
+"""Pure damage-reduction resolver: what a dweller resists per channel.
 
-Every combat/radiation reduction source feeds this module, and every application
-point calls it once. Shares combine multiplicatively (``1 - product(1 - r)``) so
-the result is order-independent, and the amount is truncated exactly once, at the
-end. Pure and session-free: it reads identity modifiers and the equipped outfit,
-never the database.
+Shares combine multiplicatively (1 - product(1 - r)), order-independent; the amount is
+truncated exactly once, at the end. Session-free: reads identity modifiers and the
+equipped outfit, never the database.
 """
 
 from dataclasses import dataclass
@@ -50,11 +48,9 @@ def damage_reductions(
 ) -> DamageReductions:
     """The reduction shares a dweller contributes on a channel.
 
-    PHYSICAL → identity + pet ``incident_response_pct``.
-    FIRE → identity + pet ``incident_response_pct`` + ``outfit_fire_resist``.
-    RADIATION → identity + pet ``radiation_resist_pct`` (+ immunity from ``radiation_immune``)
-    + ``outfit_radiation_resist`` when ``resisted_by_outfit``.
-    ``team_share`` is added for every channel when > 0.
+    PHYSICAL: identity + pet incident_response_pct. FIRE: + outfit_fire_resist. RADIATION:
+    identity + pet radiation_resist_pct (+ immunity from radiation_immune) +
+    outfit_radiation_resist when resisted_by_outfit. team_share added for every channel when > 0.
     """
     modifiers = identity_modifiers_for(dweller)
     pet = pet_modifiers_for(dweller)

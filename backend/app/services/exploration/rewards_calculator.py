@@ -11,18 +11,8 @@ class RewardsCalculator:
     def calculate_exploration_xp(self, exploration: Exploration, dweller) -> int:
         """Calculate total XP from exploration with all bonuses.
 
-        Includes:
-        - Base XP from distance, enemies, and events
-        - Survival bonus (if returned with >70% health)
-        - Luck bonus (scales with luck stat)
-        - Pet XP bonus (additive percentage, capped by MAX_PCT_BONUS)
-
-        Args:
-            exploration: Completed exploration
-            dweller: Dweller who completed exploration
-
-        Returns:
-            Total XP to award
+        Base XP from distance/enemies/events plus survival bonus (>70% health on return), luck-scaled bonus, and
+        additive pet XP percentage capped by MAX_PCT_BONUS.
         """
         cfg = game_config.leveling
 

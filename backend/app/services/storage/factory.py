@@ -10,12 +10,7 @@ logger = logging.getLogger(__name__)
 
 
 def create_storage_service() -> StorageService | None:
-    """Factory function to create the storage service.
-
-    Returns:
-        RustFS storage service instance.
-        Returns None if storage is unavailable or misconfigured.
-    """
+    """Factory function to create the storage service."""
     try:
         return RustFSAdapter()
     except Exception:

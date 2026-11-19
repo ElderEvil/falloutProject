@@ -1,9 +1,4 @@
-"""Shared runner for dev/QA scenario CLI commands.
-
-Every scenario command wraps an async `_run()` in the same try/except block:
-print the success line, map known domain errors to a one-line message, and
-convert anything else into a logged failure with exit code 1.
-"""
+"""Shared runner for scenario CLI commands: maps domain errors to one line, logs other failures with exit 1."""
 
 from __future__ import annotations
 
@@ -26,11 +21,7 @@ def run_scenario_command(
     success_message: bool = True,
     detail_errors: bool = True,
 ) -> None:
-    """Run a scenario coroutine with the shared CLI exit and error mapping.
-
-    ``detail_errors`` prints the ``ResourceNotFoundException``/``ValueError``
-    detail; commands that only use generic failure handling turn it off.
-    """
+    """Run a scenario coroutine with shared exit/error mapping; detail_errors prints the exception detail."""
     try:
         asyncio.run(run())
         if success_message:

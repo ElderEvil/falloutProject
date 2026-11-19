@@ -1,13 +1,6 @@
 """Download Fallout Shelter images from The Vault wiki (Fandom).
 
-Uses the MediaWiki API instead of HTML scraping, because Fandom now blocks
-plain curl requests to category pages.
-
-Subcommands:
-    rooms               Download room images
-    weapons             Download weapon images
-    apparel             Download apparel/outfit icons
-    legendary-dwellers  Download legendary dweller cards + JSON metadata
+Uses the MediaWiki API because Fandom blocks plain curl requests to category pages.
 """
 
 import json
@@ -25,9 +18,9 @@ USER_AGENT = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 )
 
-# Supported legendary dweller names — must match LEGENDARY_DWELLER_IMAGE_FILES
-# in app/utils/legendary_dweller_assets.py.  Only entries whose casefolded
-# name appears here are kept; everything else is silently dropped.
+# Supported legendary dweller names — must match LEGENDARY_DWELLER_IMAGE_FILES in
+# app/utils/legendary_dweller_assets.py.  Only entries whose casefolded name appears here are kept; everything else is
+# silently dropped.
 SUPPORTED_LEGENDARY_NAMES: set[str] = {
     "abraham washington",
     "allistair tenpenny",
@@ -73,8 +66,8 @@ def _is_safe_destination(destination: Path, allowed_parent: Path) -> bool:
 def _download(client: httpx.Client, url: str, destination: Path, *, allowed_parent: Path | None = None) -> bool:
     """Download a URL to destination if it doesn't already exist.
 
-    When *allowed_parent* is given, the resolved destination must sit inside
-    it — otherwise the download is skipped to prevent path traversal.
+    With allowed_parent, the resolved destination must sit inside it or the download is
+    skipped (path-traversal guard).
     """
     if allowed_parent is not None and not _is_safe_destination(destination, allowed_parent):
         print(f"  skip {destination.name}: path traversal detected")
@@ -200,7 +193,7 @@ def _legendary_dwellers(client: httpx.Client) -> list[dict]:
     if table is None:
         raise RuntimeError("Could not find the legendary dweller table on the wiki page")
     dwellers: list[dict] = []
-    for row in table.find_all("tr")[1:]:  # skip header
+    for row in table.find_all("tr")[1:]:
         cells = row.find_all(["td", "th"])
         if len(cells) < 4:
             continue

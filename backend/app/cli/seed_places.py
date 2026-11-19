@@ -1,12 +1,4 @@
-"""CLI command: seed-places — ensure canonical world-place registry rows.
-
-Thin wrapper over :func:`app.services.place_seed_service.seed_places_from_json`;
-all business logic (roster loading, merge, idempotent insert) lives in the
-service layer per AGENTS.md.
-
-Usage:
-    uv run fo-cli seed-places
-"""
+"""CLI: seed-places — idempotent canonical world-place registry seeding via place_seed_service."""
 
 from __future__ import annotations
 

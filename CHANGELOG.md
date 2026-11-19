@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## 3.6.3 (2026-11-19)
+
+### Bug Fixes
+
+* **crud:** curated-template guard raises 404, not TypeError fd0c4c7, closes #1441
+* **crud:** curated-template guard raises 404, not TypeError ([#1451](https://github.com/ElderEvil/falloutProject/issues/1451)) c1fa6e6
+* **rewards:** unknown dweller template in a reward claim raises 404 e364d63
+
+### Documentation
+
+* **api,schemas:** trim helper and module prose 2f64007
+* **core,crud,models,utils,cli:** trim prose, keep query semantics d79e640
+* drop docstring blocks that restate the signature fa1bf47
+* **services:** keep only the prose the code cannot carry 6966b9c
+* **vault:** cut the initiation docstring to what the code cannot say 08f36b4
+
 ## 3.6.2 (2026-11-19)
 
 ### Performance Improvements

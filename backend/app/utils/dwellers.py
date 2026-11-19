@@ -34,9 +34,9 @@ if TYPE_CHECKING:
 
 fake: Faker = Faker()
 
-#: Deterministic pool of wasteland place names used in procedural bios. Kept out
-#: of ``GENERIC_ORIGIN_SKIP`` (no "", "wasteland", "unknown") so every picked
-#: origin/visited name is registrable on the world map.
+# : Deterministic pool of wasteland place names used in procedural bios. Kept out
+# : of ``GENERIC_ORIGIN_SKIP`` (no "", "wasteland", "unknown") so every picked
+# : origin/visited name is registrable on the world map.
 _PLACE_POOL: tuple[str, ...] = (
     "Megaton",
     "Rivet City",
@@ -56,11 +56,10 @@ _PLACE_POOL: tuple[str, ...] = (
 
 
 def _procedural_bio_places(rng: random.Random | ModuleType, rarity: RarityEnum) -> tuple[str, list[str]]:
-    """Pick a deterministic origin + rarity-scaled visited places for a bio.
+    """Deterministic origin + rarity-scaled visited places for a bio.
 
-    The visited count follows ``game_config.bio.max_visited`` so common dwellers
-    mention fewer places than legendaries; the same ``rng`` stream makes the
-    result reproducible for a given seed.
+    Visited count follows game_config.bio.max_visited (commons mention fewer places than
+    legendaries); the same rng stream reproduces results for a given seed.
     """
     origin = rng.choice(_PLACE_POOL)
     visited_count = game_config.bio.max_visited(rarity.value)
@@ -109,11 +108,10 @@ def get_race_based_name(
     faker: Faker,
     rng: random.Random | ModuleType,
 ) -> tuple[str, str | None]:
-    """Return ``(first_name, last_name)`` from the race's canonical name source.
+    """(first_name, last_name) from the race's canonical name source.
 
-    Humans, ghouls and gen-3 synths pass as people and keep Faker names.
-    Super mutants and visible synths use curated or procedural names so they
-    do not read as modern real-world citizens.
+    Humans, ghouls and gen-3 synths keep Faker names; super mutants and visible synths use
+    curated/procedural names so they don't read as modern real-world citizens.
     """
     if race == RaceOption.SUPER_MUTANT:
         return get_super_mutant_name(state_of_being, rng), None
@@ -147,8 +145,9 @@ def elder_birth_threshold(now: datetime) -> datetime:
 
 
 def roll_spawn_birth_date(now: datetime, rng: random.Random | ModuleType) -> datetime:
-    """Birth date for a new arrival. Arrivals lean young: most spawn under 30,
-    a minority anywhere up to 80, so elders stay rare without disappearing."""
+    """Birth date for a new arrival: most spawn under 30, a minority up to 80, so elders stay
+    rare without disappearing.
+    """
     years = rng.randint(18, 30) if rng.random() < 0.7 else rng.randint(31, 80)
     return _calendar_years_ago(now, years) + timedelta(days=rng.randint(0, 364))
 
@@ -176,15 +175,12 @@ def _identity_for_race(race: RaceOption, source: random.Random | ModuleType) -> 
 
 
 def _roll_identity(rng: random.Random | ModuleType) -> dict[str, Any]:
-    """Roll race/faction/state_of_being from game_config weights using ``rng``.
+    """Roll race/faction/state_of_being from game_config weights using rng.
 
-    Race follows ``DwellerConfig.race_weights`` (85/7/5/3 by default). Humans
-    draw factions from the vault_dweller-dominant ``human_faction_weights``
-    policy; non-humans draw uniformly from the canonical
-    ``faction_restrictions[race]``. Non-humans also carry a weighted
-    ``state_of_being`` from ``STATE_OF_BEING_OPTIONS`` and
-    ``DwellerConfig.state_weights``. Every emitted pair passes the
-    ``DwellerVisualAttributes`` identity validator.
+    Race follows DwellerConfig.race_weights (85/7/5/3 default). Humans draw from the
+    vault_dweller-dominant human_faction_weights; non-humans uniformly from
+    faction_restrictions[race] and carry a weighted state_of_being (STATE_OF_BEING_OPTIONS +
+    state_weights). Every pair passes the DwellerVisualAttributes identity validator.
     """
     weights = game_config.dweller.get_race_weights()
     race = rng.choices(list(RaceOption), weights=[weights[r.value] for r in RaceOption])[0]
@@ -194,10 +190,9 @@ def _roll_identity(rng: random.Random | ModuleType) -> dict[str, Any]:
 def roll_child_identity(mother: Any, father: Any, source: random.Random | ModuleType = random) -> dict[str, Any]:
     """Roll a newborn's identity: inherit one of the parents' races.
 
-    Only humans are breeding-eligible, so the child's race is always one of
-    its parents'; every emitted pair still passes the ``DwellerVisualAttributes``
-    identity validator. Non-humans enter the population via recruitment,
-    pregeneration and recycling, never births.
+    Only humans are breeding-eligible, so the child's race is always a parent's; non-humans
+    enter via recruitment, pregeneration and recycling, never births. Every pair passes the
+    DwellerVisualAttributes identity validator.
     """
     parent_races = [race for race in (race_of(mother), race_of(father)) if race is not None] or [RaceOption.HUMAN]
     race = source.choice(parent_races)
@@ -243,12 +238,10 @@ def _max_health_for_level(level: int) -> int:
 
 
 def _pick_archetype_for_race(race: RaceOption, rng: random.Random | ModuleType) -> DwellerArchetype | None:
-    """Select a random archetype for the given race (weighted) or None.
+    """Weighted random archetype for the race, or None; skips empty appearance pools.
 
-    Filters ``archetypes`` by the rolled race and skips empty appearance pools.
-    The chosen record supplies
-    appearance and personality only; random dwellers retain the identity
-    faction from ``_roll_identity``.
+    The record supplies appearance and personality only — identity faction stays from
+    _roll_identity.
     """
     candidates = [entry for entry in archetypes.values() if entry["race"] == race and entry["appearance_pools"]]
     if not candidates:
@@ -261,8 +254,8 @@ def create_random_common_dweller(
 ) -> dict[str, Any]:
     """Create a random common dweller for production use.
 
-    When ``seed`` is provided the RNG and the Faker instance are seeded so the
-    same call reproduces the same dweller (used by the pregen CLI ``--seed``).
+    With seed, the RNG and Faker instance are seeded so the same call reproduces the same
+    dweller (pregen CLI --seed).
     """
     rng: random.Random | ModuleType = random.Random(seed) if seed is not None else random
     faker: Faker = Faker() if seed is not None else fake
@@ -274,8 +267,8 @@ def create_random_common_dweller(
     now = utcnow() if seed is None else datetime(2000, 1, 1)
     birth_date = roll_spawn_birth_date(now, rng)
     identity = _roll_identity(rng)
-    # Non-humans never senesce: visual freezes at adult while birth_date keeps
-    # the real span for future feral-pressure math.
+    # Non-humans never senesce: visual freezes at adult while birth_date keeps the real span for future feral-pressure
+    # math.
     if is_ageless(_race_from_attributes(identity)):
         age_group = AgeGroupEnum.ADULT
     else:
@@ -291,7 +284,6 @@ def create_random_common_dweller(
     origin, visited = _procedural_bio_places(rng, rarity)
     bio = render_bio(origin, visited, race=race, rng=rng)
 
-    # Enrich bio: add appearance description and personality line.
     if archetype and archetype["personality_lines"]:
         appearance_desc = describe_appearance(identity, gender, race)
         personality = rng.choice(archetype["personality_lines"])
@@ -331,10 +323,10 @@ def create_dweller_from_template(
     template: Any,
     seed: int | None = None,
 ) -> dict[str, Any]:
-    """Build a persistable dweller dict from a curated ``DwellerTemplate``.
+    """Build a persistable dweller dict from a curated DwellerTemplate.
 
-    The template's SPECIAL, bio, visuals and map metadata are authoritative.
-    Birth date and health are synthesized so the row is immediately playable.
+    Template SPECIAL, bio, visuals and map metadata are authoritative; birth date and health
+    are synthesized so the row is immediately playable.
     """
     from app.schemas.dweller import DwellerTemplate
 
@@ -362,8 +354,8 @@ def create_dweller_from_template(
     data.setdefault("health", 100)
     data.setdefault("radiation", 0)
     data.setdefault("happiness", 50)
-    # Rare/legendary templates arrive experienced, with health matching the
-    # levels they already carry (flat per-level gains).
+    # Rare/legendary templates arrive experienced, with health matching the levels they already carry (flat per-level
+    # gains).
     start_level = _rarity_start_level(template.rarity, rng)
     if start_level > 1:
         data["level"] = start_level

@@ -1,9 +1,4 @@
-"""Shared scaffolding for the backfill CLI commands.
-
-Scope option types, vault-scope validation/resolution and the asyncio runner
-with uniform error handling. Command-specific semantics (dry-run behaviour,
-per-vault error tolerance, output strings) stay in app.cli.backfills.
-"""
+"""Shared backfill CLI scaffolding: scope options, vault resolution, and an asyncio runner with uniform error handling."""
 
 from __future__ import annotations
 

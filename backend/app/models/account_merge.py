@@ -12,9 +12,8 @@ from app.utils.types import UTCDateTime
 class AccountMerge(BaseUUIDModel, table=True):
     """One-time audit record for moving an account's data into a surviving account.
 
-    ``source_user_id`` is unique, so a source can be merged only once. Identity
-    snapshots keep the audit readable after the source row is tombstoned, and the
-    ``RESTRICT`` foreign keys keep an audit row from being orphaned by a hard delete.
+    source_user_id is unique (merge once); identity snapshots keep the audit readable after
+    the source is tombstoned; RESTRICT FKs prevent orphaning by hard delete.
     """
 
     __tablename__ = "account_merge"

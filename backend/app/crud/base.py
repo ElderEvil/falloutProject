@@ -11,28 +11,17 @@ from app.utils.exceptions import ResourceAlreadyExistsException, ResourceNotFoun
 
 
 class CRUDBase[ModelType: SQLModel, CreateSchemaType: (SQLModel | None), UpdateSchemaType: (SQLModel | None)]:
-    """
-    Base class for CRUD (Create, Read, Update, Delete) operations on a SQLModel in a database session.
-
-    :param model: A SQLModel type that represents the database table to perform CRUD operations on.
-    """
+    """Base CRUD operations for a SQLModel type."""
 
     def __init__(self, model: type[ModelType]):
         self.model = model
 
     async def get(self, db_session: AsyncSession, id: int | UUID, include_deleted: bool = False) -> ModelType:
-        """
-        Gets a single item of the specified model type by ID.
-
-        :param db_session: A database session.
-        :param id: The ID of an object to retrieve.
-        :param include_deleted: Whether to include soft-deleted items.
-        :returns: The retrieved item or `None` if it does not exist.
-        :raises ResourceNotFoundException: If the item does not exist.
+        """Get one item by ID; raises ResourceNotFoundException when absent. Soft-deleted rows are
+        excluded unless include_deleted (models without is_deleted are unaffected).
         """
         query = select(self.model).where(self.model.id == id)
 
-        # Filter out soft-deleted items if the model has is_deleted attribute
         if not include_deleted and hasattr(self.model, "is_deleted"):
             query = query.where(~col(self.model.is_deleted))
 
@@ -55,17 +44,9 @@ class CRUDBase[ModelType: SQLModel, CreateSchemaType: (SQLModel | None), UpdateS
     async def get_by_ids(
         self, list_ids: Sequence[UUID | str], db_session: AsyncSession, include_deleted: bool = False
     ) -> Sequence[ModelType]:
-        """
-        Gets a list of items of the specified model type by a list of IDs.
-
-        :param list_ids: A list of IDs of objects to retrieve.
-        :param db_session: A database session.
-        :param include_deleted: Whether to include soft-deleted items.
-        :returns: list of items
-        """
+        """Get items by a list of IDs."""
         query = select(self.model).where(self.model.id.in_(list_ids))
 
-        # Filter out soft-deleted items if the model has is_deleted attribute
         if not include_deleted and hasattr(self.model, "is_deleted"):
             query = query.where(~col(self.model.is_deleted))
 
@@ -75,19 +56,9 @@ class CRUDBase[ModelType: SQLModel, CreateSchemaType: (SQLModel | None), UpdateS
     async def get_multi(
         self, db_session: AsyncSession, skip: int = 0, limit: int = 100, include_deleted: bool = False
     ) -> Sequence[ModelType]:
-        """
-        Gets a list of items of the specified model type, optionally skipping the first `skip` items and limiting the
-        result to `limit` items.
-
-        :param db_session: A database session.
-        :param skip: The number of items to skip before returning results.
-        :param limit: The maximum number of items to return.
-        :param include_deleted: Whether to include soft-deleted items.
-        :returns: A list of retrieved items.
-        """
+        """List items ordered by ID with skip/limit pagination."""
         query = select(self.model).offset(skip).limit(limit).order_by(self.model.id)
 
-        # Filter out soft-deleted items if the model has is_deleted attribute
         if not include_deleted and hasattr(self.model, "is_deleted"):
             query = query.where(~col(self.model.is_deleted))
 
@@ -95,15 +66,7 @@ class CRUDBase[ModelType: SQLModel, CreateSchemaType: (SQLModel | None), UpdateS
         return response.scalars().all()
 
     async def create(self, db_session: AsyncSession, obj_in: CreateSchemaType, *, commit: bool = True) -> ModelType:
-        """
-        Creates a new item of the specified model type in the database.
-
-        :param db_session: A database session.
-        :param obj_in: The item to create.
-        :param commit: Whether to commit the transaction (default: True).
-        :returns: The created object, with any auto-generated fields populated by the database.
-        :raises NameExistException: If the item already exists.
-        """
+        """Create a new item; raises ResourceAlreadyExistsException on unique-violation."""
         db_obj = self.model.model_validate(obj_in)
         try:
             db_session.add(db_obj)
@@ -121,14 +84,7 @@ class CRUDBase[ModelType: SQLModel, CreateSchemaType: (SQLModel | None), UpdateS
         return db_obj
 
     async def create_all(self, db_session: AsyncSession, objs_in: Sequence[CreateSchemaType]) -> Sequence[ModelType]:
-        """
-        Creates a list of new items of the specified model type in the database.
-
-        :param db_session: A database session.
-        :param objs_in: A list of items to create.
-        :returns: The created objects, with any auto-generated fields populated by the database.
-        :raises NameExistException: If any item already exists.
-        """
+        """Create multiple items; raises ResourceAlreadyExistsException if any already exists."""
         db_objs = [self.model.model_validate(obj_in) for obj_in in objs_in]
         try:
             db_session.add_all(db_objs)
@@ -146,15 +102,7 @@ class CRUDBase[ModelType: SQLModel, CreateSchemaType: (SQLModel | None), UpdateS
         *,
         commit: bool = True,
     ) -> ModelType:
-        """
-        Updates an existing item of the specified model type in the database.
-
-        :param db_session: A database session.
-        :param id: The ID of the object to update.
-        :param obj_in: A new version of an object to update to, either as a SQLModel instance or a dictionary.
-        :param commit: Whether to commit the transaction (default: True).
-        :returns: The updated item, with any changes persisted to the database.
-        """
+        """Update an existing item from a SQLModel instance or dict."""
         db_obj = await self.get(db_session=db_session, id=id)
         update_data = obj_in if isinstance(obj_in, dict) else obj_in.model_dump(exclude_unset=True)
 
@@ -165,9 +113,8 @@ class CRUDBase[ModelType: SQLModel, CreateSchemaType: (SQLModel | None), UpdateS
         if commit:
             await db_session.commit()
         else:
-            # With commit=False the caller batches more writes into one
-            # transaction; flush now so refresh() (and later commits) see the
-            # pending changes even under autoflush=False sessions.
+            # With commit=False the caller batches more writes into one transaction; flush now so refresh() (and later
+            # commits) see the pending changes even under autoflush=False sessions.
             await db_session.flush()
         await db_session.refresh(db_obj)
         return db_obj
@@ -175,14 +122,7 @@ class CRUDBase[ModelType: SQLModel, CreateSchemaType: (SQLModel | None), UpdateS
     async def upsert(
         self, db_session: AsyncSession, obj_in: CreateSchemaType | UpdateSchemaType, id: int | UUID | None = None
     ) -> ModelType:
-        """
-        Inserts a new item or updates an existing one based on its ID.
-
-        :param db_session: A database session.
-        :param obj_in: The object to create or update.
-        :param id: The ID to check if the object exists.
-        :returns: The created or updated item.
-        """
+        """Insert or update an item based on its ID."""
         if id:
             try:
                 existing_obj = await self.get(db_session, id)
@@ -202,13 +142,7 @@ class CRUDBase[ModelType: SQLModel, CreateSchemaType: (SQLModel | None), UpdateS
         return existing_obj
 
     async def exists(self, db_session: AsyncSession, **filters: Any) -> bool:
-        """
-        Checks if any record exists matching the given filters.
-
-        :param db_session: A database session.
-        :param filters: Key-value pairs to filter the records.
-        :returns: True if a record exists, otherwise False.
-        """
+        """Check whether any record matches the given filters."""
         query = select(func.count()).select_from(self.model).filter_by(**filters)
         result = await db_session.execute(query)
         return result.scalar() > 0
@@ -216,24 +150,13 @@ class CRUDBase[ModelType: SQLModel, CreateSchemaType: (SQLModel | None), UpdateS
     async def delete(
         self, db_session: AsyncSession, id: int | UUID, soft: bool = True, *, commit: bool = True
     ) -> ModelType:
-        """
-        Remove a database object with the given ID.
-
-        If the object exists, it is deleted from the database and returned.
-        If the object does not exist, error is raised.
-
-        :param db_session: A database session
-        :param id: ID of the object to remove
-        :param soft: If True and model supports soft delete, perform soft delete. Otherwise hard delete.
-        :param commit: Whether to commit the transaction (default: True).
-        :returns: the removed object, or None if it does not exist
-        :raises IDNotFoundException: if there is an error finding object in database
+        """Remove an object by ID; soft delete when soft=True and the model supports it, otherwise
+        hard delete. Raises when the object is missing.
         """
         response = await db_session.execute(select(self.model).where(self.model.id == id))
         obj = response.scalar_one_or_none()
         obj = ensure_found(obj, self.model, identifier=id)
 
-        # Perform soft delete if supported and requested
         if soft and hasattr(obj, "soft_delete"):
             obj.soft_delete()
             db_session.add(obj)
@@ -243,7 +166,6 @@ class CRUDBase[ModelType: SQLModel, CreateSchemaType: (SQLModel | None), UpdateS
             else:
                 await db_session.flush()
         else:
-            # Hard delete
             await db_session.delete(obj)
             if commit:
                 await db_session.commit()
@@ -253,14 +175,8 @@ class CRUDBase[ModelType: SQLModel, CreateSchemaType: (SQLModel | None), UpdateS
         return obj
 
     async def soft_delete(self, db_session: AsyncSession, id: int | UUID) -> ModelType:
-        """
-        Soft delete a database object with the given ID.
-
-        :param db_session: A database session
-        :param id: ID of the object to soft delete
-        :returns: the soft-deleted object
-        :raises ResourceNotFoundException: if object does not exist
-        :raises AttributeError: if model doesn't support soft delete
+        """Soft delete an object by ID; raises ResourceNotFoundException when missing and
+        AttributeError when the model lacks soft-delete support.
         """
         obj = await self.get(db_session=db_session, id=id, include_deleted=False)
 
@@ -274,14 +190,8 @@ class CRUDBase[ModelType: SQLModel, CreateSchemaType: (SQLModel | None), UpdateS
         return obj
 
     async def restore(self, db_session: AsyncSession, id: int | UUID) -> ModelType:
-        """
-        Restore a soft-deleted database object with the given ID.
-
-        :param db_session: A database session
-        :param id: ID of the object to restore
-        :returns: the restored object
-        :raises ResourceNotFoundException: if object does not exist
-        :raises AttributeError: if model doesn't support soft delete
+        """Restore a soft-deleted object by ID; raises ResourceNotFoundException when missing and
+        AttributeError when the model lacks soft-delete support.
         """
         obj = await self.get(db_session=db_session, id=id, include_deleted=True)
 
@@ -297,14 +207,7 @@ class CRUDBase[ModelType: SQLModel, CreateSchemaType: (SQLModel | None), UpdateS
     async def get_deleted(
         self, db_session: AsyncSession, skip: int = 0, limit: int = 100
     ) -> Sequence[Row[Any] | RowMapping | Any]:
-        """
-        Gets a list of soft-deleted items.
-
-        :param db_session: A database session.
-        :param skip: The number of items to skip before returning results.
-        :param limit: The maximum number of items to return.
-        :returns: A list of soft-deleted items.
-        """
+        """List soft-deleted items with skip/limit pagination."""
         if not hasattr(self.model, "is_deleted"):
             return []
 

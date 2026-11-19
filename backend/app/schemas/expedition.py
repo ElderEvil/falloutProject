@@ -172,8 +172,7 @@ class SiteDefinition(BaseModel):
     min_dweller_level: int = Field(ge=1)
     offer_weight: float = Field(default=1.0, gt=0, le=5)
     rooms: list[SiteRoom] = Field(default_factory=list)
-    # Original rooms remain readable for already-saved runs. New spatial visits
-    # resolve this single encounter and award the site's haul in the same transaction.
+    # Saved runs keep reading rooms; spatial visits resolve this encounter and award the haul in one transaction.
     encounter: SiteRoom | None = None
     scene_id: ExpeditionSceneId | None = None
     lore: str = ""
@@ -279,7 +278,6 @@ class SiteRoomView(BaseModel):
     outcome: NodeOutcome | None = None
     finale_paid: bool = False
     defeated: bool = False
-    # Live dweller condition, so the client can show the stake of push-on vs retreat.
     dweller_health: int = 0
     dweller_max_health: int = 0
     scene_id: ExpeditionSceneId | None = None

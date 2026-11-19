@@ -1,16 +1,4 @@
-"""CLI command group: family-scenario — deterministic family/breeding test setup.
-
-Thin wrapper over :class:`app.services.family.family_scenario_service.FamilyScenarioService`;
-all business logic lives in the service layer per AGENTS.md.
-
-Usage (from backend/):
-    uv run fo-cli family-scenario setup --vault-id <UUID> --count 3
-    uv run fo-cli family-scenario setup --vault-id <UUID> \
-        --pairs "d1,d2" --stage MARRIED --affinity 95 \
-        --pregnancy-due-minutes "15,60" --postpartum-hours "2,7" --child-ages-hours "1,4"
-    uv run fo-cli family-scenario status --vault-id <UUID>
-    uv run fo-cli family-scenario reset --vault-id <UUID> --yes
-"""
+"""CLI group family-scenario: deterministic family/breeding test setup over FamilyScenarioService."""
 
 from __future__ import annotations
 

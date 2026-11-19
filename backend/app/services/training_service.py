@@ -40,22 +40,7 @@ class TrainingService:
     def calculate_training_duration(current_stat: int, room_tier: int = 1) -> int:
         """Calculate training duration in seconds.
 
-        Base: 2 hours (7200 seconds)
-        Scaling: +30 minutes per current stat level
-        Room tier reduces time: T2 = 75%, T3 = 60%
-
-        Examples:
-        - Stat 1→2: 2h (base)
-        - Stat 5→6: 4.5h
-        - Stat 9→10: 6.5h
-        - Stat 9→10 (T3): 3.9h (6.5h * 0.6)
-
-        Args:
-            current_stat: Current SPECIAL stat value (1-10)
-            room_tier: Training room tier (1-3)
-
-        Returns:
-            Duration in seconds
+        Base 7200s (2h) + 30min per current stat level; room tier scales it: T2 = 75%, T3 = 60%.
         """
         base_duration = game_config.training.base_duration_seconds
         per_level_increase = game_config.training.per_level_increase_seconds
@@ -74,23 +59,13 @@ class TrainingService:
         dweller: Dweller,
         room: Room,
     ) -> tuple[bool, str]:
-        """Check if dweller can start training in the given room.
-
-        Args:
-            db_session: Database session
-            dweller: Dweller to train
-            room: Training room
-
-        Returns:
-            (can_train: bool, reason: str)
-        """
+        """Check if dweller can start training in the given room."""
         # Check if room is a training room
         if room.category != RoomTypeEnum.TRAINING:
             return False, "Room is not a training room"
 
-        # Youth focus play, not SPECIAL drills (issue #1036 decision: training
-        # is maturity-gated like equipment; apprenticeship #889 is the youth
-        # learning path and is a separate mechanism). Elders are mature adults.
+        # Youth focus play, not SPECIAL drills: training is maturity-gated like equipment; apprenticeship is the
+        # separate youth learning path. Elders are mature adults.
         if error := purposeful_action_error(dweller, DwellerAction.TRAIN):
             if not dweller.is_mature:
                 return (
@@ -136,36 +111,20 @@ class TrainingService:
         dweller_id: UUID,
         room_id: UUID,
     ) -> Training:
-        """Start training a dweller in a training room.
-
-        Args:
-            db_session: Database session
-            dweller_id: Dweller to train
-            room_id: Training room ID
-
-        Returns:
-            Created training session
-
-        Raises:
-            ResourceNotFoundException: If dweller or room not found
-            InvalidVaultTransferException: If the room belongs to another vault
-            VaultOperationException: If training cannot be started
-            ResourceConflictException: If dweller already training
-        """
+        """Start training a dweller in a training room."""
         # Fetch dweller and room
         dweller = await dweller_crud.get(db_session, dweller_id)
 
         # Refresh to ensure all SPECIAL stats are loaded
         await db_session.refresh(dweller, with_for_update=True)
-        # refresh() expires relationship attributes, dropping the eager-loaded
-        # pet; re-read so the training-speed snapshot below sees it (B7).
+        # refresh() expires relationship attributes, dropping the eager-loaded pet; re-read so the training-speed
+        # snapshot below sees it (B7).
         dweller = await dweller_crud.get(db_session, dweller_id)
 
         room = await room_crud.get(db_session, room_id)
 
-        # Cross-vault assignment is a transfer, not a training session: reject it
-        # here exactly as move_to_room does, before capacity/stat checks touch
-        # the foreign room and before the dweller's room_id is rewritten.
+        # Cross-vault assignment is a transfer, not training: reject it as move_to_room does, before capacity/stat
+        # checks touch the foreign room and before the dweller's room_id is rewritten.
         if room.vault_id != dweller.vault_id:
             raise InvalidVaultTransferException(detail="A dweller can only train in a room within their own vault.")
 
@@ -179,8 +138,8 @@ class TrainingService:
         training = self._new_training(dweller, room)
         db_session.add(training)
 
-        # One transaction for the whole transition: the training row and the
-        # dweller's assignment must land together or not at all.
+        # One transaction for the whole transition: the training row and the dweller's assignment must land together
+        # or not at all.
         from app.schemas.dweller import DwellerUpdate
 
         await dweller_crud.update(
@@ -268,15 +227,6 @@ class TrainingService:
     ) -> Training:
         """Update training progress based on elapsed time.
         Auto-completes training if duration has elapsed.
-
-        Args:
-            db_session: Database session
-            training: Training session to update
-            dweller: Optional pre-fetched dweller to avoid N+1 query
-            commit: Whether to commit and refresh a progress-only update; completion always commits
-
-        Returns:
-            Updated training session
         """
         if not training.is_active():
             return training
@@ -307,20 +257,7 @@ class TrainingService:
         training_id: UUID,
         dweller: Dweller | None = None,
     ) -> Training:
-        """Complete a training session and increase the dweller's SPECIAL stat.
-
-        Args:
-            db_session: Database session
-            training_id: Training session ID
-            dweller: Optional pre-fetched dweller to avoid N+1 query
-
-        Returns:
-            Completed training session
-
-        Raises:
-            ResourceNotFoundException: If training not found
-            VaultOperationException: If training not active
-        """
+        """Complete a training session and increase the dweller's SPECIAL stat."""
         training, dweller = await self._lock_active_training(db_session, training_id, "complete")
         if (
             training.room_id is None
@@ -357,8 +294,7 @@ class TrainingService:
                 db_session, dweller.id, DwellerUpdate(status=DwellerStatusEnum.IDLE, room_id=None), commit=False
             )
 
-        # One transaction: the stat, the session status, and the dweller's
-        # release must land together or not at all.
+        # One transaction: the stat, the session status, and the dweller's release must land together or not at all.
         await db_session.commit()
         await db_session.refresh(training)
         await db_session.refresh(dweller)
@@ -414,19 +350,6 @@ class TrainingService:
     ) -> Training:
         """Cancel an active training session.
         Dweller does not gain the stat increase.
-
-        Args:
-            db_session: Database session
-            training_id: Training session ID
-            dweller: Optional pre-fetched dweller to avoid N+1 query
-            commit: False lets room demolition commit cancellation and deletion together.
-
-        Returns:
-            Cancelled training session
-
-        Raises:
-            ResourceNotFoundException: If training not found
-            VaultOperationException: If training not active
         """
         training, dweller = await self._lock_active_training(db_session, training_id, "cancel")
 
@@ -443,8 +366,7 @@ class TrainingService:
                 db_session, dweller.id, DwellerUpdate(status=DwellerStatusEnum.IDLE, room_id=None), commit=False
             )
 
-        # One transaction: the cancelled session and the dweller's release must
-        # land together or not at all.
+        # One transaction: the cancelled session and the dweller's release must land together or not at all.
         if commit:
             await db_session.commit()
         else:

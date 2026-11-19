@@ -21,7 +21,7 @@ class NotificationBase(SQLModel):
         default=None,
         foreign_key="vault.id",
         index=True,
-        ondelete="CASCADE",  # Cascade delete when vault is deleted
+        ondelete="CASCADE",
     )
 
     # Source of notification (null for system notifications)
@@ -34,7 +34,7 @@ class NotificationBase(SQLModel):
     message: str = Field(max_length=1000)
 
     is_read: bool = Field(default=False, index=True)
-    is_dismissed: bool = Field(default=False, index=True)  # User dismissed it
+    is_dismissed: bool = Field(default=False, index=True)
 
 
 class Notification(BaseUUIDModel, NotificationBase, table=True):
@@ -45,7 +45,6 @@ class Notification(BaseUUIDModel, NotificationBase, table=True):
     created_at: datetime = Field(sa_type=UTCDateTime, default_factory=utcnow, index=True)
     read_at: datetime | None = Field(default=None, sa_type=UTCDateTime)
 
-    # Relationships
     from_dweller: Optional["Dweller"] = Relationship(
         sa_relationship_kwargs={"foreign_keys": "[Notification.from_dweller_id]"}
     )

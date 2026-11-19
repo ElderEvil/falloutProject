@@ -1,16 +1,15 @@
-"""Junk name to crafting-component image mapping.
+"""Junk name → crafting-component image mapping.
 
-Every junk catalog entry resolves to its FOS icon (a few only exist as cards).
-Duct tape shares the military duct tape art — the wiki carries no separate icon.
-Unmapped junk falls back to the generic icon in the UI.
+Every catalog entry resolves to its FOS icon; duct tape shares military duct tape art
+(no separate wiki icon). Unmapped junk falls back to the generic UI icon.
 """
 
 from pathlib import Path
 
 from app.utils.image_assets import lookup_image_url
 
-# Maps canonical lower-cased junk names to the actual filename in
-# backend/app/static/junk_images/. Keep this sorted alphabetically by key.
+# Maps canonical lower-cased junk names to the actual filename in backend/app/static/junk_images/. Keep this sorted
+# alphabetically by key.
 JUNK_NAME_TO_IMAGE_FILE: dict[str, str] = {
     "alarm clock": "FOS Alarm clock.png",
     "baseball glove": "FOS Baseball glove.png",

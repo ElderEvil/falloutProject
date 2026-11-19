@@ -1,9 +1,8 @@
 """Per-vault room-theme ownership.
 
-The Theme workshop crafts each theme once; a completed order grants the vault
-permanent ownership, stored here as ``crafted_at``. Applying a theme requires
-that row (except the always-available standard style). Boosted vaults are seeded
-with every theme already crafted.
+The Theme workshop crafts each theme once; a completed order grants permanent ownership
+(crafted_at). Applying a theme requires that row, except the always-available standard
+style. Boosted vaults are seeded with every theme crafted.
 """
 
 from datetime import datetime

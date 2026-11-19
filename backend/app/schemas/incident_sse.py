@@ -6,11 +6,7 @@ from app.core.enums import IncidentStatus, IncidentType
 
 
 class IncidentSseEvent(BaseModel):
-    """Payload for SSE incident events published by incident_service.
-
-    Represents a real-time incident state change (spawned, spreading, resolved)
-    pushed to connected clients via Server-Sent Events.
-    """
+    """SSE payload for an incident state change, published by incident_service."""
 
     event_id: str
     type: str

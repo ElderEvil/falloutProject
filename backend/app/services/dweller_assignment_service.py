@@ -299,20 +299,8 @@ class DwellerAssignmentService:
     ) -> int:
         """Fill one vacant apprentice slot per production room from unassigned youth.
 
-        Apprentices sit outside worker capacity (see _get_available_slots), so this
-        never places a 3rd dweller into a 2-slot room: at most one youth per room,
-        only where no apprentice already trains. Honours the caller's age-group
-        filter: an adult-only run assigns no apprentices.
-
-        The vault row is locked for the whole pass, and claims are written without
-        intermediate commits, so two concurrent runs cannot both see the same
-        vacant slot or claim the same youth. The lock is released by the single
-        commit at the end (see crud.dweller.lock_vault); the
-        ``uq_dweller_active_apprentice_room`` index remains the integrity backstop
-        for a manual assignment racing the same room.
-
-        Returns the number of unassigned youth this pass could draw from, so callers
-        can report the apprentice part of the eligible pool.
+        Outside worker capacity: max one youth per room, none where an apprentice trains; adult-only runs skip.
+        Vault row locked for the whole pass, single commit at end; uq_dweller_active_apprentice_room backstops races.
         """
         if age_group in ADULT_AGE_GROUPS:
             return 0

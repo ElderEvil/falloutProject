@@ -16,9 +16,9 @@ class VaultSlotBase(SQLModel):
 class VaultSlot(BaseUUIDModel, VaultSlotBase, TimeStampMixin, table=True):
     """One slot per vault: where the vault sits on the shared atlas.
 
-    A slot is placement, not identity: ``Vault.number`` stays the global identity and a
-    slot grants no ownership or capability. Slots are globally unique, so vaults are
-    discoverable across the shared map.
+    A slot is placement, not identity: Vault.number stays the global identity and a slot
+    grants no ownership or capability. Slots are globally unique, so vaults are discoverable
+    across the shared map.
     """
 
     __tablename__ = "vaultslot"

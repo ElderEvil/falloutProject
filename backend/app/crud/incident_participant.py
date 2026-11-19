@@ -20,8 +20,8 @@ class CRUDIncidentParticipant(CRUDBase[IncidentParticipant, None, None]):
     async def record(self, db_session: AsyncSession, incident_id: UUID, dweller_ids: list[UUID]) -> list[UUID]:
         """Credit each dweller for this incident once, returning the newly credited ids.
 
-        Flushes without committing so the rows belong to the caller's transaction:
-        a round that fails afterwards leaves no participation behind.
+        Flushes without committing so the rows belong to the caller's transaction: a round that
+        fails afterwards leaves no participation behind.
         """
         credited = await self.get_credited_dweller_ids(db_session, incident_id)
         new_ids = [dweller_id for dweller_id in dict.fromkeys(dweller_ids) if dweller_id not in credited]
@@ -50,8 +50,8 @@ class CRUDIncidentParticipant(CRUDBase[IncidentParticipant, None, None]):
     ) -> dict[UUID, int]:
         """Distinct incidents of these types each dweller has fought, in one grouped query.
 
-        Members with no matching incident are absent from the map; callers default
-        to 0. ``dweller_ids`` empty short-circuits so a bare roster never queries.
+        Members with no matching incident are absent from the map (callers default to 0); empty
+        dweller_ids short-circuits so a bare roster never queries.
         """
         if not dweller_ids:
             return {}

@@ -1,10 +1,4 @@
-"""Service for vault initialization and resource management.
-
-Thin facade over the ``app.services.vault`` domain package: ``VaultService``
-owns the vault-creation transaction (``initiate_vault``) and delegates the
-seeding/economy/reads seams to the role-named collaborators, keeping the
-public singleton surface stable for existing callers.
-"""
+"""Vault facade: owns the creation transaction, delegates seeding/economy/reads."""
 
 import logging
 from uuid import UUID
@@ -38,26 +32,12 @@ class VaultService:
         user_id: UUID,
         is_boosted: bool = False,
     ) -> Vault:
-        """Create a new vault for a user and initialize it with essential rooms and dwellers.
+        """Create a vault with its rooms and dwellers; is_boosted seeds the full build.
 
-        Standard vault includes:
-        - Vault door and elevators (infrastructure)
-        - Production rooms (power generator, diner, water treatment) with assigned dwellers
-        - Storage room and 1 living room
-        - 6 production workers, 2 living-quarter residents and their family child
-
-        Boosted vault additionally includes:
-        - Radio Studio, Overseer's Office, Response Station and Arena
-        - All 7 training rooms (one for each SPECIAL stat)
-        - A merged living room plus the base room (capacity for more than 32 dwellers)
-        - Both crafting workshops staffed with two dwellers each
-        - Three storage rooms and a stock of steel/leather/circuitry/cloth junk
-          so timed crafting is testable, with 36 dwellers seeded (33 non-legendary
-          plus a 3-dweller legendary roster; the fused size-6 generator's
-          enlarged crew reuses the same slots, so the headcount is unchanged).
-
-        Expedition test starts add living capacity and skip starter objectives.
-        Player experiments change initial supplies or demographics on the standard layout.
+        Boosted adds radio/office/response station/arena, all seven training rooms, both crafting workshops,
+        extra storage with junk stock, and a 36-dweller roster. Expedition test starts add living capacity
+        and skip starter objectives. Player experiments use the standard layout with changed starting
+        supplies or demographics.
         """
         scenario = vault_scenario_service.resolve(obj_in.scenario, obj_in.number)
         expedition_start = scenario is not None and scenario.expedition

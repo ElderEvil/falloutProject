@@ -27,12 +27,10 @@ if TYPE_CHECKING:
 
 
 class VaultBase(SQLModel):
-    # General information
     number: int = Field(index=True, gt=0, lt=1_000)
     bottle_caps: int = Field(default=1_000, ge=0, lt=1_000_000)
     happiness: int = Field(default=50, ge=0, le=100)
 
-    # Primary resources
     power: int = Field(1, ge=0, le=10_000)
     power_max: int = Field(0, ge=0, le=10_000)
     food: int = Field(1, ge=0, le=10_000)
@@ -41,7 +39,6 @@ class VaultBase(SQLModel):
     water_max: int = Field(0, ge=0, le=10_000)
     # Medical supplies moved to Storage model - stimpack/radaway live in storage table
 
-    # Population limits
     population_max: int | None = Field(default=0, ge=0, le=200, nullable=True)
 
     # Radio settings
@@ -60,8 +57,6 @@ class VaultBase(SQLModel):
     continuous_training: bool = Field(
         default=False, description="Repeat training rounds until each dweller reaches their training goal (default 10)"
     )
-
-    # Game state
 
     def __str__(self):
         return f"Vault {self.number:03}"

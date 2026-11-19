@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 3.4.0 (2026-11-19)
+
+### Features
+
+* **dwellers:** give starter residents curated, lore-consistent SPECIAL stats ([#1435](https://github.com/ElderEvil/falloutProject/issues/1435)) 3e07b43
+
 ## 3.3.6 (2026-11-19)
 
 ### Bug Fixes

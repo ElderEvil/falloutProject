@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## 3.5.1 (2026-11-19)
+
+### Documentation
+
+* record the departure pool as staged for [#831](https://github.com/ElderEvil/falloutProject/issues/831), not dead code ba36ab2
+* record the departure pool as staged for [#831](https://github.com/ElderEvil/falloutProject/issues/831), not dead code ([#1438](https://github.com/ElderEvil/falloutProject/issues/1438)) b097a57
+
+### Code Refactoring
+
+* collapse duplicated not-found guards and CLI scaffolding ([#1442](https://github.com/ElderEvil/falloutProject/issues/1442)) b63d548
+
 ## 3.5.0 (2026-11-19)
 
 ### Features

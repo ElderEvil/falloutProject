@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## 3.5.0 (2026-11-19)
+
+### Features
+
+* **audio:** continuous volume changes and a varied vault playlist ([#1434](https://github.com/ElderEvil/falloutProject/issues/1434)) 824b325
+* **audio:** play themed room music on the music bus 9685b17
+* **audio:** rotate the vault playlist through 14 curated library tracks ec42290
+
+### Bug Fixes
+
+* **audio:** keep the music loop playing when the volume slider moves b580997
+* **audio:** retarget active fades when the volume slider moves e2067ed
+* **radio:** enforce a word-count floor on the daily broadcast 9705fe0
+
 ## 3.4.1 (2026-11-19)
 
 ### Bug Fixes

@@ -112,9 +112,7 @@ async def test_process_events_award_locks_vault_before_deposit(
         event.remove(db_connection.sync_connection, "before_cursor_execute", record)
 
     assert result["triggered"] == 1
-    locked_vault_reads = [
-        i for i, (sql, locked) in enumerate(statements) if locked and sql.startswith("SELECT vault.")
-    ]
+    locked_vault_reads = [i for i, (sql, locked) in enumerate(statements) if locked and sql.startswith("SELECT vault.")]
     vault_updates = [i for i, (sql, _) in enumerate(statements) if sql.startswith("UPDATE vault ")]
     assert locked_vault_reads, "the award must read the vault row FOR UPDATE"
     assert vault_updates, "the award must write the new balance"

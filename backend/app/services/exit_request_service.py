@@ -21,7 +21,7 @@ from app.crud.vault import vault as vault_crud
 from app.models.dweller import Dweller
 from app.models.vault import Vault
 from app.services.notification_service import notification_service
-from app.utils.exceptions import ResourceNotFoundException, VaultOperationException
+from app.utils.exceptions import VaultOperationException, ensure_found
 from app.utils.time import utcnow
 
 logger = logging.getLogger(__name__)
@@ -281,9 +281,7 @@ class ExitRequestService:
 
     async def _get_dweller(self, db_session: AsyncSession, dweller_id: UUID) -> Dweller:
         dweller = await dweller_crud.get(db_session, dweller_id)
-        if dweller is None:
-            raise ResourceNotFoundException(Dweller, identifier=dweller_id)
-        return dweller
+        return ensure_found(dweller, Dweller, identifier=dweller_id)
 
     async def _get_pending(self, db_session: AsyncSession, vault: Vault, dweller_id: UUID) -> Dweller:
         dweller = await dweller_crud.get(db_session, dweller_id, include_deleted=True)

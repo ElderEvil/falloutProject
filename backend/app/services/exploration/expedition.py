@@ -63,7 +63,7 @@ from app.services.exploration.trivia import (
 )
 from app.services.notification_service import notification_service
 from app.utils import world_terrain
-from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException, ValidationException
+from app.utils.exceptions import ResourceConflictException, ValidationException, ensure_found
 from app.utils.time import utcnow
 
 logger = logging.getLogger(__name__)
@@ -99,9 +99,7 @@ class BranchResult:
 
 async def _get_exploration(db_session: AsyncSession, exploration_id: UUID) -> Exploration:
     exploration = await crud.exploration.get(db_session, exploration_id)
-    if exploration is None:
-        raise ResourceNotFoundException(Exploration, identifier=exploration_id)
-    return exploration
+    return ensure_found(exploration, Exploration, identifier=exploration_id)
 
 
 async def _get_open_run(db_session: AsyncSession, exploration_id: UUID) -> ExpeditionRun:

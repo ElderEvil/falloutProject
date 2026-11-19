@@ -11,7 +11,7 @@ from app.crud.base import CRUDBase
 from app.models.dweller import Dweller
 from app.models.pregnancy import Pregnancy
 from app.schemas.pregnancy import PregnancyCreate, PregnancyUpdate
-from app.utils.exceptions import ResourceNotFoundException
+from app.utils.exceptions import ensure_found
 from app.utils.time import utcnow
 
 
@@ -31,12 +31,10 @@ class CRUDPregnancy(CRUDBase[Pregnancy, PregnancyCreate, PregnancyUpdate]):
         :raises ResourceNotFoundException: If pregnancy or mother not found
         """
         pregnancy = (await db_session.execute(select(Pregnancy).where(Pregnancy.id == pregnancy_id))).scalars().first()
-        if not pregnancy:
-            raise ResourceNotFoundException(Pregnancy, identifier=pregnancy_id)
+        pregnancy = ensure_found(pregnancy, Pregnancy, identifier=pregnancy_id)
 
         mother = (await db_session.execute(select(Dweller).where(Dweller.id == pregnancy.mother_id))).scalars().first()
-        if not mother:
-            raise ResourceNotFoundException(Dweller, identifier=pregnancy.mother_id)
+        mother = ensure_found(mother, Dweller, identifier=pregnancy.mother_id)
 
         return pregnancy, mother
 

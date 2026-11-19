@@ -18,8 +18,8 @@ from app.utils.exceptions import (
     ContentNoChangeException,
     InvalidItemAssignmentException,
     ResourceConflictException,
-    ResourceNotFoundException,
     ValidationException,
+    ensure_found,
 )
 from app.utils.item_factory import build_junk
 from app.utils.time import utcnow
@@ -166,8 +166,7 @@ class CRUDItem[ModelType: Weapon | Outfit | Pet, CreateSchemaType: SQLModel, Upd
             .options(selectinload(Dweller.vault).selectinload(Vault.storage))
         )
         dweller = dweller_result.scalar_one_or_none()
-        if not dweller:
-            raise ResourceNotFoundException(Dweller, identifier=dweller_id)
+        dweller = ensure_found(dweller, Dweller, identifier=dweller_id)
 
         # Youth cannot use equipment until they mature (issue #1036): block
         # CHILD and TEEN at the shared weapons/outfits/pets seam. Elders are
@@ -178,8 +177,7 @@ class CRUDItem[ModelType: Weapon | Outfit | Pet, CreateSchemaType: SQLModel, Upd
             )
 
         item = await db_session.get(self.model, item_id)
-        if not item:
-            raise ResourceNotFoundException(self.model, identifier=item_id)
+        item = ensure_found(item, self.model, identifier=item_id)
 
         current_item = (
             await db_session.execute(select(self.model).where(self.model.dweller_id == dweller_id))
@@ -307,8 +305,7 @@ class CRUDItem[ModelType: Weapon | Outfit | Pet, CreateSchemaType: SQLModel, Upd
     async def unequip(self, *, db_session: AsyncSession, item_id: UUID) -> None:
         dweller, storage_id, item_type = await self._fetch_unequip_data(db_session, item_id)
 
-        if not dweller:
-            raise ResourceNotFoundException(Dweller, identifier=item_id)
+        dweller = ensure_found(dweller, Dweller, identifier=item_id)
 
         item_model = self._get_item_model(item_type)
 
@@ -384,8 +381,7 @@ class CRUDItem[ModelType: Weapon | Outfit | Pet, CreateSchemaType: SQLModel, Upd
 
     async def scrap(self, *, db_session: AsyncSession, item_id: UUID) -> list[Junk]:
         item = await db_session.get(self.model, item_id)
-        if not item:
-            raise ResourceNotFoundException(self.model, identifier=item_id)
+        item = ensure_found(item, self.model, identifier=item_id)
 
         # Get storage_id from the item before deleting
         storage_id = item.storage_id

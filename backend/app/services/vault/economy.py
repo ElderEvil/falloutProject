@@ -23,6 +23,7 @@ from app.utils.exceptions import (
     InsufficientResourcesException,
     ResourceConflictException,
     ResourceNotFoundException,
+    ensure_found,
 )
 
 logger = logging.getLogger(__name__)
@@ -54,8 +55,7 @@ async def stage_medical_supply_transfer(
     validation failures; nothing is persisted here.
     """
     storage = await storage_crud.get_by_vault(db_session, vault.id)
-    if not storage:
-        raise ResourceNotFoundException(model=Storage, identifier=vault.id)
+    storage = ensure_found(storage, Storage, identifier=vault.id)
 
     vault_stimpaks = storage.stimpack or 0
     vault_radaways = storage.radaway or 0

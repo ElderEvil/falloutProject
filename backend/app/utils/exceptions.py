@@ -55,6 +55,30 @@ class ResourceNotFoundException(DomainError):
         super().__init__(f"Unable to find the {model.__name__} with {identifier_type} {identifier}.", headers)
 
 
+def ensure_found[T](obj: T | None, model: type[SQLModel], identifier: str | UUID, *, identifier_type: str = "id") -> T:
+    """Return ``obj``, raising ``ResourceNotFoundException`` when it is ``None``.
+
+    Collapses the repeated two-line not-found guard into a single expression.
+    Reassigning the result (``obj = ensure_found(obj, ...)``) narrows ``T | None``
+    to ``T`` for type checkers.
+
+    Args:
+        obj: The fetched object, or ``None`` when the lookup found nothing.
+        model: The SQLModel class the lookup targeted.
+        identifier: The identifier used for the lookup.
+        identifier_type: The kind of identifier (e.g. "id", "name", "email").
+
+    Returns:
+        The object, guaranteed non-``None``.
+
+    Raises:
+        ResourceNotFoundException: If ``obj`` is ``None``.
+    """
+    if obj is None:
+        raise ResourceNotFoundException(model, identifier, identifier_type)
+    return obj
+
+
 class ResourceAlreadyExistsException(DomainError):
     """Raised when creating or updating a resource would violate unique constraints."""
 

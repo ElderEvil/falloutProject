@@ -5,7 +5,7 @@ from uuid import UUID
 from sqlmodel import SQLModel, and_, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException
+from app.utils.exceptions import ResourceConflictException, ensure_found
 
 LinkModelType = TypeVar("LinkModelType", bound=SQLModel)
 ModelType = TypeVar("ModelType", bound=SQLModel)
@@ -21,8 +21,7 @@ class CompletionMixin[LinkModelType]:
         result = await db_session.execute(query)
         quest_completion_link = result.scalar_one_or_none()
 
-        if not quest_completion_link:
-            raise ResourceNotFoundException(self.link_model, identifier=quest_entity_id)
+        quest_completion_link = ensure_found(quest_completion_link, self.link_model, identifier=quest_entity_id)
         if quest_completion_link.is_completed:
             raise ResourceConflictException("Already completed")
 
@@ -40,8 +39,7 @@ class CompletionMixin[LinkModelType]:
         )
         result = await db_session.execute(query)
         quest_completion_link = result.scalar_one_or_none()
-        if quest_completion_link is None:
-            raise ResourceNotFoundException(self.link_model, identifier=quest_entity_id)
+        quest_completion_link = ensure_found(quest_completion_link, self.link_model, identifier=quest_entity_id)
         if quest_completion_link.is_completed:
             raise ResourceConflictException("Already completed")
         quest_completion_link.is_completed = True

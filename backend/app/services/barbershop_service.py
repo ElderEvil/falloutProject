@@ -24,6 +24,7 @@ from app.utils.exceptions import (
     ContentNoChangeException,
     ResourceNotFoundException,
     ValidationException,
+    ensure_found,
 )
 
 if TYPE_CHECKING:
@@ -55,8 +56,7 @@ class BarbershopService:
     ) -> BarbershopStatus:
         """Return availability, fee, caps, and the preset swatches for a vault."""
         vault = await crud.vault.get(db_session, vault_id)
-        if vault is None:
-            raise ResourceNotFoundException(model=Vault, identifier=vault_id)
+        vault = ensure_found(vault, Vault, identifier=vault_id)
 
         rooms = await self._barbershop_rooms(db_session, vault_id)
         if room is None:
@@ -156,8 +156,7 @@ class BarbershopService:
             raise ValidationException(detail="This room is not a Barbershop.")
 
         dweller = await crud.dweller.get(db_session, dweller_id)
-        if dweller is None:
-            raise ResourceNotFoundException(model=Dweller, identifier=dweller_id)
+        dweller = ensure_found(dweller, Dweller, identifier=dweller_id)
         if dweller.vault_id != room.vault_id:
             raise AccessDeniedException(detail="Dweller does not belong to this vault.")
         if not dweller.is_mature:
@@ -183,11 +182,9 @@ class BarbershopService:
             raise BarbershopRequiredException(detail="Assign at least one dweller to this Barbershop first.")
 
         vault_id = dweller.vault_id
-        if vault_id is None:
-            raise ResourceNotFoundException(model=Vault, identifier=dweller.id)
+        vault_id = ensure_found(vault_id, Vault, identifier=dweller.id)
         vault = await vault_crud.get_for_update(db_session, vault_id)
-        if vault is None:
-            raise ResourceNotFoundException(model=Vault, identifier=vault_id)
+        vault = ensure_found(vault, Vault, identifier=vault_id)
 
         custom_art = (dweller.image_url and not is_default_dweller_image(dweller.image_url)) or (
             dweller.thumbnail_url and not is_default_dweller_image(dweller.thumbnail_url)

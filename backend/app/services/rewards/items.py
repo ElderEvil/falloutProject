@@ -25,7 +25,7 @@ from app.models.storage import Storage
 from app.services.rewards.resources import _medication_kind, grant_radaway, grant_stimpak
 from app.services.user_service import user_service
 from app.utils.dwellers import clamp_level_for_rarity, level_progress, rarity_level_bounds
-from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException
+from app.utils.exceptions import ResourceConflictException, ensure_found
 from app.utils.item_factory import build_item, build_outfit, build_weapon
 from app.utils.reward_delivery import persist_reward_change, reward_delivery_is_deferred
 from app.utils.storage_policy import is_nuka_cola_consumable
@@ -44,8 +44,7 @@ def _parse_quantity(data: dict[str, Any]) -> int:
 
 async def _ensure_storage(db_session: AsyncSession, vault_id: UUID, quantity: int):
     storage_obj = await storage_crud.get_by_vault(db_session, vault_id)
-    if not storage_obj:
-        raise ResourceNotFoundException(Storage, vault_id, identifier_type="vault_id")
+    storage_obj = ensure_found(storage_obj, Storage, vault_id, identifier_type="vault_id")
     available = await get_available_space(db_session, storage_obj.id)
     if available < quantity:
         raise ResourceConflictException(f"Storage full for vault {vault_id}: need {quantity}, available {available}")

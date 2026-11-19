@@ -14,7 +14,7 @@ from app.core.game_config import game_config
 from app.core.tick_profiling import tick_phase, tick_sql_phase
 from app.models import Dweller, Room, Storage, Vault
 from app.models.game_state import GameState
-from app.utils.exceptions import ResourceNotFoundException
+from app.utils.exceptions import ensure_found
 
 
 @dataclass
@@ -47,8 +47,7 @@ class CRUDResource:
             )
             with tick_phase("resources.load.vault.materialize"):
                 vault_row = vault_result.one_or_none()
-        if vault_row is None:
-            raise ResourceNotFoundException(Vault, identifier=vault_id)
+        vault_row = ensure_found(vault_row, Vault, identifier=vault_id)
 
         vault, storage, game_state = vault_row
         with (

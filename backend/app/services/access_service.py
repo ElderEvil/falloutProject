@@ -7,7 +7,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app import crud
 from app.models import Dweller, User, Vault
 from app.schemas.dweller import DwellerReadFull
-from app.utils.exceptions import AccessDeniedException, ResourceNotFoundException
+from app.utils.exceptions import AccessDeniedException, ensure_found
 
 
 def assert_vault_owner(vault: Vault, user: User) -> None:
@@ -21,8 +21,7 @@ def assert_vault_owner(vault: Vault, user: User) -> None:
 
 
 async def get_accessible_vault(vault_id: UUID | None, user: User, db_session: AsyncSession) -> Vault:
-    if vault_id is None:
-        raise ResourceNotFoundException(Vault, identifier="unassigned")
+    vault_id = ensure_found(vault_id, Vault, identifier="unassigned")
     vault = await crud.vault.get(db_session, vault_id)
     assert_vault_owner(vault, user)
     return vault

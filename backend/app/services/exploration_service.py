@@ -42,7 +42,7 @@ from app.services.user_service import user_service
 from app.services.world_snapshot_service import world_snapshot_service
 from app.utils import world_terrain
 from app.utils.dweller_availability import DwellerAction, availability_error
-from app.utils.exceptions import ResourceNotFoundException, ValidationException
+from app.utils.exceptions import ResourceNotFoundException, ValidationException, ensure_found
 from app.utils.place_groups import effective_place_group
 from app.utils.serialize import serialize_naive_utc_datetime, serialize_optional_utc_datetime
 from app.utils.time import utcnow
@@ -464,8 +464,7 @@ class ExplorationService:
             dwellers.append(dweller)
 
         pair = await crud_world_location.get_state_with_location(db_session, vault_id, location_id)
-        if pair is None:
-            raise ResourceNotFoundException(WorldLocation, identifier=location_id)
+        pair = ensure_found(pair, WorldLocation, identifier=location_id)
         location, state = pair
 
         group = effective_place_group(location.group_key, location.kind)

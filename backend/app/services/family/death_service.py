@@ -22,8 +22,8 @@ from app.utils.dweller_lifecycle import is_dead, is_permanently_dead
 from app.utils.exceptions import (
     ContentNoChangeException,
     InsufficientResourcesException,
-    ResourceNotFoundException,
     VaultOperationException,
+    ensure_found,
 )
 from app.utils.time import utcnow
 
@@ -166,8 +166,7 @@ class DeathService:
         """
         dweller = await dweller_crud.get(db_session, dweller_id)
 
-        if dweller is None:
-            raise ResourceNotFoundException(Dweller, identifier=dweller_id)
+        dweller = ensure_found(dweller, Dweller, identifier=dweller_id)
 
         self._require_revivable(dweller)
 
@@ -255,8 +254,7 @@ class DeathService:
         :raises ContentNoChangeException: If the dweller is living or permanently dead
         """
         dweller = await dweller_crud.get(db_session, dweller_id)
-        if dweller is None:
-            raise ResourceNotFoundException(Dweller, identifier=dweller_id)
+        dweller = ensure_found(dweller, Dweller, identifier=dweller_id)
 
         self._require_revivable(dweller)
 

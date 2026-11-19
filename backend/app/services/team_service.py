@@ -16,7 +16,7 @@ from app.models.quest import Quest
 from app.models.team import TeamMember
 from app.models.vault import Vault
 from app.utils.dweller_availability import DwellerAction, availability_error
-from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException, ValidationException
+from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException, ValidationException, ensure_found
 from app.utils.quest_duration import STATE_QUEST_CATEGORIES
 
 logger = logging.getLogger(__name__)
@@ -37,8 +37,7 @@ class TeamService:
             raise ValidationException("Party size must be 1-3")
 
         quest = await crud.quest_crud.get_or_none(db_session, quest_id)
-        if not quest:
-            raise ResourceNotFoundException(Quest, identifier=quest_id)
+        quest = ensure_found(quest, Quest, identifier=quest_id)
         if quest.quest_category in STATE_QUEST_CATEGORIES:
             # State objectives complete instantly on start and never run the
             # return path, so a party would stay QUESTING forever.
@@ -57,8 +56,7 @@ class TeamService:
         for dweller_id in dweller_ids:
             # include_deleted so availability_error can reject soft-deleted dwellers explicitly.
             dweller = await crud.dweller.get_or_none(db_session, dweller_id, include_deleted=True)
-            if not dweller:
-                raise ResourceNotFoundException(Dweller, identifier=dweller_id)
+            dweller = ensure_found(dweller, Dweller, identifier=dweller_id)
             if dweller.vault_id != vault_id:
                 raise ValidationException(f"Dweller {dweller_id} does not belong to vault {vault_id}")
             error = availability_error(dweller, action=DwellerAction.EXPLORE, require_healthy=False)

@@ -20,7 +20,7 @@ from app.schemas.quest import (
 )
 from app.schemas.rewards import granted_reward_adapter
 from app.services.progression.quests.service import quest_service
-from app.utils.exceptions import ResourceNotFoundException, ValidationException
+from app.utils.exceptions import ValidationException, ensure_found
 from app.utils.serialize import serialize_optional_utc_datetime
 
 router = APIRouter(prefix="/quests", tags=["Quest"])
@@ -125,8 +125,7 @@ async def read_quest(
     await get_user_vault_or_403(vault_id, user, db_session)
 
     link = await crud.quest_crud.get_link(db_session, quest_id=quest_id, vault_id=vault_id)
-    if link is None:
-        raise ResourceNotFoundException(Quest, identifier=quest_id)
+    link = ensure_found(link, Quest, identifier=quest_id)
 
     return await crud.quest_crud.get(db_session, quest_id)
 

@@ -15,7 +15,7 @@ from app.crud.llm_interaction import llm_interaction as llm_interaction_crud
 from app.crud.user import user as user_crud
 from app.models.user import User
 from app.schemas.llm_interaction import LLMInteractionCreate
-from app.utils.exceptions import QuotaExceededException, ResourceNotFoundException
+from app.utils.exceptions import QuotaExceededException, ensure_found
 from app.utils.time import utcnow
 
 logger = logging.getLogger(__name__)
@@ -67,8 +67,7 @@ class QuotaService:
         """Lock the user until the caller commits usage, then evaluate this month's quota."""
         user = await user_crud.get_for_update(db_session, user_id)
 
-        if not user:
-            raise ResourceNotFoundException(User, user_id)
+        user = ensure_found(user, User, user_id)
 
         if settings.QUOTA_DISABLED or user.is_superuser:
             return QuotaCheckResult(

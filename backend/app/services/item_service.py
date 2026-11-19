@@ -15,7 +15,7 @@ from app.models.vault import Vault
 from app.models.weapon import Weapon
 from app.services.vault_service import vault_service
 from app.utils.dweller_availability import require_vault_equipment_access
-from app.utils.exceptions import ResourceNotFoundException
+from app.utils.exceptions import ensure_found
 
 ItemModel = type[Weapon] | type[Outfit] | type[Junk]
 
@@ -50,12 +50,10 @@ class ItemService:
     async def sell_item(self, db_session: AsyncSession, *, item_id: UUID, model: ItemModel) -> None:
         """Sell an item for caps: credit the owning vault, then delete the item in a single commit."""
         item = await _crud_for(model).get_or_none(db_session, item_id)
-        if not item:
-            raise ResourceNotFoundException(model, identifier=item_id)
+        item = ensure_found(item, model, identifier=item_id)
 
         vault_id = await get_item_vault_id(db_session, item)
-        if not vault_id:
-            raise ResourceNotFoundException(Vault, identifier="Unknown - item has no storage or dweller")
+        vault_id = ensure_found(vault_id, Vault, identifier="Unknown - item has no storage or dweller")
 
         try:
             credited = await self._credit_caps(db_session, vault_id, item.value)
@@ -76,8 +74,7 @@ class ItemService:
     async def scrap_item(self, db_session: AsyncSession, *, item_id: UUID, model: ItemModel) -> list[Junk]:
         """Scrap an item into junk, then publish ITEM_SCRAPPED once it has committed."""
         item = await _crud_for(model).get_or_none(db_session, item_id)
-        if not item:
-            raise ResourceNotFoundException(model, identifier=item_id)
+        item = ensure_found(item, model, identifier=item_id)
 
         vault_id = await get_item_vault_id(db_session, item)
         item_name = item.name
@@ -104,8 +101,7 @@ class ItemService:
         Returns the amount actually credited (part of the sell transaction).
         """
         vault = await crud.vault.get_or_none(db_session, vault_id, include_deleted=True)
-        if not vault:
-            raise ResourceNotFoundException(Vault, identifier=vault_id)
+        vault = ensure_found(vault, Vault, identifier=vault_id)
 
         return await vault_service.deposit_caps(
             db_session=db_session, vault_obj=vault, amount=value, commit=False, emit_event=False

@@ -15,7 +15,7 @@ from app.schemas.pet import PetRead
 from app.schemas.storage import StorageItemsResponse
 from app.schemas.weapon import WeaponRead
 from app.services.recipe_unlock_service import recipe_description
-from app.utils.exceptions import ResourceNotFoundException
+from app.utils.exceptions import ensure_found
 from app.utils.junk_assets import get_junk_image_url
 from app.utils.pet_assets import get_pet_image_url
 
@@ -32,8 +32,7 @@ class StorageService:
             ResourceNotFoundException: If the vault has no storage row.
         """
         storage = await storage_crud.get_storage_by_vault(db_session, vault.id)
-        if storage is None:
-            raise ResourceNotFoundException(Storage, identifier=vault.id)
+        storage = ensure_found(storage, Storage, identifier=vault.id)
 
         items = await storage_crud.get_all_items(db_session, storage.id)
         weapons = [WeaponRead.model_validate(w) for w in items["weapons"]]

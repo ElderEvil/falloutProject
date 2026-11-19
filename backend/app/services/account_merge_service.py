@@ -22,8 +22,8 @@ from app.models.user_profile import UserProfile
 from app.utils.exceptions import (
     AccessDeniedException,
     ResourceConflictException,
-    ResourceNotFoundException,
     ValidationException,
+    ensure_found,
 )
 from app.utils.time import utcnow
 
@@ -213,10 +213,8 @@ def _locked_users_or_raise(
     source_user = locked.get(source_id)
     target_user = locked.get(target_id)
     actor_user = locked.get(actor_id)
-    if source_user is None:
-        raise ResourceNotFoundException(User, source_id)
-    if target_user is None:
-        raise ResourceNotFoundException(User, target_id)
+    source_user = ensure_found(source_user, User, source_id)
+    target_user = ensure_found(target_user, User, target_id)
     if actor_user is None:
         raise AccessDeniedException
     return source_user, target_user, actor_user
@@ -264,11 +262,9 @@ async def merge_users(
     invalidated after commit; the surviving target session stays valid.
     """
     source_user = await _resolve(db_session, source, include_deleted=True)
-    if source_user is None:
-        raise ResourceNotFoundException(User, source)
+    source_user = ensure_found(source_user, User, source)
     target_user = await _resolve(db_session, target, include_deleted=False)
-    if target_user is None:
-        raise ResourceNotFoundException(User, target)
+    target_user = ensure_found(target_user, User, target)
     actor_user = await _resolve(db_session, actor, include_deleted=False)
     if actor_user is None:
         raise AccessDeniedException

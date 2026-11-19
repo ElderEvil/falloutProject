@@ -18,7 +18,7 @@ from app.core.enums import ContentProvenanceEnum, GenderEnum, RarityEnum, Reward
 from app.core.game_config import game_config
 from app.models.item import Item
 from app.services.rewards import items
-from app.utils.exceptions import ResourceNotFoundException
+from app.utils.exceptions import ensure_found
 from app.utils.item_factory import build_outfit, build_weapon
 from app.utils.reward_delivery import defer_reward_delivery, persist_reward_change
 
@@ -75,8 +75,7 @@ async def open_lunchbox(db_session: AsyncSession, vault_id: UUID, item_id: UUID)
     from app.crud.storage import get_unopened_lunchbox
 
     item = await get_unopened_lunchbox(db_session, item_id, vault_id)
-    if item is None:
-        raise ResourceNotFoundException(Item, item_id)
+    item = ensure_found(item, Item, item_id)
     storage_obj = await items._ensure_storage(db_session, vault_id, _LUNCHBOX_ITEM_COUNT - 1)
     async with defer_reward_delivery(db_session):
         await db_session.delete(item)

@@ -49,7 +49,7 @@ from app.utils.dwellers import (
     create_random_common_dweller,
     level_progress,
 )
-from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException
+from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException, ensure_found
 from app.utils.static_data import game_data_store
 from app.utils.time import utcnow
 
@@ -111,9 +111,7 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
 
         response = await db_session.execute(query)
         db_obj = response.scalar_one_or_none()
-        if db_obj is None:
-            raise ResourceNotFoundException(self.model, identifier=id)
-        return db_obj
+        return ensure_found(db_obj, self.model, identifier=id)
 
     async def get_with_equipment(self, db_session: AsyncSession, dweller_id: UUID) -> Dweller | None:
         """One dweller with weapon, outfit and pet eager-loaded, or None when absent.

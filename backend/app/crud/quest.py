@@ -19,7 +19,7 @@ from app.models.quest_reward import QuestReward
 from app.models.vault_quest import VaultQuestCompletionLink
 from app.schemas.quest import QuestCreate, QuestRead, QuestRequirementRead, QuestRewardRead, QuestUpdate
 from app.utils.dweller_availability import DwellerAction, available_dweller_conditions, purposeful_action_error
-from app.utils.exceptions import ResourceNotFoundException
+from app.utils.exceptions import ensure_found
 from app.utils.quest_duration import STATE_QUEST_CATEGORIES, effective_quest_duration_minutes
 from app.utils.time import utcnow
 
@@ -415,8 +415,7 @@ class CRUDQuest(
         """
         # Check if quest exists
         quest = await self.get(db_session, quest_id)
-        if not quest:
-            raise ResourceNotFoundException(Quest, identifier=quest_id)
+        quest = ensure_found(quest, Quest, identifier=quest_id)
 
         # Check if link already exists
         existing_link_query = select(self.link_model).where(

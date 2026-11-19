@@ -158,26 +158,11 @@ class ExplorationService:
         radaways: int = 0,
         heading_degrees: float | None = None,
     ) -> Exploration:
-        """Send a dweller to wasteland exploration.
+        """Send a dweller into wasteland exploration.
 
-        :param db_session: Database session
-        :type db_session: AsyncSession
-        :param vault_id: Vault ID
-        :type vault_id: UUID
-        :param dweller_id: Dweller ID
-        :type dweller_id: UUID
-        :param duration: Exploration duration in hours
-        :type duration: int
-        :param stimpaks: Number of Stimpaks to bring, defaults to 0
-        :type stimpaks: int
-        :param radaways: Number of Radaways to bring, defaults to 0
-        :type radaways: int
-        :param heading_degrees: Compass heading (0=N, 90=E) for a spatial roam;
-            None keeps today's legacy free-roam behavior
-        :type heading_degrees: float | None
-        :return: Created exploration
-        :rtype: Exploration
-        :raises ValueError: If dweller is already exploring or lacks supplies
+        `heading_degrees` sends them on a spatial roam (0=N, 90=E); None keeps the
+        legacy free-roam. Raises ValueError if the dweller is already exploring or
+        lacks the supplies they were asked to carry.
         """
         existing = await crud_exploration.get_by_dweller(db_session, dweller_id=dweller_id)
         if existing:

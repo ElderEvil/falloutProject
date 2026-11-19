@@ -253,27 +253,11 @@ def build_daily_script(
     variant_seed: str | None = None,
     _now: datetime | None = None,
 ) -> tuple[str, str]:
-    """Build a daily broadcast (title, script) from vault stats.
+    """Build a (title, script) daily broadcast from vault stats.
 
-    Phrase variants are chosen deterministically from ``variant_seed`` (falling
-    back to the vault number and UTC date), so the once-per-day render stays
-    stable while different vaults and days hear different broadcasts.
-
-    Args:
-        population: Current number of dwellers.
-        population_max: Max capacity.
-        caps: Bottle cap count.
-        happiness: Vault happiness percentage.
-        power: (current, max) power units.
-        food: (current, max) food units.
-        water: (current, max) water units.
-        recent_notifications: Up to 3 notable notifications to weave in.
-        vault_number: Optional vault number for sign-off.
-        variant_seed: Deterministic seed for phrase variants.
-        _now: Override datetime for testing.
-
-    Returns:
-        (title, script) tuple. Script is ~120-180 words.
+    Phrase variants derive deterministically from ``variant_seed`` (falling back to
+    the vault number and UTC date), so a vault's render is stable within a day while
+    different vaults and days hear different broadcasts. Script runs ~120-180 words.
     """
     now = _now or utcnow()
     # The vault day rolls over at UTC midnight, but listeners play the broadcast

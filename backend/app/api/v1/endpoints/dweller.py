@@ -109,8 +109,9 @@ async def read_dweller(
     Returns:
         DwellerReadFull: Full dweller details.
     """
-    await verify_dweller_access(dweller_id, user, db_session)
-    return await crud.dweller.get(db_session, dweller_id)
+    # The access check already loaded this dweller with its equipment graph;
+    # re-reading it here bought nothing but six statements.
+    return await verify_dweller_access(dweller_id, user, db_session)
 
 
 @router.get("/{dweller_id}/lineage", response_model=LineageResponse)
@@ -128,9 +129,9 @@ async def get_dweller_lineage(
         HTTPException: 404 if dweller not found.
         HTTPException: 403 if user doesn't have access.
     """
-    await verify_dweller_access(dweller_id, user, db_session)
+    dweller = await verify_dweller_access(dweller_id, user, db_session)
     try:
-        return await lineage_service.get_lineage(db_session, dweller_id)
+        return await lineage_service.get_lineage(db_session, dweller_id, dweller=dweller)
     except ResourceNotFoundException:
         raise HTTPException(status_code=404, detail="Dweller not found") from None
 

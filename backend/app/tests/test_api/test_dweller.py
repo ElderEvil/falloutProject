@@ -3,6 +3,7 @@ from uuid import uuid4
 
 import pytest
 from httpx import AsyncClient
+from sqlalchemy import event
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
@@ -919,3 +920,28 @@ async def test_unvaulted_dweller_actions_return_not_found(
     await async_session.commit()
     response = await async_client.post(f"/dwellers/{dweller.id}/{action}", headers=superuser_token_headers)
     assert response.status_code == 404
+
+
+async def test_read_dweller_does_not_refetch_what_the_access_check_loaded(
+    async_client: AsyncClient, async_session: AsyncSession, dweller, superuser_token_headers: dict[str, str]
+):
+    """The access check loads the dweller; the handler must reuse it, not re-read it.
+
+    Counted at the SQLAlchemy execution boundary so the assertion tracks real
+    reads rather than how many times a CRUD method happens to be called.
+    """
+    engine = getattr(async_session.get_bind(), "sync_engine", async_session.get_bind())
+    dweller_selects: list[str] = []
+
+    def count_dweller_selects(conn, cursor, statement, parameters, context, executemany):
+        if statement.lstrip().upper().startswith("SELECT") and f"FROM {Dweller.__tablename__}" in statement:
+            dweller_selects.append(statement)
+
+    event.listen(engine, "before_cursor_execute", count_dweller_selects)
+    try:
+        response = await async_client.get(f"/dwellers/{dweller.id}", headers=superuser_token_headers)
+    finally:
+        event.remove(engine, "before_cursor_execute", count_dweller_selects)
+
+    assert response.status_code == 200
+    assert len(dweller_selects) == 1

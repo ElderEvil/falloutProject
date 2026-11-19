@@ -6,6 +6,7 @@ development/seed operation, not a request path.
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import json
 import logging
@@ -166,8 +167,10 @@ class WorldSnapshotService:
         if existing is not None:
             return existing
 
-        world = generate_world(recipe)
-        snapshot = self._to_model(recipe, world)
+        # Terrain generation and road routing are seconds of pure CPU; running
+        # them inline would stall every other request on this worker.
+        world = await asyncio.to_thread(generate_world, recipe)
+        snapshot = await asyncio.to_thread(self._to_model, recipe, world)
         try:
             await snapshot_crud.create(db_session, snapshot=snapshot)
             await db_session.commit()

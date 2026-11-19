@@ -44,6 +44,11 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
+          # Release builds must package the tagged commit, not the master push that
+          # triggered semantic-release: the version bump lands in a follow-up commit,
+          # so github.sha still carries the previous version in package.json and the
+          # installer is named one release behind its tag.
+          ref: ${{ inputs.release_tag || github.sha }}
 
       # The apt install is 90%+ of the job's wall time when the mirror is slow
       # (measured 20 of 22 minutes once) and it runs on every PR touching
@@ -159,6 +164,11 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
+          # Release builds must package the tagged commit, not the master push that
+          # triggered semantic-release: the version bump lands in a follow-up commit,
+          # so github.sha still carries the previous version in package.json and the
+          # installer is named one release behind its tag.
+          ref: ${{ inputs.release_tag || github.sha }}
 
       - name: Install pnpm
         uses: pnpm/action-setup@f53f5227a9e83886ab598c617f3c170fab62f0d3 # v6

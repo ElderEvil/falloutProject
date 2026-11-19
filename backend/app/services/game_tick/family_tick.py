@@ -15,7 +15,7 @@ from uuid import UUID
 from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.core.enums import RelationshipTypeEnum
+from app.core.enums import PARTNER_LINKED_STAGES, RelationshipTypeEnum
 from app.core.game_config import game_config
 from app.crud import dweller as crud_dweller
 from app.crud.relationship import relationship_crud as crud_relationship
@@ -209,6 +209,77 @@ async def update_pair_affinity(
     return 1
 
 
+async def update_apart_relationships(db_session: AsyncSession, vault_id: UUID) -> RelationshipsStats:
+    """Decay affinity for established pairs that did not share a room this tick.
+
+    Any pair sharing a room of any kind counts as together; roomless dwellers
+    (exploring, questing, idle) are apart from everyone. Dead dwellers are
+    excluded by the living-only fetch, so pairs with a dead member never
+    drift; RIVAL and EX pairs stay frozen too, because their dynamics play
+    out through co-location. A pair already at its floor writes nothing.
+    """
+    stats: RelationshipsStats = {"relationships_updated": 0}
+    decay = game_config.relationship.apart_affinity_decay_per_tick
+    if decay <= 0:
+        return stats
+
+    from app.services.relationship_service import relationship_service
+
+    try:
+        living_dwellers = await crud_dweller.get_living_in_vault(db_session, vault_id)
+        if not living_dwellers:
+            return stats
+        dwellers_by_id = {dweller.id: dweller for dweller in living_dwellers}
+
+        # Roomless dwellers are apart from everyone: only same-room pairs are
+        # exempt from the decay.
+        processed_pairs: set[tuple[UUID, UUID]] = {
+            tuple(sorted((d1.id, d2.id)))
+            for group in group_dwellers_by_room(
+                [dweller for dweller in living_dwellers if dweller.room_id is not None]
+            ).values()
+            for i, d1 in enumerate(group)
+            for d2 in group[i + 1 :]
+        }
+
+        relationships = await crud_relationship.get_involving_any(db_session, set(dwellers_by_id))
+        for relationship in relationships:
+            pair_key = tuple(sorted((relationship.dweller_1_id, relationship.dweller_2_id)))
+            if pair_key in processed_pairs:
+                continue
+            if relationship.relationship_type in {RelationshipTypeEnum.RIVAL, RelationshipTypeEnum.EX}:
+                continue
+            if relationship.affinity <= (0 if relationship.relationship_type in PARTNER_LINKED_STAGES else -100):
+                continue
+            dweller1 = dwellers_by_id.get(relationship.dweller_1_id)
+            dweller2 = dwellers_by_id.get(relationship.dweller_2_id)
+            if dweller1 is None or dweller2 is None:
+                continue
+            if (
+                purposeful_action_error(dweller1, DwellerAction.SOCIAL) is not None
+                or purposeful_action_error(dweller2, DwellerAction.SOCIAL) is not None
+            ):
+                continue
+            await relationship_service.decrease_affinity(
+                db_session,
+                relationship.dweller_1_id,
+                relationship.dweller_2_id,
+                decay,
+                relationship=relationship,
+                commit=False,
+            )
+            stats["relationships_updated"] += 1
+        if stats["relationships_updated"]:
+            await db_session.commit()
+            from app.services.notification_service import NotificationService
+
+            await NotificationService.deliver_deferred_notifications(db_session)
+    except SQLAlchemyError as e:
+        await recover_session(db_session)
+        logger.error(f"Database error updating apart relationships for vault {vault_id}: {e}", exc_info=True)
+    return stats
+
+
 async def create_new_relationships(db_session: AsyncSession, new_relationships: list[tuple[Relationship, int]]) -> int:
     """Bulk create new relationships and update their affinity."""
     from app.services.relationship_service import relationship_service
@@ -377,6 +448,7 @@ async def process_breeding(
     """
     # Update relationship affinity
     relationship_stats = await service._update_room_relationships(db_session, vault_id)
+    apart_stats = await service._update_apart_relationships(db_session, vault_id)
 
     # Process pregnancies and births
     pregnancy_stats = await service._process_pregnancies_and_births(db_session, vault_id)
@@ -394,7 +466,7 @@ async def process_breeding(
 
     # Combine stats
     return {
-        "relationships_updated": relationship_stats["relationships_updated"],
+        "relationships_updated": relationship_stats["relationships_updated"] + apart_stats["relationships_updated"],
         "conceptions": pregnancy_stats["conceptions"],
         "births": pregnancy_stats["births"],
         "children_aged": aging_stats["children_aged"],

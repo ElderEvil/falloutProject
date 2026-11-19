@@ -162,12 +162,14 @@ jobs:
           version: 11.9.0
           run_install: false
 
+      # No setup-node pnpm cache here: the store dir comes from
+      # frontend/pnpm-workspace.yaml, which setup-node's root-level
+      # resolution cannot see, so the post-save fails path validation on
+      # Windows. pnpm install is ~30s and the Rust compile dominates.
       - name: Set up Node.js
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: '26'
-          cache: pnpm
-          cache-dependency-path: frontend/pnpm-lock.yaml
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable

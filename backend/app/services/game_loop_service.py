@@ -478,6 +478,18 @@ class GameLoopService:
         """Update relationship affinity for dwellers sharing living quarters."""
         return await family_tick.update_room_relationships(self, db_session, vault_id)
 
+    async def _update_apart_relationships(
+        self,
+        db_session: AsyncSession,
+        processed_pairs: set[tuple[UUID, UUID]],
+        relationships_map: dict[tuple[UUID, UUID], Relationship],
+        dwellers_by_id: dict[UUID, Dweller],
+    ) -> int:
+        """Decay affinity for pairs that did not share a room this tick."""
+        return await family_tick.update_apart_relationships(
+            db_session, processed_pairs, relationships_map, dwellers_by_id
+        )
+
     async def _process_pregnancies_and_births(self, db_session: AsyncSession, vault_id: UUID) -> PregnancyStats:
         """Check for conception and process due pregnancies."""
         return await family_tick.process_pregnancies_and_births(db_session, vault_id)

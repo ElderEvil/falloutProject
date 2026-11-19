@@ -403,6 +403,22 @@ async def test_prepare_template_dweller_unknown_id_raises_404(async_session: Asy
 
 
 @pytest.mark.asyncio
+async def test_grant_dweller_unknown_template_raises_404(async_session: AsyncSession) -> None:
+    """A reward claim referencing a removed template answers 404, not a ValueError."""
+    import pytest
+
+    from app.utils.exceptions import ResourceNotFoundException
+
+    user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
+    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id))
+
+    with pytest.raises(ResourceNotFoundException) as excinfo:
+        await reward_service.grant_dweller(async_session, vault.id, {"template_id": "no-such-template"})
+
+    assert "no-such-template" in str(excinfo.value)
+
+
+@pytest.mark.asyncio
 async def test_grant_template_dweller_clamps_level_override(async_session: AsyncSession) -> None:
     user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
     vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id))

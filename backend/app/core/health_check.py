@@ -48,6 +48,27 @@ class HealthCheckResult:
     details: dict | None = None
 
 
+def _result(
+    service: str,
+    status: ServiceStatus,
+    message: str,
+    details: dict | None = None,
+) -> HealthCheckResult:
+    return HealthCheckResult(service=service, status=status, message=message, details=details)
+
+
+def _healthy(service: str, message: str, details: dict | None = None) -> HealthCheckResult:
+    return _result(service, ServiceStatus.HEALTHY, message, details)
+
+
+def _unhealthy(service: str, message: str, details: dict | None = None) -> HealthCheckResult:
+    return _result(service, ServiceStatus.UNHEALTHY, message, details)
+
+
+def _degraded(service: str, message: str, details: dict | None = None) -> HealthCheckResult:
+    return _result(service, ServiceStatus.DEGRADED, message, details)
+
+
 class HealthCheckService:
     """Service for checking health of dependencies."""
 
@@ -63,19 +84,15 @@ class HealthCheckService:
         """
         try:
             await db_locks.postgres_ping(engine)
-            return HealthCheckResult(
-                service="postgresql",
-                status=ServiceStatus.HEALTHY,
-                message="Database connection successful",
-                details={"host": settings.POSTGRES_SERVER, "database": settings.POSTGRES_DB},
+            return _healthy(
+                "postgresql",
+                "Database connection successful",
+                {"host": settings.POSTGRES_SERVER, "database": settings.POSTGRES_DB},
             )
         except (SQLAlchemyError, ConnectionError, TimeoutError) as e:
             logger.exception("PostgreSQL health check failed")
-            return HealthCheckResult(
-                service="postgresql",
-                status=ServiceStatus.UNHEALTHY,
-                message=f"Database connection failed: {e!s}",
-                details={"host": settings.POSTGRES_SERVER, "error": str(e)},
+            return _unhealthy(
+                "postgresql", f"Database connection failed: {e!s}", {"host": settings.POSTGRES_SERVER, "error": str(e)}
             )
 
     @staticmethod
@@ -89,19 +106,13 @@ class HealthCheckService:
         try:
             redis_client = Redis(host=settings.REDIS_HOST, port=int(settings.REDIS_PORT), decode_responses=True)
             await redis_client.ping()
-            return HealthCheckResult(
-                service="redis",
-                status=ServiceStatus.HEALTHY,
-                message="Redis connection successful",
-                details={"host": settings.REDIS_HOST, "port": settings.REDIS_PORT},
+            return _healthy(
+                "redis", "Redis connection successful", {"host": settings.REDIS_HOST, "port": settings.REDIS_PORT}
             )
         except (RedisError, ConnectionError, TimeoutError, ValueError) as e:
             logger.exception("Redis health check failed")
-            return HealthCheckResult(
-                service="redis",
-                status=ServiceStatus.UNHEALTHY,
-                message=f"Redis connection failed: {e!s}",
-                details={"host": settings.REDIS_HOST, "error": str(e)},
+            return _unhealthy(
+                "redis", f"Redis connection failed: {e!s}", {"host": settings.REDIS_HOST, "error": str(e)}
             )
         finally:
             if redis_client:
@@ -111,33 +122,26 @@ class HealthCheckService:
     def check_dramatiq() -> HealthCheckResult:
         """Check Dramatiq broker and registered actors."""
         if broker is None:
-            return HealthCheckResult(
-                service="dramatiq",
-                status=ServiceStatus.DEGRADED,
-                message="Dramatiq not configured",
-                details={"actors": 0},
-            )
+            return _degraded("dramatiq", "Dramatiq not configured", {"actors": 0})
 
         try:
             actor_count = len(broker.actors)
             actor_names = list(broker.actors.keys())
 
-            return HealthCheckResult(
-                service="dramatiq",
-                status=ServiceStatus.HEALTHY,
-                message="Dramatiq broker configured",
-                details={
+            return _healthy(
+                "dramatiq",
+                "Dramatiq broker configured",
+                {
                     "actors": actor_count,
                     "actor_names": actor_names,
                 },
             )
         except (RedisError, ConnectionError, TimeoutError, RuntimeError) as e:
             logger.exception("Dramatiq health check failed")
-            return HealthCheckResult(
-                service="dramatiq",
-                status=ServiceStatus.UNHEALTHY,
-                message=f"Dramatiq check failed: {e!s}",
-                details={"error": str(e), "recommendation": "Check if Redis is running"},
+            return _unhealthy(
+                "dramatiq",
+                f"Dramatiq check failed: {e!s}",
+                {"error": str(e), "recommendation": "Check if Redis is running"},
             )
 
     @staticmethod
@@ -149,11 +153,10 @@ class HealthCheckService:
         """
         # Check if RustFS is configured
         if not getattr(settings, "RUSTFS_ACCESS_KEY", None) or not getattr(settings, "RUSTFS_SECRET_KEY", None):
-            return HealthCheckResult(
-                service="rustfs",
-                status=ServiceStatus.DEGRADED,
-                message="RustFS not configured (optional service)",
-                details={"configured": False, "note": "Image/audio upload features disabled"},
+            return _degraded(
+                "rustfs",
+                "RustFS not configured (optional service)",
+                {"configured": False, "note": "Image/audio upload features disabled"},
             )
 
         # Build endpoint the same way as RustFSAdapter._get_endpoint_url()
@@ -185,22 +188,20 @@ class HealthCheckService:
             response = client.list_buckets()
             bucket_names = [bucket["Name"] for bucket in response.get("Buckets", [])]
 
-            return HealthCheckResult(
-                service="rustfs",
-                status=ServiceStatus.HEALTHY,
-                message="RustFS connection successful",
-                details={
+            return _healthy(
+                "rustfs",
+                "RustFS connection successful",
+                {
                     "endpoint": endpoint_url,
                     "buckets": bucket_names,
                 },
             )
         except (BotoCoreError, ClientError, OSError, ValueError, ImportError) as e:
             logger.warning("RustFS health check failed (non-critical): %s", e)
-            return HealthCheckResult(
-                service="rustfs",
-                status=ServiceStatus.DEGRADED,
-                message=f"RustFS connection failed (optional service): {e!s}",
-                details={"endpoint": endpoint_url, "error": str(e)},
+            return _degraded(
+                "rustfs",
+                f"RustFS connection failed (optional service): {e!s}",
+                {"endpoint": endpoint_url, "error": str(e)},
             )
 
     @staticmethod
@@ -214,11 +215,10 @@ class HealthCheckService:
         base_url = settings.OLLAMA_BASE_URL if provider == "ollama" else settings.LMSTUDIO_BASE_URL
 
         if provider != settings.AI_PROVIDER:
-            return HealthCheckResult(
-                service=provider,
-                status=ServiceStatus.DEGRADED,
-                message=f"{label} not configured (using different AI provider)",
-                details={"configured": False, "ai_provider": settings.AI_PROVIDER},
+            return _degraded(
+                provider,
+                f"{label} not configured (using different AI provider)",
+                {"configured": False, "ai_provider": settings.AI_PROVIDER},
             )
 
         try:
@@ -235,11 +235,10 @@ class HealthCheckService:
                     model_available = any(configured_model in name for name in model_names)
 
                     if model_available:
-                        return HealthCheckResult(
-                            service=provider,
-                            status=ServiceStatus.HEALTHY,
-                            message=f"{label} connection successful, model '{configured_model}' available",
-                            details={
+                        return _healthy(
+                            provider,
+                            f"{label} connection successful, model '{configured_model}' available",
+                            {
                                 "base_url": base_url,
                                 "configured_model": configured_model,
                                 "available_models": model_names[:5],  # Show first 5 models
@@ -250,22 +249,20 @@ class HealthCheckService:
                         if provider == "ollama"
                         else f"Load model '{configured_model}' in LM Studio"
                     )
-                    return HealthCheckResult(
-                        service=provider,
-                        status=ServiceStatus.DEGRADED,
-                        message=f"{label} running but model '{configured_model}' not found",
-                        details={
+                    return _degraded(
+                        provider,
+                        f"{label} running but model '{configured_model}' not found",
+                        {
                             "base_url": base_url,
                             "configured_model": configured_model,
                             "available_models": model_names,
                             "recommendation": recommendation,
                         },
                     )
-                return HealthCheckResult(
-                    service=provider,
-                    status=ServiceStatus.UNHEALTHY,
-                    message=f"{label} returned unexpected status: {response.status_code}",
-                    details={"base_url": base_url, "status_code": response.status_code},
+                return _unhealthy(
+                    provider,
+                    f"{label} returned unexpected status: {response.status_code}",
+                    {"base_url": base_url, "status_code": response.status_code},
                 )
         # Reachable failures: httpx transport/protocol errors (HTTPError covers
         # ConnectError/TimeoutException below) and malformed JSON payloads
@@ -296,12 +293,7 @@ class HealthCheckService:
                 message = f"{label} check failed: {e!s}"
                 details = {"base_url": base_url, "error": str(e)}
 
-            return HealthCheckResult(
-                service=provider,
-                status=ServiceStatus.UNHEALTHY,
-                message=message,
-                details=details,
-            )
+            return _unhealthy(provider, message, details)
 
     @staticmethod
     async def check_smtp() -> HealthCheckResult:
@@ -327,11 +319,10 @@ class HealthCheckService:
 
             await smtp.quit()
 
-            return HealthCheckResult(
-                service="smtp",
-                status=ServiceStatus.HEALTHY,
-                message="SMTP connection successful",
-                details={
+            return _healthy(
+                "smtp",
+                "SMTP connection successful",
+                {
                     "host": settings.SMTP_HOST,
                     "port": settings.SMTP_PORT,
                     "tls": settings.SMTP_TLS,
@@ -341,19 +332,17 @@ class HealthCheckService:
             )
         except aiosmtplib.SMTPException as e:
             logger.exception("SMTP health check failed")
-            return HealthCheckResult(
-                service="smtp",
-                status=ServiceStatus.UNHEALTHY,
-                message=f"SMTP connection failed: {e!s}",
-                details={"host": settings.SMTP_HOST, "port": settings.SMTP_PORT, "error": str(e)},
+            return _unhealthy(
+                "smtp",
+                f"SMTP connection failed: {e!s}",
+                {"host": settings.SMTP_HOST, "port": settings.SMTP_PORT, "error": str(e)},
             )
         except TimeoutError:
             logger.exception("SMTP health check timed out")
-            return HealthCheckResult(
-                service="smtp",
-                status=ServiceStatus.UNHEALTHY,
-                message="SMTP connection timed out",
-                details={
+            return _unhealthy(
+                "smtp",
+                "SMTP connection timed out",
+                {
                     "host": settings.SMTP_HOST,
                     "port": settings.SMTP_PORT,
                     "error": "Connection timeout after 5 seconds",
@@ -361,11 +350,10 @@ class HealthCheckService:
             )
         except (ConnectionError, OSError) as e:
             logger.exception("SMTP health check failed")
-            return HealthCheckResult(
-                service="smtp",
-                status=ServiceStatus.UNHEALTHY,
-                message=f"SMTP connection failed: {e!s}",
-                details={"host": settings.SMTP_HOST, "port": settings.SMTP_PORT, "error": str(e)},
+            return _unhealthy(
+                "smtp",
+                f"SMTP connection failed: {e!s}",
+                {"host": settings.SMTP_HOST, "port": settings.SMTP_PORT, "error": str(e)},
             )
 
     async def check_all_services(

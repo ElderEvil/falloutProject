@@ -144,3 +144,17 @@ async def test_lineage_excludes_soft_deleted_ancestors(
     # is not followed, so the child reports generation 0 (orphan) with no parents.
     assert lineage.parents == []
     assert lineage.generation == 0
+
+
+@pytest.mark.asyncio
+async def test_lineage_keeps_parent_slot_order(async_session: AsyncSession, vault: Vault):
+    """parent_1 must stay first: the batched parent query has no ORDER BY."""
+    parent_1 = await _make_dweller(async_session, vault, first_name="Alpha")
+    parent_2 = await _make_dweller(async_session, vault, first_name="Beta", gender=GenderEnum.FEMALE)
+    child = await _make_dweller(
+        async_session, vault, first_name="Child", parent_1_id=parent_1.id, parent_2_id=parent_2.id
+    )
+
+    lineage = await lineage_service.get_lineage(async_session, child.id)
+
+    assert [member.id for member in lineage.parents] == [parent_1.id, parent_2.id]

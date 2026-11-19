@@ -167,10 +167,10 @@ class WorldSnapshotService:
         if existing is not None:
             return existing
 
-        # Terrain generation is ~7 s of pure CPU; running it inline would stall
-        # every other request on this worker for the duration.
+        # Terrain generation and road routing are seconds of pure CPU; running
+        # them inline would stall every other request on this worker.
         world = await asyncio.to_thread(generate_world, recipe)
-        snapshot = self._to_model(recipe, world)
+        snapshot = await asyncio.to_thread(self._to_model, recipe, world)
         try:
             await snapshot_crud.create(db_session, snapshot=snapshot)
             await db_session.commit()

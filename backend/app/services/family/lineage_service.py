@@ -172,10 +172,16 @@ class LineageService:
         generation = await cls._compute_generation(db_session, dweller_id, vault_id)
 
         parent_ids = [p for p in (dweller.parent_1_id, dweller.parent_2_id) if p is not None]
-        parents = [
-            parent
+        parents_by_id = {
+            parent.id: parent
             for parent in await dweller_crud.get_many_with_relations(db_session, parent_ids)
-            if parent.vault_id == vault_id
+        }
+        # Iterate parent_ids, not the query result: the batched query has no ORDER BY,
+        # and the response must keep parent_1 before parent_2.
+        parents = [
+            parents_by_id[parent_id]
+            for parent_id in parent_ids
+            if parent_id in parents_by_id and parents_by_id[parent_id].vault_id == vault_id
         ]
 
         children = await cls._find_children(db_session, dweller_id, vault_id)

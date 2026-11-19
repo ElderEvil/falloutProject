@@ -3,6 +3,7 @@ from uuid import uuid4
 
 import pytest
 from httpx import AsyncClient
+from sqlalchemy import event
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
@@ -922,19 +923,25 @@ async def test_unvaulted_dweller_actions_return_not_found(
 
 
 async def test_read_dweller_does_not_refetch_what_the_access_check_loaded(
-    async_client: AsyncClient, dweller, superuser_token_headers: dict[str, str], monkeypatch
+    async_client: AsyncClient, async_session: AsyncSession, dweller, superuser_token_headers: dict[str, str]
 ):
-    """The access check loads the dweller; the handler must reuse it, not re-read it."""
-    calls = {"n": 0}
-    original_get = crud.dweller.get
+    """The access check loads the dweller; the handler must reuse it, not re-read it.
 
-    async def counted_get(*args, **kwargs):
-        calls["n"] += 1
-        return await original_get(*args, **kwargs)
+    Counted at the SQLAlchemy execution boundary so the assertion tracks real
+    reads rather than how many times a CRUD method happens to be called.
+    """
+    engine = getattr(async_session.get_bind(), "sync_engine", async_session.get_bind())
+    dweller_selects: list[str] = []
 
-    monkeypatch.setattr(crud.dweller, "get", counted_get)
+    def count_dweller_selects(conn, cursor, statement, parameters, context, executemany):
+        if statement.lstrip().upper().startswith("SELECT") and f"FROM {Dweller.__tablename__}" in statement:
+            dweller_selects.append(statement)
 
-    response = await async_client.get(f"/dwellers/{dweller.id}", headers=superuser_token_headers)
+    event.listen(engine, "before_cursor_execute", count_dweller_selects)
+    try:
+        response = await async_client.get(f"/dwellers/{dweller.id}", headers=superuser_token_headers)
+    finally:
+        event.remove(engine, "before_cursor_execute", count_dweller_selects)
 
     assert response.status_code == 200
-    assert calls["n"] == 1
+    assert len(dweller_selects) == 1

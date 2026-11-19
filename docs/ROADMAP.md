@@ -59,6 +59,13 @@ No PR is approved for merge by this roadmap.
   Repository evidence and remaining live checks are tracked in
   [`deployment/k3s/README.md`](../deployment/k3s/README.md#issue-885-closure-evidence).
 - Fix demonstrated correctness/security blockers promptly. Avoid unrelated rewrites or library migrations.
+- **Departure pool is staged, not dead.** `app/services/departure_pool_service.py` (plus `get_pool_eligible`
+  in `crud/dweller.py` and `pool_eligible_conditions` in `utils/dweller_lifecycle.py`) has no runtime
+  caller — no endpoint, CLI command, config entry or worker references it; only its own tests do.
+  It holds the atomic claim/consent rules for the shared recruitment pool from
+  [#831](https://github.com/ElderEvil/falloutProject/issues/831), so the remaining work is the Trading Post
+  wiring, not a deletion. A 2026-11-19 line audit re-confirmed zero live callers; the module now carries a
+  `staged for #831` note so future dead-code sweeps stop re-flagging it.
 
 ## Platform boundary: 3.0 shipped, 3.1 gated
 

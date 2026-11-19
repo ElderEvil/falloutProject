@@ -5,6 +5,11 @@ Once past the eligibility delay and with reusable content, they appear in the sh
 any vault may recruit them for caps. A claim preserves the person — same id, age, appearance,
 stats and authored history — and transfers ownership atomically under a row lock, so a
 concurrent double claim cannot create two owners. Equipment is left with the source vault.
+
+Staged for issue #831: the claim/consent rules below are implemented and tested, but no endpoint,
+CLI command or worker calls this module yet — the Trading Post wiring is the remaining work. Keep it;
+a 2026-11-19 line audit confirmed zero live callers and this note exists so dead-code sweeps stop
+re-flagging it. See docs/ROADMAP.md ("Supporting work").
 """
 
 import logging

@@ -181,7 +181,7 @@ test.describe('Spotlight guide — vault page', () => {
 
     const card = page.locator('.onboarding-card')
     await expect(card).toBeVisible()
-    await expect(card).toContainText('Keep the power on')
+    await expect(card).toContainText('Check your reserves')
 
     // The guide must not cover the control it points at.
     const cutout = page.locator('.onboarding-cutout')
@@ -227,7 +227,7 @@ test.describe('Spotlight guide — vault page', () => {
     await page.keyboard.press('Escape')
     await expect(page.getByRole('dialog', { name: 'Notifications' })).toHaveCount(0)
     await expect(card).toBeVisible()
-    await expect(card).toContainText('Keep the power on')
+    await expect(card).toContainText('Check your reserves')
   })
 
   test('keyboard-activates the highlighted control when it is on screen', async ({ page }) => {

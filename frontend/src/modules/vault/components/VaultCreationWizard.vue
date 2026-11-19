@@ -22,39 +22,45 @@ const steps = ['Vault number', 'Setup', 'Review']
 const step = ref(0)
 const number = ref('')
 const vaultMode = ref<VaultNumberData['vaultMode']>('standard')
-const boosted = ref(false)
-const scenarioEnabled = ref(false)
-const matchingScenario = computed(() => {
-  const parsed = Number.parseInt(number.value, 10)
-  return props.scenarios.find((scenario) => scenario.number === parsed) ?? null
-})
-const scenarioRequiresBoosted = computed(() => matchingScenario.value?.requires_boosted === true)
-watch([scenarioEnabled, scenarioRequiresBoosted], ([enabled, required]) => {
-  if (enabled && required) boosted.value = true
-})
+const ordinaryBoosted = ref(false)
+const selectedScenarioKey = ref<string>()
+const matchingScenario = computed(
+  () => props.scenarios.find((scenario) => scenario.number === Number(number.value)) ?? null
+)
+const experiments = computed(() => props.scenarios.filter((scenario) => !scenario.expedition))
+const selectedScenario = computed(() =>
+  matchingScenario.value?.key === selectedScenarioKey.value ? matchingScenario.value : null
+)
 const numberField = ref<InstanceType<typeof VaultNumberField> | null>(null)
 const heading = ref<HTMLElement | null>(null)
 const isSurvival = computed(() => vaultMode.value === 'survival')
-watch(matchingScenario, (scenario, previous) => {
-  scenarioEnabled.value = scenario?.default_on ?? false
-  if (scenario?.default_boosted && !isSurvival.value) {
-    boosted.value = true
-  } else if (previous?.default_boosted && !scenario?.default_boosted) {
-    boosted.value = false
-  }
-})
+const boosted = computed(
+  () => !isSurvival.value && (selectedScenario.value?.default_boosted ?? ordinaryBoosted.value)
+)
+
+function updateNumber(value: string) {
+  number.value = String(value)
+  if (!selectedScenario.value) selectedScenarioKey.value = undefined
+}
+
+function chooseExperiment(scenario: VaultScenarioOption) {
+  number.value = String(scenario.number)
+  selectedScenarioKey.value = scenario.key
+  step.value = 1
+}
+
 const modes = [
   {
     value: 'standard',
     label: 'Standard',
     icon: 'mdi:shield-check-outline',
-    description: 'Dwellers can be revived with caps. A little breathing room for a new Overseer.',
+    description: 'Recommended for your first vault. Fallen dwellers can be revived with caps.',
   },
   {
     value: 'survival',
     label: 'Survival',
     icon: 'mdi:skull-outline',
-    description: 'Deaths are permanent. The wasteland offers no second chances.',
+    description: 'Deaths are permanent. Every staffing and expedition decision carries more risk.',
   },
 ] as const
 
@@ -62,21 +68,15 @@ const summary = computed(() => {
   const rows = [
     ['Vault number', parseVaultNumber(number.value).toString().padStart(3, '0')],
     ['Vault mode', isSurvival.value ? 'Survival' : 'Standard'],
-    ['Starting point', boosted.value ? 'Boosted Start' : 'Build from scratch'],
   ]
-  if (scenarioEnabled.value && matchingScenario.value) {
-    rows.push(['Scenario', matchingScenario.value.title])
-  }
+  if (selectedScenario.value) rows.push(['Scenario', selectedScenario.value.title])
+  else rows.push(['Starting point', boosted.value ? 'Boosted Start' : 'Build from scratch'])
   return rows
 })
 
 function selectMode(value: unknown) {
   if (value !== 'standard' && value !== 'survival') return
   vaultMode.value = value
-  if (value === 'survival') {
-    boosted.value = false
-    if (scenarioRequiresBoosted.value) scenarioEnabled.value = false
-  }
 }
 
 async function focusStep() {
@@ -99,9 +99,7 @@ function advance() {
     boosted: boosted.value,
     vaultMode: vaultMode.value,
   }
-  if (scenarioEnabled.value && matchingScenario.value) {
-    payload.scenario = matchingScenario.value.key
-  }
+  if (selectedScenario.value) payload.scenario = selectedScenario.value.key
   emit('create', payload)
 }
 </script>
@@ -167,26 +165,50 @@ function advance() {
         <div>
           <h3 ref="heading" tabindex="-1" class="text-lg font-bold text-theme-primary outline-none">
             {{
-              ['Choose your vault number', 'Choose how you start', 'Ready to open the doors?'][step]
+              ['Choose your vault number', 'Choose your vault mode', 'Ready to open the doors?'][
+                step
+              ]
             }}
           </h3>
           <p v-if="step === 0" class="mt-2 text-sm leading-6 text-theme-primary/65">
-            Choose an unused vault number (1-999). Your little corner of a very big wasteland.
+            Enter a vault number from 1 to 999{{
+              experiments.length ? ', or choose an experiment below.' : '.'
+            }}
           </p>
           <p v-else-if="step === 1" class="mt-2 text-sm leading-6 text-theme-primary/65">
-            Set the stakes, then choose your starting point.
+            Choose whether dwellers can be revived.
           </p>
           <p v-else class="mt-2 text-sm leading-6 text-theme-primary/65">
-            Your vault. Your rules. Vault-Tec supplies the paperwork. Check your choices below.
+            Check your vault details before you begin.
           </p>
         </div>
 
-        <VaultNumberField
-          v-if="step === 0"
-          ref="numberField"
-          :model-value="number"
-          @update:model-value="number = String($event)"
-        />
+        <template v-if="step === 0">
+          <VaultNumberField
+            ref="numberField"
+            :model-value="number"
+            @update:model-value="updateNumber"
+          />
+
+          <fieldset v-if="experiments.length" class="border-t border-theme-primary/20 pt-4">
+            <legend class="pr-2 text-xs font-bold tracking-widest text-theme-primary/70">
+              EXPERIMENTAL STARTS
+            </legend>
+            <div class="grid gap-2">
+              <Button
+                v-for="scenario in experiments"
+                :key="scenario.key"
+                type="button"
+                variant="outline"
+                class="h-auto justify-start whitespace-normal p-3 text-left"
+                @click="chooseExperiment(scenario)"
+              >
+                <Icon icon="mdi:flask-outline" class="shrink-0" :ariaHidden="true" />
+                <span>{{ scenario.title }}</span>
+              </Button>
+            </div>
+          </fieldset>
+        </template>
 
         <template v-else-if="step === 1">
           <fieldset :disabled="creating" class="flex flex-col gap-3">
@@ -221,52 +243,14 @@ function advance() {
             </p>
           </fieldset>
 
-          <fieldset class="border-t border-theme-primary/20 pt-4">
-            <legend class="sr-only">Starting point</legend>
-            <Label for="boosted-start" class="flex items-start gap-3 text-sm">
-              <Switch
-                id="boosted-start"
-                v-model:checked="boosted"
-                :disabled="isSurvival || creating || (scenarioEnabled && scenarioRequiresBoosted)"
-                class="mt-1"
-              />
-              <span class="flex flex-col gap-1">
-                <span class="font-semibold"
-                  >Boosted Start
-                  <span class="font-normal text-theme-primary/50">/ optional</span></span
-                >
-                <span class="text-xs leading-5 text-theme-primary/65"
-                  >Skip ahead with an expanded vault and extra supplies.</span
-                >
-                <span v-if="scenarioEnabled && scenarioRequiresBoosted" class="text-xs text-warning"
-                  >Required by {{ matchingScenario?.title }}.</span
-                >
-                <span v-if="isSurvival" class="text-xs text-warning"
-                  >Not available in Survival mode.</span
-                >
-                <span v-else class="text-xs leading-5 text-theme-primary/65"
-                  >Leave off to build from scratch and learn as you grow.</span
-                >
-              </span>
-            </Label>
-            <details class="mt-3 text-xs leading-5 text-theme-primary/65">
-              <summary class="cursor-pointer text-theme-primary/80">
-                What's included in Boosted Start?
-              </summary>
-              <p class="mt-2">
-                Creates an expanded vault with medical, science, crafting, an arena, and all seven
-                training rooms with sessions underway—plus extra objectives and caps for upgrades.
-              </p>
-            </details>
-          </fieldset>
-
           <fieldset v-if="matchingScenario" class="border-t border-theme-primary/20 pt-4">
             <legend class="sr-only">Scenario start</legend>
             <Label for="scenario-start" class="flex items-start gap-3 text-sm">
               <Switch
                 id="scenario-start"
-                v-model:checked="scenarioEnabled"
-                :disabled="creating || (isSurvival && scenarioRequiresBoosted)"
+                :checked="Boolean(selectedScenario)"
+                :disabled="creating"
+                @update:checked="selectedScenarioKey = $event ? matchingScenario.key : undefined"
                 class="mt-1"
               />
               <span class="flex flex-col gap-1">
@@ -277,16 +261,34 @@ function advance() {
                 <span class="text-xs leading-5 text-theme-primary/65">{{
                   matchingScenario.description
                 }}</span>
-                <span v-if="scenarioRequiresBoosted" class="text-xs leading-5 text-theme-primary/65"
-                  >Requires Boosted Start{{
-                    isSurvival ? ' — not available in Survival mode' : ''
-                  }}.</span
-                >
                 <span
                   v-if="matchingScenario.expedition"
                   class="text-xs leading-5 text-theme-primary/65"
                   >Multi-room encounters are disabled for scenario starts.</span
                 >
+              </span>
+            </Label>
+          </fieldset>
+
+          <fieldset v-if="!selectedScenario" class="border-t border-theme-primary/20 pt-4">
+            <legend class="sr-only">Starting point</legend>
+            <Label for="boosted-start" class="flex items-start gap-3 text-sm">
+              <Switch
+                id="boosted-start"
+                :checked="boosted"
+                :disabled="creating || isSurvival"
+                class="mt-1"
+                @update:checked="ordinaryBoosted = $event"
+              />
+              <span class="flex flex-col gap-1">
+                <span class="font-semibold">Boosted Start</span>
+                <span class="text-xs leading-5 text-theme-primary/65">
+                  Start with extra caps and supplies, an Overseer’s Office, workshops, and staffed
+                  training rooms.
+                </span>
+                <span v-if="isSurvival" class="text-xs text-warning">
+                  Available in Standard mode.
+                </span>
               </span>
             </Label>
           </fieldset>
@@ -312,6 +314,16 @@ function advance() {
               </dd>
             </div>
           </dl>
+          <p v-if="selectedScenario" class="text-sm leading-6 text-theme-primary/75">
+            {{ selectedScenario.description }}
+          </p>
+          <p
+            v-if="!boosted && !selectedScenario?.expedition"
+            class="text-sm leading-6 text-theme-primary/75"
+          >
+            In your vault, start by checking power, food, and water. Open Objectives to see how to
+            earn your first recruit.
+          </p>
           <p v-if="isSurvival" class="text-sm leading-6 text-warning">
             Deaths are permanent in this vault. Mode cannot be changed later.
           </p>

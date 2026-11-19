@@ -25,6 +25,7 @@ from app.services.room_rush_service import (
     roll_bonus_caps,
     room_rush_service,
 )
+from app.services.vault.scenario_service import SHORT_RATIONS_SCENARIO
 from app.tests.factory.dwellers import create_rush_dweller_payload
 from app.tests.factory.rooms import create_rush_room_payload
 from app.utils.exceptions import ResourceConflictException, ValidationException
@@ -110,6 +111,28 @@ async def test_quote_reports_risk_and_capacity_clamped_payout(
     assert quote.payout.power > 0
     assert quote.payout.power <= vault.power_max - vault.power
     assert (vault.power, vault.food, vault.water) == starting_resources
+
+
+@pytest.mark.asyncio
+async def test_short_rations_scales_rush_quote_and_payout(
+    async_session: AsyncSession, rush_setup: dict[str, Any]
+) -> None:
+    vault, room = rush_setup["vault"], rush_setup["room"]
+    room.name = "Diner"
+    room.ability = SPECIALEnum.AGILITY
+    await async_session.commit()
+    ordinary = await room_rush_service.quote(async_session, room, vault)
+    assert ordinary.payout.food > 0
+
+    vault.scenario_key = SHORT_RATIONS_SCENARIO
+    await async_session.commit()
+    reduced = await room_rush_service.quote(async_session, room, vault)
+    assert 0 < reduced.payout.food < ordinary.payout.food
+
+    result = await room_rush_service.rush(async_session, room, vault, rng=_Rng(0.9, 1.0))
+    assert result.outcome == "success"
+    assert result.payout.food == reduced.payout.food
+    assert vault.food == reduced.payout.food
 
 
 @pytest.mark.asyncio

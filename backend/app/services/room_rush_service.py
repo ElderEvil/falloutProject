@@ -34,6 +34,7 @@ from app.services.combat import incident_spawning
 from app.services.notification_service import notification_service
 from app.services.resource_manager_service import ResourceManager, compute_medical_capacity, load_rival_pairs
 from app.services.rewards.resources import grant_experience
+from app.services.vault.scenario_service import vault_scenario_service
 from app.services.vault_service import vault_service
 from app.utils.exceptions import (
     IncidentsDisabledException,
@@ -336,6 +337,9 @@ class RoomRushService:
         raw_payout = self.resource_manager.calculate_room_production(
             room, workers, game_config.rush.payout_seconds, rival_pairs=rival_pairs
         )
+        scenario = vault_scenario_service.get(vault.scenario_key)
+        if scenario is not None:
+            self.resource_manager.apply_food_water_multiplier(raw_payout, scenario.food_water_multiplier)
         applied = self.resource_manager.apply_room_payout(
             vault, storage, compute_medical_capacity(rooms), raw_payout, dry_run=preview
         )

@@ -1,6 +1,6 @@
 import contextlib
 import logging
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from uuid import UUID
 
 from sqlalchemy.exc import SQLAlchemyError
@@ -201,13 +201,22 @@ class CRUDObjective(CRUDBase[Objective, ObjectiveCreate, ObjectiveUpdate]):
         query = query.with_for_update(of=self.link_model).execution_options(populate_existing=True)
         return [(objective, link) for objective, link in (await db_session.execute(query)).all()]
 
-    async def assign_initial(self, db_session: AsyncSession, vault_id: UUID, *, is_boosted: bool) -> int:
+    async def assign_initial(
+        self,
+        db_session: AsyncSession,
+        vault_id: UUID,
+        *,
+        is_boosted: bool,
+        starter_reward_overrides: Mapping[str, str] | None = None,
+    ) -> int:
         """Assign the deterministic starter objective set for a new vault.
 
         Standard vaults get the full starter arc (ordered by sequence) plus the first daily and
         weekly. Boosted vaults skip the arc (Overseer's Office already seeded) and draw 8
-        objectives from every category except daily/weekly/starter.
+        objectives from every category except daily/weekly/starter. Starter reward overrides
+        are pinned on their vault links for reads and claims.
         """
+        overrides = starter_reward_overrides or {}
         try:
             categories = ["daily", "weekly"]
             objectives = [
@@ -262,6 +271,9 @@ class CRUDObjective(CRUDBase[Objective, ObjectiveCreate, ObjectiveUpdate]):
                     progress=0,
                     total=objective.target_amount,
                     is_completed=False,
+                    reward_snapshot=overrides.get(objective.reward)
+                    if objective.category == ObjectiveCategoryEnum.STARTER
+                    else None,
                 )
                 for objective in objectives
                 if objective

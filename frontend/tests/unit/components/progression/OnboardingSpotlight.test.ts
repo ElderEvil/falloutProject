@@ -210,7 +210,7 @@ describe('OnboardingSpotlight', () => {
     const wrapper = mountSpotlight()
     await flushPromises()
     await clickButton('Start')
-    expect(document.body.textContent).toContain('Keep the power on')
+    expect(document.body.textContent).toContain('Check your reserves')
     wrapper.unmount()
   })
 
@@ -454,7 +454,7 @@ describe('OnboardingSpotlight', () => {
     const wrapper = mountSpotlight()
     await flushPromises()
     await clickButton('Start')
-    expect(document.body.textContent).toContain('Keep the power on')
+    expect(document.body.textContent).toContain('Check your reserves')
     expect(document.querySelector('.onboarding-cutout')).toBeNull()
     wrapper.unmount()
   })
@@ -530,7 +530,7 @@ describe('OnboardingSpotlight', () => {
       const wrapper = mountSpotlight()
       await flushPromises()
       await clickButton('Start')
-      expect(document.body.textContent).toContain('Keep the power on')
+      expect(document.body.textContent).toContain('Check your reserves')
       expect(document.querySelector('.onboarding-card')).not.toBeNull()
 
       const { scope, open } = openOverlay()
@@ -542,7 +542,7 @@ describe('OnboardingSpotlight', () => {
       open.value = false
       await flushPromises()
       expect(document.querySelector('.onboarding-card')).not.toBeNull()
-      expect(document.body.textContent).toContain('Keep the power on')
+      expect(document.body.textContent).toContain('Check your reserves')
 
       scope.stop()
       wrapper.unmount()
@@ -655,7 +655,7 @@ describe('OnboardingSpotlight', () => {
       const wrapper = mountSpotlight()
       await flushPromises()
       await clickButton('Start')
-      expect(card()?.textContent).toContain('Your crew keeps power, food and water flowing')
+      expect(card()?.textContent).toContain('Check whether power, food, and water')
       expect(collapseToggle()?.getAttribute('aria-expanded')).toBe('true')
 
       collapseToggle()?.click()
@@ -665,7 +665,7 @@ describe('OnboardingSpotlight', () => {
         'display: none'
       )
       // Collapsed keeps the lesson title on screen.
-      expect(card()?.textContent).toContain('Keep the power on')
+      expect(card()?.textContent).toContain('Check your reserves')
 
       collapseToggle()?.click()
       await flushPromises()
@@ -699,7 +699,7 @@ describe('OnboardingSpotlight', () => {
       await flushPromises()
 
       expect(collapseToggle()?.getAttribute('aria-expanded')).toBe('false')
-      expect(document.body.textContent).toContain('Keep the power on')
+      expect(document.body.textContent).toContain('Check your reserves')
       wrapper.unmount()
     })
   })

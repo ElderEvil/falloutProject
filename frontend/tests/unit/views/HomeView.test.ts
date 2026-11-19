@@ -56,6 +56,9 @@ describe('HomeView', () => {
     return wrapper.findAll('button').find((btn: any) => btn.text().includes('Create Vault'))
   }
 
+  const findModeToggle = (wrapper: any, label: string) =>
+    wrapper.findAll('button').find((button: any) => button.text().includes(label))
+
   const settleView = async () => {
     await flushPromises()
     await vi.dynamicImportSettled()
@@ -184,18 +187,17 @@ describe('HomeView', () => {
       expect(findCreateButton(wrapper)).toBeUndefined()
     })
 
-    it('explains the boosted start and shows the experimental warning once', async () => {
+    it('recommends Standard and shows the first in-vault actions during review', async () => {
       const wrapper = mount(HomeView, { global: { plugins: [router] } })
       await settleView()
 
       await wrapper.get('input[type="number"]').setValue('123')
       await continueStep(wrapper)
-      expect(wrapper.text()).toContain('Creates an expanded vault')
-      expect(wrapper.text()).toContain('an arena')
-      expect(wrapper.text()).toContain('caps for upgrades')
-      expect(wrapper.text()).toContain('all seven training rooms')
-      expect(wrapper.text()).not.toContain('Vaults are experimental')
+      expect(wrapper.text()).toContain('Recommended for your first vault')
+      expect(wrapper.get('#boosted-start').attributes('aria-checked')).toBe('false')
       await continueStep(wrapper)
+      expect(wrapper.text()).toContain('start by checking power, food, and water')
+      expect(wrapper.text()).toContain('Open Objectives')
       expect(wrapper.text().match(/Vaults are experimental/g)).toHaveLength(1)
     })
 
@@ -230,195 +232,109 @@ describe('HomeView', () => {
       expect(router.currentRoute.value.path).toBe('/vault/vault-99')
     })
 
-    it('creates the Vault 1 scenario by default with a toggleable Boosted Start', async () => {
-      vaultStore.vaults = []
-      vi.mocked(axios.get).mockImplementation(async (url: string) => {
-        if (url === '/api/v1/vaults/scenarios') {
-          return {
-            data: [
-              {
-                number: 1,
-                key: 'vault_1_test',
-                title: 'Vault 1 — Wasteland Test',
-                description: 'Seeds one named dweller per expedition site.',
-                requires_boosted: false,
-                default_boosted: true,
-                default_on: true,
-                expedition: true,
-              },
-            ],
-          }
-        }
-        return { data: [] }
-      })
+    it.each([
+      [false, 'Standard'],
+      [true, 'Standard'],
+      [true, 'Survival'],
+    ])('handles Vault 1 QA opt-in %s in %s mode', async (enableScenario, mode) => {
+      vi.mocked(axios.get).mockImplementation(async (url: string) => ({
+        data:
+          url === '/api/v1/vaults/scenarios'
+            ? [
+                {
+                  number: 1,
+                  key: 'vault_1_test',
+                  title: 'Vault 1 — Wasteland Test',
+                  description: 'Seeds one named dweller per expedition site.',
+                  default_boosted: true,
+                  expedition: true,
+                },
+              ]
+            : [],
+      }))
       vi.mocked(axios.post).mockResolvedValueOnce({ data: { id: 'vault-1' } })
-
       const wrapper = mount(HomeView, { global: { plugins: [router] } })
       await settleView()
 
+      expect(wrapper.text()).not.toContain('Vault 1 — Wasteland Test')
       await wrapper.get('input[type="number"]').setValue('1')
       await continueStep(wrapper)
-      expect(wrapper.text()).toContain('Vault 1 — Wasteland Test')
-      expect(wrapper.get('#scenario-start').attributes('aria-checked')).toBe('true')
-      expect(wrapper.get('#boosted-start').attributes('aria-checked')).toBe('true')
+      expect(wrapper.get('#scenario-start').attributes('aria-checked')).toBe('false')
+      if (mode === 'Survival') await findModeToggle(wrapper, mode)!.trigger('click')
+      if (enableScenario) await wrapper.get('#scenario-start').trigger('click')
 
+      await continueStep(wrapper)
+      await wrapper.get('form').trigger('submit')
+      await settleView()
+
+      expect(axios.post).toHaveBeenCalledWith('/api/v1/vaults/initiate', {
+        number: 1,
+        boosted: enableScenario && mode === 'Standard',
+        vault_mode: mode.toLowerCase(),
+        ...(enableScenario ? { scenario: 'vault_1_test' } : {}),
+      })
+    })
+
+    it('shows lore experiments before a number is entered and creates the selected challenge', async () => {
+      vi.mocked(axios.get).mockImplementation(async (url: string) => ({
+        data:
+          url === '/api/v1/vaults/scenarios'
+            ? [
+                {
+                  number: 69,
+                  key: 'vault_69_test',
+                  title: 'Vault 69 — Eight Women, One Man',
+                  description: 'Start with eight female residents and one male resident.',
+                  default_boosted: false,
+                  expedition: false,
+                },
+              ]
+            : [],
+      }))
+      vi.mocked(axios.post).mockResolvedValueOnce({ data: { id: 'vault-69' } })
+      const wrapper = mount(HomeView, { global: { plugins: [router] } })
+      await settleView()
+
+      const experiment = () =>
+        wrapper.findAll('button').find((button) => button.text().includes('Vault 69'))!
+      const back = () =>
+        wrapper
+          .findAll('button')
+          .find((button) => button.text() === 'Back')!
+          .trigger('click')
+
+      expect(experiment().exists()).toBe(true)
+      await wrapper.get('input[type="number"]').setValue('69')
+      await continueStep(wrapper)
       await wrapper.get('#boosted-start').trigger('click')
-      expect(wrapper.get('#boosted-start').attributes('aria-checked')).toBe('false')
-
-      await continueStep(wrapper)
-      await wrapper.get('form').trigger('submit')
-      await settleView()
-
-      expect(axios.post).toHaveBeenCalledWith('/api/v1/vaults/initiate', {
-        number: 1,
-        boosted: false,
-        vault_mode: 'standard',
-        scenario: 'vault_1_test',
-      })
-      expect(router.currentRoute.value.path).toBe('/vault/vault-1')
-    })
-
-    it('reverts Boosted Start when the default-boosted scenario stops matching', async () => {
-      vaultStore.vaults = []
-      vi.mocked(axios.get).mockImplementation(async (url: string) => {
-        if (url === '/api/v1/vaults/scenarios') {
-          return {
-            data: [
-              {
-                number: 1,
-                key: 'vault_1_test',
-                title: 'Vault 1 — Wasteland Test',
-                description: 'Seeds one named dweller per expedition site.',
-                requires_boosted: false,
-                default_boosted: true,
-                default_on: true,
-                expedition: true,
-              },
-            ],
-          }
-        }
-        return { data: [] }
-      })
-
-      const wrapper = mount(HomeView, { global: { plugins: [router] } })
-      await settleView()
-
-      await wrapper.get('input[type="number"]').setValue('1')
-      await continueStep(wrapper)
       expect(wrapper.get('#boosted-start').attributes('aria-checked')).toBe('true')
 
-      await wrapper
-        .findAll('button')
-        .find((button) => button.text() === 'Back')!
-        .trigger('click')
-      await wrapper.get('input[type="number"]').setValue('2')
-      await continueStep(wrapper)
-
-      expect(wrapper.get('#boosted-start').attributes('aria-checked')).toBe('false')
-      expect(wrapper.find('#scenario-start').exists()).toBe(false)
-    })
-
-    it('does not auto-enable Boosted Start for Vault 1 in Survival mode', async () => {
-      vaultStore.vaults = []
-      vi.mocked(axios.get).mockImplementation(async (url: string) => {
-        if (url === '/api/v1/vaults/scenarios') {
-          return {
-            data: [
-              {
-                number: 1,
-                key: 'vault_1_test',
-                title: 'Vault 1 — Wasteland Test',
-                description: 'Seeds one named dweller per expedition site.',
-                requires_boosted: false,
-                default_boosted: true,
-                default_on: true,
-                expedition: true,
-              },
-            ],
-          }
-        }
-        return { data: [] }
-      })
-      vi.mocked(axios.post).mockResolvedValueOnce({ data: { id: 'vault-1' } })
-
-      const wrapper = mount(HomeView, { global: { plugins: [router] } })
-      await settleView()
-
-      await wrapper.get('input[type="number"]').setValue('2')
-      await continueStep(wrapper)
-      await wrapper
-        .findAll('button')
-        .find((button) => button.text().includes('Survival'))!
-        .trigger('click')
-
-      await wrapper
-        .findAll('button')
-        .find((button) => button.text() === 'Back')!
-        .trigger('click')
-      await wrapper.get('input[type="number"]').setValue('1')
-      await continueStep(wrapper)
-
+      await back()
+      await experiment().trigger('click')
       expect(wrapper.get('#scenario-start').attributes('aria-checked')).toBe('true')
-      expect(wrapper.get('#boosted-start').attributes('aria-checked')).toBe('false')
-      expect(wrapper.get('#boosted-start').attributes('disabled')).toBeDefined()
+      expect(wrapper.find('#boosted-start').exists()).toBe(false)
+      expect(wrapper.text()).toContain('eight female residents and one male resident')
 
-      await goToReview(wrapper)
-      await wrapper.get('form').trigger('submit')
-      await settleView()
-
-      expect(axios.post).toHaveBeenCalledWith('/api/v1/vaults/initiate', {
-        number: 1,
-        boosted: false,
-        vault_mode: 'survival',
-        scenario: 'vault_1_test',
-      })
-    })
-
-    it('forces Boosted Start for a scenario that requires it', async () => {
-      vaultStore.vaults = []
-      vi.mocked(axios.get).mockImplementation(async (url: string) => {
-        if (url === '/api/v1/vaults/scenarios') {
-          return {
-            data: [
-              {
-                number: 68,
-                key: 'vault_68_test',
-                title: 'Vault 68 — The Ratio',
-                description: '99 men and 1 woman: a Vault-Tec gender-ratio experiment.',
-                requires_boosted: true,
-                default_boosted: false,
-                default_on: false,
-                expedition: false,
-              },
-            ],
-          }
-        }
-        return { data: [] }
-      })
-      vi.mocked(axios.post).mockResolvedValueOnce({ data: { id: 'vault-68' } })
-
-      const wrapper = mount(HomeView, { global: { plugins: [router] } })
-      await settleView()
-
-      await wrapper.get('input[type="number"]').setValue('68')
-      await continueStep(wrapper)
       await wrapper.get('#scenario-start').trigger('click')
-      await flushPromises()
-
       expect(wrapper.get('#boosted-start').attributes('aria-checked')).toBe('true')
-      await wrapper.get('#boosted-start').trigger('click')
-      expect(wrapper.get('#boosted-start').attributes('aria-checked')).toBe('true')
+      await wrapper.get('#scenario-start').trigger('click')
 
       await continueStep(wrapper)
+      expect(wrapper.text()).toContain('069')
+      expect(wrapper.text()).toContain('Eight Women, One Man')
+      expect(wrapper.text()).not.toContain('Boosted Start')
+      expect(wrapper.text()).toContain('eight female residents and one male resident')
+      expect(axios.post).not.toHaveBeenCalled()
       await wrapper.get('form').trigger('submit')
       await settleView()
 
       expect(axios.post).toHaveBeenCalledWith('/api/v1/vaults/initiate', {
-        number: 68,
-        boosted: true,
+        number: 69,
+        boosted: false,
         vault_mode: 'standard',
-        scenario: 'vault_68_test',
+        scenario: 'vault_69_test',
       })
+      expect(router.currentRoute.value.path).toBe('/vault/vault-69')
     })
 
     it('should show vault list when vaults exist', async () => {
@@ -551,7 +467,7 @@ describe('HomeView', () => {
       const wrapper = mount(HomeView, { global: { plugins: [router] } })
       await settleView()
 
-      expect(wrapper.text()).toContain('Choose an unused vault number (1-999)')
+      expect(wrapper.text()).toContain('Enter a vault number from 1 to 999')
       expect(wrapper.get('[aria-current="step"]').text()).toContain('Vault number')
       expect(wrapper.find('[aria-label="Vault setup progress"]').exists()).toBe(true)
     })
@@ -844,9 +760,6 @@ describe('HomeView', () => {
   })
 
   describe('Vault Mode Selection', () => {
-    const findModeToggle = (wrapper: any, label: string) =>
-      wrapper.findAll('button').find((button: any) => button.text().includes(label))
-
     it('defaults to Standard, explains both modes, and warns the choice is irreversible', async () => {
       const wrapper = mount(HomeView, { global: { plugins: [router] } })
       await settleView()
@@ -887,54 +800,28 @@ describe('HomeView', () => {
         vault_mode: 'survival',
       })
     })
-
-    it('disables Boosted Start in Survival mode and never posts a boost with survival', async () => {
-      vi.mocked(axios.post).mockRejectedValueOnce(new Error('creation rejected'))
-      vi.mocked(axios.get).mockResolvedValueOnce({ data: [] })
-
-      const wrapper = mount(HomeView, { global: { plugins: [router] } })
-      await settleView()
-
-      const input = wrapper.find('input[type="number"]')
-      await input.setValue('123')
-      await continueStep(wrapper)
-
-      // Opt into Boosted Start while Standard is selected.
-      await wrapper.find('#boosted-start').trigger('click')
-      expect(wrapper.find('#boosted-start').attributes('aria-checked')).toBe('true')
-      expect(wrapper.find('#boosted-start').attributes('disabled')).toBeUndefined()
-
-      // Survival disables the control, states the reason, and clears the boost.
-      await findModeToggle(wrapper, 'Survival')!.trigger('click')
-      expect(wrapper.find('#boosted-start').attributes('disabled')).toBeDefined()
-      expect(wrapper.find('#boosted-start').attributes('aria-checked')).toBe('false')
-      expect(wrapper.text()).toContain('Not available in Survival mode')
-      // The control stays visible with its label and description intact.
-      expect(wrapper.find('label[for="boosted-start"]').text()).toContain('Boosted Start')
-      expect(wrapper.find('details').text()).toContain('Creates an expanded vault')
-
-      await goToReview(wrapper)
-      await wrapper.get('form').trigger('submit')
-      await settleView()
-
-      expect(axios.post).toHaveBeenCalledWith('/api/v1/vaults/initiate', {
-        number: 123,
-        boosted: false,
-        vault_mode: 'survival',
-      })
-
-      // Switching back to Standard re-enables Boosted Start.
-      await wrapper
-        .findAll('button')
-        .find((button) => button.text() === 'Back')!
-        .trigger('click')
-      await findModeToggle(wrapper, 'Standard')!.trigger('click')
-      expect(wrapper.find('#boosted-start').attributes('disabled')).toBeUndefined()
-      expect(wrapper.text()).not.toContain('Not available in Survival mode')
-    })
   })
 
   describe('Commissioning steps', () => {
+    it('creates an ordinary boosted vault after review', async () => {
+      vi.mocked(axios.post).mockResolvedValueOnce({ data: { id: 'vault-68' } })
+      const wrapper = mount(HomeView, { global: { plugins: [router] } })
+      await settleView()
+      await wrapper.get('input[type="number"]').setValue('68')
+      await continueStep(wrapper)
+      await wrapper.get('#boosted-start').trigger('click')
+      await continueStep(wrapper)
+      expect(wrapper.text()).toContain('Boosted Start')
+      expect(wrapper.text()).not.toContain('earn your first recruit')
+      await wrapper.get('form').trigger('submit')
+      await settleView()
+      expect(axios.post).toHaveBeenCalledWith('/api/v1/vaults/initiate', {
+        number: 68,
+        boosted: true,
+        vault_mode: 'standard',
+      })
+    })
+
     it('shows only the current decision and blocks skipping ahead', async () => {
       const wrapper = mount(HomeView, { global: { plugins: [router] } })
       await settleView()
@@ -952,24 +839,24 @@ describe('HomeView', () => {
       expect(axios.post).not.toHaveBeenCalled()
     })
 
-    it('retains choices when moving back and creates a boosted standard vault only after review', async () => {
+    it('retains number and Survival mode when moving back from review', async () => {
       vi.mocked(axios.post).mockResolvedValueOnce({ data: { id: 'new-vault' } })
       const wrapper = mount(HomeView, { global: { plugins: [router] } })
       await settleView()
       await wrapper.get('input[type="number"]').setValue('68')
       await continueStep(wrapper)
-      await wrapper.get('#boosted-start').trigger('click')
+      await findModeToggle(wrapper, 'Survival')!.trigger('click')
       await continueStep(wrapper)
 
       expect(wrapper.text()).toContain('Ready to open the doors?')
       expect(wrapper.text()).toContain('068')
-      expect(wrapper.text()).toContain('Boosted Start')
+      expect(wrapper.text()).toContain('Deaths are permanent in this vault')
       expect(axios.post).not.toHaveBeenCalled()
       await wrapper
         .findAll('button')
         .find((button) => button.text() === 'Back')!
         .trigger('click')
-      expect(wrapper.get('#boosted-start').attributes('aria-checked')).toBe('true')
+      expect(wrapper.text()).toContain('Deaths are permanent')
       await wrapper
         .findAll('button')
         .find((button) => button.text() === 'Back')!
@@ -980,8 +867,8 @@ describe('HomeView', () => {
       await settleView()
       expect(axios.post).toHaveBeenCalledWith('/api/v1/vaults/initiate', {
         number: 68,
-        boosted: true,
-        vault_mode: 'standard',
+        boosted: false,
+        vault_mode: 'survival',
       })
     })
 

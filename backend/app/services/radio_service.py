@@ -8,7 +8,7 @@ from uuid import UUID
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
-from app.core.enums import RarityEnum
+from app.core.enums import GenderEnum, RarityEnum
 from app.core.game_config import game_config
 from app.models.dweller import Dweller
 from app.models.room import Room
@@ -16,6 +16,7 @@ from app.models.vault import Vault
 from app.schemas.dweller import DwellerCreateCommonOverride
 from app.services.notification_service import notification_service
 from app.services.room_service import room_service
+from app.services.vault.scenario_service import vault_scenario_service
 from app.utils.exceptions import ValidationException, VaultOperationException
 
 logger = logging.getLogger(__name__)
@@ -137,7 +138,7 @@ class RadioService:
                 ):
                     await capacity_check.rollback()
                     return None
-            dweller, _ = await RadioService._recruit_dweller(db_session, vault_id)
+            dweller, _ = await RadioService._recruit_dweller(db_session, vault)
             logger.info(
                 "Radio recruitment successful: %s %s joined vault %s",
                 dweller.first_name,
@@ -163,18 +164,25 @@ class RadioService:
         if crud.vault.population_limit_reached(vault.population_max, population):
             raise VaultOperationException(detail=RadioService._population_limit_message(vault, population))
 
-        return await RadioService._recruit_dweller(db_session, vault_id, override)
+        return await RadioService._recruit_dweller(db_session, vault, override)
 
     @staticmethod
     async def _recruit_dweller(
         db_session: AsyncSession,
-        vault_id: UUID,
+        vault: Vault,
         override: DwellerCreateCommonOverride | None = None,
     ) -> tuple[Dweller, bool]:
         """Create or recycle a recruit after the caller has locked and checked capacity."""
         from app.services.dweller_recycling_service import dweller_recycling_service
         from app.services.dweller_service import dweller_service
         from app.utils.exceptions import ResourceConflictException
+
+        vault_id = vault.id
+        scenario = vault_scenario_service.get(vault.scenario_key)
+        recruit_gender = None
+        if scenario is not None and (majority := scenario.majority_gender) is not None:
+            minority = GenderEnum.FEMALE if majority is GenderEnum.MALE else GenderEnum.MALE
+            recruit_gender = majority if random.randrange(9) < 8 else minority
 
         recycled = False
         dweller: Dweller | None = None
@@ -189,6 +197,7 @@ class RadioService:
         ):
             candidates = await dweller_recycling_service.get_recyclable_dwellers(
                 db_session=db_session,
+                gender=recruit_gender,
                 min_age_days=game_config.radio.recycle_min_age_days,
                 limit=5,
             )
@@ -217,6 +226,8 @@ class RadioService:
                     dweller = None
 
         if dweller is None:
+            if recruit_gender is not None:
+                override = (override or DwellerCreateCommonOverride()).model_copy(update={"gender": recruit_gender})
             rarity = RarityEnum.RARE if random.random() < game_config.radio.rare_chance else RarityEnum.COMMON
             dweller = await dweller_service.create_random_dweller(
                 db_session=db_session,
@@ -284,7 +295,7 @@ class RadioService:
 
         await vault_service.withdraw_caps(db_session=db_session, vault_obj=vault, amount=caps_cost, commit=False)
 
-        dweller, recycled = await RadioService._recruit_dweller(db_session, vault_id, override)
+        dweller, recycled = await RadioService._recruit_dweller(db_session, vault, override)
 
         logger.info(
             "Manual recruitment: %s %s to vault %s for %d caps (recycled=%s)",

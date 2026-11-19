@@ -1,0 +1,78 @@
+{
+  "Mara Voss": {
+    "first_name": "Cal",
+    "last_name": "Vane",
+    "gender": "male",
+    "bio": "Surveyed washed-out roads for caravan crews. Marks every passable bridge on a map folded into his boot.",
+    "visual_attributes": {
+      "hair_style": "cropped",
+      "hair_color": "auburn",
+      "background": "washed-out highway"
+    }
+  },
+  "Tessa Ward": {
+    "first_name": "Milo",
+    "last_name": "Rusk",
+    "gender": "male",
+    "bio": "Kept a farm pump running on parts from a broken jukebox. Carries spare fuses in a tobacco tin.",
+    "visual_attributes": {
+      "hair_style": "buzz cut",
+      "hair_color": "brown",
+      "background": "farm workshop"
+    }
+  },
+  "Rhea Cole": {
+    "first_name": "Galen",
+    "last_name": "Shaw",
+    "gender": "male",
+    "bio": "Ran night deliveries between settlements until the trail went quiet. Still travels with his boots wrapped in cloth.",
+    "visual_attributes": {
+      "hair_style": "short",
+      "expression": "alert",
+      "background": "desert trail"
+    }
+  },
+  "Nadia Quinn": {
+    "first_name": "Nolan",
+    "last_name": "Beck",
+    "gender": "male",
+    "bio": "Learned to track leaks by sound while repairing a settlement cistern. Followed the pipes to your vault.",
+    "visual_attributes": {
+      "hair_style": "short",
+      "background": "settlement cistern"
+    }
+  },
+  "Owen Hale": {
+    "first_name": "Iris",
+    "last_name": "Dane",
+    "gender": "female",
+    "bio": "Organized meals at a crowded caravan stop. Can talk a roomful of strangers into sharing their last tin of beans.",
+    "visual_attributes": {
+      "hair_style": "ponytail",
+      "hair_color": "black",
+      "background": "caravan canteen"
+    }
+  },
+  "Silas Knox": {
+    "first_name": "Ada",
+    "last_name": "Flint",
+    "gender": "female",
+    "bio": "Salvaged and reinforced shelters along an old rail line. Checks every beam before calling a room safe.",
+    "visual_attributes": {
+      "hair_style": "short",
+      "expression": "focused",
+      "background": "rail yard"
+    }
+  },
+  "Theo Mercer": {
+    "first_name": "Mae",
+    "last_name": "Calder",
+    "gender": "female",
+    "bio": "Cooked for road crews through two winters with one stove. Brought a patched apron and a list of supplies your diner can stretch.",
+    "visual_attributes": {
+      "hair_style": "short",
+      "hair_color": "black",
+      "background": "road crew camp"
+    }
+  }
+}

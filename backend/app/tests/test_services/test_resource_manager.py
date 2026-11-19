@@ -15,8 +15,33 @@ from app.options.races import DISCOMFORT_EFFECTS, DISCOMFORT_PRODUCTION_FLOOR, D
 from app.schemas.room import RoomCreate
 from app.schemas.vault import ResourceLevelWarning, ResourceProduction, ResourceTickEvents
 from app.services.resource_manager_service import ResourceManager
+from app.services.vault.scenario_service import SHORT_RATIONS_SCENARIO
 from app.utils.item_factory import build_outfit
 from app.utils.resource_warnings import get_resource_warnings
+
+
+def test_short_rations_produces_less_food_and_water_with_the_same_workers():
+    standard = Vault(power=75, food=50, water=50, power_max=150, food_max=150, water_max=150)
+    challenge = standard.model_copy(update={"scenario_key": SHORT_RATIONS_SCENARIO})
+    rooms = [
+        Room(name=name, category=RoomTypeEnum.PRODUCTION, ability=ability, output=10, size=3, tier=1)
+        for name, ability in (
+            ("Power Generator", SPECIALEnum.STRENGTH),
+            ("Diner", SPECIALEnum.AGILITY),
+            ("Water Treatment", SPECIALEnum.PERCEPTION),
+        )
+    ]
+    crews = [(room, [Dweller(strength=5, agility=5, perception=5)]) for room in rooms]
+    manager = ResourceManager()
+    ordinary_update, ordinary = manager.calculate_resource_window(standard, rooms, 1, crews, 60)
+    challenge_update, reduced = manager.calculate_resource_window(challenge, rooms, 1, crews, 60)
+
+    assert reduced.consumption == ordinary.consumption
+    assert reduced.production.power == ordinary.production.power
+    assert reduced.production.food == pytest.approx(ordinary.production.food * 0.75)
+    assert reduced.production.water == pytest.approx(ordinary.production.water * 0.75)
+    assert reduced.objective_production.food < ordinary.objective_production.food
+    assert challenge_update.food < ordinary_update.food
 
 
 class TestResourceManager:

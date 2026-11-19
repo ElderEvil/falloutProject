@@ -10,6 +10,7 @@ for (const width of [1280, 375]) {
       localStorage.setItem('fallout_changelog_last_seen', '999.0.0')
     }, TEST_USER)
     const creations: unknown[] = []
+    let setupComplete = width === 1280
     await page.route('**/api/v1/**', async (route) => {
       const path = new URL(route.request().url()).pathname
       if (path === '/api/v1/vaults/initiate') {
@@ -17,7 +18,27 @@ for (const width of [1280, 375]) {
         return route.fulfill({ status: 400, json: { detail: 'This vault number is unavailable' } })
       }
       if (path === '/api/v1/vaults/my') return route.fulfill({ json: [] })
+      if (path === '/api/v1/vaults/scenarios') {
+        return route.fulfill({
+          json: [
+            {
+              number: 68,
+              key: 'vault_68_test',
+              title: 'Vault 68 — The Ratio',
+              description: 'Start with eight male residents and one female resident.',
+              default_boosted: false,
+              expedition: false,
+            },
+          ],
+        })
+      }
       if (path === '/api/v1/users/me') return route.fulfill({ json: TEST_USER })
+      if (path === '/api/v1/users/me/profile') {
+        if (route.request().method() === 'PUT') setupComplete = true
+        return route.fulfill({
+          json: { preferences: { setup: { version: 1, completed: setupComplete } } },
+        })
+      }
       if (path.startsWith('/api/v1/stream/')) {
         return route.fulfill({ contentType: 'text/event-stream', body: ': connected\n\n' })
       }
@@ -25,6 +46,12 @@ for (const width of [1280, 375]) {
     })
     await page.goto('/')
     const input = page.getByLabel('Vault Number', { exact: true })
+    if (!setupComplete) {
+      const setup = page.getByRole('dialog', { name: 'Welcome, Overseer' })
+      await expect(setup).toBeVisible()
+      await expect(input).toHaveCount(0)
+      await setup.getByRole('button', { name: 'Skip for now' }).click()
+    }
     await expect(input).toBeFocused()
     await expect(page.getByRole('button', { name: 'Create Vault', exact: true })).toHaveCount(0)
     await page.evaluate(() => window.scrollTo(0, 0))
@@ -38,9 +65,10 @@ for (const width of [1280, 375]) {
     await random.press('Space')
     await expect(input).toHaveValue(/^[1-9]\d{0,2}$/)
     expect(creations).toHaveLength(0)
-    await input.fill('68')
-    await input.press('Enter')
-    const setupHeading = page.getByRole('heading', { name: 'Choose how you start' })
+    const experiment = page.getByRole('button', { name: 'Vault 68 — The Ratio' })
+    await experiment.focus()
+    await experiment.press('Enter')
+    const setupHeading = page.getByRole('heading', { name: 'Choose your vault mode' })
     await expect(setupHeading).toBeFocused()
     await page.evaluate(() => window.scrollTo(0, 0))
     await page.screenshot({
@@ -48,17 +76,16 @@ for (const width of [1280, 375]) {
       fullPage: true,
       animations: 'disabled',
     })
-    await page.getByRole('switch', { name: /Boosted Start/ }).click()
     await page.getByRole('button', { name: 'Survival', exact: false }).click()
-    await expect(page.getByLabel('Boosted Start')).toBeDisabled()
-    await expect(page.getByRole('switch', { name: /Boosted Start/ })).toHaveAttribute(
+    await expect(page.getByRole('switch', { name: /Boosted Start/ })).toHaveCount(0)
+    await expect(page.getByRole('switch', { name: /Vault 68/ })).toHaveAttribute(
       'aria-checked',
-      'false'
+      'true'
     )
     await page.getByRole('button', { name: 'Continue', exact: true }).click()
     await expect(page.getByRole('heading', { name: 'Ready to open the doors?' })).toBeFocused()
     await expect(page.getByText('068', { exact: true })).toBeVisible()
-    await expect(page.getByText('Build from scratch', { exact: true })).toBeVisible()
+    await expect(page.getByText('Vault 68 — The Ratio', { exact: true })).toBeVisible()
     expect(creations).toHaveLength(0)
     expect(
       await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)
@@ -71,7 +98,12 @@ for (const width of [1280, 375]) {
     })
     await page.getByRole('button', { name: 'Create Vault', exact: true }).click()
     await expect.poll(() => creations.length).toBe(1)
-    expect(creations[0]).toEqual({ number: 68, boosted: false, vault_mode: 'survival' })
+    expect(creations[0]).toEqual({
+      number: 68,
+      boosted: false,
+      vault_mode: 'survival',
+      scenario: 'vault_68_test',
+    })
     await expect(page.getByRole('button', { name: 'Create Vault', exact: true })).toBeEnabled()
     await page.getByRole('button', { name: 'Back', exact: true }).click()
     await page.getByRole('button', { name: 'Back', exact: true }).click()

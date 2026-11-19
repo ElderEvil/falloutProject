@@ -12,7 +12,8 @@ import json
 
 import pytest
 
-from app.services.rewards.starter_residents import starter_residents
+from app.core.enums import GenderEnum
+from app.services.rewards.starter_residents import get_starter_resident, starter_residents, starter_reward_overrides
 from app.utils.static_data import DATA_DIR
 
 SPECIAL_KEYS = ("strength", "perception", "endurance", "charisma", "intelligence", "agility", "luck")
@@ -74,3 +75,18 @@ def test_named_resident_has_a_standout_stat(name: str) -> None:
     """Every resident is good at something; a 5 marks the character's edge."""
     profile = _profiles()[name]
     assert max(profile[key] for key in SPECIAL_KEYS) >= 5, f"{name} has no standout stat"
+
+
+@pytest.mark.parametrize("majority", [GenderEnum.MALE, GenderEnum.FEMALE])
+def test_starter_variants_keep_each_rewards_special_profile(majority: GenderEnum) -> None:
+    replacements = starter_reward_overrides(majority)
+    assert len(set(replacements.values())) == len(replacements)
+    for original_reward, variant_reward in replacements.items():
+        original = get_starter_resident(original_reward.removeprefix("dweller:"))
+        variant = get_starter_resident(variant_reward.removeprefix("dweller:"))
+        assert original is not None
+        assert variant is not None
+        assert len(variant_reward) <= 32  # reward_snapshot column
+        assert original["gender"] != variant["gender"]
+        assert variant["gender"] == majority
+        assert tuple(variant[key] for key in SPECIAL_KEYS) == tuple(original[key] for key in SPECIAL_KEYS)

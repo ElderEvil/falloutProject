@@ -82,7 +82,10 @@ const createVault = async ({ number, boosted, vaultMode, scenario }: VaultNumber
     const createdId = await vaultStore.createVault(number, boostedStart, vaultMode, scenario)
     if (!createdId) return
 
-    if (!boostedStart) markCreatedVault(createdId)
+    const expeditionTest = vaultStore.scenarioOptions.some(
+      (option) => option.key === scenario && option.expedition
+    )
+    if (!boostedStart && !expeditionTest) markCreatedVault(createdId)
     creationKey.value++
     showCreation.value = false
     await loadVault(createdId)
@@ -164,7 +167,7 @@ onMounted(async () => {
         </Alert>
 
         <VaultCreationWizard
-          v-if="isCreationVisible"
+          v-if="isCreationVisible && !showFirstRunSetup"
           :key="creationKey"
           :creating="creatingVault"
           :scenarios="vaultStore.scenarioOptions"

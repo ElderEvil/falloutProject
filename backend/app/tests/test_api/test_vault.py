@@ -570,6 +570,7 @@ async def test_vault_scenarios_list_vault_1(
         (69, "vault_69_test"),
     ]
     test_start, *experiments = scenarios
+    assert experiments[-1]["title"] == "Vault 69 — Eight Women, One Man"
     assert test_start["default_boosted"]
     assert test_start["expedition"]
     assert all(not scenario["default_on"] for scenario in scenarios)

@@ -82,7 +82,7 @@ VAULT_SCENARIOS = (
     VaultScenario(
         number=69,
         key="vault_69_test",
-        title="Vault 69 — The Inverse Ratio",
+        title="Vault 69 — Eight Women, One Man",
         description=(
             "Inspired by the Fallout Bible. Start with eight female residents and one male resident. "
             "The nine starter recruits follow the same ratio. Radio recruitment uses 8-to-1 odds."

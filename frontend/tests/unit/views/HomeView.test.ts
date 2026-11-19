@@ -283,7 +283,7 @@ describe('HomeView', () => {
                 {
                   number: 69,
                   key: 'vault_69_test',
-                  title: 'Vault 69 — The Inverse Ratio',
+                  title: 'Vault 69 — Eight Women, One Man',
                   description: 'Start with eight female residents and one male resident.',
                   default_boosted: false,
                   expedition: false,
@@ -321,7 +321,7 @@ describe('HomeView', () => {
 
       await continueStep(wrapper)
       expect(wrapper.text()).toContain('069')
-      expect(wrapper.text()).toContain('The Inverse Ratio')
+      expect(wrapper.text()).toContain('Eight Women, One Man')
       expect(wrapper.text()).not.toContain('Boosted Start')
       expect(wrapper.text()).toContain('eight female residents and one male resident')
       expect(axios.post).not.toHaveBeenCalled()

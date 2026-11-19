@@ -113,10 +113,7 @@ const pendingIncidentReports = computed(() =>
 )
 
 usePolling(
-  () =>
-    vaultId.value && authStore.token
-      ? vaultStore.fetchGameState(vaultId.value, authStore.token)
-      : undefined,
+  () => (vaultId.value && authStore.token ? vaultStore.fetchGameState(vaultId.value) : undefined),
   { interval: 60_000, immediate: false }
 )
 
@@ -144,10 +141,7 @@ const loadVaultData = async (id: string) => {
     errorMessage.value = null
 
     // Revalidate on overview entry; the shell's header load shares this request.
-    await Promise.all([
-      vaultStore.fetchVaults(authStore.token),
-      vaultStore.revalidateVault(id, authStore.token),
-    ])
+    await Promise.all([vaultStore.fetchVaults(), vaultStore.revalidateVault(id)])
 
     // Verify vault was loaded
     if (!vaultStore.loadedVaults[id]) {
@@ -158,7 +152,7 @@ const loadVaultData = async (id: string) => {
     await roomStore.fetchRooms(id)
 
     // Fetch dwellers for this vault
-    await dwellerStore.fetchDwellersByVault(id, authStore.token)
+    await dwellerStore.fetchDwellersByVault(id)
 
     // Fetch explorations for this vault
     try {
@@ -170,7 +164,7 @@ const loadVaultData = async (id: string) => {
 
     // Fetch game state (the shared vault action owns the tick stream)
     try {
-      await vaultStore.fetchGameState(id, authStore.token)
+      await vaultStore.fetchGameState(id)
     } catch (error) {
       // Game state not available, continuing without it
     }

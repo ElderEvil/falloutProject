@@ -68,13 +68,13 @@ const completingExplorations = ref<Set<string>>(new Set())
 onMounted(async () => {
   if (vaultId.value && authStore.token) {
     // Ensure vault is loaded for medical supplies (idempotent shared action)
-    await vaultStore.ensureVaultLoaded(vaultId.value, authStore.token)
+    await vaultStore.ensureVaultLoaded(vaultId.value)
     try {
       await explorationStore.refreshActiveExplorations(vaultId.value)
 
       // Fetch full dweller data for explorers (includes weapon/outfit)
       for (const exploration of activeExplorationsArray.value) {
-        await dwellerStore.fetchDwellerDetails(exploration.dweller_id, authStore.token)
+        await dwellerStore.fetchDwellerDetails(exploration.dweller_id)
       }
 
       explorationStore.startSseSubscription(vaultId.value, authStore.token)
@@ -120,7 +120,7 @@ const pollExplorations = async () => {
   // Check for completed explorations and fetch detailed data for new explorers
   for (const exploration of activeExplorationsArray.value) {
     if (!dwellerStore.detailedDwellers[exploration.dweller_id]) {
-      await dwellerStore.fetchDwellerDetails(exploration.dweller_id, authStore.token)
+      await dwellerStore.fetchDwellerDetails(exploration.dweller_id)
     }
 
     if (isReadyToComplete(exploration) && !completingExplorations.value.has(exploration.id)) {
@@ -161,8 +161,8 @@ const handleSendWastelandConfirm = (payload: {
 }) =>
   sendWasteland.confirm(payload, () =>
     Promise.all([
-      vaultStore.refreshVault(vaultId.value, authStore.token as string),
-      dwellerStore.fetchDwellersByVault(vaultId.value, authStore.token as string),
+      vaultStore.refreshVault(vaultId.value),
+      dwellerStore.fetchDwellersByVault(vaultId.value),
     ]).then(() => undefined)
   )
 

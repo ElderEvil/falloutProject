@@ -90,11 +90,7 @@ describe('dweller-first room assignment', () => {
       .find((button) => button.text() === 'Confirm assignment')!
       .trigger('click')
     await flushPromises()
-    expect(axios.post).toHaveBeenCalledWith(
-      '/api/v1/dwellers/dweller-1/move_to/power',
-      null,
-      expect.any(Object)
-    )
+    expect(axios.post).toHaveBeenCalledWith('/api/v1/dwellers/dweller-1/move_to/power')
     expect(wrapper.emitted('assigned')).toHaveLength(1)
     expect(wrapper.emitted('update:open')).toEqual([[false]])
   })
@@ -180,7 +176,7 @@ describe('dweller-first room assignment', () => {
       })
       const wrapper = await mountPicker()
       if (source === 'rooms') await useRoomStore().fetchRooms('vault-2', 'test-token')
-      else await useDwellerStore().filter.fetchAllDwellers('vault-2', 'test-token')
+      else await useDwellerStore().filter.fetchAllDwellers('vault-2')
       resolveFirst({ data: source === 'rooms' ? rooms : residents })
       await flushPromises()
       expect(wrapper.find('[role="alert"]').exists()).toBe(true)

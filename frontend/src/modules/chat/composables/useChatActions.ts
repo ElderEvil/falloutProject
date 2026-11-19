@@ -56,7 +56,7 @@ export function useChatActions(options: UseChatActionsOptions) {
 
     isPerformingAction.value = true
     try {
-      await dwellerManagementStore.assignDwellerToRoom(options.dwellerId, roomId, authStore.token)
+      await dwellerManagementStore.assignDwellerToRoom(options.dwellerId, roomId)
       toast.success(`${options.dwellerName} assigned to ${roomName}`)
       return true
     } catch (error) {
@@ -125,8 +125,7 @@ export function useChatActions(options: UseChatActionsOptions) {
 
         await dwellerManagementStore.assignDwellerToRoom(
           options.dwellerId,
-          availableTrainingRoom.id,
-          authStore.token
+          availableTrainingRoom.id
         )
         trainingRoomId = availableTrainingRoom.id
       }
@@ -209,7 +208,7 @@ export function useChatActions(options: UseChatActionsOptions) {
         await explorationStore.recallDweller(action.exploration_id)
       }
 
-      await dwellerStore.fetchDwellerDetails(options.dwellerId, authStore.token, true)
+      await dwellerStore.fetchDwellerDetails(options.dwellerId, true)
       return true
     } catch (error) {
       notifyErrorOnce(error, 'Failed to recall dweller from wasteland')
@@ -236,16 +235,15 @@ export function useChatActions(options: UseChatActionsOptions) {
         const transfer = await dwellerMedicalStore.issueMedicalSupply(
           vaultId,
           options.dwellerId,
-          supply,
-          authStore.token
+          supply
         )
         if (!transfer) return false
       }
 
       const result =
         supply === 'stimpack'
-          ? await dwellerMedicalStore.useStimpack(options.dwellerId, authStore.token)
-          : await dwellerMedicalStore.useRadaway(options.dwellerId, authStore.token)
+          ? await dwellerMedicalStore.useStimpack(options.dwellerId)
+          : await dwellerMedicalStore.useRadaway(options.dwellerId)
       return result !== null
     } catch (error) {
       notifyErrorOnce(error, `Failed to use ${supply === 'stimpack' ? 'Stimpak' : 'RadAway'}`)

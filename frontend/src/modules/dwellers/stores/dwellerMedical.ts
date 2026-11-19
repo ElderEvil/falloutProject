@@ -1,12 +1,12 @@
 import { defineStore } from 'pinia'
-import axios from '@/core/plugins/axios'
 import type { DwellerShort } from '../models/dweller'
 import { notifyErrorOnce, getErrorMessage, handleStoreError } from '@/core/utils/errorHandler'
 import { useToast } from '@/core/composables/useToast'
 import { useDwellerFilterStore } from './dwellerFilter'
+import * as medicalApi from '../api/medical'
 import type { components } from '@/core/types/api.generated'
 
-type MedicalSupply = 'stimpack' | 'radaway'
+type MedicalSupply = medicalApi.MedicalSupply
 type MedicalTransferResponse = components['schemas']['MedicalTransferResponse']
 type MedicalDistributionResponse = components['schemas']['MedicalDistributionResponse']
 
@@ -30,29 +30,18 @@ export const useDwellerMedicalStore = defineStore('dwellerMedical', () => {
 
   async function useMedicalSupply(
     supply: MedicalSupply,
-    dwellerId: string,
-    token: string
+    dwellerId: string
   ): Promise<DwellerShort | null> {
     const label = supply === 'stimpack' ? 'stimpack' : 'RadAway'
     try {
-      const response = await axios.post<DwellerShort>(
-        `/api/v1/dwellers/${dwellerId}/use_${supply}`,
-        null,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      )
-
-      applyDwellerUpdate(dwellerId, response.data)
-
+      const updated = await medicalApi.useSupply(supply, dwellerId)
+      applyDwellerUpdate(dwellerId, updated)
       toast.success(
         supply === 'stimpack'
           ? 'Stimpack used! Dweller healed.'
           : 'RadAway used! Radiation reduced.'
       )
-      return response.data
+      return updated
     } catch (error: unknown) {
       const errorMessage = getErrorMessage(error, `Failed to use ${label}`)
       handleStoreError(error, `Failed to use ${label} for dweller ${dwellerId}`, false)
@@ -61,32 +50,17 @@ export const useDwellerMedicalStore = defineStore('dwellerMedical', () => {
     }
   }
 
-  async function useStimpack(dwellerId: string, token: string): Promise<DwellerShort | null> {
-    return useMedicalSupply('stimpack', dwellerId, token)
-  }
+  const useStimpack = (dwellerId: string) => useMedicalSupply('stimpack', dwellerId)
 
-  async function useRadaway(dwellerId: string, token: string): Promise<DwellerShort | null> {
-    return useMedicalSupply('radaway', dwellerId, token)
-  }
+  const useRadaway = (dwellerId: string) => useMedicalSupply('radaway', dwellerId)
 
   async function issueMedicalSupply(
     vaultId: string,
     dwellerId: string,
-    supply: MedicalSupply,
-    token: string
+    supply: MedicalSupply
   ): Promise<MedicalTransferResponse | null> {
     try {
-      const response = await axios.post<MedicalTransferResponse>(
-        `/api/v1/storage/vault/${vaultId}/medical/transfer`,
-        {
-          dweller_id: dwellerId,
-          stimpaks: supply === 'stimpack' ? 1 : 0,
-          radaways: supply === 'radaway' ? 1 : 0,
-        },
-        { headers: { Authorization: `Bearer ${token}` } }
-      )
-
-      return response.data
+      return await medicalApi.issueSupply(vaultId, dwellerId, supply)
     } catch (error: unknown) {
       handleStoreError(error, `Failed to issue ${supply} to dweller ${dwellerId}`)
       return null
@@ -94,24 +68,15 @@ export const useDwellerMedicalStore = defineStore('dwellerMedical', () => {
   }
 
   async function distributeRecoverySupplies(
-    vaultId: string,
-    token: string
+    vaultId: string
   ): Promise<MedicalDistributionResponse | null> {
     try {
-      const response = await axios.post<MedicalDistributionResponse>(
-        `/api/v1/storage/vault/${vaultId}/medical/distribute-recovery-supplies`,
-        null,
-        { headers: { Authorization: `Bearer ${token}` } }
-      )
+      const data = await medicalApi.distributeRecoverySupplies(vaultId)
 
-      await filterStore.fetchDwellersByVault(vaultId, token)
-      await filterStore.fetchAllDwellers(vaultId, token, false, true)
+      await filterStore.fetchDwellersByVault(vaultId)
+      await filterStore.fetchAllDwellers(vaultId, false, true)
 
-      const {
-        dwellers_treated: treated,
-        radaways_used: radaways,
-        stimpaks_used: stimpaks,
-      } = response.data
+      const { dwellers_treated: treated, radaways_used: radaways, stimpaks_used: stimpaks } = data
       if (treated > 0) {
         toast.success(
           `Treated ${treated} dwellers with ${radaways} RadAway and ${stimpaks} Stimpack`
@@ -120,7 +85,7 @@ export const useDwellerMedicalStore = defineStore('dwellerMedical', () => {
         toast.info('No irradiated dwellers needed treatment')
       }
 
-      return response.data
+      return data
     } catch (error: unknown) {
       handleStoreError(error, `Failed to treat irradiated dwellers in vault ${vaultId}`)
       return null

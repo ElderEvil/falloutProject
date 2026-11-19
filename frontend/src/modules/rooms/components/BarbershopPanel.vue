@@ -376,7 +376,7 @@ const openSlot = async (role: 'worker' | 'client') => {
   await nextTick()
   picker.value?.querySelector('input')?.focus()
   try {
-    await filterStore.fetchAllDwellers(props.vaultId, token.value, true)
+    await filterStore.fetchAllDwellers(props.vaultId, true)
     if (version === contextVersion)
       roster.value = filterStore.allDwellers.filter((entry) => entry.room_id === props.room.id)
   } catch (error) {
@@ -406,7 +406,7 @@ async function chooseSlot(entry: DwellerShort): Promise<void> {
   slotError.value = null
   try {
     if (!roster.value.some((dweller) => dweller.id === entry.id)) {
-      const assigned = await management.assignDwellerToRoom(entry.id, roomId, authToken)
+      const assigned = await management.assignDwellerToRoom(entry.id, roomId)
       if (version !== contextVersion) return
       if (!roster.value.some((dweller) => dweller.id === entry.id))
         roster.value.push({ ...entry, room_id: roomId, status: assigned.status })
@@ -435,7 +435,7 @@ async function removeOccupant(dwellerId: string): Promise<void> {
   assigning.value = true
   slotError.value = null
   try {
-    await management.unassignDwellerFromRoom(entry.id, authToken)
+    await management.unassignDwellerFromRoom(entry.id)
     if (version !== contextVersion) return
     roster.value = roster.value.filter((dweller) => dweller.id !== entry.id)
     emit('changed')
@@ -500,9 +500,9 @@ async function handleRegenerate(): Promise<void> {
   generating.value = true
   inlineError.value = null
   try {
-    const generated = await generation.generateDwellerPortrait(dweller.id, token.value)
+    const generated = await generation.generateDwellerPortrait(dweller.id)
     if (!generated || version !== contextVersion) return
-    const refreshed = await filterStore.fetchDwellerDetails(dweller.id, token.value, true)
+    const refreshed = await filterStore.fetchDwellerDetails(dweller.id, true)
     if (version !== contextVersion) return
     const updated = refreshed ?? generated
     filterStore.detailedDwellers[dweller.id] = updated

@@ -803,7 +803,7 @@ describe('RoomDetailModal', () => {
       expect(pickerCard).toBeTruthy()
       await pickerCard!.trigger('click')
 
-      expect(assignSpy).toHaveBeenCalledWith('dweller-1', 'room-1', 'test-token')
+      expect(assignSpy).toHaveBeenCalledWith('dweller-1', 'room-1')
     })
 
     it.each([false, true])(
@@ -900,7 +900,7 @@ describe('RoomDetailModal', () => {
       expect(wrapper.findAll('.dweller-picker .dweller-list-row')).toHaveLength(1)
       await wrapper.get('.dweller-picker .dweller-list-row').trigger('click')
 
-      expect(assignSpy).toHaveBeenCalledWith('dweller-1', 'room-1', 'test-token')
+      expect(assignSpy).toHaveBeenCalledWith('dweller-1', 'room-1')
     })
 
     it('offers dwellers sorted by the room stat, best first', async () => {
@@ -1065,10 +1065,7 @@ describe('RoomDetailModal', () => {
         .find((button) => button.text() === 'Unassign all')!
         .trigger('click')
       await flushPromises()
-      expect(unassign.mock.calls).toEqual([
-        ['dweller-1', 'test-token'],
-        ['dweller-2', 'test-token'],
-      ])
+      expect(unassign.mock.calls).toEqual([['dweller-1'], ['dweller-2']])
       expect(wrapper.emitted('roomUpdated')).toHaveLength(1)
       expect(confirmation.props('open')).toBe(false)
       wrapper.unmount()
@@ -1122,7 +1119,7 @@ describe('RoomDetailModal', () => {
 
       await wrapper.get('[aria-label="Unassign John Doe"]').trigger('click')
 
-      expect(unassignSpy).toHaveBeenCalledWith('dweller-1', 'test-token')
+      expect(unassignSpy).toHaveBeenCalledWith('dweller-1')
     })
 
     it('should show destroy room button', () => {

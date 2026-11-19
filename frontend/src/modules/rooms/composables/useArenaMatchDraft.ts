@@ -497,10 +497,10 @@ export function useArenaMatchDraft(
     isHealing.value = true
     try {
       for (const fighter of injuredFighters.value) {
-        const healed = await medicalStore.useStimpack(fighter.id, authStore.token)
+        const healed = await medicalStore.useStimpack(fighter.id)
         if (!healed) break
       }
-      await Promise.all([controller.refresh(), vaultStore.refreshVault(vaultId, authStore.token)])
+      await Promise.all([controller.refresh(), vaultStore.refreshVault(vaultId)])
     } finally {
       isHealing.value = false
     }
@@ -514,7 +514,7 @@ export function useArenaMatchDraft(
   const unassign = async (entry: ArenaRosterEntry) => {
     if (!authStore.token) return
     try {
-      await dwellerManagementStore.unassignDwellerFromRoom(entry.id, authStore.token)
+      await dwellerManagementStore.unassignDwellerFromRoom(entry.id)
     } catch (error) {
       notifyErrorOnce(error, 'Failed to remove dweller from the Arena')
     }

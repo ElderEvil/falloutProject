@@ -280,7 +280,7 @@ export const useExplorationStore = defineStore('exploration', () => {
             if (eventRecord.type === 'equip') {
               const dwellerId = data.dweller_id
               if (typeof dwellerId === 'string' && dwellerId.length > 0) {
-                void dwellerFilter.fetchDwellerDetails(dwellerId, token, true)
+                void dwellerFilter.fetchDwellerDetails(dwellerId, true)
               }
               if (!explorationUpdatesDisabled()) {
                 const dweller = dwellerFilter.dwellers.find((d) => d.id === data.dweller_id)

@@ -76,7 +76,7 @@ describe('DwellerFilter Store', () => {
 
       store.setFilterRace('ghoul')
       store.setFilterFaction('children_of_atom')
-      await store.fetchDwellersByVault('vault-1', 'test-token', {
+      await store.fetchDwellersByVault('vault-1', {
         race: store.filterRace,
         faction: store.filterFaction,
       })
@@ -87,7 +87,7 @@ describe('DwellerFilter Store', () => {
 
       store.setFilterRace('all')
       store.setFilterFaction('all')
-      await store.fetchDwellersByVault('vault-1', 'test-token', {
+      await store.fetchDwellersByVault('vault-1', {
         race: store.filterRace,
         faction: store.filterFaction,
       })
@@ -127,7 +127,7 @@ describe('DwellerFilter Store', () => {
       const store = useDwellerFilterStore()
       store.dwellers = [{ id: 'v2-dweller' }] as never
 
-      await store.fetchDwellersByVault('vault-1', 'test-token')
+      await store.fetchDwellersByVault('vault-1')
 
       expect(store.dwellers).toEqual([{ id: 'v2-dweller' }])
     })
@@ -147,7 +147,7 @@ describe('DwellerFilter Store', () => {
       vi.mocked(axios.get).mockResolvedValueOnce({ data: mockDwellers })
 
       const store = useDwellerFilterStore()
-      await store.fetchDwellersByVault('vault-1', 'test-token')
+      await store.fetchDwellersByVault('vault-1')
 
       expect(axios.get).toHaveBeenCalledWith('/api/v1/dwellers/vault/vault-1/')
       expect(store.dwellers).toEqual(mockDwellers)
@@ -158,7 +158,7 @@ describe('DwellerFilter Store', () => {
       vi.mocked(axios.get).mockResolvedValueOnce({ data: [] })
 
       const store = useDwellerFilterStore()
-      await store.fetchDwellersByVault('vault-1', 'test-token', {
+      await store.fetchDwellersByVault('vault-1', {
         status: 'working',
         sortBy: 'level',
         order: 'desc',
@@ -176,7 +176,7 @@ describe('DwellerFilter Store', () => {
       vi.mocked(axios.get).mockRejectedValueOnce(new Error('Network error'))
 
       const store = useDwellerFilterStore()
-      await store.fetchDwellersByVault('vault-1', 'test-token')
+      await store.fetchDwellersByVault('vault-1')
 
       expect(store.dwellers).toEqual([])
       expect(store.isLoading).toBe(false)
@@ -186,7 +186,7 @@ describe('DwellerFilter Store', () => {
       vi.mocked(axios.get).mockResolvedValueOnce({ data: [] })
 
       const store = useDwellerFilterStore()
-      await store.fetchDwellersByVault('vault-1', 'test-token', {
+      await store.fetchDwellersByVault('vault-1', {
         status: 'all',
         ageGroup: 'all',
       })
@@ -229,8 +229,8 @@ describe('DwellerFilter Store', () => {
         .mockResolvedValueOnce({ data: freshData })
 
       const store = useDwellerFilterStore()
-      const firstRequest = store.fetchDwellersByVault('vault-1', 'test-token', { status: 'idle' })
-      const secondRequest = store.fetchDwellersByVault('vault-1', 'test-token', {
+      const firstRequest = store.fetchDwellersByVault('vault-1', { status: 'idle' })
+      const secondRequest = store.fetchDwellersByVault('vault-1', {
         status: 'working',
       })
 
@@ -286,8 +286,8 @@ describe('DwellerFilter Store', () => {
             })
         )
         const store = useDwellerFilterStore()
-        const first = store.fetchAllDwellers('vault-1', 'test-token', firstStrict)
-        const second = store.fetchAllDwellers('vault-1', 'test-token', !firstStrict)
+        const first = store.fetchAllDwellers('vault-1', firstStrict)
+        const second = store.fetchAllDwellers('vault-1', !firstStrict)
         const results = Promise.allSettled([first, second])
         reject(failure)
         const settled = await results
@@ -310,15 +310,15 @@ describe('DwellerFilter Store', () => {
         )
         .mockResolvedValueOnce({ data: [{ id: 'fresh' }] })
       const store = useDwellerFilterStore()
-      const old = store.fetchAllDwellers('vault-1', 'test-token')
-      const fresh = store.fetchAllDwellers('vault-1', 'test-token', false, true)
+      const old = store.fetchAllDwellers('vault-1')
+      const fresh = store.fetchAllDwellers('vault-1', false, true)
       finishOld({ data: [{ id: 'stale' }] })
       await Promise.all([old, fresh])
       expect(axios.get).toHaveBeenCalledTimes(2)
       expect(store.allDwellers.map((dweller) => dweller.id)).toEqual(['fresh'])
     })
 
-    it('does not share a pending roster across tokens', async () => {
+    it('does not share a pending roster across sessions', async () => {
       let finishOld!: (value: unknown) => void
       vi.mocked(axios.get)
         .mockImplementationOnce(
@@ -329,8 +329,10 @@ describe('DwellerFilter Store', () => {
         )
         .mockResolvedValueOnce({ data: [{ id: 'current-account' }] })
       const store = useDwellerFilterStore()
-      const old = store.fetchAllDwellers('vault-1', 'token-a')
-      const current = store.fetchAllDwellers('vault-1', 'token-b')
+      const auth = useAuthStore()
+      const old = store.fetchAllDwellers('vault-1')
+      auth.sessionGeneration += 1
+      const current = store.fetchAllDwellers('vault-1')
       finishOld({ data: [{ id: 'previous-account' }] })
       await Promise.all([old, current])
       expect(axios.get).toHaveBeenCalledTimes(2)
@@ -339,10 +341,9 @@ describe('DwellerFilter Store', () => {
 
     it('clears the loaded marker and rejects stale strict loads after logout', async () => {
       const auth = useAuthStore()
-      auth.token = 'token-a'
       const store = useDwellerFilterStore()
       vi.mocked(axios.get).mockResolvedValueOnce({ data: [{ id: 'private' }] })
-      await store.fetchAllDwellers('vault-1', 'token-a')
+      await store.fetchAllDwellers('vault-1')
       let finish!: (value: unknown) => void
       vi.mocked(axios.get).mockImplementationOnce(
         () =>
@@ -350,9 +351,9 @@ describe('DwellerFilter Store', () => {
             finish = resolve
           })
       )
-      const pending = store.fetchAllDwellers('vault-1', 'token-a', true)
+      const pending = store.fetchAllDwellers('vault-1', true)
       const settled = Promise.allSettled([pending])
-      auth.token = null
+      auth.sessionGeneration += 1
       finish({ data: [{ id: 'private' }] })
       expect((await settled)[0].status).toBe('rejected')
       expect(store.allDwellers).toEqual([])
@@ -366,7 +367,7 @@ describe('DwellerFilter Store', () => {
       vi.mocked(axios.get).mockResolvedValueOnce({ data: mockDwellers })
 
       const store = useDwellerFilterStore()
-      await store.fetchAllDwellers('vault-1', 'test-token')
+      await store.fetchAllDwellers('vault-1')
 
       const url = vi.mocked(axios.get).mock.calls[0][0] as string
       expect(url).toContain('/api/v1/dwellers/vault/vault-1/')
@@ -399,7 +400,7 @@ describe('DwellerFilter Store', () => {
         .mockResolvedValueOnce({ data: tail })
 
       const store = useDwellerFilterStore()
-      await store.fetchAllDwellers('vault-1', 'test-token')
+      await store.fetchAllDwellers('vault-1')
 
       expect(vi.mocked(axios.get)).toHaveBeenCalledTimes(2)
       expect(vi.mocked(axios.get).mock.calls[1][0] as string).toContain(
@@ -431,7 +432,7 @@ describe('DwellerFilter Store', () => {
         },
       ]
 
-      const promise = store.fetchAllDwellers('vault-1', 'test-token')
+      const promise = store.fetchAllDwellers('vault-1')
 
       // Cleared before the response resolves
       expect(store.allDwellers).toEqual([])
@@ -474,8 +475,8 @@ describe('DwellerFilter Store', () => {
       )
 
       const store = useDwellerFilterStore()
-      const firstPromise = store.fetchAllDwellers('vault-1', 'test-token', true)
-      const secondPromise = store.fetchAllDwellers('vault-1', 'test-token', true)
+      const firstPromise = store.fetchAllDwellers('vault-1', true)
+      const secondPromise = store.fetchAllDwellers('vault-1', true)
 
       resolveRequest({ data })
       await Promise.all([firstPromise, secondPromise])
@@ -517,8 +518,8 @@ describe('DwellerFilter Store', () => {
         .mockResolvedValueOnce({ data: vault2Data })
 
       const store = useDwellerFilterStore()
-      const vault1Promise = store.fetchAllDwellers('vault-1', 'test-token')
-      const vault2Promise = store.fetchAllDwellers('vault-2', 'test-token')
+      const vault1Promise = store.fetchAllDwellers('vault-1')
+      const vault2Promise = store.fetchAllDwellers('vault-2')
 
       await vault2Promise
       expect(store.allDwellers).toEqual(vault2Data)
@@ -545,7 +546,7 @@ describe('DwellerFilter Store', () => {
         },
       ]
 
-      await store.fetchAllDwellers('vault-1', 'test-token')
+      await store.fetchAllDwellers('vault-1')
 
       // Cleared state preserved — stale data not restored on failure
       expect(store.allDwellers).toEqual([])
@@ -559,11 +560,11 @@ describe('DwellerFilter Store', () => {
       const id = '550e8400-e29b-41d4-a716-446655440000'
       authStore.user = { id: 'user-a', username: 'Alice' }
       vi.mocked(axios.get).mockResolvedValueOnce({ data: { id, first_name: 'Private' } })
-      await store.fetchDwellerDetails(id, 'token-a')
+      await store.fetchDwellerDetails(id)
 
       authStore.user = { id: 'user-b', username: 'Bob' }
       vi.mocked(axios.get).mockRejectedValueOnce(new Error('Forbidden'))
-      const result = await store.fetchDwellerDetails(id, 'token-b')
+      const result = await store.fetchDwellerDetails(id)
 
       expect(result).toBeNull()
       expect(store.detailedDwellers[id]).toBeUndefined()
@@ -583,7 +584,7 @@ describe('DwellerFilter Store', () => {
       )
 
       authStore.user = { id: 'user-a', username: 'Alice' }
-      const pending = store.fetchDwellerDetails(id, 'token-a')
+      const pending = store.fetchDwellerDetails(id)
       authStore.user = { id: 'user-b', username: 'Bob' }
       finishRequest({ data: { id, first_name: 'Private' } })
 
@@ -602,10 +603,7 @@ describe('DwellerFilter Store', () => {
       vi.mocked(axios.get).mockResolvedValueOnce({ data: mockDweller })
 
       const store = useDwellerFilterStore()
-      const result = await store.fetchDwellerDetails(
-        '550e8400-e29b-41d4-a716-446655440000',
-        'test-token'
-      )
+      const result = await store.fetchDwellerDetails('550e8400-e29b-41d4-a716-446655440000')
 
       expect(result).toEqual(mockDweller)
       expect(store.detailedDwellers['550e8400-e29b-41d4-a716-446655440000']).toEqual(mockDweller)
@@ -616,13 +614,10 @@ describe('DwellerFilter Store', () => {
       vi.mocked(axios.get).mockResolvedValueOnce({ data: mockDweller })
 
       const store = useDwellerFilterStore()
-      await store.fetchDwellerDetails('550e8400-e29b-41d4-a716-446655440000', 'test-token')
+      await store.fetchDwellerDetails('550e8400-e29b-41d4-a716-446655440000')
       vi.mocked(axios.get).mockClear()
 
-      const result = await store.fetchDwellerDetails(
-        '550e8400-e29b-41d4-a716-446655440000',
-        'test-token'
-      )
+      const result = await store.fetchDwellerDetails('550e8400-e29b-41d4-a716-446655440000')
 
       expect(axios.get).not.toHaveBeenCalled()
       expect(result).toEqual(mockDweller)
@@ -633,17 +628,17 @@ describe('DwellerFilter Store', () => {
       vi.mocked(axios.get).mockResolvedValue({ data: mockDweller })
 
       const store = useDwellerFilterStore()
-      await store.fetchDwellerDetails('550e8400-e29b-41d4-a716-446655440000', 'test-token')
+      await store.fetchDwellerDetails('550e8400-e29b-41d4-a716-446655440000')
       vi.mocked(axios.get).mockClear()
 
-      await store.fetchDwellerDetails('550e8400-e29b-41d4-a716-446655440000', 'test-token', true)
+      await store.fetchDwellerDetails('550e8400-e29b-41d4-a716-446655440000', true)
 
       expect(axios.get).toHaveBeenCalledTimes(1)
     })
 
     it('should return null for invalid UUID', async () => {
       const store = useDwellerFilterStore()
-      const result = await store.fetchDwellerDetails('not-a-uuid', 'test-token')
+      const result = await store.fetchDwellerDetails('not-a-uuid')
 
       expect(result).toBeNull()
       expect(axios.get).not.toHaveBeenCalled()
@@ -1486,7 +1481,7 @@ describe('DwellerFilter Store', () => {
       const store = useDwellerFilterStore()
       store.dwellers = [{ id: 'd1', health: 10 }] as never
 
-      const request = store.fetchDwellersByVault('vault-1', 'token')
+      const request = store.fetchDwellersByVault('vault-1')
       store.applyDwellerTick('vault-1', [tickSnapshot({ id: 'd1', health: 30 })], 'token')
       resolvePage({ data: [{ id: 'd1', first_name: 'John', health: 10 }] })
       await request
@@ -1507,7 +1502,7 @@ describe('DwellerFilter Store', () => {
       store.allDwellers = [{ id: 'd1' }, { id: 'd2' }] as never
       store.allDwellersLoadedVaultId = 'vault-1'
 
-      const request = store.fetchAllDwellers('vault-1', 'token', false, true)
+      const request = store.fetchAllDwellers('vault-1', false, true)
       store.applyDwellerTick('vault-1', [tickSnapshot({ id: 'd1' })], 'token')
       resolveAll({
         data: [

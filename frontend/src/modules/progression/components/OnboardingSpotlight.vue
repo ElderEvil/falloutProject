@@ -186,7 +186,7 @@ watch(
       lesson.id === 'orientation.departure' &&
       dwellerStore.filter.allDwellersLoadedVaultId !== vaultId.value
     ) {
-      void dwellerStore.filter.fetchAllDwellers(vaultId.value, token)
+      void dwellerStore.filter.fetchAllDwellers(vaultId.value)
     }
   },
   { immediate: true }

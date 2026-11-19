@@ -25,12 +25,14 @@ describe('useDwellerGenerationStore', () => {
   it('shows the API detail once when appearance generation fails', async () => {
     vi.mocked(axios.post).mockRejectedValueOnce({
       response: {
-        data: { detail: 'The AI provider returned an invalid appearance response. Please try again.' },
+        data: {
+          detail: 'The AI provider returned an invalid appearance response. Please try again.',
+        },
         status: 502,
       },
     })
 
-    const result = await useDwellerGenerationStore().generateDwellerAppearance('dweller-1', 'token-1')
+    const result = await useDwellerGenerationStore().generateDwellerAppearance('dweller-1')
 
     expect(result).toBeNull()
     expect(mockToast.error).toHaveBeenCalledTimes(1)
@@ -40,15 +42,15 @@ describe('useDwellerGenerationStore', () => {
   })
 
   it('extends an existing biography through the dedicated endpoint', async () => {
-    vi.mocked(axios.post).mockResolvedValueOnce({ data: { id: 'dweller-1', bio: 'An expanded biography.' } })
+    vi.mocked(axios.post).mockResolvedValueOnce({
+      data: { id: 'dweller-1', bio: 'An expanded biography.' },
+    })
 
-    const result = await useDwellerGenerationStore().extendDwellerBio('dweller-1', 'token-1')
+    const result = await useDwellerGenerationStore().extendDwellerBio('dweller-1')
 
-    expect(axios.post).toHaveBeenCalledWith(
-      '/api/v1/dwellers/dweller-1/extend_bio/',
-      null,
-      expect.objectContaining({ headers: { Authorization: 'Bearer token-1' } })
-    )
+    expect(axios.post).toHaveBeenCalledWith('/api/v1/dwellers/dweller-1/extend_bio/', null, {
+      _skipErrorNotification: true,
+    })
     expect(result).toEqual({ id: 'dweller-1', bio: 'An expanded biography.' })
   })
 })

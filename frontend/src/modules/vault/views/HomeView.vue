@@ -66,7 +66,7 @@ const showFirstRunSetup = computed(
 
 const refreshVaults = async () => {
   loadingVaults.value = true
-  vaultsReady.value = await vaultStore.fetchVaults(authStore.token as string)
+  vaultsReady.value = await vaultStore.fetchVaults()
   loadingVaults.value = false
 }
 
@@ -79,13 +79,7 @@ const createVault = async ({ number, boosted, vaultMode, scenario }: VaultNumber
   creatingVault.value = true
   try {
     const boostedStart = boosted && vaultMode !== 'survival'
-    const createdId = await vaultStore.createVault(
-      number,
-      boostedStart,
-      authStore.token as string,
-      vaultMode,
-      scenario
-    )
+    const createdId = await vaultStore.createVault(number, boostedStart, vaultMode, scenario)
     if (!createdId) return
 
     if (!boostedStart) markCreatedVault(createdId)
@@ -113,7 +107,7 @@ const deleteVault = async (id: string) => {
   if (isCanceled || authStore.token !== token) return
   deletingVault.value = id
   try {
-    await vaultStore.deleteVault(id, token)
+    await vaultStore.deleteVault(id)
     if (selectedVaultId.value === id) selectedVaultId.value = null
     await refreshVaults()
   } finally {
@@ -132,7 +126,7 @@ const loadVault = async (id: string) => {
 onMounted(async () => {
   if (!authStore.isAuthenticated) return
   await refreshVaults()
-  if (authStore.token) await vaultStore.fetchScenarioOptions(authStore.token)
+  if (authStore.token) await vaultStore.fetchScenarioOptions()
 })
 </script>
 

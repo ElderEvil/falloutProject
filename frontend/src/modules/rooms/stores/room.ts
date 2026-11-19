@@ -53,7 +53,7 @@ export const useRoomStore = defineStore('room', () => {
     const token = authStore.token
     if (!token) return
     try {
-      await useVaultStore().refreshVault(vaultId, token)
+      await useVaultStore().refreshVault(vaultId)
     } catch (error) {
       handleStoreError(error, context)
     }
@@ -73,8 +73,8 @@ export const useRoomStore = defineStore('room', () => {
     const { useDwellerStore } = await import('@/modules/dwellers/stores/dweller')
     const { filter } = useDwellerStore()
     await Promise.allSettled([
-      filter.fetchWithCurrentFilters(vaultId, token),
-      filter.fetchAllDwellers(vaultId, token, false, true),
+      filter.fetchWithCurrentFilters(vaultId),
+      filter.fetchAllDwellers(vaultId, false, true),
     ])
     await roomsReady
     const activeVaultId = vaultStore.activeVaultId
@@ -257,7 +257,7 @@ export const useRoomStore = defineStore('room', () => {
       refreshVaultSafely(vaultId, 'Failed to refresh vault after rushing room'),
     ]
     if (dwellers.dwellers.length > 0) {
-      refreshes.push(dwellers.fetchDwellersByVault(vaultId, token))
+      refreshes.push(dwellers.fetchDwellersByVault(vaultId))
     }
     if (storage.vaultId === vaultId) {
       refreshes.push(storage.refresh(vaultId))

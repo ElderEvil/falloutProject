@@ -41,7 +41,7 @@ describe('usePresenceHeartbeat', () => {
     await flushPromises()
 
     expect(ping).toHaveBeenCalledTimes(1)
-    expect(ping).toHaveBeenCalledWith('vault-1', 'token')
+    expect(ping).toHaveBeenCalledWith('vault-1')
 
     await vi.advanceTimersByTimeAsync(30_000)
     expect(ping).toHaveBeenCalledTimes(2)

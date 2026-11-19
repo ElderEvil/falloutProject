@@ -1208,7 +1208,7 @@ describe('Incident Store', () => {
       }
       await nextTick()
       await flushPromises()
-      expect(refresh).toHaveBeenCalledWith('vault-1', 'token')
+      expect(refresh).toHaveBeenCalledWith('vault-1')
       store.stopPolling()
     })
 

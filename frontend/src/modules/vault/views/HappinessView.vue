@@ -30,8 +30,13 @@ const isInitialLoad = ref(true)
 const errorMessage = ref<string | null>(null)
 const { run: runLoadData, isLoading: isLoadingRequest } = useAsyncAction(
   async (currentVaultId: string, token: string) => {
-    await vaultStore.revalidateVault(currentVaultId, token)
-    await dwellerStore.fetchDwellersByVault(currentVaultId, token)
+    const session = authStore.sessionGeneration
+    await vaultStore.revalidateVault(currentVaultId)
+    // A session switch mid-load replaces this page's account; stop silently
+    // instead of reporting a load failure for the old vault.
+    if (session !== authStore.sessionGeneration) return true
+    await dwellerStore.fetchDwellersByVault(currentVaultId)
+    if (session !== authStore.sessionGeneration) return true
     await incidentStore.fetchIncidents(currentVaultId, token)
     return true
   },
@@ -101,7 +106,7 @@ const handleTreatIrradiated = async () => {
   if (!vaultId.value || !authStore.token || isTreatingDwellers.value) return
   isTreatingDwellers.value = true
   try {
-    await medicalStore.distributeRecoverySupplies(vaultId.value, authStore.token)
+    await medicalStore.distributeRecoverySupplies(vaultId.value)
   } finally {
     isTreatingDwellers.value = false
   }

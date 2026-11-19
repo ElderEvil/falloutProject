@@ -40,7 +40,7 @@ const title = computed(() => {
 const { run: runLoadDweller, isLoading } = useAsyncAction(
   async (currentDwellerId: string, token: string) => {
     const requestedUserId = authStore.user?.id
-    const result = await dwellerStore.fetchDwellerDetails(currentDwellerId, token)
+    const result = await dwellerStore.fetchDwellerDetails(currentDwellerId)
     if (!result) throw new Error('Failed to fetch dweller data')
     if (!authStore.token || (requestedUserId && requestedUserId !== authStore.user?.id)) {
       return result

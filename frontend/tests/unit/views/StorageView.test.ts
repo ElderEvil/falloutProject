@@ -260,7 +260,7 @@ describe('StorageView', () => {
     expect(modal.props('result')?.dweller.name).toBe('Lucy')
     modal.vm.$emit('close')
     await flushPromises()
-    expect(vaultStore.refreshVault).toHaveBeenCalledWith('vault-1', 'test-token')
+    expect(vaultStore.refreshVault).toHaveBeenCalledWith('vault-1')
     wrapper.unmount()
   })
 

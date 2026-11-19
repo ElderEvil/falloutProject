@@ -34,12 +34,12 @@ const breadcrumbs = computed(() => {
 })
 const { run: runLoadDweller, isLoading } = useAsyncAction(
   async (currentDwellerId: string, token: string) => {
-    const result = await dwellerStore.fetchDwellerDetails(currentDwellerId, token)
+    const result = await dwellerStore.fetchDwellerDetails(currentDwellerId)
     if (!result) throw new Error('Failed to fetch dweller data')
 
     dweller.value = result
     if (result.vault?.id) {
-      await vaultStore.ensureVaultLoaded(result.vault.id, token)
+      await vaultStore.ensureVaultLoaded(result.vault.id)
     }
     return result
   },

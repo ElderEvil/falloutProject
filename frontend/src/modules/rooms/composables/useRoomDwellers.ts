@@ -44,7 +44,7 @@ export function useRoomDwellers(
     try {
       const results = await Promise.allSettled(
         dwellersToUnassign.map((dweller) =>
-          dwellerManagementStore.unassignDwellerFromRoom(dweller.id, token)
+          dwellerManagementStore.unassignDwellerFromRoom(dweller.id)
         )
       )
 
@@ -68,7 +68,7 @@ export function useRoomDwellers(
 
     actionError.value = null
     try {
-      await dwellerManagementStore.unassignDwellerFromRoom(dwellerId, token)
+      await dwellerManagementStore.unassignDwellerFromRoom(dwellerId)
     } catch (error) {
       actionError.value = error instanceof Error ? error.message : 'Failed to unassign dweller'
     } finally {
@@ -95,7 +95,7 @@ export function useRoomDwellers(
 
     actionError.value = null
     try {
-      await dwellerManagementStore.assignDwellerToRoom(dwellerId, room.value.id, token)
+      await dwellerManagementStore.assignDwellerToRoom(dwellerId, room.value.id)
     } catch {
       actionError.value = 'Failed to assign dweller to room'
     } finally {

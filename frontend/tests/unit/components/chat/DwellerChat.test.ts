@@ -483,7 +483,7 @@ describe('DwellerChat', () => {
       await flushPromises()
 
       // Verify store action was called
-      expect(assignSpy).toHaveBeenCalledWith('dweller-123', 'room-456', 'test-token')
+      expect(assignSpy).toHaveBeenCalledWith('dweller-123', 'room-456')
 
       // Verify action card is removed
       expect(wrapper.find('.action-suggestion-card').exists()).toBe(false)
@@ -557,7 +557,7 @@ describe('DwellerChat', () => {
       await wrapper.find('.action-confirm-btn').trigger('click')
       await flushPromises()
 
-      expect(useStimpackSpy).toHaveBeenCalledWith('dweller-123', 'test-token')
+      expect(useStimpackSpy).toHaveBeenCalledWith('dweller-123')
       expect(wrapper.find('.action-suggestion-card').exists()).toBe(false)
     })
 
@@ -1029,7 +1029,7 @@ describe('DwellerChat', () => {
       await confirmBtn.trigger('click')
       await flushPromises()
 
-      expect(assignSpy).toHaveBeenCalledWith('dweller-123', 'training-room-789', 'test-token')
+      expect(assignSpy).toHaveBeenCalledWith('dweller-123', 'training-room-789')
       expect(trainingService.startTraining).toHaveBeenCalledWith('dweller-123', 'training-room-789')
     })
 
@@ -1108,7 +1108,7 @@ describe('DwellerChat', () => {
       await confirmBtn.trigger('click')
       await flushPromises()
 
-      expect(assignSpy).toHaveBeenCalledWith('dweller-123', 'strength-training', 'test-token')
+      expect(assignSpy).toHaveBeenCalledWith('dweller-123', 'strength-training')
       expect(trainingService.startTraining).toHaveBeenCalledWith('dweller-123', 'strength-training')
     })
 
@@ -1173,7 +1173,7 @@ describe('DwellerChat', () => {
       await confirmBtn.trigger('click')
       await flushPromises()
 
-      expect(assignSpy).toHaveBeenCalledWith('dweller-123', 'endurance-training', 'test-token')
+      expect(assignSpy).toHaveBeenCalledWith('dweller-123', 'endurance-training')
       expect(trainingService.startTraining).toHaveBeenCalledWith(
         'dweller-123',
         'endurance-training'
@@ -1261,7 +1261,7 @@ describe('DwellerChat', () => {
       await wrapper.find('.action-confirm-btn').trigger('click')
       await flushPromises()
 
-      expect(assignSpy).toHaveBeenCalledWith('dweller-123', 'endurance-training', 'test-token')
+      expect(assignSpy).toHaveBeenCalledWith('dweller-123', 'endurance-training')
     })
 
     it('should show error when no training rooms available', async () => {
@@ -1497,7 +1497,7 @@ describe('DwellerChat', () => {
       await flushPromises()
 
       expect(mockFetchRooms).toHaveBeenCalledWith('vault-123')
-      expect(assignSpy).toHaveBeenCalledWith('dweller-123', 'training-room-789', 'test-token')
+      expect(assignSpy).toHaveBeenCalledWith('dweller-123', 'training-room-789')
       expect(trainingService.startTraining).toHaveBeenCalledWith('dweller-123', 'training-room-789')
     })
   })
@@ -2079,7 +2079,7 @@ describe('DwellerChat', () => {
       await wrapper.find('.modal-button.confirm').trigger('click')
       await flushPromises()
 
-      expect(unassignSpy).toHaveBeenCalledWith('dweller-123', 'test-token')
+      expect(unassignSpy).toHaveBeenCalledWith('dweller-123')
       expect(mockSendDwellerToWasteland).toHaveBeenCalled()
     })
 
@@ -2271,8 +2271,8 @@ describe('DwellerChat', () => {
       await wrapper.find('.modal-button.confirm').trigger('click')
       await flushPromises()
 
-      expect(unassignSpy).toHaveBeenCalledWith('dweller-123', 'test-token')
-      expect(assignSpy).toHaveBeenCalledWith('dweller-123', 'room-456', 'test-token')
+      expect(unassignSpy).toHaveBeenCalledWith('dweller-123')
+      expect(assignSpy).toHaveBeenCalledWith('dweller-123', 'room-456')
       expect(mockToast.error).toHaveBeenCalledWith('Failed to send dweller to wasteland')
       // A failed send keeps the card so the player can retry.
       expect(wrapper.find('.action-suggestion-card').exists()).toBe(true)
@@ -2600,7 +2600,7 @@ describe('DwellerChat', () => {
       await wrapper.get('.dead-revive-btn').trigger('click')
       await flushPromises()
 
-      expect(reviveSpy).toHaveBeenCalledWith('dweller-123', 'test-token')
+      expect(reviveSpy).toHaveBeenCalledWith('dweller-123')
       expect(wrapper.find('.dead-notice').exists()).toBe(false)
       expect((wrapper.get('.chat-input-field').element as HTMLInputElement).disabled).toBe(false)
 

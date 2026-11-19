@@ -225,7 +225,7 @@ const initializeExplorer = async (id: string) => {
   await explorationStore.fetchExplorationDetails(id)
   if (!isCurrent()) return
   if (exploration.value) {
-    await dwellerStore.fetchDwellerDetails(exploration.value.dweller_id, token)
+    await dwellerStore.fetchDwellerDetails(exploration.value.dweller_id)
   }
   if (!isCurrent()) return
   try {

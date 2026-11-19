@@ -269,16 +269,12 @@ describe('HomeView', () => {
       await wrapper.get('form').trigger('submit')
       await settleView()
 
-      expect(axios.post).toHaveBeenCalledWith(
-        '/api/v1/vaults/initiate',
-        {
-          number: 1,
-          boosted: false,
-          vault_mode: 'standard',
-          scenario: 'vault_1_test',
-        },
-        expect.anything()
-      )
+      expect(axios.post).toHaveBeenCalledWith('/api/v1/vaults/initiate', {
+        number: 1,
+        boosted: false,
+        vault_mode: 'standard',
+        scenario: 'vault_1_test',
+      })
       expect(router.currentRoute.value.path).toBe('/vault/vault-1')
     })
 
@@ -370,11 +366,12 @@ describe('HomeView', () => {
       await wrapper.get('form').trigger('submit')
       await settleView()
 
-      expect(axios.post).toHaveBeenCalledWith(
-        '/api/v1/vaults/initiate',
-        { number: 1, boosted: false, vault_mode: 'survival', scenario: 'vault_1_test' },
-        expect.anything()
-      )
+      expect(axios.post).toHaveBeenCalledWith('/api/v1/vaults/initiate', {
+        number: 1,
+        boosted: false,
+        vault_mode: 'survival',
+        scenario: 'vault_1_test',
+      })
     })
 
     it('forces Boosted Start for a scenario that requires it', async () => {
@@ -416,16 +413,12 @@ describe('HomeView', () => {
       await wrapper.get('form').trigger('submit')
       await settleView()
 
-      expect(axios.post).toHaveBeenCalledWith(
-        '/api/v1/vaults/initiate',
-        {
-          number: 68,
-          boosted: true,
-          vault_mode: 'standard',
-          scenario: 'vault_68_test',
-        },
-        expect.anything()
-      )
+      expect(axios.post).toHaveBeenCalledWith('/api/v1/vaults/initiate', {
+        number: 68,
+        boosted: true,
+        vault_mode: 'standard',
+        scenario: 'vault_68_test',
+      })
     })
 
     it('should show vault list when vaults exist', async () => {
@@ -660,8 +653,7 @@ describe('HomeView', () => {
       // This documents current behavior - decimals are truncated
       expect(axios.post).toHaveBeenCalledWith(
         '/api/v1/vaults/initiate',
-        { number: 100, boosted: false, vault_mode: 'standard' }, // Not 100.5
-        expect.anything()
+        { number: 100, boosted: false, vault_mode: 'standard' } // Not 100.5
       )
     })
 
@@ -706,15 +698,11 @@ describe('HomeView', () => {
       await wrapper.get('form').trigger('submit')
       await settleView()
 
-      expect(axios.post).toHaveBeenCalledWith(
-        '/api/v1/vaults/initiate',
-        { number: 123, boosted: false, vault_mode: 'standard' },
-        expect.objectContaining({
-          headers: expect.objectContaining({
-            Authorization: 'Bearer test-token',
-          }),
-        })
-      )
+      expect(axios.post).toHaveBeenCalledWith('/api/v1/vaults/initiate', {
+        number: 123,
+        boosted: false,
+        vault_mode: 'standard',
+      })
     })
 
     it('should show loading state during vault creation', async () => {
@@ -893,11 +881,11 @@ describe('HomeView', () => {
       await wrapper.get('form').trigger('submit')
       await settleView()
 
-      expect(axios.post).toHaveBeenCalledWith(
-        '/api/v1/vaults/initiate',
-        { number: 123, boosted: false, vault_mode: 'survival' },
-        expect.anything()
-      )
+      expect(axios.post).toHaveBeenCalledWith('/api/v1/vaults/initiate', {
+        number: 123,
+        boosted: false,
+        vault_mode: 'survival',
+      })
     })
 
     it('disables Boosted Start in Survival mode and never posts a boost with survival', async () => {
@@ -929,11 +917,11 @@ describe('HomeView', () => {
       await wrapper.get('form').trigger('submit')
       await settleView()
 
-      expect(axios.post).toHaveBeenCalledWith(
-        '/api/v1/vaults/initiate',
-        { number: 123, boosted: false, vault_mode: 'survival' },
-        expect.anything()
-      )
+      expect(axios.post).toHaveBeenCalledWith('/api/v1/vaults/initiate', {
+        number: 123,
+        boosted: false,
+        vault_mode: 'survival',
+      })
 
       // Switching back to Standard re-enables Boosted Start.
       await wrapper
@@ -990,11 +978,11 @@ describe('HomeView', () => {
       await goToReview(wrapper)
       await wrapper.get('form').trigger('submit')
       await settleView()
-      expect(axios.post).toHaveBeenCalledWith(
-        '/api/v1/vaults/initiate',
-        { number: 68, boosted: true, vault_mode: 'standard' },
-        expect.anything()
-      )
+      expect(axios.post).toHaveBeenCalledWith('/api/v1/vaults/initiate', {
+        number: 68,
+        boosted: true,
+        vault_mode: 'standard',
+      })
     })
 
     it('retains the reviewed options after an API error and allows retry', async () => {
@@ -1111,14 +1099,7 @@ describe('HomeView', () => {
         expect(dialog.props('open')).toBe(true)
         dialog.vm.$emit('confirm')
         await settleView()
-        expect(axios.delete).toHaveBeenCalledWith(
-          '/api/v1/vaults/vault-1',
-          expect.objectContaining({
-            headers: expect.objectContaining({
-              Authorization: 'Bearer test-token',
-            }),
-          })
-        )
+        expect(axios.delete).toHaveBeenCalledWith('/api/v1/vaults/vault-1')
       }
     })
   })

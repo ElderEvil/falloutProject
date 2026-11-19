@@ -29,7 +29,10 @@ const isFlickeringEnabled = inject('isFlickering', ref(false))
     <SidePanel v-if="sidePanel" :vault-id="vaultId" />
     <main
       class="vault-page-main main-content min-w-0 flex-1 pb-8 leading-[1.6] transition-[margin-left] duration-300 ease max-md:ml-0"
-      :class="[isCollapsed ? 'ml-16' : 'ml-60', { flicker: flicker && isFlickeringEnabled }]"
+      :class="[
+        sidePanel ? (isCollapsed ? 'ml-16' : 'ml-60') : 'ml-0',
+        { flicker: flicker && isFlickeringEnabled },
+      ]"
     >
       <PageContentRail v-if="rail">
         <slot />

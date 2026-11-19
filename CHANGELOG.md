@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 3.7.0 (2026-11-19)
+
+### Features
+
+* **vault:** add playable experiments and improve the first session 8e4a5a8
+
 ## 3.6.3 (2026-11-19)
 
 ### Bug Fixes

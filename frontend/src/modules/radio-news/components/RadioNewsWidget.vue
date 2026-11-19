@@ -107,9 +107,6 @@ const broadcastDate = computed(() => {
     day: 'numeric',
   })
 })
-const toggleLabel = computed(() =>
-  isOpen.value ? 'Close the vault radio' : 'Open the vault radio'
-)
 
 const loadBroadcast = async () => {
   const requestVersion = ++loadVersion
@@ -336,10 +333,10 @@ onBeforeUnmount(() => {
       ]"
       :aria-expanded="isOpen"
       aria-controls="radio-news-panel"
-      :aria-label="toggleLabel"
       @click="togglePanel"
     >
       <span class="flex min-w-0 items-center gap-2">
+        <span class="sr-only">Vault radio:</span>
         <span
           class="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-theme-primary/40 bg-surface-sunken"
         >
@@ -363,7 +360,6 @@ onBeforeUnmount(() => {
         <span
           v-else-if="error && !broadcast"
           class="radio-news-widget__error flex max-w-[10rem] items-center gap-1 text-xs text-danger"
-          :aria-label="error"
         >
           <Icon icon="mdi:alert-circle-outline" class="h-4 w-4 shrink-0" />
           <span class="truncate">{{ error }}</span>

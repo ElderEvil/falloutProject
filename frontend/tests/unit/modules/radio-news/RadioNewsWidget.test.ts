@@ -208,6 +208,24 @@ describe('RadioNewsWidget', () => {
     expect(badge.text()).toContain('New Broadcast')
   })
 
+  it('derives the toggle name from its visible content', async () => {
+    mockApiGet.mockResolvedValue(makeBroadcast())
+
+    const wrapper = mount(RadioNewsWidget, {
+      props: { vaultId: 'vault-1' },
+    })
+
+    await flushPromises()
+
+    const toggle = wrapper.find('button')
+    // axe's label-content-name rule requires the whole visible text inside the
+    // accessible name; the name must therefore come from the content itself.
+    expect(toggle.attributes('aria-label')).toBeUndefined()
+    expect(toggle.text()).toContain('Vault radio:')
+    expect(toggle.text()).toContain('New Broadcast')
+    expect(toggle.text()).toContain('Vault 111 Evening News')
+  })
+
   it('does not show the "New" label for a yesterday broadcast', async () => {
     const broadcast = makeBroadcast({ created_at: yesterdayISO })
     mockApiGet.mockResolvedValue(broadcast)

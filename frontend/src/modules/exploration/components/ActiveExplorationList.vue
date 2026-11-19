@@ -126,17 +126,17 @@ const isReady = (exploration: Exploration) => isReadyToComplete(exploration)
               <Icon icon="mdi:map-marker-distance" class="h-3.5 w-3.5" />
               <span>{{ exploration.total_distance || 0 }}mi</span>
             </div>
-            <span class="text-[rgba(205,133,63,0.4)] text-[0.65rem]">•</span>
+            <span class="text-[rgba(205,133,63,0.4)] text-[0.65rem]" aria-hidden="true">•</span>
             <div class="stat-item">
               <Icon icon="mdi:treasure-chest" class="h-3.5 w-3.5" />
               <span>{{ exploration.loot_collected?.length || 0 }}</span>
             </div>
-            <span class="text-[rgba(205,133,63,0.4)] text-[0.65rem]">•</span>
+            <span class="text-[rgba(205,133,63,0.4)] text-[0.65rem]" aria-hidden="true">•</span>
             <div class="stat-item">
               <Icon icon="mdi:coins" class="h-3.5 w-3.5" />
               <span>{{ exploration.total_caps_found || 0 }}</span>
             </div>
-            <span class="text-[rgba(205,133,63,0.4)] text-[0.65rem]">•</span>
+            <span class="text-[rgba(205,133,63,0.4)] text-[0.65rem]" aria-hidden="true">•</span>
             <TooltipProvider :delay-duration="200">
               <Tooltip>
                 <TooltipTrigger as-child>
@@ -236,7 +236,7 @@ const isReady = (exploration: Exploration) => isReadyToComplete(exploration)
 
 <style scoped>
 .text-wasteland {
-  color: rgba(205, 133, 63, 1);
+  color: #e0a258;
 }
 
 .exploring-dwellers {
@@ -309,7 +309,7 @@ const isReady = (exploration: Exploration) => isReadyToComplete(exploration)
   align-items: center;
   gap: 0.35rem;
   font-size: 0.72rem;
-  color: rgba(205, 133, 63, 0.8);
+  color: rgba(205, 133, 63, 0.9);
 }
 
 .stat-item {

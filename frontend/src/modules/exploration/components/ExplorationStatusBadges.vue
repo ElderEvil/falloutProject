@@ -116,7 +116,8 @@ const chips = computed<StatusChip[]>(() => {
     <TooltipProvider v-for="chip in chips" :key="chip.key" :delay-duration="200">
       <Tooltip>
         <TooltipTrigger as-child>
-          <span :aria-label="compact ? chip.label : chip.ariaLabel">
+          <!-- Icon-only chips need a naming role: aria-label on a plain span is ignored. -->
+          <span role="img" :aria-label="chip.ariaLabel ?? chip.label">
             <Badge variant="outline" :class="[chip.classes, compactClass]">
               <Icon :icon="chip.icon" class="h-3 w-3" />
               <span v-if="!compact">{{ chip.label }}</span>

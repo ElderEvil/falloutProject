@@ -1,13 +1,26 @@
 from uuid import UUID
 
 import pytest
+import pytest_asyncio
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import crud
 from app.core.config import settings
-from app.core.enums import ExplorationStatus, GenderEnum, ObjectiveCategoryEnum
+from app.core.enums import (
+    DwellerStatusEnum,
+    ExplorationStatus,
+    GenderEnum,
+    ObjectiveCategoryEnum,
+    RoomTypeEnum,
+    SPECIALEnum,
+)
 from app.crud.objective import objective_crud
+from app.models.dweller import Dweller
+from app.models.room import Room
+from app.models.vault import Vault
+from app.schemas.dweller import DwellerCreate
+from app.schemas.room import RoomCreate
 from app.schemas.vault import VaultCreateWithUserID
 from app.services import catalog_service as data_loader
 from app.services.vault_service import vault_service
@@ -88,76 +101,96 @@ async def test_delete_vault(
     assert read_response.status_code == 404
 
 
-@pytest.mark.asyncio
-async def test_auto_assign_respects_age_group_filter(
-    async_client: AsyncClient,
-    async_session: AsyncSession,
-    superuser_token_headers: dict[str, str],
-):
-    """Auto-assign with age_group=adult must leave teen dwellers unassigned."""
-    from app.core.enums import DwellerStatusEnum, RoomTypeEnum, SPECIALEnum
-    from app.schemas.dweller import DwellerCreate
-    from app.schemas.room import RoomCreate
-
+@pytest_asyncio.fixture
+async def auto_assign_vault(async_session: AsyncSession) -> Vault:
+    """Superuser-owned vault shared by the auto-assign endpoint tests."""
     user = await crud.user.get_by_email(async_session, email=settings.FIRST_SUPERUSER_EMAIL)
     vault_data = create_fake_vault()
     vault_data["user_id"] = str(user.id)
-    vault = await crud.vault.create(async_session, VaultCreateWithUserID(**vault_data))
-    room = await crud.room.create(
+    return await crud.vault.create(async_session, VaultCreateWithUserID(**vault_data))
+
+
+async def create_auto_assign_room(
+    async_session: AsyncSession,
+    vault: Vault,
+    *,
+    name: str,
+    category: RoomTypeEnum,
+    ability: SPECIALEnum | None = None,
+    size: int = 3,
+    size_max: int = 9,
+) -> Room:
+    """Room with the shared auto-assign economics; size_min tracks size."""
+    return await crud.room.create(
         async_session,
         RoomCreate(
-            name="Power Generator",
+            name=name,
             vault_id=vault.id,
-            category=RoomTypeEnum.PRODUCTION,
-            ability=SPECIALEnum.STRENGTH,
+            category=category,
+            ability=ability,
             population_required=12,
             base_cost=100,
             t2_upgrade_cost=500,
             t3_upgrade_cost=1500,
             tier=1,
-            size=3,
-            size_min=3,
-            size_max=9,
+            size=size,
+            size_min=size,
+            size_max=size_max,
         ),
     )
 
-    adult = await crud.dweller.create(
+
+async def create_auto_assign_dweller(
+    async_session: AsyncSession,
+    vault: Vault,
+    *,
+    first_name: str,
+    last_name: str = "Worker",
+    gender: str = "male",
+    strength: int = 5,
+    special: int = 3,
+    age_group: str = "adult",
+) -> Dweller:
+    """Idle common dweller; `special` fills the six non-strength SPECIAL stats."""
+    return await crud.dweller.create(
         async_session,
         DwellerCreate(
-            first_name="Adult",
-            last_name="Worker",
+            first_name=first_name,
+            last_name=last_name,
             vault_id=vault.id,
-            gender="male",
+            gender=gender,
             rarity="common",
-            strength=5,
-            perception=3,
-            endurance=3,
-            charisma=3,
-            intelligence=3,
-            agility=3,
-            luck=3,
+            strength=strength,
+            perception=special,
+            endurance=special,
+            charisma=special,
+            intelligence=special,
+            agility=special,
+            luck=special,
             status=DwellerStatusEnum.IDLE,
+            age_group=age_group,
         ),
     )
-    teen = await crud.dweller.create(
+
+
+@pytest.mark.asyncio
+async def test_auto_assign_respects_age_group_filter(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    superuser_token_headers: dict[str, str],
+    auto_assign_vault: Vault,
+):
+    """Auto-assign with age_group=adult must leave teen dwellers unassigned."""
+    vault = auto_assign_vault
+    room = await create_auto_assign_room(
         async_session,
-        DwellerCreate(
-            first_name="Teen",
-            last_name="Worker",
-            vault_id=vault.id,
-            gender="female",
-            rarity="common",
-            strength=5,
-            perception=3,
-            endurance=3,
-            charisma=3,
-            intelligence=3,
-            agility=3,
-            luck=3,
-            status=DwellerStatusEnum.IDLE,
-            age_group="teen",
-        ),
+        vault,
+        name="Power Generator",
+        category=RoomTypeEnum.PRODUCTION,
+        ability=SPECIALEnum.STRENGTH,
     )
+    adult = await create_auto_assign_dweller(async_session, vault, first_name="Adult")
+    teen = await create_auto_assign_dweller(async_session, vault, first_name="Teen", gender="female", age_group="teen")
 
     response = await async_client.post(
         f"/vaults/{vault.id}/dwellers/auto-assign-all",
@@ -179,53 +212,20 @@ async def test_auto_assign_separates_eligible_pool_from_slot_cap(
     async_client: AsyncClient,
     async_session: AsyncSession,
     superuser_token_headers: dict[str, str],
+    auto_assign_vault: Vault,
 ):
     """The payload keeps the candidate pool apart from what free room slots allowed."""
-    from app.core.enums import DwellerStatusEnum, RoomTypeEnum, SPECIALEnum
-    from app.schemas.dweller import DwellerCreate
-    from app.schemas.room import RoomCreate
-
-    user = await crud.user.get_by_email(async_session, email=settings.FIRST_SUPERUSER_EMAIL)
-    vault_data = create_fake_vault()
-    vault_data["user_id"] = str(user.id)
-    vault = await crud.vault.create(async_session, VaultCreateWithUserID(**vault_data))
-    room = await crud.room.create(
+    vault = auto_assign_vault
+    await create_auto_assign_room(
         async_session,
-        RoomCreate(
-            name="Power Generator",
-            vault_id=vault.id,
-            category=RoomTypeEnum.PRODUCTION,
-            ability=SPECIALEnum.STRENGTH,
-            population_required=12,
-            base_cost=100,
-            t2_upgrade_cost=500,
-            t3_upgrade_cost=1500,
-            tier=1,
-            size=3,
-            size_min=3,
-            size_max=9,
-        ),
+        vault,
+        name="Power Generator",
+        category=RoomTypeEnum.PRODUCTION,
+        ability=SPECIALEnum.STRENGTH,
     )
 
     for index in range(3):
-        await crud.dweller.create(
-            async_session,
-            DwellerCreate(
-                first_name=f"Pool{index}",
-                last_name="Worker",
-                vault_id=vault.id,
-                gender="male",
-                rarity="common",
-                strength=5 - index,
-                perception=3,
-                endurance=3,
-                charisma=3,
-                intelligence=3,
-                agility=3,
-                luck=3,
-                status=DwellerStatusEnum.IDLE,
-            ),
-        )
+        await create_auto_assign_dweller(async_session, vault, first_name=f"Pool{index}", strength=5 - index)
 
     response = await async_client.post(
         f"/vaults/{vault.id}/dwellers/auto-assign-all",
@@ -245,53 +245,26 @@ async def test_auto_assign_training_room_sets_training_status(
     async_client: AsyncClient,
     async_session: AsyncSession,
     superuser_token_headers: dict[str, str],
+    auto_assign_vault: Vault,
 ):
     """Test that assigning dwellers to training rooms sets status to 'training'."""
-    from app.core.enums import DwellerStatusEnum, RoomTypeEnum, SPECIALEnum
-    from app.schemas.dweller import DwellerCreate
-    from app.schemas.room import RoomCreate
-
-    # Get superuser and create vault
-    user = await crud.user.get_by_email(async_session, email=settings.FIRST_SUPERUSER_EMAIL)
-    vault_data = create_fake_vault()
-    vault_data["user_id"] = str(user.id)
-    vault = await crud.vault.create(async_session, VaultCreateWithUserID(**vault_data))
+    vault = auto_assign_vault
 
     # Create a training room
-    training_room_data = {
-        "name": "Strength Training",
-        "vault_id": str(vault.id),
-        "category": RoomTypeEnum.TRAINING,
-        "ability": SPECIALEnum.STRENGTH,
-        "population_required": 12,
-        "base_cost": 100,
-        "t2_upgrade_cost": 500,
-        "t3_upgrade_cost": 1500,
-        "tier": 1,
-        "size": 3,
-        "size_min": 3,
-        "size_max": 9,
-    }
-    training_room = await crud.room.create(async_session, RoomCreate(**training_room_data))
+    training_room = await create_auto_assign_room(
+        async_session,
+        vault,
+        name="Strength Training",
+        category=RoomTypeEnum.TRAINING,
+        ability=SPECIALEnum.STRENGTH,
+    )
 
     # Create unassigned dwellers
     dweller_ids = []
     for i in range(2):
-        dweller_data = {
-            "first_name": f"TrainingDweller{i}",
-            "last_name": "Test",
-            "vault_id": str(vault.id),
-            "gender": "male",
-            "rarity": "common",
-            "strength": 5,
-            "perception": 3,
-            "endurance": 3,
-            "charisma": 3,
-            "intelligence": 3,
-            "agility": 3,
-            "luck": 3,
-        }
-        dweller = await crud.dweller.create(async_session, DwellerCreate(**dweller_data))
+        dweller = await create_auto_assign_dweller(
+            async_session, vault, first_name=f"TrainingDweller{i}", last_name="Test"
+        )
         dweller_ids.append(dweller.id)
 
     # Call auto-assign endpoint
@@ -321,70 +294,23 @@ async def test_auto_assign_crafting_rooms_endpoint(
     async_client: AsyncClient,
     async_session: AsyncSession,
     superuser_token_headers: dict[str, str],
+    auto_assign_vault: Vault,
 ):
     """Crafting auto-assign endpoint fills workshops with highest-total-SPECIAL adults."""
-    from app.core.enums import DwellerStatusEnum, RoomTypeEnum
-    from app.schemas.dweller import DwellerCreate
-    from app.schemas.room import RoomCreate
-
-    user = await crud.user.get_by_email(async_session, email=settings.FIRST_SUPERUSER_EMAIL)
-    vault_data = create_fake_vault()
-    vault_data["user_id"] = str(user.id)
-    vault = await crud.vault.create(async_session, VaultCreateWithUserID(**vault_data))
-
-    workshop = await crud.room.create(
+    vault = auto_assign_vault
+    workshop = await create_auto_assign_room(
         async_session,
-        RoomCreate(
-            name="Weapon workshop",
-            vault_id=vault.id,
-            category=RoomTypeEnum.CRAFTING,
-            ability=None,
-            population_required=12,
-            base_cost=100,
-            t2_upgrade_cost=500,
-            t3_upgrade_cost=1500,
-            tier=1,
-            size=9,
-            size_min=9,
-            size_max=9,
-        ),
+        vault,
+        name="Weapon workshop",
+        category=RoomTypeEnum.CRAFTING,
+        size=9,
+        size_max=9,
     )
-
-    high = await crud.dweller.create(
-        async_session,
-        DwellerCreate(
-            first_name="High",
-            last_name="Crafter",
-            vault_id=vault.id,
-            gender="male",
-            rarity="common",
-            strength=7,
-            perception=7,
-            endurance=7,
-            charisma=7,
-            intelligence=7,
-            agility=7,
-            luck=7,
-            status=DwellerStatusEnum.IDLE,
-        ),
+    high = await create_auto_assign_dweller(
+        async_session, vault, first_name="High", last_name="Crafter", strength=7, special=7
     )
-    low = await crud.dweller.create(
-        async_session,
-        DwellerCreate(
-            first_name="Low",
-            last_name="Crafter",
-            vault_id=vault.id,
-            gender="female",
-            rarity="common",
-            strength=1,
-            perception=1,
-            endurance=1,
-            charisma=1,
-            intelligence=1,
-            agility=1,
-            luck=1,
-            status=DwellerStatusEnum.IDLE,
-        ),
+    low = await create_auto_assign_dweller(
+        async_session, vault, first_name="Low", last_name="Crafter", gender="female", strength=1, special=1
     )
 
     response = await async_client.post(

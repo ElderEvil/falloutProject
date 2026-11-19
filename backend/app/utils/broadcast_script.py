@@ -127,6 +127,23 @@ _JUKEBOX_LINES = (
 # component dropped when the rest of the broadcast pushes past it.
 _SEGMENT_WORD_BUDGET = 195
 
+# Hard floor and ceiling for the finished script. Some seed/date combinations
+# render short broadcasts; neutral filler lines top them up before sign-off.
+_SCRIPT_MIN_WORDS = 120
+_SCRIPT_MAX_WORDS = 220
+
+# Neutral padding for short renders. The stat pools cannot supply filler
+# cleanly (they restate numbers already spoken or duplicate the rotating
+# segment), so these stand alone: dry, vault-radio flavored, no vault data.
+_FILLER_LINES = (
+    "In other vault news: the atrium clock runs three minutes fast, and nobody intends to fix it.",
+    "A quiet word from the announcer's booth: the coffee is strong, but the paperwork is stronger.",
+    "Station identification: you are tuned to the vault's own frequency, where the static is mostly decorative.",
+    "The suggestion box remains empty, which the Overseer chooses to read as unanimous approval.",
+    "A note from the archives: yesterday's broadcast has been filed under 'adequate'. We call that progress.",
+    "Between reports, a reminder to stretch your legs. The corridors are long, and the elevators are patient.",
+)
+
 
 def _pick_segment(seed: str, population: int, population_max: int, rewards_ready: int = 0) -> tuple[str, str]:
     """One rotating segment per broadcast: (kind, text), chosen by the seed."""
@@ -324,7 +341,25 @@ def build_daily_script(
         parts.extend(["Now for today's headlines.", notable])
 
     # Sign-off
-    parts.append(_pick(_SIGN_OFFS, f"{seed_base}:signoff").format(vault=vault_label))
+    signoff = _pick(_SIGN_OFFS, f"{seed_base}:signoff").format(vault=vault_label)
+
+    # Word-count floor: some seeds render a short broadcast. Top it up with
+    # distinct filler lines (never a repeat, never past the hard ceiling)
+    # before the sign-off closes the show.
+    used = set(parts)
+    filler_round = 0
+    while len(" ".join(parts).split()) < _SCRIPT_MIN_WORDS:
+        candidates = tuple(line for line in _FILLER_LINES if line not in used)
+        if not candidates:
+            break
+        line = _pick(candidates, f"{seed_base}:filler:{filler_round}")
+        if len(" ".join([*parts, line, signoff]).split()) > _SCRIPT_MAX_WORDS:
+            break
+        parts.append(line)
+        used.add(line)
+        filler_round += 1
+
+    parts.append(signoff)
 
     script = " ".join(parts)
     return (title, script)

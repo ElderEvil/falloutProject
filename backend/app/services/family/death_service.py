@@ -171,8 +171,15 @@ class DeathService:
 
         self._require_revivable(dweller)
 
-        vault = await vault_crud.get(db_session, self._require_vault_id(dweller))
+        vault = await vault_crud.lock_for_update(db_session, self._require_vault_id(dweller))
         assert_vault_owner(vault, user)
+
+        # Recheck revival eligibility under the lock: a concurrent revival may
+        # have committed between the pre-check and lock acquisition, and the
+        # session's identity map still holds the stale dead row. Refresh from
+        # the database so a duplicate request fails before any deduction.
+        await db_session.refresh(dweller)
+        self._require_revivable(dweller)
 
         revival_cost = self.get_revival_cost(dweller.level)
         if vault.bottle_caps < revival_cost:
@@ -181,36 +188,42 @@ class DeathService:
                 resource_amount=revival_cost - vault.bottle_caps,
             )
 
-        remaining_caps = vault.bottle_caps - revival_cost
-
-        # Deduct caps
-        from app.crud.vault import vault as vault_crud_instance
-
-        await vault_crud_instance.update(
-            db_session,
-            vault.id,
-            {"bottle_caps": remaining_caps},
-        )
-
         # Calculate health after revival
         revival_health = min(int(dweller.max_health * game_config.death.revival_health_percent), dweller.max_health)
 
-        # Revive dweller
-        revived_dweller = await dweller_crud.update(
-            db_session,
-            dweller.id,
-            DwellerUpdate(
-                is_dead=False,
-                death_timestamp=None,
-                death_cause=None,
-                is_permanently_dead=False,
-                status=DwellerStatusEnum.IDLE,
-                health=revival_health,
-                radiation=0,
-                lifecycle=LifecycleEnum.ALIVE,
-                availability=AvailabilityEnum.VAULT,
-            ),
-        )
+        # This service owns the transaction: the caps deduction and the revival
+        # stage under the vault row lock and commit together. Committing the
+        # caps write first would release the lock before the dweller is revived,
+        # letting a concurrent request read stale state; a failed revival must
+        # roll the deduction back, not strand it.
+        remaining_caps = vault.bottle_caps - revival_cost
+        try:
+            await vault_crud.update(
+                db_session,
+                vault.id,
+                {"bottle_caps": remaining_caps},
+                commit=False,
+            )
+            revived_dweller = await dweller_crud.update(
+                db_session,
+                dweller.id,
+                DwellerUpdate(
+                    is_dead=False,
+                    death_timestamp=None,
+                    death_cause=None,
+                    is_permanently_dead=False,
+                    status=DwellerStatusEnum.IDLE,
+                    health=revival_health,
+                    radiation=0,
+                    lifecycle=LifecycleEnum.ALIVE,
+                    availability=AvailabilityEnum.VAULT,
+                ),
+                commit=False,
+            )
+            await db_session.commit()
+        except Exception:
+            await db_session.rollback()
+            raise
 
         logger.info(
             "Dweller %s (%s %s) revived for %d caps",

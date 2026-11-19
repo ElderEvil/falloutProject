@@ -115,6 +115,11 @@ async def process_events(
         caps = rng.randint(game_config.vault_event.wanderer_caps_min, game_config.vault_event.wanderer_caps_max)
         title, message = "Wanderer at the Door", f"A wanderer gifted the vault {caps} caps before moving on!"
 
+    # Re-read the vault under the same row lock revivals use before depositing:
+    # deposit_caps writes an absolute balance, so an unlocked read could
+    # overwrite a concurrent revival deduction (1000 + 100 award vs -250 revive
+    # must land on 850, not 1100). The lock is held until the deposit commits.
+    vault = await vault_crud.lock_for_update(db_session, vault_id)
     await vault_service.deposit_caps(db_session=db_session, vault_obj=vault, amount=caps)
     await notification_service.create_and_send(
         db_session,

@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## 3.6.0 (2026-11-19)
+
+### Features
+
+* **relationships:** decay affinity for pairs that are apart 2c69074
+* **relationships:** decay affinity for pairs that are apart ([#1443](https://github.com/ElderEvil/falloutProject/issues/1443)) 0f978e2
+
+### Bug Fixes
+
+* **relationships:** document phase-consistent apart decay and test its rollback a4c57e6
+
 ## 3.5.1 (2026-11-19)
 
 ### Documentation

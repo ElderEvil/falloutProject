@@ -544,6 +544,9 @@ class RelationshipConfig(BaseSettings):
     affinity_increase_per_tick: int = Field(default=2, description="Affinity gain when in same room", ge=0)
     affinity_loss_per_tick: int = Field(default=1, description="Base affinity loss when chemistry is poor", ge=0)
     affinity_max_loss_per_tick: int = Field(default=2, description="Upper bound on affinity lost per tick", ge=1)
+    apart_affinity_decay_per_tick: int = Field(
+        default=1, description="Affinity lost per tick by pairs that do not share a room", ge=0
+    )
     charisma_affinity_rate: float = Field(
         default=0.08, description="Affinity multiplier change per effective Charisma point away from baseline 5", ge=0.0
     )

@@ -15,7 +15,7 @@ from uuid import UUID
 from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.core.enums import RelationshipTypeEnum
+from app.core.enums import PARTNER_LINKED_STAGES, RelationshipTypeEnum
 from app.core.game_config import game_config
 from app.crud import dweller as crud_dweller
 from app.crud.relationship import relationship_crud as crud_relationship
@@ -244,7 +244,7 @@ async def create_new_relationships(db_session: AsyncSession, new_relationships: 
 async def update_room_relationships(
     service: "GameLoopService", db_session: AsyncSession, vault_id: UUID
 ) -> RelationshipsStats:
-    """Update relationship affinity for dwellers sharing living quarters.
+    """Update relationship affinity: living-quarters pairs change, apart pairs decay.
 
     Relationship helpers are reached through ``service`` so patches on the
     ``GameLoopService`` instance keep intercepting (existing test contract).
@@ -252,19 +252,28 @@ async def update_room_relationships(
     stats: RelationshipsStats = {"relationships_updated": 0}
 
     try:
-        dwellers = await crud_dweller.get_living_quarters_dwellers(db_session, vault_id)
-        if not dwellers:
-            return stats
+        living_dwellers = await crud_dweller.get_living_in_vault(db_session, vault_id)
+        dwellers_by_id = {dweller.id: dweller for dweller in living_dwellers}
 
-        # Group dwellers by room
-        room_dwellers = group_dwellers_by_room(list(dwellers))
+        # Co-located affinity applies only to pairs sharing Living Quarters.
+        lq_dwellers = await crud_dweller.get_living_quarters_dwellers(db_session, vault_id)
+        room_dwellers = group_dwellers_by_room(list(lq_dwellers))
 
-        # Batch fetch all existing relationships for these dwellers
-        all_dweller_ids = {d.id for d in dwellers}
-        existing_relationships = await service._fetch_existing_relationships(db_session, all_dweller_ids)
+        # Batch fetch all existing relationships for this vault's dwellers
+        existing_relationships = await service._fetch_existing_relationships(db_session, set(dwellers_by_id))
 
         relationships_map = service._build_relationships_map(existing_relationships)
 
+        # Any pair sharing a room of any kind counts as together this tick.
+        # Roomless dwellers (exploring, questing, idle) are apart from everyone.
+        processed_pairs: set[tuple[UUID, UUID]] = {
+            tuple(sorted((d1.id, d2.id)))
+            for group in group_dwellers_by_room(
+                [dweller for dweller in living_dwellers if dweller.room_id is not None]
+            ).values()
+            for i, d1 in enumerate(group)
+            for d2 in group[i + 1 :]
+        }
         new_relationships: list[tuple[Relationship, int]] = []
         for room_dweller_list in room_dwellers.values():
             if len(room_dweller_list) < 2:
@@ -278,6 +287,9 @@ async def update_room_relationships(
                     stats["relationships_updated"] += updated
 
         stats["relationships_updated"] += await service._create_new_relationships(db_session, new_relationships)
+        stats["relationships_updated"] += await service._update_apart_relationships(
+            db_session, processed_pairs, relationships_map, dwellers_by_id
+        )
         if stats["relationships_updated"]:
             await db_session.commit()
             from app.services.notification_service import NotificationService
@@ -291,6 +303,56 @@ async def update_room_relationships(
         logger.error(f"Validation error updating relationships for vault {vault_id}: {e}", exc_info=True)
 
     return stats
+
+
+async def update_apart_relationships(
+    db_session: AsyncSession,
+    processed_pairs: set[tuple[UUID, UUID]],
+    relationships_map: dict[tuple[UUID, UUID], Relationship],
+    dwellers_by_id: dict[UUID, Dweller],
+) -> int:
+    """Decay affinity for established pairs that did not share a room this tick.
+
+    Dead dwellers are absent from ``dwellers_by_id`` (living fetch), so pairs
+    with a dead member are frozen. RIVAL and EX pairs are frozen too: their
+    dynamics play out through co-location, not distance.
+    """
+    from app.services.relationship_service import relationship_service
+
+    decay = game_config.relationship.apart_affinity_decay_per_tick
+    if decay <= 0:
+        return 0
+
+    updated = 0
+    for (first_id, second_id), relationship in relationships_map.items():
+        if (first_id, second_id) != (relationship.dweller_1_id, relationship.dweller_2_id):
+            continue
+        sorted_pair = sorted((relationship.dweller_1_id, relationship.dweller_2_id))
+        if (sorted_pair[0], sorted_pair[1]) in processed_pairs:
+            continue
+        if relationship.relationship_type in {RelationshipTypeEnum.RIVAL, RelationshipTypeEnum.EX}:
+            continue
+        dweller1 = dwellers_by_id.get(relationship.dweller_1_id)
+        dweller2 = dwellers_by_id.get(relationship.dweller_2_id)
+        if dweller1 is None or dweller2 is None:
+            continue
+        if (
+            purposeful_action_error(dweller1, DwellerAction.SOCIAL) is not None
+            or purposeful_action_error(dweller2, DwellerAction.SOCIAL) is not None
+        ):
+            continue
+        if relationship.affinity <= (0 if relationship.relationship_type in PARTNER_LINKED_STAGES else -100):
+            continue
+        await relationship_service.decrease_affinity(
+            db_session,
+            relationship.dweller_1_id,
+            relationship.dweller_2_id,
+            decay,
+            relationship=relationship,
+            commit=False,
+        )
+        updated += 1
+    return updated
 
 
 async def _deliver_due_baby(db_session: AsyncSession, vault_id: UUID, pregnancy_id: UUID) -> bool:

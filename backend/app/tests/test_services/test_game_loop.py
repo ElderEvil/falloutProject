@@ -749,6 +749,290 @@ class TestUpdateRoomRelationships:
             result = await game_loop_service._update_room_relationships(async_session, vault.id)
         assert result["relationships_updated"] == 0
 
+    @staticmethod
+    async def _apart_pair_setup(async_session: AsyncSession, vault: Vault, relationship_type=None, affinity=10):
+        """An acquainted pair in two different rooms plus the rooms they occupy."""
+        from app import crud
+        from app.core.enums import AgeGroupEnum, RoomTypeEnum
+        from app.models.relationship import Relationship
+        from app.schemas.dweller import DwellerCreate
+        from app.schemas.room import RoomCreate
+        from app.services.relationship_service import relationship_service
+        from app.tests.factory.dwellers import create_fake_dweller
+        from app.tests.factory.rooms import create_fake_room
+
+        lq = await crud.room.create(
+            async_session,
+            RoomCreate(
+                **{**create_fake_room(), "name": "Living Quarters", "category": RoomTypeEnum.CAPACITY},
+                vault_id=vault.id,
+            ),
+        )
+        diner = await crud.room.create(
+            async_session,
+            RoomCreate(
+                **{**create_fake_room(), "name": "Power Plant", "category": RoomTypeEnum.PRODUCTION},
+                vault_id=vault.id,
+            ),
+        )
+        dwellers = []
+        for index, room in enumerate((lq, diner)):
+            dweller_data = create_fake_dweller()
+            dweller_data.update(
+                {"first_name": f"Apart{index}", "happiness": 50, "charisma": 5, "age_group": AgeGroupEnum.ADULT}
+            )
+            dweller = await crud.dweller.create(
+                async_session,
+                DwellerCreate(**dweller_data, vault_id=vault.id),
+            )
+            dweller.room_id = room.id
+            async_session.add(dweller)
+            dwellers.append(dweller)
+        await async_session.commit()
+
+        relationship = await relationship_service.get_or_create_relationship(
+            async_session, dwellers[0].id, dwellers[1].id
+        )
+        update_data = {"affinity": affinity}
+        if relationship_type is not None:
+            update_data["relationship_type"] = relationship_type
+        async_session.add(relationship)
+        for key, value in update_data.items():
+            setattr(relationship, key, value)
+        await async_session.commit()
+        await async_session.refresh(relationship)
+        return dwellers, relationship
+
+    @pytest.mark.asyncio
+    async def test_apart_pair_loses_affinity_per_tick(self, async_session: AsyncSession, vault: Vault):
+        from app.core.enums import RelationshipTypeEnum
+
+        _, relationship = await self._apart_pair_setup(async_session, vault)
+
+        with patch.object(async_session, "commit", AsyncMock(wraps=async_session.commit)):
+            result = await game_loop_service._update_room_relationships(async_session, vault.id)
+
+        assert result["relationships_updated"] == 1
+        await async_session.refresh(relationship)
+        assert relationship.affinity == 9
+        assert relationship.relationship_type == RelationshipTypeEnum.ACQUAINTANCE
+
+    @pytest.mark.asyncio
+    async def test_committed_pair_apart_decays_without_demotion(self, async_session: AsyncSession, vault: Vault):
+        from app.core.enums import RelationshipTypeEnum
+
+        _, relationship = await self._apart_pair_setup(
+            async_session, vault, relationship_type=RelationshipTypeEnum.PARTNER, affinity=5
+        )
+
+        with patch.object(async_session, "commit", AsyncMock(wraps=async_session.commit)):
+            await game_loop_service._update_room_relationships(async_session, vault.id)
+
+        await async_session.refresh(relationship)
+        assert relationship.affinity == 4
+        assert relationship.relationship_type == RelationshipTypeEnum.PARTNER
+
+    @pytest.mark.asyncio
+    async def test_co_located_pair_is_not_decayed_by_the_apart_pass(self, async_session: AsyncSession, vault: Vault):
+        from sqlalchemy import select
+
+        from app import crud
+        from app.core.enums import AgeGroupEnum
+        from app.models.dweller import Dweller
+        from app.schemas.dweller import DwellerCreate
+        from app.services.relationship_service import relationship_service
+        from app.tests.factory.dwellers import create_fake_dweller
+
+        _, apart_relationship = await self._apart_pair_setup(async_session, vault)
+        from app.models.room import Room
+
+        lq = (
+            await async_session.execute(select(Room).where(Room.vault_id == vault.id, Room.name == "Living Quarters"))
+        ).scalar_one()
+        dweller_data = create_fake_dweller()
+        dweller_data.update({"first_name": "Third", "happiness": 50, "charisma": 5, "age_group": AgeGroupEnum.ADULT})
+        third = await crud.dweller.create(async_session, DwellerCreate(**dweller_data, vault_id=vault.id))
+        third.room_id = lq.id
+        async_session.add(third)
+        await async_session.commit()
+
+        apart0 = (
+            await async_session.execute(select(Dweller).where(Dweller.room_id == lq.id, Dweller.first_name == "Apart0"))
+        ).scalar_one()
+        third = (
+            await async_session.execute(select(Dweller).where(Dweller.room_id == lq.id, Dweller.first_name == "Third"))
+        ).scalar_one()
+
+        co_located = await relationship_service.get_or_create_relationship(async_session, apart0.id, third.id)
+        co_located.affinity = 10
+        async_session.add(co_located)
+        await async_session.commit()
+
+        with (
+            patch.object(async_session, "commit", AsyncMock(wraps=async_session.commit)),
+            patch("app.services.relationship_service.affinity_change", return_value=2),
+        ):
+            await game_loop_service._update_room_relationships(async_session, vault.id)
+
+        await async_session.refresh(co_located)
+        await async_session.refresh(apart_relationship)
+        # The co-located pair follows the normal chemistry rule (gains +2 at
+        # baseline charisma), not the apart decay.
+        assert co_located.affinity == 12
+        assert apart_relationship.affinity == 9
+
+    @pytest.mark.asyncio
+    async def test_roomless_pair_decays(self, async_session: AsyncSession, vault: Vault):
+        """Exploring/questing dwellers have no room: they drift apart like any apart pair."""
+        from app import crud
+        from app.core.enums import AgeGroupEnum
+        from app.schemas.dweller import DwellerCreate
+        from app.services.relationship_service import relationship_service
+        from app.tests.factory.dwellers import create_fake_dweller
+
+        dwellers = []
+        for index in range(2):
+            dweller_data = create_fake_dweller()
+            dweller_data.update(
+                {"first_name": f"Scout{index}", "happiness": 50, "charisma": 5, "age_group": AgeGroupEnum.ADULT}
+            )
+            dweller = await crud.dweller.create(async_session, DwellerCreate(**dweller_data, vault_id=vault.id))
+            dwellers.append(dweller)
+        await async_session.commit()
+
+        relationship = await relationship_service.get_or_create_relationship(
+            async_session, dwellers[0].id, dwellers[1].id
+        )
+        relationship.affinity = 10
+        async_session.add(relationship)
+        await async_session.commit()
+
+        with patch.object(async_session, "commit", AsyncMock(wraps=async_session.commit)):
+            result = await game_loop_service._update_room_relationships(async_session, vault.id)
+
+        await async_session.refresh(relationship)
+        assert result["relationships_updated"] == 1
+        assert relationship.affinity == 9
+
+    @pytest.mark.asyncio
+    async def test_dead_partner_freezes_the_pair(self, async_session: AsyncSession, vault: Vault):
+        _, relationship = await self._apart_pair_setup(async_session, vault)
+        # Kill dweller 1 (the LQ member): the apart pass must freeze the pair.
+        from sqlalchemy import select
+
+        from app.models.dweller import Dweller
+
+        dweller1 = (
+            await async_session.execute(
+                select(Dweller).where(Dweller.vault_id == vault.id, Dweller.first_name == "Apart0")
+            )
+        ).scalar_one()
+        dweller1.is_dead = True
+        async_session.add(dweller1)
+        await async_session.commit()
+
+        with patch.object(async_session, "commit", AsyncMock(wraps=async_session.commit)):
+            await game_loop_service._update_room_relationships(async_session, vault.id)
+
+        await async_session.refresh(relationship)
+        assert relationship.affinity == 10
+
+    @pytest.mark.parametrize("frozen_type", ["rival", "ex"])
+    @pytest.mark.asyncio
+    async def test_frozen_pair_apart_stays_frozen(self, async_session: AsyncSession, vault: Vault, frozen_type):
+        from app.core.enums import RelationshipTypeEnum
+
+        _, relationship = await self._apart_pair_setup(
+            async_session,
+            vault,
+            relationship_type=RelationshipTypeEnum(frozen_type),
+            affinity=-30,
+        )
+
+        with patch.object(async_session, "commit", AsyncMock(wraps=async_session.commit)):
+            await game_loop_service._update_room_relationships(async_session, vault.id)
+
+        await async_session.refresh(relationship)
+        assert relationship.affinity == -30
+        assert relationship.relationship_type == frozen_type
+
+    @pytest.mark.asyncio
+    async def test_committed_pair_at_zero_apart_is_skipped(self, async_session: AsyncSession, vault: Vault):
+        from app.core.enums import RelationshipTypeEnum
+
+        _, relationship = await self._apart_pair_setup(
+            async_session, vault, relationship_type=RelationshipTypeEnum.PARTNER, affinity=0
+        )
+
+        with patch.object(async_session, "commit", AsyncMock(wraps=async_session.commit)) as commit:
+            result = await game_loop_service._update_room_relationships(async_session, vault.id)
+
+        await async_session.refresh(relationship)
+        assert relationship.affinity == 0
+        # A no-op apart pass writes nothing (a floor pair is skipped) and
+        # must not even commit.
+        assert result["relationships_updated"] == 0
+        assert commit.await_count == 0
+
+    @pytest.mark.asyncio
+    async def test_same_room_non_living_quarters_pair_does_not_decay(self, async_session: AsyncSession, vault: Vault):
+        from sqlalchemy import select
+
+        from app import crud
+        from app.core.enums import AgeGroupEnum
+        from app.models.dweller import Dweller
+        from app.models.room import Room
+        from app.schemas.dweller import DwellerCreate
+        from app.services.relationship_service import relationship_service
+        from app.tests.factory.dwellers import create_fake_dweller
+
+        _, apart_relationship = await self._apart_pair_setup(async_session, vault)
+        plant = (
+            await async_session.execute(select(Room).where(Room.vault_id == vault.id, Room.name == "Power Plant"))
+        ).scalar_one()
+
+        pair = []
+        for index in range(2):
+            dweller_data = create_fake_dweller()
+            dweller_data.update(
+                {"first_name": f"Worker{index}", "happiness": 50, "charisma": 5, "age_group": AgeGroupEnum.ADULT}
+            )
+            dweller = await crud.dweller.create(async_session, DwellerCreate(**dweller_data, vault_id=vault.id))
+            dweller.room_id = plant.id
+            async_session.add(dweller)
+            pair.append(dweller)
+        await async_session.commit()
+
+        co_located = await relationship_service.get_or_create_relationship(async_session, pair[0].id, pair[1].id)
+        co_located.affinity = 10
+        async_session.add(co_located)
+        await async_session.commit()
+
+        with patch.object(async_session, "commit", AsyncMock(wraps=async_session.commit)):
+            await game_loop_service._update_room_relationships(async_session, vault.id)
+
+        await async_session.refresh(co_located)
+        await async_session.refresh(apart_relationship)
+        # Working side by side counts as together: no decay for this pair.
+        assert co_located.affinity == 10
+        assert apart_relationship.affinity == 9
+
+    @pytest.mark.asyncio
+    async def test_apart_decay_disabled_leaves_affinity_untouched(self, async_session: AsyncSession, vault: Vault):
+        from app.core.game_config import game_config
+
+        _, relationship = await self._apart_pair_setup(async_session, vault)
+        previous = game_config.relationship.apart_affinity_decay_per_tick
+        game_config.relationship.apart_affinity_decay_per_tick = 0
+        try:
+            with patch.object(async_session, "commit", AsyncMock(wraps=async_session.commit)):
+                await game_loop_service._update_room_relationships(async_session, vault.id)
+        finally:
+            game_config.relationship.apart_affinity_decay_per_tick = previous
+
+        await async_session.refresh(relationship)
+        assert relationship.affinity == 10
+
 
 # ═════════════════════════════════════════════════════════════════════
 # Relationship helper methods

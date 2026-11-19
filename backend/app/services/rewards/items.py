@@ -18,10 +18,15 @@ from app.crud.storage import get_available_space
 from app.crud.storage import storage as storage_crud
 from app.models.dweller import Dweller
 from app.models.storage import Storage
+from app.schemas.dweller import DwellerTemplate
 from app.services.rewards.resources import _medication_kind, grant_radaway, grant_stimpak
 from app.services.user_service import user_service
 from app.utils.dwellers import clamp_level_for_rarity, level_progress, rarity_level_bounds
-from app.utils.exceptions import ResourceConflictException, ensure_found
+from app.utils.exceptions import (
+    ResourceConflictException,
+    ResourceNotFoundException,
+    ensure_found,
+)
 from app.utils.item_factory import build_item, build_outfit, build_weapon
 from app.utils.reward_delivery import persist_reward_change, reward_delivery_is_deferred
 from app.utils.storage_policy import is_nuka_cola_consumable
@@ -240,8 +245,7 @@ async def grant_dweller(db_session: AsyncSession, vault_id: UUID, dweller_templa
     if template_id := dweller_template.get("template_id"):
         template = game_data_store.get_dweller(template_id)
         if template is None:
-            msg = f"Unknown dweller reward template: {template_id}"
-            raise ValueError(msg)
+            raise ResourceNotFoundException(DwellerTemplate, identifier=template_id)
         from app.services.dweller_service import dweller_service
 
         try:

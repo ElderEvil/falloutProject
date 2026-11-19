@@ -34,6 +34,7 @@ from app.schemas.dweller import (
     DwellerCreate,
     DwellerCreateCommonOverride,
     DwellerReadFull,
+    DwellerTemplate,
     DwellerUpdate,
 )
 from app.services.room_assignment_policy import adult_assignment_conditions
@@ -49,7 +50,7 @@ from app.utils.dwellers import (
     create_random_common_dweller,
     level_progress,
 )
-from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException, ensure_found
+from app.utils.exceptions import ResourceConflictException, ensure_found
 from app.utils.static_data import game_data_store
 from app.utils.time import utcnow
 
@@ -758,9 +759,7 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         The vault row is locked and the template's canonical name checked against active
         dwellers, so no caller can bypass per-vault uniqueness.
         """
-        template = game_data_store.get_dweller(template_id)
-        if template is None:
-            raise ResourceNotFoundException(template_id)
+        template = ensure_found(game_data_store.get_dweller(template_id), DwellerTemplate, template_id)
         active_names = await self.lock_vault_for_template(db_session, vault_id)
         canonical = f"{template.first_name} {template.last_name or ''}".strip().casefold()
         if canonical in active_names:

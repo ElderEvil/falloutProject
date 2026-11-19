@@ -5,6 +5,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 import pytest
+from sqlalchemy import event
+from sqlalchemy.ext.asyncio import AsyncConnection
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
@@ -72,6 +74,54 @@ async def test_process_events_resource_cache_awards_caps_and_notifies(async_sess
     await async_session.refresh(vault)
     assert vault.bottle_caps == initial_caps + 50
     mock_notification_service.create_and_send.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_process_events_award_locks_vault_before_deposit(
+    async_session: AsyncSession, db_connection: AsyncConnection, vault: Vault
+):
+    """The caps award must read the vault under the row lock revivals use.
+
+    deposit_caps writes an absolute balance; an unlocked read could overwrite a
+    concurrent revival deduction. SQLite renders no FOR UPDATE text, so observe
+    the ORM statement's lock clause structurally and assert the persisted balance.
+    """
+    await _create_dwellers(async_session, vault, count=3)
+    initial_caps = vault.bottle_caps
+
+    statements: list[tuple[str, bool]] = []
+
+    def record(_connection, _cursor, statement, _parameters, context, _executemany):
+        original = getattr(getattr(context, "compiled", None), "statement", None)
+        locked = getattr(original, "_for_update_arg", None) is not None
+        statements.append((statement, locked))
+
+    event.listen(db_connection.sync_connection, "before_cursor_execute", record)
+    try:
+        with (
+            patch("app.services.game_loop_service.random") as mock_random,
+            patch("app.services.notification_service.notification_service") as mock_notification_service,
+        ):
+            mock_random.random.return_value = 0.0
+            mock_random.choices.return_value = ["resource_cache"]
+            mock_random.randint.return_value = 50
+            mock_notification_service.create_and_send = AsyncMock()
+
+            result = await game_loop_service._process_events(async_session, vault.id, 3600)
+    finally:
+        event.remove(db_connection.sync_connection, "before_cursor_execute", record)
+
+    assert result["triggered"] == 1
+    locked_vault_reads = [
+        i for i, (sql, locked) in enumerate(statements) if locked and sql.startswith("SELECT vault.")
+    ]
+    vault_updates = [i for i, (sql, _) in enumerate(statements) if sql.startswith("UPDATE vault ")]
+    assert locked_vault_reads, "the award must read the vault row FOR UPDATE"
+    assert vault_updates, "the award must write the new balance"
+    assert locked_vault_reads[0] < vault_updates[0], "the locked read must precede the caps write"
+
+    await async_session.refresh(vault)
+    assert vault.bottle_caps == initial_caps + 50
 
 
 @pytest.mark.asyncio

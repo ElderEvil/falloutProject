@@ -183,6 +183,7 @@ class TestDeathService:
     async def test_revive_locks_the_vault_before_deducting_caps(
         self,
         async_session: AsyncSession,
+        db_connection: AsyncConnection,
         vault: Vault,
         dead_dweller: Dweller,
     ):
@@ -190,34 +191,100 @@ class TestDeathService:
 
         NOTE: the suite runs on SQLite, where ``FOR UPDATE`` is a no-op and two
         transactions cannot interleave, so the race itself cannot be reproduced
-        here. This asserts the mechanism (lock taken, before the write) that makes
-        the deduction serializable on Postgres.
+        here. Observe the ORM statements instead: the vault SELECT carrying the
+        FOR UPDATE clause must precede the caps UPDATE, and the deducted balance
+        must be persisted.
         """
-        from unittest.mock import MagicMock, patch
+        vault.bottle_caps = 10000
+        async_session.add(vault)
+        await async_session.commit()
+        owner = await crud.user.get(async_session, vault.user_id)
 
-        from app.crud.vault import vault as vault_crud
+        statements: list[tuple[str, bool]] = []
+
+        def record(_connection, _cursor, statement, _parameters, context, _executemany):
+            original = getattr(getattr(context, "compiled", None), "statement", None)
+            locked = getattr(original, "_for_update_arg", None) is not None
+            statements.append((statement, locked))
+
+        event.listen(db_connection.sync_connection, "before_cursor_execute", record)
+        try:
+            result = await death_service.revive_dweller(async_session, dead_dweller.id, owner)
+        finally:
+            event.remove(db_connection.sync_connection, "before_cursor_execute", record)
+
+        locked_vault_reads = [
+            i for i, (sql, locked) in enumerate(statements) if locked and sql.startswith("SELECT vault.")
+        ]
+        vault_updates = [i for i, (sql, _) in enumerate(statements) if sql.startswith("UPDATE vault ")]
+        assert locked_vault_reads, "revival must read the vault row FOR UPDATE"
+        assert vault_updates, "revival must write the deducted balance"
+        assert locked_vault_reads[0] < vault_updates[0], "the locked read must precede the caps write"
+
+        await async_session.refresh(vault)
+        assert vault.bottle_caps == 10000 - result.caps_spent
+
+    async def test_revive_duplicate_request_deducts_caps_only_once(
+        self,
+        async_session: AsyncSession,
+        vault: Vault,
+        dead_dweller: Dweller,
+    ):
+        """A repeated revival fails without touching the balance a second time."""
+        from app.utils.exceptions import ContentNoChangeException
 
         vault.bottle_caps = 10000
         async_session.add(vault)
         await async_session.commit()
         owner = await crud.user.get(async_session, vault.user_id)
 
-        manager = MagicMock()
-        with (
-            patch.object(vault_crud, "lock_for_update", wraps=vault_crud.lock_for_update) as locked,
-            patch.object(vault_crud, "update", wraps=vault_crud.update) as updated,
-        ):
-            manager.attach_mock(locked, "lock_for_update")
-            manager.attach_mock(updated, "update")
+        result = await death_service.revive_dweller(async_session, dead_dweller.id, owner)
+        with pytest.raises(ContentNoChangeException):
             await death_service.revive_dweller(async_session, dead_dweller.id, owner)
 
-        locked.assert_awaited_once()
-        assert locked.await_args is not None
-        assert locked.await_args.args[1] == vault.id
-        assert [call[0] for call in manager.mock_calls if call[0] in {"lock_for_update", "update"}] == [
-            "lock_for_update",
-            "update",
-        ]
+        await async_session.refresh(vault)
+        await async_session.refresh(dead_dweller)
+        assert vault.bottle_caps == 10000 - result.caps_spent
+        assert dead_dweller.is_dead is False
+
+    async def test_revive_distinct_dwellers_deducts_each_cost(
+        self,
+        async_session: AsyncSession,
+        vault: Vault,
+        dead_dweller: Dweller,
+    ):
+        """Reviving two different dwellers charges each revival exactly once."""
+        vault.bottle_caps = 10000
+        async_session.add(vault)
+        await async_session.commit()
+        owner = await crud.user.get(async_session, vault.user_id)
+
+        other_data = create_fake_dweller()
+        other_data.update(
+            {
+                "first_name": "Other",
+                "last_name": "Dead",
+                "status": DwellerStatusEnum.DEAD.value,
+                "is_dead": True,
+                "is_permanently_dead": False,
+                "death_timestamp": utcnow() - timedelta(days=1),
+                "death_cause": DeathCauseEnum.HEALTH.value,
+                "health": 0,
+                "max_health": 100,
+                "level": 5,
+            }
+        )
+        other_dweller = await crud.dweller.create(
+            db_session=async_session, obj_in=DwellerCreate(**other_data, vault_id=vault.id)
+        )
+
+        first = await death_service.revive_dweller(async_session, dead_dweller.id, owner)
+        second = await death_service.revive_dweller(async_session, other_dweller.id, owner)
+
+        await async_session.refresh(vault)
+        assert vault.bottle_caps == 10000 - first.caps_spent - second.caps_spent
+        assert first.remaining_caps == 10000 - first.caps_spent
+        assert second.remaining_caps == 10000 - first.caps_spent - second.caps_spent
 
     async def test_revive_clears_radiation(
         self,

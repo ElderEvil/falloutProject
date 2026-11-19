@@ -1018,6 +1018,37 @@ class TestUpdateRoomRelationships:
         assert apart_relationship.affinity == 9
 
     @pytest.mark.asyncio
+    async def test_rolls_back_apart_decay_on_commit_failure(self, async_session: AsyncSession, vault: Vault):
+        """A failed commit must not leave the apart pass's decay behind."""
+        from sqlalchemy.exc import SQLAlchemyError
+        from sqlmodel import select
+
+        from app.crud.relationship import relationship_crud
+        from app.models.notification import Notification
+
+        dwellers, relationship = await self._apart_pair_setup(async_session, vault)
+        relationship_id = relationship.id
+        original_type = relationship.relationship_type
+
+        with patch.object(
+            async_session,
+            "commit",
+            new_callable=AsyncMock,
+            side_effect=SQLAlchemyError("late failure"),
+        ):
+            result = await game_loop_service._update_room_relationships(async_session, vault.id)
+
+        assert result["relationships_updated"] == 1
+        reloaded = await relationship_crud.get(async_session, relationship_id)
+        assert reloaded.affinity == 10
+        assert reloaded.relationship_type == original_type
+        notifications = (await async_session.execute(select(Notification))).scalars().all()
+        assert not [
+            row for row in notifications if row.meta_data and row.meta_data.get("event") == "relationship_demoted"
+        ]
+        assert async_session.info.get("deferred_notification_deliveries") is None
+
+    @pytest.mark.asyncio
     async def test_apart_decay_disabled_leaves_affinity_untouched(self, async_session: AsyncSession, vault: Vault):
         from app.core.game_config import game_config
 

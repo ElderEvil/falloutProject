@@ -263,8 +263,10 @@ per pair from three inputs:
   `race_chemistry_bonus` (±0.05) and `charisma_chemistry_weight` (0.03/point). At or above
   `affinity_drift_threshold` (0.5) the pair gains; below it the pair drifts apart.
 
-Affinity is a single signed scale, **−100 … +100**. Pairs that do not share a room drift apart: each tick they lose
-`apart_affinity_decay_per_tick` (1). Committed pairs still floor at zero and keep their type; non-committed pairs
+Affinity is a single signed scale, **−100 … +100**. Pairs that do not share a room drift apart: each breeding-phase
+run — game tick or the on-demand breeding endpoint, which runs the same phase — loses
+`apart_affinity_decay_per_tick` (1) per pair, matching co-located affinity which also applies on those calls.
+Committed pairs still floor at zero and keep their type; non-committed pairs
 descend the stage ladder exactly like co-located drift, except RIVAL and EX pairs, which do not drift while apart —
 their dynamics play out through co-location. Pairs without a relationship row do not change.
 A pair at negative affinity is a **rival**; it returns to acquaintance at `rival_recovery_threshold` (10), which keeps

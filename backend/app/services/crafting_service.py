@@ -33,8 +33,8 @@ from app.services.vault_service import vault_service
 from app.utils.exceptions import (
     InsufficientResourcesException,
     ResourceConflictException,
-    ResourceNotFoundException,
     ValidationException,
+    ensure_found,
 )
 from app.utils.item_factory import build_junk, build_outfit, build_weapon
 from app.utils.static_data import game_data_store
@@ -301,8 +301,7 @@ class CraftingService:
 
         vault = await crud.vault.lock_for_update(db_session, vault_id)
         storage = await crud.storage.get_storage_by_vault(db_session, vault_id)
-        if storage is None:
-            raise ResourceNotFoundException(Storage, vault_id, identifier_type="vault_id")
+        storage = ensure_found(storage, Storage, vault_id, identifier_type="vault_id")
 
         workshop = self.workshop_name(item_type)
         room = await self._workshop_room(db_session, vault_id, workshop)
@@ -377,8 +376,7 @@ class CraftingService:
         be cancelled again.
         """
         order = await crud.crafting_order.get_for_vault_for_update(db_session, order_id, vault_id)
-        if order is None:
-            raise ResourceNotFoundException(CraftingOrder, order_id)
+        order = ensure_found(order, CraftingOrder, order_id)
         if not order.is_active():
             raise ValidationException(f"Only active orders can be cancelled; this order is {order.status}")
 
@@ -448,8 +446,7 @@ class CraftingService:
             ResourceConflictException: Storage cannot hold the crafted item.
         """
         order = await crud.crafting_order.get_for_vault_for_update(db_session, order_id, vault_id)
-        if order is None:
-            raise ResourceNotFoundException(CraftingOrder, order_id)
+        order = ensure_found(order, CraftingOrder, order_id)
         if not order.is_completed():
             raise ValidationException("Order is not ready to collect")
 
@@ -475,8 +472,7 @@ class CraftingService:
             )
 
         storage = await crud.storage.get_storage_by_vault(db_session, vault_id)
-        if storage is None:
-            raise ResourceNotFoundException(Storage, vault_id, identifier_type="vault_id")
+        storage = ensure_found(storage, Storage, vault_id, identifier_type="vault_id")
         info = await crud.storage.get_storage_info(db_session, storage.id)
         if info["max_space"] - info["used_space"] < 1:
             raise ResourceConflictException("Storage is full")

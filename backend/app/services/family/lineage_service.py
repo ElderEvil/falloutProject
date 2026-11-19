@@ -11,7 +11,7 @@ from app.crud import dweller as dweller_crud
 from app.crud.relationship import relationship_crud
 from app.models.dweller import Dweller
 from app.schemas.dweller import LineageMember, LineageResponse
-from app.utils.exceptions import ResourceNotFoundException
+from app.utils.exceptions import ensure_found
 
 logger = logging.getLogger(__name__)
 
@@ -148,8 +148,7 @@ class LineageService:
         """
         dweller = await dweller_crud.get(db_session, dweller_id)
         vault_id = dweller.vault_id
-        if vault_id is None:
-            raise ResourceNotFoundException(Dweller, identifier=dweller_id)
+        vault_id = ensure_found(vault_id, Dweller, identifier=dweller_id)
 
         generation = await cls._compute_generation(db_session, dweller_id, vault_id)
 

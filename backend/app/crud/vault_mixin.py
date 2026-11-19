@@ -6,7 +6,7 @@ from sqlmodel import SQLModel, and_, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.models import User
-from app.utils.exceptions import ResourceNotFoundException
+from app.utils.exceptions import ensure_found
 
 ModelType = TypeVar("ModelType", bound=SQLModel)
 
@@ -22,9 +22,7 @@ class VaultActionsMixin[ModelType]:
             query = query.where(self.model.user_id == user.id)
         response = await db_session.execute(query)
         db_obj = response.scalar_one_or_none()
-        if db_obj is None:
-            raise ResourceNotFoundException(self.model, identifier=id)
-        return db_obj
+        return ensure_found(db_obj, self.model, identifier=id)
 
     async def get_multi_for_vault(
         self, db_session: AsyncSession, vault_id: UUID, *, skip: int = 0, limit: int = 100, user: User | None = None

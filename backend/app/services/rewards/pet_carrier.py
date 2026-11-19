@@ -18,7 +18,7 @@ from app.models.item import Item
 from app.schemas.pet import PetRead
 from app.services import catalog_service
 from app.services.rewards import items
-from app.utils.exceptions import ResourceNotFoundException, ValidationException
+from app.utils.exceptions import ValidationException, ensure_found
 from app.utils.item_factory import build_pet
 from app.utils.reward_delivery import defer_reward_delivery, persist_reward_change
 
@@ -58,8 +58,7 @@ async def open_pet_carrier(db_session: AsyncSession, vault_id: UUID, item_id: UU
     from app.crud.storage import get_unopened_container
 
     item = await get_unopened_container(db_session, item_id, vault_id, item_type=PET_CARRIER_ITEM_TYPE)
-    if item is None:
-        raise ResourceNotFoundException(Item, item_id)
+    item = ensure_found(item, Item, item_id)
     pet_data = _roll_pet()
     storage_obj = await items._ensure_storage(db_session, vault_id, 0)
     async with defer_reward_delivery(db_session):

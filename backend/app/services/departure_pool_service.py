@@ -24,7 +24,11 @@ from app.models.dweller import Dweller
 from app.models.vault import Vault
 from app.services.trading_post_service import trade_value
 from app.services.vault_service import vault_service
-from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException, VaultOperationException
+from app.utils.exceptions import (
+    ResourceConflictException,
+    VaultOperationException,
+    ensure_found,
+)
 from app.utils.time import utcnow
 
 logger = logging.getLogger(__name__)
@@ -57,8 +61,7 @@ class DeparturePoolService:
         racing a relisting — resolve to exactly one winner.
         """
         dweller = await dweller_crud.get_for_update(db_session, dweller_id, include_deleted=True)
-        if dweller is None:
-            raise ResourceNotFoundException(Dweller, identifier=dweller_id)
+        dweller = ensure_found(dweller, Dweller, identifier=dweller_id)
         if dweller.availability is not AvailabilityEnum.DEPARTURE:
             raise ResourceConflictException(detail="Dweller is no longer available in the pool")
         if dweller.previous_vault_id == vault.id:

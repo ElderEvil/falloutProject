@@ -73,8 +73,8 @@ from app.utils.exceptions import (
     InvalidVaultTransferException,
     NoLivingSpaceError,
     ResourceConflictException,
-    ResourceNotFoundException,
     VaultOperationException,
+    ensure_found,
 )
 from app.utils.reward_delivery import persist_reward_change
 from app.utils.time import utcnow
@@ -122,8 +122,7 @@ class DwellerService:
             await close_open_site_run(db_session, locked.id)
 
         dweller = await crud.dweller.get_for_update(db_session, dweller_id, include_deleted=True)
-        if dweller is None:
-            raise ResourceNotFoundException(Dweller, dweller_id)
+        dweller = ensure_found(dweller, Dweller, dweller_id)
 
         for exploration in explorations:
             exploration.abandon()
@@ -349,8 +348,7 @@ class DwellerService:
                 data["status"] = determine_status_for_room(None)
             else:
                 room_obj = await crud.room.get(db_session, room_id)
-                if not room_obj:
-                    raise ResourceNotFoundException(model=Room, identifier=room_id)
+                room_obj = ensure_found(room_obj, Room, identifier=room_id)
                 data["status"] = determine_status_for_room(room_obj.category, room_obj.name)
 
         if room_changed:

@@ -13,7 +13,11 @@ from app.models import Dweller, Room, Storage
 from app.models.game_state import GameState
 from app.models.vault import Vault
 from app.schemas.vault import VaultCreate, VaultCreateWithUserID, VaultNumber, VaultUpdate
-from app.utils.exceptions import ResourceAlreadyExistsException, ResourceNotFoundException, ValidationException
+from app.utils.exceptions import (
+    ResourceAlreadyExistsException,
+    ValidationException,
+    ensure_found,
+)
 from app.utils.place_seed import get_seeded_vault_numbers
 
 logger = getLogger(__name__)
@@ -264,8 +268,7 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
 
         response = await db_session.execute(select(Vault).where(Vault.id == id))
         obj = response.scalar_one_or_none()
-        if not obj:
-            raise ResourceNotFoundException(self.model, identifier=id)
+        obj = ensure_found(obj, self.model, identifier=id)
 
         if hasattr(obj, "soft_delete"):
             obj.soft_delete()

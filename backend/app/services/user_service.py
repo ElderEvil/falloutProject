@@ -25,8 +25,8 @@ from app.utils.exceptions import (
     EmailDeliveryException,
     ResourceAlreadyExistsException,
     ResourceConflictException,
-    ResourceNotFoundException,
     ValidationException,
+    ensure_found,
 )
 from app.utils.time import utcnow
 
@@ -69,8 +69,7 @@ class UserService:
             EmailDeliveryException: 502 when the account was saved but the mail could not be sent.
         """
         locked_user = await crud.user.get_for_update(db_session, user.id)
-        if locked_user is None:
-            raise ResourceNotFoundException(model=User, identifier=str(user.id))
+        locked_user = ensure_found(locked_user, User, identifier=str(user.id))
 
         if password is not None and not 8 <= len(password) <= 128:
             raise ValidationException("Password must be between 8 and 128 characters.")

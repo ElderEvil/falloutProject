@@ -23,7 +23,7 @@ from app.models.quest import Quest
 from app.models.vault_objective import VaultObjectiveProgressLink
 from app.services.progression.objectives.guidance import current_state_progress
 from app.services.rewards import items, lunchbox, resources
-from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException, ValidationException
+from app.utils.exceptions import ResourceConflictException, ValidationException, ensure_found
 from app.utils.reward_delivery import defer_reward_delivery
 
 if TYPE_CHECKING:
@@ -71,8 +71,7 @@ async def claim_objective_reward(
     """Claim an assigned, earned reward atomically and reject repeat claims."""
     await vault_crud.lock_for_update(db_session, vault_id)
     link = await objective_crud.get_link_for_update(db_session, objective_id, vault_id)
-    if link is None:
-        raise ResourceNotFoundException(Objective, objective_id)
+    link = ensure_found(link, Objective, objective_id)
     if link.is_locked:
         raise ValidationException("Complete the previous achievement stage first")
     if link.is_completed:

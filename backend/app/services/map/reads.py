@@ -94,11 +94,10 @@ async def get_location_detail(
     location_id: UUID,
 ) -> WastelandLocationWithDwellers:
     """Return a single location with its linked dweller references."""
-    from app.utils.exceptions import ResourceNotFoundException
+    from app.utils.exceptions import ensure_found
 
     pair = await wl_crud.get_state_with_location(db_session, vault.id, location_id)
-    if pair is None:
-        raise ResourceNotFoundException(WorldLocation, identifier=location_id)
+    pair = ensure_found(pair, WorldLocation, identifier=location_id)
     location, state = pair
 
     refs_map = await wl_crud.get_dweller_refs(db_session, vault.id, [location.id])

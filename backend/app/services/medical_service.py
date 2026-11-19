@@ -16,7 +16,7 @@ from app.schemas.vault import MedicalDistributionResponse
 from app.utils.exceptions import (
     ContentNoChangeException,
     ResourceConflictException,
-    ResourceNotFoundException,
+    ensure_found,
 )
 from app.utils.radiation import apply_health_gain, radiation_removal_amount, stimpack_heal_amount
 
@@ -70,8 +70,7 @@ async def use_stimpack(db_session: AsyncSession, dweller_id: UUID) -> Dweller:
     # Stock first, then the dweller: match bulk recovery's lock order.
     storage = await storage_crud.get_by_vault_for_update(db_session, vault_id) if vault_id else None
     dweller_obj = await dweller_crud.get_for_update(db_session, dweller_id)
-    if dweller_obj is None:
-        raise ResourceNotFoundException(Dweller, identifier=dweller_id)
+    dweller_obj = ensure_found(dweller_obj, Dweller, identifier=dweller_id)
 
     if dweller_obj.is_dead:
         raise ResourceConflictException(detail="Dead dweller must be revived before treatment.")
@@ -100,8 +99,7 @@ async def use_stimpack(db_session: AsyncSession, dweller_id: UUID) -> Dweller:
 async def use_radaway(db_session: AsyncSession, dweller_id: UUID) -> Dweller:
     """Spend one carried RadAway and remove a configured share of the dweller's radiation."""
     dweller_obj = await dweller_crud.get_for_update(db_session, dweller_id)
-    if dweller_obj is None:
-        raise ResourceNotFoundException(Dweller, identifier=dweller_id)
+    dweller_obj = ensure_found(dweller_obj, Dweller, identifier=dweller_id)
 
     if dweller_obj.is_dead:
         raise ResourceConflictException(detail="Dead dweller must be revived before treatment.")

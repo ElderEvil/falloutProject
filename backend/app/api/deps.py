@@ -21,7 +21,7 @@ from app.models.vault import Vault
 from app.models.weapon import Weapon
 from app.schemas.pagination import NotificationPagination, OffsetPagination, Pagination, PetPagination
 from app.services import access_service
-from app.utils.exceptions import AccessDeniedException, ResourceNotFoundException
+from app.utils.exceptions import AccessDeniedException, ensure_found
 
 reusable_oauth2 = OAuth2PasswordBearer(
     tokenUrl=f"{settings.API_V1_STR}/auth/login",
@@ -213,12 +213,10 @@ async def verify_item_access(
     from app.crud.item_base import get_item_vault_id
 
     item = await db_session.get(model, item_id)
-    if not item:
-        raise ResourceNotFoundException(model, identifier=item_id)
+    item = ensure_found(item, model, identifier=item_id)
 
     vault_id = await get_item_vault_id(db_session, item)
-    if not vault_id:
-        raise ResourceNotFoundException(model, identifier=item_id)
+    vault_id = ensure_found(vault_id, model, identifier=item_id)
 
     await get_user_vault_or_403(vault_id, user, db_session)
 

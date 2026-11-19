@@ -24,8 +24,8 @@ from app.utils.dweller_availability import DwellerAction, purposeful_action_erro
 from app.utils.exceptions import (
     InvalidVaultTransferException,
     ResourceConflictException,
-    ResourceNotFoundException,
     VaultOperationException,
+    ensure_found,
 )
 from app.utils.time import utcnow
 
@@ -221,14 +221,11 @@ class TrainingService:
     ) -> tuple[Training, Dweller]:
         """Lock the dweller before the session, matching assignment write order."""
         training = await training_crud.training.get(db_session, training_id)
-        if not training:
-            raise ResourceNotFoundException(model=Training, identifier=training_id)
+        training = ensure_found(training, Training, identifier=training_id)
         dweller = await dweller_crud.get_for_update(db_session, training.dweller_id)
-        if not dweller:
-            raise ResourceNotFoundException(model=Dweller, identifier=training.dweller_id)
+        dweller = ensure_found(dweller, Dweller, identifier=training.dweller_id)
         training = await training_crud.training.get_for_update(db_session, training_id)
-        if not training:
-            raise ResourceNotFoundException(model=Training, identifier=training_id)
+        training = ensure_found(training, Training, identifier=training_id)
         if not training.is_active():
             raise VaultOperationException(detail=f"Training is {training.status}, cannot {operation}")
         return training, dweller

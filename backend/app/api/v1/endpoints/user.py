@@ -20,7 +20,7 @@ from app.schemas.user_profile import ProfileRead, ProfileUpdate
 from app.services.admin_service import create_user_account, update_user_account
 from app.services.family.death_service import death_service
 from app.services.user_service import user_service
-from app.utils.exceptions import ResourceNotFoundException
+from app.utils.exceptions import ResourceNotFoundException, ensure_found
 
 logger = logging.getLogger(__name__)
 
@@ -204,8 +204,7 @@ async def update_my_profile(
         ResourceNotFoundException: 404 if the profile does not exist.
     """
     profile = await profile_crud.get_by_user_id(db_session, user.id)
-    if not profile:
-        raise ResourceNotFoundException(model=UserProfile, identifier=user.id)
+    profile = ensure_found(profile, UserProfile, identifier=user.id)
 
     return await profile_crud.update(db_session, id=profile.id, obj_in=profile_data)
 

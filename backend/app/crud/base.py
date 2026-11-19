@@ -7,7 +7,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlmodel import SQLModel, col, func, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.utils.exceptions import ResourceAlreadyExistsException, ResourceNotFoundException
+from app.utils.exceptions import ResourceAlreadyExistsException, ResourceNotFoundException, ensure_found
 
 
 class CRUDBase[ModelType: SQLModel, CreateSchemaType: (SQLModel | None), UpdateSchemaType: (SQLModel | None)]:
@@ -38,9 +38,7 @@ class CRUDBase[ModelType: SQLModel, CreateSchemaType: (SQLModel | None), UpdateS
 
         response = await db_session.execute(query)
         db_obj = response.scalar_one_or_none()
-        if db_obj is None:
-            raise ResourceNotFoundException(self.model, identifier=id)
-        return db_obj
+        return ensure_found(db_obj, self.model, identifier=id)
 
     async def get_or_none(
         self, db_session: AsyncSession, id: int | UUID, include_deleted: bool = False
@@ -233,8 +231,7 @@ class CRUDBase[ModelType: SQLModel, CreateSchemaType: (SQLModel | None), UpdateS
         """
         response = await db_session.execute(select(self.model).where(self.model.id == id))
         obj = response.scalar_one_or_none()
-        if not obj:
-            raise ResourceNotFoundException(self.model, identifier=id)
+        obj = ensure_found(obj, self.model, identifier=id)
 
         # Perform soft delete if supported and requested
         if soft and hasattr(obj, "soft_delete"):

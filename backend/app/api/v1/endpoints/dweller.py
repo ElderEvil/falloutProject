@@ -51,7 +51,7 @@ from app.services.exit_request_service import exit_request_service
 from app.services.family.death_service import death_service
 from app.services.family.lineage_service import lineage_service
 from app.services.happiness_service import happiness_service
-from app.utils.exceptions import ResourceNotFoundException
+from app.utils.exceptions import ResourceNotFoundException, ensure_found
 from app.utils.static_data import StaticGameData
 
 router = APIRouter(prefix="/dwellers", tags=["Dweller"])
@@ -234,9 +234,7 @@ async def move_dweller_to_room(
     """
     await verify_dweller_access(dweller_id, user, db_session)
     moved = await dweller_service.move_to_room(db_session, dweller_id, room_id)
-    if moved is None:
-        raise ResourceNotFoundException(Dweller, identifier=dweller_id)
-    return moved
+    return ensure_found(moved, Dweller, identifier=dweller_id)
 
 
 @router.post("/create_random/", response_model=DwellerRead)
@@ -464,9 +462,7 @@ async def auto_assign_to_room(
     """
     await verify_dweller_access(dweller_id, user, db_session)
     assigned = await dweller_service.auto_assign_to_best_room(db_session, dweller_id)
-    if assigned is None:
-        raise ResourceNotFoundException(Dweller, identifier=dweller_id)
-    return assigned
+    return ensure_found(assigned, Dweller, identifier=dweller_id)
 
 
 # ============================================

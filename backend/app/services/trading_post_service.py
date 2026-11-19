@@ -21,7 +21,7 @@ from app.schemas.dweller import DwellerReadLess
 from app.schemas.trading import TradeMarketResponse, TradeOffer, TradeResultResponse
 from app.services.dweller_recycling_service import dweller_recycling_service
 from app.services.vault_service import vault_service
-from app.utils.exceptions import ResourceNotFoundException, VaultOperationException
+from app.utils.exceptions import ResourceNotFoundException, VaultOperationException, ensure_found
 
 logger = logging.getLogger(__name__)
 
@@ -56,9 +56,7 @@ async def _visited_counts(db_session: AsyncSession, dweller_ids: list[UUID]) -> 
 async def _get_tradable(db_session: AsyncSession, dweller_id: UUID) -> Dweller:
     """Fetch a soft-deleted, non-dead dweller by id."""
     dweller = await dweller_crud.get_tradable_by_id(db_session, dweller_id)
-    if not dweller:
-        raise ResourceNotFoundException(Dweller, identifier=dweller_id)
-    return dweller
+    return ensure_found(dweller, Dweller, identifier=dweller_id)
 
 
 class TradingPostService:

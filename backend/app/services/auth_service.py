@@ -15,8 +15,8 @@ from app.core.email import send_password_changed_email, send_password_reset_emai
 from app.models.user import User
 from app.schemas.token import Token
 from app.utils.exceptions import (
-    ResourceNotFoundException,
     ValidationException,
+    ensure_found,
 )
 from app.utils.time import as_utc, utcnow
 
@@ -194,8 +194,7 @@ class AuthService:
 
         # Get user by email
         user = await crud.user.get_by_email(db_session, email=email)
-        if not user:
-            raise ResourceNotFoundException(model=User, identifier=email, identifier_type="email")
+        user = ensure_found(user, User, identifier=email, identifier_type="email")
 
         # Check if token matches and hasn't expired
         if user.password_reset_token != token:
@@ -290,8 +289,7 @@ class AuthService:
 
         # Get user
         user = await crud.user.get_for_update(db_session, UUID(user_id))
-        if not user:
-            raise ResourceNotFoundException(model=User, identifier=user_id)
+        user = ensure_found(user, User, identifier=user_id)
 
         # Check if token matches
         if user.email_verification_token != token:
@@ -323,8 +321,7 @@ class AuthService:
             ResourceNotFoundException: If the user row no longer exists
         """
         locked_user = await crud.user.get_for_update(db_session, user.id)
-        if locked_user is None:
-            raise ResourceNotFoundException(model=User, identifier=str(user.id))
+        locked_user = ensure_found(locked_user, User, identifier=str(user.id))
 
         if locked_user.email_verified:
             raise ValidationException(detail="Email already verified")

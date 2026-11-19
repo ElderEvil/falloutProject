@@ -30,7 +30,7 @@ from app.services.map.world_generation import (
     generate_world,
     snapshot_checksum,
 )
-from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException
+from app.utils.exceptions import ResourceConflictException, ensure_found
 
 if TYPE_CHECKING:
     from sqlmodel.ext.asyncio.session import AsyncSession
@@ -127,8 +127,9 @@ class WorldSnapshotService:
         snapshot = await snapshot_crud.get_version(
             db_session, world_id=world_id, generator_version=generator_version, for_update=True
         )
-        if snapshot is None:
-            raise ResourceNotFoundException(WorldSnapshot, f"{world_id}:{generator_version}", "world/version")
+        snapshot = ensure_found(
+            snapshot, WorldSnapshot, f"{world_id}:{generator_version}", identifier_type="world/version"
+        )
         if expected_checksum is not None and expected_checksum != snapshot.snapshot_checksum:
             raise ResourceConflictException("World changed since road generation was requested")
         if snapshot.roads is not None:

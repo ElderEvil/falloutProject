@@ -30,7 +30,7 @@ from app.schemas.incident import (
 from app.services.combat import incident_publishing, incident_round, incident_spawning, incident_tick
 from app.services.loot_overflow_service import loot_overflow_service
 from app.utils.dweller_availability import is_incident_responder_available
-from app.utils.exceptions import AccessDeniedException, ResourceNotFoundException, ValidationException
+from app.utils.exceptions import AccessDeniedException, ResourceNotFoundException, ValidationException, ensure_found
 from app.utils.serialize import serialize_optional_utc_datetime, serialize_utc_datetime
 from app.utils.time import utcnow
 
@@ -212,8 +212,7 @@ class IncidentService:
             if for_update
             else await incident_crud.get(db_session, incident_id)
         )
-        if not incident:
-            raise ResourceNotFoundException(Incident, incident_id)
+        incident = ensure_found(incident, Incident, incident_id)
         if incident.vault_id != vault_id:
             raise AccessDeniedException("Incident does not belong to this vault")
         return incident
@@ -292,8 +291,7 @@ class IncidentService:
         # Re-load under a FOR UPDATE row lock so the read→check→insert below is
         # serialized against concurrent assignments to the same incident.
         locked_incident = await incident_crud.get_for_update(db_session, incident.id)
-        if locked_incident is None:
-            raise ResourceNotFoundException(Incident, incident.id)
+        locked_incident = ensure_found(locked_incident, Incident, incident.id)
         incident = locked_incident
         if incident.status not in [IncidentStatus.ACTIVE, IncidentStatus.SPREADING]:
             raise ValidationException("Incident is no longer active")

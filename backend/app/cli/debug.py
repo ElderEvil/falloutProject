@@ -228,16 +228,14 @@ def build_living_room(vault_id: Annotated[UUID, typer.Argument(help="Target vaul
         from app.models.room import Room
         from app.schemas.room import RoomBuild
         from app.services.room_service import room_service
-        from app.utils.exceptions import ResourceNotFoundException
+        from app.utils.exceptions import ensure_found
 
         vault = await crud.vault.get(session, id=vault_id)
-        if not vault:
-            raise ResourceNotFoundException(model=Vault, identifier=vault_id)
+        vault = ensure_found(vault, Vault, identifier=vault_id)
 
         game_data_store = await get_static_game_data()
         living_room = game_data_store.get_room("Living room")
-        if not living_room:
-            raise ResourceNotFoundException(model=Vault, identifier="living room", identifier_type="name")
+        living_room = ensure_found(living_room, Vault, identifier="living room", identifier_type="name")
 
         before_population_max = vault.population_max
         created = await room_service.build_room(

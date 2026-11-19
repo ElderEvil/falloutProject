@@ -19,6 +19,7 @@ from app.utils.exceptions import (
     ResourceConflictException,
     ResourceNotFoundException,
     ValidationException,
+    ensure_found,
 )
 
 logger = logging.getLogger(__name__)
@@ -117,8 +118,7 @@ async def _locked_action_users(session: SAAsyncSession, record_id: UUID, actor_i
     if actor is None:
         raise AccessDeniedException
     target = users.get(record_id)
-    if target is None:
-        raise ResourceNotFoundException(User, identifier=record_id)
+    target = ensure_found(target, User, identifier=record_id)
     return actor, target
 
 

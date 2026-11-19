@@ -26,7 +26,7 @@ from app.services.progression.quests.requirements import (
 from app.services.reward_service import reward_service
 from app.services.team_service import team_service
 from app.utils.dweller_availability import DwellerAction, availability_error
-from app.utils.exceptions import ResourceNotFoundException, ValidationException
+from app.utils.exceptions import ValidationException, ensure_found
 from app.utils.quest_duration import (
     STATE_QUEST_CATEGORIES,
     effective_quest_duration_minutes,
@@ -84,13 +84,10 @@ class QuestService:
         self, db_session: AsyncSession, quest_id: UUID, vault_id: UUID
     ) -> VaultQuestCompletionLink:
         """Send a finished quest party home; rewards wait until they arrive."""
-        from app.utils.exceptions import ResourceNotFoundException, ValidationException
+        from app.utils.exceptions import ValidationException, ensure_found
 
         link = await crud.quest_crud.get_link_for_update(db_session, quest_id=quest_id, vault_id=vault_id)
-        if link is None:
-            raise ResourceNotFoundException(
-                VaultQuestCompletionLink, identifier=f"quest {quest_id} for vault {vault_id}"
-            )
+        link = ensure_found(link, VaultQuestCompletionLink, identifier=f"quest {quest_id} for vault {vault_id}")
         if link.started_at is None:
             raise ValidationException("Quest must be started before it can be completed")
         if link.is_completed or link.is_reward_ready:
@@ -99,8 +96,7 @@ class QuestService:
             raise ValidationException("Party is already travelling home")
 
         quest = await crud.quest_crud.get_or_none(db_session, quest_id)
-        if quest is None:
-            raise ResourceNotFoundException(Quest, identifier=quest_id)
+        quest = ensure_found(quest, Quest, identifier=quest_id)
         duration = link.duration_minutes if link.duration_minutes is not None else quest.duration_minutes
         if utcnow() < link.started_at + timedelta(minutes=duration):
             raise ValidationException("Quest is still in progress")
@@ -119,18 +115,15 @@ class QuestService:
         from app.utils.exceptions import (
             AccessDeniedException,
             ResourceConflictException,
-            ResourceNotFoundException,
             ValidationException,
+            ensure_found,
         )
 
         # Serialize capacity checks and starts, including attempts on different quests.
         await crud.vault.lock_for_update(db_session, vault_id)
         link = await crud.quest_crud.get_link(db_session, quest_id=quest_id, vault_id=vault_id)
 
-        if not link:
-            raise ResourceNotFoundException(
-                VaultQuestCompletionLink, identifier=f"quest {quest_id} for vault {vault_id}"
-            )
+        link = ensure_found(link, VaultQuestCompletionLink, identifier=f"quest {quest_id} for vault {vault_id}")
 
         await db_session.refresh(link)
         if link.is_completed:
@@ -139,8 +132,7 @@ class QuestService:
             raise ResourceConflictException("Quest is already in progress")
 
         quest = await crud.quest_crud.get_or_none(db_session, quest_id)
-        if quest is None:
-            raise ResourceNotFoundException(Quest, identifier=quest_id)
+        quest = ensure_found(quest, Quest, identifier=quest_id)
         if quest.quest_category in STATE_QUEST_CATEGORIES:
             if dweller_ids is not None:
                 raise ValidationException("State objectives cannot take a quest party")
@@ -211,8 +203,7 @@ class QuestService:
             ValidationException: If the quest is not currently available.
         """
         quest = await crud.quest_crud.get_or_none(db_session, quest_id)
-        if quest is None:
-            raise ResourceNotFoundException(Quest, identifier=quest_id)
+        quest = ensure_found(quest, Quest, identifier=quest_id)
 
         await db_session.refresh(quest, ["quest_requirements"])
 
@@ -262,19 +253,15 @@ class QuestService:
 
     async def mark_quest_ready_to_claim(self, db_session: AsyncSession, quest_id: UUID, vault_id: UUID) -> Quest:
         """Return a finished party and make its rewards available to claim."""
-        from app.utils.exceptions import ResourceNotFoundException, ValidationException
+        from app.utils.exceptions import ValidationException, ensure_found
 
         link = await crud.quest_crud.get_link_for_update(db_session, quest_id=quest_id, vault_id=vault_id)
-        if link is None:
-            raise ResourceNotFoundException(
-                VaultQuestCompletionLink, identifier=f"quest {quest_id} for vault {vault_id}"
-            )
+        link = ensure_found(link, VaultQuestCompletionLink, identifier=f"quest {quest_id} for vault {vault_id}")
         if link.started_at is None:
             raise ValidationException("Quest must be started before it can be completed")
 
         quest = await crud.quest_crud.get_or_none(db_session, quest_id)
-        if quest is None:
-            raise ResourceNotFoundException(Quest, identifier=quest_id)
+        quest = ensure_found(quest, Quest, identifier=quest_id)
         if link.is_reward_ready:
             return quest
         if link.return_completes_at is None:
@@ -315,13 +302,10 @@ class QuestService:
         self, db_session: AsyncSession, quest_id: UUID, vault_id: UUID
     ) -> tuple[Quest, list[Any]]:
         """Atomically deliver rewards that a returning party has made claimable."""
-        from app.utils.exceptions import ResourceNotFoundException, ValidationException
+        from app.utils.exceptions import ValidationException, ensure_found
 
         link = await crud.quest_crud.get_link(db_session, quest_id=quest_id, vault_id=vault_id)
-        if link is None:
-            raise ResourceNotFoundException(
-                VaultQuestCompletionLink, identifier=f"quest {quest_id} for vault {vault_id}"
-            )
+        link = ensure_found(link, VaultQuestCompletionLink, identifier=f"quest {quest_id} for vault {vault_id}")
         if not link.is_reward_ready:
             raise ValidationException("Quest rewards are not ready to claim")
 
@@ -430,11 +414,10 @@ class QuestService:
         gates (ITEM/ROOM/DWELLER_COUNT/QUEST_COMPLETED) are checked on the start path, so
         they do not filter candidates here.
         """
-        from app.utils.exceptions import ResourceNotFoundException
+        from app.utils.exceptions import ensure_found
 
         quest = await crud.quest_crud.get_or_none(db_session, quest_id)
-        if quest is None:
-            raise ResourceNotFoundException(Quest, identifier=quest_id)
+        quest = ensure_found(quest, Quest, identifier=quest_id)
 
         await db_session.refresh(quest, ["quest_requirements"])
 

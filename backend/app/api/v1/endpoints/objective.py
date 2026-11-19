@@ -22,7 +22,7 @@ from app.schemas.responses import AssignedResponse
 from app.services.progression.objectives.assignment import ObjectiveAssignmentService
 from app.services.progression.objectives.guidance import read_objectives
 from app.services.reward_service import reward_service
-from app.utils.exceptions import ResourceNotFoundException
+from app.utils.exceptions import ensure_found
 
 router = APIRouter(prefix="/objectives", tags=["Objective"], dependencies=[Depends(get_current_active_user)])
 
@@ -138,8 +138,7 @@ async def assign_random_objectives(
     """
     # Validate vault exists first to avoid orphan links
     vault = await crud.vault.get_or_none(db_session, vault_id)
-    if not vault:
-        raise ResourceNotFoundException(model=Vault, identifier=vault_id)
+    vault = ensure_found(vault, Vault, identifier=vault_id)
 
     service = ObjectiveAssignmentService(db_session)
     assigned = await service.assign_random_objectives(vault_id, count)

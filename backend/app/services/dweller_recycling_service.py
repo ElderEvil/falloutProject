@@ -14,7 +14,7 @@ from app import crud
 from app.core.enums import DwellerStatusEnum, GenderEnum, RarityEnum
 from app.crud.vault import vault as vault_crud
 from app.models.dweller import Dweller
-from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException
+from app.utils.exceptions import ResourceConflictException, ensure_found
 from app.utils.time import utcnow
 
 logger = logging.getLogger(__name__)
@@ -83,8 +83,7 @@ class DwellerRecyclingService:
         # Use SELECT ... FOR UPDATE to prevent race conditions
         dweller = await crud.dweller.get_for_update(db_session, dweller_id, include_deleted=True)
 
-        if not dweller:
-            raise ResourceNotFoundException(Dweller, identifier=dweller_id)
+        dweller = ensure_found(dweller, Dweller, identifier=dweller_id)
 
         if not dweller.is_deleted:
             raise ResourceConflictException(detail=f"Dweller {dweller_id} is not soft-deleted and cannot be recycled")

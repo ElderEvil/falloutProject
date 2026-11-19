@@ -15,7 +15,7 @@ from app.models.outfit import Outfit
 from app.models.pet import Pet
 from app.models.storage import Storage, StorageBase
 from app.models.weapon import Weapon
-from app.utils.exceptions import ResourceNotFoundException
+from app.utils.exceptions import ResourceNotFoundException, ensure_found
 from app.utils.storage_policy import NUKA_COLA_LIKE
 
 logger = logging.getLogger(__name__)
@@ -119,8 +119,7 @@ class CRUDStorage(CRUDBase[Storage, StorageBase, StorageBase]):
         :raises ResourceNotFoundException: If storage not found for vault.
         """
         storage_obj = await self.get_by_vault(db_session, vault_id)
-        if not storage_obj:
-            raise ResourceNotFoundException(model=Storage, identifier=vault_id)
+        storage_obj = ensure_found(storage_obj, Storage, identifier=vault_id)
         storage_obj.max_space = new_space_max
         db_session.add(storage_obj)
         if commit:

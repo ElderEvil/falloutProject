@@ -12,7 +12,7 @@ from app.models.pet import Pet
 from app.models.user import User
 from app.services.access_service import get_accessible_vault, verify_dweller_access
 from app.utils.dweller_availability import require_vault_equipment_access
-from app.utils.exceptions import ResourceNotFoundException
+from app.utils.exceptions import ResourceNotFoundException, ensure_found
 
 logger = logging.getLogger(__name__)
 
@@ -65,8 +65,7 @@ class PetService:
     @staticmethod
     async def _verify_pet_vault(db_session: AsyncSession, pet: Pet, user: User) -> None:
         vault_id = await get_item_vault_id(db_session, pet)
-        if vault_id is None:
-            raise ResourceNotFoundException(Pet, identifier=pet.id)
+        vault_id = ensure_found(vault_id, Pet, identifier=pet.id)
         await get_accessible_vault(vault_id, user, db_session)
 
 

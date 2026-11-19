@@ -25,8 +25,8 @@ from app.utils.dweller_availability import availability_error, is_incident_respo
 from app.utils.exceptions import (
     ContentNoChangeException,
     ResourceConflictException,
-    ResourceNotFoundException,
     ValidationException,
+    ensure_found,
 )
 from app.utils.hazard_resist import outfit_fire_resist, outfit_radiation_resist
 
@@ -497,8 +497,7 @@ class HazardTeamService:
         if not await db_locks.try_advisory_xact_lock(db_session, roster_lock_key(vault_id, team)):
             raise ResourceConflictException("Team roster is busy — try again")
         member = await team_crud.get_hazard_member(db_session, vault_id, team, dweller_id)
-        if member is None:
-            raise ResourceNotFoundException(TeamMember, identifier=dweller_id)
+        member = ensure_found(member, TeamMember, identifier=dweller_id)
         if active:
             if member.status == ACTIVE_STATUS:
                 return await self.get_roster(db_session, vault_id)

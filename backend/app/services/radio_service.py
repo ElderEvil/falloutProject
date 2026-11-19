@@ -16,7 +16,7 @@ from app.models.vault import Vault
 from app.schemas.dweller import DwellerCreateCommonOverride
 from app.services.notification_service import notification_service
 from app.services.room_service import room_service
-from app.utils.exceptions import VaultOperationException
+from app.utils.exceptions import ValidationException, VaultOperationException
 
 logger = logging.getLogger(__name__)
 
@@ -313,32 +313,28 @@ class RadioService:
 
         vault = await crud_vault.get(db_session, vault_id)
 
-        if not vault:
-            msg = "Vault not found"
-            raise ValueError(msg)
-
         if caps_cost is None:
             caps_cost = game_config.radio.manual_recruitment_cost
 
         radio_rooms = await RadioService.get_radio_rooms(db_session, vault_id)
         if not radio_rooms:
             msg = "No radio room available"
-            raise ValueError(msg)
+            raise ValidationException(detail=msg)
 
         radio_room_ids = [room.id for room in radio_rooms]
         assigned_dwellers = await crud.dweller.get_by_room_ids(db_session, vault_id, radio_room_ids)
 
         if not assigned_dwellers:
             msg = "No residents assigned to radio room"
-            raise ValueError(msg)
+            raise ValidationException(detail=msg)
 
         vault, population = await crud.vault.lock_population_for_update(db_session, vault_id)
         if crud.vault.population_limit_reached(vault.population_max, population):
-            raise ValueError(RadioService._population_limit_message(vault, population))
+            raise ValidationException(detail=RadioService._population_limit_message(vault, population))
 
         if vault.bottle_caps < caps_cost:
             msg = f"Insufficient caps ({vault.bottle_caps}/{caps_cost})"
-            raise ValueError(msg)
+            raise ValidationException(detail=msg)
 
         await vault_service.withdraw_caps(db_session=db_session, vault_obj=vault, amount=caps_cost, commit=False)
 

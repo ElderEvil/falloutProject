@@ -6,7 +6,12 @@ import QuestRequirementList from '@/modules/progression/components/QuestRequirem
 
 const requirements = [
   { id: 'req-1', requirement_type: 'level', requirement_data: { level: 5 }, is_mandatory: true },
-  { id: 'req-2', requirement_type: 'dweller_count', requirement_data: { count: 10 }, is_mandatory: false },
+  {
+    id: 'req-2',
+    requirement_type: 'dweller_count',
+    requirement_data: { count: 10 },
+    is_mandatory: false,
+  },
 ]
 
 describe('QuestRequirementList', () => {

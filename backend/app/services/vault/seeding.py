@@ -65,7 +65,12 @@ from app.services.vault.seed_types import (
     PreparedRooms,
 )
 from app.utils.dwellers import group_dwellers_by_room
-from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException, VaultOperationException
+from app.utils.exceptions import (
+    ResourceConflictException,
+    ResourceNotFoundException,
+    ValidationException,
+    VaultOperationException,
+)
 from app.utils.item_factory import build_catalog_item, build_junk, build_outfit, build_pet, build_weapon
 from app.utils.junk_assets import get_junk_image_url
 from app.utils.room_assets import get_room_image_url
@@ -85,11 +90,11 @@ def build_room(
 ) -> RoomCreate:
     template = rooms_by_name.get(name.lower())
     if template is None:
-        raise ValueError(f"Room template '{name}' not found")
+        raise ValidationException(detail=f"Room template '{name}' not found")
     data = template.model_dump()
     size = size if size is not None else data["size_min"]
     if size > data["size_max"]:
-        raise ValueError(f"Room '{name}' cannot span {size} units (max {data['size_max']})")
+        raise ValidationException(detail=f"Room '{name}' cannot span {size} units (max {data['size_max']})")
     if data.get("capacity_formula"):
         data["capacity"] = room_crud.evaluate_capacity_formula(data["capacity_formula"], tier, size)
     if data.get("output_formula"):

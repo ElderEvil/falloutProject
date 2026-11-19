@@ -6,7 +6,6 @@ import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { refreshNukaColaCount } from '@/modules/vault/composables/useNukaColaCount'
-import { useSidePanel } from '@/core/composables/useSidePanel'
 import { useToast } from '@/core/composables/useToast'
 import { useSound } from '@/core/composables/useSound'
 import { useAsyncAction } from '@/core/composables/useAsyncAction'
@@ -15,9 +14,8 @@ import type { components } from '@/core/types/api.generated'
 import { notifyErrorOnce, handleStoreError } from '@/core/utils/errorHandler'
 import { Icon } from '@iconify/vue'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/core/components/ui/tabs'
-import SidePanel from '@/core/components/common/SidePanel.vue'
-import PageContentRail from '@/core/components/common/PageContentRail.vue'
 import PageHeader from '@/core/components/common/PageHeader.vue'
+import VaultPageShell from '@/core/components/common/VaultPageShell.vue'
 import PageHeaderMetric from '@/core/components/common/PageHeaderMetric.vue'
 import StorageItemCard from '../components/StorageItemCard.vue'
 import LunchboxOpenModal from '../components/LunchboxOpenModal.vue'
@@ -27,7 +25,6 @@ import TerminalEmptyState from '@/core/components/common/TerminalEmptyState.vue'
 const route = useRoute()
 const authStore = useAuthStore()
 const vaultStore = useVaultStore()
-const { isCollapsed } = useSidePanel()
 const toast = useToast()
 const { playSound } = useSound()
 
@@ -333,186 +330,175 @@ const closePetCarrierModal = async () => {
 </script>
 
 <template>
-  <div class="relative min-h-screen bg-terminal-background font-mono text-theme-primary">
-    <SidePanel />
-
-    <div
-      class="flex-1 transition-[margin] duration-300 max-md:ml-0"
-      :class="isCollapsed ? 'ml-16' : 'ml-60'"
+  <VaultPageShell rail class="bg-terminal-background font-mono text-theme-primary">
+    <PageHeader
+      title="Vault Storage"
+      icon="mdi:package-variant"
+      subtitle="Organize equipment, supplies & recovered wasteland loot."
     >
-      <PageContentRail>
-        <PageHeader
-          title="Vault Storage"
+      <template #help>
+        <section>
+          <h2 class="mb-1 flex items-center gap-2 font-semibold text-theme-primary">
+            <Icon icon="mdi:package-variant" class="size-4 shrink-0" />
+            Manage the stockpile
+          </h2>
+          <p>
+            Equipment, supplies and recovered wasteland loot live here. Stimpaks heal dwellers,
+            RadAway cures radiation, and the utilization bar tracks used slots against the vault
+            total.
+          </p>
+        </section>
+        <section>
+          <h2 class="mb-1 flex items-center gap-2 font-semibold text-theme-primary">
+            <Icon icon="mdi:tools" class="size-4 shrink-0" :ariaHidden="true" />
+            Weapon maintenance
+          </h2>
+          <p>
+            Storage workers pool
+            <Icon
+              icon="mdi:heart"
+              class="inline size-4 align-text-bottom text-special-endurance"
+              :ariaHidden="true"
+            />
+            END across the vault, including equipment bonuses. Below 20 risks degradation; near 20
+            keeps weapons stable; above 20 allows upgrades.
+          </p>
+          <p class="mt-2">
+            While online, eligible weapons have up to a 2% hourly chance to move one variant up or
+            down, changing damage, value and sometimes rarity.
+          </p>
+        </section>
+      </template>
+      <template v-if="storageSpace" #actions>
+        <PageHeaderMetric
           icon="mdi:package-variant"
-          subtitle="Organize equipment, supplies & recovered wasteland loot."
-        >
-          <template #help>
-            <section>
-              <h2 class="mb-1 flex items-center gap-2 font-semibold text-theme-primary">
-                <Icon icon="mdi:package-variant" class="size-4 shrink-0" />
-                Manage the stockpile
-              </h2>
-              <p>
-                Equipment, supplies and recovered wasteland loot live here. Stimpaks heal dwellers,
-                RadAway cures radiation, and the utilization bar tracks used slots against the vault
-                total.
-              </p>
-            </section>
-            <section>
-              <h2 class="mb-1 flex items-center gap-2 font-semibold text-theme-primary">
-                <Icon icon="mdi:tools" class="size-4 shrink-0" :ariaHidden="true" />
-                Weapon maintenance
-              </h2>
-              <p>
-                Storage workers pool
-                <Icon
-                  icon="mdi:heart"
-                  class="inline size-4 align-text-bottom text-special-endurance"
-                  :ariaHidden="true"
-                />
-                END across the vault, including equipment bonuses. Below 20 risks degradation; near
-                20 keeps weapons stable; above 20 allows upgrades.
-              </p>
-              <p class="mt-2">
-                While online, eligible weapons have up to a 2% hourly chance to move one variant up
-                or down, changing damage, value and sometimes rarity.
-              </p>
-            </section>
-          </template>
-          <template v-if="storageSpace" #actions>
-            <PageHeaderMetric
-              icon="mdi:package-variant"
-              :value="`${storageSpace.used_space} / ${storageSpace.max_space}`"
-              label="Slots used"
-              tooltip="Storage slots occupied out of the vault total"
-            />
-            <PageHeaderMetric
-              v-if="maintenance?.enabled"
-              icon="mdi:shield-check"
-              :value="maintenanceMode"
-              :label="`${maintenance.worker_count} workers · ${(maintenance.hourly_chance * 100).toFixed(1)}% per trial`"
-              :tooltip="`${maintenance.total_endurance} effective END across all storage rooms`"
-            />
-            <PageHeaderMetric
-              icon="mdi:medical-bag"
-              :value="storageSpace.stimpack"
-              label="Stimpaks"
-              tooltip="Heals dwellers in incidents and the wasteland"
-            />
-            <PageHeaderMetric
-              icon="mdi:pill"
-              :value="storageSpace.radaway"
-              label="RadAway"
-              tooltip="Cures radiation for dwellers and explorers"
-            />
-          </template>
-        </PageHeader>
+          :value="`${storageSpace.used_space} / ${storageSpace.max_space}`"
+          label="Slots used"
+          tooltip="Storage slots occupied out of the vault total"
+        />
+        <PageHeaderMetric
+          v-if="maintenance?.enabled"
+          icon="mdi:shield-check"
+          :value="maintenanceMode"
+          :label="`${maintenance.worker_count} workers · ${(maintenance.hourly_chance * 100).toFixed(1)}% per trial`"
+          :tooltip="`${maintenance.total_endurance} effective END across all storage rooms`"
+        />
+        <PageHeaderMetric
+          icon="mdi:medical-bag"
+          :value="storageSpace.stimpack"
+          label="Stimpaks"
+          tooltip="Heals dwellers in incidents and the wasteland"
+        />
+        <PageHeaderMetric
+          icon="mdi:pill"
+          :value="storageSpace.radaway"
+          label="RadAway"
+          tooltip="Cures radiation for dwellers and explorers"
+        />
+      </template>
+    </PageHeader>
 
-        <!-- Storage utilization -->
-        <div v-if="storageSpace" class="mb-6">
-          <div class="rounded-lg border border-theme-primary/30 bg-surface-sunken p-4">
-            <div class="flex items-center gap-3 mb-2 font-mono">
-              <Icon icon="mdi:package-variant" class="w-5 h-5 text-theme-primary" />
-              <span class="text-theme-accent text-xs font-semibold uppercase tracking-wider">
-                Storage utilization
-              </span>
-              <span
-                class="ml-auto text-xs"
-                :class="
-                  storageSpace.utilization_pct > 100
-                    ? 'font-semibold text-danger'
-                    : 'text-theme-accent'
-                "
-              >
-                {{ storageSpace.utilization_pct.toFixed(0) }}%<template
-                  v-if="storageSpace.utilization_pct > 100"
-                >
-                  · OVER CAPACITY</template
-                >
-              </span>
-            </div>
-            <div class="h-4 bg-black/80 border border-theme-primary/50 rounded-sm overflow-hidden">
-              <div
-                class="h-full bg-theme-primary transition-[width] duration-300 shadow-[0_0_8px_var(--color-theme-glow)]"
-                :style="{
-                  '--progress': `${Math.min(100, storageSpace.utilization_pct)}%`,
-                  width: 'var(--progress)',
-                }"
-              ></div>
-            </div>
-            <div class="text-theme-accent/60 text-xs text-right font-mono mt-1">
-              {{ storageSpace.available_space }} free
-            </div>
-          </div>
+    <!-- Storage utilization -->
+    <div v-if="storageSpace" class="mb-6">
+      <div class="rounded-lg border border-theme-primary/30 bg-surface-sunken p-4">
+        <div class="flex items-center gap-3 mb-2 font-mono">
+          <Icon icon="mdi:package-variant" class="w-5 h-5 text-theme-primary" />
+          <span class="text-theme-accent text-xs font-semibold uppercase tracking-wider">
+            Storage utilization
+          </span>
+          <span
+            class="ml-auto text-xs"
+            :class="
+              storageSpace.utilization_pct > 100 ? 'font-semibold text-danger' : 'text-theme-accent'
+            "
+          >
+            {{ storageSpace.utilization_pct.toFixed(0) }}%<template
+              v-if="storageSpace.utilization_pct > 100"
+            >
+              · OVER CAPACITY</template
+            >
+          </span>
+        </div>
+        <div class="h-4 bg-black/80 border border-theme-primary/50 rounded-sm overflow-hidden">
+          <div
+            class="h-full bg-theme-primary transition-[width] duration-300 shadow-[0_0_8px_var(--color-theme-glow)]"
+            :style="{
+              '--progress': `${Math.min(100, storageSpace.utilization_pct)}%`,
+              width: 'var(--progress)',
+            }"
+          ></div>
+        </div>
+        <div class="text-theme-accent/60 text-xs text-right font-mono mt-1">
+          {{ storageSpace.available_space }} free
+        </div>
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <Tabs :model-value="activeTab" @update:model-value="(value) => selectTab(String(value))">
+      <TabsList>
+        <TabsTrigger v-for="tab in tabs" :key="tab.key" :value="tab.key">
+          {{ tab.label }}
+        </TabsTrigger>
+      </TabsList>
+
+      <TabsContent v-for="tab in tabs" :key="tab.key" :value="tab.key" class="py-2 text-base">
+        <!-- Keep loaded cards mounted during background refreshes. -->
+        <div
+          v-if="isLoading && !storageSpace"
+          class="flex flex-col items-center justify-center py-16 text-theme-primary font-mono"
+        >
+          <Icon icon="mdi:loading" class="w-12 h-12 mb-4 animate-spin" />
+          <p>Loading storage...</p>
         </div>
 
-        <!-- Tabs -->
-        <Tabs :model-value="activeTab" @update:model-value="(value) => selectTab(String(value))">
-          <TabsList>
-            <TabsTrigger v-for="tab in tabs" :key="tab.key" :value="tab.key">
-              {{ tab.label }}
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent v-for="tab in tabs" :key="tab.key" :value="tab.key" class="py-2 text-base">
-            <!-- Keep loaded cards mounted during background refreshes. -->
-            <div
-              v-if="isLoading && !storageSpace"
-              class="flex flex-col items-center justify-center py-16 text-theme-primary font-mono"
-            >
-              <Icon icon="mdi:loading" class="w-12 h-12 mb-4 animate-spin" />
-              <p>Loading storage...</p>
-            </div>
-
-            <!-- Empty State -->
-            <TerminalEmptyState
-              v-else-if="totalItems === 0"
-              icon="mdi:package-variant-closed"
-              title="Storage Empty"
-              description="Your vault storage is empty. Send dwellers on explorations to find items!"
-            />
-
-            <!-- No Items in Category State -->
-            <TerminalEmptyState
-              v-else-if="activeItems.length === 0"
-              icon="mdi:package-variant-closed"
-              :title="`No ${activeTab} Found`"
-              :description="`You don't have any ${activeTab} in storage.`"
-            />
-
-            <div v-else class="grid grid-cols-1 gap-3 pb-8 md:grid-cols-2 xl:grid-cols-3">
-              <StorageItemCard
-                v-for="item in activeItems"
-                :key="item.id"
-                :item="item.item"
-                :item-type="cardItemType(item)"
-                :count="item.count"
-                :disabled="isLoading"
-                @sell="handleSellItem(item.ids[0], activeTab)"
-                @sell-all="handleSellItem(item.ids, activeTab)"
-                @scrap="handleScrapItem(item.id, activeTab as 'weapon' | 'outfit')"
-                @open="handleOpenContainer(item.ids[0], cardItemType(item))"
-              />
-            </div>
-          </TabsContent>
-        </Tabs>
-        <LunchboxOpenModal
-          :show="showLunchboxModal"
-          :result="lunchboxResult"
-          :opening="openingLunchbox"
-          :error="lunchboxError"
-          @reveal="!openingLunchbox && revealLunchbox()"
-          @close="closeLunchboxModal"
+        <!-- Empty State -->
+        <TerminalEmptyState
+          v-else-if="totalItems === 0"
+          icon="mdi:package-variant-closed"
+          title="Storage Empty"
+          description="Your vault storage is empty. Send dwellers on explorations to find items!"
         />
-        <PetCarrierOpenModal
-          :show="showPetCarrierModal"
-          :result="petCarrierResult"
-          :opening="openingPetCarrier"
-          :error="petCarrierError"
-          @reveal="!openingPetCarrier && revealPetCarrier()"
-          @close="closePetCarrierModal"
+
+        <!-- No Items in Category State -->
+        <TerminalEmptyState
+          v-else-if="activeItems.length === 0"
+          icon="mdi:package-variant-closed"
+          :title="`No ${activeTab} Found`"
+          :description="`You don't have any ${activeTab} in storage.`"
         />
-      </PageContentRail>
-    </div>
-  </div>
+
+        <div v-else class="grid grid-cols-1 gap-3 pb-8 md:grid-cols-2 xl:grid-cols-3">
+          <StorageItemCard
+            v-for="item in activeItems"
+            :key="item.id"
+            :item="item.item"
+            :item-type="cardItemType(item)"
+            :count="item.count"
+            :disabled="isLoading"
+            @sell="handleSellItem(item.ids[0], activeTab)"
+            @sell-all="handleSellItem(item.ids, activeTab)"
+            @scrap="handleScrapItem(item.id, activeTab as 'weapon' | 'outfit')"
+            @open="handleOpenContainer(item.ids[0], cardItemType(item))"
+          />
+        </div>
+      </TabsContent>
+    </Tabs>
+    <LunchboxOpenModal
+      :show="showLunchboxModal"
+      :result="lunchboxResult"
+      :opening="openingLunchbox"
+      :error="lunchboxError"
+      @reveal="!openingLunchbox && revealLunchbox()"
+      @close="closeLunchboxModal"
+    />
+    <PetCarrierOpenModal
+      :show="showPetCarrierModal"
+      :result="petCarrierResult"
+      :opening="openingPetCarrier"
+      :error="petCarrierError"
+      @reveal="!openingPetCarrier && revealPetCarrier()"
+      @close="closePetCarrierModal"
+    />
+  </VaultPageShell>
 </template>

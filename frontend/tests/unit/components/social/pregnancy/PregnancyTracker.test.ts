@@ -3,9 +3,7 @@ import { createIconifyMock } from '../../../helpers/mocks'
 import { mount, flushPromises } from '@vue/test-utils'
 import PregnancyTracker from '@/modules/social/components/pregnancy/PregnancyTracker.vue'
 
-vi.mock('@iconify/vue', () =>
-  createIconifyMock()
-)
+vi.mock('@iconify/vue', () => createIconifyMock())
 
 const {
   activePregnancies,

@@ -8,9 +8,10 @@ import ChildrenList from '@/modules/social/components/relationships/ChildrenList
 const mockDwellers: any[] = []
 
 vi.mock('@/modules/dwellers/stores/dweller', () => ({
-  useDwellerStore: () => ({
-    filter: { allDwellers: mockDwellers },
-  }) as any,
+  useDwellerStore: () =>
+    ({
+      filter: { allDwellers: mockDwellers },
+    }) as any,
 }))
 
 const child = {

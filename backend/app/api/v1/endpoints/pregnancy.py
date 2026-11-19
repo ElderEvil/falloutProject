@@ -9,7 +9,7 @@ from app import crud
 from app.api.deps import CurrentActiveUser, CurrentSuperuser, DBSession, get_user_vault_or_403
 from app.schemas.pregnancy import DeliveredChild, DeliveryResult, PregnancyRead
 from app.services.family.breeding_service import breeding_service
-from app.utils.exceptions import AccessDeniedException, ResourceNotFoundException, ValidationException
+from app.utils.exceptions import AccessDeniedException, ResourceNotFoundException
 
 router = APIRouter(prefix="/pregnancies", tags=["Pregnancy"])
 logger = logging.getLogger(__name__)
@@ -81,24 +81,21 @@ async def deliver_baby(
         raise HTTPException(status_code=404, detail=exc.detail) from exc
 
     # Attempt delivery
-    try:
-        children = await breeding_service.deliver_baby(db_session, pregnancy_id)
+    children = await breeding_service.deliver_baby(db_session, pregnancy_id)
 
-        # Note: notifications are already sent by deliver_baby() in breeding_service
+    # Note: notifications are already sent by deliver_baby() in breeding_service
 
-        if len(children) == 1:
-            message = f"Baby {children[0].first_name} {children[0].last_name} has been born!"
-        else:
-            names = " and ".join(child.first_name for child in children)
-            plural = "Triplets" if len(children) == 3 else "Twins"
-            message = f"{plural} {names} have been born!"
-        return DeliveryResult(
-            pregnancy_id=pregnancy_id,
-            children=[DeliveredChild.model_validate(child) for child in children],
-            message=message,
-        )
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e)) from e
+    if len(children) == 1:
+        message = f"Baby {children[0].first_name} {children[0].last_name} has been born!"
+    else:
+        names = " and ".join(child.first_name for child in children)
+        plural = "Triplets" if len(children) == 3 else "Twins"
+        message = f"{plural} {names} have been born!"
+    return DeliveryResult(
+        pregnancy_id=pregnancy_id,
+        children=[DeliveredChild.model_validate(child) for child in children],
+        message=message,
+    )
 
 
 # =============================================================================
@@ -131,10 +128,7 @@ async def force_conception(
         },
     )
 
-    try:
-        pregnancy = await breeding_service.force_conception(db_session, mother_id, father_id)
-    except ValueError as e:
-        raise ValidationException(detail=str(e)) from e
+    pregnancy = await breeding_service.force_conception(db_session, mother_id, father_id)
 
     return PregnancyRead.model_validate(pregnancy)
 
@@ -154,10 +148,7 @@ async def accelerate_pregnancy(
         HTTPException: 404 if pregnancy not found.
         HTTPException: 400 if acceleration conditions not met.
     """
-    try:
-        pregnancy = await breeding_service.accelerate_pregnancy(db_session, pregnancy_id)
-    except ValueError as e:
-        raise ValidationException(detail=str(e)) from e
+    pregnancy = await breeding_service.accelerate_pregnancy(db_session, pregnancy_id)
 
     logger.info(
         "DEBUG pregnancy accelerated",

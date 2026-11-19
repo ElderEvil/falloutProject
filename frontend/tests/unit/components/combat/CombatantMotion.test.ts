@@ -102,16 +102,19 @@ describe('CombatantMotion', () => {
     ['gun-shotgun', 'skill-hit--scatter'],
     ['melee-blunt', 'skill-hit--hammer'],
     ['heavy-automatic', 'skill-hit--automatic'],
-  ] as Array<[CombatSkillIcon, string]>)('applies the %s skill impact variant', (skillIcon, variant) => {
-    const skill = {
-      ...action,
-      action: { ...action.action, skill: 'Test skill', skill_icon: skillIcon },
+  ] as Array<[CombatSkillIcon, string]>)(
+    'applies the %s skill impact variant',
+    (skillIcon, variant) => {
+      const skill = {
+        ...action,
+        action: { ...action.action, skill: 'Test skill', skill_icon: skillIcon },
+      }
+      const wrapper = mount(CombatantMotion, {
+        props: { fighterId: 'maximus', action: skill, phase: 'impact' },
+      })
+      expect(wrapper.find(`.${variant}`).exists()).toBe(true)
     }
-    const wrapper = mount(CombatantMotion, {
-      props: { fighterId: 'maximus', action: skill, phase: 'impact' },
-    })
-    expect(wrapper.find(`.${variant}`).exists()).toBe(true)
-  })
+  )
   it('keeps catch-up motion stationary and supports legacy actions', async () => {
     const wrapper = mount(CombatantMotion, {
       props: { fighterId: 'lucy', action: { ...action, accelerated: true }, phase: 'impact' },

@@ -30,10 +30,7 @@ describe('useBackNavigation', () => {
 
     expect(nav.backTo()).toBeUndefined()
     expect(nav.backLabel()).toBe('Back to Profile')
-    expect(nav.breadcrumbs()).toEqual([
-      { label: 'Profile', to: '/profile' },
-      { label: 'Settings' },
-    ])
+    expect(nav.breadcrumbs()).toEqual([{ label: 'Profile', to: '/profile' }, { label: 'Settings' }])
   })
 
   it('labels unknown origins generically instead of guessing', () => {

@@ -11,7 +11,7 @@ describe('fetchRadioNews', () => {
     vi.clearAllMocks()
   })
 
-  it('fetches today\'s broadcast for a vault', async () => {
+  it("fetches today's broadcast for a vault", async () => {
     const broadcast = {
       id: 'b1',
       title: 'Evening News',
@@ -44,7 +44,7 @@ describe('fetchRadioNews', () => {
     const scriptOnly = {
       id: 'broadcast-script-only',
       title: 'Technical Difficulties',
-      script: 'We\'re working on restoring the broadcast feed…',
+      script: "We're working on restoring the broadcast feed…",
       audio_url: null,
       trigger: 'daily' as const,
       created_at: new Date().toISOString(),

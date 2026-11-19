@@ -47,9 +47,9 @@ const findButton = (wrapper: ReturnType<typeof mountWithSetup>, label: string) =
 async function selectProvider(wrapper: ReturnType<typeof mountWithSetup>, label: string) {
   // reka-ui opens the listbox on pointerdown and selects on pointerup (not click);
   // jsdom's synthetic events carry no button, so dispatch real MouseEvents.
-  wrapper.find('[role="combobox"]').element.dispatchEvent(
-    new MouseEvent('pointerdown', { button: 0, bubbles: true })
-  )
+  wrapper
+    .find('[role="combobox"]')
+    .element.dispatchEvent(new MouseEvent('pointerdown', { button: 0, bubbles: true }))
   await flushPromises()
   const option = Array.from(document.body.querySelectorAll('[role="option"]')).find((o) =>
     o.textContent?.includes(label)
@@ -63,7 +63,11 @@ describe('AISettingsPanel', () => {
     vi.clearAllMocks()
     vi.mocked(aiSettingsService.get).mockResolvedValue(settings())
     vi.mocked(aiSettingsService.update).mockResolvedValue(settings())
-    vi.mocked(aiSettingsService.test).mockResolvedValue({ status: 'ok', latency_ms: 12, model: 'gpt-4o-mini' })
+    vi.mocked(aiSettingsService.test).mockResolvedValue({
+      status: 'ok',
+      latency_ms: 12,
+      model: 'gpt-4o-mini',
+    })
   })
 
   it('loads settings on mount and populates the form', async () => {
@@ -72,7 +76,9 @@ describe('AISettingsPanel', () => {
 
     expect(aiSettingsService.get).toHaveBeenCalledTimes(1)
     expect(wrapper.find('[role="combobox"]').text()).toContain('OpenAI')
-    expect((wrapper.find('input[id="ai-model"]').element as HTMLInputElement).value).toBe('gpt-4o-mini')
+    expect((wrapper.find('input[id="ai-model"]').element as HTMLInputElement).value).toBe(
+      'gpt-4o-mini'
+    )
     expect(wrapper.text()).toContain('Effective configuration')
     expect(wrapper.text()).toContain('gateway')
   })
@@ -217,9 +223,9 @@ describe('AISettingsPanel', () => {
 
     // reka-ui opens the listbox on pointerdown (not click); jsdom's synthetic
     // events carry no button, so dispatch a real MouseEvent.
-    wrapper.find('[role="combobox"]').element.dispatchEvent(
-      new MouseEvent('pointerdown', { button: 0, bubbles: true })
-    )
+    wrapper
+      .find('[role="combobox"]')
+      .element.dispatchEvent(new MouseEvent('pointerdown', { button: 0, bubbles: true }))
     await flushPromises()
 
     const ollamaOption = Array.from(document.body.querySelectorAll('[role="option"]')).find(

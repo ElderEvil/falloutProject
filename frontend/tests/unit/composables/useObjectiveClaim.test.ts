@@ -56,9 +56,7 @@ describe('useObjectiveClaim', () => {
 
     await vi.waitFor(() => {
       expect(vault.loadedVaults['vault-1']?.bottle_caps).toBe(750)
-      expect(dwellers.dwellers).toEqual([
-        expect.objectContaining({ id: 'dweller-1', health: 90 }),
-      ])
+      expect(dwellers.dwellers).toEqual([expect.objectContaining({ id: 'dweller-1', health: 90 })])
     })
   })
 

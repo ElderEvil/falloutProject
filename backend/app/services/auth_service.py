@@ -103,8 +103,6 @@ class AuthService:
             raise ValidationException(detail="Invalid refresh token")
 
         user = await crud.user.get(db_session, id=UUID(user_id))
-        if not user:
-            raise ResourceNotFoundException(model=User, identifier=user_id)
 
         if not crud.user.is_active(user):
             raise ValidationException(detail="Inactive user")

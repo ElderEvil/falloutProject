@@ -2,7 +2,10 @@ import { describe, it, expect, beforeEach } from 'vite-plus/test'
 import { ref } from 'vue'
 import { createPinia, setActivePinia } from 'pinia'
 import DwellerRoleMatch from '@/modules/dwellers/components/DwellerRoleMatch.vue'
-import { createMockDwellerDetailContext, mountWithDwellerContext } from '../../helpers/dwellerDetailContext'
+import {
+  createMockDwellerDetailContext,
+  mountWithDwellerContext,
+} from '../../helpers/dwellerDetailContext'
 import type { Dweller } from '@/modules/dwellers/models/dweller'
 
 beforeEach(() => {
@@ -33,7 +36,7 @@ function mountMatch(overrides: Partial<Dweller> = {}) {
 }
 
 describe('DwellerRoleMatch', () => {
-  it('marks a room that uses the dweller\'s strongest stat', () => {
+  it("marks a room that uses the dweller's strongest stat", () => {
     const wrapper = mountMatch()
 
     expect(wrapper.text()).toContain('Matched')
@@ -41,20 +44,26 @@ describe('DwellerRoleMatch', () => {
   })
 
   it('flags a room that does not use their strongest stat', () => {
-    const wrapper = mountMatch({ room: { id: 'room-2', name: 'Power Generator', category: 'production', ability: 'strength' } } as never)
+    const wrapper = mountMatch({
+      room: { id: 'room-2', name: 'Power Generator', category: 'production', ability: 'strength' },
+    } as never)
 
     expect(wrapper.text()).toContain('Mismatch')
     expect(wrapper.find('.role-match-off').exists()).toBe(true)
   })
 
   it('renders nothing in living quarters, which house rather than produce', () => {
-    const wrapper = mountMatch({ room: { id: 'room-3', name: 'Living Quarters', category: 'capacity', ability: 'agility' } } as never)
+    const wrapper = mountMatch({
+      room: { id: 'room-3', name: 'Living Quarters', category: 'capacity', ability: 'agility' },
+    } as never)
 
     expect(wrapper.find('.role-match').exists()).toBe(false)
   })
 
   it('renders nothing in a training room, which trains its ability by design', () => {
-    const wrapper = mountMatch({ room: { id: 'room-4', name: 'Weight Room', category: 'training', ability: 'strength' } } as never)
+    const wrapper = mountMatch({
+      room: { id: 'room-4', name: 'Weight Room', category: 'training', ability: 'strength' },
+    } as never)
 
     expect(wrapper.find('.role-match').exists()).toBe(false)
   })

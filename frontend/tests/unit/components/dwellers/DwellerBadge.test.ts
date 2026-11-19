@@ -8,7 +8,9 @@ import DwellerIdentitySignal from '@/modules/dwellers/components/DwellerIdentity
 
 vi.mock('@/modules/dwellers/services/dwellerService', () => ({
   getFeatureFlags: vi.fn().mockResolvedValue({ race_mechanics: true, faction_mechanics: true }),
-  getIdentityOptions: vi.fn().mockResolvedValue({ races: [], factions_by_race: {}, states_by_race: {} }),
+  getIdentityOptions: vi
+    .fn()
+    .mockResolvedValue({ races: [], factions_by_race: {}, states_by_race: {} }),
 }))
 
 vi.mock('@iconify/vue', () =>
@@ -41,7 +43,12 @@ describe('DwellerBadge', () => {
 
   it('collapses to an icon-only chip when the label is hidden', () => {
     const wrapper = mount(DwellerBadge, {
-      props: { icon: 'mdi:account', color: 'var(--badge-gender-male)', label: 'Male', showLabel: false },
+      props: {
+        icon: 'mdi:account',
+        color: 'var(--badge-gender-male)',
+        label: 'Male',
+        showLabel: false,
+      },
     })
 
     expect(wrapper.find('.icon-only').exists()).toBe(true)
@@ -50,7 +57,12 @@ describe('DwellerBadge', () => {
 
   it('renders a monogram when no glyph exists for the fact', () => {
     const wrapper = mount(DwellerBadge, {
-      props: { monogram: 'III', color: 'var(--badge-age-adult)', label: 'Behemoth', showLabel: false },
+      props: {
+        monogram: 'III',
+        color: 'var(--badge-age-adult)',
+        label: 'Behemoth',
+        showLabel: false,
+      },
     })
 
     expect(wrapper.find('.badge-monogram').text()).toBe('III')

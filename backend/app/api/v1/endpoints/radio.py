@@ -10,7 +10,6 @@ from app.schemas.dweller import DwellerRead
 from app.schemas.radio import ManualRecruitRequest, RadioStatsRead, RecruitmentResponse
 from app.schemas.responses import RadioModeResponse
 from app.services.radio_service import radio_service
-from app.utils.exceptions import ValidationException
 
 router = APIRouter(prefix="/radio", tags=["Radio"])
 
@@ -49,25 +48,22 @@ async def manual_recruit_dweller(
     """
     await get_user_vault_or_403(vault_id, user, db_session)
 
-    try:
-        from app.core.game_config import game_config
+    from app.core.game_config import game_config
 
-        dweller, recycled = await radio_service.manual_recruit(
-            db_session,
-            vault_id,
-            override=recruit_request.override,
-        )
+    dweller, recycled = await radio_service.manual_recruit(
+        db_session,
+        vault_id,
+        override=recruit_request.override,
+    )
 
-        # Note: notification is already sent by recruit_dweller() in radio_service
+    # Note: notification is already sent by recruit_dweller() in radio_service
 
-        return RecruitmentResponse(
-            dweller=DwellerRead.model_validate(dweller),
-            message=f"{dweller.display_name} has joined your vault!",
-            caps_spent=game_config.radio.manual_recruitment_cost,
-            recycled=recycled,
-        )
-    except ValueError as e:
-        raise ValidationException(detail=str(e)) from e
+    return RecruitmentResponse(
+        dweller=DwellerRead.model_validate(dweller),
+        message=f"{dweller.display_name} has joined your vault!",
+        caps_spent=game_config.radio.manual_recruitment_cost,
+        recycled=recycled,
+    )
 
 
 @router.put("/vault/{vault_id}/mode", response_model=RadioModeResponse)

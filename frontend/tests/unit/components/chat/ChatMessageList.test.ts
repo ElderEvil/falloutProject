@@ -93,7 +93,9 @@ describe('ChatMessageList', () => {
     expect(wrapper.find('[data-icon="mdi:notebook-edit-outline"]').exists()).toBe(true)
 
     await wrapper.find('.action-confirm-btn').trigger('click')
-    expect(wrapper.emitted('confirmAction')?.[0]?.[0]).toMatchObject({ action_type: 'bio_addendum' })
+    expect(wrapper.emitted('confirmAction')?.[0]?.[0]).toMatchObject({
+      action_type: 'bio_addendum',
+    })
   })
 
   it('renders dweller avatars via DwellerPortrait with the app-standard fallback', () => {
@@ -125,13 +127,10 @@ describe('ChatMessageList', () => {
   })
 
   it('links known dweller locations in chat text to their map markers', () => {
-    const wrapper = mountList(
-      [{ type: 'dweller', content: 'Megaton taught me to keep moving.' }],
-      {
-        vaultId: 'vault-123',
-        placeLinks: [{ name: 'Megaton', locationId: 'place-megaton' }],
-      }
-    )
+    const wrapper = mountList([{ type: 'dweller', content: 'Megaton taught me to keep moving.' }], {
+      vaultId: 'vault-123',
+      placeLinks: [{ name: 'Megaton', locationId: 'place-megaton' }],
+    })
 
     const placeLink = wrapper.find('.chat-place-link')
     expect(placeLink.text()).toBe('Megaton')

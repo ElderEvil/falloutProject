@@ -13,6 +13,7 @@ from app import crud
 from app.core.config import settings
 from app.core.security import decode_token_subject
 from app.db.session import get_async_session
+from app.models.dweller import Dweller
 from app.models.junk import Junk
 from app.models.outfit import Outfit
 from app.models.room import Room
@@ -171,9 +172,13 @@ async def verify_dweller_access(
     dweller_id: UUID,
     user: CurrentActiveUser,
     db_session: DBSession,
-) -> None:
-    """Apply the shared dweller access policy."""
-    await access_service.verify_dweller_access(dweller_id, user, db_session)
+) -> Dweller:
+    """Apply the shared dweller access policy, returning the loaded dweller.
+
+    Returning it lets callers reuse the eager-loaded graph instead of re-reading
+    the same rows — the detail endpoint used to fetch everything twice.
+    """
+    return await access_service.verify_dweller_access(dweller_id, user, db_session)
 
 
 async def verify_room_access(

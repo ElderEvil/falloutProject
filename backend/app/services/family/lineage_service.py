@@ -74,9 +74,11 @@ class LineageService:
 
     @staticmethod
     async def _find_partners(
-        db_session: AsyncSession, dweller_id: UUID, vault_id: UUID
+        db_session: AsyncSession, dweller: Dweller, vault_id: UUID
     ) -> tuple[list[Dweller], dict[UUID, tuple[RelationshipTypeEnum, int]]]:
         """Find the dweller's partner(s): reciprocal partner_id plus MARRIED/PARTNER relationships.
+
+        Takes the already-loaded dweller: re-reading it here cost six statements.
 
         Returns:
             Tuple of partner dwellers and a mapping of partner_id to (relationship_type, affinity).
@@ -84,84 +86,101 @@ class LineageService:
         partner_ids = set()
         context: dict[UUID, tuple[RelationshipTypeEnum, int]] = {}
 
-        dweller = await dweller_crud.get(db_session, dweller_id)
-        if dweller and dweller.partner_id:
+        if dweller.partner_id:
             partner_ids.add(dweller.partner_id)
 
-        reciprocal = await dweller_crud.get_reciprocal_partners(db_session, vault_id, dweller_id)
+        reciprocal = await dweller_crud.get_reciprocal_partners(db_session, vault_id, dweller.id)
         partner_ids.update(partner.id for partner in reciprocal)
 
-        for relationship in await relationship_crud.get_partner_links_involving(db_session, dweller_id):
+        for relationship in await relationship_crud.get_partner_links_involving(db_session, dweller.id):
             other_id = (
-                relationship.dweller_2_id if relationship.dweller_1_id == dweller_id else relationship.dweller_1_id
+                relationship.dweller_2_id if relationship.dweller_1_id == dweller.id else relationship.dweller_1_id
             )
             partner_ids.add(other_id)
             context[other_id] = (relationship.relationship_type, relationship.affinity)
 
-        partners: list[Dweller] = []
-        for partner_id in partner_ids:
-            partner = await dweller_crud.get(db_session, partner_id)
-            if partner and partner.vault_id == vault_id:
-                partners.append(partner)
+        partners = [
+            partner
+            for partner in await dweller_crud.get_many_with_relations(db_session, list(partner_ids))
+            if partner.vault_id == vault_id
+        ]
         return partners, context
 
     @staticmethod
     async def _compute_generation(db_session: AsyncSession, dweller_id: UUID, vault_id: UUID) -> int:
         """Walk parents upward to compute the generation number (0 for orphans).
 
-        Only live, same-vault parents are followed, and a candidate is validated
-        before being added to the next frontier so cross-vault links, soft-deleted
-        dwellers, and cycles never add phantom generation levels.
+        Only live, same-vault parents are followed, and every hop is validated
+        before it counts, so cross-vault links, soft-deleted dwellers and cycles
+        never add phantom generation levels. Each level is one narrow parent-link
+        query: the walk needs ids and links, not dweller graphs.
         """
         generation = 0
         seen: set[UUID] = set()
         frontier = [dweller_id]
 
         while frontier:
-            next_frontier: list[UUID] = []
+            rows = {row[0]: row for row in await dweller_crud.get_ancestry_rows(db_session, frontier)}
+            seen.update(frontier)
+
+            candidate_ids: list[UUID] = []
             for current_id in frontier:
-                if current_id in seen:
+                row = rows.get(current_id)
+                if row is None:
                     continue
-                seen.add(current_id)
-                # include_deleted so a deleted ancestor is filtered here (vault+is_deleted), not raised as not-found
-                parent = await dweller_crud.get(db_session, current_id, include_deleted=True)
-                if not parent or parent.vault_id != vault_id or parent.is_deleted:
+                _, row_vault_id, parent_1_id, parent_2_id, is_deleted = row
+                if row_vault_id != vault_id or is_deleted:
                     continue
-                for candidate_id in (parent.parent_1_id, parent.parent_2_id):
-                    if candidate_id is None or candidate_id in seen:
-                        continue
-                    candidate = await dweller_crud.get(db_session, candidate_id, include_deleted=True)
-                    if candidate and candidate.vault_id == vault_id and not candidate.is_deleted:
-                        next_frontier.append(candidate_id)
-            if next_frontier:
-                generation += 1
-            frontier = next_frontier
+                candidate_ids.extend(
+                    candidate_id
+                    for candidate_id in (parent_1_id, parent_2_id)
+                    if candidate_id is not None and candidate_id not in seen
+                )
+
+            pending = [candidate_id for candidate_id in dict.fromkeys(candidate_ids) if candidate_id not in seen]
+            if not pending:
+                break
+
+            candidate_rows = {row[0]: row for row in await dweller_crud.get_ancestry_rows(db_session, pending)}
+            frontier = [
+                candidate_id
+                for candidate_id in pending
+                if (row := candidate_rows.get(candidate_id)) is not None and row[1] == vault_id and not row[4]
+            ]
+            if not frontier:
+                break
+            generation += 1
 
         return generation
 
     @classmethod
-    async def get_lineage(cls, db_session: AsyncSession, dweller_id: UUID) -> LineageResponse:
+    async def get_lineage(
+        cls, db_session: AsyncSession, dweller_id: UUID, *, dweller: Dweller | None = None
+    ) -> LineageResponse:
         """Compute the full lineage for a dweller.
+
+        Pass *dweller* when the caller already loaded it (the detail endpoint does);
+        otherwise it is fetched here.
 
         Raises:
             ResourceNotFoundException: If the dweller does not exist.
         """
-        dweller = await dweller_crud.get(db_session, dweller_id)
+        dweller = dweller or await dweller_crud.get(db_session, dweller_id)
         vault_id = dweller.vault_id
         vault_id = ensure_found(vault_id, Dweller, identifier=dweller_id)
 
         generation = await cls._compute_generation(db_session, dweller_id, vault_id)
 
         parent_ids = [p for p in (dweller.parent_1_id, dweller.parent_2_id) if p is not None]
-        parents: list[Dweller] = []
-        for parent_id in parent_ids:
-            parent = await dweller_crud.get(db_session, parent_id, include_deleted=True)
-            if parent and parent.vault_id == vault_id and not parent.is_deleted:
-                parents.append(parent)
+        parents = [
+            parent
+            for parent in await dweller_crud.get_many_with_relations(db_session, parent_ids)
+            if parent.vault_id == vault_id
+        ]
 
         children = await cls._find_children(db_session, dweller_id, vault_id)
         siblings = await cls._find_siblings(db_session, dweller, parents, vault_id)
-        partners, partner_context = await cls._find_partners(db_session, dweller_id, vault_id)
+        partners, partner_context = await cls._find_partners(db_session, dweller, vault_id)
 
         return LineageResponse(
             dweller_id=dweller_id,

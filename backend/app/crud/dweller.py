@@ -113,6 +113,43 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         db_obj = response.scalar_one_or_none()
         return ensure_found(db_obj, self.model, identifier=id)
 
+    async def get_ancestry_rows(self, db_session: AsyncSession, dweller_ids: Sequence[UUID]) -> list[tuple]:
+        """Parent links for *dweller_ids*: ``(id, vault_id, parent_1_id, parent_2_id, is_deleted)``.
+
+        Generation counting only walks parent links, so this skips the
+        relationship eager loads ``get`` performs — five statements each.
+        """
+        if not dweller_ids:
+            return []
+        query = select(
+            self.model.id,
+            self.model.vault_id,
+            self.model.parent_1_id,
+            self.model.parent_2_id,
+            self.model.is_deleted,
+        ).where(self.model.id.in_(dweller_ids))
+        return [tuple(row) for row in (await db_session.execute(query)).all()]
+
+    async def get_many_with_relations(self, db_session: AsyncSession, dweller_ids: Sequence[UUID]) -> list[Dweller]:
+        """Live dwellers among *dweller_ids* with the detail graph eager-loaded.
+
+        One query per relationship regardless of how many ids are asked for, so a
+        caller rendering N relatives costs the same as rendering one.
+        """
+        if not dweller_ids:
+            return []
+        query = (
+            select(self.model)
+            .where(self.model.id.in_(dweller_ids), ~self.model.is_deleted)
+            .options(
+                selectinload(Dweller.vault),
+                selectinload(Dweller.room),
+                *_WEAPON_OUTFIT_LOADS,
+                selectinload(Dweller.pet),
+            )
+        )
+        return list((await db_session.execute(query)).scalars().all())
+
     async def get_with_equipment(self, db_session: AsyncSession, dweller_id: UUID) -> Dweller | None:
         """One dweller with weapon, outfit and pet eager-loaded, or None when absent.
 

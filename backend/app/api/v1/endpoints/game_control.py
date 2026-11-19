@@ -26,7 +26,6 @@ from app.schemas.system import GameBalanceResponse, PresenceResponse
 from app.services.combat.incident_service import incident_service
 from app.services.game_loop_service import game_loop_service
 from app.utils.exceptions import (
-    AccessDeniedException,
     ResourceConflictException,
     ResourceNotFoundException,
     ValidationException,
@@ -242,14 +241,9 @@ async def assign_incident_responders(
     db_session: DBSession,
 ) -> IncidentRespondersResponse:
     """Assign healthy adult dwellers to defend an active incident room."""
-    try:
-        incident = await incident_service.get_incident_for_vault(db_session, incident_id, vault.id)
-        assigned = await incident_service.assign_responders(db_session, incident, responders.dweller_ids)
-        return IncidentRespondersResponse(
-            incident_id=incident.id, room_id=incident.room_id, assigned_dweller_ids=assigned
-        )
-    except (ResourceNotFoundException, AccessDeniedException, ValidationException) as error:
-        raise HTTPException(status_code=error.status_code, detail=error.detail) from error
+    incident = await incident_service.get_incident_for_vault(db_session, incident_id, vault.id)
+    assigned = await incident_service.assign_responders(db_session, incident, responders.dweller_ids)
+    return IncidentRespondersResponse(incident_id=incident.id, room_id=incident.room_id, assigned_dweller_ids=assigned)
 
 
 @router.get("/vaults/{vault_id}/incidents/{incident_id}/team", response_model=list[IncidentResponderRead])
@@ -260,10 +254,7 @@ async def get_incident_team(
     db_session: DBSession,
 ) -> list[IncidentResponderRead]:
     """Get the designated responder team for an incident."""
-    try:
-        return await incident_service.get_incident_team_read(db_session, incident_id, vault.id)
-    except (ResourceNotFoundException, AccessDeniedException, ValidationException) as error:
-        raise HTTPException(status_code=error.status_code, detail=error.detail) from error
+    return await incident_service.get_incident_team_read(db_session, incident_id, vault.id)
 
 
 @router.post("/vaults/{vault_id}/incidents/{incident_id}/overflow/take", response_model=OverflowActionResponse)

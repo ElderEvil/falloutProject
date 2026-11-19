@@ -10,7 +10,6 @@ from app.crud import training as crud_training
 from app.models.training import Training
 from app.schemas.training import TrainingGoalUpdate, TrainingProgress, TrainingRead
 from app.services.training_service import training_service
-from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException, VaultOperationException
 
 router = APIRouter(prefix="/training", tags=["Training"])
 
@@ -39,14 +38,7 @@ async def start_training(
         raise HTTPException(status_code=404, detail="Dweller not found")
     await get_user_vault_or_403(dweller.vault_id, user, db_session)
 
-    try:
-        return await training_service.start_training(db_session, dweller_id, room_id)
-    except ResourceNotFoundException as e:
-        raise HTTPException(status_code=404, detail=str(e)) from e
-    except ResourceConflictException as e:
-        raise HTTPException(status_code=409, detail=str(e)) from e
-    except VaultOperationException as e:
-        raise HTTPException(status_code=400, detail=str(e)) from e
+    return await training_service.start_training(db_session, dweller_id, room_id)
 
 
 @router.get("/dweller/{dweller_id}", response_model=TrainingRead | None)
@@ -138,12 +130,7 @@ async def complete_training(
     # Verify training belongs to user's vault
     await get_user_vault_or_403(training.vault_id, user, db_session)
 
-    try:
-        return await training_service.complete_training(db_session, training_id)
-    except ResourceNotFoundException as e:
-        raise HTTPException(status_code=404, detail=str(e)) from e
-    except VaultOperationException as e:
-        raise HTTPException(status_code=400, detail=str(e)) from e
+    return await training_service.complete_training(db_session, training_id)
 
 
 @router.post("/{training_id}/cancel", response_model=TrainingRead)
@@ -168,12 +155,7 @@ async def cancel_training(
     # Verify training belongs to user's vault
     await get_user_vault_or_403(training.vault_id, user, db_session)
 
-    try:
-        return await training_service.cancel_training(db_session, training_id)
-    except ResourceNotFoundException as e:
-        raise HTTPException(status_code=404, detail=str(e)) from e
-    except VaultOperationException as e:
-        raise HTTPException(status_code=400, detail=str(e)) from e
+    return await training_service.cancel_training(db_session, training_id)
 
 
 @router.get("/room/{room_id}", response_model=list[TrainingRead])
@@ -208,9 +190,4 @@ async def set_training_goal(
     if not training:
         raise HTTPException(status_code=404, detail="Training session not found")
     await get_user_vault_or_403(training.vault_id, user, db_session)
-    try:
-        return await training_service.set_training_goal(db_session, training_id, goal.goal_stat_value)
-    except ResourceNotFoundException as e:
-        raise HTTPException(status_code=404, detail=str(e)) from e
-    except VaultOperationException as e:
-        raise HTTPException(status_code=400, detail=str(e)) from e
+    return await training_service.set_training_goal(db_session, training_id, goal.goal_stat_value)

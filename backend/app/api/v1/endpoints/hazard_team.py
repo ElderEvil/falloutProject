@@ -2,13 +2,12 @@
 
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 
 from app.api.deps import CurrentActiveUser, DBSession, get_user_vault_or_403
 from app.core.enums import HazardTeam
 from app.schemas.contamination_team import ContaminationTeamRead, HazardTeamPlaceUpdate
 from app.services.hazard_team_service import hazard_team_service
-from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException
 
 router = APIRouter(prefix="/contamination-team", tags=["Contamination Team"])
 
@@ -35,9 +34,4 @@ async def set_hazard_team_place(
 ) -> ContaminationTeamRead:
     """Move a team member between Active and Reserve, returning the updated roster."""
     await get_user_vault_or_403(vault_id, user, db_session)
-    try:
-        return await hazard_team_service.set_place(db_session, vault_id, team, dweller_id, active=payload.active)
-    except ResourceNotFoundException as e:
-        raise HTTPException(status_code=404, detail=str(e)) from e
-    except ResourceConflictException as e:
-        raise HTTPException(status_code=409, detail=str(e)) from e
+    return await hazard_team_service.set_place(db_session, vault_id, team, dweller_id, active=payload.active)

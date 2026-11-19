@@ -187,6 +187,11 @@ export type AmbienceKey =
   | keyof typeof ROOM_AMBIENCE_MANIFEST
   | keyof typeof THEMED_ROOM_AMBIENCE
 
+/** Whether an ambience key is a themed room loop, which doubles as the room's theme music. */
+export function isThemedRoomKey(key: AmbienceKey): boolean {
+  return key in THEMED_ROOM_AMBIENCE
+}
+
 /** Resolve an ambience key to its asset URL across every ambience map. */
 export function getAmbienceSrc(key: AmbienceKey): string | undefined {
   if (key in THEMED_ROOM_AMBIENCE) {

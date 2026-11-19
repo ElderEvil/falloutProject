@@ -5,6 +5,7 @@ import {
   MUSIC_MANIFEST,
   AMBIENCE_MANIFEST,
   ROOM_AMBIENCE_MANIFEST,
+  THEMED_ROOM_AMBIENCE,
 } from '@/core/audio/soundManifest'
 import { existsSync } from 'node:fs'
 import { resolve } from 'node:path'
@@ -15,6 +16,7 @@ it('ships every manifest audio file in the public directory', () => {
     ...Object.values(AMBIENCE_MANIFEST),
     ...Object.values(ROOM_AMBIENCE_MANIFEST),
     ...Object.values(MUSIC_MANIFEST).flat(),
+    ...Object.values(THEMED_ROOM_AMBIENCE),
   ]
   for (const src of sources) {
     expect(existsSync(resolve('public', src.slice(1))), `Missing audio asset: ${src}`).toBe(true)
@@ -983,5 +985,151 @@ describe('audioManager restore fade slider', () => {
     expect(loop.pause).toHaveBeenCalled()
     expect(loop.paused).toBe(true)
     expect(loop.volume).toBeCloseTo(0)
+  })
+})
+
+describe('audioManager themed room music', () => {
+  beforeEach(() => {
+    MockAudio.instances = []
+    localStorage.clear()
+    vi.stubGlobal('Audio', MockAudio)
+    vi.useFakeTimers()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.unstubAllGlobals()
+  })
+
+  async function unlockedManager() {
+    const manager = await freshManager()
+    manager.setMuted(false)
+    window.dispatchEvent(new Event('pointerdown'))
+    return manager
+  }
+
+  const themedTrack = (file: string) =>
+    MockAudio.instances.find(
+      (a) => a.src.includes('/audio/ambience/themed/') && a.src.includes(file)
+    )!
+  const playlistLoop = () =>
+    MockAudio.instances.find((a) => a.src.includes('/audio/music/vault-ambient'))!
+
+  it('suspends the playlist for the themed track and restores it in place', async () => {
+    const manager = await unlockedManager()
+    manager.playLoop('vaultAmbient')
+    const loop = playlistLoop()
+    loop.currentTime = 10
+    loop.play.mockClear()
+
+    manager.playThemedRoomMusic('diner:xmas')
+
+    const themed = themedTrack('diner-xmas')
+    expect(themed).toBeDefined()
+    expect(themed.loop).toBe(true)
+    expect(themed.paused).toBe(false)
+    expect(loop.paused).toBe(true)
+    expect(loop.currentTime).toBe(10)
+
+    manager.setVolume('music', 0.9)
+    // The themed track fades in; the slider retargets the fade to the new value.
+    vi.advanceTimersByTime(700)
+    expect(themed.volume).toBeCloseTo(0.9 ** 2)
+
+    manager.stopThemedRoomMusic()
+
+    expect(themed.paused).toBe(true)
+    expect(loop.paused).toBe(false)
+    expect(loop.currentTime).toBe(10)
+    expect(loop.play).toHaveBeenCalled()
+  })
+
+  it('swaps themed rooms while the playlist stays suspended', async () => {
+    const manager = await unlockedManager()
+    manager.playLoop('vaultAmbient')
+    manager.playThemedRoomMusic('diner:xmas')
+    manager.playThemedRoomMusic('diner:brotherhood')
+
+    expect(themedTrack('diner-xmas').paused).toBe(true)
+    expect(themedTrack('diner-brotherhood').paused).toBe(false)
+    expect(playlistLoop().paused).toBe(true)
+
+    manager.stopThemedRoomMusic()
+    expect(playlistLoop().paused).toBe(false)
+  })
+
+  it('resumes the themed track after mute instead of the suspended playlist', async () => {
+    const manager = await unlockedManager()
+    manager.playLoop('vaultAmbient')
+    manager.playThemedRoomMusic('diner:xmas')
+
+    manager.setMuted(true)
+    manager.setMuted(false)
+
+    expect(themedTrack('diner-xmas').paused).toBe(false)
+    expect(playlistLoop().paused).toBe(true)
+
+    manager.stopThemedRoomMusic()
+    expect(playlistLoop().paused).toBe(false)
+  })
+
+  it('ducks and restores themed room music while the playlist stays suspended', async () => {
+    const manager = await unlockedManager()
+    manager.playLoop('vaultAmbient')
+    manager.playThemedRoomMusic('diner:xmas')
+
+    manager.duckMusic(500)
+    vi.advanceTimersByTime(600)
+    const themed = themedTrack('diner-xmas')
+    expect(themed.paused).toBe(true)
+
+    manager.restoreMusic(0)
+    vi.advanceTimersByTime(1)
+
+    expect(themed.paused).toBe(false)
+    expect(playlistLoop().paused).toBe(true)
+
+    manager.stopThemedRoomMusic()
+    expect(playlistLoop().paused).toBe(false)
+  })
+
+  it('starts the suspended playlist when the themed modal closes before the duck restores', async () => {
+    const manager = await unlockedManager()
+    manager.playLoop('vaultAmbient')
+    manager.playThemedRoomMusic('diner:xmas')
+
+    manager.duckMusic(500)
+    vi.advanceTimersByTime(600)
+    manager.stopThemedRoomMusic()
+    expect(playlistLoop().paused).toBe(true)
+
+    manager.restoreMusic(0)
+    vi.advanceTimersByTime(1)
+
+    expect(playlistLoop().paused).toBe(false)
+  })
+
+  it('hands the music bus back when a playlist starts over a themed room', async () => {
+    const manager = await unlockedManager()
+    manager.playLoop('vaultAmbient')
+    manager.playThemedRoomMusic('diner:xmas')
+
+    manager.playLoop('exploration')
+
+    const exploration = MockAudio.instances.find((a) => a.src.includes('exploration-1'))!
+    expect(exploration.paused).toBe(false)
+    expect(themedTrack('diner-xmas').paused).toBe(true)
+    expect(playlistLoop().paused).toBe(true)
+  })
+
+  it('defers the music preview while the themed track plays', async () => {
+    const manager = await unlockedManager()
+    manager.playLoop('vaultAmbient')
+    manager.playThemedRoomMusic('diner:xmas')
+
+    const before = MockAudio.instances.filter((a) => a.src.includes('vault-ambient')).length
+    manager.previewMusic()
+
+    expect(MockAudio.instances.filter((a) => a.src.includes('vault-ambient'))).toHaveLength(before)
   })
 })

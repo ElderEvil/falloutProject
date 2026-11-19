@@ -120,7 +120,10 @@ class AudioManager {
         this.unlocked = true
         window.removeEventListener('pointerdown', unlock)
         window.removeEventListener('keydown', unlock)
-        if (this.pendingLoop && !this.musicDucked) {
+        if (this.themedRoomWanted && !this.musicDucked) {
+          this.playThemedRoomMusic(this.themedRoomWanted)
+        }
+        if (this.pendingLoop && !this.musicDucked && !this.themedRoomWanted) {
           this.playLoop(this.pendingLoop)
           this.pendingLoop = null
         }
@@ -178,7 +181,9 @@ class AudioManager {
 
   setVolume(bus: AudioBus, volume: number): void {
     this.settings.volumes[bus] = Math.min(1, Math.max(0, volume))
-    if (bus === 'music' && this.currentLoop) {
+    if (bus === 'music' && this.themedRoomAudio) {
+      this.applySliderVolume(this.themedRoomAudio, 'music')
+    } else if (bus === 'music' && this.currentLoop) {
       this.applySliderVolume(this.currentLoop.audio, 'music')
     }
     if (bus === 'ambience' && this.ambienceAudio) {
@@ -275,6 +280,7 @@ class AudioManager {
    */
   previewMusic(): void {
     if (this.currentLoop && !this.currentLoop.audio.paused) return
+    if (this.themedRoomAudio && !this.themedRoomAudio.paused) return
     if (this.settings.muted || !this.unlocked) return
     const src = MUSIC_MANIFEST.vaultAmbient[0]
     if (!src) return
@@ -313,6 +319,7 @@ class AudioManager {
    * already playing keeps the playlist where it is instead of restarting it.
    */
   playLoop(key: MusicKey): void {
+    this.stopThemedRoomMusic()
     this.stopPreview()
     if (this.currentLoop?.key === key) return
     this.stopLoop()
@@ -442,6 +449,80 @@ class AudioManager {
     this.ambienceKey = null
   }
 
+  /** Themed room music: the room's theme track takes the music bus. */
+
+  private themedRoomAudio: HTMLAudioElement | null = null
+  private themedRoomKey: AmbienceKey | null = null
+  private themedRoomWanted: AmbienceKey | null = null
+  private playlistSuspended = false
+
+  /**
+   * Play a themed room's theme track on the music bus. The vault playlist
+   * yields: it is paused in place and resumes from there when the themed
+   * track stops, so a themed visit never restarts the playlist.
+   */
+  playThemedRoomMusic(key: AmbienceKey): HTMLAudioElement | null {
+    this.themedRoomWanted = key
+    this.stopPreview()
+    if (this.settings.muted || !this.unlocked || this.musicDucked) return null
+    if (this.themedRoomKey === key && this.themedRoomAudio) {
+      if (!this.themedRoomAudio.paused) return this.themedRoomAudio
+      this.themedRoomAudio.volume = this.playbackVolume('music')
+      void this.themedRoomAudio.play().catch(() => {})
+      return this.themedRoomAudio
+    }
+    this.stopThemedRoomPlayback()
+    const src = getAmbienceSrc(key)
+    if (!src) return null
+    if (this.currentLoop && !this.playlistSuspended) {
+      this.playlistSuspended = true
+      this.currentLoop.audio.pause()
+    } else if (!this.currentLoop && this.pendingLoop) {
+      // A playlist requested before the unlock waits behind the themed track.
+      this.playlistSuspended = true
+    }
+    const audio = new Audio(src)
+    audio.loop = true
+    audio.volume = 0
+    audio.play().catch(() => {})
+    this.themedRoomAudio = audio
+    this.themedRoomKey = key
+    this.fadeElement(audio, this.playbackVolume('music'), 600)
+    return audio
+  }
+
+  /** Stop the themed track and hand the music bus back to the playlist. */
+  stopThemedRoomMusic(): void {
+    this.themedRoomWanted = null
+    this.stopThemedRoomPlayback()
+    this.resumeSuspendedPlaylist()
+  }
+
+  private stopThemedRoomPlayback(): void {
+    if (this.themedRoomAudio) {
+      this.cancelFade(this.themedRoomAudio)
+      this.themedRoomAudio.pause()
+    }
+    this.themedRoomAudio = null
+    this.themedRoomKey = null
+  }
+
+  private resumeSuspendedPlaylist(): void {
+    if (!this.playlistSuspended) return
+    this.playlistSuspended = false
+    if (this.settings.muted || this.musicDucked || !this.unlocked) return
+    const loop = this.currentLoop
+    if (loop) {
+      loop.audio.volume = 0
+      void loop.audio.play().catch(() => {})
+      this.fadeElement(loop.audio, this.playbackVolume('music'), 600)
+    } else if (this.pendingLoop) {
+      const pending = this.pendingLoop
+      this.pendingLoop = null
+      this.playLoop(pending)
+    }
+  }
+
   private stopPreview(): void {
     this.musicPreview?.pause()
     this.ambiencePreview?.pause()
@@ -524,8 +605,10 @@ class AudioManager {
     this.musicDucked = true
     const loop = this.currentLoop
     const ambience = this.ambienceAudio
+    const themed = this.themedRoomAudio
     if (loop) this.fadeElement(loop.audio, 0, fadeMs, () => loop.audio.pause())
     if (ambience) this.fadeElement(ambience, 0, fadeMs, () => ambience.pause())
+    if (themed) this.fadeElement(themed, 0, fadeMs, () => themed.pause())
   }
 
   /** Resume a ducked music loop after a delay (5s — mid-range of the 2–8s window). */
@@ -543,6 +626,13 @@ class AudioManager {
         const pending = this.pendingLoop
         this.pendingLoop = null
         this.playLoop(pending)
+      } else if (this.themedRoomWanted) {
+        const themed = this.playThemedRoomMusic(this.themedRoomWanted)
+        if (themed) {
+          themed.volume = 0
+          void themed.play().catch(() => {})
+          this.fadeElement(themed, this.playbackVolume('music'), fadeMs)
+        }
       } else {
         const loop = this.currentLoop
         if (loop) {
@@ -581,10 +671,13 @@ class AudioManager {
       this.ambiencePreview?.pause()
       this.alarmAudio?.pause()
       this.ambienceAudio?.pause()
+      this.themedRoomAudio?.pause()
       return
     }
     if (!this.settings.alarmEnabled) this.alarmAudio?.pause()
-    if (this.pendingLoop && !this.musicDucked) {
+    if (this.themedRoomWanted && !this.musicDucked) {
+      this.playThemedRoomMusic(this.themedRoomWanted)
+    } else if (this.pendingLoop && !this.musicDucked) {
       const pending = this.pendingLoop
       this.pendingLoop = null
       this.playLoop(pending)

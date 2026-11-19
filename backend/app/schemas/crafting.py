@@ -13,11 +13,8 @@ CraftableItemType = Literal["weapon", "outfit", "theme"]
 
 
 class CraftingRecipeRead(SQLModel):
-    """One catalog entry with its costs, affordability, and unlock state.
-
-    A gated schematic the vault has not learned is still listed so the player can
-    see what is out there; ``unlocked``/``unlock_hint`` tell the UI to disable it
-    and explain how to learn it.
+    """Catalog entry with costs, affordability, and unlock state; unlearned gated
+    schematics stay listed (unlocked/unlock_hint tell the UI to disable + explain).
     """
 
     name: str
@@ -49,10 +46,8 @@ class CraftRequest(SQLModel):
 
 
 class CraftResultRead(SQLModel):
-    """The crafted item plus the materials that were spent.
-
-    Theme orders grant permanent ownership rather than a storage item, so
-    ``item_id`` is null for them.
+    """Crafted item plus spent materials; item_id is null for theme orders (they
+    grant permanent ownership, not a storage item).
     """
 
     item_type: str

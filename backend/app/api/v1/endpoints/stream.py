@@ -59,12 +59,9 @@ async def _with_heartbeat(
 ) -> AsyncIterator[dict[str, Any] | None]:
     """Interleave heartbeat sentinels into an SSE event stream.
 
-    Uses ``asyncio.wait`` instead of ``asyncio.wait_for`` so the
-    underlying ``__anext__`` task is **never cancelled** — the subscriber
-    stays alive across heartbeat timeouts.
-
-    Yields:
-        Event data dicts from the stream, or None sentinel for heartbeat intervals.
+    Yields stream dicts, or None on heartbeat timeouts. Uses asyncio.wait
+    (not wait_for) so the pending __anext__ is never cancelled and the
+    subscriber stays alive across heartbeats.
     """
     it = aiter(stream)
     task: asyncio.Future | None = None
@@ -121,8 +118,7 @@ async def stream_game_ticks(
         Server-sent events with game tick data or heartbeat comments.
     """
     await _close_session(db_session)
-    # Use game tick interval as heartbeat — no point heartbeating faster
-    # than the actual data cadence.
+    # Use game tick interval as heartbeat — no point heartbeating faster than the actual data cadence.
     stream = sse_manager.subscribe(vault.id, "game_ticks")
     async for data in _with_heartbeat(stream, interval=game_config.game_loop.tick_interval):
         if await request.is_disconnected():

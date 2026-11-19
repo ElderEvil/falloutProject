@@ -157,11 +157,6 @@ async def update_user(
     return await update_user_account(db_session, user_id, user_in, actor_id=actor.id)
 
 
-# =============================================================================
-# Profile Endpoints (migrated from profile.py)
-# =============================================================================
-
-
 @router.get("/me/profile", response_model=ProfileRead)
 async def get_my_profile(
     *,

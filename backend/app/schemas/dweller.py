@@ -47,11 +47,7 @@ STATS_RANGE_BY_RARITY = {
 
 
 class DwellerRosterFilters(BaseModel):
-    """Identity filters and sort order for the vault roster.
-
-    Shared by the endpoint and the service so a new filter cannot be added on
-    one side only.
-    """
+    """Roster identity filters/sort, shared by endpoint and service so filters cannot drift apart."""
 
     status: DwellerStatusEnum | None = None
     focus: DwellerRosterFocus | None = None
@@ -78,18 +74,11 @@ class DwellerCreate(DwellerCreateWithoutVaultID):
 
 
 class DwellerVisualAttributes(BaseModel):
-    """Unified schema for dweller visual attributes.
+    """User + AI visual fields; all optional — only populated fields land in the JSONB column."""
 
-    Merges user-facing input fields (race, faction, equipment, scene)
-    with AI-generated fields (height, appearance, build, clothing_style, etc.).
-    All fields are optional — only populated fields are stored in the JSONB column.
-    """
-
-    # Identity
     race: RaceEnum | None = None
     faction: FactionEnum | None = None
 
-    # Physical Attributes
     height: str | None = Field(None, description="Height: tall, average, short")
     build: str | None = Field(None, description="Build: slim, athletic, muscular, stocky, average, overweight")
     skin_tone: str | None = None
@@ -99,7 +88,6 @@ class DwellerVisualAttributes(BaseModel):
         None, description="For non-humans: ghoul feralness, super mutant mutation, synth type"
     )
 
-    # Appearance & Facial Features
     appearance: str | None = Field(None, description="Appearance: attractive, cute, average, unattractive")
     hair_style: str | None = Field(None, description="Hair style: short, long, curly, straight, wavy, bald")
     hair_color: str | None = None
@@ -115,15 +103,12 @@ class DwellerVisualAttributes(BaseModel):
     )
     clothing_style: str | None = Field(None, description="Clothing style: casual, military, formal, rugged, eclectic")
 
-    # Equipment
     accessory: str | None = None
     object_held: str | None = None
 
-    # Scene & Action
     pose: str | None = None
     background: str | None = None
 
-    # Audio
     voice_line_text: str | None = None
     voice_line_url: str | None = Field(default=None, max_length=500)
 
@@ -160,13 +145,10 @@ class DwellerVisualAttributes(BaseModel):
 
 
 class DwellerTemplate(DwellerBase):
-    """Loader schema for curated dweller JSON templates.
+    """Curated dweller JSON template: persistable fields plus creation-only map metadata.
 
-    Extends the persistable dweller fields with creation-only map metadata.
-    ``origin_place`` / ``visited_places`` are not Dweller columns and must not
-    be persisted directly — callers pass them to ``map_service.register_bio_places``.
-    ``visual_attributes`` is typed so identity validation runs at load time; ``null``
-    is allowed for companion templates (Snip Snip).
+    origin_place/visited_places are not Dweller columns — callers pass them to
+    map_service.register_bio_places. visual_attributes may be null (companions).
     """
 
     template_id: str = Field(min_length=2, max_length=64, pattern=r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
@@ -197,11 +179,7 @@ class DwellerTemplate(DwellerBase):
         return self
 
     def to_create_payload(self) -> tuple[DwellerCreateWithoutVaultID, str | None, list[str]]:
-        """Return (persistable payload, origin_place, visited_places) for the shared creation flow.
-
-        The persistable payload excludes the two map-metadata fields so Pydantic
-        never silently drops them via ``DwellerCreateWithoutVaultID``.
-        """
+        """Return (payload, origin_place, visited_places); map metadata is excluded from the payload, not dropped."""
         origin = self.origin_place
         visited = list(self.visited_places)
         data = self.model_dump(exclude={"origin_place", "visited_places"})
@@ -291,7 +269,6 @@ class DwellerReadLess(SQLModel):
     apprentice_started_at: OptionalUTCDateTimeJSON = None
     visual_attributes: DwellerVisualAttributes | None = None
 
-    # SPECIAL stats
     strength: int
     perception: int
     endurance: int
@@ -300,7 +277,6 @@ class DwellerReadLess(SQLModel):
     agility: int
     luck: int
 
-    # Relationships
     weapon_type: WeaponTypeEnum | None = None
     combat_power: float | None = None
     pet: PetRead | None = Field(default=None, validation_alias="pet_loaded")
@@ -322,8 +298,6 @@ class DwellerReadLess(SQLModel):
         pet = getattr(self, "pet", None)
         pet_bonus = pet_effect_for_name(pet.name).max_health if pet is not None else 0
         return max(1, self.max_health + pet_bonus - max(0, self.radiation))
-
-    # TBD
 
 
 class IdentityModifiersRead(BaseModel):
@@ -387,11 +361,8 @@ class DwellerReadFull(DwellerRead):
     room: RoomRead | None
     weapon: WeaponRead | None
     outfit: OutfitRead | None
-    # pet_loaded alias (same as DwellerRead/DwellerReadLess): reads the ORM's
-    # __dict__ via the pet_loaded property, so serializing a dweller whose pet
-    # was not eager-loaded yields None instead of triggering lazy IO. Feeders
-    # (crud.dweller.get / get_full_info) eager-load pet, so the wire value is
-    # the real equipped pet; the alias is the defensive backstop.
+    # pet_loaded reads the ORM __dict__: a non-eager-loaded pet serializes as None instead of triggering lazy IO; CRUD
+    # feeders eager-load it, this is the backstop.
     pet: PetRead | None = Field(default=None, validation_alias="pet_loaded")
 
     model_config = SQLModelConfig(from_attributes=True)
@@ -401,21 +372,16 @@ class DwellerReadFull(DwellerRead):
 class DwellerUpdate(DwellerBase):
     room_id: UUID | None = None
     visual_attributes: DwellerVisualAttributesInput | None = Field(default=None)
-    # Canonical state is written by system transitions (death, expiry, revival); it is
-    # deliberately absent from DwellerUpdateRequest so players cannot set it.
+    # Canonical state is system-written (death/expiry/revival); deliberately absent from DwellerUpdateRequest.
     lifecycle: LifecycleEnum | None = None
     availability: AvailabilityEnum | None = None
 
 
 @optional()
 class DwellerUpdateRequest(SQLModel):
-    """The only dweller fields a player may write through the API.
-
-    Game state is deliberately absent: health, radiation, level, experience,
-    happiness, supplies, status and the death fields are produced by the game
-    loop, so letting a client set them would bypass every rule that governs them
-    (and `PUT /dwellers/{id}` previously accepted all of them via `DwellerUpdate`).
-    System callers keep using `DwellerUpdate` internally.
+    """The only dweller fields a player may write; game state (health, radiation,
+    level, XP, happiness, supplies, status, death fields) is loop-produced and
+    rejected via extra="forbid". System callers use DwellerUpdate internally.
     """
 
     first_name: str | None = Field(default=None, min_length=2, max_length=32)
@@ -425,12 +391,10 @@ class DwellerUpdateRequest(SQLModel):
     visual_attributes: DwellerVisualAttributesInput | None = Field(default=None)
     image_url: str | None = Field(default=None, max_length=255)
     thumbnail_url: str | None = Field(default=None, max_length=255)
-    # Room assignment only happens via the dedicated move endpoints
-    # (POST /dwellers/{id}/move_to/{room_id}, auto_assign); PUT may only unassign.
+    # Room assignment only via the move endpoints/auto_assign; PUT may only unassign.
     room_id: Literal[None] | None = None  # ruff: ignore[redundant-none-literal]  # @optional() ORs None in; only null is accepted
 
-    # Reject game state loudly instead of silently dropping it, so a client that
-    # tries to write health/radiation/level learns why it cannot.
+    # Reject game-state writes loudly instead of silently dropping them.
     model_config = SQLModelConfig(extra="forbid")
 
 

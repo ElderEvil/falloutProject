@@ -1,9 +1,5 @@
-"""Single reward contract shared by settlement, API responses, and presentation.
-
-Every grant_* service method returns a plain dict that validates against
-GrantedReward. The API boundary validates before serializing, so caps, items,
-XP, dwellers, and lunchboxes agree exactly across backend settlement, API
-responses, notifications, and frontend presentation.
+"""Single reward contract shared by settlement, API, and presentation: every
+grant_* dict is validated against GrantedReward before serializing.
 """
 
 from typing import Annotated, Literal

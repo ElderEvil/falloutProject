@@ -47,10 +47,8 @@ class WorldSlotRead(SQLModel):
 
 
 class WorldSnapshotRead(SQLModel):
-    """Public base-world snapshot the production map renders.
-
-    Terrain is row-major over ``width x height`` tiles. Private ownership,
-    discoveries, and expedition state are never part of this payload.
+    """Public base-world snapshot; terrain is row-major over width x height.
+    Private ownership, discoveries, and expedition state are never included.
     """
 
     world_id: str

@@ -9,16 +9,12 @@ from app.utils.serialize_types import UTCDateTimeJSON
 
 
 class PetCreate(ItemBase):
-    # Optional fields - can be omitted, but if provided must be valid UUID
     storage_id: UUID | None = None
 
 
 class PetEffectRead(PetEffect):
-    """Wire shape for the catalog-resolved bonus a pet grants.
-
-    Fields come from ``PetEffect``; the empty subclass keeps the public schema
-    name stable for generated clients. All-zero for pets without a catalog
-    entry, so the client can always read the shape without a null check.
+    """Catalog-resolved pet bonus; all-zero without a catalog entry (never null).
+    Empty subclass keeps the public schema name stable for generated clients.
     """
 
 

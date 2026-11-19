@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 3.6.1 (2026-11-19)
+
+### Performance Improvements
+
+* stop re-reading rows on the dweller and map request paths ([#1444](https://github.com/ElderEvil/falloutProject/issues/1444)) 92d0683
+
 ## 3.6.0 (2026-11-19)
 
 ### Features

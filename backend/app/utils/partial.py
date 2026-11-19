@@ -13,7 +13,11 @@ Model = TypeVar("Model", bound=type[BaseModel])
 
 
 def optional(without_fields: list[str] | None = None) -> Callable[[Model], Model]:
-    """Decorator creating a partial model; without_fields excludes the listed fields."""
+    """A decorator that create a partial model.
+
+    params: without_fields: list[str] | None: List of fields to exclude from the model.
+    return: type[BaseModel]: ModelBase partial model.
+    """
     if without_fields is None:
         without_fields = []
 

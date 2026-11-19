@@ -7,6 +7,7 @@ from typing import Any
 
 from pythonjsonlogger import jsonlogger
 
+# Context var for request ID tracking across async operations
 request_id_ctx_var: ContextVar[str | None] = ContextVar("request_id", default=None)
 
 
@@ -29,16 +30,19 @@ class CustomJsonFormatter(jsonlogger.JsonFormatter):
     ) -> None:
         super().add_fields(log_record, record, message_dict)
 
+        # Add standard fields
         log_record["timestamp"] = self.formatTime(record, self.datefmt)
         log_record["level"] = record.levelname
         log_record["logger"] = record.name
         log_record["module"] = record.module
         log_record["function"] = record.funcName
 
+        # Add request ID if available
         request_id = getattr(record, "request_id", None)
         if request_id:
             log_record["request_id"] = request_id
 
+        # Add exception info if present
         if record.exc_info:
             log_record["exception"] = self.formatException(record.exc_info)
 
@@ -49,18 +53,30 @@ def setup_logging(
     log_file: str | None = None,
     retention_days: int = 14,
 ) -> None:
-    """Configure application-wide logging (level, optional JSON formatter, optional file output)."""
+    """
+    Configure application-wide logging.
+
+    Args:
+        log_level: Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+        json_format: If True, use JSON formatter for structured logs
+        log_file: Optional file path for log output
+    """
+    # Get root logger
     root_logger = logging.getLogger()
     root_logger.setLevel(getattr(logging, log_level.upper()))
 
+    # Remove existing handlers
     root_logger.handlers.clear()
 
+    # Create console handler
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setLevel(getattr(logging, log_level.upper()))
 
+    # Add request ID filter
     request_id_filter = RequestIdFilter()
     console_handler.addFilter(request_id_filter)
 
+    # Configure formatter
     if json_format:
         # Production: JSON structured logs
         formatter = CustomJsonFormatter("%(timestamp)s %(level)s %(name)s %(message)s", datefmt="%Y-%m-%dT%H:%M:%S")
@@ -73,13 +89,16 @@ def setup_logging(
     console_handler.setFormatter(formatter)
     root_logger.addHandler(console_handler)
 
+    # Add file handler if specified
     if log_file:
         from logging.handlers import TimedRotatingFileHandler
         from pathlib import Path
 
+        # Ensure log directory exists
         log_path = Path(log_file)
         log_path.parent.mkdir(parents=True, exist_ok=True)
 
+        # Use rotating file handler with daily rotation and retention
         file_handler = TimedRotatingFileHandler(log_file, when="midnight", backupCount=retention_days, encoding="utf-8")
         file_handler.setLevel(getattr(logging, log_level.upper()))
         file_handler.addFilter(request_id_filter)
@@ -94,7 +113,15 @@ def setup_logging(
 
 
 def get_logger(name: str) -> logging.Logger:
-    """Get a logger instance for the given name (typically __name__)."""
+    """
+    Get a logger instance for the given name.
+
+    Args:
+        name: Logger name (typically __name__)
+
+    Returns:
+        Configured logger instance
+    """
     return logging.getLogger(name)
 
 

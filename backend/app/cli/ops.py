@@ -1,4 +1,13 @@
-"""CLI commands for one-off operations and infrastructure tasks."""
+"""CLI commands for one-off operations and infrastructure tasks.
+
+Thin wrappers over the service layer or external APIs per AGENTS.md.
+
+Usage (from backend/):
+    uv run fo-cli fix-dweller-image-urls
+    uv run fo-cli ops fix-room-image-urls
+    uv run fo-cli set-rustfs-policies
+    uv run fo-cli check-ai [--api-url URL] [--skip-chat] [--expect TEXT] [--expect-environment ENV]
+"""
 
 from __future__ import annotations
 
@@ -204,7 +213,10 @@ def check_ai(
 ) -> None:
     """Smoke-test the authenticated local chat API against a live server.
 
-    Writes one chat history entry and makes one real model request; --skip-chat limits the check to auth/readiness.
+    Requires the API to be running. Logs in as FIRST_SUPERUSER_EMAIL, selects the
+    first local dweller, and sends one chat message. This writes one local chat
+    history entry and makes one real model request. Use --skip-chat for a free
+    authentication/readiness-only check.
     """
 
     async def _run() -> dict[str, Any]:

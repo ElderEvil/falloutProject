@@ -590,3 +590,61 @@ async def pg_session_maker() -> AsyncGenerator[tuple[Any, Any]]:
         yield engine, maker
     finally:
         await engine.dispose()
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _memoise_deterministic_generation() -> Any:
+    """Generate each world recipe and road layer once per worker.
+
+    Terrain generation and road routing are pure functions of their arguments and
+    cost 12-17 s each; the suite called them dozens of times for a handful of
+    distinct inputs. Copies are returned so a test that mutates a world cannot
+    poison the cache for the next one.
+    """
+    import copy
+
+    from app.services import world_snapshot_service as snapshot_module
+    from app.services.map import road_generation as roads_module
+    from app.services.map import world_generation as world_module
+
+    world_original = world_module.generate_world
+    roads_original = roads_module.generate_roads
+    world_cache: dict[str, Any] = {}
+    roads_cache: dict[tuple[Any, ...], Any] = {}
+
+    def world_cached(recipe: Any) -> Any:
+        key = recipe.fingerprint()
+        if key not in world_cache:
+            world_cache[key] = world_original(recipe)
+        return copy.deepcopy(world_cache[key])
+
+    def roads_cached(*, terrain: list[str], width: int, height: int, seed: str, base_checksum: str) -> Any:
+        key = (tuple(terrain), width, height, seed, base_checksum)
+        if key not in roads_cache:
+            roads_cache[key] = roads_original(
+                terrain=terrain, width=width, height=height, seed=seed, base_checksum=base_checksum
+            )
+        return copy.deepcopy(roads_cache[key])
+
+    replacements: dict[str, tuple[Any, Any]] = {
+        "generate_world": (world_original, world_cached),
+        "generate_roads": (roads_original, roads_cached),
+    }
+    patched: list[tuple[Any, str, Any]] = []
+    candidates: list[Any] = [world_module, roads_module, snapshot_module, *list(sys.modules.values())]
+    for module in candidates:
+        if module is None:
+            continue
+        for attribute, (original, cached) in replacements.items():
+            if not hasattr(module, attribute):
+                continue
+            if getattr(module, attribute, None) is not original:
+                continue
+            setattr(module, attribute, cached)
+            patched.append((module, attribute, original))
+
+    try:
+        yield
+    finally:
+        for module, attribute, original in patched:
+            setattr(module, attribute, original)

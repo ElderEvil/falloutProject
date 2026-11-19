@@ -173,8 +173,7 @@ class LineageService:
 
         parent_ids = [p for p in (dweller.parent_1_id, dweller.parent_2_id) if p is not None]
         parents_by_id = {
-            parent.id: parent
-            for parent in await dweller_crud.get_many_with_relations(db_session, parent_ids)
+            parent.id: parent for parent in await dweller_crud.get_many_with_relations(db_session, parent_ids)
         }
         # Iterate parent_ids, not the query result: the batched query has no ORDER BY,
         # and the response must keep parent_1 before parent_2.

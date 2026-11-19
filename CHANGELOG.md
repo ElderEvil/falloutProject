@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## 3.6.2 (2026-11-19)
+
+### Performance Improvements
+
+* **map:** bound the road distance scans ([#1447](https://github.com/ElderEvil/falloutProject/issues/1447)) 99b6b6c
+* **map:** skip settled candidates and bound the distance scans 8722aca
+
 ## 3.6.1 (2026-11-19)
 
 ### Performance Improvements

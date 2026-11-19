@@ -284,7 +284,23 @@ def generate_roads(*, terrain: list[str], width: int, height: int, seed: str, ba
     def centres(cell: int) -> Point:
         return center(cell)
 
-    distances = {c: min((_distance(centres(c), centres(n)) for n in network), default=0) for c in branch_candidates}
+    def nearest_network_distance(cell: int) -> float:
+        """Distance from a candidate to the closest cell already in the network.
+
+        Skipping pairs whose larger axis gap already exceeds the best distance
+        found is exact, since Euclidean distance is never below the Chebyshev one.
+        """
+        cx, cy = centres(cell)
+        best = math.inf
+        for n in network:
+            nx, ny = centres(n)
+            if abs(cx - nx) >= best or abs(cy - ny) >= best:
+                continue
+            gap = _distance((cx, cy), (nx, ny))
+            best = min(best, gap)
+        return 0.0 if best is math.inf else best
+
+    distances = {c: nearest_network_distance(c) for c in branch_candidates}
     # Exclusion is monotone, so mark it once per accepted branch instead of
     # re-measuring every candidate against hubs + branches on all 70 passes:
     # that scan alone was 18M distance calls and ~6 s per layer.
@@ -312,10 +328,21 @@ def generate_roads(*, terrain: list[str], width: int, height: int, seed: str, ba
         path = path[: join + 1]
         raw.append(("country", path))
         fresh = set(path) - network
+        # Excluded candidates are never chosen again, so they need no update; for
+        # the rest, Euclidean distance is at least the larger axis gap, so a
+        # Chebyshev pre-check skips most of the remaining pairs exactly.
         for c in branch_candidates:
-            distances[c] = min(
-                distances[c], min((_distance(centres(c), centres(n)) for n in fresh), default=distances[c])
-            )
+            if c in excluded:
+                continue
+            cx, cy = centres(c)
+            best = distances[c]
+            for n in fresh:
+                nx, ny = centres(n)
+                if abs(cx - nx) >= best or abs(cy - ny) >= best:
+                    continue
+                gap = _distance((cx, cy), (nx, ny))
+                best = min(best, gap)
+            distances[c] = best
         network.update(path)
 
     # A sparse rail trunk and feeder, independent of the road network. Crossings

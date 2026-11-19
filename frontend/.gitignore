@@ -44,3 +44,6 @@ src/core/types/api.generated.ts
 # Coverage
 coverage.json
 .vitest/
+
+# Local dweller rig fitting captures and measurements
+/rig-shots/

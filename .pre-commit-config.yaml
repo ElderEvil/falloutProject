@@ -8,6 +8,8 @@ repos:
     rev: v6.0.0
     hooks:
       - id: check-added-large-files
+        # Original development-only atlas pages; source hashes are documented beside them.
+        exclude: ^frontend/src/modules/dwellers/dev/assets/rigby/(outfits|accessories|weapons)\.png$
       - id: check-json
       - id: check-toml
       - id: check-yaml

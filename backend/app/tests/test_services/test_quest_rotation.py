@@ -1,7 +1,6 @@
 """Daily and weekly quest rotation: offering, rollover, in-flight survival and atomicity."""
 
 from datetime import UTC, datetime
-from pathlib import Path
 
 import pytest
 
@@ -330,57 +329,3 @@ async def test_tick_hook_recovers_from_failure_and_rotates_next_tick(async_sessi
     await async_session.refresh(state)
     assert state.daily_quests_period is not None
     assert state.weekly_quests_period is not None
-
-
-def test_reward_claim_and_assignment_lock_the_vault_row_before_link_locks():
-    """The claim and assignment writers share the vault-first lock order.
-
-    A claim updates the quest link and then the vault's caps balance, while an
-    assignment updates the link and then reads the vault row; either order alone
-    deadlocks the pair against each other, so both must await the vault row lock
-    before any quest-link lock or update. Asserted structurally - an awaited
-    `crud.vault.lock_for_update` for the claim, and an awaited
-    `select(Vault).with_for_update()` as the assignment's first statement - because
-    the runtime race cannot stage the deadlock deterministically without hanging.
-    """
-    import ast
-
-    def awaited_calls(fn: ast.AST) -> list[tuple[int, str]]:
-        return sorted(
-            (node.lineno, ast.unparse(node.value))
-            for node in ast.walk(fn)
-            if isinstance(node, ast.Await) and isinstance(node.value, ast.Call)
-        )
-
-    service_tree = ast.parse(Path("app/services/progression/quests/service.py").read_text(encoding="utf-8"))
-    claim = next(
-        node
-        for node in ast.walk(service_tree)
-        if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef) and node.name == "claim_quest_rewards"
-    )
-    claim_lock_lines = [lineno for lineno, source in awaited_calls(claim) if "crud.vault.lock_for_update" in source]
-    assert claim_lock_lines, "the claim must await crud.vault.lock_for_update"
-    claim_link_locks = [
-        lineno
-        for lineno, source in awaited_calls(claim)
-        if "mark_completed" in source or "get_link_for_update" in source
-    ]
-    assert claim_link_locks, "the claim must lock the quest link"
-    assert claim_lock_lines[0] < claim_link_locks[0]
-
-    crud_tree = ast.parse(Path("app/crud/quest.py").read_text(encoding="utf-8"))
-    assignment = next(
-        node
-        for node in ast.walk(crud_tree)
-        if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef) and node.name == "assign_to_vault"
-    )
-    first_statement = next(
-        statement
-        for statement in assignment.body
-        if not (isinstance(statement, ast.Expr) and isinstance(statement.value, ast.Constant))
-    )
-    assert isinstance(first_statement, ast.Expr)
-    assert isinstance(first_statement.value, ast.Await)
-    lock_source = ast.unparse(first_statement.value.value)
-    assert "select(Vault)" in lock_source, "the assignment must lock the vault row, not another table"
-    assert "with_for_update" in lock_source

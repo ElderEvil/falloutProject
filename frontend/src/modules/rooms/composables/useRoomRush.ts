@@ -14,6 +14,7 @@ const BLOCKED_MESSAGES: Record<NonNullable<RoomRushQuote['blocked_reason']>, str
   no_power: 'This room is offline. Restore power first.',
   room_busy: 'Another rush is in progress. Try again.',
   resources_full: 'Vault storage for this resource is full.',
+  no_yield: 'This rush would produce nothing right now.',
 }
 
 export function useRoomRush(room: Ref<Room | null>, vaultId: Ref<string>, isOpen: Ref<boolean>) {

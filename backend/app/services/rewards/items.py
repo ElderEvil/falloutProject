@@ -148,9 +148,10 @@ def _build_outfit(name: str, rarity: str, data: dict[str, Any], storage_id: UUID
 _JUNK_PLACEHOLDER_RE = re.compile(r"^(?:common|uncommon|rare|legendary)\s+junk$", re.IGNORECASE)
 
 
-def _resolve_junk(name: str, rarity: str, data: dict[str, Any]) -> tuple[str, dict[str, Any]]:
+def _resolve_junk(name: str, rarity: str, data: dict[str, Any]) -> tuple[str, str, dict[str, Any]]:
     """Junk rewards settle from the junk catalog; a '<Rarity> junk' placeholder resolves
-    to that rarity's valuables entry; authored junk_type, value or art overrides win.
+    to that rarity's valuables entry; resolved entries carry the catalog rarity, while
+    authored junk_type, value or art overrides win.
     """
     from app.services.catalog_service import load_junk_items
 
@@ -176,8 +177,8 @@ def _resolve_junk(name: str, rarity: str, data: dict[str, Any]) -> tuple[str, di
         resolved.update(
             {key: data[key] for key in ("junk_type", "value", "description", "image_url") if data.get(key) is not None}
         )
-        return str(entry["name"]), resolved
-    return name, data
+        return str(entry["name"]), str(entry.get("rarity", rarity)), resolved
+    return name, rarity, data
 
 
 def _build_junk(name: str, rarity: str, data: dict[str, Any], storage_id: UUID):
@@ -185,7 +186,7 @@ def _build_junk(name: str, rarity: str, data: dict[str, Any], storage_id: UUID):
     from app.utils.item_factory import build_junk
     from app.utils.junk_assets import get_junk_image_url
 
-    name, data = _resolve_junk(name, rarity, data)
+    name, rarity, data = _resolve_junk(name, rarity, data)
     junk_type = data.get("junk_type", JunkTypeEnum.VALUABLES)
     if isinstance(junk_type, str):
         junk_type = JunkTypeEnum(junk_type)

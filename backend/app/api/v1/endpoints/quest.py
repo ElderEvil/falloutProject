@@ -104,6 +104,7 @@ async def get_available_quests(
         List of available quests.
     """
     await get_user_vault_or_403(vault_id, user, db_session)
+    await ensure_current_quest_rotation(db_session, vault_id)
     return await quest_service.get_quests_for_vault(
         db_session, vault_id, pagination.skip, pagination.limit, available_only=True
     )
@@ -245,6 +246,7 @@ async def start_quest(
         ValidationException: If requirements not met or quest cannot be started.
     """
     await get_user_vault_or_403(vault_id, user, db_session)
+    await ensure_current_quest_rotation(db_session, vault_id)
     return await quest_service.start_quest_for_vault(
         db_session, vault_id, quest_id, dweller_ids=party_data.dweller_ids if party_data else None
     )

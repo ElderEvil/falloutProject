@@ -63,6 +63,8 @@ class QuestService:
                 await self.start_quest_return(db_session, link.quest_id, link.vault_id)
             except Exception:
                 # Keep one quest failure isolated; the raw-session completion path is tested end to end.
+                # The rollback releases any row locks the failed attempt held.
+                await db_session.rollback()
                 logger.exception(f"Failed to start return for quest {link.quest_id} for vault {link.vault_id}")
             else:
                 logger.info(f"Quest {link.quest_id} party is travelling home for vault {link.vault_id}")
@@ -74,6 +76,8 @@ class QuestService:
                 await self.mark_quest_ready_to_claim(db_session, link.quest_id, link.vault_id)
             except Exception:
                 # Keep one quest failure isolated; the raw-session completion path is tested end to end.
+                # The rollback releases any row locks the failed attempt held.
+                await db_session.rollback()
                 logger.exception(f"Failed to auto-complete quest {link.quest_id} for vault {link.vault_id}")
             else:
                 completed_count += 1
@@ -282,6 +286,9 @@ class QuestService:
         quest = await crud.quest_crud.get_or_none(db_session, quest_id)
         quest = ensure_found(quest, Quest, identifier=quest_id)
         if link.is_reward_ready:
+            # Another worker already made it claimable; end the transaction so the
+            # link lock cannot deadlock a vault-first writer in the same request.
+            await db_session.commit()
             return quest
         if link.return_completes_at is None:
             raise ValidationException("Party has not been sent home")

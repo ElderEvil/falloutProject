@@ -391,12 +391,17 @@ async def _refresh_quest_rotation() -> dict:
     async with task_session() as session:
         vault_ids = await vault_crud.get_non_deleted_ids(session)
         offered_count = 0
+        failed: list[str] = []
         for vault_id in vault_ids:
             try:
                 offered_count += await ensure_current_quest_rotation(session, vault_id)
             except Exception:
                 await recover_session(session)
                 logger.exception("Quest rotation failed for vault %s", vault_id)
+                failed.append(str(vault_id))
+        if failed:
+            # Retryable: period stamps make re-rotation idempotent.
+            raise RuntimeError(f"Quest rotation failed for vaults: {', '.join(failed)}")
         return {"vaults_processed": len(vault_ids), "quests_offered": offered_count}
 
 

@@ -9,7 +9,6 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.enums import GenderEnum
 from app.crud.chat_message import chat_message as chat_message_crud
-from app.crud.conversation import conversation as conversation_crud
 from app.crud.llm_interaction import llm_interaction as llm_interaction_crud
 from app.models import User
 from app.models.chat_message import ChatMessageCreate
@@ -22,6 +21,7 @@ from app.services.chat.agent_runner import run_chat_agent
 from app.services.chat.continuation import (
     begin_exchange,
     complete_exchange,
+    record_exchange,
     schedule_exchange_finish,
 )
 from app.services.chat.notifications import send_chat_notification, unlock_places_after_conversation
@@ -151,18 +151,9 @@ class ConversationService:
         dweller_message = await chat_message_crud.create_message(db_session, obj_in=chat_create_data)
 
         # Voice exchanges advance the same thread as text ones; without this the gap line
-        # and the awareness digest would keep measuring from the last typed message.
+        # and the awareness digest keep measuring from the last typed message.
         if conversation is not None:
-            try:
-                async with db_session.begin_nested():
-                    await conversation_crud.touch(
-                        db_session,
-                        conversation,
-                        at=dweller_message.created_at,
-                        message_count=conversation.message_count + 2,
-                    )
-            except Exception:
-                logger.warning("Conversation touch failed; messages persisted without thread update", exc_info=True)
+            await record_exchange(db_session, conversation, at=dweller_message.created_at)
 
         return dweller_message.id
 

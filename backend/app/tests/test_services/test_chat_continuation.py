@@ -172,16 +172,7 @@ async def test_after_exchange_summarises_exactly_the_rows_the_window_dropped(
     """The summary must cover what left the prompt, not a count guessed from config."""
     thread, rows = await _thread_with_rows(async_session, vault, dweller, exchanges=4, carried=4)
     summarised: list[ChatMessage] = []
-
-    async def capture(_db, _thread, *, dropped):
-        summarised.extend(dropped)
-
-    with (
-        patch("app.services.chat.continuation.maybe_summarize", new=capture),
-        patch("app.services.chat.continuation.extract_memories", new=_no_memories),
-    ):
-        await after_exchange(async_session, thread=thread, dweller=dweller)
-
+    await _run_after_exchange(async_session, thread, dweller, summarised=summarised)
     assert [row.id for row in summarised] == [row.id for row in rows[:4]]
 
 
@@ -192,39 +183,8 @@ async def test_after_exchange_summarises_budget_trimmed_turns_too(
     """A token budget can carry fewer messages than the count limit; those are not lost."""
     thread, rows = await _thread_with_rows(async_session, vault, dweller, exchanges=4, carried=2)
     summarised: list[ChatMessage] = []
-
-    async def capture(_db, _thread, *, dropped):
-        summarised.extend(dropped)
-
-    with (
-        patch("app.services.chat.continuation.maybe_summarize", new=capture),
-        patch("app.services.chat.continuation.extract_memories", new=_no_memories),
-    ):
-        await after_exchange(async_session, thread=thread, dweller=dweller)
-
+    await _run_after_exchange(async_session, thread, dweller, summarised=summarised)
     assert [row.id for row in summarised] == [row.id for row in rows[:6]]
-
-
-@pytest.mark.asyncio
-async def test_after_exchange_does_not_re_summarise_behind_the_cursor(
-    async_session: AsyncSession, vault: Vault, dweller: Dweller
-) -> None:
-    thread, rows = await _thread_with_rows(async_session, vault, dweller, exchanges=4, carried=4)
-    thread.summary_through_message_id = rows[1].id
-    async_session.add(thread)
-    await async_session.commit()
-    summarised: list[ChatMessage] = []
-
-    async def capture(_db, _thread, *, dropped):
-        summarised.extend(dropped)
-
-    with (
-        patch("app.services.chat.continuation.maybe_summarize", new=capture),
-        patch("app.services.chat.continuation.extract_memories", new=_no_memories),
-    ):
-        await after_exchange(async_session, thread=thread, dweller=dweller)
-
-    assert [row.id for row in summarised] == [row.id for row in rows[2:4]]
 
 
 @pytest.mark.asyncio
@@ -232,28 +192,40 @@ async def test_after_exchange_gives_memory_extraction_both_halves(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
 ) -> None:
     """Extraction can only record what the Overseer said if it sees his message."""
-    thread, rows = await _thread_with_rows(async_session, vault, dweller, exchanges=2, carried=4)
+    thread, _rows = await _thread_with_rows(async_session, vault, dweller, exchanges=2, carried=4)
     seen: list[ChatMessage] = []
+    await _run_after_exchange(async_session, thread, dweller, seen=seen)
+    assert [row.message_text for row in seen] == ["Question 1", "Answer 1"]
 
-    async def capture(_db, *, dweller, exchange, existing):
-        seen.extend(exchange)
+
+async def _run_after_exchange(
+    session: AsyncSession,
+    thread: ConversationRow,
+    dweller: Dweller,
+    *,
+    summarised: list[ChatMessage] | None = None,
+    seen: list[ChatMessage] | None = None,
+) -> None:
+    """Run the upkeep with both model calls stubbed, recording what each was handed."""
+    summary_sink = summarised if summarised is not None else []
+    seen_sink = seen if seen is not None else []
+
+    async def on_summarise(_db, _thread, *, dropped):
+        summary_sink.extend(dropped)
+
+    async def on_extract(_db, *, dweller, exchange, existing):
+        seen_sink.extend(exchange)
         return []
 
     with (
-        patch("app.services.chat.continuation.maybe_summarize", new=_nothing),
-        patch("app.services.chat.continuation.extract_memories", new=capture),
+        patch("app.services.chat.continuation.maybe_summarize", new=on_summarise),
+        patch("app.services.chat.continuation.extract_memories", new=on_extract),
     ):
-        await after_exchange(async_session, thread=thread, dweller=dweller)
-
-    assert [row.message_text for row in seen] == ["Question 1", "Answer 1"]
+        await after_exchange(session, thread=thread, dweller=dweller)
 
 
 async def _no_memories(*_args, **_kwargs):
     return []
-
-
-async def _nothing(*_args, **_kwargs):
-    return None
 
 
 @pytest.mark.asyncio

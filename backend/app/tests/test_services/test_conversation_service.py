@@ -104,7 +104,7 @@ async def test_voice_exchange_advances_the_thread() -> None:
             "app.services.conversation_service.chat_message_crud.create_message",
             new=AsyncMock(return_value=message),
         ),
-        patch("app.services.conversation_service.conversation_crud.touch", new=AsyncMock()) as touch,
+        patch("app.services.chat.continuation.conversation_crud.touch", new=AsyncMock()) as touch,
     ):
         await conversation_service._save_messages_to_db(db, user, dweller, payload, conversation=thread)
 

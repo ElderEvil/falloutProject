@@ -133,11 +133,6 @@ async def _extract_with_model(request: MemoryExtractionRequest) -> Sequence[Memo
     return result.output.facts
 
 
-async def _existing_hashes(db: AsyncSession, dweller_id: UUID) -> dict[str, str]:
-    """Hash -> stored fact, read before the model runs so a race is caught at insert."""
-    return await dweller_memory_crud.hashes_for(db, dweller_id=dweller_id)
-
-
 async def _persist(db: AsyncSession, *, dweller_id: UUID, fact: str, source_message_id: UUID) -> DwellerMemory | None:
     """Insert one fact; a unique-constraint race is a skip, not an error."""
     memory = DwellerMemory(
@@ -154,11 +149,6 @@ async def _persist(db: AsyncSession, *, dweller_id: UUID, fact: str, source_mess
         logger.debug("Dweller %s already remembers: %s", dweller_id, fact)
         return None
     return memory
-
-
-async def _evict_oldest(db: AsyncSession, dweller_id: UUID) -> None:
-    """Trim past the cap: oldest created first, unknown timestamps first."""
-    await dweller_memory_crud.trim_to_cap(db, dweller_id=dweller_id, cap=game_config.chat.memory_max_per_dweller)
 
 
 async def extract_memories(
@@ -178,7 +168,8 @@ async def extract_memories(
     if not messages:
         return []
 
-    known = await _existing_hashes(db, dweller.id)
+    # Read before the model runs so a duplicate arriving mid-flight is caught at insert.
+    known = await dweller_memory_crud.hashes_for(db, dweller_id=dweller.id)
     request = MemoryExtractionRequest(
         dweller_name=dweller.first_name,
         bio=dweller.bio,
@@ -204,5 +195,7 @@ async def extract_memories(
             stored.append(memory)
 
     if stored:
-        await _evict_oldest(db, dweller.id)
+        await dweller_memory_crud.trim_to_cap(
+            db, dweller_id=dweller.id, cap=game_config.chat.memory_max_per_dweller
+        )
     return stored

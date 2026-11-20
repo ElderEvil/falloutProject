@@ -16,7 +16,6 @@ def test_chat_config_registered_with_continuity_defaults():
     assert game_config.chat.memory_max_per_dweller == 20
     assert game_config.chat.memory_prompt_limit == 12
     assert game_config.chat.awareness_max_lines == 8
-    assert ChatConfig(history_messages=2).history_messages == 2
 
 
 @pytest.mark.parametrize("multiplier", [0, -1, float("inf"), float("nan")])

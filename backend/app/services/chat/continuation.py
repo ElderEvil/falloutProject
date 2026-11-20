@@ -9,7 +9,6 @@ previous stateless behaviour.
 
 import asyncio
 import logging
-from collections.abc import Sequence
 from datetime import datetime
 from typing import Any, Protocol
 from uuid import UUID
@@ -21,7 +20,6 @@ from app.core.game_config import game_config
 from app.crud.chat_message import chat_message as chat_message_crud
 from app.crud.conversation import conversation as conversation_crud
 from app.crud.dweller_memory import dweller_memory as dweller_memory_crud
-from app.models.chat_message import ChatMessage
 from app.models.conversation import Conversation as ConversationRow
 from app.models.dweller import Dweller
 from app.models.dweller_memory import DwellerMemory
@@ -92,6 +90,15 @@ async def begin_exchange(
     conversation, continuity = await build_continuation(db, thread=thread, dweller=dweller)
     merged = "\n\n".join(block for block in (instructions, continuity) if block)
     return merged, conversation, thread
+
+
+async def record_exchange(db: AsyncSession, thread: ConversationRow, *, at: datetime) -> None:
+    """Advance the thread's clock and count for one written exchange, best-effort."""
+    try:
+        async with db.begin_nested():
+            await conversation_crud.touch(db, thread, at=at, message_count=thread.message_count + 2)
+    except Exception:
+        logger.warning("Conversation touch failed; messages persisted without thread update", exc_info=True)
 
 
 async def complete_exchange(db: AsyncSession, *, thread: ConversationRow, state: dict | None) -> UUID:
@@ -176,16 +183,6 @@ def _carried_messages(thread: ConversationRow) -> int:
         return game_config.chat.history_messages
 
 
-def _unsummarised(rows: Sequence[ChatMessage], through_message_id: UUID | None) -> list[ChatMessage]:
-    """Rows after the summary cursor, or all of them when the cursor is missing."""
-    if through_message_id is None:
-        return list(rows)
-    for index, row in enumerate(rows):
-        if row.id == through_message_id:
-            return list(rows[index + 1 :])
-    return list(rows)
-
-
 async def after_exchange(db: AsyncSession, *, thread: ConversationRow, dweller: DwellerLike) -> None:
     """Fold aged messages into the summary and record what the exchange revealed.
 
@@ -196,10 +193,10 @@ async def after_exchange(db: AsyncSession, *, thread: ConversationRow, dweller: 
         rows = await chat_message_crud.list_for_conversation(db, conversation_id=thread.id)
         if not rows:
             return
+        # maybe_summarize applies the summary cursor itself; this is the window's overflow.
         aged = rows[: max(len(rows) - _carried_messages(thread), 0)]
-        dropped = _unsummarised(aged, thread.summary_through_message_id)
-        if dropped:
-            await maybe_summarize(db, thread, dropped=dropped)
+        if aged:
+            await maybe_summarize(db, thread, dropped=aged)
         # The exchange is both halves: memory extraction reads what the Overseer said too.
         exchange = rows[-2:]
         existing = await load_memories(db, dweller_id=dweller.id, limit=game_config.chat.memory_max_per_dweller)

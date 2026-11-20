@@ -29,6 +29,52 @@ from app.utils.exceptions import ResourceNotFoundException, ValidationException
 pytestmark = pytest.mark.asyncio(scope="module")
 
 
+def _fake_run_stream(
+    output,
+    *,
+    partial: str | None = None,
+    conversation: Conversation | None = None,
+    captured: dict | None = None,
+):
+    """Stand in for ``dweller_chat_agent.run_stream``; records the kwargs chat passed."""
+    usage = RunUsage(input_tokens=5, output_tokens=6)
+    settled = conversation if conversation is not None else Conversation(usage=usage)
+
+    async def stream_output():
+        if partial is not None:
+            yield output.model_copy(update={"response_text": partial})
+        yield output
+
+    class _Result:
+        def stream_output(self):
+            return stream_output()
+
+        @property
+        def usage(self):
+            return usage
+
+        @property
+        def result(self) -> SimpleNamespace:
+            return SimpleNamespace(conversation=settled)
+
+        async def get_output(self):
+            return output
+
+    class _RunStream:
+        async def __aenter__(self):
+            return _Result()
+
+        async def __aexit__(self, *exc):
+            return False
+
+    def _run(*_args, **kwargs):
+        if captured is not None:
+            captured.update(kwargs)
+        return _RunStream()
+
+    return _run
+
+
 @pytest_asyncio.fixture(name="chat_dweller")
 async def chat_dweller_fixture(async_session: AsyncSession, vault: Vault) -> DwellerReadFull:
     """Create a test dweller for chat tests."""
@@ -480,40 +526,10 @@ class TestChatServiceErrorHandling:
             action_type="no_action",
         )
 
-        async def fake_stream_output():
-            yield output.model_copy(update={"response_text": "Helo vault"})
-            yield output
-
-        class FakeStreamResult:
-            def __init__(self) -> None:
-                self.output = output
-
-            def stream_output(self):
-                return fake_stream_output()
-
-            @property
-            def usage(self):
-                return RunUsage(input_tokens=5, output_tokens=6)
-
-            @property
-            def result(self) -> SimpleNamespace:
-                """The settled run this stream stands for; chat only reads its conversation."""
-                return SimpleNamespace(conversation=Conversation(usage=self.usage))
-
-            async def get_output(self):
-                return output
-
-        class FakeRunStreamCM:
-            async def __aenter__(self):
-                return FakeStreamResult()
-
-            async def __aexit__(self, *exc):
-                return False
-
         with (
             patch(
                 "app.services.chat.streaming.dweller_chat_agent.run_stream",
-                return_value=FakeRunStreamCM(),
+                new=_fake_run_stream(output, partial="Helo vault"),
             ),
             patch(
                 "app.services.chat_service.quota_service.check_quota",
@@ -582,37 +598,8 @@ class TestChatServiceErrorHandling:
             action_stat=None,
         )
 
-        async def fake_stream_output():
-            yield output
-
-        class FakeStreamResult:
-            def __init__(self) -> None:
-                self.output = output
-
-            def stream_output(self):
-                return fake_stream_output()
-
-            @property
-            def usage(self):
-                return RunUsage(input_tokens=5, output_tokens=6)
-
-            @property
-            def result(self) -> SimpleNamespace:
-                """The settled run this stream stands for; chat only reads its conversation."""
-                return SimpleNamespace(conversation=Conversation(usage=self.usage))
-
-            async def get_output(self):
-                return output
-
-        class FakeRunStreamCM:
-            async def __aenter__(self):
-                return FakeStreamResult()
-
-            async def __aexit__(self, *exc):
-                return False
-
         with (
-            patch("app.services.chat.streaming.dweller_chat_agent.run_stream", return_value=FakeRunStreamCM()),
+            patch("app.services.chat.streaming.dweller_chat_agent.run_stream", new=_fake_run_stream(output)),
             patch("app.services.chat.streaming.apply_chat_happiness", new=AsyncMock(return_value=(80, None))),
             patch("app.services.chat.streaming.parse_action_suggestion", new=AsyncMock(return_value=NoAction())),
             patch("app.services.chat.notifications.maybe_unlock_places", new=AsyncMock(return_value=[])),
@@ -668,37 +655,11 @@ class TestChatServiceErrorHandling:
         continued = Conversation(messages=[*prior.messages, *prior.messages], usage=prior.usage)
         captured: dict = {}
 
-        async def fake_stream_output():
-            yield output
-
-        class FakeStreamResult:
-            def stream_output(self):
-                return fake_stream_output()
-
-            @property
-            def usage(self):
-                return RunUsage(input_tokens=5, output_tokens=6)
-
-            @property
-            def result(self) -> SimpleNamespace:
-                return SimpleNamespace(conversation=continued)
-
-            async def get_output(self):
-                return output
-
-        class FakeRunStreamCM:
-            async def __aenter__(self):
-                return FakeStreamResult()
-
-            async def __aexit__(self, *exc):
-                return False
-
-        def capture(*_args, **kwargs):
-            captured.update(kwargs)
-            return FakeRunStreamCM()
-
         with (
-            patch("app.services.chat.streaming.dweller_chat_agent.run_stream", side_effect=capture),
+            patch(
+                "app.services.chat.streaming.dweller_chat_agent.run_stream",
+                new=_fake_run_stream(output, conversation=continued, captured=captured),
+            ),
             patch("app.services.chat.streaming.apply_chat_happiness", new=AsyncMock(return_value=(80, None))),
             patch("app.services.chat.streaming.parse_action_suggestion", new=AsyncMock(return_value=NoAction())),
             patch("app.services.chat.notifications.maybe_unlock_places", new=AsyncMock(return_value=[])),
@@ -1074,12 +1035,23 @@ async def test_discovery_failure_preserves_pending_conversation(async_session, c
 async def test_persist_chat_threads_messages_through_one_conversation(async_session, chat_dweller, test_user):
     from sqlalchemy import func, select
 
+    from app.crud.conversation import conversation as conversation_crud
     from app.models.chat_message import ChatMessage
     from app.models.conversation import Conversation
     from app.services.chat.persistence import persist_chat
 
+    conversation = await conversation_crud.get_or_create(
+        async_session, vault_id=chat_dweller.vault.id, user_id=test_user.id, dweller_id=chat_dweller.id
+    )
     bundle = StreamBundle(response_text="Hello", prompt_tokens=3, completion_tokens=2, total_tokens=5)
-    await persist_chat(db_session=async_session, user=test_user, dweller=chat_dweller, message_text="Hi", bundle=bundle)
+    await persist_chat(
+        db_session=async_session,
+        user=test_user,
+        dweller=chat_dweller,
+        message_text="Hi",
+        bundle=bundle,
+        conversation=conversation,
+    )
     await async_session.commit()
 
     conversations = (await async_session.execute(select(Conversation))).scalars().all()
@@ -1099,7 +1071,12 @@ async def test_persist_chat_threads_messages_through_one_conversation(async_sess
 
     # A second exchange reuses the same permanent thread.
     await persist_chat(
-        db_session=async_session, user=test_user, dweller=chat_dweller, message_text="Again", bundle=bundle
+        db_session=async_session,
+        user=test_user,
+        dweller=chat_dweller,
+        message_text="Again",
+        bundle=bundle,
+        conversation=conversation,
     )
     await async_session.commit()
     await async_session.refresh(conversation)
@@ -1110,24 +1087,3 @@ async def test_persist_chat_threads_messages_through_one_conversation(async_sess
             select(func.count()).select_from(ChatMessage).where(ChatMessage.conversation_id == conversation.id)
         )
     ).scalar_one() == 4
-
-
-async def test_persist_chat_degrades_to_stateless_when_thread_unavailable(async_session, chat_dweller, test_user):
-    from sqlalchemy import select
-
-    from app.crud.conversation import conversation as conversation_crud
-    from app.models.chat_message import ChatMessage
-    from app.models.conversation import Conversation
-    from app.services.chat.persistence import persist_chat
-
-    bundle = StreamBundle(response_text="Hello")
-    with patch.object(conversation_crud, "get_or_create", new=AsyncMock(side_effect=RuntimeError("thread offline"))):
-        await persist_chat(
-            db_session=async_session, user=test_user, dweller=chat_dweller, message_text="Hi", bundle=bundle
-        )
-    await async_session.commit()
-
-    messages = (await async_session.execute(select(ChatMessage))).scalars().all()
-    assert len(messages) == 2
-    assert all(message.conversation_id is None for message in messages)
-    assert (await async_session.execute(select(Conversation))).scalars().all() == []

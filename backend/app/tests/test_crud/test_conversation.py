@@ -45,7 +45,7 @@ async def test_get_or_create_creates_then_reuses_one_row(
 
 
 async def test_get_or_create_recovers_from_create_race(
-    async_session: AsyncSession, vault: Vault, dweller: Dweller
+    async_session: AsyncSession, vault: Vault, dweller: Dweller, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Staged race (the repo pattern): the loser's pre-insert SELECT saw nothing, its INSERT
     hits the unique constraint, and it must re-select the winner's row instead of raising.
@@ -65,16 +65,10 @@ async def test_get_or_create_recovers_from_create_race(
             return None
         return await real_get(self, db, user_id=user_id, dweller_id=dweller_id)
 
-    monkey = pytest.MonkeyPatch()
-    monkey.setattr(CRUDConversation, "get_by_pair", stale_none_get)
-    try:
-        recovered = await crud.conversation.get_or_create(
-            async_session, vault_id=vault_id, user_id=user_id, dweller_id=dweller.id
-        )
-    except IntegrityError:
-        raise AssertionError("get_or_create propagated the race instead of recovering") from None
-    finally:
-        monkey.undo()
+    monkeypatch.setattr(CRUDConversation, "get_by_pair", stale_none_get)
+    recovered = await crud.conversation.get_or_create(
+        async_session, vault_id=vault_id, user_id=user_id, dweller_id=dweller.id
+    )
 
     assert calls["n"] == 2  # stale pre-insert view + recovery re-select
     assert recovered.id == winner.id

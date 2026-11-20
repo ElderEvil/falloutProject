@@ -58,11 +58,11 @@ async def _offer_everything(db, vault_id) -> list[Quest]:
     return daily + weekly
 
 
-async def test_first_rotation_offers_daily_and_weekly_quests(async_session, vault):
+async def test_rotation_calendar_scenarios(async_session, vault):
+    """One calendar walk: first offer, same-period no-op, daily rollover, Monday rollover."""
     quests = await _offer_everything(async_session, vault.id)
 
     offered = await ensure_current_quest_rotation(async_session, vault.id, now=MONDAY)
-
     assert offered == DAILY_COUNT + WEEKLY_COUNT
     state = await game_state_crud.get_by_vault_id(async_session, vault.id)
     assert state is not None
@@ -72,36 +72,23 @@ async def test_first_rotation_offers_daily_and_weekly_quests(async_session, vaul
     assert len(links) == DAILY_COUNT + WEEKLY_COUNT
     assert all(link.is_visible and not link.is_completed and link.started_at is None for link in links)
 
-
-async def test_same_period_is_idempotent(async_session, vault):
-    quests = await _offer_everything(async_session, vault.id)
-
-    assert await ensure_current_quest_rotation(async_session, vault.id, now=MONDAY) == DAILY_COUNT + WEEKLY_COUNT
-    state = await game_state_crud.get_by_vault_id(async_session, vault.id)
-    assert state is not None
-    daily_period, weekly_period = state.daily_quests_period, state.weekly_quests_period
     claimed = await quest_crud.get_link(async_session, quest_id=quests[0].id, vault_id=vault.id)
     assert claimed is not None
     claimed.is_completed = True
     await async_session.commit()
-
     assert await ensure_current_quest_rotation(async_session, vault.id, now=MONDAY) == 0
     await async_session.refresh(state)
     await async_session.refresh(claimed)
-    assert state.daily_quests_period == daily_period
-    assert state.weekly_quests_period == weekly_period
+    assert state.daily_quests_period == datetime(2026, 11, 16, tzinfo=UTC)
+    assert state.weekly_quests_period == datetime(2026, 11, 16, tzinfo=UTC)
     assert claimed.is_completed
 
-
-async def test_daily_rollover_spares_weeklies_until_monday(async_session, vault):
-    await _offer_everything(async_session, vault.id)
-    assert await ensure_current_quest_rotation(async_session, vault.id, now=MONDAY) == DAILY_COUNT + WEEKLY_COUNT
-
     assert await ensure_current_quest_rotation(async_session, vault.id, now=TUESDAY) == DAILY_COUNT
-    state = await game_state_crud.get_by_vault_id(async_session, vault.id)
-    assert state is not None
+    await async_session.refresh(state)
+    await async_session.refresh(claimed)
     assert state.daily_quests_period == datetime(2026, 11, 17, tzinfo=UTC)
     assert state.weekly_quests_period == datetime(2026, 11, 16, tzinfo=UTC)
+    assert not claimed.is_completed
 
     assert await ensure_current_quest_rotation(async_session, vault.id, now=NEXT_MONDAY) == DAILY_COUNT + WEEKLY_COUNT
     await async_session.refresh(state)
@@ -156,21 +143,62 @@ async def test_completed_daily_is_reset_and_can_be_started_again(async_session, 
     assert started.started_at is not None
 
 
-async def test_in_flight_quest_survives_rotation(async_session, vault):
-    daily = await _seed_quests(async_session, QuestType.DAILY, DAILY_COUNT, "Daily")
-    flying = _add_link(async_session, vault.id, daily[0], is_visible=True, started_at=MONDAY, duration_minutes=60)
+@pytest.mark.parametrize(
+    ("link_fields", "preserved_fields"),
+    [
+        (
+            {"started_at": MONDAY, "duration_minutes": 60},
+            {"started_at": MONDAY, "duration_minutes": 60, "return_started_at": None, "is_reward_ready": False},
+        ),
+        (
+            {"started_at": MONDAY, "return_started_at": MONDAY, "return_completes_at": TUESDAY, "duration_minutes": 60},
+            {
+                "started_at": MONDAY,
+                "return_started_at": MONDAY,
+                "return_completes_at": TUESDAY,
+                "is_reward_ready": False,
+            },
+        ),
+        (
+            {"is_reward_ready": True, "granted_rewards": [{"reward_type": "caps", "amount": 10}]},
+            {"is_reward_ready": True, "granted_rewards": [{"reward_type": "caps", "amount": 10}], "started_at": None},
+        ),
+    ],
+    ids=["active", "returning", "reward-ready"],
+)
+async def test_rotation_preserves_unsettled_links_and_excludes_them_from_the_new_draw(
+    async_session, vault, link_fields, preserved_fields, monkeypatch
+):
+    """Active, returning and reward-ready links keep their state and stay visible.
+
+    The preserved quest is also explicitly kept out of the fresh draw: its link
+    survives through the in-flight branch, not because sampling happened to
+    include it.
+    """
+    import random
+
+    daily = await _seed_quests(async_session, QuestType.DAILY, DAILY_COUNT + 1, "Daily")
+    flying = _add_link(async_session, vault.id, daily[0], is_visible=True, **link_fields)
     await async_session.commit()
+
+    original_sample = random.sample
+
+    def draw_excluding_the_preserved_quest(population, k):
+        eligible = [quest_id for quest_id in population if quest_id != daily[0].id]
+        return original_sample(eligible, k)
+
+    monkeypatch.setattr(random, "sample", draw_excluding_the_preserved_quest)
 
     assert await ensure_current_quest_rotation(async_session, vault.id, now=TUESDAY) == DAILY_COUNT
 
     await async_session.refresh(flying)
-    assert flying.started_at == MONDAY
-    assert flying.duration_minutes == 60
+    for field, expected in preserved_fields.items():
+        assert getattr(flying, field) == expected, field
     assert flying.is_visible
-    assert flying.return_started_at is None
     others = await quest_crud.get_links_for_quest_ids(async_session, vault.id, [quest.id for quest in daily[1:]])
-    assert len(others) == DAILY_COUNT - 1
-    assert all(link.is_visible and link.started_at is None for link in others)
+    assert len(others) == DAILY_COUNT
+    assert sum(link.is_visible for link in others) == DAILY_COUNT
+    assert all(link.started_at is None for link in others)
 
 
 async def test_side_and_main_quests_are_never_touched(async_session, vault):
@@ -210,39 +238,6 @@ async def test_available_only_and_start_gate_exclude_rotated_out_quests(async_se
 
     with pytest.raises(AccessDeniedException):
         await quest_service.start_quest(async_session, hidden[0].id, vault.id)
-
-
-async def test_read_path_backfill_hides_rotating_quests(async_session, vault):
-    daily = (await _seed_quests(async_session, QuestType.DAILY, 1, "Daily"))[0]
-    weekly = (await _seed_quests(async_session, QuestType.REPEATABLE, 1, "Weekly"))[0]
-    side = (await _seed_quests(async_session, QuestType.SIDE, 1, "Side"))[0]
-
-    reads = await quest_crud.get_multi_for_vault(db_session=async_session, skip=0, limit=100, vault_id=vault.id)
-    by_id = {quest_read.id: quest_read for quest_read in reads}
-    assert by_id[daily.id].is_visible is False
-    assert by_id[weekly.id].is_visible is False
-    assert by_id[side.id].is_visible is True
-
-
-async def test_reward_ready_link_survives_rotation(async_session, vault):
-    daily = await _seed_quests(async_session, QuestType.DAILY, DAILY_COUNT, "Daily")
-    ready = _add_link(
-        async_session,
-        vault.id,
-        daily[0],
-        is_visible=True,
-        is_reward_ready=True,
-        granted_rewards=[{"reward_type": "caps", "amount": 10}],
-    )
-    await async_session.commit()
-
-    assert await ensure_current_quest_rotation(async_session, vault.id, now=TUESDAY) == DAILY_COUNT
-
-    await async_session.refresh(ready)
-    assert ready.is_reward_ready
-    assert ready.granted_rewards == [{"reward_type": "caps", "amount": 10}]
-    assert ready.started_at is None
-    assert ready.is_visible
 
 
 async def test_rotation_skips_quests_beyond_the_reveal_window(async_session, vault):

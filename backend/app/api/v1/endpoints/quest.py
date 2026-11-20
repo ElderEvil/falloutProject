@@ -19,6 +19,7 @@ from app.schemas.quest import (
     QuestUpdate,
 )
 from app.schemas.rewards import granted_reward_adapter
+from app.services.progression.quests.rotation import ensure_current_quest_rotation
 from app.services.progression.quests.service import quest_service
 from app.utils.exceptions import ValidationException, ensure_found
 from app.utils.serialize import serialize_optional_utc_datetime
@@ -86,6 +87,7 @@ async def read_vault_quests(
     """
     await get_user_vault_or_403(vault_id, user, db_session)
     await quest_service.check_and_complete_quests(db_session, vault_id=vault_id)
+    await ensure_current_quest_rotation(db_session, vault_id)
     return await quest_service.get_quests_for_vault(db_session, vault_id, pagination.skip, pagination.limit)
 
 

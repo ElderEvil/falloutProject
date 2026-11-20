@@ -12,18 +12,18 @@ import re
 import unicodedata
 from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass
-from typing import Literal, Protocol
+from typing import Protocol
 from uuid import UUID
 
-from pydantic import BaseModel, Field
 from pydantic_ai import Agent
 from sqlalchemy.exc import IntegrityError
-from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.game_config import game_config
+from app.crud.dweller_memory import dweller_memory as dweller_memory_crud
 from app.models.chat_message import ChatMessage
 from app.models.dweller_memory import DwellerMemory
+from app.schemas.chat_memory import MemoryCandidate, MemoryExtractionOutput
 from app.services.ai_service import get_model
 
 logger = logging.getLogger(__name__)
@@ -31,7 +31,6 @@ logger = logging.getLogger(__name__)
 MEMORY_MIN_CHARS = 8
 MEMORY_MAX_CHARS = 240
 
-MemoryKind = Literal["habit", "fear", "keepsake", "promise", "event", "relationship"]
 
 _FIRST_PERSON = re.compile(r"\bi\b|\bi['\u2019](?:m|ve|ll|d)\b|\b(?:my|me|mine|myself)\b")
 _WHITESPACE = re.compile(r"\s+")
@@ -57,17 +56,6 @@ class DwellerLike(Protocol):
     id: UUID
     first_name: str
     bio: str | None
-
-
-class MemoryCandidate(BaseModel):
-    """One fact proposed by the extraction model, before any validation."""
-
-    fact: str = Field(description="First-person sentence, at most 240 characters.")
-    kind: MemoryKind
-
-
-class MemoryExtractionOutput(BaseModel):
-    facts: list[MemoryCandidate] = Field(default_factory=list)
 
 
 @dataclass(frozen=True)
@@ -147,8 +135,7 @@ async def _extract_with_model(request: MemoryExtractionRequest) -> Sequence[Memo
 
 async def _existing_hashes(db: AsyncSession, dweller_id: UUID) -> dict[str, str]:
     """Hash -> stored fact, read before the model runs so a race is caught at insert."""
-    memories = (await db.exec(select(DwellerMemory).where(col(DwellerMemory.dweller_id) == dweller_id))).all()
-    return {memory.fact_hash: memory.fact for memory in memories}
+    return await dweller_memory_crud.hashes_for(db, dweller_id=dweller_id)
 
 
 async def _persist(db: AsyncSession, *, dweller_id: UUID, fact: str, source_message_id: UUID) -> DwellerMemory | None:
@@ -171,17 +158,7 @@ async def _persist(db: AsyncSession, *, dweller_id: UUID, fact: str, source_mess
 
 async def _evict_oldest(db: AsyncSession, dweller_id: UUID) -> None:
     """Trim past the cap: oldest created first, unknown timestamps first."""
-    limit = game_config.chat.memory_max_per_dweller
-    ordered = (
-        await db.exec(
-            select(DwellerMemory)
-            .where(col(DwellerMemory.dweller_id) == dweller_id)
-            .order_by(col(DwellerMemory.created_at).asc().nulls_first(), col(DwellerMemory.id).asc())
-        )
-    ).all()
-    for memory in ordered[: max(len(ordered) - limit, 0)]:
-        await db.delete(memory)
-    await db.flush()
+    await dweller_memory_crud.trim_to_cap(db, dweller_id=dweller_id, cap=game_config.chat.memory_max_per_dweller)
 
 
 async def extract_memories(

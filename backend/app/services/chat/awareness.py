@@ -10,12 +10,10 @@ import logging
 from datetime import datetime
 from uuid import UUID
 
-from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.models.dweller import Dweller
-from app.models.incident import Incident
-from app.models.incident_event import IncidentEvent
+from app.crud.dweller import dweller as dweller_crud
+from app.crud.incident_event import incident_event as incident_event_crud
 
 logger = logging.getLogger(__name__)
 
@@ -34,46 +32,14 @@ def _line(body: str) -> str:
 
 async def _incident_lines(db: AsyncSession, vault_id: UUID, since: datetime, limit: int) -> list[str]:
     """The latest journal line of each incident touched since ``since``, oldest first."""
-    incident_ids = (await db.exec(select(col(Incident.id)).where(col(Incident.vault_id) == vault_id))).all()
-    if not incident_ids:
-        return []
-    events = (
-        await db.exec(
-            select(IncidentEvent)
-            .where(
-                col(IncidentEvent.incident_id).in_(incident_ids),
-                col(IncidentEvent.created_at) > since,
-            )
-            .order_by(col(IncidentEvent.created_at).desc())
-        )
-    ).all()
-
-    latest: dict[UUID, IncidentEvent] = {}
-    for event in events:
-        latest.setdefault(event.incident_id, event)
-
-    newest = list(latest.values())[:limit]
-    return [_line(event.message) for event in reversed(newest)]
+    events = await incident_event_crud.list_latest_per_incident_since(db, vault_id=vault_id, since=since, limit=limit)
+    return [_line(event.message) for event in reversed(events)]
 
 
 async def _dweller_lines(db: AsyncSession, vault_id: UUID, since: datetime) -> list[str]:
     """Arrivals and deaths since ``since`` — names for one, a measured count for many."""
-    joined = (
-        await db.exec(
-            select(Dweller)
-            .where(col(Dweller.vault_id) == vault_id, col(Dweller.created_at) > since)
-            .order_by(col(Dweller.created_at).asc())
-        )
-    ).all()
-    deceased = (
-        await db.exec(
-            select(Dweller).where(
-                col(Dweller.vault_id) == vault_id,
-                col(Dweller.is_dead).is_(True),
-                col(Dweller.death_timestamp) > since,
-            )
-        )
-    ).all()
+    joined = await dweller_crud.get_joined_since(db, vault_id=vault_id, since=since)
+    deceased = await dweller_crud.get_died_since(db, vault_id=vault_id, since=since)
 
     lines: list[str] = []
     if len(joined) == 1:

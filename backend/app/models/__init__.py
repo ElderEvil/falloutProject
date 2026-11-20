@@ -6,6 +6,7 @@ from .chat_message import ChatMessage, ChatMessageCreate, ChatMessageRead
 from .conversation import Conversation
 from .crafting_order import CraftingOrder
 from .dweller import Dweller
+from .dweller_memory import DwellerMemory
 from .exploration import ExpeditionRun, Exploration
 from .game_state import GameState
 from .incident import Incident, IncidentParticipant

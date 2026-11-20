@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 3.7.1 (2026-11-20)
+
+### Bug Fixes
+
+* **gameplay:** stop living-room happiness decay and block pointless room rushes 40562d7, closes #1454 #1455
+
 ## 3.7.0 (2026-11-19)
 
 ### Features

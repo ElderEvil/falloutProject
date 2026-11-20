@@ -9,6 +9,7 @@ and re-exports the public names for existing importers.
 import logging
 
 from pydantic_ai import Agent, RunContext
+from pydantic_ai.conversation import Conversation
 from pydantic_ai.usage import UsageLimits
 
 from app.agents.chat_prompts import build_chat_instructions
@@ -84,8 +85,24 @@ dweller_chat_agent = Agent(
     retries=2,
 )
 
-#: Per-run guard: pass to ``run``/``run_stream`` as ``usage_limits=CHAT_USAGE_LIMITS``.
+#: Budget for one exchange with no thread carried in.
 CHAT_USAGE_LIMITS = UsageLimits(request_limit=CHAT_REQUEST_LIMIT, tool_calls_limit=CHAT_TOOL_CALLS_LIMIT)
+
+
+def usage_limits_for(conversation: Conversation | None) -> UsageLimits:
+    """Per-exchange budget, offset by what the thread has already spent.
+
+    ``run(conversation=...)`` seeds the request and tool-call counters from
+    ``conversation.usage``, so the unoffset caps would count every request the thread
+    ever made and fail the exchange that crosses them -- permanently, since the failing
+    exchange never advances the state past it.
+    """
+    if conversation is None:
+        return CHAT_USAGE_LIMITS
+    return UsageLimits(
+        request_limit=conversation.usage.requests + CHAT_REQUEST_LIMIT,
+        tool_calls_limit=conversation.usage.tool_calls + CHAT_TOOL_CALLS_LIMIT,
+    )
 
 
 @dweller_chat_agent.instructions

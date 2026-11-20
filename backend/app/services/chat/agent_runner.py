@@ -12,13 +12,13 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.agents.chat_prompts import dweller_trait_lines
 from app.agents.chat_tools import load_family_members
 from app.agents.dweller_chat_agent import (
-    CHAT_USAGE_LIMITS,
     DwellerChatDeps,
     DwellerChatOutput,
     compute_happiness_delta,
     derive_reason_code,
     dweller_chat_agent,
     parse_action_suggestion,
+    usage_limits_for,
 )
 from app.models.base import SPECIALModel
 from app.schemas.chat import NoAction
@@ -124,7 +124,7 @@ async def run_chat_agent(
                 message_text,
                 deps=deps,
                 instructions=instructions,
-                usage_limits=CHAT_USAGE_LIMITS,
+                usage_limits=usage_limits_for(conversation),
                 conversation=conversation,
             )
             output: DwellerChatOutput = result.output

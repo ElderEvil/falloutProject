@@ -4,6 +4,7 @@ from unittest.mock import AsyncMock, MagicMock, PropertyMock, patch
 from uuid import uuid4
 
 import pytest
+from pydantic_ai.conversation import Conversation
 from pydantic_ai.exceptions import ModelRetry, UnexpectedModelBehavior
 from pydantic_ai.models.test import TestModel
 
@@ -16,6 +17,7 @@ from app.agents.dweller_chat_agent import (
     chat_instructions,
     dweller_chat_agent,
     parse_action_suggestion,
+    usage_limits_for,
     validate_dweller_chat_output,
 )
 from app.core.enums import DwellerStatusEnum, SPECIALEnum
@@ -532,3 +534,56 @@ async def test_training_suggestion_requires_a_fresh_matching_training_option() -
 
     assert isinstance(result, NoAction)
     assert result.reason == briefing.training_blocker
+
+
+def test_usage_limits_offset_by_carried_usage() -> None:
+    """A continued thread gets its per-exchange budget on top of what it already spent."""
+    from app.agents.dweller_chat_agent import CHAT_REQUEST_LIMIT, CHAT_TOOL_CALLS_LIMIT
+
+    conversation = Conversation()
+    conversation.usage.requests = 40
+    conversation.usage.tool_calls = 5
+
+    limits = usage_limits_for(conversation)
+
+    assert limits.request_limit == 40 + CHAT_REQUEST_LIMIT
+    assert limits.tool_calls_limit == 5 + CHAT_TOOL_CALLS_LIMIT
+
+
+def test_usage_limits_without_a_thread_are_the_exchange_caps() -> None:
+    from app.agents.dweller_chat_agent import CHAT_REQUEST_LIMIT, CHAT_TOOL_CALLS_LIMIT
+
+    limits = usage_limits_for(None)
+
+    assert limits.request_limit == CHAT_REQUEST_LIMIT
+    assert limits.tool_calls_limit == CHAT_TOOL_CALLS_LIMIT
+
+
+@pytest.mark.asyncio
+async def test_a_thread_at_the_request_cap_can_still_talk() -> None:
+    """Carried usage counts toward the cap; the offset keeps the next exchange inside it."""
+    from app.agents.dweller_chat_agent import CHAT_REQUEST_LIMIT
+
+    conversation = Conversation()
+    conversation.usage.requests = CHAT_REQUEST_LIMIT
+    deps = DwellerChatDeps(db_session=_family_free_session(), dweller=_make_dweller(), vault_id=uuid4())
+    model = TestModel(
+        call_tools=[],
+        custom_output_args={
+            "response_text": "still here.",
+            "sentiment_score": 0,
+            "reason_text": "neutral",
+            "action_type": "no_action",
+            "action_reason": "none",
+        }
+    )
+
+    with dweller_chat_agent.override(model=model):
+        result = await dweller_chat_agent.run(
+            "still there?",
+            deps=deps,
+            usage_limits=usage_limits_for(conversation),
+            conversation=conversation,
+        )
+
+    assert result.conversation.usage.requests == CHAT_REQUEST_LIMIT + 1

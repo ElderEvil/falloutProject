@@ -194,7 +194,8 @@ const isHumanoidThreat = computed(() =>
   ['raider_attack', 'feral_ghoul_attack'].includes(props.incident.type)
 )
 const fireFlames = ['hazard-flame--side', 'hazard-flame--main', 'hazard-flame--tail'] as const
-// Up to four responders share the scene lane; larger rosters keep the scroll.
+// Responders shrink to share the scene lane at any roster size; the lane never
+// becomes a scroll container (a scrollbar beside the fighters read as a bug).
 const isCompact = computed(() => responders.value.length > 3)
 const responderSizeClass = computed(() => {
   const count = responders.value.length
@@ -245,13 +246,11 @@ const responderSizeClass = computed(() => {
           >-{{ Math.round(dwellerDamage) }}</span
         >
         <!-- Keep responders spread across their half of the scene instead of clustering left. -->
-        <div
-          class="flex w-full min-w-0 items-end justify-evenly gap-1 overflow-x-auto pt-6 pb-1 sm:gap-2"
-        >
+        <div class="flex w-full min-w-0 items-end justify-evenly gap-1 pt-6 pb-1 sm:gap-2">
           <div
             v-for="responder in responders"
             :key="responder.id"
-            class="incident-responder relative flex shrink-0 flex-col items-center gap-1"
+            class="incident-responder relative flex min-w-0 flex-col items-center gap-1"
             :class="[
               responderSizeClass,
               {
@@ -454,19 +453,21 @@ const responderSizeClass = computed(() => {
 .responder-frame {
   height: var(--scene-actor-height);
 }
+/* Cells keep their preferred width while the lane has room (justify-evenly
+   spreads the spare space) and shrink below it when the roster grows, so the
+   row never overflows. min-width: 0 lets the name badge truncate instead of
+   propping the cell open. */
 .incident-responder {
-  width: 4.85rem;
-  min-width: 4.85rem;
+  flex: 0 1 4.85rem;
+  min-width: 0;
   max-width: 4.85rem;
 }
 .incident-responder.responder-cell--3 {
-  width: 3.3rem;
-  min-width: 3.3rem;
+  flex-basis: 3.3rem;
   max-width: 3.3rem;
 }
 .incident-responder.responder-cell--4 {
-  width: 2.4rem;
-  min-width: 2.4rem;
+  flex-basis: 2.4rem;
   max-width: 2.4rem;
 }
 .hazard-flame--side {
@@ -490,8 +491,7 @@ const responderSizeClass = computed(() => {
   }
   .incident-responder.responder-cell--3,
   .incident-responder.responder-cell--4 {
-    width: 4.85rem;
-    min-width: 4.85rem;
+    flex-basis: 4.85rem;
     max-width: 4.85rem;
   }
 }

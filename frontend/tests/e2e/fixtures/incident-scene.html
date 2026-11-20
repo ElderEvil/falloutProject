@@ -15,13 +15,14 @@
       const params = new URLSearchParams(location.search)
       const fire = params.get('type') === 'fire'
       const count = Number(params.get('responders') ?? 2)
+      const longNames = params.has('longNames')
       const residentCount = Math.max(1, count - 6)
       const names = ['Preston', 'Jericho', 'Madison', 'Owyn', 'Three Dog', 'Lucas']
       const dwellers = Array.from({ length: count }, (_, index) => ({
         age_group: 'adult',
         id: `dweller-${index}`,
-        first_name: names[index % names.length],
-        last_name: null,
+        first_name: longNames ? 'Maximilian' : names[index % names.length],
+        last_name: longNames ? 'Worthington-Smythe III' : null,
         level: index + 4,
         health: 80 - index * 5,
         max_health: 100,

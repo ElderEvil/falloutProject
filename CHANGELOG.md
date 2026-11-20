@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 3.7.2 (2026-11-20)
+
+### Bug Fixes
+
+* **vault-67:** make short rations an actual ration ([#1458](https://github.com/ElderEvil/falloutProject/issues/1458)) fda7fdd
+
 ## 3.7.1 (2026-11-20)
 
 ### Bug Fixes

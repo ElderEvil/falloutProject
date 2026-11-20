@@ -155,7 +155,11 @@ async def test_reassign_user_folds_a_duplicate_dweller_thread_onto_the_targets(
     await async_session.commit()
     target_id, source_id = target_thread.id, source_thread.id
     message = ChatMessage(
-        vault_id=vault_id, from_user_id=source.id, to_dweller_id=dweller.id, message_text="hello", conversation_id=source_id
+        vault_id=vault_id,
+        from_user_id=source.id,
+        to_dweller_id=dweller.id,
+        message_text="hello",
+        conversation_id=source_id,
     )
     async_session.add(message)
     await async_session.commit()

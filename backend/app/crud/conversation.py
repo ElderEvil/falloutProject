@@ -73,7 +73,9 @@ class CRUDConversation(CRUDBase[Conversation, ConversationBase, ConversationBase
                 .values(conversation_id=existing.id)
             )
             existing.message_count += thread.message_count
-            if thread.last_message_at and (existing.last_message_at is None or thread.last_message_at > existing.last_message_at):
+            if thread.last_message_at and (
+                existing.last_message_at is None or thread.last_message_at > existing.last_message_at
+            ):
                 existing.last_message_at = thread.last_message_at
             db.add(existing)
             await db.delete(thread)

@@ -29,7 +29,7 @@ def load_context(raw: Any) -> Conversation:
     else:
         try:
             payload = json.dumps(raw)
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             logger.warning("Stored conversation context is not JSON-serialisable; starting fresh")
             return Conversation()
     try:

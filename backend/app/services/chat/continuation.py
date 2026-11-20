@@ -118,7 +118,9 @@ async def build_continuation(
     config = game_config.chat
     # load_context already returns a fresh conversation for missing or corrupt state, so
     # an enclosing handler here could only swallow a real bug into a silent stateless reply.
-    _, trimmed = plan_prune(load_context(thread.context), keep=config.history_messages, budget=config.history_token_budget)
+    _, trimmed = plan_prune(
+        load_context(thread.context), keep=config.history_messages, budget=config.history_token_budget
+    )
 
     # Savepoint: a failed read would otherwise abort the caller's transaction, so the
     # "reply with what loaded" promise would fail at the first write instead.

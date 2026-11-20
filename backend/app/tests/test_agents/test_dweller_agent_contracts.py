@@ -575,7 +575,7 @@ async def test_a_thread_at_the_request_cap_can_still_talk() -> None:
             "reason_text": "neutral",
             "action_type": "no_action",
             "action_reason": "none",
-        }
+        },
     )
 
     with dweller_chat_agent.override(model=model):

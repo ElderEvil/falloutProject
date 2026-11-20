@@ -965,3 +965,65 @@ async def test_discovery_failure_preserves_pending_conversation(async_session, c
         assert await maybe_unlock_places(async_session, chat_dweller) == []
     await async_session.commit()
     assert (await chat_message_crud.get(async_session, message.id)).message_text == "Keep this message"
+
+
+async def test_persist_chat_threads_messages_through_one_conversation(async_session, chat_dweller, test_user):
+    from sqlalchemy import func, select
+
+    from app.models.chat_message import ChatMessage
+    from app.models.conversation import Conversation
+    from app.services.chat.persistence import persist_chat
+
+    bundle = StreamBundle(response_text="Hello", prompt_tokens=3, completion_tokens=2, total_tokens=5)
+    await persist_chat(db_session=async_session, user=test_user, dweller=chat_dweller, message_text="Hi", bundle=bundle)
+    await async_session.commit()
+
+    conversations = (await async_session.execute(select(Conversation))).scalars().all()
+    assert len(conversations) == 1
+    conversation = conversations[0]
+    assert conversation.user_id == test_user.id
+    assert conversation.dweller_id == chat_dweller.id
+    assert conversation.vault_id == chat_dweller.vault.id
+    assert conversation.message_count == 2
+    assert conversation.last_message_at is not None
+    linked = (
+        (await async_session.execute(select(ChatMessage).where(ChatMessage.conversation_id == conversation.id)))
+        .scalars()
+        .all()
+    )
+    assert len(linked) == 2
+
+    # A second exchange reuses the same permanent thread.
+    await persist_chat(
+        db_session=async_session, user=test_user, dweller=chat_dweller, message_text="Again", bundle=bundle
+    )
+    await async_session.commit()
+    await async_session.refresh(conversation)
+    assert conversation.message_count == 4
+    assert (await async_session.execute(select(func.count()).select_from(Conversation))).scalar_one() == 1
+    assert (
+        await async_session.execute(
+            select(func.count()).select_from(ChatMessage).where(ChatMessage.conversation_id == conversation.id)
+        )
+    ).scalar_one() == 4
+
+
+async def test_persist_chat_degrades_to_stateless_when_thread_unavailable(async_session, chat_dweller, test_user):
+    from sqlalchemy import select
+
+    from app.crud.conversation import conversation as conversation_crud
+    from app.models.chat_message import ChatMessage
+    from app.models.conversation import Conversation
+    from app.services.chat.persistence import persist_chat
+
+    bundle = StreamBundle(response_text="Hello")
+    with patch.object(conversation_crud, "get_or_create", new=AsyncMock(side_effect=RuntimeError("thread offline"))):
+        await persist_chat(
+            db_session=async_session, user=test_user, dweller=chat_dweller, message_text="Hi", bundle=bundle
+        )
+    await async_session.commit()
+
+    messages = (await async_session.execute(select(ChatMessage))).scalars().all()
+    assert len(messages) == 2
+    assert all(message.conversation_id is None for message in messages)
+    assert (await async_session.execute(select(Conversation))).scalars().all() == []

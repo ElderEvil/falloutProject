@@ -6,6 +6,7 @@ from uuid import UUID
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.crud.chat_message import chat_message as chat_message_crud
+from app.crud.conversation import conversation as conversation_crud
 from app.crud.llm_interaction import llm_interaction as llm_interaction_crud
 from app.models import User
 from app.models.chat_message import ChatMessageCreate
@@ -46,6 +47,16 @@ async def persist_chat(
         obj_in=llm_int_create,
     )
 
+    # One permanent thread per (user, dweller); a failure here degrades to stateless persistence.
+    conversation = None
+    try:
+        conversation = await conversation_crud.get_or_create(
+            db_session, vault_id=dweller.vault.id, user_id=user.id, dweller_id=dweller.id
+        )
+    except Exception:
+        logger.warning("Conversation thread unavailable; persisting chat statelessly", exc_info=True)
+    conversation_id = conversation.id if conversation is not None else None
+
     await chat_message_crud.create_message(
         db_session,
         obj_in=ChatMessageCreate(
@@ -53,6 +64,7 @@ async def persist_chat(
             from_user_id=user.id,
             to_dweller_id=dweller.id,
             message_text=message_text,
+            conversation_id=conversation_id,
         ),
     )
 
@@ -62,6 +74,7 @@ async def persist_chat(
         to_user_id=user.id,
         message_text=bundle.response_text,
         llm_interaction_id=llm_interaction.id,
+        conversation_id=conversation_id,
     )
 
     if bundle.happiness_impact:
@@ -72,6 +85,18 @@ async def persist_chat(
         db_session,
         obj_in=chat_create_data,
     )
+
+    if conversation is not None:
+        try:
+            async with db_session.begin_nested():
+                await conversation_crud.touch(
+                    db_session,
+                    conversation,
+                    at=dweller_message.created_at,
+                    message_count=conversation.message_count + 2,
+                )
+        except Exception:
+            logger.warning("Conversation touch failed; messages persisted without thread update", exc_info=True)
 
     # Unlock the dweller's map places after 3+ user messages (best-effort)
     unlocked_places = await notifications.maybe_unlock_places(db_session, dweller)

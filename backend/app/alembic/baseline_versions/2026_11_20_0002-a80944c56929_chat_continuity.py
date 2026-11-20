@@ -4,7 +4,9 @@ One permanent thread per (user, dweller) pair; existing messages are backfilled 
 threads grouped by pair, never one conversation per stray row.
 """
 
+from collections.abc import Mapping
 from datetime import datetime
+from typing import Any
 from uuid import UUID, uuid7
 
 import sqlalchemy as sa
@@ -31,8 +33,10 @@ _CONVERSATION_TABLE = sa.table(
     sa.column("updated_at", sa.DateTime(timezone=True)),
 )
 
+# PostgreSQL has no min(uuid)/max(uuid) aggregate, so the vault is grouped rather than
+# aggregated; a pair that somehow spans two vaults is resolved in Python, most active first.
 _PAIR_SELECT = sa.text(
-    "SELECT user_id, dweller_id, MIN(vault_id) AS vault_id,"
+    "SELECT user_id, dweller_id, vault_id,"
     " MAX(created_at) AS last_message_at, COUNT(*) AS message_count"
     " FROM ("
     " SELECT vault_id, from_user_id AS user_id, to_dweller_id AS dweller_id, created_at"
@@ -41,7 +45,7 @@ _PAIR_SELECT = sa.text(
     " SELECT vault_id, to_user_id AS user_id, from_dweller_id AS dweller_id, created_at"
     " FROM chatmessage WHERE to_user_id IS NOT NULL AND from_dweller_id IS NOT NULL"
     " ) AS pair_messages"
-    " GROUP BY user_id, dweller_id"
+    " GROUP BY user_id, dweller_id, vault_id"
 )
 
 _LINK_UPDATE = sa.text(
@@ -113,13 +117,20 @@ def _backfill_conversations() -> None:
     if context.is_offline_mode():
         return
     bind = op.get_bind()
-    pairs = bind.execute(_PAIR_SELECT).mappings().all()
+    grouped = bind.execute(_PAIR_SELECT).mappings().all()
+    # A dweller belongs to one vault; if legacy rows disagree, the busiest pair wins.
+    pairs: dict[tuple[str, str], Mapping[str, Any]] = {}
+    for candidate in grouped:
+        key = (str(candidate["user_id"]), str(candidate["dweller_id"]))
+        current = pairs.get(key)
+        if current is None or candidate["message_count"] > current["message_count"]:
+            pairs[key] = candidate
     if not pairs:
         return
     now = utcnow()
     rows = []
     updates = []
-    for pair in pairs:
+    for pair in pairs.values():
         conversation_id = uuid7()
         last_message_at = pair["last_message_at"]
         if isinstance(last_message_at, str):  # SQLite fragment tests read timestamps back as text

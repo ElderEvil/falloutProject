@@ -6,6 +6,7 @@ and offline ``--sql`` generation.
 """
 
 import importlib.util
+import re
 from datetime import datetime
 from pathlib import Path
 from types import SimpleNamespace
@@ -171,6 +172,18 @@ def test_upgrade_empty_history_creates_no_conversations(monkeypatch) -> None:
         MIGRATION.upgrade()
         assert connection.exec_driver_sql("SELECT COUNT(*) FROM conversation").scalar_one() == 0
     engine.dispose()
+
+
+def test_backfill_never_aggregates_a_uuid_column() -> None:
+    """PostgreSQL has no ``min(uuid)``/``max(uuid)``; SQLite accepts both.
+
+    The SQLite fragment tests therefore cannot catch this class of bug, so the migration's
+    SQL is checked directly: uuid columns are grouped by, never aggregated.
+    """
+    source = next(MIGRATIONS_DIR.glob(f"*-{REVISION}_*.py")).read_text()
+    aggregates = re.findall(r"\b(?:MIN|MAX|SUM|AVG)\s*\(\s*([a-z_]+)\s*\)", source)
+    offenders = [column for column in aggregates if column == "id" or column.endswith("_id")]
+    assert not offenders, f"aggregate over a uuid column fails on PostgreSQL: {offenders}"
 
 
 def test_offline_mode_skips_backfill(monkeypatch) -> None:

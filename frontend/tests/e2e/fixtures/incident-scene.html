@@ -15,13 +15,16 @@
       const params = new URLSearchParams(location.search)
       const fire = params.get('type') === 'fire'
       const count = Number(params.get('responders') ?? 2)
+      const longNames = params.has('longNames')
+      // Failed portraits fall back to a sized icon, a state the image-loading sweep never hits.
+      const brokenImages = params.has('brokenImages')
       const residentCount = Math.max(1, count - 6)
       const names = ['Preston', 'Jericho', 'Madison', 'Owyn', 'Three Dog', 'Lucas']
       const dwellers = Array.from({ length: count }, (_, index) => ({
         age_group: 'adult',
         id: `dweller-${index}`,
-        first_name: names[index % names.length],
-        last_name: null,
+        first_name: longNames ? 'Maximilian' : names[index % names.length],
+        last_name: longNames ? 'Worthington-Smythe III' : null,
         level: index + 4,
         health: 80 - index * 5,
         max_health: 100,
@@ -31,7 +34,11 @@
         status: 'fighting',
         pet:
           index === 0 ? { name: 'Dogmeat', image_url: '/static/pet_images/FOS CX404.png' } : null,
-        thumbnail_url: `/static/legendary_dweller_images/${['FOS_Dw_Preston_Garvey.png', 'FOS_Dw_Jericho.png', 'FOS_Dw_Madison_Li.png', 'FOS_Dw_Owyn_Lyons.png', 'FOS_Dw_Three_Dog.png', 'FOS_Dw_Lucas_Simms.png'][index % names.length]}`,
+        thumbnail_url: brokenImages
+          ? // Invalid bytes: the browser fails the decode locally, so the fallback frame
+            // renders without waiting on a (possibly absent) backend origin.
+            'data:image/png;base64,iVBORw0KGgo='
+          : `/static/legendary_dweller_images/${['FOS_Dw_Preston_Garvey.png', 'FOS_Dw_Jericho.png', 'FOS_Dw_Madison_Li.png', 'FOS_Dw_Owyn_Lyons.png', 'FOS_Dw_Three_Dog.png', 'FOS_Dw_Lucas_Simms.png'][index % names.length]}`,
       }))
       const incident = {
         id: 'incident',

@@ -136,7 +136,7 @@ watch(portraitUrl, () => {
     />
   </span>
   <slot v-else-if="$slots.fallback" name="fallback" />
-  <span v-else role="img" :aria-label="alt">
+  <span v-else role="img" :aria-label="alt" class="portrait-fallback">
     <Icon :icon="fallbackIcon" :ariaHidden="true" :class="fallbackClass" />
   </span>
 </template>
@@ -146,6 +146,22 @@ watch(portraitUrl, () => {
   display: inline-block;
   overflow: hidden;
   vertical-align: middle;
+}
+
+/* The caller sizes the fallback icon (e.g. size-10). In a container that can shrink
+   below that size -- an incident responder cell in a large roster -- the frame must
+   shrink with it instead of bleeding into the neighbouring fighter. */
+.portrait-fallback {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.portrait-fallback :deep(svg) {
+  max-width: 100%;
+  height: auto;
 }
 
 .portrait-clip-wide {

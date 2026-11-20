@@ -135,21 +135,36 @@ async def get_quests_for_vault(
         quest = quest_by_id.get(quest_read.id)
         if quest is None:
             continue
-        if has_office and highest_mandatory_level_requirement(quest_read) > reveal_threshold:
+        # Unsettled links (party away, prizes unclaimed, completed) never lose their
+        # offer: a prerequisite lost after dispatch must not hide an active quest
+        # or its claimable rewards from the quest screen.
+        settled = (
+            quest_read.started_at is None
+            and quest_read.return_started_at is None
+            and not quest_read.is_reward_ready
+            and not quest_read.is_completed
+        )
+        if settled and has_office and highest_mandatory_level_requirement(quest_read) > reveal_threshold:
             continue
-        availability = await quest_availability(
-            db_session,
-            vault_id,
-            quest,
-            has_office=has_office,
-            completed_quest_ids=completed_quest_ids,
-            resolve_quest=quest_by_id.get,
-        )
-        quest_read.is_visible = quest_read.is_visible and availability.available
-        quest_read.is_locked = not availability.available or not quest_read.is_visible
-        quest_read.lock_reason = availability.lock_reason or (
-            "Not currently offered" if not quest_read.is_visible else None
-        )
+        if not settled:
+            quest_read.is_locked = False
+            quest_read.lock_reason = None
+        else:
+            availability = await quest_availability(
+                db_session,
+                vault_id,
+                quest,
+                has_office=has_office,
+                completed_quest_ids=completed_quest_ids,
+                resolve_quest=quest_by_id.get,
+            )
+            # Offer visibility (link state) is distinct from start eligibility:
+            # offered quests the player cannot start yet stay listed with their
+            # lock reason instead of disappearing.
+            quest_read.is_locked = not availability.available or not quest_read.is_visible
+            quest_read.lock_reason = availability.lock_reason or (
+                "Not currently offered" if not quest_read.is_visible else None
+            )
         # Per-row gate verdicts for the UI, from the same dispatch the gate used.
         if quest.quest_requirements:
             states = await vault_requirement_states(db_session, vault_id, quest)
@@ -157,7 +172,7 @@ async def get_quests_for_vault(
                 if requirement.id in states:
                     requirement.is_met = states[requirement.id]
         visible_reads.append(quest_read)
-        if available_only and quest_read.is_visible:
+        if available_only and quest_read.is_visible and not quest_read.is_locked:
             available_reads.append(quest_read)
 
     if available_only:

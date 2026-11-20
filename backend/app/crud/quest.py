@@ -150,13 +150,27 @@ class CRUDQuest(
         # deadlock across the vault/link key cycle.
         await db_session.execute(select(Vault).where(Vault.id == vault_id).with_for_update())
         existing_link_query = select(self.link_model.quest_id).where(self.link_model.vault_id == vault_id)
+        existing_result = await db_session.execute(existing_link_query)
+        linked_ids = set(existing_result.scalars().all())
+
         missing_quests_query = select(Quest).where(~Quest.id.in_(existing_link_query))
         missing_quests = (await db_session.execute(missing_quests_query)).scalars().all()
 
         visibility = {quest.id: quest.quest_type not in SCHEDULED_QUEST_TYPES for quest in missing_quests}
-        await self.insert_links_if_absent(db_session, vault_id, visibility)
         if visibility:
-            await db_session.commit()
+            # Same lock order as rotation and assignment (vault row first), and a
+            # recheck after acquiring it: another reader or the rotation sweep may
+            # have linked quests while this one was scanning without the lock.
+            await db_session.execute(select(Vault).where(Vault.id == vault_id).with_for_update())
+            refreshed = await db_session.execute(existing_link_query)
+            still_missing = {
+                quest_id: is_visible
+                for quest_id, is_visible in visibility.items()
+                if quest_id not in set(refreshed.scalars().all())
+            }
+            await self.insert_links_if_absent(db_session, vault_id, still_missing)
+            if still_missing:
+                await db_session.commit()
 
         query = select(Quest).join(self.link_model).where(self.link_model.vault_id == vault_id)
         query = query.order_by(Quest.id).offset(skip).limit(limit)
@@ -459,6 +473,9 @@ class CRUDQuest(
         commit: bool = True,
     ) -> VaultQuestCompletionLink:
         """Assign a quest to a vault, making it available for completion."""
+        # Same lock order as the list backfill and rotation: the vault row first, so
+        # assignment can never hold a link key while waiting on the vault lock.
+        await db_session.execute(select(Vault).where(Vault.id == vault_id).with_for_update())
         quest = await self.get(db_session, quest_id)
         quest = ensure_found(quest, Quest, identifier=quest_id)
         if quest.quest_type in SCHEDULED_QUEST_TYPES:

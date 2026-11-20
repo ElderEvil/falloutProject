@@ -75,14 +75,28 @@ export function listQuests(): Promise<QuestRead[]> {
   return apiGet<QuestRead[]>('/api/v1/quests/', { params: { limit: QUEST_LIST_LIMIT } })
 }
 
+const VAULT_QUEST_PAGE_SIZE = 100
+const VAULT_QUEST_PAGE_CAP = 100
+
 export async function listVaultQuests(vaultId: string): Promise<VaultQuest[]> {
-  const data = await apiGet<unknown>(`/api/v1/quests/${vaultId}/`, {
-    params: { limit: QUEST_LIST_LIMIT },
-  })
-  if (!Array.isArray(data)) {
-    throw new TypeError('Expected a list of vault quests')
+  const all: VaultQuest[] = []
+  for (
+    let skip = 0;
+    skip < VAULT_QUEST_PAGE_SIZE * VAULT_QUEST_PAGE_CAP;
+    skip += VAULT_QUEST_PAGE_SIZE
+  ) {
+    const data = await apiGet<unknown>(`/api/v1/quests/${vaultId}/`, {
+      params: { skip, limit: VAULT_QUEST_PAGE_SIZE },
+    })
+    if (!Array.isArray(data)) {
+      throw new TypeError('Expected a list of vault quests')
+    }
+    all.push(...(data as QuestRead[]).map(toVaultQuest))
+    if (data.length < VAULT_QUEST_PAGE_SIZE) {
+      return all
+    }
   }
-  return (data as QuestRead[]).map(toVaultQuest)
+  return all
 }
 
 export function assignQuest(vaultId: string, questId: string, isVisible = true): Promise<void> {

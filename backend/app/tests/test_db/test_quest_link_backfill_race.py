@@ -6,8 +6,6 @@ session loop with ``@pytest.mark.asyncio(loop_scope="session")`` and open every
 session inside the test body, sequentially (the pool holds one connection).
 """
 
-import re
-
 import pytest
 from sqlalchemy import event, make_url, text
 from sqlmodel import select
@@ -25,9 +23,9 @@ from app.services.progression.quests.service import quest_service
 from app.tests.factory.users import create_fake_user
 from app.tests.factory.vaults import create_fake_vault
 
-# The tests share one PostgreSQL database while xdist spreads them across workers;
-# the session-level lock serializes them (the maker's single pooled connection keeps
-# acquire and release on one backend).
+# The six tests share one PostgreSQL database while pytest-xdist spreads them across
+# workers; the session-level lock serializes them (the shared maker's pool holds a
+# single connection, so acquire and release land on the same backend session).
 _LOCK_SQL = text("SELECT pg_advisory_lock(hashtextextended(:lock_key, 0))")
 _UNLOCK_SQL = text("SELECT pg_advisory_unlock(hashtextextended(:lock_key, 0))")
 LOCK_KEY = "quest-link-lock-order-race"
@@ -95,7 +93,7 @@ async def _cleanup(maker, quest_ids, vault_id, user_id) -> None:
 
 
 def _vault_lock_index(statements: list[tuple[str, bool, tuple[str, ...]]]) -> list[int]:
-    return [i for i, (sql, locked, _bound) in enumerate(statements) if locked and re.search(r"FROM vault(?!\w)", sql)]
+    return [i for i, (sql, locked, _bound) in enumerate(statements) if locked and sql.startswith("SELECT vault")]
 
 
 def _is_link_lock_or_write(sql: str, locked: bool) -> bool:
@@ -140,16 +138,17 @@ async def test_writer_locks_vault_before_link_ops(case: str, pg_session_maker) -
             await arrange.commit()
 
         async with maker() as session:
-            statements: list[tuple[str, bool, tuple[str, ...]]] = []
+            # The writers commit through this session instance; recording its commits
+            # marks the transaction boundaries between the observed statements.
+            commit_positions: list[int] = []
             original_commit = session.commit
 
             async def recording_commit():
+                commit_positions.append(len(statements))
                 await original_commit()
-                # The commit lands after the statements it flushed, keeping the observed
-                # stream in true execution order.
-                statements.append(("__commit__", False, ()))
 
             session.commit = recording_commit
+            statements: list[tuple[str, bool, tuple[str, ...]]] = []
 
             def record(_conn, _cursor, statement, parameters, context, _executemany):
                 original = getattr(getattr(context, "compiled", None), "statement", None)
@@ -167,7 +166,7 @@ async def test_writer_locks_vault_before_link_ops(case: str, pg_session_maker) -
                 if case == "claim":
                     await quest_service.claim_quest_rewards(session, side_two, vault_id)
                 elif case in ("assign_existing", "assign_missing"):
-                    await quest_service.assign_quest_to_vault(
+                    await crud.quest_crud.assign_to_vault(
                         db_session=session, quest_id=side_one, vault_id=vault_id, is_visible=True
                     )
                 elif case == "list_backfill":
@@ -186,10 +185,9 @@ async def test_writer_locks_vault_before_link_ops(case: str, pg_session_maker) -
         assert statements[vault_locks[0]][2][:1] == (str(vault_id),), (
             f"{case}: the writer must lock the target vault row with FOR UPDATE"
         )
-        assert not any(
-            sql == "__commit__" and vault_locks[0] < i < link_ops[0]
-            for i, (sql, _locked, _bound) in enumerate(statements)
-        ), f"{case}: the vault lock and the link op must share one transaction"
+        assert not any(vault_locks[0] < commit < link_ops[0] for commit in commit_positions), (
+            f"{case}: the vault lock and the link op must share one transaction"
+        )
 
         if case == "claim":
             contested = side_two

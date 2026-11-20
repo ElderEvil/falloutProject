@@ -14,6 +14,7 @@ from typing import Any, Protocol
 from uuid import UUID
 
 from pydantic_ai.conversation import Conversation
+from pydantic_ai.messages import ModelResponse
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.game_config import game_config
@@ -30,6 +31,10 @@ from app.services.chat.summary import maybe_summarize
 from app.utils.time import utcnow
 
 logger = logging.getLogger(__name__)
+
+# One summarise call covers at most this many aged messages; the cursor makes the rest progress
+# across later exchanges instead of one enormous call on a long backfilled thread.
+SUMMARY_BATCH_MESSAGES = 60
 
 #: Strong references to background upkeep, so the loop cannot collect a task mid-flight.
 _background_tasks: set[asyncio.Task[None]] = set()
@@ -171,16 +176,32 @@ async def save_context(db: AsyncSession, thread: ConversationRow, *, state: dict
     await db.flush()
 
 
-def _carried_messages(thread: ConversationRow) -> int:
-    """How many messages the last prompt carried, which is what the stored state holds.
+def _carried_rows(trimmed: Conversation) -> int:
+    """How many stored rows the next prompt covers.
 
-    Trimming is bounded by count *and* token budget, so the count alone would leave
-    budget-trimmed turns neither in the window nor in the summary.
+    One exchange is two rows (the Overseer's message and the dweller's reply) but the model
+    sees it as a request/response pair, and pydantic-ai also spends window slots on tool-return
+    requests that have no row of their own. Counting the responses and doubling keeps the
+    arithmetic in rows; the trimmer refuses to split a pair, so this stays whole turns.
     """
+    return 2 * sum(1 for message in trimmed.messages if isinstance(message, ModelResponse))
+
+
+def _carried_messages(thread: ConversationRow) -> int:
+    """How many messages the *next* prompt will carry, so the rest of the rows are aged.
+
+    Pruning the stored state is what makes this the next window: the raw state is the run's
+    conversation, which holds the exchange just made plus tool-return requests, so subtracting
+    it left nothing aged and summarisation never ran (issue #1462).
+    """
+    config = game_config.chat
     try:
-        return len(load_context(thread.context).messages)
+        _, trimmed = plan_prune(
+            load_context(thread.context), keep=config.history_messages, budget=config.history_token_budget
+        )
+        return _carried_rows(trimmed)
     except Exception:
-        return game_config.chat.history_messages
+        return config.history_messages
 
 
 async def after_exchange(db: AsyncSession, *, thread: ConversationRow, dweller: DwellerLike) -> None:
@@ -196,7 +217,9 @@ async def after_exchange(db: AsyncSession, *, thread: ConversationRow, dweller: 
         # maybe_summarize applies the summary cursor itself; this is the window's overflow.
         aged = rows[: max(len(rows) - _carried_messages(thread), 0)]
         if aged:
-            await maybe_summarize(db, thread, dropped=aged)
+            # Bounded so a thread backfilled with hundreds of rows is summarised over several
+            # exchanges; the cursor only advances to the last row actually summarised.
+            await maybe_summarize(db, thread, dropped=aged[:SUMMARY_BATCH_MESSAGES])
         # The exchange is both halves: memory extraction reads what the Overseer said too.
         exchange = rows[-2:]
         existing = await load_memories(db, dweller_id=dweller.id, limit=game_config.chat.memory_max_per_dweller)

@@ -11,7 +11,7 @@ from unittest.mock import patch
 from uuid import uuid4
 
 import pytest
-from pydantic_ai.messages import ModelRequest, ModelResponse, TextPart, UserPromptPart
+from pydantic_ai.messages import ModelRequest, ModelResponse, TextPart, ToolReturnPart, UserPromptPart
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.crud.chat_message import chat_message as chat_message_crud
@@ -163,6 +163,30 @@ async def _thread_with_rows(
     await session.commit()
     await session.refresh(thread)
     return thread, rows
+
+
+@pytest.mark.asyncio
+async def test_after_exchange_ages_rows_the_next_window_will_not_carry(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller
+) -> None:
+    """The stored state holds the exchange just made plus a tool-return request, so it is
+    longer than the rows it covers. Measuring it raw left nothing aged and summarisation
+    never ran against a real run (issue #1462)."""
+    thread, rows = await _thread_with_rows(async_session, vault, dweller, exchanges=7, carried=14)
+    state = _context_with_turns(7)
+    state.messages.append(
+        ModelRequest(parts=[ToolReturnPart(tool_name="final_result", content="done", tool_call_id="call_1")])
+    )
+    thread.context = dump_context(state)
+    async_session.add(thread)
+    await async_session.commit()
+
+    summarised: list[ChatMessage] = []
+    await _run_after_exchange(async_session, thread, dweller, summarised=summarised)
+
+    # 14 rows, a 12-message window that spends one message on the tool return and refuses to
+    # split a turn: ten rows stay in the prompt, four are aged.
+    assert [row.id for row in summarised] == [row.id for row in rows[:4]]
 
 
 @pytest.mark.asyncio

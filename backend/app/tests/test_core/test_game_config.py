@@ -12,7 +12,6 @@ def test_chat_config_registered_with_continuity_defaults():
     assert isinstance(game_config.chat, ChatConfig)
     assert game_config.chat.history_messages == 12
     assert game_config.chat.history_token_budget == 1500
-    assert game_config.chat.summary_trigger_messages == 20
     assert game_config.chat.summary_max_chars == 900
     assert game_config.chat.memory_max_per_dweller == 20
     assert game_config.chat.memory_prompt_limit == 12

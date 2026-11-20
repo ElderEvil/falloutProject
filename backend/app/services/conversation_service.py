@@ -9,6 +9,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.enums import GenderEnum
 from app.crud.chat_message import chat_message as chat_message_crud
+from app.crud.conversation import conversation as conversation_crud
 from app.crud.llm_interaction import llm_interaction as llm_interaction_crud
 from app.models import User
 from app.models.chat_message import ChatMessageCreate
@@ -19,9 +20,8 @@ from app.services.access_service import get_accessible_dweller
 from app.services.ai_service import get_ai_service
 from app.services.chat.agent_runner import run_chat_agent
 from app.services.chat.continuation import (
-    build_continuation,
-    open_thread,
-    save_context,
+    begin_exchange,
+    complete_exchange,
     schedule_exchange_finish,
 )
 from app.services.chat.notifications import send_chat_notification, unlock_places_after_conversation
@@ -149,6 +149,21 @@ class ConversationService:
             chat_create_data.happiness_delta = payload.happiness_impact.delta
             chat_create_data.happiness_reason = payload.happiness_impact.reason_text
         dweller_message = await chat_message_crud.create_message(db_session, obj_in=chat_create_data)
+
+        # Voice exchanges advance the same thread as text ones; without this the gap line
+        # and the awareness digest would keep measuring from the last typed message.
+        if conversation is not None:
+            try:
+                async with db_session.begin_nested():
+                    await conversation_crud.touch(
+                        db_session,
+                        conversation,
+                        at=dweller_message.created_at,
+                        message_count=conversation.message_count + 2,
+                    )
+            except Exception:
+                logger.warning("Conversation touch failed; messages persisted without thread update", exc_info=True)
+
         return dweller_message.id
 
     async def process_audio_message(
@@ -178,14 +193,13 @@ class ConversationService:
 
             instructions, prompt_id, instructions_hash = await get_instructions(db_session, "chat")
             provider, model = await get_provider_model_snapshot(db_session)
-            thread = await open_thread(db_session, user_id=user.id, dweller=dweller)
-            conversation, continuity = await build_continuation(db_session, thread=thread, dweller=dweller)
-            if continuity:
-                instructions = "\n\n".join(filter(None, (instructions, continuity)))
+            instructions, conversation, thread = await begin_exchange(
+                db_session, user_id=user.id, dweller=dweller, instructions=instructions
+            )
             response = await self._generate_response_with_agent(
                 db_session, dweller, transcribed_text, instructions, conversation=conversation
             )
-            await save_context(db_session, thread, state=response.conversation_state)
+            thread_id = await complete_exchange(db_session, thread=thread, state=response.conversation_state)
             dweller_audio_bytes, dweller_audio_url = await self._generate_tts_audio(
                 response.response_text, dweller.gender, user.id, dweller_id
             )
@@ -222,7 +236,7 @@ class ConversationService:
                 unlocked_places=unlocked_places,
             )
         await db_session.commit()
-        schedule_exchange_finish(thread.id, (dweller_message_id,))
+        schedule_exchange_finish(thread_id)
         await send_chat_notification(
             user_id=user.id,
             dweller_id=dweller_id,

@@ -1,5 +1,6 @@
 """Tests for conversation service (audio chat)."""
 
+from contextlib import asynccontextmanager
 from unittest.mock import AsyncMock, MagicMock, PropertyMock, patch
 from uuid import uuid4
 
@@ -71,6 +72,45 @@ class TestAudioChatProvenance:
         assert saved_interaction.prompt_id == prompt_id
         assert saved_interaction.instructions_hash == "a" * 64
         assert saved_interaction.instructions_snapshot == "Respond in character."
+
+
+async def test_voice_exchange_advances_the_thread() -> None:
+    """A voice turn must move the thread's clock, or the gap line measures from the last typed message."""
+    payload = VoiceMessagePayload(
+        transcribed_text="Status report?",
+        user_audio_url=None,
+        audio_duration=None,
+        dweller_response_text="All clear.",
+        dweller_audio_url=None,
+    )
+    user = MagicMock(id=uuid4())
+    dweller = MagicMock(id=uuid4(), vault=MagicMock(id=uuid4()))
+    message = MagicMock(id=uuid4())
+    thread = MagicMock(id=uuid4(), message_count=6)
+    db = MagicMock()
+
+    @asynccontextmanager
+    async def savepoint():
+        yield
+
+    db.begin_nested = savepoint
+
+    with (
+        patch(
+            "app.services.conversation_service.llm_interaction_crud.create",
+            new=AsyncMock(return_value=MagicMock(id=uuid4())),
+        ),
+        patch(
+            "app.services.conversation_service.chat_message_crud.create_message",
+            new=AsyncMock(return_value=message),
+        ),
+        patch("app.services.conversation_service.conversation_crud.touch", new=AsyncMock()) as touch,
+    ):
+        await conversation_service._save_messages_to_db(db, user, dweller, payload, conversation=thread)
+
+    touch.assert_awaited_once()
+    assert touch.await_args.kwargs["message_count"] == 8
+    assert touch.await_args.kwargs["at"] is message.created_at
 
 
 # Note: Integration tests for audio processing are omitted as they require complex mocking

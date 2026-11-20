@@ -3,21 +3,23 @@
 import logging
 from collections.abc import AsyncGenerator
 
+from pydantic_ai.conversation import Conversation
 from pydantic_ai.exceptions import UnexpectedModelBehavior
 
 from app.agents.dweller_chat_agent import (
-    CHAT_USAGE_LIMITS,
     DwellerChatDeps,
     compute_happiness_delta,
     derive_reason_code,
     dweller_chat_agent,
     parse_action_suggestion,
+    usage_limits_for,
 )
 from app.schemas.chat import ChatStreamToken
 from app.schemas.chat_models import StreamBundle
 from app.schemas.dweller import DwellerReadFull
 from app.schemas.happiness import HappinessImpact, HappinessReasonCode
 from app.services.chat import agent_runner
+from app.services.chat.context import dump_context
 from app.services.chat_happiness_service import apply_chat_happiness
 
 logger = logging.getLogger(__name__)
@@ -29,12 +31,18 @@ async def stream_structured(
     message_text: str,
     bundle: StreamBundle,
     instructions: str,
+    *,
+    conversation: Conversation | None = None,
 ) -> AsyncGenerator[ChatStreamToken]:
     """Stream structured output and collect its final metadata in ``bundle``."""
     async with (
         deps.db_session.begin_nested(),
         dweller_chat_agent.run_stream(
-            message_text, deps=deps, instructions=instructions, usage_limits=CHAT_USAGE_LIMITS
+            message_text,
+            deps=deps,
+            instructions=instructions,
+            usage_limits=usage_limits_for(conversation),
+            conversation=conversation,
         ) as result,
     ):
         previous_text = ""
@@ -70,6 +78,7 @@ async def stream_structured(
             bundle.total_tokens,
         ) = agent_runner.extract_usage(result.usage)
         bundle.response_text = output.response_text
+        bundle.conversation_state = dump_context(result.result.conversation)
 
 
 async def stream_with_fallback(
@@ -78,9 +87,11 @@ async def stream_with_fallback(
     message_text: str,
     bundle: StreamBundle,
     instructions: str,
+    *,
+    conversation: Conversation | None = None,
 ) -> AsyncGenerator[ChatStreamToken]:
     """Stream structured output, retrying non-streaming when validation fails."""
-    structured_stream = stream_structured(deps, dweller, message_text, bundle, instructions)
+    structured_stream = stream_structured(deps, dweller, message_text, bundle, instructions, conversation=conversation)
     try:
         try:
             async for event in structured_stream:
@@ -89,13 +100,16 @@ async def stream_with_fallback(
             logger.warning(
                 "Structured streaming output invalid for dweller %s, retrying via non-streaming run", dweller.id
             )
-            result = await agent_runner.run_chat_agent(deps.db_session, dweller, message_text, instructions)
+            result = await agent_runner.run_chat_agent(
+                deps.db_session, dweller, message_text, instructions, conversation=conversation
+            )
             bundle.response_text = result.response_text
             bundle.happiness_impact = result.happiness_impact
             bundle.action_suggestion = result.action_suggestion
             bundle.prompt_tokens = result.prompt_tokens
             bundle.completion_tokens = result.completion_tokens
             bundle.total_tokens = result.total_tokens
+            bundle.conversation_state = result.conversation_state
             yield ChatStreamToken(text=bundle.response_text, replace=True)
     finally:
         await structured_stream.aclose()

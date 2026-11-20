@@ -56,8 +56,8 @@ async def test_extracts_and_persists_stated_facts(async_session: AsyncSession, v
     exchange = await _exchange(async_session, vault, dweller)
     calls: list[MemoryExtractionRequest] = []
     candidates = [
-        MemoryCandidate(fact="I keep a lucky wrench under my bunk.", kind="keepsake"),
-        MemoryCandidate(fact="I slept through the alarms last week.", kind="event"),
+        MemoryCandidate(fact="I keep a lucky wrench under my bunk."),
+        MemoryCandidate(fact="I slept through the alarms last week."),
     ]
 
     stored = await extract_memories(async_session, dweller=dweller, exchange=exchange, model=_stub(candidates, calls))
@@ -88,10 +88,10 @@ async def test_dedupes_within_one_exchange_and_against_existing(
         existing=[existing],
         model=_stub(
             [
-                MemoryCandidate(fact="I fear the dark!", kind="fear"),
-                MemoryCandidate(fact="i   FEAR the dark", kind="fear"),
-                MemoryCandidate(fact="I keep a lucky wrench under my bunk.", kind="keepsake"),
-                MemoryCandidate(fact="I keep a lucky wrench under my bunk", kind="keepsake"),
+                MemoryCandidate(fact="I fear the dark!"),
+                MemoryCandidate(fact="i   FEAR the dark"),
+                MemoryCandidate(fact="I keep a lucky wrench under my bunk."),
+                MemoryCandidate(fact="I keep a lucky wrench under my bunk"),
             ],
             [],
         ),
@@ -127,7 +127,7 @@ async def test_evicts_oldest_memories_beyond_the_cap(
         async_session,
         dweller=dweller,
         exchange=exchange,
-        model=_stub([MemoryCandidate(fact="I keep a lucky wrench under my bunk.", kind="keepsake")], []),
+        model=_stub([MemoryCandidate(fact="I keep a lucky wrench under my bunk.")], []),
     )
 
     rows = (await async_session.exec(select(DwellerMemory))).all()
@@ -150,11 +150,11 @@ async def test_rejects_bio_restatements_and_non_first_person_facts(
         exchange=exchange,
         model=_stub(
             [
-                MemoryCandidate(fact="Nora grew up in Vault 101 and repairs pipes.", kind="event"),
-                MemoryCandidate(fact="Nora keeps a lucky wrench under her bunk.", kind="keepsake"),
-                MemoryCandidate(fact="She fears the dark.", kind="fear"),
-                MemoryCandidate(fact="I " + "really " * 40 + "mean it.", kind="habit"),
-                MemoryCandidate(fact="I fear the dark.", kind="fear"),
+                MemoryCandidate(fact="Nora grew up in Vault 101 and repairs pipes."),
+                MemoryCandidate(fact="Nora keeps a lucky wrench under her bunk."),
+                MemoryCandidate(fact="She fears the dark."),
+                MemoryCandidate(fact="I " + "really " * 40 + "mean it."),
+                MemoryCandidate(fact="I fear the dark."),
             ],
             [],
         ),
@@ -190,7 +190,7 @@ async def test_unique_violation_is_a_skip_not_an_error(
             DwellerMemory(dweller_id=dweller.id, fact="I fear the dark.", fact_hash=fact_hash("I fear the dark."))
         )
         await async_session.flush()
-        return [MemoryCandidate(fact="I fear the dark!", kind="fear")]
+        return [MemoryCandidate(fact="I fear the dark!")]
 
     stored = await extract_memories(async_session, dweller=dweller, exchange=exchange, model=racing)
 

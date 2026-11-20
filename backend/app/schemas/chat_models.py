@@ -3,6 +3,7 @@ inside app/services may not own contracts.
 """
 
 from dataclasses import dataclass, field
+from typing import Any
 from uuid import UUID
 
 from app.schemas.chat import ActionSuggestion
@@ -40,6 +41,7 @@ class StreamBundle:
     instructions_hash: str | None = None
     instructions_snapshot: str | None = None
     jev_decisions: dict[str, dict[str, float]] = field(default_factory=dict)
+    conversation_state: dict[str, Any] | None = None
 
 
 @dataclass

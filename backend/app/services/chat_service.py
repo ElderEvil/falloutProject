@@ -32,9 +32,8 @@ from app.services.chat.agent_runner import (
     run_chat_agent,
 )
 from app.services.chat.continuation import (
-    build_continuation,
-    open_thread,
-    save_context,
+    begin_exchange,
+    complete_exchange,
     schedule_exchange_finish,
 )
 from app.services.chat.guardrail import GuardrailVerdict, screen_message
@@ -120,10 +119,9 @@ class ChatService:
             instructions, prompt_id, instructions_hash = await get_instructions(db_session, "chat")
             provider, model = await get_provider_model_snapshot(db_session)
 
-            thread = await open_thread(db_session, user_id=user.id, dweller=dweller)
-            conversation, continuity = await build_continuation(db_session, thread=thread, dweller=dweller)
-            if continuity:
-                instructions = "\n\n".join(filter(None, (instructions, continuity)))
+            instructions, conversation, thread = await begin_exchange(
+                db_session, user_id=user.id, dweller=dweller, instructions=instructions
+            )
 
             result = await run_chat_agent(
                 db_session=db_session,
@@ -132,7 +130,7 @@ class ChatService:
                 instructions=instructions,
                 conversation=conversation,
             )
-            await save_context(db_session, thread, state=result.conversation_state)
+            thread_id = await complete_exchange(db_session, thread=thread, state=result.conversation_state)
 
             bundle = StreamBundle(
                 response_text=result.response_text,
@@ -156,8 +154,10 @@ class ChatService:
                 conversation=thread,
             )
 
+        # Read before commit: the commit expires the instance, so thread.id is no longer
+        # available to the background task afterwards.
         await db_session.commit()
-        schedule_exchange_finish(thread.id, (dweller_message_id,))
+        schedule_exchange_finish(thread_id)
 
         return DwellerChatResponse(
             response=result.response_text,
@@ -206,6 +206,10 @@ class ChatService:
                 instructions, prompt_id, instructions_hash = await get_instructions(db_session, "chat")
                 provider, model = await get_provider_model_snapshot(db_session)
 
+                instructions, conversation, thread = await begin_exchange(
+                    db_session, user_id=user.id, dweller=dweller, instructions=instructions
+                )
+
                 deps = DwellerChatDeps(
                     db_session=db_session,
                     dweller=dweller,
@@ -219,18 +223,23 @@ class ChatService:
                     instructions_hash=instructions_hash,
                     instructions_snapshot=instructions,
                 )
-                async for event in stream_with_fallback(deps, dweller, message_text, bundle, instructions):
+                async for event in stream_with_fallback(
+                    deps, dweller, message_text, bundle, instructions, conversation=conversation
+                ):
                     yield event
 
+                thread_id = await complete_exchange(db_session, thread=thread, state=bundle.conversation_state)
                 dweller_message_id, unlocked_places = await persist_chat(
                     db_session=db_session,
                     user=user,
                     dweller=dweller,
                     message_text=message_text,
                     bundle=bundle,
+                    conversation=thread,
                 )
 
             await db_session.commit()
+            schedule_exchange_finish(thread_id)
 
             yield ChatStreamDone(
                 dweller_message_id=dweller_message_id,

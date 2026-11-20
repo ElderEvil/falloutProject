@@ -80,7 +80,6 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint("user_id", "dweller_id", name="uq_conversation_user_dweller"),
     )
-    op.create_index("ix_conversation_id", "conversation", ["id"])
     op.create_index("ix_conversation_vault_id", "conversation", ["vault_id"])
     op.create_index("ix_conversation_user_id", "conversation", ["user_id"])
     op.create_index("ix_conversation_dweller_id", "conversation", ["dweller_id"])
@@ -169,5 +168,4 @@ def downgrade() -> None:
     op.drop_index("ix_conversation_dweller_id", table_name="conversation")
     op.drop_index("ix_conversation_user_id", table_name="conversation")
     op.drop_index("ix_conversation_vault_id", table_name="conversation")
-    op.drop_index("ix_conversation_id", table_name="conversation")
     op.drop_table("conversation")

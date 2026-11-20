@@ -316,6 +316,7 @@ async def merge_users(
         notification_moved = await crud.notification.reassign_user(db_session, source_id, target_id, commit=False)
         llm_moved = await crud.llm_interaction.reassign_user(db_session, source_id, target_id, commit=False)
         chat_moved = await crud.chat_message.reassign_user(db_session, source_id, target_id, commit=False)
+        conversations_moved = await crud.conversation.reassign_user(db_session, source_id, target_id, commit=False)
         profile_moved = await _merge_profile(
             db_session,
             source_profile,
@@ -339,6 +340,7 @@ async def merge_users(
             "notifications": notification_moved,
             "llm_interactions": llm_moved,
             "chat_messages": chat_moved,
+            "conversations": conversations_moved,
             "oauth_links": oauth_moved,
             "profiles": profile_moved,
         }

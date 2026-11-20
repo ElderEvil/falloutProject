@@ -1,10 +1,13 @@
 """Tests for chat service error handling, especially AI provider failures."""
 
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, PropertyMock, patch
 from uuid import uuid4
 
 import pytest
 import pytest_asyncio
+from pydantic_ai.conversation import Conversation
+from pydantic_ai.messages import ModelRequest, ModelResponse, TextPart, UserPromptPart
 from pydantic_ai.usage import RunUsage
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -492,6 +495,11 @@ class TestChatServiceErrorHandling:
             def usage(self):
                 return RunUsage(input_tokens=5, output_tokens=6)
 
+            @property
+            def result(self) -> SimpleNamespace:
+                """The settled run this stream stands for; chat only reads its conversation."""
+                return SimpleNamespace(conversation=Conversation(usage=self.usage))
+
             async def get_output(self):
                 return output
 
@@ -588,6 +596,11 @@ class TestChatServiceErrorHandling:
             def usage(self):
                 return RunUsage(input_tokens=5, output_tokens=6)
 
+            @property
+            def result(self) -> SimpleNamespace:
+                """The settled run this stream stands for; chat only reads its conversation."""
+                return SimpleNamespace(conversation=Conversation(usage=self.usage))
+
             async def get_output(self):
                 return output
 
@@ -622,6 +635,97 @@ class TestChatServiceErrorHandling:
         assert isinstance(events[-1], ChatStreamDone)
         assert events[-1].debug is not None
         assert events[-1].debug.total_tokens == 11
+
+    async def test_stream_response_continues_the_thread(
+        self,
+        async_session: AsyncSession,
+        chat_dweller: DwellerReadFull,
+        test_user: User,
+    ) -> None:
+        """The streamed path must load prior turns and store the state it produced."""
+        from app.agents.dweller_chat_agent import DwellerChatOutput
+        from app.models.conversation import Conversation as ConversationRow
+        from app.services.chat.context import dump_context, load_context
+        from app.services.chat.continuation import open_thread, save_context
+
+        output = DwellerChatOutput(
+            response_text="Hello vault dweller!",
+            sentiment_score=2,
+            reason_text="Friendly greeting",
+            action_type="no_action",
+            action_reason="Nothing to do",
+        )
+        prior = Conversation(
+            messages=[
+                ModelRequest(parts=[UserPromptPart(content="Earlier question")]),
+                ModelResponse(parts=[TextPart(content="Earlier answer")]),
+            ]
+        )
+        thread = await open_thread(async_session, user_id=test_user.id, dweller=chat_dweller)
+        await save_context(async_session, thread, state=dump_context(prior))
+        await async_session.commit()
+        thread_id = thread.id
+        continued = Conversation(messages=[*prior.messages, *prior.messages], usage=prior.usage)
+        captured: dict = {}
+
+        async def fake_stream_output():
+            yield output
+
+        class FakeStreamResult:
+            def stream_output(self):
+                return fake_stream_output()
+
+            @property
+            def usage(self):
+                return RunUsage(input_tokens=5, output_tokens=6)
+
+            @property
+            def result(self) -> SimpleNamespace:
+                return SimpleNamespace(conversation=continued)
+
+            async def get_output(self):
+                return output
+
+        class FakeRunStreamCM:
+            async def __aenter__(self):
+                return FakeStreamResult()
+
+            async def __aexit__(self, *exc):
+                return False
+
+        def capture(*_args, **kwargs):
+            captured.update(kwargs)
+            return FakeRunStreamCM()
+
+        with (
+            patch("app.services.chat.streaming.dweller_chat_agent.run_stream", side_effect=capture),
+            patch("app.services.chat.streaming.apply_chat_happiness", new=AsyncMock(return_value=(80, None))),
+            patch("app.services.chat.streaming.parse_action_suggestion", new=AsyncMock(return_value=NoAction())),
+            patch("app.services.chat.notifications.maybe_unlock_places", new=AsyncMock(return_value=[])),
+            patch(
+                "app.services.chat.persistence.chat_message_crud.create_message",
+                new=AsyncMock(return_value=MagicMock(id=uuid4())),
+            ),
+        ):
+            events = [
+                event
+                async for event in chat_service.stream_response(
+                    db_session=async_session,
+                    user=test_user,
+                    dweller_id=chat_dweller.id,
+                    message_text="Hello",
+                )
+            ]
+
+        assert isinstance(events[-1], ChatStreamDone)
+        # Prior turns reached the model rather than being answered as a first message.
+        carried = captured["conversation"]
+        assert carried is not None
+        assert carried.messages[0].parts[0].content == "Earlier question"
+        # And the state carried forward is the one this run produced.
+        refreshed = await async_session.get(ConversationRow, thread_id)
+        assert refreshed is not None
+        assert len(load_context(refreshed.context).messages) == 4
 
     async def test_stream_response_yields_provider_reason_on_model_http_error(
         self,
@@ -907,7 +1011,7 @@ async def test_chat_commits_usage_messages_and_happiness_together(
             raise RuntimeError("reply write failed")
         return await original(db, obj_in=obj_in)
 
-    async def generate_stream(deps, dweller, message_text, bundle, instructions):
+    async def generate_stream(deps, dweller, message_text, bundle, instructions, *, conversation=None):
         from app.services.chat_happiness_service import apply_chat_happiness
 
         await apply_chat_happiness(deps.db_session, dweller.id, 5)

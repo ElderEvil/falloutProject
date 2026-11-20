@@ -9,6 +9,8 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
 from app.crud.conversation import CRUDConversation
+from app.crud.user import build_user_model
+from app.models.chat_message import ChatMessage
 from app.models.conversation import Conversation
 from app.models.dweller import Dweller
 from app.models.vault import Vault
@@ -111,3 +113,61 @@ async def test_touch_bumps_count_and_timestamp(async_session: AsyncSession, vaul
     assert touched.message_count == 7
     assert touched.last_message_at == later
     await async_session.flush()
+
+
+async def _other_user(session: AsyncSession, suffix: str):
+    user = build_user_model(username=f"merge{suffix}", email=f"merge{suffix}@example.com")
+    session.add(user)
+    await session.commit()
+    return user
+
+
+async def test_reassign_user_moves_a_thread_to_the_surviving_account(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller
+) -> None:
+    """A merged-away account's thread must follow its messages, or continuity is lost."""
+    _, vault_id = await _ids(async_session, vault)
+    source = await _other_user(async_session, "src")
+    target = await _other_user(async_session, "tgt")
+    thread = Conversation(vault_id=vault_id, user_id=source.id, dweller_id=dweller.id)
+    async_session.add(thread)
+    await async_session.commit()
+    thread_id = thread.id
+
+    moved = await crud.conversation.reassign_user(async_session, source.id, target.id)
+
+    assert moved == 1
+    survivor = await crud.conversation.get_by_pair(async_session, user_id=target.id, dweller_id=dweller.id)
+    assert survivor is not None
+    assert survivor.id == thread_id
+
+
+async def test_reassign_user_folds_a_duplicate_dweller_thread_onto_the_targets(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller
+) -> None:
+    """Both sides may hold a thread for the same dweller; messages must not be orphaned."""
+    _, vault_id = await _ids(async_session, vault)
+    source = await _other_user(async_session, "src2")
+    target = await _other_user(async_session, "tgt2")
+    target_thread = Conversation(vault_id=vault_id, user_id=target.id, dweller_id=dweller.id, message_count=4)
+    source_thread = Conversation(vault_id=vault_id, user_id=source.id, dweller_id=dweller.id, message_count=6)
+    async_session.add_all([target_thread, source_thread])
+    await async_session.commit()
+    target_id, source_id = target_thread.id, source_thread.id
+    message = ChatMessage(
+        vault_id=vault_id, from_user_id=source.id, to_dweller_id=dweller.id, message_text="hello", conversation_id=source_id
+    )
+    async_session.add(message)
+    await async_session.commit()
+    message_id = message.id
+
+    moved = await crud.conversation.reassign_user(async_session, source.id, target.id)
+
+    assert moved == 1
+    assert await async_session.get(Conversation, source_id) is None
+    survivor = await async_session.get(Conversation, target_id)
+    assert survivor is not None
+    assert survivor.message_count == 10
+    repointed = await async_session.get(ChatMessage, message_id)
+    assert repointed is not None
+    assert repointed.conversation_id == target_id

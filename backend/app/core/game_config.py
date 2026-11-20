@@ -1263,7 +1263,6 @@ class ChatConfig(BaseSettings):
 
     history_messages: int = 12
     history_token_budget: int = 1500
-    summary_trigger_messages: int = 20
     summary_max_chars: int = 900
     memory_max_per_dweller: int = 20
     memory_prompt_limit: int = 12

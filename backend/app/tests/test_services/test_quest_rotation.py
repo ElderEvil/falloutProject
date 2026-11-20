@@ -359,6 +359,8 @@ async def test_rotation_sweep_finishes_other_vaults_then_fails_retryably(async_s
     from app.crud.vault import vault as vault_crud
     from app.services.progression.quests import rotation as rotation_module
 
+    first = vault.id  # Captured early: the sweep's session recovery expires loaded rows.
+
     @asynccontextmanager
     async def fake_task_session():
         yield async_session
@@ -370,17 +372,17 @@ async def test_rotation_sweep_finishes_other_vaults_then_fails_retryably(async_s
 
     async def rolling(db, vault_id):
         calls.append(vault_id)
-        if vault_id == stuck:
+        if vault_id == first:
             raise RuntimeError("vault rotation failed")
         return 0
 
     monkeypatch.setattr(rotation_module, "ensure_current_quest_rotation", rolling)
 
     async def two_vaults(session):
-        return [vault.id, stuck]
+        return [first, stuck]
 
     monkeypatch.setattr(vault_crud, "get_non_deleted_ids", two_vaults)
 
     with pytest.raises(RuntimeError, match="Quest rotation failed for vaults"):
         await tasks._refresh_quest_rotation()
-    assert len(calls) == 2  # The failing vault did not stop the other vault's rotation.
+    assert calls == [first, stuck]

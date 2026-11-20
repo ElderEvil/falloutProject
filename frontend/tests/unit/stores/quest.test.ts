@@ -324,51 +324,6 @@ describe('Quest Store', () => {
       })
     })
 
-    it('fetches the vault quest list in one request past row 100', async () => {
-      vi.mocked(axios.get).mockResolvedValueOnce({
-        data: [...questPage('q', 150), { id: 'q-tail' }],
-      })
-
-      const store = useQuestStore()
-      await store.fetchVaultQuests('vault-123')
-
-      expect(store.vaultQuests).toHaveLength(151)
-      expect(axios.get).toHaveBeenCalledTimes(1)
-      expect(axios.get).toHaveBeenCalledWith('/api/v1/quests/vault-123/', {
-        params: { limit: 1000 },
-      })
-    })
-
-    it('fetches the vault quest list in one request past row 100', async () => {
-      vi.mocked(axios.get).mockResolvedValueOnce({
-        data: [...questPage('q', 150), { id: 'q-tail' }],
-      })
-
-      const store = useQuestStore()
-      await store.fetchVaultQuests('vault-123')
-
-      expect(store.vaultQuests).toHaveLength(151)
-      expect(axios.get).toHaveBeenCalledTimes(1)
-      expect(axios.get).toHaveBeenCalledWith('/api/v1/quests/vault-123/', {
-        params: { limit: 1000 },
-      })
-    })
-
-    it('fetches the vault quest list in one request past row 100', async () => {
-      vi.mocked(axios.get).mockResolvedValueOnce({
-        data: [...questPage('q', 150), { id: 'q-tail' }],
-      })
-
-      const store = useQuestStore()
-      await store.fetchVaultQuests('vault-123')
-
-      expect(store.vaultQuests).toHaveLength(151)
-      expect(axios.get).toHaveBeenCalledTimes(1)
-      expect(axios.get).toHaveBeenCalledWith('/api/v1/quests/vault-123/', {
-        params: { limit: 1000 },
-      })
-    })
-
     it("keeps the newest vault's quests when an older load resolves later", async () => {
       const newest = [{ id: 'b', title: 'Vault B Quest' }]
       const pending = deferred<{ data: unknown }>()

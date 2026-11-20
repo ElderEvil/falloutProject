@@ -150,9 +150,7 @@ class CRUDQuest(
 
         visibility = {quest.id: quest.quest_type not in SCHEDULED_QUEST_TYPES for quest in missing_quests}
         if visibility:
-            # Backfill only: agree on the shared lock order (vault row first). The
-            # insert's conflict no-op covers quests another reader, the rotation sweep
-            # or an assignment linked while this scan ran without the lock.
+            # Backfill only: vault-first lock order; the conflict no-op covers concurrent links.
             await db_session.execute(select(Vault).where(Vault.id == vault_id).with_for_update())
             await self.insert_links_if_absent(db_session, vault_id, visibility)
             # Commit releases the vault lock whether or not the insert left work.
@@ -458,10 +456,12 @@ class CRUDQuest(
         is_visible: bool = True,
         commit: bool = True,
     ) -> VaultQuestCompletionLink:
-        """Assign a quest to a vault, making it available for completion."""
-        # Same lock order as the list backfill and rotation: the vault row first, so
-        # assignment can never hold a link key while waiting on the vault lock. The
-        # manual-assignment eligibility rule lives in QuestService; CRUD owns persistence.
+        """Assign a quest to a vault, making it available for completion.
+
+        ``commit=False`` stages the write for a service-side transaction owner; the
+        standalone default keeps committing and refreshing as before.
+        """
+        # Vault-first lock order; the scheduler-pool eligibility rule lives in QuestService.
         await db_session.execute(select(Vault).where(Vault.id == vault_id).with_for_update())
 
         existing_link_query = select(self.link_model).where(

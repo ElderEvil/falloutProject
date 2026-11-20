@@ -19,6 +19,7 @@ from app.models.vault_quest import VaultQuestCompletionLink
 from app.schemas.quest import QuestCreate
 from app.schemas.user import UserCreate
 from app.schemas.vault import VaultCreate
+from app.services.progression.quests.rotation import ensure_current_quest_rotation
 from app.tests.factory.users import create_fake_user
 from app.tests.factory.vaults import create_fake_vault
 
@@ -58,17 +59,18 @@ async def race_session_maker(live_pg_engine: AsyncEngine) -> async_sessionmaker:
 
 @pytest.mark.integration
 @pytest.mark.asyncio
-async def test_concurrent_first_backfill_keeps_one_link_per_quest(
+async def test_backfill_and_rotation_race_without_deadlock(
     race_session_maker: async_sessionmaker, live_pg_engine: AsyncEngine
 ) -> None:
-    """Two first reads racing the same fresh vault insert one link per quest.
+    """A first quest-screen read and the rotation sweep race the same fresh vault.
 
     This is the PostgreSQL failure mode SQLite cannot reproduce: the composite PK
-    (vault_id, quest_id) rejects a duplicate plain INSERT. The shared insert path
-    must conflict no-op instead, and the winner's visibility must survive. Each
-    racer commits inside its own operation so the loser resolves against the
-    winner's committed row instead of blocking on it forever.
+    (vault_id, quest_id) rejects a duplicate plain INSERT, and backfill plus
+    rotation must agree on a lock order or they deadlock across the vault and
+    link keys. Both paths run for real (the vault-quest list and the rotation
+    sweep), each commits inside its own operation, and the wait is bounded.
     """
+    cleanup_quest_ids: list[UUID] = []
     cleanup_vault_id: UUID | None = None
     cleanup_user_id: UUID | None = None
     try:
@@ -77,47 +79,40 @@ async def test_concurrent_first_backfill_keeps_one_link_per_quest(
             vault = await crud.vault.create_with_user_id(
                 db_session=setup, obj_in=VaultCreate(**create_fake_vault()), user_id=user.id
             )
-            quest_ids = [
-                (
-                    await crud.quest_crud.create(
+            for label, quest_type, count in (("Side", "side", 3), ("Daily", "daily", 3), ("Weekly", "repeatable", 2)):
+                for number in range(count):
+                    quest = await crud.quest_crud.create(
                         setup,
                         obj_in=QuestCreate(
-                            title=f"Race backfill {number}",
+                            title=f"{label} race {number}",
                             short_description="Backfill race fixture",
-                            long_description="Concurrent first reads must not violate the link key.",
+                            long_description="Concurrent first reads must not deadlock or duplicate links.",
                             requirements="No prerequisites",
                             rewards="10 caps",
+                            quest_type=quest_type,
                         ),
                     )
-                ).id
-                for number in range(3)
-            ]
+                    cleanup_quest_ids.append(quest.id)
             await setup.commit()
             cleanup_vault_id = vault.id
             cleanup_user_id = user.id
 
-            async def race_insert(session: AsyncSession, visibility: Mapping[UUID, bool]) -> None:
-                await crud.quest_crud.insert_links_if_absent(session, vault.id, visibility)
+            async def read_quest_screen(session: AsyncSession) -> None:
+                await crud.quest_crud.get_multi_for_vault(db_session=session, skip=0, limit=100, vault_id=vault.id)
                 await session.commit()
 
-            async with race_session_maker() as first, race_session_maker() as second:
-                offered = dict.fromkeys(quest_ids, True)
-                hidden = dict.fromkeys(quest_ids, False)
+            async def run_rotation(session: AsyncSession) -> None:
+                await ensure_current_quest_rotation(session, vault.id)
+                await session.commit()
+
+            async with race_session_maker() as reader, race_session_maker() as rotator:
                 await asyncio.wait_for(
                     asyncio.gather(
-                        race_insert(first, offered),
-                        race_insert(second, hidden),
+                        read_quest_screen(reader),
+                        run_rotation(rotator),
                     ),
                     timeout=RACE_TIMEOUT_SECONDS,
                 )
-
-                # Whoever inserted first owns the row; the loser's conflict no-op
-                # must leave that row exactly as the winner wrote it.
-                first_links = await _link_map(first, vault.id)
-                second_links = await _link_map(second, vault.id)
-                assert set(first_links) == set(quest_ids)
-                for quest_id in quest_ids:
-                    assert first_links[quest_id].is_visible == second_links[quest_id].is_visible
 
             links = list(
                 (
@@ -126,29 +121,29 @@ async def test_concurrent_first_backfill_keeps_one_link_per_quest(
                     )
                 ).all()
             )
-            assert sorted(link.quest_id for link in links) == sorted(quest_ids)
+            assert sorted(link.quest_id for link in links) == sorted(cleanup_quest_ids)
+            visibility = {link.quest_id: link.is_visible for link in links}
+            side_quests = cleanup_quest_ids[:3]
+            daily_quests = cleanup_quest_ids[3:6]
+            weekly_quests = cleanup_quest_ids[6:8]
+            assert all(visibility[quest_id] for quest_id in side_quests)
+            assert sum(visibility[quest_id] for quest_id in daily_quests) == 3
+            assert sum(visibility[quest_id] for quest_id in weekly_quests) == 1
     finally:
         if cleanup_vault_id is not None:
-            await _cleanup(live_pg_engine, cleanup_vault_id, cleanup_user_id)
+            await _cleanup(live_pg_engine, cleanup_quest_ids, cleanup_vault_id, cleanup_user_id)
 
 
-async def _cleanup(engine: AsyncEngine, vault_id: UUID | None, user_id: UUID | None) -> None:
-    """Delete the fixture rows in FK-safe order (vault children are ON DELETE CASCADE)."""
+async def _cleanup(engine: AsyncEngine, quest_ids: list[UUID], vault_id: UUID | None, user_id: UUID | None) -> None:
+    """Delete exactly the fixture rows, by id, in FK-safe order."""
     async with engine.begin() as conn:
         if vault_id is not None:
             await conn.execute(
                 text("DELETE FROM vaultquestcompletionlink WHERE vault_id = :vault_id"), {"vault_id": vault_id}
             )
-            await conn.execute(text("DELETE FROM quest WHERE title LIKE 'Race backfill %'"))
+        if quest_ids:
+            await conn.execute(text("DELETE FROM quest WHERE id = ANY(:quest_ids)"), {"quest_ids": quest_ids})
+        if vault_id is not None:
             await conn.execute(text("DELETE FROM vault WHERE id = :vault_id"), {"vault_id": vault_id})
         if user_id is not None:
             await conn.execute(text('DELETE FROM "user" WHERE id = :user_id'), {"user_id": user_id})
-
-
-async def _link_map(session: AsyncSession, vault_id: UUID) -> dict[UUID, VaultQuestCompletionLink]:
-    return {
-        link.quest_id: link
-        for link in (
-            await session.exec(select(VaultQuestCompletionLink).where(VaultQuestCompletionLink.vault_id == vault_id))
-        ).all()
-    }

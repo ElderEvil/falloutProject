@@ -167,27 +167,17 @@ async def test_completed_daily_is_reset_and_can_be_started_again(async_session, 
     ids=["active", "returning", "reward-ready"],
 )
 async def test_rotation_preserves_unsettled_links_and_excludes_them_from_the_new_draw(
-    async_session, vault, link_fields, preserved_fields, monkeypatch
+    async_session, vault, link_fields, preserved_fields
 ):
     """Active, returning and reward-ready links keep their state and stay visible.
 
-    The preserved quest is also explicitly kept out of the fresh draw: its link
-    survives through the in-flight branch, not because sampling happened to
-    include it.
+    The preserved quest is also kept out of the fresh draw: sampling pre-filters
+    unsettled links, so its link survives through the in-flight branch and one of
+    the remaining quests fills the freed slot.
     """
-    import random
-
     daily = await _seed_quests(async_session, QuestType.DAILY, DAILY_COUNT + 1, "Daily")
     flying = _add_link(async_session, vault.id, daily[0], is_visible=True, **link_fields)
     await async_session.commit()
-
-    original_sample = random.sample
-
-    def draw_excluding_the_preserved_quest(population, k):
-        eligible = [quest_id for quest_id in population if quest_id != daily[0].id]
-        return original_sample(eligible, k)
-
-    monkeypatch.setattr(random, "sample", draw_excluding_the_preserved_quest)
 
     assert await ensure_current_quest_rotation(async_session, vault.id, now=TUESDAY) == DAILY_COUNT
 

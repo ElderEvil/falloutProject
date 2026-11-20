@@ -145,15 +145,17 @@ class CRUDQuest(
     async def get_multi_for_vault(
         self, *, db_session: AsyncSession, skip: int, limit: int, vault_id: UUID, office_tier: int | None = None
     ) -> Sequence[QuestRead]:
+        # Serialize on the vault row before touching link keys: rotation holds this same
+        # lock while it inserts links, so both paths agree on a lock order and cannot
+        # deadlock across the vault/link key cycle.
+        await db_session.execute(select(Vault).where(Vault.id == vault_id).with_for_update())
         existing_link_query = select(self.link_model.quest_id).where(self.link_model.vault_id == vault_id)
         missing_quests_query = select(Quest).where(~Quest.id.in_(existing_link_query))
         missing_quests = (await db_session.execute(missing_quests_query)).scalars().all()
 
-        dirty = False
         visibility = {quest.id: quest.quest_type not in SCHEDULED_QUEST_TYPES for quest in missing_quests}
         await self.insert_links_if_absent(db_session, vault_id, visibility)
-        dirty = bool(visibility)
-        if dirty:
+        if visibility:
             await db_session.commit()
 
         query = select(Quest).join(self.link_model).where(self.link_model.vault_id == vault_id)
@@ -358,16 +360,13 @@ class CRUDQuest(
         )
         return set(result.scalars().all())
 
-    async def get_rotation_candidates(
-        self, db_session: AsyncSession, quest_type: QuestType, *, limit: int = 1_000
-    ) -> list[Quest]:
-        """Scheduler pool for one quest type: requirements eager-loaded, stable order, page-capped."""
+    async def get_rotation_candidates(self, db_session: AsyncSession, quest_type: QuestType) -> list[Quest]:
+        """Scheduler pool for one quest type: requirements eager-loaded, stable order."""
         result = await db_session.execute(
             select(Quest)
             .options(selectinload(Quest.quest_requirements))
             .where(Quest.quest_type == quest_type)
             .order_by(Quest.id)
-            .limit(limit)
         )
         return list(result.scalars().all())
 

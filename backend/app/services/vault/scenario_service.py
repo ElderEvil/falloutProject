@@ -63,11 +63,12 @@ VAULT_SCENARIOS = (
         key=SHORT_RATIONS_SCENARIO,
         title="Vault 67 — Short Rations",
         description=(
-            "An original experiment. Open with half the usual food and water. "
-            "The vault produces 25% less food and water, including room rushes."
+            "An original experiment. Open with half the usual food and water, and the "
+            "kitchens and purifiers run at a third of a standard vault's output, room "
+            "rushes included. Feeding the vault is a standing decision, not a formality."
         ),
         ration_divisor=2,
-        food_water_multiplier=0.75,
+        food_water_multiplier=0.35,
     ),
     VaultScenario(
         number=68,

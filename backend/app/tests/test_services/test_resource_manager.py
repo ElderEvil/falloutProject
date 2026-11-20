@@ -15,7 +15,7 @@ from app.options.races import DISCOMFORT_EFFECTS, DISCOMFORT_PRODUCTION_FLOOR, D
 from app.schemas.room import RoomCreate
 from app.schemas.vault import ResourceLevelWarning, ResourceProduction, ResourceTickEvents
 from app.services.resource_manager_service import ResourceManager
-from app.services.vault.scenario_service import SHORT_RATIONS_SCENARIO
+from app.services.vault.scenario_service import SHORT_RATIONS_SCENARIO, vault_scenario_service
 from app.utils.item_factory import build_outfit
 from app.utils.resource_warnings import get_resource_warnings
 
@@ -38,10 +38,47 @@ def test_short_rations_produces_less_food_and_water_with_the_same_workers():
 
     assert reduced.consumption == ordinary.consumption
     assert reduced.production.power == ordinary.production.power
-    assert reduced.production.food == pytest.approx(ordinary.production.food * 0.75)
-    assert reduced.production.water == pytest.approx(ordinary.production.water * 0.75)
+    scenario = vault_scenario_service.get(SHORT_RATIONS_SCENARIO)
+    if scenario is None:  # pragma: no cover - the scenario is a shipped constant
+        raise ValueError("vault_67_short_rations is missing from VAULT_SCENARIOS")
+    expected = scenario.food_water_multiplier
+    assert reduced.production.food == pytest.approx(ordinary.production.food * expected)
+    assert reduced.production.water == pytest.approx(ordinary.production.water * expected)
     assert reduced.objective_production.food < ordinary.objective_production.food
     assert challenge_update.food < ordinary_update.food
+
+
+def test_short_rations_makes_feeding_the_vault_a_staffing_decision():
+    """The experiment must cost something from the first minute.
+
+    Two regimes, mirroring docs/backend/BALANCE_PLAYTEST.md: the seeded starter
+    (nine dwellers, two SPECIAL-5 cooks) and ordinary growth (SPECIAL-3 cooks,
+    the top of the common roll band). Before the multiplier was cut the starter
+    kitchen out-produced the vault by ~5:1 and filled storage in nine minutes.
+    """
+    diner = Room(name="Diner", category=RoomTypeEnum.PRODUCTION, ability=SPECIALEnum.AGILITY, output=28, size=3, tier=1)
+    manager = ResourceManager()
+
+    def net_food(population: int, cooks: int, special: int) -> float:
+        vault = Vault(
+            power=100,
+            food=100,
+            water=100,
+            power_max=150,
+            food_max=150,
+            water_max=150,
+            scenario_key=SHORT_RATIONS_SCENARIO,
+        )
+        crew = [(diner, [Dweller(agility=special) for _ in range(cooks)])]
+        # Ten minutes: the vault update is integer-valued, so a one-minute window
+        # rounds a tight net (+0.35/min) away to zero.
+        update, _ = manager.calculate_resource_window(vault, [diner], float(population), crew, 600)
+        return (update.food - vault.food) / 10
+
+    starter = net_food(9, 2, 5)
+    assert 0 < starter < 5, f"starter should be solvent but tight, got {starter:+.2f}/min"
+    assert net_food(20, 2, 3) < 0, "an ordinary growing vault must not be fed by two cooks"
+    assert net_food(20, 3, 3) > 0, "a third cook must be the recovery, not a dead end"
 
 
 class TestResourceManager:

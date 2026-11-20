@@ -7,6 +7,7 @@ session inside the test body, sequentially (the pool holds one connection).
 """
 
 import re
+from datetime import UTC, datetime
 
 import pytest
 from sqlalchemy import event, make_url, text
@@ -111,6 +112,38 @@ def _link_op_index(statements: list[tuple[str, bool, tuple[str, ...]]]) -> list[
 
 @pytest.mark.asyncio(loop_scope="session")
 @pytest.mark.integration
+async def test_arrival_noop_releases_the_link_lock(pg_session_maker) -> None:
+    """A no-op arrival must end its transaction: a held link lock would deadlock the
+    read path's vault-first rotation against a claim holding the vault lock."""
+    engine, maker = pg_session_maker
+    vault_id = user_id = None
+    quest_ids = []
+    await _set_advisory_lock(maker)
+    try:
+        vault_id, user_id, quest_ids = await _seed(maker)
+        side_one = quest_ids[0]
+        async with maker() as arrange:
+            arrange.add(
+                VaultQuestCompletionLink(
+                    vault_id=vault_id,
+                    quest_id=side_one,
+                    is_visible=True,
+                    started_at=datetime.now(UTC),
+                    is_reward_ready=True,
+                )
+            )
+            await arrange.commit()
+
+        async with maker() as session:
+            await quest_service.mark_quest_ready_to_claim(session, side_one, vault_id)
+            assert not session.in_transaction(), "the no-op arrival must not keep the link lock"
+    finally:
+        await _cleanup(maker, quest_ids, vault_id, user_id)
+        await _set_advisory_lock(maker, unlock=True)
+
+
+@pytest.mark.asyncio(loop_scope="session")
+@pytest.mark.integration
 @pytest.mark.parametrize("case", ["claim", "assign_existing", "assign_missing", "list_backfill", "rotation"])
 async def test_writer_locks_vault_before_link_ops(case: str, pg_session_maker) -> None:
     """Every quest-link writer locks the vault row before its first link lock or write.
@@ -174,7 +207,6 @@ async def test_writer_locks_vault_before_link_ops(case: str, pg_session_maker) -
                     await crud.quest_crud.get_multi_for_vault(db_session=session, skip=0, limit=100, vault_id=vault_id)
                 else:
                     await ensure_current_quest_rotation(session, vault_id)
-                await session.commit()
             finally:
                 event.remove(engine.sync_engine, "before_cursor_execute", record)
 

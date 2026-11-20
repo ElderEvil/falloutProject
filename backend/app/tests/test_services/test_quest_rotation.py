@@ -278,7 +278,9 @@ async def test_rotation_skips_quests_beyond_the_reveal_window(async_session, vau
 
 async def test_failed_roll_persists_nothing(async_session, vault, monkeypatch):
     quests = await _offer_everything(async_session, vault.id)
-    links = [_add_link(async_session, vault.id, quest, is_visible=True) for quest in quests]
+    links = [_add_link(async_session, vault.id, quest, is_visible=True) for quest in quests if quest is not quests[1]]
+    unlinked_daily_id = quests[1].id  # Captured early: the rollback expires loaded rows.
+    vault_id = vault.id
     claimed = links[0]
     claimed.is_completed = True
     claimed.completed_at = MONDAY
@@ -315,6 +317,9 @@ async def test_failed_roll_persists_nothing(async_session, vault, monkeypatch):
     for link in (link for link in links if link is not claimed):
         assert link.is_completed is False
         assert link.started_at is None
+    # The first pool inserted the unlinked daily before the second pool failed: the
+    # rollback must take that row and the period stamps with it.
+    assert await quest_crud.get_link(async_session, quest_id=unlinked_daily_id, vault_id=vault_id) is None
     await async_session.refresh(state)
     assert state.daily_quests_period is None
     assert state.weekly_quests_period is None

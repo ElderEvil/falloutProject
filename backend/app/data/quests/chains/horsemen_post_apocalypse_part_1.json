@@ -1,0 +1,515 @@
+{
+  "title": "Horsemen of the Post-Apocalypse Part 1",
+  "chain_id": "horsemen_post_apocalypse_part_1",
+  "chain_name": "Horsemen of the Post-Apocalypse Part 1",
+  "chain_description": "A distress call pulls the Vault into a war between the Horsemen's cults. Track the Pests and the Hungry across the Wasteland and learn who the Horsemen really are.",
+  "quests": [
+    {
+      "quest_name": "Radroach Roundup",
+      "short_description": "Save scientists from the Radroaches they were studying.",
+      "long_description": "A distress call has come in from a nearby science lab studying Radroaches. Thieves stole their Radiation Suits and released all the Radroaches to cover their escape. Now the scientists are in over their heads and asking for help!",
+      "requirements": [
+        "Level 15 dwellers",
+        "5+ average equipped weapon damage"
+      ],
+      "quest_objective": [
+        {
+          "title": "Kill the Glowing Radroach Queen."
+        },
+        {
+          "title": "Save the first group of scientists."
+        },
+        {
+          "title": "Save the second group of scientists."
+        }
+      ],
+      "quest_type": "side",
+      "quest_category": "combat",
+      "chain_order": 1,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 15
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "attack",
+          "requirement_data": {
+            "attack": 5
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Advanced lab coat",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Advanced lab coat",
+            "item_type": "outfit",
+            "rarity": "rare"
+          }
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Microscope",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Microscope",
+            "item_type": "junk",
+            "rarity": "rare"
+          }
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Hazmat suit",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Hazmat suit",
+            "item_type": "outfit",
+            "rarity": "rare"
+          }
+        }
+      ]
+    },
+    {
+      "quest_name": "Undercover Operations",
+      "short_description": "Infiltrate a military base to stop the Pest attack!",
+      "long_description": "An underground military base is under attack and calling in all their Wasteland patrols. Could it be the Pests again? We need to stop them! But we'll need Military Fatigues to pass as one of the patrols and get into the base...",
+      "requirements": [
+        "Level 16 dwellers",
+        "6+ average equipped weapon damage",
+        "Military fatigues",
+        "Complete \"Radroach Roundup\" quest"
+      ],
+      "quest_objective": [
+        {
+          "title": "Stop the attack on the military base."
+        },
+        {
+          "title": "Talk to the soldiers."
+        },
+        {
+          "title": "Talk to the attackers."
+        }
+      ],
+      "quest_type": "side",
+      "quest_category": "combat",
+      "chain_order": 2,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 16
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "attack",
+          "requirement_data": {
+            "attack": 6
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "item",
+          "requirement_data": {
+            "item_name": "Military fatigues"
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "quest_completed",
+          "requirement_data": {
+            "quest_name": "Radroach Roundup"
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Assault rifle",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Assault rifle",
+            "item_type": "weapon",
+            "rarity": "rare"
+          }
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Rare junk",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Rare junk",
+            "item_type": "junk",
+            "rarity": "rare"
+          }
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Combat shotgun",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Combat shotgun",
+            "item_type": "weapon",
+            "rarity": "rare"
+          }
+        }
+      ]
+    },
+    {
+      "quest_name": "Dogs of War",
+      "short_description": "Talk to Three Dog about the Horsemen of the Apocalypse.",
+      "long_description": "Famine and Pestilence are out there, whoever they are, with followers to spare. War and Death are the other infamous Horsemen of the Apocalypse. Are they terrorizing the Wasteland as well? If anyone knows, it's Three Dog at Galaxy News Radio. Let's go talk to him.",
+      "requirements": [
+        "Level 17 dwellers",
+        "6+ average equipped weapon damage",
+        "Complete \"Undercover Operations\" quest"
+      ],
+      "quest_objective": [
+        {
+          "title": "Talk to Three Dog."
+        },
+        {
+          "title": "Listen to Three Dog's broadcast."
+        },
+        {
+          "title": "Kill the Warshippers."
+        }
+      ],
+      "quest_type": "side",
+      "quest_category": "combat",
+      "chain_order": 3,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 17
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "attack",
+          "requirement_data": {
+            "attack": 6
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "quest_completed",
+          "requirement_data": {
+            "quest_name": "Undercover Operations"
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Nuka-Cola Quantum",
+            "quantity": 3
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Nuka-Cola Quantum",
+            "item_type": "consumable",
+            "rarity": "rare"
+          }
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Advanced radiation suit",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Advanced radiation suit",
+            "item_type": "outfit",
+            "rarity": "rare"
+          }
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Globe",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Globe",
+            "item_type": "junk",
+            "rarity": "rare"
+          }
+        }
+      ]
+    },
+    {
+      "quest_name": "Springing the Trap",
+      "short_description": "Get answers from the Pests lured into your trap.",
+      "long_description": "At Three Dog's advice, we spread the word that a dozen suits of Power Armor were hidden in a particular cave. The Pests took the bait and are currently inside, searching for the suits. It's time to head in there and find out what we can about Pestilence and the Pests!",
+      "requirements": [
+        "Level 18 dwellers",
+        "7+ average equipped weapon damage",
+        "Complete \"Dogs of War\" quest"
+      ],
+      "quest_objective": [
+        {
+          "title": "Discover Pestilence's identity."
+        },
+        {
+          "title": "Talk to the first group of Pests."
+        },
+        {
+          "title": "Talk to the second group of Pests."
+        }
+      ],
+      "quest_type": "side",
+      "quest_category": "combat",
+      "chain_order": 4,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 18
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "attack",
+          "requirement_data": {
+            "attack": 7
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "quest_completed",
+          "requirement_data": {
+            "quest_name": "Dogs of War"
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Legendary junk",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Legendary junk",
+            "item_type": "junk",
+            "rarity": "legendary"
+          }
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Sniper rifle",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Sniper rifle",
+            "item_type": "weapon",
+            "rarity": "rare"
+          }
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Sturdy combat armor",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Sturdy combat armor",
+            "item_type": "outfit",
+            "rarity": "rare"
+          }
+        }
+      ]
+    },
+    {
+      "quest_name": "Beat Reporting",
+      "short_description": "Visit the offices of the Weekly Exposition.",
+      "long_description": "A reporter for the Weekly Exposition newspaper, undercover as a Pest, told us about Pestilence and asked us to relay a message to his editor. He also said there are reporters hidden among the Hungry and the Warshippers, so let's go to the Exposition's offices and find out what they know!",
+      "requirements": [
+        "Level 18 dwellers",
+        "7+ average equipped weapon damage",
+        "Complete \"Springing the Trap\" quest"
+      ],
+      "quest_objective": [
+        {
+          "title": "Visit the offices of the Weekly Exposition."
+        },
+        {
+          "title": "Talk to the editor."
+        }
+      ],
+      "quest_type": "side",
+      "quest_category": "exploration",
+      "chain_order": 5,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 18
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "attack",
+          "requirement_data": {
+            "attack": 7
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "quest_completed",
+          "requirement_data": {
+            "quest_name": "Springing the Trap"
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Pet Carrier",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Pet Carrier",
+            "item_type": "pet_carrier",
+            "rarity": "common"
+          }
+        },
+        {
+          "reward_type": "CAPS",
+          "reward_data": {
+            "amount": 500
+          },
+          "reward_chance": 1.0
+        },
+        {
+          "reward_type": "CAPS",
+          "reward_data": {
+            "amount": 1300
+          },
+          "reward_chance": 1.0
+        }
+      ]
+    },
+    {
+      "quest_name": "Matters to Settle",
+      "short_description": "Save a settlement caught between the Pests and the Hungry.",
+      "long_description": "Three Dog reports that the Pests and the Hungry are about to face off right where a settlement stands! We need to stop them and save as many Settlers as possible. Also, we should be on the lookout for Weekly Exposition reporters, and use the codeword \"eagle\" after they talk about Nuka-Cola.",
+      "requirements": [
+        "Level 19 dwellers",
+        "7+ average equipped weapon damage",
+        "Complete \"Beat Reporting\" quest"
+      ],
+      "quest_objective": [
+        {
+          "title": "Search the settlement for Pests and Hungry."
+        },
+        {
+          "title": "Save the Settlers."
+        },
+        {
+          "title": "Talk to the Warshipper."
+        }
+      ],
+      "quest_type": "side",
+      "quest_category": "combat",
+      "chain_order": 6,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 19
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "attack",
+          "requirement_data": {
+            "attack": 7
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "quest_completed",
+          "requirement_data": {
+            "quest_name": "Beat Reporting"
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "LUNCHBOX",
+          "reward_data": {
+            "amount": 1
+          },
+          "reward_chance": 1.0
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Survivor armor",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Survivor armor",
+            "item_type": "outfit",
+            "rarity": "rare"
+          }
+        },
+        {
+          "reward_type": "CAPS",
+          "reward_data": {
+            "amount": 4000
+          },
+          "reward_chance": 1.0
+        }
+      ]
+    }
+  ]
+}

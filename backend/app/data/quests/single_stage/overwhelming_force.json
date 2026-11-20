@@ -1,0 +1,57 @@
+{
+  "quest_name": "Overwhelming Force",
+  "long_description": "There's no sense toying around with Raiders when we can just crush them! Send a group loaded with Power Armor out to a local Raider camp and deal with their Boss.",
+  "short_description": "Send a group of Dwellers in Power Armor to clear out a Raider camp.",
+  "requirements": [
+    "Level 23 dwellers",
+    "T-45a power armor"
+  ],
+  "quest_objective": "Kill the Raider Boss.",
+  "quest_type": "side",
+  "quest_category": "combat",
+  "duration_minutes": 60,
+  "quest_requirements": [
+    {
+      "requirement_type": "level",
+      "requirement_data": {
+        "level": 23
+      },
+      "is_mandatory": true
+    },
+    {
+      "requirement_type": "item",
+      "requirement_data": {
+        "item_name": "T-45a power armor"
+      },
+      "is_mandatory": true
+    }
+  ],
+  "quest_rewards": [
+    {
+      "reward_type": "ITEM",
+      "reward_data": {
+        "item_name": "Assault rifle",
+        "quantity": 1
+      },
+      "reward_chance": 1.0,
+      "item_data": {
+        "name": "Assault rifle",
+        "item_type": "weapon",
+        "rarity": "rare"
+      }
+    },
+    {
+      "reward_type": "ITEM",
+      "reward_data": {
+        "item_name": "Sturdy battle armor",
+        "quantity": 1
+      },
+      "reward_chance": 1.0,
+      "item_data": {
+        "name": "Sturdy battle armor",
+        "item_type": "outfit",
+        "rarity": "rare"
+      }
+    }
+  ]
+}

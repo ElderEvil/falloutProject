@@ -1,0 +1,51 @@
+{
+  "quest_name": "Shotgun Wedding",
+  "long_description": "A love-struck Raider boss has decided to get married, even though his bride-to-be wants no part of it. Save the kidnapped beauty from the clutches of her unwanted groom.",
+  "short_description": "Rescue the kidnapped Vault Dweller from the Raider Boss.",
+  "requirements": [
+    "Level 26 dwellers",
+    "11+ DAM weapons"
+  ],
+  "quest_objective": [
+    {
+      "title": "Rescue the kidnapped Vault Dweller."
+    },
+    {
+      "title": "Defeat the Raider Boss."
+    }
+  ],
+  "quest_type": "side",
+  "quest_category": "combat",
+  "duration_minutes": 60,
+  "quest_requirements": [
+    {
+      "requirement_type": "level",
+      "requirement_data": {
+        "level": 26
+      },
+      "is_mandatory": true
+    },
+    {
+      "requirement_type": "attack",
+      "requirement_data": {
+        "attack": 11
+      },
+      "is_mandatory": true
+    }
+  ],
+  "quest_rewards": [
+    {
+      "reward_type": "ITEM",
+      "reward_data": {
+        "item_name": "Wedding dress",
+        "quantity": 1
+      },
+      "reward_chance": 1.0,
+      "item_data": {
+        "name": "Wedding dress",
+        "item_type": "outfit",
+        "rarity": "rare"
+      }
+    }
+  ]
+}

@@ -1,0 +1,282 @@
+{
+  "title": "Vault-Tec Saves Christmas!",
+  "chain_id": "vault_tec_saves_christmas",
+  "chain_name": "Vault-Tec Saves Christmas!",
+  "chain_description": "Santa has gone missing, and the only way to bring him back is to spread Christmas cheer across the Wasteland.",
+  "quests": [
+    {
+      "quest_name": "Santa's Helpers",
+      "long_description": "Santa's gone missing, and we can only bring him back by spreading some Christmas cheer!",
+      "short_description": "Spread Christmas cheer!",
+      "requirements": [
+        "Level 8 dwellers",
+        "3+ average equipped weapon damage"
+      ],
+      "quest_objective": [
+        {
+          "title": "Speak to Overseer Nicholas."
+        },
+        {
+          "title": "Talk to the Dwellers."
+        },
+        {
+          "title": "Talk to the Dwellers."
+        }
+      ],
+      "quest_type": "event",
+      "quest_category": "exploration",
+      "chain_order": 1,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 8
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "attack",
+          "requirement_data": {
+            "attack": 3
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "LUNCHBOX",
+          "reward_data": {
+            "amount": 1
+          },
+          "reward_chance": 1.0
+        }
+      ]
+    },
+    {
+      "quest_name": "Christmas at the Raider Camp",
+      "long_description": "Yes, even Raiders need a little Holiday spirit!",
+      "short_description": "Spread Christmas cheer!",
+      "requirements": [
+        "Level 9 dwellers",
+        "3+ average equipped weapon damage",
+        "Complete \"Santa's Helpers\" quest"
+      ],
+      "quest_objective": [
+        {
+          "title": "Speak to Boss McScrooge."
+        },
+        {
+          "title": "Talk to the Raiders."
+        },
+        {
+          "title": "Talk to the Raiders."
+        }
+      ],
+      "quest_type": "event",
+      "quest_category": "exploration",
+      "chain_order": 2,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 9
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "attack",
+          "requirement_data": {
+            "attack": 3
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "quest_completed",
+          "requirement_data": {
+            "quest_name": "Santa's Helpers"
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Combat shotgun",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Combat shotgun",
+            "item_type": "weapon",
+            "rarity": "rare"
+          }
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Elf outfit",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Elf outfit",
+            "item_type": "outfit",
+            "rarity": "rare"
+          }
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Rare junk",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Rare junk",
+            "item_type": "junk",
+            "rarity": "rare"
+          }
+        }
+      ]
+    },
+    {
+      "quest_name": "Cheer for the Ghouls",
+      "long_description": "Everyone forgets those poor Ghouls need holiday cheer, too!",
+      "short_description": "Spread Christmas cheer!",
+      "requirements": [
+        "Level 10 dwellers",
+        "3+ average equipped weapon damage",
+        "Complete \"Christmas at the Raider Camp\" quest"
+      ],
+      "quest_objective": [
+        {
+          "title": "Speak to the Ghoul Leader."
+        },
+        {
+          "title": "Talk to the Ghouls."
+        },
+        {
+          "title": "Talk to the Ghouls."
+        }
+      ],
+      "quest_type": "event",
+      "quest_category": "exploration",
+      "chain_order": 3,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 10
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "attack",
+          "requirement_data": {
+            "attack": 3
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "quest_completed",
+          "requirement_data": {
+            "quest_name": "Christmas at the Raider Camp"
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "LUNCHBOX",
+          "reward_data": {
+            "amount": 1
+          },
+          "reward_chance": 1.0
+        }
+      ]
+    },
+    {
+      "quest_name": "Rescue Santa!",
+      "long_description": "While we were spreading Christmas cheer, someone managed to track down Santa Claus. He's in trouble. Let's go!",
+      "short_description": "Find and save Santa Claus.",
+      "requirements": [
+        "Level 11 dwellers",
+        "4+ average equipped weapon damage",
+        "Complete \"Cheer for the Ghouls\" quest"
+      ],
+      "quest_objective": "Rescue Santa!",
+      "quest_type": "event",
+      "quest_category": "combat",
+      "chain_order": 4,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 11
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "attack",
+          "requirement_data": {
+            "attack": 4
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "quest_completed",
+          "requirement_data": {
+            "quest_name": "Cheer for the Ghouls"
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Original Santa suit",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Original Santa suit",
+            "item_type": "outfit",
+            "rarity": "legendary"
+          }
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Laser rifle",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Laser rifle",
+            "item_type": "weapon",
+            "rarity": "rare"
+          }
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Santa suit",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Santa suit",
+            "item_type": "outfit",
+            "rarity": "rare"
+          }
+        }
+      ]
+    }
+  ]
+}

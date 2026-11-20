@@ -1,0 +1,456 @@
+{
+  "title": "Horsemen of the Post-Apocalypse Part 2",
+  "chain_id": "horsemen_post_apocalypse_part_2",
+  "chain_name": "Horsemen of the Post-Apocalypse Part 2",
+  "chain_description": "War offers a truce, and the trail leads to Vault 144 and the cult of Death. Uncover the fourth Horseman's secret before his followers wake him.",
+  "quests": [
+    {
+      "quest_name": "Parley Time",
+      "short_description": "Meet with War, who invited you to talk.",
+      "long_description": "The Horseman, War, has invited us to discuss matters of common interest. His messenger told us the Warshippers would try to kill us, but it's worth the risk to find out what he wants! Also, we should be on the lookout for Weekly Exposition reporters, and use the codeword \"eagle\" after they talk about Nuka-Cola.",
+      "requirements": [
+        "Level 20 dwellers",
+        "7+ average equipped weapon damage"
+      ],
+      "quest_objective": "Talk to War.",
+      "quest_type": "side",
+      "quest_category": "exploration",
+      "chain_order": 1,
+      "duration_minutes": 240,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 20
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "attack",
+          "requirement_data": {
+            "attack": 7
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Military duct tape",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Military duct tape",
+            "item_type": "junk",
+            "rarity": "legendary"
+          }
+        },
+        {
+          "reward_type": "CAPS",
+          "reward_data": {
+            "amount": 1800
+          },
+          "reward_chance": 1.0
+        }
+      ]
+    },
+    {
+      "quest_name": "Crime Scene Investigation",
+      "short_description": "Search for clues about Death in Vault 672.",
+      "long_description": "Huzzah! We now have a truce with War until the other Horsemen are dealt with! To that end, War claims that the servants of Death attacked Vault 672. So we're off to investigate and look for any clues they may have left behind...",
+      "requirements": [
+        "Level 21 dwellers",
+        "8+ average equipped weapon damage",
+        "Complete \"Parley Time\" quest"
+      ],
+      "quest_objective": "Search for clues about Death.",
+      "quest_type": "side",
+      "quest_category": "exploration",
+      "chain_order": 2,
+      "duration_minutes": 240,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 21
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "attack",
+          "requirement_data": {
+            "attack": 8
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "quest_completed",
+          "requirement_data": {
+            "quest_name": "Parley Time"
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Nuka-Cola Quantum",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Nuka-Cola Quantum",
+            "item_type": "consumable",
+            "rarity": "rare"
+          }
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Laser rifle",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Laser rifle",
+            "item_type": "weapon",
+            "rarity": "rare"
+          }
+        },
+        {
+          "reward_type": "CAPS",
+          "reward_data": {
+            "amount": 2000
+          },
+          "reward_chance": 1.0
+        }
+      ]
+    },
+    {
+      "quest_name": "Death Revealed?",
+      "short_description": "Learn the truth about Death from the Overseer of Vault 144!",
+      "long_description": "In Vault 672, we met Dwellers from Vault 144 who are familiar with Death, the mysterious fourth Horseman. As promised, their Overseer contacted us and set up a meeting where she'll tell us what she can! But she doesn't want to reveal the location of her Vault, so we'll be joining her in an abandoned building...",
+      "requirements": [
+        "Level 22 dwellers",
+        "8+ average equipped weapon damage",
+        "Complete \"Crime Scene Investigation\" quest"
+      ],
+      "quest_objective": [
+        {
+          "title": "Talk to the Overseer of Vault 144."
+        },
+        {
+          "title": "Listen to Three Dog's broadcast."
+        }
+      ],
+      "quest_type": "side",
+      "quest_category": "exploration",
+      "chain_order": 3,
+      "duration_minutes": 240,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 22
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "attack",
+          "requirement_data": {
+            "attack": 8
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "quest_completed",
+          "requirement_data": {
+            "quest_name": "Crime Scene Investigation"
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "LUNCHBOX",
+          "reward_data": {
+            "amount": 1
+          },
+          "reward_chance": 1.0
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Nuka-Cola Quantum",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Nuka-Cola Quantum",
+            "item_type": "consumable",
+            "rarity": "rare"
+          }
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Sturdy vault suit",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Sturdy vault suit",
+            "item_type": "outfit",
+            "rarity": "rare"
+          }
+        }
+      ]
+    },
+    {
+      "quest_name": "Give me Liberty and/or Death",
+      "short_description": "Discover the location of Vault 144, home of the Death cultists.",
+      "long_description": "It was a trap! Whoever Death is, he's sleeping... and the Vault 144 Dwellers believe that killing people will wake the Horseman up! We killed their Overseer, but we still need to find their Vault. If we're lucky, the Vault-Tec Archives will have its location...",
+      "requirements": [
+        "Level 23 dwellers",
+        "9+ average equipped weapon damage",
+        "Complete \"Death Revealed?\" quest"
+      ],
+      "quest_objective": "Discover the location of Vault 144.",
+      "quest_type": "side",
+      "quest_category": "exploration",
+      "chain_order": 4,
+      "duration_minutes": 240,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 23
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "attack",
+          "requirement_data": {
+            "attack": 9
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "quest_completed",
+          "requirement_data": {
+            "quest_name": "Death Revealed?"
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Nuka-Cola Quantum",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Nuka-Cola Quantum",
+            "item_type": "consumable",
+            "rarity": "rare"
+          }
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Death's jacket",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Death's jacket",
+            "item_type": "outfit",
+            "rarity": "legendary"
+          }
+        },
+        {
+          "reward_type": "CAPS",
+          "reward_data": {
+            "amount": 2300
+          },
+          "reward_chance": 1.0
+        }
+      ]
+    },
+    {
+      "quest_name": "Operation: Sandman",
+      "short_description": "Infiltrate Vault 144 to stop the Dwellers from waking Death.",
+      "long_description": "Despite the best efforts of the Vault 144 Dwellers, we discovered the location of their home and that they only worship Death because \"Death\" was incorrectly capitalized in their Vault's instruction manual! We must now infiltrate Vault 144 and stop them from waking Death...",
+      "requirements": [
+        "Level 24 dwellers",
+        "9+ average equipped weapon damage",
+        "Armored vault suit",
+        "Complete \"Give me Liberty and/or Death\" quest"
+      ],
+      "quest_objective": "Stop the Vault 144 Death cultists.",
+      "quest_type": "side",
+      "quest_category": "combat",
+      "chain_order": 5,
+      "duration_minutes": 240,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 24
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "attack",
+          "requirement_data": {
+            "attack": 9
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "item",
+          "requirement_data": {
+            "item_name": "Armored vault suit"
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "quest_completed",
+          "requirement_data": {
+            "quest_name": "Give me Liberty and/or Death"
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Nuka-Cola Quantum",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Nuka-Cola Quantum",
+            "item_type": "consumable",
+            "rarity": "rare"
+          }
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Legendary junk",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Legendary junk",
+            "item_type": "junk",
+            "rarity": "legendary"
+          }
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Plasma rifle",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Plasma rifle",
+            "item_type": "weapon",
+            "rarity": "legendary"
+          }
+        }
+      ]
+    },
+    {
+      "quest_name": "Release the Raiders!",
+      "short_description": "Get the Warshippers to look for Death's cave.",
+      "long_description": "Death wasn't in Vault 144. He's in a cave somewhere, and Vault 144 Dwellers are still out there trying to wake him up. It's time to meet back up with War to give him a status report! And while we're at it, we can keep the Warshippers out of trouble by asking them to find the cave...",
+      "requirements": [
+        "Level 25 dwellers",
+        "9+ average equipped weapon damage",
+        "Complete \"Operation: Sandman\" quest"
+      ],
+      "quest_objective": [
+        {
+          "title": "Search the building for Warshippers and Pests."
+        },
+        {
+          "title": "Listen to Three Dog's broadcast."
+        },
+        {
+          "title": "Talk to War."
+        }
+      ],
+      "quest_type": "side",
+      "quest_category": "combat",
+      "chain_order": 6,
+      "duration_minutes": 240,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 25
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "attack",
+          "requirement_data": {
+            "attack": 9
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "quest_completed",
+          "requirement_data": {
+            "quest_name": "Operation: Sandman"
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Pet Carrier",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Pet Carrier",
+            "item_type": "pet_carrier",
+            "rarity": "common"
+          }
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Nuka-Cola Quantum",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Nuka-Cola Quantum",
+            "item_type": "consumable",
+            "rarity": "rare"
+          }
+        },
+        {
+          "reward_type": "CAPS",
+          "reward_data": {
+            "amount": 500
+          },
+          "reward_chance": 1.0
+        }
+      ]
+    }
+  ]
+}

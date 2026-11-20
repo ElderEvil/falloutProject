@@ -1,0 +1,38 @@
+{
+  "quest_name": "Firestarter",
+  "long_description": "One of your Dwellers is a serial arsonist. We've decided to employ their talents outside the Vault.",
+  "short_description": "Send a lone Vault Dweller with a Flamethrower out to wreak havoc!",
+  "requirements": [
+    "Level 32 dwellers",
+    "Flamer"
+  ],
+  "quest_objective": "Kill the Raider Boss.",
+  "quest_type": "side",
+  "quest_category": "combat",
+  "duration_minutes": 60,
+  "quest_requirements": [
+    {
+      "requirement_type": "level",
+      "requirement_data": {
+        "level": 32
+      },
+      "is_mandatory": true
+    },
+    {
+      "requirement_type": "item",
+      "requirement_data": {
+        "item_name": "Flamer"
+      },
+      "is_mandatory": true
+    }
+  ],
+  "quest_rewards": [
+    {
+      "reward_type": "CAPS",
+      "reward_data": {
+        "amount": 5000
+      },
+      "reward_chance": 1.0
+    }
+  ]
+}

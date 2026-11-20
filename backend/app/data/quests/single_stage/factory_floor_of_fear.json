@@ -1,0 +1,58 @@
+{
+  "quest_name": "Factory Floor of Fear",
+  "long_description": "While exploring, Dwellers found a note warning everyone to stay away from an old industrial complex. If folks have kept clear, it might still hold something useful.",
+  "short_description": "Explore a dangerous industrial area.",
+  "requirements": [
+    "Level 40 dwellers",
+    "17+ DAM weapons"
+  ],
+  "quest_objective": "Explore the industrial complex.",
+  "quest_type": "side",
+  "quest_category": "exploration",
+  "duration_minutes": 60,
+  "quest_requirements": [
+    {
+      "requirement_type": "level",
+      "requirement_data": {
+        "level": 40
+      },
+      "is_mandatory": true
+    },
+    {
+      "requirement_type": "attack",
+      "requirement_data": {
+        "attack": 17
+      },
+      "is_mandatory": true
+    }
+  ],
+  "quest_rewards": [
+    {
+      "reward_type": "ITEM",
+      "reward_data": {
+        "item_name": "Pet Carrier",
+        "quantity": 1
+      },
+      "reward_chance": 1.0,
+      "item_data": {
+        "name": "Pet Carrier",
+        "item_type": "pet_carrier",
+        "rarity": "common"
+      }
+    },
+    {
+      "reward_type": "LUNCHBOX",
+      "reward_data": {
+        "amount": 1
+      },
+      "reward_chance": 1.0
+    },
+    {
+      "reward_type": "CAPS",
+      "reward_data": {
+        "amount": 100000
+      },
+      "reward_chance": 1.0
+    }
+  ]
+}

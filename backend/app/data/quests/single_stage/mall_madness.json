@@ -1,0 +1,51 @@
+{
+  "quest_name": "Mall Madness",
+  "long_description": "Who knew shopping could be so dangerous?",
+  "short_description": "The mall has been overrun!",
+  "requirements": [
+    "Level 25 dwellers",
+    "10+ DAM weapons"
+  ],
+  "quest_objective": "Kill the Glowing One.",
+  "quest_type": "side",
+  "quest_category": "combat",
+  "duration_minutes": 60,
+  "quest_requirements": [
+    {
+      "requirement_type": "level",
+      "requirement_data": {
+        "level": 25
+      },
+      "is_mandatory": true
+    },
+    {
+      "requirement_type": "attack",
+      "requirement_data": {
+        "attack": 10
+      },
+      "is_mandatory": true
+    }
+  ],
+  "quest_rewards": [
+    {
+      "reward_type": "ITEM",
+      "reward_data": {
+        "item_name": "Nuka-Cola Quantum",
+        "quantity": 2
+      },
+      "reward_chance": 1.0,
+      "item_data": {
+        "name": "Nuka-Cola Quantum",
+        "item_type": "consumable",
+        "rarity": "common"
+      }
+    },
+    {
+      "reward_type": "CAPS",
+      "reward_data": {
+        "amount": 4000
+      },
+      "reward_chance": 1.0
+    }
+  ]
+}

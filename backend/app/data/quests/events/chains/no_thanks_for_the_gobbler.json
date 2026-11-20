@@ -1,0 +1,199 @@
+{
+  "title": "No Thanks for the Gobbler!",
+  "chain_id": "no_thanks_for_the_gobbler",
+  "chain_name": "No Thanks for the Gobbler!",
+  "chain_description": "A Thanksgiving creature called the Gobbler is terrorizing the Wasteland, and its trail of snack cakes leads straight to Vault 261.",
+  "quests": [
+    {
+      "quest_name": "Gobble Gobbler!",
+      "long_description": "Reports are coming in from all over the Wasteland of a frightening creature known only as the Gobbler. We have to investigate!",
+      "short_description": "Investigate sightings of the Gobbler.",
+      "requirements": [
+        "Level 7 dwellers",
+        "2+ average equipped weapon damage"
+      ],
+      "quest_objective": "Find out more about the Gobbler.",
+      "quest_type": "event",
+      "quest_category": "exploration",
+      "chain_order": 1,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 7
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "attack",
+          "requirement_data": {
+            "attack": 2
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "LUNCHBOX",
+          "reward_data": {
+            "amount": 1
+          },
+          "reward_chance": 1.0
+        }
+      ]
+    },
+    {
+      "quest_name": "A Delicious Trail of Danger!",
+      "long_description": "We've followed the Gobbler's trail of snack cakes to the Blamco factory.",
+      "short_description": "Follow the Gobbler's trail to the Blamco factory.",
+      "requirements": [
+        "Level 8 dwellers",
+        "3+ average equipped weapon damage",
+        "Complete \"Gobble Gobbler!\" quest"
+      ],
+      "quest_objective": "Continue tracking down the Gobbler.",
+      "quest_type": "event",
+      "quest_category": "exploration",
+      "chain_order": 2,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 8
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "attack",
+          "requirement_data": {
+            "attack": 3
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "quest_completed",
+          "requirement_data": {
+            "quest_name": "Gobble Gobbler!"
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Pilgrim outfit",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Pilgrim outfit",
+            "item_type": "outfit",
+            "rarity": "rare"
+          }
+        },
+        {
+          "reward_type": "CAPS",
+          "reward_data": {
+            "amount": 1200
+          },
+          "reward_chance": 1.0
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Rare junk",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Rare junk",
+            "item_type": "junk",
+            "rarity": "rare"
+          }
+        }
+      ]
+    },
+    {
+      "quest_name": "The Last Gobble!",
+      "long_description": "We've followed the Gobbler's trail of cranberry sauce to Vault 261. Now it's time to end this!",
+      "short_description": "Time to finally put an end to the Gobbler!",
+      "requirements": [
+        "Level 9 dwellers",
+        "3+ average equipped weapon damage",
+        "Complete \"A Delicious Trail of Danger!\" quest"
+      ],
+      "quest_objective": "Kill the Gobbler!",
+      "quest_type": "event",
+      "quest_category": "combat",
+      "chain_order": 3,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 9
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "attack",
+          "requirement_data": {
+            "attack": 3
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "quest_completed",
+          "requirement_data": {
+            "quest_name": "A Delicious Trail of Danger!"
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "St. Bernard",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "St. Bernard",
+            "item_type": "pet",
+            "rarity": "rare"
+          }
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Double-barrel shotgun",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Double-barrel shotgun",
+            "item_type": "weapon",
+            "rarity": "rare"
+          }
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Lab coat",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Lab coat",
+            "item_type": "outfit",
+            "rarity": "common"
+          }
+        }
+      ]
+    }
+  ]
+}

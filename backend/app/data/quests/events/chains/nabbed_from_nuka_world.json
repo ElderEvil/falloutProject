@@ -1,0 +1,318 @@
+{
+  "title": "Nabbed from Nuka-World",
+  "chain_id": "nabbed_from_nuka_world",
+  "chain_name": "Nabbed from Nuka-World",
+  "chain_description": "Bottle & Cappy have been kidnapped from Nuka-World. Follow the trail across the wasteland and bring the mascots home.",
+  "quests": [
+    {
+      "quest_name": "Bottlecap Blues",
+      "short_description": "Track down Bottle & Cappy's kidnappers.",
+      "long_description": "Bottle & Cappy have been kidnapped from Nuka-World by Raiders! They were last spotted at an abandoned factory. Head out there and rescue them before it's too late!",
+      "requirements": [
+        "Level 12 dwellers",
+        "4+ average equipped weapon damage"
+      ],
+      "quest_objective": "Find any trace of Bottle & Cappy at the abandoned factory.",
+      "quest_type": "event",
+      "quest_category": "exploration",
+      "chain_order": 1,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 12
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "attack",
+          "requirement_data": {
+            "attack": 4
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Pipe pistol",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Pipe pistol",
+            "item_type": "weapon",
+            "rarity": "common"
+          }
+        }
+      ]
+    },
+    {
+      "quest_name": "In Hot Pursuit",
+      "short_description": "Pursue Bottle & Cappy's kidnappers.",
+      "long_description": "A helpful survivor who escaped from the Raiders suggested I search Vault 177 for Bottle & Cappy. If I hurry, I might be able to catch up with them.",
+      "requirements": [
+        "Level 13 dwellers",
+        "5+ average equipped weapon damage",
+        "Complete \"Bottlecap Blues\" quest"
+      ],
+      "quest_objective": "Search Vault 177 for any sign of Bottle & Cappy.",
+      "quest_type": "event",
+      "quest_category": "exploration",
+      "chain_order": 2,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 13
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "attack",
+          "requirement_data": {
+            "attack": 5
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "quest_completed",
+          "requirement_data": {
+            "quest_name": "Bottlecap Blues"
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Nuka-Cola Quantum",
+            "quantity": 2
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Nuka-Cola Quantum",
+            "item_type": "consumable",
+            "rarity": "common"
+          }
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Rare junk",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Rare junk",
+            "item_type": "junk",
+            "rarity": "rare"
+          }
+        }
+      ]
+    },
+    {
+      "quest_name": "Playing Catch-up",
+      "short_description": "Pursue Bottle & Cappy's kidnappers.",
+      "long_description": "The Raider Boss at Vault 177 boasted that they took Bottle & Cappy to the Poseidon Energy office. I hope she was telling the truth.",
+      "requirements": [
+        "Level 14 dwellers",
+        "5+ average equipped weapon damage",
+        "Complete \"In Hot Pursuit\" quest"
+      ],
+      "quest_objective": "Search Poseidon Energy's offices for any sign of Bottle & Cappy.",
+      "quest_type": "event",
+      "quest_category": "exploration",
+      "chain_order": 3,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 14
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "attack",
+          "requirement_data": {
+            "attack": 5
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "quest_completed",
+          "requirement_data": {
+            "quest_name": "In Hot Pursuit"
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Assault rifle",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Assault rifle",
+            "item_type": "weapon",
+            "rarity": "rare"
+          }
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Common junk",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Common junk",
+            "item_type": "junk",
+            "rarity": "common"
+          }
+        },
+        {
+          "reward_type": "CAPS",
+          "reward_data": {
+            "amount": 402
+          },
+          "reward_chance": 1.0
+        }
+      ]
+    },
+    {
+      "quest_name": "Pet Peeve",
+      "short_description": "Pursue Bottle & Cappy's kidnappers.",
+      "long_description": "I found out from the Ghouls living in the Poseidon Energy Offices that Bottle & Cappy may have been taken to the RobCo Building. Looks like that's my next stop.",
+      "requirements": [
+        "Level 15 dwellers",
+        "6+ average equipped weapon damage",
+        "Complete \"Playing Catch-up\" quest"
+      ],
+      "quest_objective": "Search the RobCo Building for any sign of Bottle & Cappy.",
+      "quest_type": "event",
+      "quest_category": "exploration",
+      "chain_order": 4,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 15
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "attack",
+          "requirement_data": {
+            "attack": 6
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "quest_completed",
+          "requirement_data": {
+            "quest_name": "Playing Catch-up"
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Advanced radiation suit",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Advanced radiation suit",
+            "item_type": "outfit",
+            "rarity": "rare"
+          }
+        }
+      ]
+    },
+    {
+      "quest_name": "A Refreshing Rescue",
+      "short_description": "Rescue Bottle & Cappy from the Nuka-Cola Factory.",
+      "long_description": "A stranger at the RobCo Building told me the raiders took Bottle & Cappy to the Nuka-Cola Factory. I have a feeling I'll finally catch up to them this time.",
+      "requirements": [
+        "Level 16 dwellers",
+        "6+ average equipped weapon damage",
+        "Complete \"Pet Peeve\" quest"
+      ],
+      "quest_objective": "Rescue Bottle & Cappy from the Raiders!",
+      "quest_type": "event",
+      "quest_category": "combat",
+      "chain_order": 5,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 16
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "attack",
+          "requirement_data": {
+            "attack": 6
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "quest_completed",
+          "requirement_data": {
+            "quest_name": "Pet Peeve"
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "CAPS",
+          "reward_data": {
+            "amount": 500
+          },
+          "reward_chance": 1.0
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Nuka-Cola Quantum",
+            "quantity": 2
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Nuka-Cola Quantum",
+            "item_type": "consumable",
+            "rarity": "common"
+          }
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Rare junk",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Rare junk",
+            "item_type": "junk",
+            "rarity": "rare"
+          }
+        }
+      ]
+    }
+  ]
+}

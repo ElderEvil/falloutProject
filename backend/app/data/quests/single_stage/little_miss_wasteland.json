@@ -1,0 +1,75 @@
+{
+  "quest_name": "Little Miss Wasteland",
+  "long_description": "Great news! We've been invited to participate in the Miss Wasteland pageant, which - in spite of its name - is open to men and women. Put on your nicest looking swimsuit and knock 'em dead!",
+  "short_description": "Compete in the Wasteland's most prestigious pageant.",
+  "requirements": [
+    "Level 22 dwellers",
+    "Swimsuit"
+  ],
+  "quest_objective": [
+    {
+      "title": "Place in the top three positions."
+    },
+    {
+      "title": "Complete the quiz portion."
+    },
+    {
+      "title": "Complete the shooting competition."
+    }
+  ],
+  "quest_type": "side",
+  "quest_category": "exploration",
+  "duration_minutes": 60,
+  "quest_requirements": [
+    {
+      "requirement_type": "level",
+      "requirement_data": {
+        "level": 22
+      },
+      "is_mandatory": true
+    },
+    {
+      "requirement_type": "item",
+      "requirement_data": {
+        "item_name": "Swimsuit",
+        "count": 1
+      },
+      "is_mandatory": true
+    }
+  ],
+  "quest_rewards": [
+    {
+      "reward_type": "ITEM",
+      "reward_data": {
+        "item_name": "Nuka-Cola Quantum",
+        "quantity": 1
+      },
+      "reward_chance": 1.0,
+      "item_data": {
+        "name": "Nuka-Cola Quantum",
+        "item_type": "consumable",
+        "rarity": "common"
+      }
+    },
+    {
+      "reward_type": "ITEM",
+      "reward_data": {
+        "item_name": "Legendary junk",
+        "quantity": 1
+      },
+      "reward_chance": 1.0,
+      "item_data": {
+        "name": "Legendary junk",
+        "item_type": "junk",
+        "rarity": "legendary"
+      }
+    },
+    {
+      "reward_type": "CAPS",
+      "reward_data": {
+        "amount": 2000
+      },
+      "reward_chance": 1.0
+    }
+  ]
+}

@@ -1,0 +1,65 @@
+{
+  "quest_name": "Take Me out to the Ball Game",
+  "long_description": "Slugger the Raider is hosting a baseball game, but he forgot to invite you. Time to throw him out at home plate.",
+  "short_description": "Beat Slugger the Raider at his own game.",
+  "requirements": [
+    "Level 15 dwellers",
+    "Baseball bat"
+  ],
+  "quest_objective": "Defeat Slugger.",
+  "quest_type": "side",
+  "quest_category": "combat",
+  "duration_minutes": 60,
+  "quest_requirements": [
+    {
+      "requirement_type": "level",
+      "requirement_data": {
+        "level": 15
+      },
+      "is_mandatory": true
+    },
+    {
+      "requirement_type": "item",
+      "requirement_data": {
+        "item_name": "Baseball bat",
+        "count": 1
+      },
+      "is_mandatory": true
+    }
+  ],
+  "quest_rewards": [
+    {
+      "reward_type": "ITEM",
+      "reward_data": {
+        "item_name": "Rare junk",
+        "quantity": 1
+      },
+      "reward_chance": 1.0,
+      "item_data": {
+        "name": "Rare junk",
+        "item_type": "junk",
+        "rarity": "rare"
+      }
+    },
+    {
+      "reward_type": "ITEM",
+      "reward_data": {
+        "item_name": "10mm pistol",
+        "quantity": 1
+      },
+      "reward_chance": 1.0,
+      "item_data": {
+        "name": "10mm pistol",
+        "item_type": "weapon",
+        "rarity": "common"
+      }
+    },
+    {
+      "reward_type": "CAPS",
+      "reward_data": {
+        "amount": 250
+      },
+      "reward_chance": 1.0
+    }
+  ]
+}

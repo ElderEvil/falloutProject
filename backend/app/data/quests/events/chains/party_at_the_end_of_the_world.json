@@ -1,0 +1,606 @@
+{
+  "title": "The Party at the End of the World",
+  "chain_id": "party_at_the_end_of_the_world",
+  "chain_name": "The Party at the End of the World",
+  "chain_description": "The morning after a wild New Year's party, the Overseer's son Jack is missing. Follow a trail of bad decisions across the Wasteland to bring him home.",
+  "quests": [
+    {
+      "quest_name": "Blackout",
+      "long_description": "It's New Year's day... and the Vault threw one heck of a party last night. But the Overseer's son, Jack, is missing and we need to find him! We know he was with us before the clock struck 12, but everything afterwards is a blur. And we're all wearing Radiation Suits. We must have been at the Corvega Auto Plant at some point...",
+      "short_description": "The Overseer's son, Jack, is missing after a crazy New Year's party!",
+      "requirements": [
+        "Level 10 dwellers",
+        "4+ average equipped weapon damage",
+        "Radiation suit"
+      ],
+      "quest_objective": "Search for Jack in the Corvega Auto Plant.",
+      "quest_type": "event",
+      "quest_category": "exploration",
+      "chain_order": 1,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 10
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "attack",
+          "requirement_data": {
+            "attack": 4
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "item",
+          "requirement_data": {
+            "item_name": "Radiation suit"
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "CAPS",
+          "reward_data": {
+            "amount": 1500
+          },
+          "reward_chance": 1.0
+        },
+        {
+          "reward_type": "STIMPAK",
+          "reward_data": {
+            "amount": 2
+          },
+          "reward_chance": 1.0
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Legendary junk",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Legendary junk",
+            "item_type": "junk",
+            "rarity": "legendary"
+          }
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Swing dress",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Swing dress",
+            "item_type": "outfit",
+            "rarity": "rare"
+          }
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Nuka-Cola Quantum",
+            "quantity": 2
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Nuka-Cola Quantum",
+            "item_type": "consumable",
+            "rarity": "common"
+          }
+        }
+      ]
+    },
+    {
+      "quest_name": "A Special Brand",
+      "long_description": "Last night, we ended up partying with Raiders at an old Warehouse. We should search there for clues to Jack's whereabouts. He's the Overseer's son, after all. If we lose him, we'll end up getting kicked out of the Vault with nothing on our backs... or worse!",
+      "short_description": "We were partying at an old Warehouse! Maybe there are clues there...",
+      "requirements": [
+        "Level 12 dwellers",
+        "5+ average equipped weapon damage",
+        "Complete \"Blackout\" quest"
+      ],
+      "quest_objective": "Find out if the Raiders know what happened to Jack.",
+      "quest_type": "event",
+      "quest_category": "exploration",
+      "chain_order": 2,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 12
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "attack",
+          "requirement_data": {
+            "attack": 5
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "quest_completed",
+          "requirement_data": {
+            "quest_name": "Blackout"
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Pet Carrier",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Pet Carrier",
+            "item_type": "pet_carrier",
+            "rarity": "common"
+          }
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Greaser outfit",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Greaser outfit",
+            "item_type": "outfit",
+            "rarity": "rare"
+          }
+        },
+        {
+          "reward_type": "STIMPAK",
+          "reward_data": {
+            "amount": 4
+          },
+          "reward_chance": 1.0
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Legendary junk",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Legendary junk",
+            "item_type": "junk",
+            "rarity": "legendary"
+          }
+        },
+        {
+          "reward_type": "CAPS",
+          "reward_data": {
+            "amount": 1200
+          },
+          "reward_chance": 1.0
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Pipe rifle",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Pipe rifle",
+            "item_type": "weapon",
+            "rarity": "rare"
+          }
+        }
+      ]
+    },
+    {
+      "quest_name": "Walk of Shame",
+      "long_description": "I guess we traded Jack for a pet, or Jack traded himself, or something! But he ended up married to a Raider Boss named Kaela who hangs out in a cave...",
+      "short_description": "Jack may still be alive at the Ironworks - but he's married to a Raider?",
+      "requirements": [
+        "Level 14 dwellers",
+        "5+ average equipped weapon damage",
+        "Complete \"A Special Brand\" quest"
+      ],
+      "quest_objective": "Find Kaela the Raider Boss.",
+      "quest_type": "event",
+      "quest_category": "combat",
+      "chain_order": 3,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 14
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "attack",
+          "requirement_data": {
+            "attack": 5
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "quest_completed",
+          "requirement_data": {
+            "quest_name": "A Special Brand"
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Action wedding dress",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Action wedding dress",
+            "item_type": "outfit",
+            "rarity": "rare"
+          }
+        },
+        {
+          "reward_type": "STIMPAK",
+          "reward_data": {
+            "amount": 2
+          },
+          "reward_chance": 1.0
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Nuka-Cola Quantum",
+            "quantity": 2
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Nuka-Cola Quantum",
+            "item_type": "consumable",
+            "rarity": "common"
+          }
+        },
+        {
+          "reward_type": "CAPS",
+          "reward_data": {
+            "amount": 1850
+          },
+          "reward_chance": 1.0
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Combat shotgun",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Combat shotgun",
+            "item_type": "weapon",
+            "rarity": "rare"
+          }
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Rare junk",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Rare junk",
+            "item_type": "junk",
+            "rarity": "rare"
+          }
+        },
+        {
+          "reward_type": "RADAWAY",
+          "reward_data": {
+            "amount": 3
+          },
+          "reward_chance": 1.0
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Legendary junk",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Legendary junk",
+            "item_type": "junk",
+            "rarity": "legendary"
+          }
+        }
+      ]
+    },
+    {
+      "quest_name": "Jack Ain't Back",
+      "long_description": "The Overseer's son got married to a Raider, but she sold him to Slavers! We have to catch them before they disappear west!",
+      "short_description": "First married, then sold to Slavers... Can we get to Jack in time?",
+      "requirements": [
+        "Level 16 dwellers",
+        "6+ average equipped weapon damage",
+        "Complete \"Walk of Shame\" quest"
+      ],
+      "quest_objective": "Find Jack!",
+      "quest_type": "event",
+      "quest_category": "exploration",
+      "chain_order": 4,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 16
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "attack",
+          "requirement_data": {
+            "attack": 6
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "quest_completed",
+          "requirement_data": {
+            "quest_name": "Walk of Shame"
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Sniper rifle",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Sniper rifle",
+            "item_type": "weapon",
+            "rarity": "rare"
+          }
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Nuka-Cola Quantum",
+            "quantity": 3
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Nuka-Cola Quantum",
+            "item_type": "consumable",
+            "rarity": "common"
+          }
+        },
+        {
+          "reward_type": "CAPS",
+          "reward_data": {
+            "amount": 1500
+          },
+          "reward_chance": 1.0
+        }
+      ]
+    },
+    {
+      "quest_name": "Human Bean Juice",
+      "long_description": "Jack's been through the ringer - and now he might get turned into dinner! Slavers sold him to a Potted Meat plant. We need to head there!",
+      "short_description": "Find Jack before he gets processed into dinner!",
+      "requirements": [
+        "Level 18 dwellers",
+        "7+ average equipped weapon damage",
+        "Complete \"Jack Ain't Back\" quest"
+      ],
+      "quest_objective": "Find Jack before he gets processed into dinner!",
+      "quest_type": "event",
+      "quest_category": "exploration",
+      "chain_order": 5,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 18
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "attack",
+          "requirement_data": {
+            "attack": 7
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "quest_completed",
+          "requirement_data": {
+            "quest_name": "Jack Ain't Back"
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Wasteland doctor",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Wasteland doctor",
+            "item_type": "outfit",
+            "rarity": "rare"
+          }
+        },
+        {
+          "reward_type": "STIMPAK",
+          "reward_data": {
+            "amount": 2
+          },
+          "reward_chance": 1.0
+        },
+        {
+          "reward_type": "RADAWAY",
+          "reward_data": {
+            "amount": 6
+          },
+          "reward_chance": 1.0
+        },
+        {
+          "reward_type": "CAPS",
+          "reward_data": {
+            "amount": 2150
+          },
+          "reward_chance": 1.0
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Ripper",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Ripper",
+            "item_type": "weapon",
+            "rarity": "rare"
+          }
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Legendary junk",
+            "quantity": 2
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Legendary junk",
+            "item_type": "junk",
+            "rarity": "legendary"
+          }
+        }
+      ]
+    },
+    {
+      "quest_name": "KHAAANNNNN!!!!",
+      "long_description": "Our boy got traded into marriage against his will, sold into slavery, shipped to a meat factory and now some Raiders have him hostage... What's next?",
+      "short_description": "Jack was stolen by Khan Killian's gang and we need to get him back!",
+      "requirements": [
+        "Level 20 dwellers",
+        "8+ average equipped weapon damage",
+        "Complete \"Human Bean Juice\" quest"
+      ],
+      "quest_objective": "Rescue Jack from Khan Killian's gang!",
+      "quest_type": "event",
+      "quest_category": "combat",
+      "chain_order": 6,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 20
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "attack",
+          "requirement_data": {
+            "attack": 8
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "quest_completed",
+          "requirement_data": {
+            "quest_name": "Human Bean Juice"
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Assault rifle",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Assault rifle",
+            "item_type": "weapon",
+            "rarity": "rare"
+          }
+        },
+        {
+          "reward_type": "STIMPAK",
+          "reward_data": {
+            "amount": 1
+          },
+          "reward_chance": 1.0
+        },
+        {
+          "reward_type": "CAPS",
+          "reward_data": {
+            "amount": 2150
+          },
+          "reward_chance": 1.0
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Rare junk",
+            "quantity": 2
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Rare junk",
+            "item_type": "junk",
+            "rarity": "rare"
+          }
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Officer uniform",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Officer uniform",
+            "item_type": "outfit",
+            "rarity": "rare"
+          }
+        },
+        {
+          "reward_type": "RADAWAY",
+          "reward_data": {
+            "amount": 3
+          },
+          "reward_chance": 1.0
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,1039 @@
+{
+  "title": "Journey to the Center of Vaultopolis",
+  "chain_id": "journey_to_vaultopolis",
+  "chain_name": "Journey to the Center of Vaultopolis",
+  "chain_description": "Follow Overseer Paula Plumbkin's journal across the wasteland in search of the mythical Vaultopolis.",
+  "quests": [
+    {
+      "quest_name": "The Path of Paula Plumbkin",
+      "short_description": "Follow the path of Paula Plumbkin to Vault 730.",
+      "long_description": "You've found the journal of Paula Plumbkin, an Overseer who went searching for the mythical utopia, Vaultopolis. Follow in her footsteps! First stop - Vault 730.",
+      "requirements": [
+        "Level 6 dwellers",
+        "3+ average equipped weapon damage"
+      ],
+      "quest_objective": "Explore Vault 730.",
+      "quest_type": "side",
+      "quest_category": "exploration",
+      "chain_order": 1,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 6
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "attack",
+          "requirement_data": {
+            "attack": 3
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Nuka-Cola Quantum",
+            "quantity": 2
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Nuka-Cola Quantum",
+            "item_type": "consumable",
+            "rarity": "common"
+          }
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Hardened lever-action rifle",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Hardened lever-action rifle",
+            "item_type": "weapon",
+            "rarity": "rare"
+          }
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Wasteland gear",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Wasteland gear",
+            "item_type": "outfit",
+            "rarity": "common"
+          }
+        }
+      ]
+    },
+    {
+      "quest_name": "A Thirst for Adventure",
+      "short_description": "Follow the path of Paula Plumbkin to the old Nuka-Cola Plant.",
+      "long_description": "Paula Plumbkin wasn't at Vault 730, but a helpful Raider told you she set out for the old Nuka-Cola plant. Go track her down!",
+      "requirements": [
+        "Level 7 dwellers",
+        "4+ average equipped weapon damage",
+        "Complete \"The Path of Paula Plumbkin\" quest"
+      ],
+      "quest_objective": "Explore the old Nuka-Cola Plant.",
+      "quest_type": "side",
+      "quest_category": "exploration",
+      "chain_order": 2,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 7
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "attack",
+          "requirement_data": {
+            "attack": 4
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "quest_completed",
+          "requirement_data": {
+            "quest_name": "The Path of Paula Plumbkin"
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Nuka-Cola Quantum",
+            "quantity": 2
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Nuka-Cola Quantum",
+            "item_type": "consumable",
+            "rarity": "common"
+          }
+        }
+      ]
+    },
+    {
+      "quest_name": "Paula's in a Pickle!",
+      "short_description": "Rescue Paula Plumbkin from the Feral Ghouls!",
+      "long_description": "The Feral Ghouls from the old Nuka-Cola plant dragged Paula Plumbkin to an abandoned building. She needs rescuing!",
+      "requirements": [
+        "Level 8 dwellers",
+        "4+ average equipped weapon damage",
+        "Complete \"A Thirst for Adventure\" quest"
+      ],
+      "quest_objective": "Rescue Paula Plumbkin.",
+      "quest_type": "side",
+      "quest_category": "combat",
+      "chain_order": 3,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 8
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "attack",
+          "requirement_data": {
+            "attack": 4
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "quest_completed",
+          "requirement_data": {
+            "quest_name": "A Thirst for Adventure"
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Nuka-Cola Quantum",
+            "quantity": 2
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Nuka-Cola Quantum",
+            "item_type": "consumable",
+            "rarity": "common"
+          }
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Baseball bat",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Baseball bat",
+            "item_type": "weapon",
+            "rarity": "rare"
+          }
+        }
+      ]
+    },
+    {
+      "quest_name": "Into Vault 333!",
+      "short_description": "Explore Vault 333 and find Paula Plumbkin.",
+      "long_description": "Paula Plumbkin escaped from the Feral Ghouls and headed to Vault 333. Hopefully, we can catch up with her there.",
+      "requirements": [
+        "Level 9 dwellers",
+        "4+ average equipped weapon damage",
+        "Complete \"Paula's in a Pickle!\" quest"
+      ],
+      "quest_objective": "Explore Vault 333.",
+      "quest_type": "side",
+      "quest_category": "exploration",
+      "chain_order": 4,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 9
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "attack",
+          "requirement_data": {
+            "attack": 4
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "quest_completed",
+          "requirement_data": {
+            "quest_name": "Paula's in a Pickle!"
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Pet Carrier",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Pet Carrier",
+            "item_type": "pet_carrier",
+            "rarity": "common"
+          }
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Nuka-Cola Quantum",
+            "quantity": 2
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Nuka-Cola Quantum",
+            "item_type": "consumable",
+            "rarity": "common"
+          }
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Rare junk",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Rare junk",
+            "item_type": "junk",
+            "rarity": "rare"
+          }
+        }
+      ]
+    },
+    {
+      "quest_name": "Tankbusting",
+      "short_description": "Find and kill Frank the Tank.",
+      "long_description": "The Overseer of Vault 333 might help us find Paula Plumbkin, but first we have to kill Frank the Tank.",
+      "requirements": [
+        "Level 10 dwellers",
+        "5+ average equipped weapon damage",
+        "Complete \"Into Vault 333!\" quest"
+      ],
+      "quest_objective": "Kill Frank the Tank.",
+      "quest_type": "side",
+      "quest_category": "combat",
+      "chain_order": 5,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 10
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "attack",
+          "requirement_data": {
+            "attack": 5
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "quest_completed",
+          "requirement_data": {
+            "quest_name": "Into Vault 333!"
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Nuka-Cola Quantum",
+            "quantity": 2
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Nuka-Cola Quantum",
+            "item_type": "consumable",
+            "rarity": "common"
+          }
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Sawed-off shotgun",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Sawed-off shotgun",
+            "item_type": "weapon",
+            "rarity": "common"
+          }
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Leather armor",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Leather armor",
+            "item_type": "outfit",
+            "rarity": "common"
+          }
+        }
+      ]
+    },
+    {
+      "quest_name": "Return to Vault 333",
+      "short_description": "Return to Vault 333 and get some answers.",
+      "long_description": "Frank the Tank is dead. Now maybe the Settlers of Vault 333 will point us toward Paula Plumbkin.",
+      "requirements": [
+        "Level 11 dwellers",
+        "5+ average equipped weapon damage",
+        "Complete \"Tankbusting\" quest"
+      ],
+      "quest_objective": "Get answers in Vault 333.",
+      "quest_type": "side",
+      "quest_category": "exploration",
+      "chain_order": 6,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 11
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "attack",
+          "requirement_data": {
+            "attack": 5
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "quest_completed",
+          "requirement_data": {
+            "quest_name": "Tankbusting"
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Sturdy raider armor",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Sturdy raider armor",
+            "item_type": "outfit",
+            "rarity": "rare"
+          }
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Rare junk",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Rare junk",
+            "item_type": "junk",
+            "rarity": "rare"
+          }
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "10mm pistol",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "10mm pistol",
+            "item_type": "weapon",
+            "rarity": "common"
+          }
+        }
+      ]
+    },
+    {
+      "quest_name": "Truth Among the Ashes",
+      "short_description": "Search Vault 333 for a clue to Paula Plumbkin's whereabouts.",
+      "long_description": "Vault 333 has been ransacked, but maybe there's a clue to Paula Plumbkin's whereabouts!",
+      "requirements": [
+        "Level 12 dwellers",
+        "5+ average equipped weapon damage",
+        "Complete \"Return to Vault 333\" quest"
+      ],
+      "quest_objective": "Search Vault 333 for clues.",
+      "quest_type": "side",
+      "quest_category": "exploration",
+      "chain_order": 7,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 12
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "attack",
+          "requirement_data": {
+            "attack": 5
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "quest_completed",
+          "requirement_data": {
+            "quest_name": "Return to Vault 333"
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Combat shotgun",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Combat shotgun",
+            "item_type": "weapon",
+            "rarity": "rare"
+          }
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Rare junk",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Rare junk",
+            "item_type": "junk",
+            "rarity": "rare"
+          }
+        },
+        {
+          "reward_type": "CAPS",
+          "reward_data": {
+            "amount": 200
+          },
+          "reward_chance": 1.0
+        }
+      ]
+    },
+    {
+      "quest_name": "Overrun",
+      "short_description": "Search Vault 909 for Paula Plumbkin.",
+      "long_description": "Overseer Patel's journal indicated Paula Plumbkin had gone to Vault 909, but that it had already been overrun! Hopefully, she's okay...",
+      "requirements": [
+        "Level 13 dwellers",
+        "5+ average equipped weapon damage",
+        "Complete \"Truth Among the Ashes\" quest"
+      ],
+      "quest_objective": "Search Vault 909 for Paula Plumbkin.",
+      "quest_type": "side",
+      "quest_category": "exploration",
+      "chain_order": 8,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 13
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "attack",
+          "requirement_data": {
+            "attack": 5
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "quest_completed",
+          "requirement_data": {
+            "quest_name": "Truth Among the Ashes"
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Advanced radiation suit",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Advanced radiation suit",
+            "item_type": "outfit",
+            "rarity": "rare"
+          }
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Combat armor",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Combat armor",
+            "item_type": "outfit",
+            "rarity": "common"
+          }
+        },
+        {
+          "reward_type": "CAPS",
+          "reward_data": {
+            "amount": 310
+          },
+          "reward_chance": 1.0
+        }
+      ]
+    },
+    {
+      "quest_name": "Powered Up!",
+      "short_description": "Search the nuclear power plant for Paula Plumbkin.",
+      "long_description": "The Radscorpion's creepy keeper said Paula Plumbkin went to the nuclear power plant, so that's where we'll look for her.",
+      "requirements": [
+        "Level 14 dwellers",
+        "6+ average equipped weapon damage",
+        "Complete \"Overrun\" quest"
+      ],
+      "quest_objective": "Search the nuclear power plant for Paula Plumbkin.",
+      "quest_type": "side",
+      "quest_category": "exploration",
+      "chain_order": 9,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 14
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "attack",
+          "requirement_data": {
+            "attack": 6
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "quest_completed",
+          "requirement_data": {
+            "quest_name": "Overrun"
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Junk Jet",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Junk Jet",
+            "item_type": "weapon",
+            "rarity": "legendary"
+          }
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Rare junk",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Rare junk",
+            "item_type": "junk",
+            "rarity": "rare"
+          }
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Mechanic jumpsuit",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Mechanic jumpsuit",
+            "item_type": "outfit",
+            "rarity": "common"
+          }
+        }
+      ]
+    },
+    {
+      "quest_name": "The Road to Vaultopolis",
+      "short_description": "Search Vault 813 for Paula Plumbkin.",
+      "long_description": "A friendly Ghoul in the nuclear power plant told us Paula Plumbkin continued her search for Vaultopolis in Vault 813. We're hot on her tail!",
+      "requirements": [
+        "Level 15 dwellers",
+        "6+ average equipped weapon damage",
+        "Complete \"Powered Up!\" quest"
+      ],
+      "quest_objective": "Search Vault 813 for Paula Plumbkin.",
+      "quest_type": "side",
+      "quest_category": "exploration",
+      "chain_order": 10,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 15
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "attack",
+          "requirement_data": {
+            "attack": 6
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "quest_completed",
+          "requirement_data": {
+            "quest_name": "Powered Up!"
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "LUNCHBOX",
+          "reward_data": {
+            "amount": 1
+          },
+          "reward_chance": 1.0
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Legendary junk",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Legendary junk",
+            "item_type": "junk",
+            "rarity": "legendary"
+          }
+        },
+        {
+          "reward_type": "CAPS",
+          "reward_data": {
+            "amount": 300
+          },
+          "reward_chance": 1.0
+        }
+      ]
+    },
+    {
+      "quest_name": "The Vault-Tec Vantage",
+      "short_description": "The Vault-Tec offices may hold info on Vaultopolis...",
+      "long_description": "Vault 813's Overseer Alvarez told us the same thing he told Paula Plumbkin - to search the Vault-Tec offices for info on Vaultopolis!",
+      "requirements": [
+        "Level 16 dwellers",
+        "6+ average equipped weapon damage",
+        "Complete \"The Road to Vaultopolis\" quest"
+      ],
+      "quest_objective": "Search the Vault-Tec offices for info on Vaultopolis.",
+      "quest_type": "side",
+      "quest_category": "exploration",
+      "chain_order": 11,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 16
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "attack",
+          "requirement_data": {
+            "attack": 6
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "quest_completed",
+          "requirement_data": {
+            "quest_name": "The Road to Vaultopolis"
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Nuka-Cola Quantum",
+            "quantity": 2
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Nuka-Cola Quantum",
+            "item_type": "consumable",
+            "rarity": "common"
+          }
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Fancy formal wear",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Fancy formal wear",
+            "item_type": "outfit",
+            "rarity": "rare"
+          }
+        }
+      ]
+    },
+    {
+      "quest_name": "The Quest for Vault 525",
+      "short_description": "We're looking for Vault 525, but need to resupply first.",
+      "long_description": "We need to find Vault 525, but our supplies are running low. It's time to visit the Super Duper Mart and scavenge whatever we can before continuing our search.",
+      "requirements": [
+        "Level 17 dwellers",
+        "6+ average equipped weapon damage",
+        "Complete \"The Vault-Tec Vantage\" quest"
+      ],
+      "quest_objective": "Resupply at the Super Duper Mart.",
+      "quest_type": "side",
+      "quest_category": "collection",
+      "chain_order": 12,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 17
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "attack",
+          "requirement_data": {
+            "attack": 6
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "quest_completed",
+          "requirement_data": {
+            "quest_name": "The Vault-Tec Vantage"
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "LUNCHBOX",
+          "reward_data": {
+            "amount": 1
+          },
+          "reward_chance": 1.0
+        }
+      ]
+    },
+    {
+      "quest_name": "Playing Politics",
+      "short_description": "We need to search the Mayor's office to find the location of Vault 525.",
+      "long_description": "According to a page from Paula Plumbkin's journal, Vault 525 really is Vaultopolis, but even she doesn't know where it is. But the Mayor's office may hold that information!",
+      "requirements": [
+        "Level 18 dwellers",
+        "7+ average equipped weapon damage",
+        "Complete \"The Quest for Vault 525\" quest"
+      ],
+      "quest_objective": "Search the Mayor's office for info on Vault 525's location.",
+      "quest_type": "side",
+      "quest_category": "exploration",
+      "chain_order": 13,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 18
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "attack",
+          "requirement_data": {
+            "attack": 7
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "quest_completed",
+          "requirement_data": {
+            "quest_name": "The Quest for Vault 525"
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Legendary junk",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Legendary junk",
+            "item_type": "junk",
+            "rarity": "legendary"
+          }
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Sniper rifle",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Sniper rifle",
+            "item_type": "weapon",
+            "rarity": "rare"
+          }
+        }
+      ]
+    },
+    {
+      "quest_name": "The Red Rocket Reveal!",
+      "short_description": "The entrance to Vault 525 is in the Red Rocket Headquarters!",
+      "long_description": "The official documentation Vault-Tec sent to the Mayor's office said that the entrance of Vault 525, a.k.a. Vaultopolis, is hidden in the Red Rocket Headquarters! What are you waiting for? Get to Vault 525!",
+      "requirements": [
+        "Level 19 dwellers",
+        "7+ average equipped weapon damage",
+        "Complete \"Playing Politics\" quest"
+      ],
+      "quest_objective": "Search the Red Rocket Headquarters.",
+      "quest_type": "side",
+      "quest_category": "exploration",
+      "chain_order": 14,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 19
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "attack",
+          "requirement_data": {
+            "attack": 7
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "quest_completed",
+          "requirement_data": {
+            "quest_name": "Playing Politics"
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "CAPS",
+          "reward_data": {
+            "amount": 1700
+          },
+          "reward_chance": 1.0
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "RobCo R&D suit",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "RobCo R&D suit",
+            "item_type": "outfit",
+            "rarity": "rare"
+          }
+        }
+      ]
+    },
+    {
+      "quest_name": "Vaultopolis Awaits!",
+      "short_description": "Vaultopolis is in the Shaded Valley - time to complete our Quest!",
+      "long_description": "Paula Plumbkin turned out to be an evil Raider wannabe, but at least she gave us the location of Vault 525, otherwise known as Vaultopolis!",
+      "requirements": [
+        "Level 20 dwellers",
+        "8+ average equipped weapon damage",
+        "Complete \"The Red Rocket Reveal!\" quest"
+      ],
+      "quest_objective": "Experience Vaultopolis.",
+      "quest_type": "side",
+      "quest_category": "exploration",
+      "chain_order": 15,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 20
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "attack",
+          "requirement_data": {
+            "attack": 8
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "quest_completed",
+          "requirement_data": {
+            "quest_name": "The Red Rocket Reveal!"
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Nuka-Cola Quantum",
+            "quantity": 5
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Nuka-Cola Quantum",
+            "item_type": "consumable",
+            "rarity": "common"
+          }
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Plasma rifle",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Plasma rifle",
+            "item_type": "weapon",
+            "rarity": "legendary"
+          }
+        },
+        {
+          "reward_type": "CAPS",
+          "reward_data": {
+            "amount": 1000
+          },
+          "reward_chance": 1.0
+        }
+      ]
+    }
+  ]
+}

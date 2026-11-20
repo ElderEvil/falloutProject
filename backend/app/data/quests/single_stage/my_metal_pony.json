@@ -1,0 +1,53 @@
+{
+  "quest_name": "My Metal Pony",
+  "long_description": "Will you use it for spare parts, or riding in your spare time? Up to you, you're the Overseer. Send Dwellers to get one!",
+  "short_description": "Find a Giddyup Buttercup.",
+  "requirements": [
+    "Level 41 dwellers",
+    "Railway rifle",
+    "6 Perception"
+  ],
+  "quest_objective": "Find a Giddyup Buttercup.",
+  "quest_type": "side",
+  "quest_category": "collection",
+  "duration_minutes": 60,
+  "quest_requirements": [
+    {
+      "requirement_type": "level",
+      "requirement_data": {
+        "level": 41
+      },
+      "is_mandatory": true
+    },
+    {
+      "requirement_type": "item",
+      "requirement_data": {
+        "item_name": "Railway rifle"
+      },
+      "is_mandatory": true
+    },
+    {
+      "requirement_type": "stat",
+      "requirement_data": {
+        "stat": "perception",
+        "value": 6
+      },
+      "is_mandatory": true
+    }
+  ],
+  "quest_rewards": [
+    {
+      "reward_type": "ITEM",
+      "reward_data": {
+        "item_name": "Giddyup Buttercup",
+        "quantity": 1
+      },
+      "reward_chance": 1.0,
+      "item_data": {
+        "name": "Giddyup Buttercup",
+        "item_type": "junk",
+        "rarity": "legendary"
+      }
+    }
+  ]
+}

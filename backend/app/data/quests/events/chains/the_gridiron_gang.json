@@ -1,0 +1,200 @@
+{
+  "title": "The Gridiron Gang",
+  "chain_id": "the_gridiron_gang",
+  "chain_name": "The Gridiron Gang",
+  "chain_description": "A frantic radio call pulls the vault into a football-obsessed Raider gang's hunt for the Super Cup.",
+  "quests": [
+    {
+      "quest_name": "First Down",
+      "short_description": "Help the lost settler.",
+      "long_description": "A frantic voice comes in over the radio. There's a settler out in the Wasteland who's in serious trouble! The clock's ticking...",
+      "requirements": [
+        "Level 6 dwellers",
+        "4+ average equipped weapon damage"
+      ],
+      "quest_objective": "Help the lost settler.",
+      "quest_type": "event",
+      "quest_category": "combat",
+      "chain_order": 1,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 6
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "attack",
+          "requirement_data": {
+            "attack": 4
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Sports fan outfit",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Sports fan outfit",
+            "item_type": "outfit",
+            "rarity": "rare"
+          }
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "10mm pistol",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "10mm pistol",
+            "item_type": "weapon",
+            "rarity": "common"
+          }
+        }
+      ]
+    },
+    {
+      "quest_name": "Second-Stringers",
+      "short_description": "Locate the hostage.",
+      "long_description": "A gang of Raiders has taken a settler hostage. Rescue the captive and solve the mystery of the Super Cup!",
+      "requirements": [
+        "Level 7 dwellers",
+        "4+ average equipped weapon damage",
+        "Complete \"First Down\" quest"
+      ],
+      "quest_objective": [
+        {
+          "title": "Locate the hostage."
+        },
+        {
+          "title": "Learn about the Super Cup."
+        }
+      ],
+      "quest_type": "event",
+      "quest_category": "exploration",
+      "chain_order": 2,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 7
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "attack",
+          "requirement_data": {
+            "attack": 4
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "quest_completed",
+          "requirement_data": {
+            "quest_name": "First Down"
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Sports fan outfit",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Sports fan outfit",
+            "item_type": "outfit",
+            "rarity": "rare"
+          }
+        }
+      ]
+    },
+    {
+      "quest_name": "Third and Goal",
+      "short_description": "Rescue the hostage and confront the Commish.",
+      "long_description": "You've tracked the kidnapped settler to the lair of the Commish. Time to put an end to this football flunky's Super Cup contest!",
+      "requirements": [
+        "Level 8 dwellers",
+        "4+ average equipped weapon damage",
+        "Complete \"Second-Stringers\" quest"
+      ],
+      "quest_objective": [
+        {
+          "title": "Rescue the hostage."
+        },
+        {
+          "title": "Confront the Commish."
+        }
+      ],
+      "quest_type": "event",
+      "quest_category": "combat",
+      "chain_order": 3,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 8
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "attack",
+          "requirement_data": {
+            "attack": 4
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "quest_completed",
+          "requirement_data": {
+            "quest_name": "Second-Stringers"
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "LUNCHBOX",
+          "reward_data": {
+            "amount": 1
+          },
+          "reward_chance": 1.0
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Sports fan outfit",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Sports fan outfit",
+            "item_type": "outfit",
+            "rarity": "rare"
+          }
+        },
+        {
+          "reward_type": "CAPS",
+          "reward_data": {
+            "amount": 500
+          },
+          "reward_chance": 1.0
+        }
+      ]
+    }
+  ]
+}

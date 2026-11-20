@@ -1,0 +1,386 @@
+{
+  "title": "A Wasteland Tail",
+  "chain_id": "a_wasteland_tail",
+  "chain_name": "A Wasteland Tail",
+  "chain_description": "Follow a distress call and a missing dog named Bigsby from an abandoned warehouse to Vault 314.",
+  "quests": [
+    {
+      "quest_name": "SOS!",
+      "short_description": "Find the source of the distress call.",
+      "long_description": "You've picked up a distress call from an abandoned building. Assemble a rescue team and find the source before whatever is in there goes quiet. Vault-Tec recommends bringing weapons to what is almost certainly not a book club.",
+      "requirements": [
+        "Level 25 dwellers",
+        "10+ average equipped weapon damage"
+      ],
+      "quest_objective": "Find the source.",
+      "quest_type": "side",
+      "quest_category": "exploration",
+      "chain_order": 1,
+      "duration_minutes": 240,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 25,
+            "count": 1
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "attack",
+          "requirement_data": {
+            "attack": 10,
+            "count": 1
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Tattered longcoat",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Tattered longcoat",
+            "item_type": "outfit",
+            "rarity": "legendary"
+          }
+        },
+        {
+          "reward_type": "CAPS",
+          "reward_data": {
+            "amount": 950
+          },
+          "reward_chance": 1.0
+        }
+      ]
+    },
+    {
+      "quest_name": "Canine Recovery",
+      "short_description": "Look for Bigsby in the old warehouse.",
+      "long_description": "I need to search an old warehouse to try and find Bigsby. The raiders are using it as a hideout, so I'll need to be careful. A dog is worth this much trouble; the raiders are not.",
+      "requirements": [
+        "Level 27 dwellers",
+        "11+ average equipped weapon damage",
+        "Complete \"SOS!\" quest"
+      ],
+      "quest_objective": "Find Bigsby.",
+      "quest_type": "side",
+      "quest_category": "combat",
+      "chain_order": 2,
+      "duration_minutes": 240,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 27,
+            "count": 1
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "attack",
+          "requirement_data": {
+            "attack": 11,
+            "count": 1
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "quest_completed",
+          "requirement_data": {
+            "quest_name": "SOS!"
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Heavy raider armor",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Heavy raider armor",
+            "item_type": "outfit",
+            "rarity": "legendary"
+          }
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Relentless raider sword",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Relentless raider sword",
+            "item_type": "weapon",
+            "rarity": "legendary"
+          }
+        }
+      ]
+    },
+    {
+      "quest_name": "Vault 199",
+      "short_description": "Look for Bigsby in Vault 199.",
+      "long_description": "The raiders mentioned Bigsby may have fled to Vault 199. Go ask around and hope the dwellers there have him. If they do, be polite; a dog-napping accusation is a poor way to open a diplomatic visit.",
+      "requirements": [
+        "Level 29 dwellers",
+        "12+ average equipped weapon damage",
+        "Complete \"Canine Recovery\" quest"
+      ],
+      "quest_objective": "Find Bigsby.",
+      "quest_type": "side",
+      "quest_category": "exploration",
+      "chain_order": 3,
+      "duration_minutes": 240,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 29,
+            "count": 1
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "attack",
+          "requirement_data": {
+            "attack": 12,
+            "count": 1
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "quest_completed",
+          "requirement_data": {
+            "quest_name": "Canine Recovery"
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Laser rifle",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Laser rifle",
+            "item_type": "weapon",
+            "rarity": "rare"
+          }
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Vault 33 suit",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Vault 33 suit",
+            "item_type": "outfit",
+            "rarity": "rare"
+          }
+        },
+        {
+          "reward_type": "CAPS",
+          "reward_data": {
+            "amount": 1300
+          },
+          "reward_chance": 1.0
+        }
+      ]
+    },
+    {
+      "quest_name": "In Another Vault",
+      "short_description": "Look for Bigsby in Vault 899.",
+      "long_description": "Bigsby wasn't in Vault 199, but a member told me he may be in their sister vault, Vault 899. Check it out. The directions are legible, which is more than the average wasteland lead.",
+      "requirements": [
+        "Level 31 dwellers",
+        "Complete \"Vault 199\" quest"
+      ],
+      "quest_objective": "Find Bigsby.",
+      "quest_type": "side",
+      "quest_category": "exploration",
+      "chain_order": 4,
+      "duration_minutes": 240,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 31,
+            "count": 1
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "quest_completed",
+          "requirement_data": {
+            "quest_name": "Vault 199"
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Nuka-Cola Quantum",
+            "quantity": 2
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Nuka-Cola Quantum",
+            "item_type": "consumable",
+            "rarity": "rare"
+          }
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Legendary junk",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Legendary junk",
+            "item_type": "junk",
+            "rarity": "legendary"
+          }
+        }
+      ]
+    },
+    {
+      "quest_name": "The Tail Continues",
+      "short_description": "Find the salvage team from Vault 899 in the old Atomatoys Warehouse.",
+      "long_description": "Overseer Emma said Bigsby stopped by their vault. Since then a salvage team took him on a run to the Atomatoys warehouse and hasn't returned. Find them, and mind the shelves; a warehouse full of robot toys is exactly as dangerous as it sounds.",
+      "requirements": [
+        "Level 33 dwellers",
+        "Laser rifle",
+        "Complete \"In Another Vault\" quest"
+      ],
+      "quest_objective": "Find the salvage team.",
+      "quest_type": "side",
+      "quest_category": "combat",
+      "chain_order": 5,
+      "duration_minutes": 240,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 33,
+            "count": 1
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "item",
+          "requirement_data": {
+            "item_name": "Laser rifle"
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "quest_completed",
+          "requirement_data": {
+            "quest_name": "In Another Vault"
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Sturdy wasteland gear",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Sturdy wasteland gear",
+            "item_type": "outfit",
+            "rarity": "rare"
+          }
+        },
+        {
+          "reward_type": "CAPS",
+          "reward_data": {
+            "amount": 2000
+          },
+          "reward_chance": 1.0
+        }
+      ]
+    },
+    {
+      "quest_name": "No Time for Paws",
+      "short_description": "Find Sally and Bigsby in Vault 314.",
+      "long_description": "I rescued the salvage team, but Bigsby wasn't with them. One of them said he and Sally may have taken shelter in Vault 314. Get there before the trail goes cold; the quest title is not a metaphor.",
+      "requirements": [
+        "Level 35 dwellers",
+        "Laser rifle",
+        "Complete \"The Tail Continues\" quest"
+      ],
+      "quest_objective": "Find Bigsby.",
+      "quest_type": "side",
+      "quest_category": "combat",
+      "chain_order": 6,
+      "duration_minutes": 240,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 35,
+            "count": 1
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "item",
+          "requirement_data": {
+            "item_name": "Laser rifle"
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "quest_completed",
+          "requirement_data": {
+            "quest_name": "The Tail Continues"
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Legendary junk",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Legendary junk",
+            "item_type": "junk",
+            "rarity": "legendary"
+          }
+        },
+        {
+          "reward_type": "CAPS",
+          "reward_data": {
+            "amount": 1800
+          },
+          "reward_chance": 1.0
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,80 @@
+{
+  "quest_name": "Hostage Negotiations",
+  "long_description": "Raiders have been snatching up folks all over the Wasteland. Put an end to their scheme, and save their victims.",
+  "short_description": "Defeat the kidnappers and save their victims.",
+  "requirements": [
+    "Level 12 dwellers",
+    "6+ DAM weapons"
+  ],
+  "quest_objective": [
+    {
+      "title": "Stop the Raiders."
+    },
+    {
+      "title": "Rescue the hostage."
+    },
+    {
+      "title": "Rescue the hostage."
+    }
+  ],
+  "quest_type": "side",
+  "quest_category": "combat",
+  "duration_minutes": 60,
+  "quest_requirements": [
+    {
+      "requirement_type": "level",
+      "requirement_data": {
+        "level": 12
+      },
+      "is_mandatory": true
+    },
+    {
+      "requirement_type": "attack",
+      "requirement_data": {
+        "attack": 6
+      },
+      "is_mandatory": true
+    }
+  ],
+  "quest_rewards": [
+    {
+      "reward_type": "ITEM",
+      "reward_data": {
+        "item_name": "Butcher knife",
+        "quantity": 1
+      },
+      "reward_chance": 1.0,
+      "item_data": {
+        "name": "Butcher knife",
+        "item_type": "weapon",
+        "rarity": "rare"
+      }
+    },
+    {
+      "reward_type": "ITEM",
+      "reward_data": {
+        "item_name": "Bounty hunter gear",
+        "quantity": 1
+      },
+      "reward_chance": 1.0,
+      "item_data": {
+        "name": "Bounty hunter gear",
+        "item_type": "outfit",
+        "rarity": "rare"
+      }
+    },
+    {
+      "reward_type": "ITEM",
+      "reward_data": {
+        "item_name": "Common junk",
+        "quantity": 1
+      },
+      "reward_chance": 1.0,
+      "item_data": {
+        "name": "Common junk",
+        "item_type": "junk",
+        "rarity": "common"
+      }
+    }
+  ]
+}

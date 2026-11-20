@@ -1,0 +1,328 @@
+{
+  "title": "Labor Dispute!",
+  "chain_id": "labor_dispute",
+  "chain_name": "Labor Dispute!",
+  "chain_description": "A disgruntled dweller named Rubarb has joined the Raiders and is liberating local vaults by force. Rescue the overseers and end his rampage.",
+  "quests": [
+    {
+      "quest_name": "Power to the People?",
+      "short_description": "Rescue Overseer Mogabe from Rubarb's Raiders.",
+      "long_description": "A disgruntled Dweller named Rubarb has joined the Raiders and wants to liberate some local Vaults... with violence! Overseer Mogabe needs your help!",
+      "requirements": [
+        "Level 14 dwellers",
+        "5+ average equipped weapon damage"
+      ],
+      "quest_objective": "Rescue Overseer Mogabe.",
+      "quest_type": "event",
+      "quest_category": "combat",
+      "chain_order": 1,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 14
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "attack",
+          "requirement_data": {
+            "attack": 5
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "LUNCHBOX",
+          "reward_data": {
+            "amount": 1
+          },
+          "reward_chance": 1.0
+        }
+      ]
+    },
+    {
+      "quest_name": "No Rest for the Wicked",
+      "short_description": "Answer Overseer Zilewski's distress call.",
+      "long_description": "Looks like Rubarb is just getting started. You've received a distress call from Overseer Zilewski's Vault. Better investigate!",
+      "requirements": [
+        "Level 15 dwellers",
+        "6+ average equipped weapon damage",
+        "Complete \"Power to the People?\" quest"
+      ],
+      "quest_objective": "Talk to Overseer Zilewski.",
+      "quest_type": "event",
+      "quest_category": "exploration",
+      "chain_order": 2,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 15
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "attack",
+          "requirement_data": {
+            "attack": 6
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "quest_completed",
+          "requirement_data": {
+            "quest_name": "Power to the People?"
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Nuka-Cola Quantum",
+            "quantity": 2
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Nuka-Cola Quantum",
+            "item_type": "consumable",
+            "rarity": "common"
+          }
+        },
+        {
+          "reward_type": "CAPS",
+          "reward_data": {
+            "amount": 800
+          },
+          "reward_chance": 1.0
+        }
+      ]
+    },
+    {
+      "quest_name": "All Work and No Play",
+      "short_description": "Rescue Overseer Chang from Rubarb's Raiders.",
+      "long_description": "Rubarb has found another Vault to liberate. Time to head out and rescue Overseer Chang from the Raiders!",
+      "requirements": [
+        "Level 16 dwellers",
+        "6+ average equipped weapon damage",
+        "Complete \"No Rest for the Wicked\" quest"
+      ],
+      "quest_objective": "Rescue Overseer Chang.",
+      "quest_type": "event",
+      "quest_category": "combat",
+      "chain_order": 3,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 16
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "attack",
+          "requirement_data": {
+            "attack": 6
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "quest_completed",
+          "requirement_data": {
+            "quest_name": "No Rest for the Wicked"
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Amplified laser pistol",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Amplified laser pistol",
+            "item_type": "weapon",
+            "rarity": "rare"
+          }
+        }
+      ]
+    },
+    {
+      "quest_name": "Working Overtime",
+      "short_description": "Investigate Vault 700 and see what Rubarb's Raiders are up to.",
+      "long_description": "Rubarb and his Raiders were spotted recently in Vault 700. Better go check it out!",
+      "requirements": [
+        "Level 17 dwellers",
+        "7+ average equipped weapon damage",
+        "Complete \"All Work and No Play\" quest"
+      ],
+      "quest_objective": "Investigate Vault 700.",
+      "quest_type": "event",
+      "quest_category": "exploration",
+      "chain_order": 4,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 17
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "attack",
+          "requirement_data": {
+            "attack": 7
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "quest_completed",
+          "requirement_data": {
+            "quest_name": "All Work and No Play"
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Nuka-Cola Quantum",
+            "quantity": 2
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Nuka-Cola Quantum",
+            "item_type": "consumable",
+            "rarity": "common"
+          }
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Engineer outfit",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Engineer outfit",
+            "item_type": "outfit",
+            "rarity": "rare"
+          }
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Rare junk",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Rare junk",
+            "item_type": "junk",
+            "rarity": "rare"
+          }
+        }
+      ]
+    },
+    {
+      "quest_name": "Rubarb's Reckoning",
+      "short_description": "Confront Rubarb and his Raiders in Vault 711.",
+      "long_description": "Rubarb and his Raiders just took over Vault 711, and he's still there. Take down his lieutenants, then confront Rubarb himself!",
+      "requirements": [
+        "Level 18 dwellers",
+        "7+ average equipped weapon damage",
+        "Complete \"Working Overtime\" quest"
+      ],
+      "quest_objective": [
+        {
+          "title": "Confront Rubarb!"
+        },
+        {
+          "title": "Kill the Raider Lieutenant."
+        },
+        {
+          "title": "Kill the Raider Lieutenant."
+        }
+      ],
+      "quest_type": "event",
+      "quest_category": "combat",
+      "chain_order": 5,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 18
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "attack",
+          "requirement_data": {
+            "attack": 7
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "quest_completed",
+          "requirement_data": {
+            "quest_name": "Working Overtime"
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Heavy vault suit",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Heavy vault suit",
+            "item_type": "outfit",
+            "rarity": "legendary"
+          }
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Rare junk",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Rare junk",
+            "item_type": "junk",
+            "rarity": "rare"
+          }
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Handyman jumpsuit",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Handyman jumpsuit",
+            "item_type": "outfit",
+            "rarity": "common"
+          }
+        }
+      ]
+    }
+  ]
+}

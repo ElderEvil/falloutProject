@@ -1,0 +1,67 @@
+{
+  "quest_name": "Wonders of Nature",
+  "long_description": "Famed scientist Otto von Hurfburg is nearby, researching the mating habits of Radscorpions. Make sure he's not in over his head.",
+  "short_description": "Dr. Hurfburg vs. Pincers of Peril!",
+  "requirements": [
+    "Level 35 dwellers",
+    "Combat shotgun",
+    "5 Intelligence"
+  ],
+  "quest_objective": [
+    {
+      "title": "Find Dr. Hurfburg."
+    },
+    {
+      "title": "Kill the Glowing Radscorpion."
+    }
+  ],
+  "quest_type": "side",
+  "quest_category": "combat",
+  "duration_minutes": 60,
+  "quest_requirements": [
+    {
+      "requirement_type": "level",
+      "requirement_data": {
+        "level": 35
+      },
+      "is_mandatory": true
+    },
+    {
+      "requirement_type": "item",
+      "requirement_data": {
+        "item_name": "Combat shotgun"
+      },
+      "is_mandatory": true
+    },
+    {
+      "requirement_type": "stat",
+      "requirement_data": {
+        "stat": "intelligence",
+        "value": 5
+      },
+      "is_mandatory": true
+    }
+  ],
+  "quest_rewards": [
+    {
+      "reward_type": "ITEM",
+      "reward_data": {
+        "item_name": "Gauss rifle",
+        "quantity": 1
+      },
+      "reward_chance": 1.0,
+      "item_data": {
+        "name": "Gauss rifle",
+        "item_type": "weapon",
+        "rarity": "rare"
+      }
+    },
+    {
+      "reward_type": "CAPS",
+      "reward_data": {
+        "amount": 735
+      },
+      "reward_chance": 1.0
+    }
+  ]
+}

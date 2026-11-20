@@ -1,0 +1,403 @@
+{
+  "title": "When Irish Eyes are Glowing",
+  "chain_id": "when_irish_eyes_are_glowing",
+  "chain_name": "When Irish Eyes are Glowing",
+  "chain_description": "A St. Patrick's Day celebration turns strange as clover samples, redheaded settlers and a wailing spirit draw the vault into the wasteland.",
+  "quests": [
+    {
+      "quest_name": "Shamrock the Casbah",
+      "short_description": "Retrieve clover samples from an abandoned Vault.",
+      "long_description": "We've received information that Vault 317 contains clover samples from before the Great War. This hardy, nutritious weed, believed to be extinct, could prove an important staple for us. We need to bring back these samples - if there are any left!",
+      "requirements": [
+        "Level 20 dwellers",
+        "9+ average equipped weapon damage"
+      ],
+      "quest_objective": "Explore Vault 317",
+      "quest_type": "event",
+      "quest_category": "exploration",
+      "chain_order": 1,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 20
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "attack",
+          "requirement_data": {
+            "attack": 9
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Nuka-Cola Quantum",
+            "quantity": 2
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Nuka-Cola Quantum",
+            "item_type": "consumable",
+            "rarity": "common"
+          }
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Clergy outfit",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Clergy outfit",
+            "item_type": "outfit",
+            "rarity": "rare"
+          }
+        }
+      ]
+    },
+    {
+      "quest_name": "Driving the Snakes Out",
+      "short_description": "Defeat a band of Raiders hostile to redheads.",
+      "long_description": "A band of Raiders known as the Snakes has been targeting Settlers with red hair, calling them \u201cgingers\u201d and claiming they are inferior beings. We need to drive these Snakes out of the neighborhood, for good!",
+      "requirements": [
+        "Level 21 dwellers",
+        "9+ average equipped weapon damage",
+        "Complete \"Shamrock the Casbah\" quest"
+      ],
+      "quest_objective": [
+        {
+          "title": "Defeat the Raider Boss."
+        },
+        {
+          "title": "Defeat the Raiders."
+        },
+        {
+          "title": "Defeat the Raiders."
+        }
+      ],
+      "quest_type": "event",
+      "quest_category": "combat",
+      "chain_order": 2,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 21
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "attack",
+          "requirement_data": {
+            "attack": 9
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "quest_completed",
+          "requirement_data": {
+            "quest_name": "Shamrock the Casbah"
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Nuka-Cola Quantum",
+            "quantity": 2
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Nuka-Cola Quantum",
+            "item_type": "consumable",
+            "rarity": "common"
+          }
+        },
+        {
+          "reward_type": "CAPS",
+          "reward_data": {
+            "amount": 3000
+          },
+          "reward_chance": 1.0
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Rare junk",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Rare junk",
+            "item_type": "junk",
+            "rarity": "rare"
+          }
+        }
+      ]
+    },
+    {
+      "quest_name": "The End of the Rainbow",
+      "short_description": "Find the treasure at the end of the rainbow.",
+      "long_description": "We've heard strange rumors of a great treasure found at the end of the rainbow! Our calculations indicate that's near the abandoned talc mines to the West, ruled by a myserious Raider boss called \u201cShaun the Leper.\u201d",
+      "requirements": [
+        "Level 22 dwellers",
+        "9+ average equipped weapon damage",
+        "Complete \"Driving the Snakes Out\" quest"
+      ],
+      "quest_objective": [
+        {
+          "title": "Find the main treasure trove."
+        },
+        {
+          "title": "Find the secondary treasure trove."
+        }
+      ],
+      "quest_type": "event",
+      "quest_category": "exploration",
+      "chain_order": 3,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 22
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "attack",
+          "requirement_data": {
+            "attack": 9
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "quest_completed",
+          "requirement_data": {
+            "quest_name": "Driving the Snakes Out"
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "LUNCHBOX",
+          "reward_data": {
+            "amount": 1
+          },
+          "reward_chance": 1.0
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Nuka-Cola Quantum",
+            "quantity": 2
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Nuka-Cola Quantum",
+            "item_type": "consumable",
+            "rarity": "common"
+          }
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Legendary junk",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Legendary junk",
+            "item_type": "junk",
+            "rarity": "legendary"
+          }
+        }
+      ]
+    },
+    {
+      "quest_name": "It's Not Easy Being Green",
+      "short_description": "Help nearby Settlers deal with a strange epidemic.",
+      "long_description": "Nearby Settlers have become very sick following the annual St. Patrick's Day festivities, with some reported cases of Ghoulification! This might just be, um, \u201cfood\u201d poisoning, but we should investigate in case it's an actual epidemic...",
+      "requirements": [
+        "Level 23 dwellers",
+        "10+ average equipped weapon damage",
+        "Radiation suit",
+        "Complete \"The End of the Rainbow\" quest"
+      ],
+      "quest_objective": [
+        {
+          "title": "Meet with the settlement leader."
+        },
+        {
+          "title": "Visit Yellow quarantine zone."
+        },
+        {
+          "title": "Visit Red quarantine zone."
+        }
+      ],
+      "quest_type": "event",
+      "quest_category": "exploration",
+      "chain_order": 4,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 23
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "attack",
+          "requirement_data": {
+            "attack": 10
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "item",
+          "requirement_data": {
+            "item_name": "Radiation suit"
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "quest_completed",
+          "requirement_data": {
+            "quest_name": "The End of the Rainbow"
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Nuka-Cola Quantum",
+            "quantity": 2
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Nuka-Cola Quantum",
+            "item_type": "consumable",
+            "rarity": "common"
+          }
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Chemistry flask",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Chemistry flask",
+            "item_type": "junk",
+            "rarity": "legendary"
+          }
+        },
+        {
+          "reward_type": "CAPS",
+          "reward_data": {
+            "amount": 3300
+          },
+          "reward_chance": 1.0
+        }
+      ]
+    },
+    {
+      "quest_name": "The Banshee's Keen",
+      "short_description": "Solve the mystery of a haunted building.",
+      "long_description": "We've received reports from nearby Settlers that their building is haunted by a wailing female spirit. That sounds unlikely, but we should investigate in the name of... Science! Don't worry, we'll honor your memory if the angry dead end up eating your souls.",
+      "requirements": [
+        "Level 24 dwellers",
+        "10+ average equipped weapon damage",
+        "Complete \"It's Not Easy Being Green\" quest"
+      ],
+      "quest_objective": [
+        {
+          "title": "Solve the mystery of the wailing spirit."
+        },
+        {
+          "title": "Talk to Settlers."
+        },
+        {
+          "title": "Talk to Settlers."
+        }
+      ],
+      "quest_type": "event",
+      "quest_category": "exploration",
+      "chain_order": 5,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 24
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "attack",
+          "requirement_data": {
+            "attack": 10
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "quest_completed",
+          "requirement_data": {
+            "quest_name": "It's Not Easy Being Green"
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Vault-Tec Parrot",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Vault-Tec Parrot",
+            "item_type": "pet",
+            "rarity": "rare"
+          }
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Nuka-Cola Quantum",
+            "quantity": 2
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Nuka-Cola Quantum",
+            "item_type": "consumable",
+            "rarity": "common"
+          }
+        },
+        {
+          "reward_type": "CAPS",
+          "reward_data": {
+            "amount": 4050
+          },
+          "reward_chance": 1.0
+        }
+      ]
+    }
+  ]
+}

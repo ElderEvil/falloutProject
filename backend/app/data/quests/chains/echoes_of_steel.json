@@ -1,0 +1,357 @@
+{
+  "title": "Echoes of Steel",
+  "chain_id": "echoes_of_steel",
+  "chain_name": "Echoes of Steel",
+  "chain_description": "Follow the holotape trail of Maxson's Roughnecks, a lost Brotherhood of Steel team, and discover what became of them.",
+  "quests": [
+    {
+      "quest_name": "Have Gun, Will Travel",
+      "short_description": "Discover the fate of Maxson's Roughnecks.",
+      "long_description": "You found the holotape records of Maxson's Roughnecks, a Brotherhood of Steel team that scoured the Wasteland for technology. Track them down to discover their fate - starting at Vault 450!",
+      "requirements": [
+        "Level 50 dwellers"
+      ],
+      "quest_objective": "Explore Vault 450.",
+      "quest_type": "side",
+      "quest_category": "exploration",
+      "chain_order": 1,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 50
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "BoS paladin jacket",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "BoS paladin jacket",
+            "item_type": "outfit",
+            "rarity": "legendary"
+          }
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Gatling laser",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Gatling laser",
+            "item_type": "weapon",
+            "rarity": "legendary"
+          }
+        },
+        {
+          "reward_type": "CAPS",
+          "reward_data": {
+            "amount": 5000
+          },
+          "reward_chance": 1.0
+        }
+      ]
+    },
+    {
+      "quest_name": "Toy Soldiers",
+      "short_description": "Look for Maxson's Roughnecks at the Wilson Atomatoys Factory.",
+      "long_description": "A Dweller told me that Maxson's Roughnecks made their way to the Wilson Atomatoys Factory. That should be my next stop.",
+      "requirements": [
+        "Level 50 dwellers",
+        "Complete \"Have Gun, Will Travel\" quest"
+      ],
+      "quest_objective": "Explore the Wilson Atomatoys Factory.",
+      "quest_type": "side",
+      "quest_category": "exploration",
+      "chain_order": 2,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 50
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "quest_completed",
+          "requirement_data": {
+            "quest_name": "Have Gun, Will Travel"
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Mr. Pebbles",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Mr. Pebbles",
+            "item_type": "pet",
+            "rarity": "common"
+          }
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Nuka-Cola Quantum",
+            "quantity": 3
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Nuka-Cola Quantum",
+            "item_type": "consumable",
+            "rarity": "common"
+          }
+        }
+      ]
+    },
+    {
+      "quest_name": "No Stone Unturned",
+      "short_description": "Find the rest of Maxson's Roughnecks at the Poseidon Energy Offices.",
+      "long_description": "Some of Maxson's Roughnecks were killed at the Wilson Atomatoys Factory, and the rest retreated to the Poseidon Energy Offices. That's where I need to go.",
+      "requirements": [
+        "Level 50 dwellers",
+        "Complete \"Toy Soldiers\" quest"
+      ],
+      "quest_objective": "Explore the Poseidon Energy Offices.",
+      "quest_type": "side",
+      "quest_category": "exploration",
+      "chain_order": 3,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 50
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "quest_completed",
+          "requirement_data": {
+            "quest_name": "Toy Soldiers"
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "CAPS",
+          "reward_data": {
+            "amount": 1000
+          },
+          "reward_chance": 1.0
+        }
+      ]
+    },
+    {
+      "quest_name": "Slash and Burn",
+      "short_description": "Search the Nuka-Cola Plant for Maxson's Roughnecks.",
+      "long_description": "One of Maxson's Roughnecks told me his team went to clear out a Nuka-Cola plant. Looks like that's the next stop on my hunt.",
+      "requirements": [
+        "Level 50 dwellers",
+        "Complete \"No Stone Unturned\" quest"
+      ],
+      "quest_objective": [
+        {
+          "title": "Kill the Glowing One."
+        },
+        {
+          "title": "Explore the Nuka-Cola Plant."
+        }
+      ],
+      "quest_type": "side",
+      "quest_category": "combat",
+      "chain_order": 4,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 50
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "quest_completed",
+          "requirement_data": {
+            "quest_name": "No Stone Unturned"
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Elder robe",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Elder robe",
+            "item_type": "outfit",
+            "rarity": "legendary"
+          }
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Nuka-Cola Quantum",
+            "quantity": 2
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Nuka-Cola Quantum",
+            "item_type": "consumable",
+            "rarity": "common"
+          }
+        },
+        {
+          "reward_type": "CAPS",
+          "reward_data": {
+            "amount": 3000
+          },
+          "reward_chance": 1.0
+        }
+      ]
+    },
+    {
+      "quest_name": "Mission of Mercy",
+      "short_description": "Rescue Maxson's Roughnecks in Vault 390.",
+      "long_description": "I stumbled across a Ghoul who used to be one of Maxson's Roughnecks. He told me the rest of his team is trapped in Vault 390. It's time for a rescue mission!",
+      "requirements": [
+        "Level 50 dwellers",
+        "Complete \"Slash and Burn\" quest"
+      ],
+      "quest_objective": "Rescue Maxson's Roughnecks.",
+      "quest_type": "side",
+      "quest_category": "combat",
+      "chain_order": 5,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 50
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "quest_completed",
+          "requirement_data": {
+            "quest_name": "Slash and Burn"
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Laser rifle",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Laser rifle",
+            "item_type": "weapon",
+            "rarity": "rare"
+          }
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Sturdy combat armor",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Sturdy combat armor",
+            "item_type": "outfit",
+            "rarity": "rare"
+          }
+        }
+      ]
+    },
+    {
+      "quest_name": "The Final Push",
+      "short_description": "Find Maxson's Roughnecks in the Vault-Tec Headquarters.",
+      "long_description": "A Raider Boss in the ruins of Vault 390 told me that Maxson's Roughnecks are in the Vault-Tec Headquarters. I'm concerned for their safety, so I better armor up and hurry!",
+      "requirements": [
+        "Level 50 dwellers",
+        "Complete \"Mission of Mercy\" quest"
+      ],
+      "quest_objective": "Find Maxson's Roughnecks.",
+      "quest_type": "side",
+      "quest_category": "combat",
+      "chain_order": 6,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 50
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "quest_completed",
+          "requirement_data": {
+            "quest_name": "Mission of Mercy"
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Nuka-Cola Quantum",
+            "quantity": 3
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Nuka-Cola Quantum",
+            "item_type": "consumable",
+            "rarity": "common"
+          }
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "T-60a power armor",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "T-60a power armor",
+            "item_type": "outfit",
+            "rarity": "legendary"
+          }
+        },
+        {
+          "reward_type": "CAPS",
+          "reward_data": {
+            "amount": 2000
+          },
+          "reward_chance": 1.0
+        }
+      ]
+    }
+  ]
+}

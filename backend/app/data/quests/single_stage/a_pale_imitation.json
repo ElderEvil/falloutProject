@@ -1,0 +1,55 @@
+{
+  "quest_name": "A Pale Imitation",
+  "long_description": "There's a new Vault in the Wasteland, and it's run by Raiders! Vault-Tec is long gone, so who could have possibly constructed Vault R41D? Time to investigate...",
+  "short_description": "Investigate a mysterious, brand new Vault.",
+  "requirements": [
+    "Level 21 dwellers",
+    "Armored vault suit",
+    "5 Charisma"
+  ],
+  "quest_objective": [
+    {
+      "title": "Confront the Overseer."
+    },
+    {
+      "title": "Confront Vault R41D's Raider Boss."
+    }
+  ],
+  "quest_type": "side",
+  "quest_category": "exploration",
+  "duration_minutes": 60,
+  "quest_requirements": [
+    {
+      "requirement_type": "level",
+      "requirement_data": {
+        "level": 21
+      },
+      "is_mandatory": true
+    },
+    {
+      "requirement_type": "item",
+      "requirement_data": {
+        "item_name": "Armored vault suit",
+        "count": 1
+      },
+      "is_mandatory": true
+    },
+    {
+      "requirement_type": "stat",
+      "requirement_data": {
+        "stat": "charisma",
+        "value": 5
+      },
+      "is_mandatory": true
+    }
+  ],
+  "quest_rewards": [
+    {
+      "reward_type": "CAPS",
+      "reward_data": {
+        "amount": 1235
+      },
+      "reward_chance": 1.0
+    }
+  ]
+}

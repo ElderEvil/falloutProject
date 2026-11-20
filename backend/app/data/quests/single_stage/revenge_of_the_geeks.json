@@ -1,0 +1,58 @@
+{
+  "quest_name": "Revenge of the Geeks",
+  "long_description": "Who says accountants are wimps? Answer the questions or face the consequences.",
+  "short_description": "Test your math skills.",
+  "requirements": [
+    "Level 45 dwellers",
+    "Initiate robe"
+  ],
+  "quest_objective": "Answer all the questions.",
+  "quest_type": "side",
+  "quest_category": "exploration",
+  "duration_minutes": 60,
+  "quest_requirements": [
+    {
+      "requirement_type": "level",
+      "requirement_data": {
+        "level": 45
+      },
+      "is_mandatory": true
+    },
+    {
+      "requirement_type": "item",
+      "requirement_data": {
+        "item_name": "Initiate robe",
+        "count": 1
+      },
+      "is_mandatory": true
+    }
+  ],
+  "quest_rewards": [
+    {
+      "reward_type": "ITEM",
+      "reward_data": {
+        "item_name": "Plasma rifle",
+        "quantity": 1
+      },
+      "reward_chance": 1.0,
+      "item_data": {
+        "name": "Plasma rifle",
+        "item_type": "weapon",
+        "rarity": "legendary"
+      }
+    },
+    {
+      "reward_type": "ITEM",
+      "reward_data": {
+        "item_name": "Professor outfit",
+        "quantity": 1
+      },
+      "reward_chance": 1.0,
+      "item_data": {
+        "name": "Professor outfit",
+        "item_type": "outfit",
+        "rarity": "rare"
+      }
+    }
+  ]
+}

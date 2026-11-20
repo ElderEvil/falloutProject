@@ -1,0 +1,77 @@
+{
+  "quest_name": "Humans Like Us",
+  "long_description": "There have been several reports of strange lights hovering over the Wasteland not far from here. The lights were congregating over an old abandoned mine. We need to investigate this before rumors of alien visitors start spreading!",
+  "short_description": "Investigate strange aerial lights.",
+  "requirements": [
+    "Level 40 dwellers",
+    "15+ DAM weapons"
+  ],
+  "quest_objective": [
+    {
+      "title": "Talk to the mysterious Overseer."
+    },
+    {
+      "title": "Talk to the mysterious Dwellers."
+    }
+  ],
+  "quest_type": "side",
+  "quest_category": "exploration",
+  "duration_minutes": 60,
+  "quest_requirements": [
+    {
+      "requirement_type": "level",
+      "requirement_data": {
+        "level": 40
+      },
+      "is_mandatory": true
+    },
+    {
+      "requirement_type": "attack",
+      "requirement_data": {
+        "attack": 15
+      },
+      "is_mandatory": true
+    }
+  ],
+  "quest_rewards": [
+    {
+      "reward_type": "ITEM",
+      "reward_data": {
+        "item_name": "Alien blaster",
+        "quantity": 1
+      },
+      "reward_chance": 1.0,
+      "item_data": {
+        "name": "Alien blaster",
+        "item_type": "weapon",
+        "rarity": "legendary"
+      }
+    },
+    {
+      "reward_type": "ITEM",
+      "reward_data": {
+        "item_name": "Nuka-Cola Quantum",
+        "quantity": 2
+      },
+      "reward_chance": 1.0,
+      "item_data": {
+        "name": "Nuka-Cola Quantum",
+        "item_type": "consumable",
+        "rarity": "common"
+      }
+    },
+    {
+      "reward_type": "ITEM",
+      "reward_data": {
+        "item_name": "Legendary junk",
+        "quantity": 1
+      },
+      "reward_chance": 1.0,
+      "item_data": {
+        "name": "Legendary junk",
+        "item_type": "junk",
+        "rarity": "legendary"
+      }
+    }
+  ]
+}

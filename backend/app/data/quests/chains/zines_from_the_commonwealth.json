@@ -1,0 +1,264 @@
+{
+  "title": "Zines from the Commonwealth",
+  "chain_id": "zines_from_the_commonwealth",
+  "chain_name": "Zines from the Commonwealth",
+  "chain_description": "Chase a shot at fame through the New Boston Bugle, and uncover the scam hiding behind its front page.",
+  "quests": [
+    {
+      "quest_name": "A Map to the Stars",
+      "short_description": "Talk to the Overseer of Vault 404 about the New Bugle.",
+      "long_description": "The Overseer of 404 appears to have a way to get in contact with the publisher of the New Boston Bugle. She's our ticket to stardom!",
+      "requirements": [
+        "Level 7 dwellers",
+        "3+ average equipped weapon damage"
+      ],
+      "quest_objective": "Talk to the Overseer of Vault 404.",
+      "quest_type": "side",
+      "quest_category": "exploration",
+      "chain_order": 1,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 7
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "attack",
+          "requirement_data": {
+            "attack": 3
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Nuka-Cola Quantum",
+            "quantity": 2
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Nuka-Cola Quantum",
+            "item_type": "consumable",
+            "rarity": "common"
+          }
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Laser pistol",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Laser pistol",
+            "item_type": "weapon",
+            "rarity": "rare"
+          }
+        }
+      ]
+    },
+    {
+      "quest_name": "The (Thinly Veiled) Plot Thickens",
+      "short_description": "Talk to the Overseer at Vault 120 about the New Bugle.",
+      "long_description": "Vault 404 was destroyed in a Raider attack... but Vault 120 might have more information.",
+      "requirements": [
+        "Level 8 dwellers",
+        "3+ average equipped weapon damage",
+        "Complete \"A Map to the Stars\" quest"
+      ],
+      "quest_objective": "Talk to the Overseer of Vault 120.",
+      "quest_type": "side",
+      "quest_category": "exploration",
+      "chain_order": 2,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 8
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "attack",
+          "requirement_data": {
+            "attack": 3
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "quest_completed",
+          "requirement_data": {
+            "quest_name": "A Map to the Stars"
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Plasma rifle",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Plasma rifle",
+            "item_type": "weapon",
+            "rarity": "legendary"
+          }
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Assault rifle",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Assault rifle",
+            "item_type": "weapon",
+            "rarity": "rare"
+          }
+        }
+      ]
+    },
+    {
+      "quest_name": "Collateral Murder",
+      "short_description": "Find the first group of settlers to get attacked by Raiders.",
+      "long_description": "It seems like if you get mentioned in the New Boston Bugle, you end up with your head on a Raider pike. Now we have to figure how to NOT make the front page!",
+      "requirements": [
+        "Level 9 dwellers",
+        "4+ average equipped weapon damage",
+        "Complete \"The (Thinly Veiled) Plot Thickens\" quest"
+      ],
+      "quest_objective": "Meet the Settlers at the RobCo Plant.",
+      "quest_type": "side",
+      "quest_category": "exploration",
+      "chain_order": 3,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 9
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "attack",
+          "requirement_data": {
+            "attack": 4
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "quest_completed",
+          "requirement_data": {
+            "quest_name": "The (Thinly Veiled) Plot Thickens"
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Pet Carrier",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Pet Carrier",
+            "item_type": "pet_carrier",
+            "rarity": "common"
+          }
+        }
+      ]
+    },
+    {
+      "quest_name": "Stop the Presses!",
+      "short_description": "Confront The Editor.",
+      "long_description": "We've found out that the whole \"New Boston Bugle\" thing is a total scam. We have to hunt down the Editor and put him out of business.",
+      "requirements": [
+        "Level 11 dwellers",
+        "4+ average equipped weapon damage",
+        "Complete \"Collateral Murder\" quest"
+      ],
+      "quest_objective": "Confront the Editor.",
+      "quest_type": "side",
+      "quest_category": "combat",
+      "chain_order": 4,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 11
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "attack",
+          "requirement_data": {
+            "attack": 4
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "quest_completed",
+          "requirement_data": {
+            "quest_name": "Collateral Murder"
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Gauss rifle",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Gauss rifle",
+            "item_type": "weapon",
+            "rarity": "rare"
+          }
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "NCR Ranger outfit",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "NCR Ranger outfit",
+            "item_type": "outfit",
+            "rarity": "rare"
+          }
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Survivor armor",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Survivor armor",
+            "item_type": "outfit",
+            "rarity": "rare"
+          }
+        }
+      ]
+    }
+  ]
+}

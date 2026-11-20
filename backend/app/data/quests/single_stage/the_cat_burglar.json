@@ -1,0 +1,51 @@
+{
+  "quest_name": "The Cat Burglar",
+  "long_description": "A cat burglar has been hitting Vault after Vault, taking pets away from their owners. Stop them before they steal another cat!",
+  "short_description": "Solve the mystery of an elusive thief.",
+  "requirements": [
+    "Level 11 dwellers",
+    "4+ DAM weapons"
+  ],
+  "quest_objective": "Neuter the Cat Burglar.",
+  "quest_type": "side",
+  "quest_category": "combat",
+  "duration_minutes": 60,
+  "quest_requirements": [
+    {
+      "requirement_type": "level",
+      "requirement_data": {
+        "level": 11
+      },
+      "is_mandatory": true
+    },
+    {
+      "requirement_type": "attack",
+      "requirement_data": {
+        "attack": 4
+      },
+      "is_mandatory": true
+    }
+  ],
+  "quest_rewards": [
+    {
+      "reward_type": "ITEM",
+      "reward_data": {
+        "item_name": "Abyssinian",
+        "quantity": 1
+      },
+      "reward_chance": 1.0,
+      "item_data": {
+        "name": "Abyssinian",
+        "item_type": "pet",
+        "rarity": "common"
+      }
+    },
+    {
+      "reward_type": "CAPS",
+      "reward_data": {
+        "amount": 400
+      },
+      "reward_chance": 1.0
+    }
+  ]
+}

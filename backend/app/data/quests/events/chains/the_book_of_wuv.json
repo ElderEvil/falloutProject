@@ -1,0 +1,304 @@
+{
+  "title": "The Book of Wuv",
+  "chain_id": "the_book_of_wuv",
+  "chain_name": "The Book of Wuv",
+  "chain_description": "A Valentine's Day romance unfolds across the wasteland, from a vault singles night to a wedding that almost goes off without a hitch.",
+  "quests": [
+    {
+      "quest_name": "All's Fair in Love and Nuclear War",
+      "short_description": "Travel to a nearby Vault to find a potential mate.",
+      "long_description": "We've received word that a nearby Vault is holding a Singles Night for Valentine's Day, and they've invited us to participate!",
+      "requirements": [
+        "Level 10 dwellers",
+        "Formal wear",
+        "3 Charisma"
+      ],
+      "quest_objective": [
+        {
+          "title": "Meet that special someone."
+        },
+        {
+          "title": "Dissuade rival suitors."
+        }
+      ],
+      "quest_type": "event",
+      "quest_category": "exploration",
+      "chain_order": 1,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 10
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "stat",
+          "requirement_data": {
+            "stat": "charisma",
+            "value": 3
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "item",
+          "requirement_data": {
+            "item_name": "Formal wear"
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Nuka-Cola Quantum",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Nuka-Cola Quantum",
+            "item_type": "consumable",
+            "rarity": "common"
+          }
+        },
+        {
+          "reward_type": "CAPS",
+          "reward_data": {
+            "amount": 300
+          },
+          "reward_chance": 1.0
+        },
+        {
+          "reward_type": "CAPS",
+          "reward_data": {
+            "amount": 400
+          },
+          "reward_chance": 1.0
+        }
+      ]
+    },
+    {
+      "quest_name": "This Golden Ring",
+      "short_description": "Retrieve Pre-war Jewelry to make a ring.",
+      "long_description": "Love is in the air, and just like radioactive fallout - once it gets inside you it doesn't get out! All we need now is a ring to pop the big question. We might have some luck finding Pre-War jewelry in a nearby abandoned building.",
+      "requirements": [
+        "Level 11 dwellers",
+        "3 Perception",
+        "4+ average equipped weapon damage",
+        "Complete \"All's Fair in Love and Nuclear War\" quest"
+      ],
+      "quest_objective": "Find any item made of gold.",
+      "quest_type": "event",
+      "quest_category": "collection",
+      "chain_order": 2,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 11
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "stat",
+          "requirement_data": {
+            "stat": "perception",
+            "value": 3
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "attack",
+          "requirement_data": {
+            "attack": 4
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "quest_completed",
+          "requirement_data": {
+            "quest_name": "All's Fair in Love and Nuclear War"
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Nuka-Cola Quantum",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Nuka-Cola Quantum",
+            "item_type": "consumable",
+            "rarity": "common"
+          }
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Gold watch",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Gold watch",
+            "item_type": "junk",
+            "rarity": "legendary"
+          }
+        }
+      ]
+    },
+    {
+      "quest_name": "A Labor of Love",
+      "short_description": "Clear out a cave in preparation for a wedding.",
+      "long_description": "The big day is almost upon us. The idea was to have a wedding in a natural setting, but since it's too dangerous outside we'll use a nearby cave instead. We just need to sterilize it.",
+      "requirements": [
+        "Level 12 dwellers",
+        "5+ average equipped weapon damage",
+        "Complete \"This Golden Ring\" quest"
+      ],
+      "quest_objective": "Eliminate the Mole Rat Brood Mother.",
+      "quest_type": "event",
+      "quest_category": "combat",
+      "chain_order": 3,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 12
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "attack",
+          "requirement_data": {
+            "attack": 5
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "quest_completed",
+          "requirement_data": {
+            "quest_name": "This Golden Ring"
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Double-barrel sawed-off shotgun",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Double-barrel sawed-off shotgun",
+            "item_type": "weapon",
+            "rarity": "rare"
+          }
+        },
+        {
+          "reward_type": "CAPS",
+          "reward_data": {
+            "amount": 425
+          },
+          "reward_chance": 1.0
+        }
+      ]
+    },
+    {
+      "quest_name": "Groom for Doubt",
+      "short_description": "Rescue a missing groom from Raiders.",
+      "long_description": "That was quite the bachelor party last night! Too bad the groom's missing today. Last we saw, he was being carried away by the hired entertainment. We have to bring him back, and quick. Let's avoid a repeat of New Year's Eve...",
+      "requirements": [
+        "Level 13 dwellers",
+        "5+ average equipped weapon damage",
+        "Complete \"A Labor of Love\" quest"
+      ],
+      "quest_objective": [
+        {
+          "title": "Rescue the groom."
+        },
+        {
+          "title": "Kill the Raider Boss."
+        }
+      ],
+      "quest_type": "event",
+      "quest_category": "combat",
+      "chain_order": 4,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 13
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "attack",
+          "requirement_data": {
+            "attack": 5
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "quest_completed",
+          "requirement_data": {
+            "quest_name": "A Labor of Love"
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Tenpenny's suit",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Tenpenny's suit",
+            "item_type": "outfit",
+            "rarity": "legendary"
+          }
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Combat shotgun",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Combat shotgun",
+            "item_type": "weapon",
+            "rarity": "rare"
+          }
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Rare junk",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Rare junk",
+            "item_type": "junk",
+            "rarity": "rare"
+          }
+        }
+      ]
+    }
+  ]
+}

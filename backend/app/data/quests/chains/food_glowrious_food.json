@@ -1,0 +1,283 @@
+{
+  "title": "Food, Glowrious Food",
+  "chain_id": "food_glowrious_food",
+  "chain_name": "Food, Glowrious Food",
+  "chain_description": "A new chef has bold ideas for the vault's menu and a long list of impossible ingredients. Collect them all - if his recipes don't collect you first.",
+  "quests": [
+    {
+      "quest_name": "All Sales Final",
+      "long_description": "Our new chef has some bold ideas to spruce up our daily fare, and he's made a list of specific ingredients he needs. We should visit a nearby abandoned Super-Duper Mart to see if we can find any of them.",
+      "short_description": "Retrieve ingredients from infested Super-Duper Mart.",
+      "requirements": [
+        "Level 10 dwellers",
+        "5+ average equipped weapon damage"
+      ],
+      "quest_objective": "Search the Super-Duper Mart for ingredients.",
+      "quest_type": "side",
+      "quest_category": "combat",
+      "chain_order": 1,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {"requirement_type": "level", "requirement_data": {"level": 10}, "is_mandatory": true},
+        {"requirement_type": "attack", "requirement_data": {"attack": 5}, "is_mandatory": true}
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "CAPS",
+          "reward_data": {"amount": 1100},
+          "reward_chance": 1.0
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {"item_name": "Kitchen knife", "quantity": 1},
+          "reward_chance": 1.0,
+          "item_data": {"name": "Kitchen knife", "item_type": "weapon", "rarity": "rare"}
+        }
+      ]
+    },
+    {
+      "quest_name": "Thyme is Money",
+      "long_description": "All right, the Super-Duper Mart was a bust as far as ingredients go. This time, though, we have a sure lead to a cache of spice in a nearby building! And the chef is convinced the Raiders will just hand it over...",
+      "short_description": "Steal some spices from a band of Raiders.",
+      "requirements": [
+        "Level 16 dwellers",
+        "7+ average equipped weapon damage",
+        "Complete \"All Sales Final\" quest"
+      ],
+      "quest_objective": [
+        {"title": "Retrieve the spice."},
+        {"title": "Eliminate the Raider Boss."}
+      ],
+      "quest_type": "side",
+      "quest_category": "combat",
+      "chain_order": 2,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {"requirement_type": "level", "requirement_data": {"level": 16}, "is_mandatory": true},
+        {"requirement_type": "attack", "requirement_data": {"attack": 7}, "is_mandatory": true},
+        {"requirement_type": "quest_completed", "requirement_data": {"quest_name": "All Sales Final"}, "is_mandatory": true}
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "ITEM",
+          "reward_data": {"item_name": "Nuka-Cola Quantum", "quantity": 2},
+          "reward_chance": 1.0,
+          "item_data": {"name": "Nuka-Cola Quantum", "item_type": "consumable", "rarity": "rare"}
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {"item_name": "Rare junk", "quantity": 1},
+          "reward_chance": 1.0,
+          "item_data": {"name": "Rare junk", "item_type": "junk", "rarity": "rare"}
+        },
+        {
+          "reward_type": "CAPS",
+          "reward_data": {"amount": 1900},
+          "reward_chance": 1.0
+        }
+      ]
+    },
+    {
+      "quest_name": "Cheese, Please!",
+      "long_description": "The chef is happy - and surprised - that you made it back in one piece! He now requires processed cheese, AKA gray gold, the miracle food that endures the passage of time and nuclear war. Some may be left in the old Cheese Factory.",
+      "short_description": "Obtain processed cheese from the abandoned factory.",
+      "requirements": [
+        "Level 22 dwellers",
+        "Radiation suit",
+        "Complete \"Thyme is Money\" quest"
+      ],
+      "quest_objective": [
+        {"title": "Retrieve cheese paste from the factory."},
+        {"title": "Kill the Glowing One."}
+      ],
+      "quest_type": "side",
+      "quest_category": "combat",
+      "chain_order": 3,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {"requirement_type": "level", "requirement_data": {"level": 22}, "is_mandatory": true},
+        {"requirement_type": "item", "requirement_data": {"item_name": "Radiation suit"}, "is_mandatory": true},
+        {"requirement_type": "quest_completed", "requirement_data": {"quest_name": "Thyme is Money"}, "is_mandatory": true}
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "ITEM",
+          "reward_data": {"item_name": "Legendary junk", "quantity": 1},
+          "reward_chance": 1.0,
+          "item_data": {"name": "Legendary junk", "item_type": "junk", "rarity": "legendary"}
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {"item_name": "Bounty hunter gear", "quantity": 1},
+          "reward_chance": 1.0,
+          "item_data": {"name": "Bounty hunter gear", "item_type": "outfit", "rarity": "rare"}
+        },
+        {
+          "reward_type": "CAPS",
+          "reward_data": {"amount": 3000},
+          "reward_chance": 1.0
+        }
+      ]
+    },
+    {
+      "quest_name": "The Yolk's on You",
+      "long_description": "The chef never ceases to be amazed by your uncanny ability to escape death, and he wants to celebrate it with a Radscorpion egg omelet. Vault 923 was recently overrun by these critters, so that'd be a good place to start.",
+      "short_description": "Bring Radscorpion eggs back to the chef.",
+      "requirements": [
+        "Level 28 dwellers",
+        "Radiation suit",
+        "Complete \"Cheese, Please!\" quest"
+      ],
+      "quest_objective": [
+        {"title": "Kill the Glowing Radscorpion and harvest its eggs."},
+        {"title": "Rescue any surviving Dwellers."}
+      ],
+      "quest_type": "side",
+      "quest_category": "combat",
+      "chain_order": 4,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {"requirement_type": "level", "requirement_data": {"level": 28}, "is_mandatory": true},
+        {"requirement_type": "item", "requirement_data": {"item_name": "Radiation suit"}, "is_mandatory": true},
+        {"requirement_type": "quest_completed", "requirement_data": {"quest_name": "Cheese, Please!"}, "is_mandatory": true}
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "LUNCHBOX",
+          "reward_data": {"amount": 1},
+          "reward_chance": 1.0
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {"item_name": "Enhanced flamer", "quantity": 1},
+          "reward_chance": 1.0,
+          "item_data": {"name": "Enhanced flamer", "item_type": "weapon", "rarity": "rare"}
+        },
+        {
+          "reward_type": "CAPS",
+          "reward_data": {"amount": 3650},
+          "reward_chance": 1.0
+        }
+      ]
+    },
+    {
+      "quest_name": "High Steaks",
+      "long_description": "Okay, so that Radscorpion omelet was kind of gross. To make up for it, the chef proposes to make his trademark Deathclaw Wellington. All he needs is fresh Deathclaw meat, straight from their den (sunlight is said to alter the taste).",
+      "short_description": "Bring Deathclaw meat back to the chef.",
+      "requirements": [
+        "Level 34 dwellers",
+        "16+ average equipped weapon damage",
+        "Complete \"The Yolk's on You\" quest"
+      ],
+      "quest_objective": "Kill the Alpha Deathclaw and harvest its meat.",
+      "quest_type": "side",
+      "quest_category": "combat",
+      "chain_order": 5,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {"requirement_type": "level", "requirement_data": {"level": 34}, "is_mandatory": true},
+        {"requirement_type": "attack", "requirement_data": {"attack": 16}, "is_mandatory": true},
+        {"requirement_type": "quest_completed", "requirement_data": {"quest_name": "The Yolk's on You"}, "is_mandatory": true}
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "ITEM",
+          "reward_data": {"item_name": "Nuka-Cola Quantum", "quantity": 2},
+          "reward_chance": 1.0,
+          "item_data": {"name": "Nuka-Cola Quantum", "item_type": "consumable", "rarity": "rare"}
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {"item_name": "Rusty plasma rifle", "quantity": 1},
+          "reward_chance": 1.0,
+          "item_data": {"name": "Rusty plasma rifle", "item_type": "weapon", "rarity": "rare"}
+        },
+        {
+          "reward_type": "CAPS",
+          "reward_data": {"amount": 4000},
+          "reward_chance": 1.0
+        }
+      ]
+    },
+    {
+      "quest_name": "The Towering Il Forno",
+      "long_description": "That Deathclaw steak was a bit...stringy, to say the least. The chef feels bad about this, and wants to make his favorite comfort food, lasagna. Unfortunately, raiders have stolen his secret sauce recipe, and we need to get it back from their towering lair first.",
+      "short_description": "Retrieve the chef's secret recipe.",
+      "requirements": [
+        "Level 40 dwellers",
+        "17+ average equipped weapon damage",
+        "Complete \"High Steaks\" quest"
+      ],
+      "quest_objective": "Find the secret recipe.",
+      "quest_type": "side",
+      "quest_category": "combat",
+      "chain_order": 6,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {"requirement_type": "level", "requirement_data": {"level": 40}, "is_mandatory": true},
+        {"requirement_type": "attack", "requirement_data": {"attack": 17}, "is_mandatory": true},
+        {"requirement_type": "quest_completed", "requirement_data": {"quest_name": "High Steaks"}, "is_mandatory": true}
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "ITEM",
+          "reward_data": {"item_name": "Legendary junk", "quantity": 1},
+          "reward_chance": 1.0,
+          "item_data": {"name": "Legendary junk", "item_type": "junk", "rarity": "legendary"}
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {"item_name": "Relentless raider sword", "quantity": 1},
+          "reward_chance": 1.0,
+          "item_data": {"name": "Relentless raider sword", "item_type": "weapon", "rarity": "legendary"}
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {"item_name": "Lucky formal wear", "quantity": 1},
+          "reward_chance": 1.0,
+          "item_data": {"name": "Lucky formal wear", "item_type": "outfit", "rarity": "legendary"}
+        }
+      ]
+    },
+    {
+      "quest_name": "By Hook or by Cook",
+      "long_description": "As it turns out, the chef really was trying to kill us all. Seems he's with a band of Raiders who've been eyeing our Vault. He fled as soon as he was exposed, but we know he's set to meet other Raiders at an abandoned Red Rocket.",
+      "short_description": "Kill the renegade chef.",
+      "requirements": [
+        "Level 46 dwellers",
+        "19+ average equipped weapon damage",
+        "Complete \"The Towering Il Forno\" quest"
+      ],
+      "quest_objective": "Kill the Chef.",
+      "quest_type": "side",
+      "quest_category": "combat",
+      "chain_order": 7,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {"requirement_type": "level", "requirement_data": {"level": 46}, "is_mandatory": true},
+        {"requirement_type": "attack", "requirement_data": {"attack": 19}, "is_mandatory": true},
+        {"requirement_type": "quest_completed", "requirement_data": {"quest_name": "The Towering Il Forno"}, "is_mandatory": true}
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "ITEM",
+          "reward_data": {"item_name": "Commander uniform", "quantity": 1},
+          "reward_chance": 1.0,
+          "item_data": {"name": "Commander uniform", "item_type": "outfit", "rarity": "legendary"}
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {"item_name": "Legendary junk", "quantity": 1},
+          "reward_chance": 1.0,
+          "item_data": {"name": "Legendary junk", "item_type": "junk", "rarity": "legendary"}
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {"item_name": "Butcher knife", "quantity": 1},
+          "reward_chance": 1.0,
+          "item_data": {"name": "Butcher knife", "item_type": "weapon", "rarity": "rare"}
+        }
+      ]
+    }
+  ]
+}

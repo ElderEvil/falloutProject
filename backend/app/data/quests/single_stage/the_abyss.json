@@ -1,0 +1,64 @@
+{
+  "quest_name": "The Abyss",
+  "long_description": "We've all heard rumors of a bottomless Vault, one that is deeper than any others that have been built, but now it seems we may have actually located it! We need to send a recon party to explore the Vault and unlock its deadly secret.",
+  "short_description": "Explore the depth of a bottomless Vault.",
+  "requirements": [
+    "Level 40 dwellers",
+    "15+ DAM weapons"
+  ],
+  "quest_objective": "Solve the secret of the Vault.",
+  "quest_type": "side",
+  "quest_category": "exploration",
+  "duration_minutes": 60,
+  "quest_requirements": [
+    {
+      "requirement_type": "level",
+      "requirement_data": {
+        "level": 40
+      },
+      "is_mandatory": true
+    },
+    {
+      "requirement_type": "attack",
+      "requirement_data": {
+        "attack": 15
+      },
+      "is_mandatory": true
+    }
+  ],
+  "quest_rewards": [
+    {
+      "reward_type": "LUNCHBOX",
+      "reward_data": {
+        "amount": 1
+      },
+      "reward_chance": 1.0
+    },
+    {
+      "reward_type": "ITEM",
+      "reward_data": {
+        "item_name": "Nuka-Cola Quantum",
+        "quantity": 3
+      },
+      "reward_chance": 1.0,
+      "item_data": {
+        "name": "Nuka-Cola Quantum",
+        "item_type": "consumable",
+        "rarity": "common"
+      }
+    },
+    {
+      "reward_type": "ITEM",
+      "reward_data": {
+        "item_name": "Gatling laser",
+        "quantity": 1
+      },
+      "reward_chance": 1.0,
+      "item_data": {
+        "name": "Gatling laser",
+        "item_type": "weapon",
+        "rarity": "legendary"
+      }
+    }
+  ]
+}

@@ -1,0 +1,73 @@
+{
+  "quest_name": "The De-Buggers",
+  "long_description": "We've received a call for help from Vault 505. They've been working on a special project that would allow Dwellers to play games on their Pip-Boys. Imagine that! Unfortunately, they've also been overrun with Radroaches. We have to help them!",
+  "short_description": "Help Vault 505 deal with its bug problem.",
+  "requirements": [
+    "Level 9 dwellers",
+    "3+ DAM weapons",
+    "3 Perception"
+  ],
+  "quest_objective": [
+    {
+      "title": "Talk to the developers."
+    },
+    {
+      "title": "Talk to the producers."
+    }
+  ],
+  "quest_type": "side",
+  "quest_category": "exploration",
+  "duration_minutes": 60,
+  "quest_requirements": [
+    {
+      "requirement_type": "level",
+      "requirement_data": {
+        "level": 9
+      },
+      "is_mandatory": true
+    },
+    {
+      "requirement_type": "attack",
+      "requirement_data": {
+        "attack": 3
+      },
+      "is_mandatory": true
+    },
+    {
+      "requirement_type": "stat",
+      "requirement_data": {
+        "stat": "perception",
+        "value": 3
+      },
+      "is_mandatory": true
+    }
+  ],
+  "quest_rewards": [
+    {
+      "reward_type": "ITEM",
+      "reward_data": {
+        "item_name": "Advanced lab coat",
+        "quantity": 1
+      },
+      "reward_chance": 1.0,
+      "item_data": {
+        "name": "Advanced lab coat",
+        "item_type": "outfit",
+        "rarity": "rare"
+      }
+    },
+    {
+      "reward_type": "ITEM",
+      "reward_data": {
+        "item_name": "Rare junk",
+        "quantity": 1
+      },
+      "reward_chance": 1.0,
+      "item_data": {
+        "name": "Rare junk",
+        "item_type": "junk",
+        "rarity": "rare"
+      }
+    }
+  ]
+}

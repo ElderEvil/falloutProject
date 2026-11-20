@@ -10,8 +10,10 @@ Standard is the recommended first run. The review points players to their reserv
 and the starter Objectives. Survival keeps the same opening and makes deaths permanent.
 
 The creation screen offers three optional experiments. Vault 67 (Short Rations) is
-an original scenario with half the usual starting food and water and 25% lower
-food and water production, including room rushes. Vaults 68 and 69
+an original scenario with half the usual starting food and water, and kitchens
+and purifiers running at roughly a third of a standard vault's output, room
+rushes included — feeding the vault stays a staffing decision instead of
+resolving itself in the first ten minutes. Vaults 68 and 69
 adapt the population imbalance in the [Fallout Bible](https://www.duckandcover.cx/official/bible/bible.html)
 to nine residents (8:1 and 1:8 respectively). Each has a fixed nine-person starter
 reward cohort with the same ratio, the same SPECIAL budgets per reward, and

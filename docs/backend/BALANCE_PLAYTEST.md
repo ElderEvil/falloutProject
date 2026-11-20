@@ -1046,3 +1046,52 @@ now shows worker loss **at depth** — a fresh vault stays safe while shedding o
 workers, and only the deep one-adult crew flips the big boosted draw negative. This model excludes
 race/faction identity modifiers that real random-race dwellers carry, so live totals can differ
 slightly in either direction; the margin is wide enough that the success criterion holds regardless.
+
+---
+
+# Balance Playtest — Vault 67 multiplier (2026-11-20)
+
+> Standalone section. §10 stays authoritative for `base_production_rate`; nothing here touches it.
+
+## Why the scenario changed
+
+Vault 67's stated handicap was "half the starting food and water, 25% lower food/water production".
+Measured against a real seeded vault (`vaults/initiate` with `scenario=vault_67_short_rations`,
+then 72 in-game hours through `ResourceManager.calculate_resource_window` at 60-second steps), it
+was inert:
+
+| | Vault 67 at 0.75 | standard |
+|---|---|---|
+| consumption | 2.70/min (9 dwellers) | 2.70/min |
+| production | 15.12/min (2 cooks, tier-1 diner) | 20.16/min |
+| net | **+12.42/min → storage full in 9.1 min** | +17.46/min |
+| dwellers fed per cook | **25** | 33.6 |
+
+A half-full vault refilled in nine minutes and stayed at cap for the remaining 71 hours; at the
+26-dweller ceiling two cooks still left ~1.9× headroom. Nothing in the running game surfaced the
+experiment either, so the player could not tell the vault apart from a standard one.
+
+`base_production_rate` was **not** the lever: §10 already reversed a 4x cut after live vault
+`31c2dbd3` went dark, because power's all-room draw (~14/min standard, ~51.5/min boosted) binds
+long before food does. Cutting the global rate again would repeat that failure.
+
+## The change
+
+`food_water_multiplier` for `vault_67_short_rations`: **0.75 → 0.35**. Scenario-local; `power` is
+untouched (the multiplier only rewrites the `food`/`water` keys), so §10's power calibration holds.
+Starting stock still halves via `ration_divisor=2`.
+
+| population | cooks | production/min | consumption/min | net |
+|---|---|---|---|---|
+| 9 (seeded starter, SP5 cooks) | 2 | 7.06 | 2.70 | **+4.36** (caps in ~26 min) |
+| 20 (ordinary SP3 cooks) | 2 | 4.23 | 6.00 | **−1.77** (must staff up) |
+| 20 (ordinary SP3 cooks) | 3 | 6.35 | 6.00 | **+0.35** (recovery) |
+| 26 (ceiling, SP3 cooks) | 3 | 6.35 | 7.80 | **−1.45** (forces a tier upgrade) |
+
+Success criterion, encoded as `test_short_rations_makes_feeding_the_vault_a_staffing_decision` in
+`app/tests/test_services/test_resource_manager.py`: the starter is solvent but no longer a formality,
+an ordinary growing vault cannot be fed by two cooks, and a third cook is a recovery rather than a
+dead end. Below ~0.35 the vault becomes unwinnable at 20+ dwellers rather than tight.
+
+**Room rushes** scale by the same multiplier (unchanged code path, new value), so rush payouts cannot
+be used to bypass the experiment.

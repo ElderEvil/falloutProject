@@ -148,17 +148,36 @@ def _build_outfit(name: str, rarity: str, data: dict[str, Any], storage_id: UUID
 _JUNK_PLACEHOLDER_RE = re.compile(r"^(?:common|uncommon|rare|legendary)\s+junk$", re.IGNORECASE)
 
 
-def _canonical_junk_entry(rarity: str) -> dict[str, Any] | None:
-    """The catalog valuables entry a '<Rarity> junk' placeholder reward settles into."""
+def _resolve_junk(name: str, rarity: str, data: dict[str, Any]) -> tuple[str, dict[str, Any]]:
+    """Junk rewards settle from the junk catalog; a '<Rarity> junk' placeholder resolves
+    to that rarity's valuables entry; authored junk_type, value or art overrides win.
+    """
     from app.services.catalog_service import load_junk_items
 
-    for entry in load_junk_items():
-        if (
-            str(entry.get("junk_type", "")).lower() == "valuables"
-            and str(entry.get("rarity", "")).lower() == rarity.lower()
-        ):
-            return entry
-    return None
+    entries = load_junk_items()
+    entry = next((e for e in entries if str(e["name"]).lower() == name.lower()), None)
+    if (
+        entry is None
+        and data.get("junk_type") is None
+        and data.get("value") is None
+        and _JUNK_PLACEHOLDER_RE.fullmatch(name)
+    ):
+        entry = next(
+            (
+                e
+                for e in entries
+                if str(e.get("junk_type", "")).lower() == "valuables"
+                and str(e.get("rarity", "")).lower() == rarity.lower()
+            ),
+            None,
+        )
+    if entry is not None:
+        resolved = dict(entry)
+        resolved.update(
+            {key: data[key] for key in ("junk_type", "value", "description", "image_url") if data.get(key) is not None}
+        )
+        return str(entry["name"]), resolved
+    return name, data
 
 
 def _build_junk(name: str, rarity: str, data: dict[str, Any], storage_id: UUID):
@@ -166,12 +185,7 @@ def _build_junk(name: str, rarity: str, data: dict[str, Any], storage_id: UUID):
     from app.utils.item_factory import build_junk
     from app.utils.junk_assets import get_junk_image_url
 
-    # '<Rarity> junk' placeholders settle as the catalog valuables item of that rarity.
-    if data.get("junk_type") is None and data.get("value") is None and _JUNK_PLACEHOLDER_RE.fullmatch(name):
-        entry = _canonical_junk_entry(rarity)
-        if entry is not None:
-            name = str(entry["name"])
-            data = dict(entry)
+    name, data = _resolve_junk(name, rarity, data)
     junk_type = data.get("junk_type", JunkTypeEnum.VALUABLES)
     if isinstance(junk_type, str):
         junk_type = JunkTypeEnum(junk_type)

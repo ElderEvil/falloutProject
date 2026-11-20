@@ -198,3 +198,12 @@ async def test_rarity_junk_placeholders_settle_into_catalog_valuables(async_sess
         assert junk.junk_type.value == "valuables"
         assert junk.value is not None
         assert junk.image_url is not None
+        assert granted["name"] == name  # The claim response keeps the authored reward text.
+
+    desk_fan = await reward_service.grant_item(
+        async_session, vault.id, {"item_type": "junk", "name": "Desk fan", "rarity": "common"}
+    )
+    fan = await async_session.get(Junk, UUID(desk_fan["item_id"]))
+    assert fan is not None
+    assert fan.junk_type.value == "steel"
+    assert fan.value == 2

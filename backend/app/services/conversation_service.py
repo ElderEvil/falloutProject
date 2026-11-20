@@ -18,6 +18,12 @@ from app.schemas.llm_interaction import LLMInteractionCreate
 from app.services.access_service import get_accessible_dweller
 from app.services.ai_service import get_ai_service
 from app.services.chat.agent_runner import run_chat_agent
+from app.services.chat.continuation import (
+    build_continuation,
+    open_thread,
+    save_context,
+    schedule_exchange_finish,
+)
 from app.services.chat.notifications import send_chat_notification, unlock_places_after_conversation
 from app.services.prompt_service import get_instructions, get_provider_model_snapshot
 from app.services.quota_service import quota_service
@@ -69,9 +75,11 @@ class ConversationService:
         return transcribed_text, user_audio_url, None
 
     async def _generate_response_with_agent(
-        self, db_session: AsyncSession, dweller, transcribed_text: str, instructions: str
+        self, db_session: AsyncSession, dweller, transcribed_text: str, instructions: str, conversation=None
     ) -> AgentChatResult:
-        return await run_chat_agent(db_session, dweller, transcribed_text, instructions, for_audio=True)
+        return await run_chat_agent(
+            db_session, dweller, transcribed_text, instructions, for_audio=True, conversation=conversation
+        )
 
     async def _generate_tts_audio(
         self, text: str, gender: GenderEnum | None, user_id: UUID, dweller_id: UUID
@@ -98,6 +106,7 @@ class ConversationService:
         user: User,
         dweller,
         payload: VoiceMessagePayload,
+        conversation=None,
     ) -> UUID:
         llm_int_create = LLMInteractionCreate(
             parameters=payload.transcribed_text,
@@ -124,6 +133,7 @@ class ConversationService:
                 audio_url=payload.user_audio_url,
                 transcription=payload.transcribed_text,
                 audio_duration=payload.audio_duration,
+                conversation_id=conversation.id if conversation is not None else None,
             ),
         )
         chat_create_data = ChatMessageCreate(
@@ -133,6 +143,7 @@ class ConversationService:
             message_text=payload.dweller_response_text,
             audio_url=payload.dweller_audio_url,
             llm_interaction_id=llm_interaction.id,
+            conversation_id=conversation.id if conversation is not None else None,
         )
         if payload.happiness_impact:
             chat_create_data.happiness_delta = payload.happiness_impact.delta
@@ -167,7 +178,14 @@ class ConversationService:
 
             instructions, prompt_id, instructions_hash = await get_instructions(db_session, "chat")
             provider, model = await get_provider_model_snapshot(db_session)
-            response = await self._generate_response_with_agent(db_session, dweller, transcribed_text, instructions)
+            thread = await open_thread(db_session, user_id=user.id, dweller=dweller)
+            conversation, continuity = await build_continuation(db_session, thread=thread, dweller=dweller)
+            if continuity:
+                instructions = "\n\n".join(filter(None, (instructions, continuity)))
+            response = await self._generate_response_with_agent(
+                db_session, dweller, transcribed_text, instructions, conversation=conversation
+            )
+            await save_context(db_session, thread, state=response.conversation_state)
             dweller_audio_bytes, dweller_audio_url = await self._generate_tts_audio(
                 response.response_text, dweller.gender, user.id, dweller_id
             )
@@ -188,7 +206,9 @@ class ConversationService:
                 instructions_hash=instructions_hash,
                 instructions_snapshot=instructions,
             )
-            dweller_message_id = await self._save_messages_to_db(db_session, user, dweller, payload)
+            dweller_message_id = await self._save_messages_to_db(
+                db_session, user, dweller, payload, conversation=thread
+            )
             unlocked_places = await unlock_places_after_conversation(db_session, dweller)
             result = VoiceChatResult(
                 transcription=transcribed_text,
@@ -202,6 +222,7 @@ class ConversationService:
                 unlocked_places=unlocked_places,
             )
         await db_session.commit()
+        schedule_exchange_finish(thread.id, (dweller_message_id,))
         await send_chat_notification(
             user_id=user.id,
             dweller_id=dweller_id,

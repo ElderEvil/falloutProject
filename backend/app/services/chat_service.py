@@ -31,6 +31,12 @@ from app.services.chat.agent_runner import (
     extract_provider_reason,
     run_chat_agent,
 )
+from app.services.chat.continuation import (
+    build_continuation,
+    open_thread,
+    save_context,
+    schedule_exchange_finish,
+)
 from app.services.chat.guardrail import GuardrailVerdict, screen_message
 from app.services.chat.notifications import send_chat_notification, unlock_places_after_conversation
 from app.services.chat.persistence import persist_chat
@@ -114,12 +120,19 @@ class ChatService:
             instructions, prompt_id, instructions_hash = await get_instructions(db_session, "chat")
             provider, model = await get_provider_model_snapshot(db_session)
 
+            thread = await open_thread(db_session, user_id=user.id, dweller=dweller)
+            conversation, continuity = await build_continuation(db_session, thread=thread, dweller=dweller)
+            if continuity:
+                instructions = "\n\n".join(filter(None, (instructions, continuity)))
+
             result = await run_chat_agent(
                 db_session=db_session,
                 dweller=dweller,
                 message_text=message_text,
                 instructions=instructions,
+                conversation=conversation,
             )
+            await save_context(db_session, thread, state=result.conversation_state)
 
             bundle = StreamBundle(
                 response_text=result.response_text,
@@ -140,9 +153,11 @@ class ChatService:
                 dweller=dweller,
                 message_text=message_text,
                 bundle=bundle,
+                conversation=thread,
             )
 
         await db_session.commit()
+        schedule_exchange_finish(thread.id, (dweller_message_id,))
 
         return DwellerChatResponse(
             response=result.response_text,

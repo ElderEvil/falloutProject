@@ -4,6 +4,7 @@ import logging
 from collections.abc import Mapping, Sequence
 from typing import Any
 
+from pydantic_ai.conversation import Conversation
 from pydantic_ai.exceptions import ModelHTTPError
 from pydantic_ai.usage import RunUsage
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -25,6 +26,7 @@ from app.schemas.chat_models import AgentChatResult
 from app.schemas.dweller import DwellerReadFull
 from app.schemas.happiness import HappinessImpact, HappinessReasonCode
 from app.services.ai_service import get_ai_service
+from app.services.chat.context import dump_context
 from app.services.chat_happiness_service import apply_chat_happiness
 from app.utils.exceptions import AIProviderCreditsExhaustedException
 
@@ -107,6 +109,7 @@ async def run_chat_agent(
     instructions: str | None = None,
     *,
     for_audio: bool = False,
+    conversation: Conversation | None = None,
 ) -> AgentChatResult:
     """Run the chat agent and process the response, falling back on provider failure."""
     deps = DwellerChatDeps(
@@ -118,7 +121,11 @@ async def run_chat_agent(
     try:
         async with db_session.begin_nested():
             result = await dweller_chat_agent.run(
-                message_text, deps=deps, instructions=instructions, usage_limits=CHAT_USAGE_LIMITS
+                message_text,
+                deps=deps,
+                instructions=instructions,
+                usage_limits=CHAT_USAGE_LIMITS,
+                conversation=conversation,
             )
             output: DwellerChatOutput = result.output
 
@@ -152,6 +159,7 @@ async def run_chat_agent(
         prompt_tokens=prompt_tokens,
         completion_tokens=completion_tokens,
         total_tokens=total_tokens,
+        conversation_state=dump_context(result.conversation),
     )
 
 

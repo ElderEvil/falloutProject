@@ -20,6 +20,8 @@ class AgentChatResult:
     completion_tokens: int | None
     total_tokens: int | None
     jev_decisions: dict[str, dict[str, float]] = field(default_factory=dict)
+    #: Serialised pydantic-ai conversation after this run; None when the run fell back.
+    conversation_state: dict | None = None
 
 
 @dataclass

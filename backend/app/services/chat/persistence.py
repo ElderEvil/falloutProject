@@ -10,6 +10,7 @@ from app.crud.conversation import conversation as conversation_crud
 from app.crud.llm_interaction import llm_interaction as llm_interaction_crud
 from app.models import User
 from app.models.chat_message import ChatMessageCreate
+from app.models.conversation import Conversation as ConversationRow
 from app.schemas.chat import UnlockedPlace
 from app.schemas.chat_models import StreamBundle
 from app.schemas.dweller import DwellerReadFull
@@ -26,6 +27,7 @@ async def persist_chat(
     dweller: DwellerReadFull,
     message_text: str,
     bundle: StreamBundle,
+    conversation: "ConversationRow | None" = None,
 ) -> tuple[UUID, list[UnlockedPlace]]:
     """Persist the LLM interaction and chat messages for a completed response."""
     llm_int_create = LLMInteractionCreate(
@@ -47,14 +49,15 @@ async def persist_chat(
         obj_in=llm_int_create,
     )
 
-    # One permanent thread per (user, dweller); a failure here degrades to stateless persistence.
-    conversation = None
-    try:
-        conversation = await conversation_crud.get_or_create(
-            db_session, vault_id=dweller.vault.id, user_id=user.id, dweller_id=dweller.id
-        )
-    except Exception:
-        logger.warning("Conversation thread unavailable; persisting chat statelessly", exc_info=True)
+    # The caller opens the thread before the run; without one, a failure here degrades to
+    # stateless persistence.
+    if conversation is None:
+        try:
+            conversation = await conversation_crud.get_or_create(
+                db_session, vault_id=dweller.vault.id, user_id=user.id, dweller_id=dweller.id
+            )
+        except Exception:
+            logger.warning("Conversation thread unavailable; persisting chat statelessly", exc_info=True)
     conversation_id = conversation.id if conversation is not None else None
 
     await chat_message_crud.create_message(

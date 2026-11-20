@@ -229,11 +229,12 @@ class HappinessService:
             if health_ratio > game_config.happiness.high_health_threshold:
                 change += game_config.happiness.high_health_bonus * tick_multiplier
 
-            # Room-specific bonuses
+        # Room comfort reaches resting occupants too (#1454); working_gain stays working-only.
+        if dweller.room_id and dweller.status in ("working", "resting"):
             room = (
                 rooms_by_id.get(dweller.room_id)
                 if rooms_by_id is not None
-                else await room_crud.get(db_session, dweller.room_id)
+                else await room_crud.get_or_none(db_session, dweller.room_id)
             )
             if room:
                 room_name_lower = (room.name or "").lower()
@@ -241,7 +242,7 @@ class HappinessService:
                 if "living" in room_name_lower or "quarters" in room_name_lower:
                     change += game_config.happiness.living_quarters_bonus * tick_multiplier
                 # Radio room bonus (entertainment, music)
-                elif "radio" in room_name_lower:
+                elif dweller.status == "working" and "radio" in room_name_lower:
                     change += game_config.happiness.radio_room_bonus * tick_multiplier
 
         # Training gives happiness (learning, self-improvement, purpose)
@@ -354,6 +355,16 @@ class HappinessService:
 
         if dweller.status == "combat":
             modifiers["negative"].append({"name": "Combat", "value": -game_config.happiness.combat_penalty})
+
+        # Mirror the tick math: living-quarters comfort applies to working AND resting occupants.
+        if dweller.room_id and dweller.status in ("working", "resting"):
+            room = await room_crud.get_or_none(db_session, dweller.room_id)
+            if room is not None:
+                room_name_lower = (room.name or "").lower()
+                if "living" in room_name_lower or "quarters" in room_name_lower:
+                    modifiers["positive"].append(
+                        {"name": "Living Quarters", "value": game_config.happiness.living_quarters_bonus}
+                    )
 
         if dweller.partner_id:
             modifiers["positive"].append(

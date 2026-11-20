@@ -611,3 +611,72 @@ async def test_failed_rush_waits_before_incident_ui_and_combat(
     await incident_service.process_vault_incidents(async_session, vault.id, 2)
     notifications = await notification_crud.get_user_notifications(async_session, vault.user_id)
     assert sum(notification.notification_type == NotificationType.COMBAT_STARTED for notification in notifications) == 1
+
+
+@pytest.mark.asyncio
+async def test_quote_blocks_when_resources_are_full(async_session: AsyncSession, rush_setup: dict[str, Any]) -> None:
+    """#1455: a full vault clamps the payout to zero, so the quote must block the rush."""
+    vault, room = rush_setup["vault"], rush_setup["room"]
+    vault.power = vault.power_max
+    async_session.add(vault)
+    await async_session.commit()
+
+    quote = await room_rush_service.quote(async_session, room, vault)
+
+    assert quote.can_rush is False
+    assert quote.blocked_reason == "resources_full"
+    assert quote.payout.model_dump() == {"power": 0, "food": 0, "water": 0, "stimpack": 0, "radaway": 0}
+    assert room.rush_stacks == 0
+    assert vault.power == vault.power_max
+
+
+@pytest.mark.asyncio
+async def test_quote_still_quotes_when_headroom_remains(
+    async_session: AsyncSession, rush_setup: dict[str, Any]
+) -> None:
+    """Partial headroom keeps quoting the clamped payout instead of blocking."""
+    vault, room = rush_setup["vault"], rush_setup["room"]
+    vault.power = vault.power_max - 1
+    async_session.add(vault)
+    await async_session.commit()
+
+    quote = await room_rush_service.quote(async_session, room, vault)
+
+    assert quote.can_rush is True
+    assert quote.blocked_reason is None
+    assert quote.payout.power == 1
+
+
+@pytest.mark.asyncio
+async def test_quote_blocks_when_medical_storage_is_full(async_session: AsyncSession, user_with_vault: tuple) -> None:
+    """Storage-backed resources (stimpacks) block the quote when their capacity is reached."""
+    _, vault = user_with_vault
+    vault.power = 50
+    vault.power_max = 100
+    async_session.add(vault)
+    await async_session.commit()
+    room = await crud.room.create(
+        async_session,
+        RoomCreate(
+            vault_id=vault.id,
+            **create_rush_room_payload(name="Medbay", ability=SPECIALEnum.INTELLIGENCE, capacity=5),
+        ),
+    )
+    await _create_worker(async_session, vault, room, intelligence=10)
+    storage = Storage(vault_id=vault.id, stimpack=5)
+    async_session.add(storage)
+    await async_session.commit()
+
+    quote = await room_rush_service.quote(async_session, room, vault)
+
+    assert quote.can_rush is False
+    assert quote.blocked_reason == "resources_full"
+    assert quote.payout.stimpack == 0
+    await async_session.refresh(storage)
+    assert storage.stimpack == 5
+
+
+def test_blocked_exception_maps_resources_full() -> None:
+    exception = RoomRushService._blocked_exception("resources_full")
+    assert isinstance(exception, ValidationException)
+    assert "full" in str(exception.detail)

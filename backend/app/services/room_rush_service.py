@@ -147,6 +147,15 @@ class RoomRushService:
         fail_chance = _fail_chance(avg_ability, avg_luck, stacks)
         population = await crud_dweller.count_living_in_vault(db_session, vault.id)
         blocked_reason = _blocked_reason(room, workers, active_incidents, vault)
+        payout, raw_payout = await self._payout(db_session, room, vault, workers, preview=True)
+        # A full vault legitimately clamps the payout to zero; don't invite a rush that
+        # can gain nothing but still burns a stack and risks an incident (#1455).
+        if (
+            blocked_reason is None
+            and not any(payout.model_dump().values())
+            and any(amount > 0 for amount in raw_payout.values())
+        ):
+            blocked_reason = "resources_full"
 
         return RoomRushQuote(
             can_rush=blocked_reason is None,
@@ -158,7 +167,7 @@ class RoomRushService:
             avg_ability=avg_ability,
             avg_luck=avg_luck,
             worker_count=len(workers),
-            payout=await self._payout(db_session, room, vault, workers, preview=True),
+            payout=payout,
             caps_chance=_caps_chance(avg_luck) * 100.0,
             eligible_incidents=[]
             if vault.incidents_disabled
@@ -226,7 +235,7 @@ class RoomRushService:
         stacks_after: int,
         rng: ModuleType | random.Random,
     ) -> RoomRushResult:
-        payout = await self._payout(db_session, room, vault, workers, preview=False)
+        payout, _ = await self._payout(db_session, room, vault, workers, preview=False)
 
         caps = roll_bonus_caps(avg_luck, room.tier, room.segment_count, rng)
         applied_caps = 0
@@ -330,7 +339,8 @@ class RoomRushService:
 
     async def _payout(
         self, db_session: AsyncSession, room: Room, vault: Vault, workers: list[Dweller], *, preview: bool
-    ) -> RoomRushResourceGain:
+    ) -> tuple[RoomRushResourceGain, dict[str, float]]:
+        """Return the capacity-clamped payout and the raw (unclamped) production totals."""
         storage = await crud_storage.get_by_vault(db_session, vault.id)
         rooms = await crud_room.get_all_by_vault(db_session, vault.id)
         rival_pairs = await load_rival_pairs(db_session, {worker.id for worker in workers})
@@ -343,7 +353,7 @@ class RoomRushService:
         applied = self.resource_manager.apply_room_payout(
             vault, storage, compute_medical_capacity(rooms), raw_payout, dry_run=preview
         )
-        return RoomRushResourceGain(**applied)
+        return RoomRushResourceGain(**applied), raw_payout
 
     async def _living_workers(self, db_session: AsyncSession, room_id: UUID) -> list[Dweller]:
         assigned = await crud_dweller.get_by_room(db_session, room_id, with_equipment=True)
@@ -439,6 +449,8 @@ class RoomRushService:
             return ValidationException("This room cannot be rushed.")
         if reason == "active_incident":
             return ResourceConflictException("Resolve the active incident before rushing.")
+        if reason == "resources_full":
+            return ValidationException("Vault storage for this resource is full.")
         return ResourceConflictException("Assign a living dweller to this room before rushing.")
 
 

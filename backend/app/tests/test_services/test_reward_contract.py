@@ -16,6 +16,7 @@ from sqlmodel import select
 
 from app import crud
 from app.models.item import Item
+from app.models.junk import Junk
 from app.models.storage import Storage
 from app.schemas.quest import QuestCompleteResponse
 from app.schemas.rewards import format_reward_summary, granted_reward_adapter
@@ -181,3 +182,19 @@ async def test_open_lunchbox_needs_only_net_two_slots(async_session: AsyncSessio
     opened = await reward_service.open_lunchbox(async_session, vault.id, UUID(minted["item_id"]))
 
     assert len(opened["items"]) == 3
+
+
+@pytest.mark.asyncio
+async def test_rarity_junk_placeholders_settle_into_catalog_valuables(async_session: AsyncSession) -> None:
+    """'<Rarity> junk' rewards settle as real catalog junk, not valueless orphan rows."""
+    vault = await _vault_with_storage(async_session)
+    for name, rarity, canonical in (("Rare junk", "rare", "Globe"), ("Legendary junk", "legendary", "Gold watch")):
+        granted = await reward_service.grant_item(
+            async_session, vault.id, {"item_type": "junk", "name": name, "rarity": rarity}
+        )
+        junk = await async_session.get(Junk, UUID(granted["item_id"]))
+        assert junk is not None
+        assert junk.name == canonical
+        assert junk.junk_type.value == "valuables"
+        assert junk.value is not None
+        assert junk.image_url is not None

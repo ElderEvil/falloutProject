@@ -247,7 +247,7 @@ describe('Quest Store', () => {
       const store = useQuestStore()
       await store.fetchAllQuests()
 
-      expect(axios.get).toHaveBeenCalledWith('/api/v1/quests/')
+      expect(axios.get).toHaveBeenCalledWith('/api/v1/quests/', { params: { limit: 1000 } })
       expect(store.quests).toEqual(mockQuests)
       expect(store.isLoading).toBe(false)
     })
@@ -297,35 +297,30 @@ describe('Quest Store', () => {
     const questPage = (prefix: string, count: number) =>
       Array.from({ length: count }, (_, index) => ({ id: `${prefix}-${index}` }))
 
-    it('keeps the cached list intact when a later page is not a list', async () => {
+    it('keeps the cached list intact when the API payload is not a list', async () => {
       const store = useQuestStore()
       store.vaultQuests = [{ id: 'cached' } as VaultQuest]
-      vi.mocked(axios.get)
-        .mockResolvedValueOnce({ data: questPage('q', 100) })
-        .mockResolvedValueOnce({ data: { detail: 'Unexpected response' } })
+      vi.mocked(axios.get).mockResolvedValueOnce({ data: { detail: 'Unexpected response' } })
 
       await expect(store.fetchVaultQuests('vault-123', { silent: true })).rejects.toThrow(
         'Expected a list of vault quests'
       )
 
-      // Page one is never published: the cached list survives the failed page two.
       expect(store.vaultQuests).toEqual([{ id: 'cached' }])
-      expect(axios.get).toHaveBeenCalledTimes(2)
     })
 
-    it('keeps fetching until the catalog is exhausted beyond row 100', async () => {
-      vi.mocked(axios.get)
-        .mockResolvedValueOnce({ data: questPage('q', 100) })
-        .mockResolvedValueOnce({ data: [{ id: 'q-tail' }] })
+    it('fetches the vault quest list in one request past row 100', async () => {
+      vi.mocked(axios.get).mockResolvedValueOnce({
+        data: [...questPage('q', 150), { id: 'q-tail' }],
+      })
 
       const store = useQuestStore()
       await store.fetchVaultQuests('vault-123')
 
-      expect(store.vaultQuests).toHaveLength(101)
-      expect(store.vaultQuests.at(-1)?.id).toBe('q-tail')
-      expect(axios.get).toHaveBeenCalledTimes(2)
-      expect(axios.get).toHaveBeenNthCalledWith(2, '/api/v1/quests/vault-123/', {
-        params: { skip: 100, limit: 100 },
+      expect(store.vaultQuests).toHaveLength(151)
+      expect(axios.get).toHaveBeenCalledTimes(1)
+      expect(axios.get).toHaveBeenCalledWith('/api/v1/quests/vault-123/', {
+        params: { limit: 1000 },
       })
     })
 

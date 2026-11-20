@@ -779,6 +779,7 @@ def test_quest_gear_rewards_are_catalog_backed() -> None:
     catalog = {
         "weapon": {str(w["name"]).lower() for w in data_loader.load_weapons()},
         "outfit": {str(o["name"]).lower() for o in data_loader.load_outfits()},
+        "junk": {str(j["name"]).lower() for j in data_loader.load_junk_items()},
     }
 
     def walk(node: object) -> None:
@@ -788,8 +789,17 @@ def test_quest_gear_rewards_are_catalog_backed() -> None:
             name = reward_data.get("item_name") or (item_data or {}).get("name")
             if name:
                 item_type = infer_item_type(str(name), item_data)
-                if item_type in catalog:
+                if item_type in catalog and item_type != "junk":
                     assert str(name).lower() in catalog[item_type], f"{name!r} is not a catalog {item_type}"
+                if item_type == "junk":
+                    # Catalog-backed, a placeholder, or an authored price - never an orphan.
+                    from app.services.rewards.items import _JUNK_PLACEHOLDER_RE
+
+                    assert (
+                        str(name).lower() in catalog["junk"]
+                        or _JUNK_PLACEHOLDER_RE.match(str(name))
+                        or (item_data or {}).get("value") is not None
+                    ), f"{name!r} settles as a synthetic junk row"
             for value in node.values():
                 walk(value)
         elif isinstance(node, list):

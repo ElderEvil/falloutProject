@@ -16,7 +16,7 @@ from app.services.progression.quests.service import quest_service
 from app.tests.factory.rooms import create_overseers_office
 from app.tests.factory.users import create_fake_user
 from app.tests.factory.vaults import create_fake_vault
-from app.utils.exceptions import AccessDeniedException, ValidationException
+from app.utils.exceptions import AccessDeniedException, ResourceNotFoundException, ValidationException
 from app.utils.time import utcnow
 
 
@@ -1232,4 +1232,27 @@ async def test_hidden_quest_start_denies_before_requirements(async_session: Asyn
     await async_session.commit()
 
     with pytest.raises(AccessDeniedException, match="not currently offered"):
+        await quest_service.start_quest_for_vault(async_session, vault.id, quest.id)
+
+
+@pytest.mark.asyncio
+async def test_absent_link_start_reports_missing_before_requirements(async_session: AsyncSession) -> None:
+    """A quest with no vault link is not offered to it (404) before its requirement details."""
+    vault = await _vault_with_office(async_session)
+    quest = Quest(
+        title="Unlinked Gate",
+        short_description="No link yet",
+        long_description="Requirements must not leak for a quest the vault was never offered.",
+        requirements="Level 50 dwellers",
+        rewards="10 caps",
+        quest_type="side",
+        duration_minutes=60,
+        quest_requirements=[
+            QuestRequirement(requirement_type=RequirementType.LEVEL, requirement_data={"level": 50}, is_mandatory=True)
+        ],
+    )
+    async_session.add(quest)
+    await async_session.commit()
+
+    with pytest.raises(ResourceNotFoundException, match="VaultQuestCompletionLink"):
         await quest_service.start_quest_for_vault(async_session, vault.id, quest.id)

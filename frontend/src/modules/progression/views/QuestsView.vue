@@ -171,6 +171,20 @@ watch(
   { immediate: true }
 )
 
+// The party poll pauses with nothing in flight; refresh offers when the UTC day flips.
+const lastSeenUtcDay = ref(new Date().toISOString().slice(0, 10))
+
+const refreshOnUtcDayChange = async () => {
+  const utcDay = new Date().toISOString().slice(0, 10)
+  if (utcDay === lastSeenUtcDay.value) return
+  lastSeenUtcDay.value = utcDay
+  if (!vaultId.value) return
+  await questStore.fetchVaultQuests(vaultId.value, { silent: true })
+  await loadPartyMembers()
+}
+
+usePolling(refreshOnUtcDayChange, { interval: 60_000, immediate: false })
+
 const loadPartyMembers = async () => {
   if (!vaultId.value) return
   await questStore.fetchPartiesForActiveQuests(vaultId.value)

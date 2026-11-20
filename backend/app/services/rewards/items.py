@@ -7,6 +7,7 @@ original paths. Public entry points go through the reward_service facade.
 
 import logging
 import random
+import re
 from typing import Any
 from uuid import UUID
 
@@ -144,18 +145,43 @@ def _build_outfit(name: str, rarity: str, data: dict[str, Any], storage_id: UUID
     return build_outfit(data | {"name": name}, rarity, storage_id)
 
 
+_JUNK_PLACEHOLDER_RE = re.compile(r"^(?:common|uncommon|rare|legendary)\s+junk$", re.IGNORECASE)
+
+
+def _canonical_junk_entry(rarity: str) -> dict[str, Any] | None:
+    """The catalog valuables entry a '<Rarity> junk' placeholder reward settles into."""
+    from app.services.catalog_service import load_junk_items
+
+    for entry in load_junk_items():
+        if (
+            str(entry.get("junk_type", "")).lower() == "valuables"
+            and str(entry.get("rarity", "")).lower() == rarity.lower()
+        ):
+            return entry
+    return None
+
+
 def _build_junk(name: str, rarity: str, data: dict[str, Any], storage_id: UUID):
     from app.core.enums import JunkTypeEnum
     from app.utils.item_factory import build_junk
     from app.utils.junk_assets import get_junk_image_url
 
+    # '<Rarity> junk' placeholders settle as the catalog valuables item of that rarity.
+    if data.get("junk_type") is None and data.get("value") is None and _JUNK_PLACEHOLDER_RE.fullmatch(name):
+        entry = _canonical_junk_entry(rarity)
+        if entry is not None:
+            name = str(entry["name"])
+            data = dict(entry)
+    junk_type = data.get("junk_type", JunkTypeEnum.VALUABLES)
+    if isinstance(junk_type, str):
+        junk_type = JunkTypeEnum(junk_type)
     return build_junk(
         name,
         rarity,
         storage_id,
         value=data.get("value"),
         description=data.get("description", name),
-        junk_type=data.get("junk_type", JunkTypeEnum.VALUABLES),
+        junk_type=junk_type,
         image_url=data.get("image_url") or get_junk_image_url(name),
     )
 

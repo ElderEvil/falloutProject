@@ -2,6 +2,7 @@
 
 import asyncio
 from collections.abc import AsyncGenerator, Mapping
+from contextlib import suppress
 from uuid import UUID
 
 import pytest
@@ -18,6 +19,7 @@ from app.core.config import settings
 from app.core.enums import RewardType
 from app.models.quest import Quest
 from app.models.quest_reward import QuestReward
+from app.models.vault import Vault
 from app.models.vault_quest import VaultQuestCompletionLink
 from app.schemas.quest import QuestCreate
 from app.schemas.user import UserCreate
@@ -28,6 +30,7 @@ from app.tests.factory.users import create_fake_user
 from app.tests.factory.vaults import create_fake_vault
 
 RACE_TIMEOUT_SECONDS = 15
+WRITER_TIMEOUT_SECONDS = 8
 
 
 @pytest_asyncio.fixture(scope="module")
@@ -85,6 +88,7 @@ async def test_backfill_and_rotation_race_without_deadlock(
             vault = await crud.vault.create_with_user_id(
                 db_session=setup, obj_in=VaultCreate(**create_fake_vault()), user_id=user.id
             )
+            vault.bottle_caps = 1_000
             cleanup_vault_id = vault.id
             for label, quest_type, count in (("Side", "side", 3), ("Daily", "daily", 3), ("Weekly", "repeatable", 2)):
                 for number in range(count):
@@ -132,21 +136,22 @@ async def test_backfill_and_rotation_race_without_deadlock(
             async def claim_caps(session: AsyncSession) -> None:
                 await quest_service.claim_quest_rewards(session, contest_quest, vault.id)
 
+            async def bounded(writer):
+                return await asyncio.wait_for(writer(), timeout=WRITER_TIMEOUT_SECONDS)
+
+            # A task group awaits every cancelled writer before the sessions close,
+            # so a deadlocked writer cannot leave locks that hang teardown.
             async with (
                 race_session_maker() as reader,
                 race_session_maker() as rotator,
                 race_session_maker() as assigner,
                 race_session_maker() as claimer,
+                asyncio.TaskGroup() as writers,
             ):
-                await asyncio.wait_for(
-                    asyncio.gather(
-                        read_quest_screen(reader),
-                        run_rotation(rotator),
-                        assign_contest_quest(assigner),
-                        claim_caps(claimer),
-                    ),
-                    timeout=RACE_TIMEOUT_SECONDS,
-                )
+                writers.create_task(bounded(lambda: read_quest_screen(reader)))
+                writers.create_task(bounded(lambda: run_rotation(rotator)))
+                writers.create_task(bounded(lambda: assign_contest_quest(assigner)))
+                writers.create_task(bounded(lambda: claim_caps(claimer)))
 
             links = list(
                 (
@@ -179,6 +184,7 @@ async def test_backfill_and_rotation_race_without_deadlock(
             assert claimed.is_visible
             await setup.refresh(vault)
             assert vault.bottle_caps == starting_caps + 10
+
     finally:
         if cleanup_vault_id is not None or cleanup_quest_ids or cleanup_user_id is not None:
             await _cleanup(live_pg_engine, cleanup_quest_ids, cleanup_vault_id, cleanup_user_id)

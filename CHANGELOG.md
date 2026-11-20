@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 3.7.3 (2026-11-20)
+
+### Bug Fixes
+
+* **incident:** keep combat responders inside the scene lane without a scrollbar ([#1453](https://github.com/ElderEvil/falloutProject/issues/1453)) f5a48e9
+
 ## 3.7.2 (2026-11-20)
 
 ### Bug Fixes

@@ -209,6 +209,29 @@ path (`start_quest`) — the two must never disagree:
 The vault quest read stamps each `QuestRequirementRead.is_met` from the same fail-closed dispatch the
 availability gate uses, so the UI shows per-row gate verdicts instead of inferring them from `is_locked`.
 
+## Daily and weekly quest rotation
+
+Each vault is offered up to 3 daily quests and 1 weekly quest from the global catalog, sampled from quests
+inside the vault's level reveal window, and the offer rotates on
+the objectives UTC clock: dailies at UTC midnight, weeklies at Monday UTC midnight. The tick
+(`quest_rotation` phase) and the `refresh_quest_rotation` scheduler actor both call
+`ensure_current_quest_rotation`, which records `daily_quests_period` / `weekly_quests_period` on
+`GameState` so either path rolls a vault exactly once per period. A NULL period means the vault has not
+adopted rotation yet, so the first call rolls immediately.
+
+Rotation resets links in place (never deletes them: the read-path backfill would recreate hidden rows).
+Sampled quests become visible; the rest become invisible and lose completion state, so a sampled quest
+can be started again. Completing a daily does not remove it — it stays available until the next rollover.
+A quest whose party is away (started, travelling home, or sitting on unclaimed rewards) is skipped entirely
+and forced visible, so rotation never strands a questing dweller or destroys a claimable prize. Side and
+main quests keep their link state. Daily, weekly and event questlines are scheduler-owned: the assign
+endpoint rejects visibility changes for them, and event questlines stay hidden until the seasonal scheduler
+ships. Rotation is silent: it dispatches no notification or event.
+
+The read path creates links for daily and repeatable quests invisible, and only visible links are offered:
+`available_only` reads exclude rotated-out quests and starting a hidden quest is rejected. Event questlines
+are not rotated; seasonal scheduling is future work.
+
 ## Incident preparation and reports
 
 - Profile preference `pause_on_incident` is an optional boolean, off by default. When enabled,

@@ -8,12 +8,15 @@ from app.core.enums import RequirementType
 from app.models.quest import Quest
 from app.models.quest_requirement import QuestRequirement
 from app.models.room import Room
+from app.models.vault_quest import VaultQuestCompletionLink
+from app.schemas.quest import QuestCreate
 from app.schemas.user import UserCreate
 from app.schemas.vault import VaultCreateWithUserID
 from app.services.progression.quests.service import quest_service
 from app.tests.factory.rooms import create_overseers_office
 from app.tests.factory.users import create_fake_user
 from app.tests.factory.vaults import create_fake_vault
+from app.utils.exceptions import AccessDeniedException, ValidationException
 from app.utils.time import utcnow
 
 
@@ -24,6 +27,11 @@ async def _vault_with_office(async_session: AsyncSession, tier: int = 1):
     async_session.add(Room(**create_overseers_office(tier=tier), vault_id=vault.id))
     await async_session.commit()
     return vault
+
+
+async def _vault(async_session: AsyncSession):
+    user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
+    return await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id))
 
 
 async def _create_quest(async_session: AsyncSession, *, title: str, previous_quest_id=None) -> Quest:
@@ -81,7 +89,7 @@ async def test_requirement_gated_quest_reads_as_locked_and_start_rejects(
     assert read_response.status_code == 200, f"Expected 200, got {read_response.status_code}: {read_response.text}"
     quest_read = next(q for q in read_response.json() if q["id"] == str(quest.id))
     assert quest_read["is_locked"] is True
-    assert quest_read["is_visible"] is False
+    assert quest_read["is_visible"] is True
     assert "dwellers" in quest_read["lock_reason"]
 
     start_response = await async_client.post(f"/quests/{vault.id}/{quest.id}/start", headers=headers)
@@ -213,7 +221,7 @@ async def test_get_quests_for_vault_populates_lock_fields(async_session: AsyncSe
     quest_read = next(q for q in quest_reads if q.id == quest.id)
 
     assert quest_read.is_locked is True
-    assert quest_read.is_visible is False
+    assert quest_read.is_visible is True
     assert "dwellers" in quest_read.lock_reason
 
 
@@ -271,7 +279,7 @@ async def test_level_gated_quest_visible_within_reveal_margin(async_session: Asy
     quest_read = next(q for q in quest_reads if q.id == quest.id)
 
     assert quest_read.is_locked is True
-    assert quest_read.is_visible is False
+    assert quest_read.is_visible is True
     assert "level" in quest_read.lock_reason
 
 
@@ -1127,3 +1135,101 @@ async def test_quest_slots_follow_office_tier(async_session: AsyncSession, offic
 
     with pytest.raises(ResourceConflictException, match=f"All {office_tier} quest slots"):
         await quest_service.start_quest(async_session, overflow.id, vault.id)
+
+
+@pytest.mark.asyncio
+async def test_unsettled_quest_stays_listed_after_its_prerequisite_is_lost(
+    async_session: AsyncSession,
+) -> None:
+    """An active quest or claimable reward must not vanish when a requirement stops being met."""
+    user_data = create_fake_user()
+    user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))
+    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id))
+    async_session.add(Room(**create_overseers_office(), vault_id=vault.id))
+    quest = Quest(
+        title="Gear Gate",
+        short_description="Needs a specific tool",
+        long_description="A quest gated on an equipped item the party may lose.",
+        requirements="Bring the tuning fork",
+        rewards="100 caps",
+        quest_type="side",
+    )
+    async_session.add(quest)
+    await async_session.commit()
+    await async_session.refresh(quest)
+    async_session.add(
+        QuestRequirement(
+            quest_id=quest.id,
+            requirement_type=RequirementType.ITEM,
+            requirement_data={"item_name": "Tuning fork"},
+            is_mandatory=True,
+        )
+    )
+    await async_session.commit()
+    link = await crud.quest_crud.assign_to_vault(async_session, quest.id, vault.id, is_visible=True)
+    link.started_at = utcnow()
+    link.duration_minutes = 60
+    await async_session.commit()
+
+    reads = await quest_service.get_quests_for_vault(async_session, vault.id)
+    read = next(q for q in reads if q.id == quest.id)
+    assert read.is_visible is True
+    assert read.is_locked is False
+    assert read.started_at is not None
+
+    ready_link = await crud.quest_crud.get_link_for_update(async_session, quest_id=quest.id, vault_id=vault.id)
+    assert ready_link is not None
+    ready_link.started_at = None
+    ready_link.is_reward_ready = True
+    await async_session.commit()
+
+    reads = await quest_service.get_quests_for_vault(async_session, vault.id)
+    read = next(q for q in reads if q.id == quest.id)
+    assert read.is_visible is True
+    assert read.is_locked is False
+    assert read.is_reward_ready is True
+
+
+@pytest.mark.asyncio
+async def test_assign_rejects_scheduler_owned_quest_types(async_session: AsyncSession) -> None:
+    """Rotation and the future seasonal scheduler own daily/weekly/event visibility."""
+    vault = await _vault(async_session)
+    for quest_type in ("daily", "repeatable", "event"):
+        quest = await crud.quest_crud.create(
+            async_session,
+            obj_in=QuestCreate(
+                title=f"Scheduled {quest_type}",
+                short_description="Scheduler-owned quest",
+                long_description="Visibility is owned by the scheduler, not the assign endpoint.",
+                requirements="No prerequisites",
+                rewards="10 caps",
+                quest_type=quest_type,
+            ),
+        )
+        with pytest.raises(ValidationException, match="managed by the scheduler"):
+            await quest_service.assign_quest_to_vault(db_session=async_session, quest_id=quest.id, vault_id=vault.id)
+
+
+@pytest.mark.asyncio
+async def test_hidden_quest_start_denies_before_requirements(async_session: AsyncSession) -> None:
+    """A quest the scheduler has not offered must deny before leaking its requirement details."""
+    vault = await _vault(async_session)
+    quest = Quest(
+        title="Hidden Gate",
+        short_description="Scheduler-owned quest",
+        long_description="Hidden quest with an unmet requirement must not leak the requirement text.",
+        requirements="Level 50 dwellers",
+        rewards="10 caps",
+        quest_type="daily",
+        duration_minutes=60,
+        quest_requirements=[
+            QuestRequirement(requirement_type=RequirementType.LEVEL, requirement_data={"level": 50}, is_mandatory=True)
+        ],
+    )
+    async_session.add(quest)
+    await async_session.commit()
+    async_session.add(VaultQuestCompletionLink(vault_id=vault.id, quest_id=quest.id, is_visible=False))
+    await async_session.commit()
+
+    with pytest.raises(AccessDeniedException, match="not currently offered"):
+        await quest_service.start_quest_for_vault(async_session, vault.id, quest.id)

@@ -28,6 +28,9 @@ class GameStateBase(SQLModel):
     )
     daily_objectives_period: datetime | None = Field(sa_type=UTCDateTime, default=None)
     weekly_objectives_period: datetime | None = Field(sa_type=UTCDateTime, default=None)
+    # NULL means the vault has not adopted the rotation yet; the first ensure call rolls immediately.
+    daily_quests_period: datetime | None = Field(sa_type=UTCDateTime, default=None)
+    weekly_quests_period: datetime | None = Field(sa_type=UTCDateTime, default=None)
     total_game_time: int = Field(default=0, ge=0, description="Total seconds the vault has been active")
     water_empty_since: datetime | None = Field(
         sa_type=UTCDateTime, default=None, description="When vault water last hit zero; None while water is available"

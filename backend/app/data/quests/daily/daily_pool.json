@@ -1,0 +1,471 @@
+[
+  {
+    "quest_name": "Caps Run",
+    "long_description": "There's a large stash of Caps out there in the Wasteland with your name on it.",
+    "short_description": "Find the hidden stash of Caps.",
+    "requirements": ["Open to all dwellers"],
+    "quest_objective": "Recover the main stash of Caps.",
+    "quest_type": "daily",
+    "quest_category": "collection",
+    "duration_minutes": 60,
+    "quest_requirements": [],
+    "quest_rewards": [
+      {"reward_type": "CAPS", "reward_data": {"amount": 5000}, "reward_chance": 1.0}
+    ]
+  },
+  {
+    "quest_name": "Friendly Settlement!",
+    "long_description": "A nearby settlement wants us to pay them a visit. What could go wrong?",
+    "short_description": "Send your Dwellers out to aid a nearby friendly settlement.",
+    "requirements": ["Open to all dwellers"],
+    "quest_objective": [
+      {"title": "Talk to the settlers."},
+      {"title": "Talk to the settlers."}
+    ],
+    "quest_type": "daily",
+    "quest_category": "exploration",
+    "duration_minutes": 60,
+    "quest_requirements": [],
+    "quest_rewards": [
+      {"reward_type": "ITEM", "reward_data": {"item_name": "Nuka-Cola Quantum", "quantity": 3}, "reward_chance": 1.0, "item_data": {"name": "Nuka-Cola Quantum", "item_type": "consumable", "rarity": "rare"}},
+      {"reward_type": "ITEM", "reward_data": {"item_name": "Rare junk", "quantity": 1}, "reward_chance": 1.0, "item_data": {"name": "Rare junk", "item_type": "junk", "rarity": "rare"}}
+    ]
+  },
+  {
+    "quest_name": "Guardian of the Wastes: Deathclaws!",
+    "long_description": "Let's do our part to protect the Wasteland by clearing out a nearby nest of dangerous, irradiated creatures!",
+    "short_description": "Exterminate the Deathclaws.",
+    "requirements": ["Open to all dwellers"],
+    "quest_objective": "Kill the Alpha Deathclaw.",
+    "quest_type": "daily",
+    "quest_category": "combat",
+    "duration_minutes": 60,
+    "quest_requirements": [],
+    "quest_rewards": [
+      {"reward_type": "ITEM", "reward_data": {"item_name": "Legendary junk", "quantity": 1}, "reward_chance": 1.0, "item_data": {"name": "Legendary junk", "item_type": "junk", "rarity": "legendary"}},
+      {"reward_type": "ITEM", "reward_data": {"item_name": "Assault rifle", "quantity": 1}, "reward_chance": 1.0, "item_data": {"name": "Assault rifle", "item_type": "weapon", "rarity": "rare"}},
+      {"reward_type": "ITEM", "reward_data": {"item_name": "Sturdy combat armor", "quantity": 1}, "reward_chance": 1.0, "item_data": {"name": "Sturdy combat armor", "item_type": "outfit", "rarity": "rare"}}
+    ]
+  },
+  {
+    "quest_name": "Guardian of the Wastes: Feral Ghouls!",
+    "long_description": "Let's do our part to protect the Wasteland by clearing out a nearby nest of dangerous, irradiated creatures!",
+    "short_description": "Show the Feral Ghouls no mercy.",
+    "requirements": ["Open to all dwellers"],
+    "quest_objective": "Kill the Glowing One.",
+    "quest_type": "daily",
+    "quest_category": "combat",
+    "duration_minutes": 60,
+    "quest_requirements": [],
+    "quest_rewards": [
+      {"reward_type": "ITEM", "reward_data": {"item_name": "Legendary junk", "quantity": 1}, "reward_chance": 1.0, "item_data": {"name": "Legendary junk", "item_type": "junk", "rarity": "legendary"}},
+      {"reward_type": "ITEM", "reward_data": {"item_name": "Assault rifle", "quantity": 1}, "reward_chance": 1.0, "item_data": {"name": "Assault rifle", "item_type": "weapon", "rarity": "rare"}},
+      {"reward_type": "ITEM", "reward_data": {"item_name": "Sturdy combat armor", "quantity": 1}, "reward_chance": 1.0, "item_data": {"name": "Sturdy combat armor", "item_type": "outfit", "rarity": "rare"}}
+    ]
+  },
+  {
+    "quest_name": "Guardian of the Wastes: Mole Rats!",
+    "long_description": "Let's do our part to protect the Wasteland by clearing out a nearby nest of dangerous, irradiated creatures!",
+    "short_description": "Get rid of those pesky Mole rats.",
+    "requirements": ["Open to all dwellers"],
+    "quest_objective": "Kill the Mole rat Brood Mother.",
+    "quest_type": "daily",
+    "quest_category": "combat",
+    "duration_minutes": 60,
+    "quest_requirements": [],
+    "quest_rewards": [
+      {"reward_type": "ITEM", "reward_data": {"item_name": "Legendary junk", "quantity": 1}, "reward_chance": 1.0, "item_data": {"name": "Legendary junk", "item_type": "junk", "rarity": "legendary"}},
+      {"reward_type": "ITEM", "reward_data": {"item_name": "Assault rifle", "quantity": 1}, "reward_chance": 1.0, "item_data": {"name": "Assault rifle", "item_type": "weapon", "rarity": "rare"}},
+      {"reward_type": "ITEM", "reward_data": {"item_name": "Sturdy combat armor", "quantity": 1}, "reward_chance": 1.0, "item_data": {"name": "Sturdy combat armor", "item_type": "outfit", "rarity": "rare"}}
+    ]
+  },
+  {
+    "quest_name": "Guardian of the Wastes: Radroaches!",
+    "long_description": "Let's do our part to protect the Wasteland by clearing out a nearby nest of dangerous, irradiated creatures!",
+    "short_description": "Clear out the nest of Radroaches.",
+    "requirements": ["Open to all dwellers"],
+    "quest_objective": "Kill the Glowing Radroach.",
+    "quest_type": "daily",
+    "quest_category": "combat",
+    "duration_minutes": 60,
+    "quest_requirements": [],
+    "quest_rewards": [
+      {"reward_type": "ITEM", "reward_data": {"item_name": "Rare junk", "quantity": 1}, "reward_chance": 1.0, "item_data": {"name": "Rare junk", "item_type": "junk", "rarity": "rare"}},
+      {"reward_type": "ITEM", "reward_data": {"item_name": "Assault rifle", "quantity": 1}, "reward_chance": 1.0, "item_data": {"name": "Assault rifle", "item_type": "weapon", "rarity": "rare"}},
+      {"reward_type": "ITEM", "reward_data": {"item_name": "Sturdy combat armor", "quantity": 1}, "reward_chance": 1.0, "item_data": {"name": "Sturdy combat armor", "item_type": "outfit", "rarity": "rare"}}
+    ]
+  },
+  {
+    "quest_name": "Guardian of the Wastes: Radscorpions!",
+    "long_description": "Let's do our part to protect the Wasteland by clearing out a nearby nest of dangerous, irradiated creatures!",
+    "short_description": "Eradicate the Radscorpions.",
+    "requirements": ["Open to all dwellers"],
+    "quest_objective": "Kill the Glowing Radscorpion.",
+    "quest_type": "daily",
+    "quest_category": "combat",
+    "duration_minutes": 60,
+    "quest_requirements": [],
+    "quest_rewards": [
+      {"reward_type": "ITEM", "reward_data": {"item_name": "Legendary junk", "quantity": 1}, "reward_chance": 1.0, "item_data": {"name": "Legendary junk", "item_type": "junk", "rarity": "legendary"}},
+      {"reward_type": "ITEM", "reward_data": {"item_name": "Assault rifle", "quantity": 1}, "reward_chance": 1.0, "item_data": {"name": "Assault rifle", "item_type": "weapon", "rarity": "rare"}},
+      {"reward_type": "ITEM", "reward_data": {"item_name": "Sturdy combat armor", "quantity": 1}, "reward_chance": 1.0, "item_data": {"name": "Sturdy combat armor", "item_type": "outfit", "rarity": "rare"}}
+    ]
+  },
+  {
+    "quest_name": "Junk Run",
+    "long_description": "The Wasteland is full of junk, but sometimes that's just what you need...",
+    "short_description": "We need more junk. Go get it!",
+    "requirements": ["Open to all dwellers"],
+    "quest_objective": "Recover the main stash of Junk.",
+    "quest_type": "daily",
+    "quest_category": "collection",
+    "duration_minutes": 60,
+    "quest_requirements": [],
+    "quest_rewards": [
+      {"reward_type": "ITEM", "reward_data": {"item_name": "Legendary junk", "quantity": 3}, "reward_chance": 1.0, "item_data": {"name": "Legendary junk", "item_type": "junk", "rarity": "legendary"}}
+    ]
+  },
+  {
+    "quest_name": "Lunchbox Run",
+    "long_description": "You've found the location of a Vault-Tec Lunchbox! Now we just need to send some volunteers to retrieve it.",
+    "short_description": "Bring back that Lunchbox.",
+    "requirements": ["Open to all dwellers"],
+    "quest_objective": "Recover the Lunchbox.",
+    "quest_type": "daily",
+    "quest_category": "collection",
+    "duration_minutes": 60,
+    "quest_requirements": [],
+    "quest_rewards": [
+      {"reward_type": "LUNCHBOX", "reward_data": {"amount": 1}, "reward_chance": 1.0, "item_data": {"name": "Lunchbox", "item_type": "lunchbox", "rarity": "common"}},
+      {"reward_type": "ITEM", "reward_data": {"item_name": "Legendary junk", "quantity": 1}, "reward_chance": 1.0, "item_data": {"name": "Legendary junk", "item_type": "junk", "rarity": "legendary"}},
+      {"reward_type": "ITEM", "reward_data": {"item_name": "Assault rifle", "quantity": 1}, "reward_chance": 1.0, "item_data": {"name": "Assault rifle", "item_type": "weapon", "rarity": "rare"}}
+    ]
+  },
+  {
+    "quest_name": "Nuka-Cola Quantum Run",
+    "long_description": "We think we know where a rare Nuka-Cola Quantum is located!",
+    "short_description": "Search for the lost Nuka-Cola Quantum.",
+    "requirements": ["Open to all dwellers"],
+    "quest_objective": "Recover the Nuka-Cola Quantum.",
+    "quest_type": "daily",
+    "quest_category": "collection",
+    "duration_minutes": 60,
+    "quest_requirements": [],
+    "quest_rewards": [
+      {"reward_type": "ITEM", "reward_data": {"item_name": "Nuka-Cola Quantum", "quantity": 4}, "reward_chance": 1.0, "item_data": {"name": "Nuka-Cola Quantum", "item_type": "consumable", "rarity": "rare"}},
+      {"reward_type": "ITEM", "reward_data": {"item_name": "Legendary junk", "quantity": 1}, "reward_chance": 1.0, "item_data": {"name": "Legendary junk", "item_type": "junk", "rarity": "legendary"}},
+      {"reward_type": "ITEM", "reward_data": {"item_name": "Assault rifle", "quantity": 1}, "reward_chance": 1.0, "item_data": {"name": "Assault rifle", "item_type": "weapon", "rarity": "rare"}}
+    ]
+  },
+  {
+    "quest_name": "Outfit Run",
+    "long_description": "You've gotten a lead to a supply of Outfits out in the Wasteland.",
+    "short_description": "Salvage any Outfits you can.",
+    "requirements": ["Open to all dwellers"],
+    "quest_objective": "Recover the main stash of Outfits.",
+    "quest_type": "daily",
+    "quest_category": "collection",
+    "duration_minutes": 60,
+    "quest_requirements": [],
+    "quest_rewards": [
+      {"reward_type": "ITEM", "reward_data": {"item_name": "Heavy combat armor", "quantity": 1}, "reward_chance": 1.0, "item_data": {"name": "Heavy combat armor", "item_type": "outfit", "rarity": "legendary"}},
+      {"reward_type": "ITEM", "reward_data": {"item_name": "Sturdy combat armor", "quantity": 2}, "reward_chance": 1.0, "item_data": {"name": "Sturdy combat armor", "item_type": "outfit", "rarity": "rare"}}
+    ]
+  },
+  {
+    "quest_name": "Weapons Run",
+    "long_description": "You've gotten a lead to a supply of Weapons out in the Wasteland.",
+    "short_description": "Recover the Weapons.",
+    "requirements": ["Level 50 dwellers"],
+    "quest_objective": "Recover the main stash of Weapons.",
+    "quest_type": "daily",
+    "quest_category": "collection",
+    "duration_minutes": 60,
+    "quest_requirements": [
+      {"requirement_type": "level", "requirement_data": {"level": 50}, "is_mandatory": true}
+    ],
+    "quest_rewards": [
+      {"reward_type": "ITEM", "reward_data": {"item_name": "Plasma rifle", "quantity": 1}, "reward_chance": 1.0, "item_data": {"name": "Plasma rifle", "item_type": "weapon", "rarity": "legendary"}},
+      {"reward_type": "ITEM", "reward_data": {"item_name": "Assault rifle", "quantity": 2}, "reward_chance": 1.0, "item_data": {"name": "Assault rifle", "item_type": "weapon", "rarity": "rare"}}
+    ]
+  },
+  {
+    "quest_name": "Rescue Operation",
+    "long_description": "You've received a distress call from a settlement! They're willing to leave and join your Vault if you save them.",
+    "short_description": "Rescue any settlers that you can.",
+    "requirements": ["Open to all dwellers"],
+    "quest_objective": [
+      {"title": "Rescue a settler."},
+      {"title": "Rescue another settler."},
+      {"title": "Rescue another settler."}
+    ],
+    "quest_type": "daily",
+    "quest_category": "exploration",
+    "duration_minutes": 60,
+    "quest_requirements": [],
+    "quest_rewards": [
+      {"reward_type": "DWELLER", "reward_data": {"template_id": "akira-katana"}, "reward_chance": 1.0},
+      {"reward_type": "ITEM", "reward_data": {"item_name": "Legendary junk", "quantity": 1}, "reward_chance": 1.0, "item_data": {"name": "Legendary junk", "item_type": "junk", "rarity": "legendary"}},
+      {"reward_type": "CAPS", "reward_data": {"amount": 500}, "reward_chance": 1.0}
+    ]
+  },
+  {
+    "quest_name": "Spy on Raiders!",
+    "long_description": "Let's put these Raider Outfits to good use! Send some Dwellers to spy on one of the Raider camps.",
+    "short_description": "Send your Dwellers in disguise to spy on a Raider Camp!",
+    "requirements": ["Raider armor"],
+    "quest_objective": [
+      {"title": "Talk to the Raider Boss."},
+      {"title": "Talk to Raiders."},
+      {"title": "Talk to Raiders."}
+    ],
+    "quest_type": "daily",
+    "quest_category": "exploration",
+    "duration_minutes": 60,
+    "quest_requirements": [
+      {"requirement_type": "item", "requirement_data": {"item_name": "Raider armor"}, "is_mandatory": true}
+    ],
+    "quest_rewards": [
+      {"reward_type": "ITEM", "reward_data": {"item_name": "Nuka-Cola Quantum", "quantity": 2}, "reward_chance": 1.0, "item_data": {"name": "Nuka-Cola Quantum", "item_type": "consumable", "rarity": "rare"}},
+      {"reward_type": "ITEM", "reward_data": {"item_name": "Rare junk", "quantity": 2}, "reward_chance": 1.0, "item_data": {"name": "Rare junk", "item_type": "junk", "rarity": "rare"}}
+    ]
+  },
+  {
+    "quest_name": "Science Cooperative!",
+    "long_description": "A group of scientists have asked for our help. They're in a dangerous area out in the Wasteland.",
+    "short_description": "Send your Dwellers out to aid scientists in the Wasteland.",
+    "requirements": ["Intelligence 7"],
+    "quest_objective": [
+      {"title": "Talk to the scientists."},
+      {"title": "Talk to the scientists."}
+    ],
+    "quest_type": "daily",
+    "quest_category": "exploration",
+    "duration_minutes": 60,
+    "quest_requirements": [
+      {"requirement_type": "stat", "requirement_data": {"stat": "intelligence", "value": 7}, "is_mandatory": true}
+    ],
+    "quest_rewards": [
+      {"reward_type": "ITEM", "reward_data": {"item_name": "Nuka-Cola Quantum", "quantity": 2}, "reward_chance": 1.0, "item_data": {"name": "Nuka-Cola Quantum", "item_type": "consumable", "rarity": "rare"}},
+      {"reward_type": "ITEM", "reward_data": {"item_name": "Rare junk", "quantity": 2}, "reward_chance": 1.0, "item_data": {"name": "Rare junk", "item_type": "junk", "rarity": "rare"}}
+    ]
+  },
+  {
+    "quest_name": "Duo of Destruction: Mole Rat Brood Mothers",
+    "long_description": "Two Mole Rat Brood Mothers have been spotted at the nearby dog food factory. It's about time someone took them down.",
+    "short_description": "Eliminate the two Mole Rat Brood Mothers at the old dog food factory!",
+    "requirements": ["Open to all dwellers"],
+    "quest_objective": [
+      {"title": "Eliminate the first Mole Rat Brood Mother."},
+      {"title": "Eliminate the second Mole Rat Brood Mother."}
+    ],
+    "quest_type": "daily",
+    "quest_category": "combat",
+    "duration_minutes": 60,
+    "quest_requirements": [],
+    "quest_rewards": [
+      {"reward_type": "ITEM", "reward_data": {"item_name": "Heavy combat armor", "quantity": 1}, "reward_chance": 1.0, "item_data": {"name": "Heavy combat armor", "item_type": "outfit", "rarity": "legendary"}},
+      {"reward_type": "ITEM", "reward_data": {"item_name": "Legendary junk", "quantity": 2}, "reward_chance": 1.0, "item_data": {"name": "Legendary junk", "item_type": "junk", "rarity": "legendary"}}
+    ]
+  },
+  {
+    "quest_name": "Duo of Destruction: Glowing Radscorpions",
+    "long_description": "Two Glowing Radscorpions are causing havoc in Vault 512! Squash those bugs good!",
+    "short_description": "Exterminate both of the Glowing Radscorpions in Vault 512!",
+    "requirements": ["Open to all dwellers"],
+    "quest_objective": [
+      {"title": "Eliminate the first Glowing Radscorpion."},
+      {"title": "Eliminate the second Glowing Radscorpion."}
+    ],
+    "quest_type": "daily",
+    "quest_category": "combat",
+    "duration_minutes": 60,
+    "quest_requirements": [],
+    "quest_rewards": [
+      {"reward_type": "ITEM", "reward_data": {"item_name": "Legendary junk", "quantity": 1}, "reward_chance": 1.0, "item_data": {"name": "Legendary junk", "item_type": "junk", "rarity": "legendary"}},
+      {"reward_type": "ITEM", "reward_data": {"item_name": "Plasma rifle", "quantity": 1}, "reward_chance": 1.0, "item_data": {"name": "Plasma rifle", "item_type": "weapon", "rarity": "legendary"}},
+      {"reward_type": "ITEM", "reward_data": {"item_name": "Assault rifle", "quantity": 1}, "reward_chance": 1.0, "item_data": {"name": "Assault rifle", "item_type": "weapon", "rarity": "rare"}}
+    ]
+  },
+  {
+    "quest_name": "Duo of Destruction: Glowing Radroaches",
+    "long_description": "Two Glowing Radroaches have chased the residents of the \u201cNuclear Arms Apartments\u201d out of their home. Time for a little exterminating.",
+    "short_description": "Exterminate the pair of Glowing Radroaches residing at the Nuclear Arms Apartments!",
+    "requirements": ["Open to all dwellers"],
+    "rewards": "Legendary junk, Combat shotgun, 500 caps",
+    "quest_objective": [
+      {"title": "Eliminate the first Glowing Radroach."},
+      {"title": "Eliminate the second Glowing Radroach."}
+    ],
+    "quest_type": "daily",
+    "quest_category": "combat",
+    "duration_minutes": 60,
+    "quest_requirements": [],
+    "quest_rewards": [
+      {"reward_type": "ITEM", "reward_data": {"item_name": "Legendary junk", "quantity": 1}, "reward_chance": 1.0, "item_data": {"name": "Legendary junk", "item_type": "junk", "rarity": "legendary"}},
+      {"reward_type": "ITEM", "reward_data": {"item_name": "Combat shotgun", "quantity": 1}, "reward_chance": 1.0, "item_data": {"name": "Combat shotgun", "item_type": "weapon", "rarity": "rare"}},
+      {"reward_type": "CAPS", "reward_data": {"amount": 500}, "reward_chance": 1.0}
+    ]
+  },
+  {
+    "quest_name": "Duo of Destruction: Glowing One (x2!)",
+    "long_description": "A pair of Glowing Ones have taken over an old Fusion Core factory. Toss those Ghouls out on their keisters!",
+    "short_description": "Put down the pair of Glowing Ones at the old Fusion Core factory!",
+    "requirements": ["Open to all dwellers"],
+    "rewards": "Legendary junk, Rare junk, 700 caps",
+    "quest_objective": [
+      {"title": "Eliminate the first Glowing One."},
+      {"title": "Eliminate the second Glowing One."}
+    ],
+    "quest_type": "daily",
+    "quest_category": "combat",
+    "duration_minutes": 60,
+    "quest_requirements": [],
+    "quest_rewards": [
+      {"reward_type": "ITEM", "reward_data": {"item_name": "Legendary junk", "quantity": 1}, "reward_chance": 1.0, "item_data": {"name": "Legendary junk", "item_type": "junk", "rarity": "legendary"}},
+      {"reward_type": "ITEM", "reward_data": {"item_name": "Rare junk", "quantity": 1}, "reward_chance": 1.0, "item_data": {"name": "Rare junk", "item_type": "junk", "rarity": "rare"}},
+      {"reward_type": "CAPS", "reward_data": {"amount": 700}, "reward_chance": 1.0}
+    ]
+  },
+  {
+    "quest_name": "Duo of Destruction: Alpha Deathclaws",
+    "long_description": "Two Alpha Deathclaws have decided to make their home at the old Grotton Depot. Yikes! Time to bring out the big guns!",
+    "short_description": "Put down an angry pair of Alpha Deathclaws!",
+    "requirements": ["Open to all dwellers"],
+    "quest_objective": [
+      {"title": "Kill the first Alpha Deathclaw."},
+      {"title": "Kill the second Alpha Deathclaw."}
+    ],
+    "quest_type": "daily",
+    "quest_category": "combat",
+    "duration_minutes": 60,
+    "quest_requirements": [],
+    "quest_rewards": [
+      {"reward_type": "ITEM", "reward_data": {"item_name": "Legendary junk", "quantity": 2}, "reward_chance": 1.0, "item_data": {"name": "Legendary junk", "item_type": "junk", "rarity": "legendary"}},
+      {"reward_type": "ITEM", "reward_data": {"item_name": "Sturdy combat armor", "quantity": 1}, "reward_chance": 1.0, "item_data": {"name": "Sturdy combat armor", "item_type": "outfit", "rarity": "rare"}}
+    ]
+  },
+  {
+    "quest_name": "Bounty: Bash",
+    "long_description": "The Raider Boss known as \u201cBash\u201d has made one too many enemies. Claim the bounty on his head!",
+    "short_description": "Take down the Raider Boss Bash and claim your reward!",
+    "requirements": ["Pickaxe", "Level 50 dwellers"],
+    "quest_objective": "Kill Bash.",
+    "quest_type": "daily",
+    "quest_category": "combat",
+    "duration_minutes": 60,
+    "quest_requirements": [
+      {"requirement_type": "item", "requirement_data": {"item_name": "Pickaxe"}, "is_mandatory": true},
+      {"requirement_type": "level", "requirement_data": {"level": 50}, "is_mandatory": true}
+    ],
+    "quest_rewards": [
+      {"reward_type": "ITEM", "reward_data": {"item_name": "Legendary junk", "quantity": 2}, "reward_chance": 1.0, "item_data": {"name": "Legendary junk", "item_type": "junk", "rarity": "legendary"}},
+      {"reward_type": "ITEM", "reward_data": {"item_name": "Heavy combat armor", "quantity": 1}, "reward_chance": 1.0, "item_data": {"name": "Heavy combat armor", "item_type": "outfit", "rarity": "legendary"}},
+      {"reward_type": "CAPS", "reward_data": {"amount": 8000}, "reward_chance": 1.0}
+    ]
+  },
+  {
+    "quest_name": "Bounty: Yak",
+    "long_description": "The Mole Rat Brood Mother known as \u201cYak\u201d has stolen her last snackcake! Whack Yak to claim your reward.",
+    "short_description": "Take down the Mole Rat Brood Mother known as Yak and claim your reward!",
+    "requirements": ["Lever-action rifle"],
+    "rewards": "2x Legendary junk, 10500 caps",
+    "quest_objective": "Whack Yak.",
+    "quest_type": "daily",
+    "quest_category": "combat",
+    "duration_minutes": 60,
+    "quest_requirements": [
+      {"requirement_type": "item", "requirement_data": {"item_name": "Lever-action rifle"}, "is_mandatory": true}
+    ],
+    "quest_rewards": [
+      {"reward_type": "ITEM", "reward_data": {"item_name": "Legendary junk", "quantity": 2}, "reward_chance": 1.0, "item_data": {"name": "Legendary junk", "item_type": "junk", "rarity": "legendary"}},
+      {"reward_type": "CAPS", "reward_data": {"amount": 10500}, "reward_chance": 1.0}
+    ]
+  },
+  {
+    "quest_name": "Bounty: Snips",
+    "long_description": "There's a bounty out on \u201cSnips,\u201d a Glowing Radscorpion. Put down that pest and the reward's as good as yours.",
+    "short_description": "Exterminate the Glowing Radscorpion known as \u201cSnips\u201d and claim the bounty on its carapace!",
+    "requirements": ["Shotgun"],
+    "quest_objective": "Exterminate \u201cSnips.\u201d",
+    "quest_type": "daily",
+    "quest_category": "combat",
+    "duration_minutes": 60,
+    "quest_requirements": [
+      {"requirement_type": "item", "requirement_data": {"item_name": "Shotgun"}, "is_mandatory": true}
+    ],
+    "quest_rewards": [
+      {"reward_type": "ITEM", "reward_data": {"item_name": "Legendary junk", "quantity": 2}, "reward_chance": 1.0, "item_data": {"name": "Legendary junk", "item_type": "junk", "rarity": "legendary"}},
+      {"reward_type": "CAPS", "reward_data": {"amount": 10500}, "reward_chance": 1.0}
+    ]
+  },
+  {
+    "quest_name": "Bounty: Shiner",
+    "long_description": "The Glowing One known as \u201cShiner\u201d has made trouble for the last time. Put him on ice to claim your reward.",
+    "short_description": "Take down the Glowing One known as Shiner and claim your reward!",
+    "requirements": ["Laser pistol"],
+    "quest_objective": "Kill Shiner.",
+    "quest_type": "daily",
+    "quest_category": "combat",
+    "duration_minutes": 60,
+    "quest_requirements": [
+      {"requirement_type": "item", "requirement_data": {"item_name": "Laser pistol"}, "is_mandatory": true}
+    ],
+    "quest_rewards": [
+      {"reward_type": "ITEM", "reward_data": {"item_name": "Legendary junk", "quantity": 2}, "reward_chance": 1.0, "item_data": {"name": "Legendary junk", "item_type": "junk", "rarity": "legendary"}},
+      {"reward_type": "CAPS", "reward_data": {"amount": 10500}, "reward_chance": 1.0}
+    ]
+  },
+  {
+    "quest_name": "Bounty: 'Ol One-Eye",
+    "long_description": "Someone's put a bounty on the head of a meddlesome Radroach known as 'Ol One-Eye. Swat that bug and claim your reward!",
+    "short_description": "Help 'Ol One-Eye shuffle off this mortal coil and collect your bounty!",
+    "requirements": ["Open to all dwellers"],
+    "quest_objective": "Kill 'Ol One-Eye.",
+    "quest_type": "daily",
+    "quest_category": "combat",
+    "duration_minutes": 60,
+    "quest_requirements": [],
+    "quest_rewards": [
+      {"reward_type": "ITEM", "reward_data": {"item_name": "Legendary junk", "quantity": 2}, "reward_chance": 1.0, "item_data": {"name": "Legendary junk", "item_type": "junk", "rarity": "legendary"}},
+      {"reward_type": "ITEM", "reward_data": {"item_name": "Sturdy combat armor", "quantity": 1}, "reward_chance": 1.0, "item_data": {"name": "Sturdy combat armor", "item_type": "outfit", "rarity": "rare"}}
+    ]
+  },
+  {
+    "quest_name": "Bounty: Butcher",
+    "long_description": "There's a bounty on an Alpha Deathclaw known as \u201cButcher.\u201d Don't worry. I'm sure it's just a nickname. But take her down and you'll earn yourself a hefty prize.",
+    "short_description": "Eliminate the Alpha Deathclaw known as \u201cButcher\u201d to collect your bounty!",
+    "requirements": ["Open to all dwellers"],
+    "quest_objective": "Kill \u201cButcher.\u201d",
+    "quest_type": "daily",
+    "quest_category": "combat",
+    "duration_minutes": 60,
+    "quest_requirements": [],
+    "quest_rewards": [
+      {"reward_type": "ITEM", "reward_data": {"item_name": "Legendary junk", "quantity": 2}, "reward_chance": 1.0, "item_data": {"name": "Legendary junk", "item_type": "junk", "rarity": "legendary"}},
+      {"reward_type": "CAPS", "reward_data": {"amount": 13500}, "reward_chance": 1.0}
+    ]
+  },
+  {
+    "quest_name": "Spelun-King Training",
+    "long_description": "The annual Spelun-King competition is coming up, but which Dwellers should go? Let's send strong and perceptive Dwellers to explore a cave and see how well they do! This training quest has multiple stat-pair variants: Strength/Perception (authored here), Charisma/Perception, Endurance/Luck, Endurance/Intelligence, Charisma/Agility, Strength/Intelligence, and Luck/Agility.",
+    "short_description": "Do strong and perceptive Dwellers have what it takes?",
+    "requirements": ["5-7 Strength", "5-7 Perception"],
+    "quest_objective": [
+      {"title": "Explore the cave."},
+      {"title": "Meet the other Spelun-King competitors."}
+    ],
+    "quest_type": "daily",
+    "quest_category": "exploration",
+    "duration_minutes": 60,
+    "quest_requirements": [
+      {"requirement_type": "stat", "requirement_data": {"stat": "strength", "value": 5}, "is_mandatory": true},
+      {"requirement_type": "stat", "requirement_data": {"stat": "perception", "value": 5}, "is_mandatory": true}
+    ],
+    "quest_rewards": [
+      {"reward_type": "ITEM", "reward_data": {"item_name": "Nuka-Cola Quantum", "quantity": 3}, "reward_chance": 1.0, "item_data": {"name": "Nuka-Cola Quantum", "item_type": "consumable", "rarity": "rare"}},
+      {"reward_type": "ITEM", "reward_data": {"item_name": "Chemistry flask", "quantity": 1}, "reward_chance": 1.0, "item_data": {"name": "Chemistry flask", "item_type": "junk", "rarity": "legendary"}},
+      {"reward_type": "ITEM", "reward_data": {"item_name": "Advanced lab coat", "quantity": 1}, "reward_chance": 1.0, "item_data": {"name": "Advanced lab coat", "item_type": "outfit", "rarity": "rare"}}
+    ]
+  }
+]

@@ -11,6 +11,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app import crud
 from app.core.enums import DwellerStatusEnum
 from app.core.event_bus import GameEvent, event_bus
+from app.crud.quest import SCHEDULED_QUEST_TYPES
 from app.models.quest import Quest
 from app.models.vault_quest import VaultQuestCompletionLink
 from app.schemas.quest import EligibleDwellerRead, QuestRead
@@ -26,7 +27,7 @@ from app.services.progression.quests.requirements import (
 from app.services.reward_service import reward_service
 from app.services.team_service import team_service
 from app.utils.dweller_availability import DwellerAction, availability_error
-from app.utils.exceptions import ValidationException, ensure_found
+from app.utils.exceptions import AccessDeniedException, ValidationException, ensure_found
 from app.utils.quest_duration import (
     STATE_QUEST_CATEGORIES,
     effective_quest_duration_minutes,
@@ -126,6 +127,8 @@ class QuestService:
         link = ensure_found(link, VaultQuestCompletionLink, identifier=f"quest {quest_id} for vault {vault_id}")
 
         await db_session.refresh(link)
+        if not link.is_visible:
+            raise AccessDeniedException("Quest is not currently offered")
         if link.is_completed:
             raise AccessDeniedException("Quest already completed")
         if link.started_at is not None:
@@ -200,6 +203,12 @@ class QuestService:
         quest = await crud.quest_crud.get_or_none(db_session, quest_id)
         quest = ensure_found(quest, Quest, identifier=quest_id)
 
+        # Hidden before requirements: a quest the scheduler has not offered must not
+        # leak its requirement details through a validation error.
+        link = await crud.quest_crud.get_link(db_session, quest_id=quest_id, vault_id=vault_id)
+        if link is not None and not link.is_visible:
+            raise AccessDeniedException("Quest is not currently offered")
+
         await db_session.refresh(quest, ["quest_requirements"])
 
         availability = await self.get_quest_availability(db_session, vault_id, quest)
@@ -214,6 +223,22 @@ class QuestService:
         await self.start_quest(db_session, quest_id, vault_id, dweller_ids=dweller_ids)
         await db_session.refresh(quest, ["quest_requirements", "quest_rewards"])
         return quest
+
+    async def assign_quest_to_vault(
+        self, db_session: AsyncSession, quest_id: UUID, vault_id: UUID, *, is_visible: bool = True
+    ) -> VaultQuestCompletionLink:
+        """Assign a quest to a vault, making it available for completion.
+
+        Manual assignment cannot touch scheduler-managed pools: daily, weekly and
+        event quest visibility belongs to the rotation sweep.
+        """
+        quest = await crud.quest_crud.get(db_session, quest_id)
+        quest = ensure_found(quest, Quest, identifier=quest_id)
+        if quest.quest_type in SCHEDULED_QUEST_TYPES:
+            raise ValidationException("Daily, weekly and event quest visibility is managed by the scheduler")
+        return await crud.quest_crud.assign_to_vault(
+            db_session=db_session, quest_id=quest_id, vault_id=vault_id, is_visible=is_visible
+        )
 
     async def get_quest_availability(
         self,
@@ -299,6 +324,10 @@ class QuestService:
         """Atomically deliver rewards that a returning party has made claimable."""
         from app.utils.exceptions import ValidationException, ensure_found
 
+        # Same lock order as assignment (vault row before the quest-link row):
+        # assignment locks vault -> link, a claim locks link -> vault caps, so
+        # without this shared prefix the two can deadlock.
+        await crud.vault.lock_for_update(db_session, vault_id)
         link = await crud.quest_crud.get_link(db_session, quest_id=quest_id, vault_id=vault_id)
         link = ensure_found(link, VaultQuestCompletionLink, identifier=f"quest {quest_id} for vault {vault_id}")
         if not link.is_reward_ready:

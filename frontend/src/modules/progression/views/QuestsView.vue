@@ -32,7 +32,7 @@ import {
 import { QuestCard, PartySelectionModal } from '../components'
 import { Badge } from '@/core/components/ui/badge'
 import QuestRewardsModal from '../components/QuestRewardsModal.vue'
-import type { QuestAvailableSortBy, VaultQuest } from '../models/quest'
+import type { QuestAvailableSortBy, QuestType, VaultQuest } from '../models/quest'
 import {
   compareQuestsByAvailableSort,
   isQuestReturning,
@@ -66,9 +66,15 @@ const availableQuests = computed(() =>
   )
 )
 
+const SCHEDULER_OWNED_QUEST_TYPES = new Set<QuestType>(['daily', 'event', 'repeatable'])
+
 const filteredAvailableQuests = computed(() => {
   if (showAllQuests.value) {
-    return questStore.vaultQuests.filter(isUnstartedQuest)
+    return questStore.vaultQuests.filter(
+      (quest) =>
+        isUnstartedQuest(quest) &&
+        (quest.is_visible || !SCHEDULER_OWNED_QUEST_TYPES.has(quest.quest_type))
+    )
   }
   return availableQuests.value
 })
@@ -102,10 +108,16 @@ const vaultId = computed(() => route.params.id as string)
 
 const claimQuestId = computed(() => (route.query.claimQuest as string) || '')
 
-// The backend owns quest locking; the full-screen gate shows while the Overseer's Office is missing.
-const officeLocked = computed(() =>
-  questStore.vaultQuests.some((quest) => quest.lock_reason === "Requires Overseer's Office")
-)
+// The backend owns quest locking; the full-screen gate shows while the Overseer's Office is
+// missing and nothing is active, returning or claimable (the store's own categories, which
+// exclude completed history), so losing the room never hides quests in flight.
+const officeLocked = computed(() => {
+  if (!questStore.vaultQuests.some((quest) => quest.lock_reason === "Requires Overseer's Office")) {
+    return false
+  }
+  const { active, returning, readyToClaim } = questStore.questCategories
+  return active.length === 0 && returning.length === 0 && readyToClaim.length === 0
+})
 
 // Computed properties for quest lists
 const activeQuests = computed(() => questStore.questCategories.active)

@@ -178,7 +178,7 @@ async def assign_quest_to_vault(
         The vault-quest assignment.
     """
     await get_user_vault_or_403(vault_id, user, db_session)
-    return await crud.quest_crud.assign_to_vault(
+    return await quest_service.assign_quest_to_vault(
         db_session=db_session, quest_id=quest_id, vault_id=vault_id, is_visible=is_visible
     )
 

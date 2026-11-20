@@ -89,7 +89,7 @@ async def test_timestamp_inventory_matches_migrated_schema(utc_connection: Async
         for column in table.c
         if isinstance(column.type, UTCDateTime)
     }
-    assert len(expected) == 122
+    assert len(expected) == 124
     assert len({table for table, _ in expected}) == 39
     rows = await utc_connection.execute(
         text(

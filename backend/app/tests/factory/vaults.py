@@ -13,7 +13,7 @@ def random_vault_number(low: int = 1, high: int = 999) -> int:
 def create_fake_vault():
     return {
         "number": random_vault_number(1, 100),
-        "bottle_caps": random.randint(100, 1_000_000),
+        "bottle_caps": random.randint(100, 999_999),
         "happiness": random.randint(0, 100),
         "power": random.randint(1, 100),
         "food": random.randint(1, 100),

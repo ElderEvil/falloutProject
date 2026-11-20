@@ -139,7 +139,12 @@ async def test_voice_generation_uses_shared_audio_agent_runner() -> None:
         result = await conversation_service._generate_response_with_agent(db_session, dweller, "Status?", "Chat")
 
     assert result is generated
-    runner.assert_awaited_once_with(db_session, dweller, "Status?", "Chat", for_audio=True)
+    args, kwargs = runner.await_args
+    assert args == (db_session, dweller, "Status?", "Chat")
+    assert kwargs["for_audio"] is True
+    # Continuation threads through the shared runner; this direct call passes no state.
+    assert "conversation" in kwargs
+    assert kwargs["conversation"] is None
 
 
 async def test_audio_helpers_do_not_log_transcript_or_gender(caplog, monkeypatch):

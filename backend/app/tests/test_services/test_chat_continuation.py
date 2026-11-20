@@ -7,16 +7,21 @@ of what changed since the last exchange.
 
 from datetime import timedelta
 from types import SimpleNamespace
+from unittest.mock import patch
 from uuid import uuid4
 
 import pytest
 from pydantic_ai.messages import ModelRequest, ModelResponse, TextPart, UserPromptPart
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.crud.chat_message import chat_message as chat_message_crud
+from app.models.chat_message import ChatMessage, ChatMessageCreate
 from app.models.conversation import Conversation as ConversationRow
+from app.models.dweller import Dweller
 from app.models.dweller_memory import DwellerMemory
+from app.models.vault import Vault
 from app.services.chat.context import dump_context, load_context
-from app.services.chat.continuation import build_continuation, save_context
+from app.services.chat.continuation import after_exchange, build_continuation, save_context
 from app.utils.time import utcnow
 
 
@@ -113,6 +118,142 @@ async def test_gap_line_reports_absence_in_days(async_session: AsyncSession) -> 
     _, instructions = await build_continuation(async_session, thread=thread, dweller=dweller)
 
     assert "It has been 3 days since the Overseer last spoke to you." in instructions
+
+
+async def _thread_with_rows(
+    session: AsyncSession, vault: Vault, dweller: Dweller, exchanges: int, carried: int
+) -> tuple[ConversationRow, list[ChatMessage]]:
+    """A persisted thread holding ``exchanges`` exchanged pairs, its state trimmed to ``carried``."""
+    await session.refresh(vault, ["user"])
+    thread = ConversationRow(vault_id=vault.id, user_id=vault.user.id, dweller_id=dweller.id)
+    session.add(thread)
+    await session.commit()
+    await session.refresh(thread)
+
+    rows: list[ChatMessage] = []
+    for index in range(exchanges):
+        rows.extend(
+            [
+                await chat_message_crud.create_message(
+                    session,
+                    obj_in=ChatMessageCreate(
+                        vault_id=vault.id,
+                        from_user_id=vault.user.id,
+                        to_dweller_id=dweller.id,
+                        message_text=f"Question {index}",
+                        conversation_id=thread.id,
+                    ),
+                ),
+                await chat_message_crud.create_message(
+                    session,
+                    obj_in=ChatMessageCreate(
+                        vault_id=vault.id,
+                        from_dweller_id=dweller.id,
+                        to_user_id=vault.user.id,
+                        message_text=f"Answer {index}",
+                        conversation_id=thread.id,
+                    ),
+                ),
+            ]
+        )
+    await session.commit()
+
+    thread.context = dump_context(_context_with_turns(carried // 2))
+    session.add(thread)
+    await session.commit()
+    await session.refresh(thread)
+    return thread, rows
+
+
+@pytest.mark.asyncio
+async def test_after_exchange_summarises_exactly_the_rows_the_window_dropped(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller
+) -> None:
+    """The summary must cover what left the prompt, not a count guessed from config."""
+    thread, rows = await _thread_with_rows(async_session, vault, dweller, exchanges=4, carried=4)
+    summarised: list[ChatMessage] = []
+
+    async def capture(_db, _thread, *, dropped):
+        summarised.extend(dropped)
+
+    with (
+        patch("app.services.chat.continuation.maybe_summarize", new=capture),
+        patch("app.services.chat.continuation.extract_memories", new=_no_memories),
+    ):
+        await after_exchange(async_session, thread=thread, dweller=dweller)
+
+    assert [row.id for row in summarised] == [row.id for row in rows[:4]]
+
+
+@pytest.mark.asyncio
+async def test_after_exchange_summarises_budget_trimmed_turns_too(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller
+) -> None:
+    """A token budget can carry fewer messages than the count limit; those are not lost."""
+    thread, rows = await _thread_with_rows(async_session, vault, dweller, exchanges=4, carried=2)
+    summarised: list[ChatMessage] = []
+
+    async def capture(_db, _thread, *, dropped):
+        summarised.extend(dropped)
+
+    with (
+        patch("app.services.chat.continuation.maybe_summarize", new=capture),
+        patch("app.services.chat.continuation.extract_memories", new=_no_memories),
+    ):
+        await after_exchange(async_session, thread=thread, dweller=dweller)
+
+    assert [row.id for row in summarised] == [row.id for row in rows[:6]]
+
+
+@pytest.mark.asyncio
+async def test_after_exchange_does_not_re_summarise_behind_the_cursor(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller
+) -> None:
+    thread, rows = await _thread_with_rows(async_session, vault, dweller, exchanges=4, carried=4)
+    thread.summary_through_message_id = rows[1].id
+    async_session.add(thread)
+    await async_session.commit()
+    summarised: list[ChatMessage] = []
+
+    async def capture(_db, _thread, *, dropped):
+        summarised.extend(dropped)
+
+    with (
+        patch("app.services.chat.continuation.maybe_summarize", new=capture),
+        patch("app.services.chat.continuation.extract_memories", new=_no_memories),
+    ):
+        await after_exchange(async_session, thread=thread, dweller=dweller)
+
+    assert [row.id for row in summarised] == [row.id for row in rows[2:4]]
+
+
+@pytest.mark.asyncio
+async def test_after_exchange_gives_memory_extraction_both_halves(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller
+) -> None:
+    """Extraction can only record what the Overseer said if it sees his message."""
+    thread, rows = await _thread_with_rows(async_session, vault, dweller, exchanges=2, carried=4)
+    seen: list[ChatMessage] = []
+
+    async def capture(_db, *, dweller, exchange, existing):
+        seen.extend(exchange)
+        return []
+
+    with (
+        patch("app.services.chat.continuation.maybe_summarize", new=_nothing),
+        patch("app.services.chat.continuation.extract_memories", new=capture),
+    ):
+        await after_exchange(async_session, thread=thread, dweller=dweller)
+
+    assert [row.message_text for row in seen] == ["Question 1", "Answer 1"]
+
+
+async def _no_memories(*_args, **_kwargs):
+    return []
+
+
+async def _nothing(*_args, **_kwargs):
+    return None
 
 
 @pytest.mark.asyncio

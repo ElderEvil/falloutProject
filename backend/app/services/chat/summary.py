@@ -104,8 +104,11 @@ async def maybe_summarize(
     conversation.summary = text[:max_chars]
     conversation.summary_through_message_id = pending[-1].id
     try:
-        db.add(conversation)
-        await db.flush()
+        # Savepoint: a failed flush would abort the caller's transaction, so restoring the
+        # attributes alone would not leave the session usable.
+        async with db.begin_nested():
+            db.add(conversation)
+            await db.flush()
     except Exception:
         conversation.summary = previous_summary
         conversation.summary_through_message_id = previous_through

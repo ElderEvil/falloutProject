@@ -143,10 +143,12 @@ def test_plan_prune_preserves_identity_usage_and_deferred_requests() -> None:
     assert len(conversation.messages) == 12
 
 
-def test_plan_prune_treats_a_non_positive_keep_as_one() -> None:
+def test_plan_prune_keeps_whole_turns_when_keep_is_below_two() -> None:
+    """A window that opened on a reply without its request would be half a turn."""
     conversation = _conversation(3)
 
     dropped, trimmed = plan_prune(conversation, keep=0, budget=10_000)
 
-    assert len(trimmed.messages) == 1
-    assert len(dropped) == len(conversation.messages) - 1
+    assert isinstance(trimmed.messages[0], ModelRequest)
+    assert len(trimmed.messages) == 2
+    assert len(dropped) == len(conversation.messages) - 2

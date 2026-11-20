@@ -3,6 +3,7 @@
 from datetime import datetime
 from uuid import UUID
 
+from sqlalchemy import and_, func
 from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -20,17 +21,31 @@ class CRUDIncidentEvent(CRUDBase[IncidentEvent, IncidentEvent, IncidentEvent]):
         A single fire writes several journal rows; the dweller should hear about the fire
         once, so only the latest row per incident is returned.
         """
-        query = (
-            select(IncidentEvent)
+        # The latest row per incident in SQL: a long absence would otherwise load every
+        # journal row in the vault to return at most ``limit`` of them.
+        latest_per_incident = (
+            select(
+                col(IncidentEvent.incident_id).label("incident_id"),
+                func.max(col(IncidentEvent.created_at)).label("latest"),
+            )
             .join(Incident, col(Incident.id) == col(IncidentEvent.incident_id))
             .where(col(Incident.vault_id) == vault_id, col(IncidentEvent.created_at) > since)
-            .order_by(col(IncidentEvent.created_at).desc())
+            .group_by(col(IncidentEvent.incident_id))
+            .subquery()
         )
-        events = (await db.exec(query)).all()
-        latest: dict[UUID, IncidentEvent] = {}
-        for event in events:
-            latest.setdefault(event.incident_id, event)
-        return list(latest.values())[:limit]
+        query = (
+            select(IncidentEvent)
+            .join(
+                latest_per_incident,
+                and_(
+                    col(IncidentEvent.incident_id) == latest_per_incident.c.incident_id,
+                    col(IncidentEvent.created_at) == latest_per_incident.c.latest,
+                ),
+            )
+            .order_by(col(IncidentEvent.created_at).desc())
+            .limit(limit)
+        )
+        return list((await db.exec(query)).all())
 
 
 incident_event = CRUDIncidentEvent(IncidentEvent)

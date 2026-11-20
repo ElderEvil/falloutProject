@@ -53,9 +53,12 @@ async def persist_chat(
     # stateless persistence.
     if conversation is None:
         try:
-            conversation = await conversation_crud.get_or_create(
-                db_session, vault_id=dweller.vault.id, user_id=user.id, dweller_id=dweller.id
-            )
+            # Savepoint: a failed statement would otherwise abort the caller's transaction
+            # and take the message writes down with it.
+            async with db_session.begin_nested():
+                conversation = await conversation_crud.get_or_create(
+                    db_session, vault_id=dweller.vault.id, user_id=user.id, dweller_id=dweller.id
+                )
         except Exception:
             logger.warning("Conversation thread unavailable; persisting chat statelessly", exc_info=True)
     conversation_id = conversation.id if conversation is not None else None

@@ -29,7 +29,7 @@ def load_context(raw: Any) -> Conversation:
     else:
         try:
             payload = json.dumps(raw)
-        except TypeError, ValueError:
+        except (TypeError, ValueError):
             logger.warning("Stored conversation context is not JSON-serialisable; starting fresh")
             return Conversation()
     try:
@@ -72,12 +72,13 @@ def plan_prune(
     """Split off the oldest messages that no longer fit; return (dropped, trimmed copy).
 
     Drops from the front until both the ``keep`` message count and the ``len(content) // 4`` token
-    ``budget`` hold, never touching the newest message. The trimmed copy keeps ``usage``,
+    ``budget`` hold, never touching the newest message. The window always holds whole turns, so
+    ``keep`` below two still carries a request with its reply. The trimmed copy keeps ``usage``,
     ``conversation_id``, ``deferred_tool_requests`` and ``revision``; ``new_message_index`` is
     cleared because the history it points into has been rewritten. The original is left intact.
     """
     messages = list(conversation.messages)
-    min_keep = max(keep, 1)
+    min_keep = max(keep, 2)
     chars = [message_chars(message) for message in messages]
     total_chars = sum(chars)
 

@@ -69,7 +69,7 @@ class QuestService:
                 # Keep one quest failure isolated; the raw-session completion path is tested end to end.
                 # The rollback releases any row locks the failed attempt held.
                 await db_session.rollback()
-                logger.exception(f"Failed to start return for quest {quest_id} for vault {candidate_vault_id}")
+                logger.exception(f"Failed to start return for quest {link.quest_id} for vault {link.vault_id}")
             else:
                 logger.info(f"Quest {quest_id} party is travelling home for vault {candidate_vault_id}")
 
@@ -85,7 +85,7 @@ class QuestService:
                 # Keep one quest failure isolated; the raw-session completion path is tested end to end.
                 # The rollback releases any row locks the failed attempt held.
                 await db_session.rollback()
-                logger.exception(f"Failed to auto-complete quest {quest_id} for vault {candidate_vault_id}")
+                logger.exception(f"Failed to auto-complete quest {link.quest_id} for vault {link.vault_id}")
             else:
                 completed_count += 1
                 logger.info(f"Quest {quest_id} is ready to claim for vault {candidate_vault_id}")

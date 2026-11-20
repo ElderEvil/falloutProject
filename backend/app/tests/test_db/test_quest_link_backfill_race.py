@@ -1,10 +1,9 @@
 """Quest writers lock the vault row before touching quest-link rows on PostgreSQL.
 
-The shared ``pg_session_maker`` runs on the session-scoped fixture loop while
-tests run on function-scoped loops, so no session may check out a connection
-outside a test body: a pooled connection created in fixture context would be
-bound to the wrong loop. Every session in this file therefore opens inside the
-test, sequentially (the shared engine's pool holds a single connection).
+The shared ``pg_session_maker`` runs on the session-scoped fixture loop, so its
+pool must be created, used and disposed on one loop: these tests opt into the
+session loop with ``@pytest.mark.asyncio(loop_scope="session")`` and open every
+session inside the test body, sequentially (the pool holds one connection).
 """
 
 import pytest
@@ -24,15 +23,31 @@ from app.services.progression.quests.service import quest_service
 from app.tests.factory.users import create_fake_user
 from app.tests.factory.vaults import create_fake_vault
 
+# The six tests share one PostgreSQL database while pytest-xdist spreads them across
+# workers; the session-level lock serializes them (the shared maker's pool holds a
+# single connection, so acquire and release land on the same backend session).
+_LOCK_SQL = text("SELECT pg_advisory_lock(hashtextextended(:lock_key, 0))")
+_UNLOCK_SQL = text("SELECT pg_advisory_unlock(hashtextextended(:lock_key, 0))")
+LOCK_KEY = "quest-link-lock-order-race"
+
+
+async def _set_advisory_lock(maker, *, unlock: bool = False) -> None:
+    async with maker() as session:
+        await session.execute(_UNLOCK_SQL if unlock else _LOCK_SQL, {"lock_key": LOCK_KEY})
+
 
 async def _seed(maker):
     """Create the fixture rows on the caller's event loop and return their ids."""
     async with maker() as setup:
         migrated = await setup.execute(
-            text("SELECT 1 FROM information_schema.columns WHERE table_name = 'vault' AND column_name = 'scenario_key'")
+            text(
+                "SELECT count(*) FROM information_schema.columns "
+                "WHERE table_name = 'gamestate' "
+                "AND column_name IN ('daily_quests_period', 'weekly_quests_period')"
+            )
         )
-        if migrated.scalar() != 1:
-            pytest.skip("database schema predates the current migrations; run alembic upgrade head")
+        if migrated.scalar() != 2:
+            pytest.skip("database schema predates the rotation migration; run alembic upgrade head")
         user = await crud.user.create(setup, obj_in=UserCreate(**create_fake_user()))
         vault = await crud.vault.create_with_user_id(
             db_session=setup, obj_in=VaultCreate(**create_fake_vault()), user_id=user.id
@@ -62,19 +77,23 @@ async def _seed(maker):
 
 
 async def _cleanup(maker, quest_ids, vault_id, user_id) -> None:
-    """Delete exactly the fixture rows, by id, in FK-safe order."""
+    """Delete exactly the fixture rows, by id, in FK-safe order; commits its work."""
     async with maker() as conn:
-        await conn.execute(
-            text("DELETE FROM vaultquestcompletionlink WHERE vault_id = :vault_id"), {"vault_id": vault_id}
-        )
+        if vault_id is not None:
+            await conn.execute(
+                text("DELETE FROM vaultquestcompletionlink WHERE vault_id = :vault_id"), {"vault_id": vault_id}
+            )
         for quest_id in quest_ids:
             await conn.execute(text("DELETE FROM quest WHERE id = :quest_id"), {"quest_id": quest_id})
-        await conn.execute(text("DELETE FROM vault WHERE id = :vault_id"), {"vault_id": vault_id})
-        await conn.execute(text('DELETE FROM "user" WHERE id = :user_id'), {"user_id": user_id})
+        if vault_id is not None:
+            await conn.execute(text("DELETE FROM vault WHERE id = :vault_id"), {"vault_id": vault_id})
+        if user_id is not None:
+            await conn.execute(text('DELETE FROM "user" WHERE id = :user_id'), {"user_id": user_id})
+        await conn.commit()
 
 
-def _vault_lock_index(statements: list[tuple[str, bool]]) -> list[int]:
-    return [i for i, (sql, locked) in enumerate(statements) if locked and sql.startswith("SELECT vault")]
+def _vault_lock_index(statements: list[tuple[str, bool, tuple[str, ...]]]) -> list[int]:
+    return [i for i, (sql, locked, _bound) in enumerate(statements) if locked and sql.startswith("SELECT vault")]
 
 
 def _is_link_lock_or_write(sql: str, locked: bool) -> bool:
@@ -84,11 +103,11 @@ def _is_link_lock_or_write(sql: str, locked: bool) -> bool:
     return sql.startswith(("INSERT INTO vaultquestcompletionlink", "UPDATE vaultquestcompletionlink"))
 
 
-def _link_op_index(statements: list[tuple[str, bool]]) -> list[int]:
-    return [i for i, (sql, locked) in enumerate(statements) if _is_link_lock_or_write(sql, locked)]
+def _link_op_index(statements: list[tuple[str, bool, tuple[str, ...]]]) -> list[int]:
+    return [i for i, (sql, locked, _bound) in enumerate(statements) if _is_link_lock_or_write(sql, locked)]
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio(loop_scope="session")
 @pytest.mark.integration
 @pytest.mark.parametrize("case", ["claim", "assign_existing", "assign_missing", "list_backfill", "rotation"])
 async def test_writer_locks_vault_before_link_ops(case: str, pg_session_maker) -> None:
@@ -99,8 +118,11 @@ async def test_writer_locks_vault_before_link_ops(case: str, pg_session_maker) -
     operation itself is required. Arrangement happens before the listener window.
     """
     engine, maker = pg_session_maker
-    vault_id, user_id, quest_ids = await _seed(maker)
+    vault_id = user_id = None
+    quest_ids = []
+    await _set_advisory_lock(maker)
     try:
+        vault_id, user_id, quest_ids = await _seed(maker)
         side_one, side_two, daily = quest_ids[0], quest_ids[1], quest_ids[2]
 
         async with maker() as arrange:
@@ -116,12 +138,28 @@ async def test_writer_locks_vault_before_link_ops(case: str, pg_session_maker) -
             await arrange.commit()
 
         async with maker() as session:
-            statements: list[tuple[str, bool]] = []
+            # The writers commit through this session instance; recording its commits
+            # marks the transaction boundaries between the observed statements.
+            commit_positions: list[int] = []
+            original_commit = session.commit
 
-            def record(_conn, _cursor, statement, _parameters, context, _executemany):
+            async def recording_commit():
+                commit_positions.append(len(statements))
+                await original_commit()
+
+            session.commit = recording_commit
+            statements: list[tuple[str, bool, tuple[str, ...]]] = []
+
+            def record(_conn, _cursor, statement, parameters, context, _executemany):
                 original = getattr(getattr(context, "compiled", None), "statement", None)
-                locked = getattr(original, "_for_update_arg", None) is not None
-                statements.append((statement, locked))
+                for_update = getattr(original, "_for_update_arg", None)
+                locked = (
+                    for_update is not None
+                    and getattr(for_update, "read", False) is not True
+                    and getattr(for_update, "key_share", False) is not True
+                )
+                bound = tuple(str(parameter) for parameter in (parameters or ()))
+                statements.append((statement, locked, bound))
 
             event.listen(engine.sync_engine, "before_cursor_execute", record)
             try:
@@ -144,6 +182,12 @@ async def test_writer_locks_vault_before_link_ops(case: str, pg_session_maker) -
         assert vault_locks, f"{case}: the writer must read the vault row FOR UPDATE"
         assert link_ops, f"{case}: the writer must lock or write a quest-link row"
         assert vault_locks[0] < link_ops[0], f"{case}: the vault lock must precede the first link op"
+        assert statements[vault_locks[0]][2][:1] == (str(vault_id),), (
+            f"{case}: the writer must lock the target vault row with FOR UPDATE"
+        )
+        assert not any(vault_locks[0] < commit < link_ops[0] for commit in commit_positions), (
+            f"{case}: the vault lock and the link op must share one transaction"
+        )
 
         if case == "claim":
             contested = side_two
@@ -162,15 +206,19 @@ async def test_writer_locks_vault_before_link_ops(case: str, pg_session_maker) -
             assert link.is_visible
     finally:
         await _cleanup(maker, quest_ids, vault_id, user_id)
+        await _set_advisory_lock(maker, unlock=True)
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio(loop_scope="session")
 @pytest.mark.integration
 async def test_link_insert_conflict_keeps_first_row(pg_session_maker) -> None:
     """A lost insert race is a no-op: the first committed link row survives unchanged."""
     engine, maker = pg_session_maker
-    vault_id, user_id, quest_ids = await _seed(maker)
+    vault_id = user_id = None
+    quest_ids = []
+    await _set_advisory_lock(maker)
     try:
+        vault_id, user_id, quest_ids = await _seed(maker)
         side_one = quest_ids[0]
 
         async with maker() as first:
@@ -192,3 +240,4 @@ async def test_link_insert_conflict_keeps_first_row(pg_session_maker) -> None:
         assert links[0].is_visible is True
     finally:
         await _cleanup(maker, quest_ids, vault_id, user_id)
+        await _set_advisory_lock(maker, unlock=True)

@@ -10959,7 +10959,7 @@ export interface components {
             /** Can Rush */
             can_rush: boolean;
             /** Blocked Reason */
-            blocked_reason: ("not_production" | "no_workers" | "active_incident" | "no_power" | "room_busy") | null;
+            blocked_reason: ("not_production" | "no_workers" | "active_incident" | "no_power" | "room_busy" | "resources_full" | "no_yield") | null;
             /** Fail Chance */
             fail_chance: number;
             /** Success Chance */

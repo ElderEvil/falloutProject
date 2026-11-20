@@ -817,3 +817,144 @@ async def test_feral_coworker_and_rival_reduce_happiness(
         rivals_by_dweller={dweller.id: {rival.id}},
     )
     assert with_rival == pytest.approx(baseline - game_config.relationship.rival_happiness_penalty)
+
+
+async def _create_resting_dweller(
+    async_session: AsyncSession, vault: Vault, room: Room, *, first_name: str, status: str = "resting"
+) -> Dweller:
+    dweller_data = create_fake_dweller()
+    dweller_data.update(
+        {
+            "first_name": first_name,
+            "last_name": "Comfort",
+            "age_group": "adult",
+            "status": status,
+            "happiness": 50,
+            "health": 100,
+            "max_health": 100,
+            "radiation": 0,
+        }
+    )
+    dweller = await crud.dweller.create(
+        db_session=async_session,
+        obj_in=DwellerCreate(**dweller_data, vault_id=vault.id),
+    )
+    dweller.room_id = room.id
+    async_session.add(dweller)
+    await async_session.commit()
+    return dweller
+
+
+@pytest.mark.asyncio
+async def test_resting_living_quarters_bonus_is_net_positive(
+    async_session: AsyncSession, vault: Vault, test_room: Room
+) -> None:
+    """#1454: resting occupants of living quarters gain happiness; other rooms still decay."""
+    living_data = create_fake_room()
+    living_data["name"] = "Living Quarters"
+    living_room = await crud.room.create(db_session=async_session, obj_in=RoomCreate(**living_data, vault_id=vault.id))
+    resting_living = await _create_resting_dweller(async_session, vault, living_room, first_name="Home")
+    resting_power = await _create_resting_dweller(async_session, vault, test_room, first_name="Away")
+    vault_factors = {
+        "has_low_resources": False,
+        "has_critical_resources": False,
+        "active_incident_count": 0,
+        "power_ratio": 0.5,
+        "food_ratio": 0.5,
+        "water_ratio": 0.5,
+        "radio_happiness_bonus": 0.0,
+    }
+
+    living_delta = await HappinessService._calculate_happiness_change(
+        async_session, resting_living, vault_factors, seconds_passed=60
+    )
+    power_delta = await HappinessService._calculate_happiness_change(
+        async_session, resting_power, vault_factors, seconds_passed=60
+    )
+
+    expected_living = (
+        game_config.happiness.living_quarters_bonus
+        - game_config.happiness.base_decay
+        + game_config.happiness.no_incidents_bonus
+    )
+    expected_power = game_config.happiness.no_incidents_bonus - game_config.happiness.base_decay
+    assert living_delta == pytest.approx(expected_living)
+    assert power_delta == pytest.approx(expected_power)
+    assert living_delta > 0
+    assert power_delta < 0
+
+
+@pytest.mark.asyncio
+async def test_resting_living_room_dweller_gains_happiness_in_tick(
+    async_session: AsyncSession, vault: Vault, test_room: Room
+) -> None:
+    """End-to-end tick: the seeded resting living-room occupant climbs instead of floor-decaying."""
+    living_data = create_fake_room()
+    living_data["name"] = "Living Quarters"
+    living_room = await crud.room.create(db_session=async_session, obj_in=RoomCreate(**living_data, vault_id=vault.id))
+    resting_living = await _create_resting_dweller(async_session, vault, living_room, first_name="Home")
+    resting_power = await _create_resting_dweller(async_session, vault, test_room, first_name="Away")
+    vault.power = vault.food = vault.water = 50
+    vault.power_max = vault.food_max = vault.water_max = 100
+    async_session.add(vault)
+    await async_session.commit()
+
+    await happiness_service.update_vault_happiness(async_session, vault.id, seconds_passed=300)
+    await async_session.refresh(resting_living)
+    await async_session.refresh(resting_power)
+
+    assert resting_living.happiness > 50
+    assert resting_power.happiness < 50
+    assert resting_living.happiness > resting_power.happiness
+
+
+@pytest.mark.asyncio
+async def test_working_gain_stays_exclusive_to_working(async_session: AsyncSession, vault: Vault) -> None:
+    """The living-quarters bonus reaches resting dwellers, but working_gain must not."""
+    living_data = create_fake_room()
+    living_data["name"] = "Living Quarters"
+    living_room = await crud.room.create(db_session=async_session, obj_in=RoomCreate(**living_data, vault_id=vault.id))
+    resting = await _create_resting_dweller(async_session, vault, living_room, first_name="Rest")
+    working = await _create_resting_dweller(async_session, vault, living_room, first_name="Work", status="working")
+    vault_factors = {
+        "has_low_resources": False,
+        "has_critical_resources": False,
+        "active_incident_count": 0,
+        "power_ratio": 0.5,
+        "food_ratio": 0.5,
+        "water_ratio": 0.5,
+        "radio_happiness_bonus": 0.0,
+    }
+
+    resting_delta = await HappinessService._calculate_happiness_change(
+        async_session, resting, vault_factors, seconds_passed=60
+    )
+    working_delta = await HappinessService._calculate_happiness_change(
+        async_session, working, vault_factors, seconds_passed=60
+    )
+
+    expected_extra = game_config.happiness.working_gain
+    if game_config.happiness.high_health_threshold < 1.0:
+        expected_extra += game_config.happiness.high_health_bonus
+    assert working_delta - resting_delta == pytest.approx(expected_extra)
+
+
+@pytest.mark.asyncio
+async def test_modifiers_show_living_quarters_for_resting_dweller(
+    async_session: AsyncSession, vault: Vault, test_room: Room
+) -> None:
+    """The UI breakdown mirrors the tick math for resting living-room occupants (#1454)."""
+    living_data = create_fake_room()
+    living_data["name"] = "Living Quarters"
+    living_room = await crud.room.create(db_session=async_session, obj_in=RoomCreate(**living_data, vault_id=vault.id))
+    resting_living = await _create_resting_dweller(async_session, vault, living_room, first_name="Home")
+    resting_power = await _create_resting_dweller(async_session, vault, test_room, first_name="Away")
+
+    living_modifiers = await happiness_service.get_happiness_modifiers(async_session, resting_living.id)
+    living_positive = {entry["name"]: entry["value"] for entry in living_modifiers["positive"]}
+    assert "Living Quarters" in living_positive
+    assert living_positive["Living Quarters"] == pytest.approx(game_config.happiness.living_quarters_bonus)
+
+    power_modifiers = await happiness_service.get_happiness_modifiers(async_session, resting_power.id)
+    power_positive = [entry["name"] for entry in power_modifiers["positive"]]
+    assert "Living Quarters" not in power_positive

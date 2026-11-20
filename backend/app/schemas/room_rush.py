@@ -5,7 +5,15 @@ from uuid import UUID
 
 from pydantic import BaseModel
 
-RushBlockedReason = Literal["not_production", "no_workers", "active_incident", "no_power", "room_busy"]
+RushBlockedReason = Literal[
+    "not_production",
+    "no_workers",
+    "active_incident",
+    "no_power",
+    "room_busy",
+    "resources_full",
+    "no_yield",
+]
 
 
 class RoomRushResourceGain(BaseModel):

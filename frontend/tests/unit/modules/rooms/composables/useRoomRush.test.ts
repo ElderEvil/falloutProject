@@ -235,6 +235,38 @@ describe('useRoomRush', () => {
     expect(state.quote.value?.fail_chance).toBe(45)
   })
 
+  it('shows the storage-full message and refuses to rush a blocked quote', async () => {
+    mockStore.fetchRushQuote.mockResolvedValueOnce({
+      ...quote,
+      can_rush: false,
+      blocked_reason: 'resources_full',
+      payout: { power: 0, food: 0, water: 0, stimpack: 0, radaway: 0 },
+    })
+    const state = useRoomRush(ref(room), ref('vault-1'), ref(true))
+    state.requestRush()
+    await flushPromises()
+
+    expect(state.blockedMessage.value).toBe('Vault storage for this resource is full.')
+    await state.confirmRush()
+    expect(mockStore.rushRoom).not.toHaveBeenCalled()
+  })
+
+  it('shows the no-yield message and refuses to rush a blocked quote', async () => {
+    mockStore.fetchRushQuote.mockResolvedValueOnce({
+      ...quote,
+      can_rush: false,
+      blocked_reason: 'no_yield',
+      payout: { power: 0, food: 0, water: 0, stimpack: 0, radaway: 0 },
+    })
+    const state = useRoomRush(ref(room), ref('vault-1'), ref(true))
+    state.requestRush()
+    await flushPromises()
+
+    expect(state.blockedMessage.value).toBe('This rush would produce nothing right now.')
+    await state.confirmRush()
+    expect(mockStore.rushRoom).not.toHaveBeenCalled()
+  })
+
   it('closes the popup when the parent room closes', async () => {
     mockStore.fetchRushQuote.mockResolvedValueOnce(quote)
     const open = ref(true)

@@ -504,21 +504,24 @@ async def test_rush_returns_conflict_when_room_lock_is_held(
 
 
 @pytest.mark.asyncio
-async def test_two_rushes_serialize_and_never_overflow_resource_caps(
+async def test_second_rush_at_cap_is_blocked_and_keeps_stacks(
     async_session: AsyncSession, rush_setup: dict[str, Any]
 ) -> None:
     vault, room = rush_setup["vault"], rush_setup["room"]
     starting_power = vault.power
 
     first = await room_rush_service.rush(async_session, room, vault, rng=_Rng(0.9, 1.0))
-    second = await room_rush_service.rush(async_session, room, vault, rng=_Rng(0.9, 1.0))
 
     assert first.stacks_after == 1
-    assert second.stacks_after == 2
     assert first.payout.power == vault.power_max - starting_power
-    assert second.payout.power == 0
     assert vault.power == vault.power_max
-    assert room.rush_stacks == 2
+    assert room.rush_stacks == 1
+
+    with pytest.raises(ValidationException):
+        await room_rush_service.rush(async_session, room, vault, rng=_Rng(0.9, 1.0))
+
+    assert room.rush_stacks == 1
+    assert vault.power == vault.power_max
 
 
 @pytest.mark.asyncio
@@ -611,3 +614,196 @@ async def test_failed_rush_waits_before_incident_ui_and_combat(
     await incident_service.process_vault_incidents(async_session, vault.id, 2)
     notifications = await notification_crud.get_user_notifications(async_session, vault.user_id)
     assert sum(notification.notification_type == NotificationType.COMBAT_STARTED for notification in notifications) == 1
+
+
+@pytest.mark.asyncio
+async def test_quote_blocks_when_resources_are_full(async_session: AsyncSession, rush_setup: dict[str, Any]) -> None:
+    """#1455: a full vault clamps the payout to zero, so the quote must block the rush."""
+    vault, room = rush_setup["vault"], rush_setup["room"]
+    vault.power = vault.power_max
+    async_session.add(vault)
+    await async_session.commit()
+
+    quote = await room_rush_service.quote(async_session, room, vault)
+
+    assert quote.can_rush is False
+    assert quote.blocked_reason == "resources_full"
+    assert quote.payout.model_dump() == {"power": 0, "food": 0, "water": 0, "stimpack": 0, "radaway": 0}
+    assert room.rush_stacks == 0
+    assert vault.power == vault.power_max
+
+
+@pytest.mark.asyncio
+async def test_quote_still_quotes_when_headroom_remains(
+    async_session: AsyncSession, rush_setup: dict[str, Any]
+) -> None:
+    """Partial headroom keeps quoting the clamped payout instead of blocking."""
+    vault, room = rush_setup["vault"], rush_setup["room"]
+    vault.power = vault.power_max - 1
+    async_session.add(vault)
+    await async_session.commit()
+
+    quote = await room_rush_service.quote(async_session, room, vault)
+
+    assert quote.can_rush is True
+    assert quote.blocked_reason is None
+    assert quote.payout.power == 1
+
+
+@pytest.mark.asyncio
+async def test_quote_blocks_when_medical_storage_is_full(async_session: AsyncSession, user_with_vault: tuple) -> None:
+    """Storage-backed resources (stimpacks) block the quote when their capacity is reached."""
+    _, vault = user_with_vault
+    vault.power = 50
+    vault.power_max = 100
+    async_session.add(vault)
+    await async_session.commit()
+    room = await crud.room.create(
+        async_session,
+        RoomCreate(
+            vault_id=vault.id,
+            **create_rush_room_payload(name="Medbay", ability=SPECIALEnum.INTELLIGENCE, capacity=5),
+        ),
+    )
+    await _create_worker(async_session, vault, room, intelligence=10)
+    storage = Storage(vault_id=vault.id, stimpack=5)
+    async_session.add(storage)
+    await async_session.commit()
+
+    quote = await room_rush_service.quote(async_session, room, vault)
+
+    assert quote.can_rush is False
+    assert quote.blocked_reason == "resources_full"
+    assert quote.payout.stimpack == 0
+    await async_session.refresh(storage)
+    assert storage.stimpack == 5
+
+
+def test_blocked_exception_maps_resources_full() -> None:
+    exception = RoomRushService._blocked_exception("resources_full")
+    assert isinstance(exception, ValidationException)
+    assert "full" in str(exception.detail)
+
+
+def test_blocked_exception_maps_no_yield() -> None:
+    exception = RoomRushService._blocked_exception("no_yield")
+    assert isinstance(exception, ValidationException)
+    assert "nothing" in str(exception.detail)
+
+
+@pytest.mark.asyncio
+async def test_quote_reports_no_yield_when_payout_rounds_to_zero(
+    async_session: AsyncSession, user_with_vault: tuple
+) -> None:
+    """Raw output below 0.5 rounds to zero with headroom left: no_yield, not resources_full."""
+    _, vault = user_with_vault
+    vault.power = 50
+    vault.power_max = 100
+    async_session.add(vault)
+    await async_session.commit()
+    # output 1 * strength 1 * 0.0012 rate * 300s = 0.36 raw power, which rounds to 0.
+    room = await crud.room.create(
+        async_session,
+        RoomCreate(vault_id=vault.id, **create_rush_room_payload(output=1)),
+    )
+    await _create_worker(async_session, vault, room, strength=1)
+
+    quote = await room_rush_service.quote(async_session, room, vault)
+
+    assert quote.can_rush is False
+    assert quote.blocked_reason == "no_yield"
+    assert quote.payout.power == 0
+    assert vault.power == 50
+    assert room.rush_stacks == 0
+
+
+@pytest.mark.asyncio
+async def test_quote_reports_no_yield_when_medical_storage_row_missing(
+    async_session: AsyncSession, user_with_vault: tuple
+) -> None:
+    """Medical production with no storage row lands nowhere: no_yield, not resources_full."""
+    _, vault = user_with_vault
+    vault.power = 50
+    vault.power_max = 100
+    async_session.add(vault)
+    await async_session.commit()
+    room = await crud.room.create(
+        async_session,
+        RoomCreate(
+            vault_id=vault.id,
+            **create_rush_room_payload(name="Medbay", ability=SPECIALEnum.INTELLIGENCE, capacity=5),
+        ),
+    )
+    await _create_worker(async_session, vault, room, intelligence=10)
+
+    quote = await room_rush_service.quote(async_session, room, vault)
+
+    assert quote.can_rush is False
+    assert quote.blocked_reason == "no_yield"
+    assert quote.payout.stimpack == 0
+    assert room.rush_stacks == 0
+
+
+@pytest.mark.asyncio
+async def test_rush_at_resource_cap_raises_without_stacks_or_incident(
+    async_session: AsyncSession, rush_setup: dict[str, Any]
+) -> None:
+    """A quote taken with headroom must not submit after storage filled (#1457)."""
+    vault, room, worker = rush_setup["vault"], rush_setup["room"], rush_setup["worker"]
+    quote = await room_rush_service.quote(async_session, room, vault)
+    assert quote.can_rush is True
+    vault.power = vault.power_max
+    async_session.add(vault)
+    await async_session.commit()
+
+    with pytest.raises(ValidationException):
+        await room_rush_service.rush(async_session, room, vault, rng=_Rng(0.9, 1.0))
+
+    await async_session.refresh(room)
+    assert room.rush_stacks == 0
+    assert room.last_rush_at is None
+    assert vault.power == vault.power_max
+    assert worker.happiness == 50
+    assert await incident_crud.get_active_by_vault(async_session, vault.id) == []
+
+
+@pytest.mark.asyncio
+async def test_rush_rejects_payout_that_rounds_to_zero(async_session: AsyncSession, user_with_vault: tuple) -> None:
+    """Submission enforces the no_yield guard too, before any stack or outcome roll."""
+    _, vault = user_with_vault
+    vault.power = 50
+    vault.power_max = 100
+    async_session.add(vault)
+    await async_session.commit()
+    room = await crud.room.create(
+        async_session,
+        RoomCreate(vault_id=vault.id, **create_rush_room_payload(output=1)),
+    )
+    await _create_worker(async_session, vault, room, strength=1)
+
+    with pytest.raises(ValidationException) as exc_info:
+        await room_rush_service.rush(async_session, room, vault, rng=_Rng(0.9, 1.0))
+
+    assert "nothing" in str(exc_info.value.detail)
+    await async_session.refresh(room)
+    assert room.rush_stacks == 0
+    assert room.last_rush_at is None
+    assert vault.power == 50
+
+
+@pytest.mark.asyncio
+async def test_rush_with_headroom_succeeds_and_increments_stacks(
+    async_session: AsyncSession, rush_setup: dict[str, Any]
+) -> None:
+    """An ordinary rush with headroom still quotes, succeeds, and burns one stack."""
+    vault, room = rush_setup["vault"], rush_setup["room"]
+    quote = await room_rush_service.quote(async_session, room, vault)
+    assert quote.can_rush is True
+    assert quote.blocked_reason is None
+
+    result = await room_rush_service.rush(async_session, room, vault, rng=_Rng(0.9, 1.0))
+
+    assert result.outcome == "success"
+    assert result.payout.power > 0
+    assert result.stacks_after == 1
+    assert room.rush_stacks == 1

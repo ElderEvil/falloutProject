@@ -348,3 +348,39 @@ async def test_tick_hook_recovers_from_failure_and_rotates_next_tick(async_sessi
     await async_session.refresh(state)
     assert state.daily_quests_period is not None
     assert state.weekly_quests_period is not None
+
+
+async def test_rotation_sweep_finishes_other_vaults_then_fails_retryably(async_session, vault, monkeypatch):
+    """The midnight actor keeps rotating the other vaults, then raises so Dramatiq retries."""
+    import uuid as uuid_module
+    from contextlib import asynccontextmanager
+
+    from app.api import tasks
+    from app.crud.vault import vault as vault_crud
+    from app.services.progression.quests import rotation as rotation_module
+
+    @asynccontextmanager
+    async def fake_task_session():
+        yield async_session
+
+    monkeypatch.setattr(tasks, "task_session", lambda: fake_task_session())
+
+    stuck = uuid_module.UUID("00000000-0000-0000-0000-0000000000aa")
+    calls: list[UUID] = []
+
+    async def rolling(db, vault_id):
+        calls.append(vault_id)
+        if vault_id == stuck:
+            raise RuntimeError("vault rotation failed")
+        return 0
+
+    monkeypatch.setattr(rotation_module, "ensure_current_quest_rotation", rolling)
+
+    async def two_vaults(session):
+        return [vault.id, stuck]
+
+    monkeypatch.setattr(vault_crud, "get_non_deleted_ids", two_vaults)
+
+    with pytest.raises(RuntimeError, match="Quest rotation failed for vaults"):
+        await tasks._refresh_quest_rotation()
+    assert len(calls) == 2  # The failing vault did not stop the other vault's rotation.

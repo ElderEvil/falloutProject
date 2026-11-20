@@ -211,10 +211,10 @@ class QuestService:
         quest = await crud.quest_crud.get_or_none(db_session, quest_id)
         quest = ensure_found(quest, Quest, identifier=quest_id)
 
-        # Hidden before requirements: a quest the scheduler has not offered must not
-        # leak its requirement details through a validation error.
+        # Precedence: no link (404), then hidden (403), then requirements (400).
         link = await crud.quest_crud.get_link(db_session, quest_id=quest_id, vault_id=vault_id)
-        if link is not None and not link.is_visible:
+        link = ensure_found(link, VaultQuestCompletionLink, identifier=f"quest {quest_id} for vault {vault_id}")
+        if not link.is_visible:
             raise AccessDeniedException("Quest is not currently offered")
 
         await db_session.refresh(quest, ["quest_requirements"])
@@ -235,18 +235,17 @@ class QuestService:
     async def assign_quest_to_vault(
         self, db_session: AsyncSession, quest_id: UUID, vault_id: UUID, *, is_visible: bool = True
     ) -> VaultQuestCompletionLink:
-        """Assign a quest to a vault, making it available for completion.
-
-        Manual assignment cannot touch scheduler-managed pools: daily, weekly and
-        event quest visibility belongs to the rotation sweep.
-        """
+        """Assign a quest to a vault; daily, weekly and event visibility stays scheduler-owned."""
         quest = await crud.quest_crud.get(db_session, quest_id)
         quest = ensure_found(quest, Quest, identifier=quest_id)
         if quest.quest_type in SCHEDULED_QUEST_TYPES:
             raise ValidationException("Daily, weekly and event quest visibility is managed by the scheduler")
-        return await crud.quest_crud.assign_to_vault(
-            db_session=db_session, quest_id=quest_id, vault_id=vault_id, is_visible=is_visible
+        link = await crud.quest_crud.assign_to_vault(
+            db_session=db_session, quest_id=quest_id, vault_id=vault_id, is_visible=is_visible, commit=False
         )
+        await db_session.commit()
+        await db_session.refresh(link)
+        return link
 
     async def get_quest_availability(
         self,

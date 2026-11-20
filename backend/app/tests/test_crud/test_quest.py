@@ -955,26 +955,6 @@ async def _user_and_vault(async_session: AsyncSession):
 
 
 @pytest.mark.asyncio
-async def test_assign_rejects_scheduler_owned_quest_types(async_session: AsyncSession) -> None:
-    """Rotation and the future seasonal scheduler own daily/weekly/event visibility."""
-    vault = await _user_and_vault(async_session)
-    for quest_type in ("daily", "repeatable", "event"):
-        quest = await crud.quest_crud.create(
-            async_session,
-            obj_in=QuestCreate(
-                title=f"Scheduled {quest_type}",
-                short_description="Scheduler-owned quest",
-                long_description="Visibility is owned by the scheduler, not the assign endpoint.",
-                requirements="No prerequisites",
-                rewards="10 caps",
-                quest_type=quest_type,
-            ),
-        )
-        with pytest.raises(ValidationException, match="managed by the scheduler"):
-            await crud.quest_crud.assign_to_vault(db_session=async_session, quest_id=quest.id, vault_id=vault.id)
-
-
-@pytest.mark.asyncio
 async def test_get_quests_for_vault_paginates_beyond_the_first_page(async_session: AsyncSession) -> None:
     """The catalog outgrew the default page: offers, parties and rewards past row 100 stay reachable."""
     from app.models.quest import Quest
@@ -996,27 +976,27 @@ async def test_get_quests_for_vault_paginates_beyond_the_first_page(async_sessio
     async_session.add_all(quests)
     await async_session.commit()
 
+    offer, party, ready = quests[100], quests[101], quests[102]
+    async_session.add_all(
+        [
+            VaultQuestCompletionLink(vault_id=vault.id, quest_id=offer.id, is_visible=True),
+            VaultQuestCompletionLink(
+                vault_id=vault.id, quest_id=party.id, is_visible=True, started_at=utcnow(), duration_minutes=60
+            ),
+            VaultQuestCompletionLink(
+                vault_id=vault.id, quest_id=ready.id, is_visible=True, is_reward_ready=True, started_at=utcnow()
+            ),
+        ]
+    )
+    await async_session.commit()
+
     first_page = await quest_service.get_quests_for_vault(async_session, vault.id, 0, 100)
     assert len(first_page) == 100
 
-    page_two_quests = await quest_service.get_quests_for_vault(async_session, vault.id, 100, 100)
-    page_two_ids = {quest_read.id for quest_read in page_two_quests}
+    page_two = await quest_service.get_quests_for_vault(async_session, vault.id, 100, 100)
+    page_two_ids = {quest_read.id for quest_read in page_two}
     expected_page_two = {quest.id for quest in quests[100:]}
     assert page_two_ids == expected_page_two
-
-    offer, party, ready = quests[100], quests[101], quests[102]
-    offer_link = await crud.quest_crud.get_link(async_session, quest_id=offer.id, vault_id=vault.id)
-    party_link = await crud.quest_crud.get_link(async_session, quest_id=party.id, vault_id=vault.id)
-    ready_link = await crud.quest_crud.get_link(async_session, quest_id=ready.id, vault_id=vault.id)
-    assert offer_link is not None
-    assert party_link is not None
-    assert ready_link is not None
-    party_link.started_at = utcnow()
-    party_link.duration_minutes = 60
-    ready_link.is_reward_ready = True
-    await async_session.commit()
-
-    page_two = await quest_service.get_quests_for_vault(async_session, vault.id, 100, 100)
     states = {quest_read.id: quest_read for quest_read in page_two}
     assert states[offer.id].is_visible
     assert states[offer.id].started_at is None

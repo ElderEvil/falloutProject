@@ -111,6 +111,25 @@ async def test_empty_pool_retries_after_the_catalog_is_seeded(async_session, vau
     assert state.weekly_quests_period == datetime(2026, 11, 16, tzinfo=UTC)
 
 
+async def test_populated_pool_records_its_period_even_with_zero_offers(async_session, vault):
+    """A populated but fully settled pool records the period: no mid-period re-roll later."""
+    daily = await _seed_quests(async_session, QuestType.DAILY, DAILY_COUNT, "Daily")
+    for quest in daily:
+        _add_link(async_session, vault.id, quest, is_visible=True, started_at=MONDAY, duration_minutes=60)
+    await async_session.commit()
+
+    assert await ensure_current_quest_rotation(async_session, vault.id, now=MONDAY) == 0
+    state = await game_state_crud.get_by_vault_id(async_session, vault.id)
+    assert state is not None
+    assert state.daily_quests_period == datetime(2026, 11, 16, tzinfo=UTC)
+
+    # A later trigger in the same period must not re-roll the settled pool.
+    assert await ensure_current_quest_rotation(async_session, vault.id, now=MONDAY) == 0
+    await async_session.refresh(state)
+    assert state.daily_quests_period == datetime(2026, 11, 16, tzinfo=UTC)
+    assert state.weekly_quests_period is None  # The weekly catalog is empty: still deferred.
+
+
 async def test_completed_daily_is_reset_and_can_be_started_again(async_session, vault):
     daily = await _seed_quests(async_session, QuestType.DAILY, DAILY_COUNT, "Daily")
     async_session.add(Room(**create_overseers_office(), vault_id=vault.id))

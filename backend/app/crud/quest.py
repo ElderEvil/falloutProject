@@ -19,7 +19,6 @@ from app.models.quest_reward import QuestReward
 from app.models.vault_quest import VaultQuestCompletionLink
 from app.schemas.quest import QuestCreate, QuestRead, QuestRequirementRead, QuestRewardRead, QuestUpdate
 from app.utils.dweller_availability import DwellerAction, available_dweller_conditions, purposeful_action_error
-from app.utils.exceptions import ValidationException, ensure_found
 from app.utils.quest_duration import STATE_QUEST_CATEGORIES, effective_quest_duration_minutes
 from app.utils.time import utcnow
 
@@ -151,16 +150,12 @@ class CRUDQuest(
 
         visibility = {quest.id: quest.quest_type not in SCHEDULED_QUEST_TYPES for quest in missing_quests}
         if visibility:
-            # Backfill only: agree on the shared lock order (vault row first), then
-            # recheck under the lock - another reader, the rotation sweep or an
-            # assignment may have linked quests while this scan ran without it.
+            # Backfill only: agree on the shared lock order (vault row first). The
+            # insert's conflict no-op covers quests another reader, the rotation sweep
+            # or an assignment linked while this scan ran without the lock.
             await db_session.execute(select(Vault).where(Vault.id == vault_id).with_for_update())
-            refreshed_ids = set((await db_session.execute(existing_link_query)).scalars().all())
-            still_missing = {
-                quest_id: is_visible for quest_id, is_visible in visibility.items() if quest_id not in refreshed_ids
-            }
-            await self.insert_links_if_absent(db_session, vault_id, still_missing)
-            # Commit releases the vault lock whether or not the recheck left work.
+            await self.insert_links_if_absent(db_session, vault_id, visibility)
+            # Commit releases the vault lock whether or not the insert left work.
             await db_session.commit()
 
         query = select(Quest).join(self.link_model).where(self.link_model.vault_id == vault_id)
@@ -465,12 +460,9 @@ class CRUDQuest(
     ) -> VaultQuestCompletionLink:
         """Assign a quest to a vault, making it available for completion."""
         # Same lock order as the list backfill and rotation: the vault row first, so
-        # assignment can never hold a link key while waiting on the vault lock.
+        # assignment can never hold a link key while waiting on the vault lock. The
+        # manual-assignment eligibility rule lives in QuestService; CRUD owns persistence.
         await db_session.execute(select(Vault).where(Vault.id == vault_id).with_for_update())
-        quest = await self.get(db_session, quest_id)
-        quest = ensure_found(quest, Quest, identifier=quest_id)
-        if quest.quest_type in SCHEDULED_QUEST_TYPES:
-            raise ValidationException("Daily, weekly and event quest visibility is managed by the scheduler")
 
         existing_link_query = select(self.link_model).where(
             and_(self.link_model.vault_id == vault_id, self.link_model.quest_id == quest_id)

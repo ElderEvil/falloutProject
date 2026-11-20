@@ -95,6 +95,49 @@ for (const width of [390, 1280]) {
   }
 }
 
+// A portrait that fails to load falls back to a fixed-size icon. The image sweep
+// above always loads, so this is the state that used to overhang a shrinking cell.
+for (const width of [390, 1280]) {
+  test(`failed portraits stay inside their cells with 12 responders at ${width}px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 900 })
+    await page.goto('/tests/e2e/fixtures/incident-scene.html?responders=12&longNames&brokenImages')
+    // The roster interleaves dwellers and opponents; only dwellers render a portrait.
+    const withPortrait = page.locator('.incident-responder:has(.portrait-fallback)')
+    await expect.poll(() => withPortrait.count(), { timeout: 10_000 }).toBeGreaterThan(0)
+    await expect(withPortrait.first()).toBeVisible()
+
+    const overhang = await page.evaluate(() => {
+      const cells = [...document.querySelectorAll('.incident-responder')]
+      const problems: string[] = []
+      for (const cell of cells) {
+        const fallback = cell.querySelector('.portrait-fallback')
+        if (!fallback) continue
+        const cellBox = cell.getBoundingClientRect()
+        const iconBox = (
+          fallback.querySelector('svg') as SVGElement | null
+        )?.getBoundingClientRect()
+        const frameBox = fallback.getBoundingClientRect()
+        if (iconBox && (iconBox.left < cellBox.left - 0.5 || iconBox.right > cellBox.right + 0.5)) {
+          problems.push('icon outside cell')
+        }
+        if (frameBox.right > cellBox.right + 0.5) problems.push('fallback frame outside cell')
+      }
+      for (let index = 1; index < cells.length; index += 1) {
+        const previous = cells[index - 1].getBoundingClientRect()
+        const current = cells[index].getBoundingClientRect()
+        if (previous.right > current.left + 0.5)
+          problems.push(`cells ${index - 1}/${index} overlap`)
+      }
+      return problems
+    })
+
+    expect(overhang).toEqual([])
+    expectNoOverflow(await measure(page))
+  })
+}
+
 // "Some opponents": sweep creature types at a roster size that already stresses
 // the lane, with long names, at both viewports.
 for (const width of [390, 1280]) {

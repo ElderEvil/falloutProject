@@ -109,12 +109,16 @@ const vaultId = computed(() => route.params.id as string)
 const claimQuestId = computed(() => (route.query.claimQuest as string) || '')
 
 // The backend owns quest locking; the full-screen gate shows while the Overseer's Office is
-// missing and nothing is in flight, so losing the room never hides active quests or claims.
+// missing and nothing is active, returning or claimable, so losing the room never hides
+// quests in flight. Completed history does not count: it keeps started_at forever.
 const officeLocked = computed(() => {
   if (!questStore.vaultQuests.some((quest) => quest.lock_reason === "Requires Overseer's Office")) {
     return false
   }
-  return !questStore.vaultQuests.some((quest) => quest.started_at || quest.is_reward_ready)
+  return !questStore.vaultQuests.some(
+    (quest) =>
+      quest.is_reward_ready || (quest.started_at && !quest.is_completed && !quest.is_reward_ready)
+  )
 })
 
 // Computed properties for quest lists

@@ -15,6 +15,9 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
 from app.core.config import settings
+from app.core.enums import RewardType
+from app.models.quest import Quest
+from app.models.quest_reward import QuestReward
 from app.models.vault_quest import VaultQuestCompletionLink
 from app.schemas.quest import QuestCreate
 from app.schemas.user import UserCreate
@@ -73,7 +76,6 @@ async def test_backfill_and_rotation_race_without_deadlock(
     its own operation, and the wait is bounded.
     """
     cleanup_quest_ids: list[UUID] = []
-    quest_type_by_id: dict[UUID, str] = {}
     cleanup_vault_id: UUID | None = None
     cleanup_user_id: UUID | None = None
     try:
@@ -98,7 +100,6 @@ async def test_backfill_and_rotation_race_without_deadlock(
                         ),
                     )
                     cleanup_quest_ids.append(quest.id)
-                    quest_type_by_id[quest.id] = quest_type
             await setup.commit()
 
             async def read_quest_screen(session: AsyncSession) -> None:
@@ -109,23 +110,23 @@ async def test_backfill_and_rotation_race_without_deadlock(
                 await ensure_current_quest_rotation(session, vault.id)
                 await session.commit()
 
-            assigned_side_quest = cleanup_quest_ids[0]
-            claimable_side_quest = cleanup_quest_ids[1]
+            contest_quest = cleanup_quest_ids[1]
+            setup.add(QuestReward(quest_id=contest_quest, reward_type=RewardType.CAPS, reward_data={"amount": 10}))
             setup.add(
                 VaultQuestCompletionLink(
-                    vault_id=vault.id, quest_id=claimable_side_quest, is_visible=True, is_reward_ready=True
+                    vault_id=vault.id, quest_id=contest_quest, is_visible=True, is_reward_ready=True
                 )
             )
             await setup.commit()
 
-            async def assign_side_quest(session: AsyncSession) -> None:
+            async def assign_contest_quest(session: AsyncSession) -> None:
                 await crud.quest_crud.assign_to_vault(
-                    db_session=session, quest_id=assigned_side_quest, vault_id=vault.id, is_visible=True
+                    db_session=session, quest_id=contest_quest, vault_id=vault.id, is_visible=True
                 )
                 await session.commit()
 
             async def claim_caps(session: AsyncSession) -> None:
-                await quest_service.claim_quest_rewards(session, claimable_side_quest, vault.id)
+                await quest_service.claim_quest_rewards(session, contest_quest, vault.id)
 
             async with (
                 race_session_maker() as reader,
@@ -137,7 +138,7 @@ async def test_backfill_and_rotation_race_without_deadlock(
                     asyncio.gather(
                         read_quest_screen(reader),
                         run_rotation(rotator),
-                        assign_side_quest(assigner),
+                        assign_contest_quest(assigner),
                         claim_caps(claimer),
                     ),
                     timeout=RACE_TIMEOUT_SECONDS,
@@ -160,15 +161,19 @@ async def test_backfill_and_rotation_race_without_deadlock(
             side_quests = cleanup_quest_ids[:3]
             assert all(visibility[quest_id] for quest_id in side_quests)
             # Rotation must produce its full offer even when backfill alone would
-            # satisfy the assertions above: count visible offers vault-wide.
-            with_types = {link.quest_id: quest_type_by_id[link.quest_id] for link in links}
+            # satisfy the assertions above: count visible offers vault-wide, joined
+            # against the quest table because a seeded catalog outgrows the fixtures.
+            type_rows = (
+                await setup.exec(select(Quest.id, Quest.quest_type).where(Quest.id.in_(list(visibility))))
+            ).all()
+            with_types = {quest_id: str(quest_type) for quest_id, quest_type in type_rows}
             assert sum(1 for qid, visible in visibility.items() if visible and with_types[qid] == "daily") == 3
             assert sum(1 for qid, visible in visibility.items() if visible and with_types[qid] == "repeatable") == 1
-            claimed = await crud.quest_crud.get_link(setup, quest_id=claimable_side_quest, vault_id=vault.id)
+            claimed = await crud.quest_crud.get_link(setup, quest_id=contest_quest, vault_id=vault.id)
             assert claimed is not None
             assert claimed.is_completed
     finally:
-        if cleanup_vault_id is not None:
+        if cleanup_vault_id is not None or cleanup_quest_ids or cleanup_user_id is not None:
             await _cleanup(live_pg_engine, cleanup_quest_ids, cleanup_vault_id, cleanup_user_id)
 
 

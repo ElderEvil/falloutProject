@@ -82,8 +82,9 @@ async def ensure_current_quest_rotation(db: AsyncSession, vault_id: UUID, *, now
     """Rotate expired daily/weekly quest pools and commit atomically; returns quests re-offered.
 
     Idempotent within a period: an already-current vault commits (releasing the vault
-    lock) and reports 0. A populated pool records its period even with zero offers, so
-    a mid-period trigger cannot re-roll; an empty catalog defers until it is seeded.
+    lock) and reports 0. A populated pool records its period even when it offers
+    nothing, so a later trigger cannot re-roll mid-period; only a truly empty catalog
+    defers, so seeding one later still rotates on the next tick.
     """
     await vault_crud.lock_for_update(db, vault_id)
     state = await game_state_crud.get_or_create(db, vault_id, commit=False)
@@ -106,7 +107,7 @@ async def ensure_current_quest_rotation(db: AsyncSession, vault_id: UUID, *, now
             continue  # Monotonic guard: never re-roll on a clock rollback.
         rolled, populated = await _roll_pool(db, vault_id, quest_type, count, reveal_threshold)
         if not populated:
-            continue
+            continue  # An empty catalog does not record its period; seeding later still rotates.
         offered += rolled
         setattr(state, field, period)
 

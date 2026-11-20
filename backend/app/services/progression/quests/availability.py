@@ -172,7 +172,10 @@ async def get_quests_for_vault(
                 if requirement.id in states:
                     requirement.is_met = states[requirement.id]
         visible_reads.append(quest_read)
-        if available_only and quest_read.is_visible and not quest_read.is_locked:
+        # /available lists startable offers only: unsettled links (active, returning,
+        # reward-ready, completed) stay in the full list instead of displacing
+        # startable offers from a page.
+        if available_only and settled and quest_read.is_visible and not quest_read.is_locked:
             available_reads.append(quest_read)
 
     if available_only:

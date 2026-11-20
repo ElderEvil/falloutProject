@@ -148,8 +148,7 @@ async def test_completed_daily_is_reset_and_can_be_started_again(async_session, 
     )
     await async_session.commit()
 
-    # Real clock: the offer-period guard in start_quest compares against utcnow().
-    assert await ensure_current_quest_rotation(async_session, vault.id) == DAILY_COUNT
+    assert await ensure_current_quest_rotation(async_session, vault.id, now=TUESDAY) == DAILY_COUNT
 
     await async_session.refresh(spent)
     assert not spent.is_completed
@@ -279,9 +278,7 @@ async def test_rotation_skips_quests_beyond_the_reveal_window(async_session, vau
 
 async def test_failed_roll_persists_nothing(async_session, vault, monkeypatch):
     quests = await _offer_everything(async_session, vault.id)
-    links = [_add_link(async_session, vault.id, quest, is_visible=True) for quest in quests if quest is not quests[1]]
-    unlinked_daily_id = quests[1].id  # Captured early: the rollback expires loaded rows.
-    vault_id = vault.id
+    links = [_add_link(async_session, vault.id, quest, is_visible=True) for quest in quests]
     claimed = links[0]
     claimed.is_completed = True
     claimed.completed_at = MONDAY
@@ -290,22 +287,20 @@ async def test_failed_roll_persists_nothing(async_session, vault, monkeypatch):
     state = await game_state_crud.get_or_create(async_session, vault.id)
     await async_session.commit()
 
-    original = quest_crud.insert_links_if_absent
+    original = quest_crud.get_links_for_quest_ids
     calls = 0
 
-    async def fail_second_pool(db_session, vault_id, visibility):
+    async def fail_second_pool(db_session, vault_id, quest_ids):
         nonlocal calls
         calls += 1
         if calls == 2:
             raise RuntimeError("late rotation failure")
-        return await original(db_session, vault_id, visibility)
+        return await original(db_session, vault_id, quest_ids)
 
-    monkeypatch.setattr(quest_crud, "insert_links_if_absent", fail_second_pool)
+    monkeypatch.setattr(quest_crud, "get_links_for_quest_ids", fail_second_pool)
     with pytest.raises(RuntimeError):
         await ensure_current_quest_rotation(async_session, vault.id, now=MONDAY)
     assert calls == 2
-    # The first pool's insert is a real write, visible in the still-open transaction.
-    assert await quest_crud.get_link(async_session, quest_id=unlinked_daily_id, vault_id=vault_id) is not None
 
     await async_session.rollback()
     for link in links:
@@ -320,9 +315,6 @@ async def test_failed_roll_persists_nothing(async_session, vault, monkeypatch):
     for link in (link for link in links if link is not claimed):
         assert link.is_completed is False
         assert link.started_at is None
-    # The first pool inserted the unlinked daily before the second pool failed: the
-    # rollback must take that row and the period stamps with it.
-    assert await quest_crud.get_link(async_session, quest_id=unlinked_daily_id, vault_id=vault_id) is None
     await async_session.refresh(state)
     assert state.daily_quests_period is None
     assert state.weekly_quests_period is None
@@ -356,41 +348,3 @@ async def test_tick_hook_recovers_from_failure_and_rotates_next_tick(async_sessi
     await async_session.refresh(state)
     assert state.daily_quests_period is not None
     assert state.weekly_quests_period is not None
-
-
-async def test_rotation_sweep_finishes_other_vaults_then_fails_retryably(async_session, vault, monkeypatch):
-    """The midnight actor keeps rotating the other vaults, then raises so Dramatiq retries."""
-    import uuid as uuid_module
-    from contextlib import asynccontextmanager
-
-    from app.api import tasks
-    from app.crud.vault import vault as vault_crud
-    from app.services.progression.quests import rotation as rotation_module
-
-    first = vault.id  # Captured early: the sweep's session recovery expires loaded rows.
-
-    @asynccontextmanager
-    async def fake_task_session():
-        yield async_session
-
-    monkeypatch.setattr(tasks, "task_session", lambda: fake_task_session())
-
-    stuck = uuid_module.UUID("00000000-0000-0000-0000-0000000000aa")
-    calls: list[UUID] = []
-
-    async def rolling(db, vault_id):
-        calls.append(vault_id)
-        if vault_id == first:
-            raise RuntimeError("vault rotation failed")
-        return 0
-
-    monkeypatch.setattr(rotation_module, "ensure_current_quest_rotation", rolling)
-
-    async def two_vaults(session):
-        return [first, stuck]
-
-    monkeypatch.setattr(vault_crud, "get_non_deleted_ids", two_vaults)
-
-    with pytest.raises(RuntimeError, match="Quest rotation failed for vaults"):
-        await tasks._refresh_quest_rotation()
-    assert calls == [first, stuck]

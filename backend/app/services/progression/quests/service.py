@@ -11,7 +11,6 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app import crud
 from app.core.enums import DwellerStatusEnum, QuestType
 from app.core.event_bus import GameEvent, event_bus
-from app.crud.game_state import game_state_crud
 from app.crud.quest import SCHEDULED_QUEST_TYPES
 from app.models.quest import Quest
 from app.models.vault_quest import VaultQuestCompletionLink
@@ -29,12 +28,7 @@ from app.services.progression.quests.requirements import (
 from app.services.reward_service import reward_service
 from app.services.team_service import team_service
 from app.utils.dweller_availability import DwellerAction, availability_error
-from app.utils.exceptions import (
-    AccessDeniedException,
-    ResourceConflictException,
-    ValidationException,
-    ensure_found,
-)
+from app.utils.exceptions import AccessDeniedException, ValidationException, ensure_found
 from app.utils.quest_duration import (
     STATE_QUEST_CATEGORIES,
     effective_quest_duration_minutes,
@@ -145,19 +139,6 @@ class QuestService:
         await db_session.refresh(link)
         if not link.is_visible:
             raise AccessDeniedException("Quest is not currently offered")
-
-        quest = await crud.quest_crud.get_or_none(db_session, quest_id)
-        quest = ensure_found(quest, Quest, identifier=quest_id)
-        if quest.quest_type in (QuestType.DAILY, QuestType.REPEATABLE):
-            # The offer was revealed by the rotation of its period; under this same vault
-            # lock a stale stamp means the visible set is expired and dispatching it
-            # would hand out yesterday's draw. The client's next read rotates and retries.
-            state = await game_state_crud.get_or_create(db_session, vault_id, commit=False)
-            daily, weekly = objective_periods(utcnow())
-            stamped = state.daily_quests_period if quest.quest_type == QuestType.DAILY else state.weekly_quests_period
-            current = daily if quest.quest_type == QuestType.DAILY else weekly
-            if stamped is None or stamped < current:
-                raise ResourceConflictException("Quest offer has expired; refresh the quest list and retry")
         if link.is_completed:
             raise AccessDeniedException("Quest already completed")
         if link.started_at is not None:
@@ -230,10 +211,10 @@ class QuestService:
         quest = await crud.quest_crud.get_or_none(db_session, quest_id)
         quest = ensure_found(quest, Quest, identifier=quest_id)
 
-        # Precedence: no link (404), then hidden (403), then requirements (400).
+        # Hidden before requirements: a quest the scheduler has not offered must not
+        # leak its requirement details through a validation error.
         link = await crud.quest_crud.get_link(db_session, quest_id=quest_id, vault_id=vault_id)
-        link = ensure_found(link, VaultQuestCompletionLink, identifier=f"quest {quest_id} for vault {vault_id}")
-        if not link.is_visible:
+        if link is not None and not link.is_visible:
             raise AccessDeniedException("Quest is not currently offered")
 
         await db_session.refresh(quest, ["quest_requirements"])
@@ -254,17 +235,18 @@ class QuestService:
     async def assign_quest_to_vault(
         self, db_session: AsyncSession, quest_id: UUID, vault_id: UUID, *, is_visible: bool = True
     ) -> VaultQuestCompletionLink:
-        """Assign a quest to a vault; daily, weekly and event visibility stays scheduler-owned."""
+        """Assign a quest to a vault, making it available for completion.
+
+        Manual assignment cannot touch scheduler-managed pools: daily, weekly and
+        event quest visibility belongs to the rotation sweep.
+        """
         quest = await crud.quest_crud.get(db_session, quest_id)
         quest = ensure_found(quest, Quest, identifier=quest_id)
         if quest.quest_type in SCHEDULED_QUEST_TYPES:
             raise ValidationException("Daily, weekly and event quest visibility is managed by the scheduler")
-        link = await crud.quest_crud.assign_to_vault(
-            db_session=db_session, quest_id=quest_id, vault_id=vault_id, is_visible=is_visible, commit=False
+        return await crud.quest_crud.assign_to_vault(
+            db_session=db_session, quest_id=quest_id, vault_id=vault_id, is_visible=is_visible
         )
-        await db_session.commit()
-        await db_session.refresh(link)
-        return link
 
     async def get_quest_availability(
         self,

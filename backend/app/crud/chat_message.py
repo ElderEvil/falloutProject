@@ -68,6 +68,21 @@ class CRUDChatMessage(CRUDBase[ChatMessage, ChatMessageCreate, ChatMessageRead])
         await db.flush()
         return message
 
+    async def list_for_conversation(
+        self, db: AsyncSession, *, conversation_id: UUID, limit: int | None = None
+    ) -> list[ChatMessage]:
+        """Every message in a thread, oldest first."""
+        query = (
+            select(ChatMessage)
+            .where(col(ChatMessage.conversation_id) == conversation_id)
+            # Both halves of an exchange are flushed in one transaction, where PostgreSQL's
+            # now() is constant, so created_at alone does not order them.
+            .order_by(col(ChatMessage.created_at).asc(), col(ChatMessage.id).asc())
+        )
+        if limit is not None:
+            query = query.limit(limit)
+        return list((await db.exec(query)).all())
+
     async def count_user_messages_to_dweller(self, db: AsyncSession, *, dweller_id: UUID) -> int:
         """Count messages from any user to a specific dweller."""
         stmt = (

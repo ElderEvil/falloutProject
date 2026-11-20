@@ -3,8 +3,10 @@ from .ai_settings import AISettings
 from .arena_match_event import ArenaMatchEvent
 from .arena_state import ArenaState
 from .chat_message import ChatMessage, ChatMessageCreate, ChatMessageRead
+from .conversation import Conversation
 from .crafting_order import CraftingOrder
 from .dweller import Dweller
+from .dweller_memory import DwellerMemory
 from .exploration import ExpeditionRun, Exploration
 from .game_state import GameState
 from .incident import Incident, IncidentParticipant

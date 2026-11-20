@@ -9,11 +9,13 @@ from app.crud.chat_message import chat_message as chat_message_crud
 from app.crud.llm_interaction import llm_interaction as llm_interaction_crud
 from app.models import User
 from app.models.chat_message import ChatMessageCreate
+from app.models.conversation import Conversation as ConversationRow
 from app.schemas.chat import UnlockedPlace
 from app.schemas.chat_models import StreamBundle
 from app.schemas.dweller import DwellerReadFull
 from app.schemas.llm_interaction import LLMInteractionCreate
 from app.services.chat import notifications
+from app.services.chat.continuation import record_exchange
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +27,7 @@ async def persist_chat(
     dweller: DwellerReadFull,
     message_text: str,
     bundle: StreamBundle,
+    conversation: ConversationRow,
 ) -> tuple[UUID, list[UnlockedPlace]]:
     """Persist the LLM interaction and chat messages for a completed response."""
     llm_int_create = LLMInteractionCreate(
@@ -46,6 +49,8 @@ async def persist_chat(
         obj_in=llm_int_create,
     )
 
+    conversation_id = conversation.id
+
     await chat_message_crud.create_message(
         db_session,
         obj_in=ChatMessageCreate(
@@ -53,6 +58,7 @@ async def persist_chat(
             from_user_id=user.id,
             to_dweller_id=dweller.id,
             message_text=message_text,
+            conversation_id=conversation_id,
         ),
     )
 
@@ -62,6 +68,7 @@ async def persist_chat(
         to_user_id=user.id,
         message_text=bundle.response_text,
         llm_interaction_id=llm_interaction.id,
+        conversation_id=conversation_id,
     )
 
     if bundle.happiness_impact:
@@ -72,6 +79,8 @@ async def persist_chat(
         db_session,
         obj_in=chat_create_data,
     )
+
+    await record_exchange(db_session, conversation, at=dweller_message.created_at)
 
     # Unlock the dweller's map places after 3+ user messages (best-effort)
     unlocked_places = await notifications.maybe_unlock_places(db_session, dweller)

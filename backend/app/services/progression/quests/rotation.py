@@ -55,24 +55,19 @@ async def _roll_pool(db: AsyncSession, vault_id: UUID, quest_type: QuestType, co
     ``reveal_threshold`` is dropped from both read paths, so offering it would silently
     consume a slot the vault can never see.
     """
-    quest_ids = await quest_crud.get_quest_ids_by_types(db, [quest_type])
-    if not quest_ids:
+    quests = await quest_crud.get_rotation_candidates(db, quest_type)
+    if not quests:
         return 0
-    quests = {quest.id: quest for quest in await quest_crud.get_multi_by_ids(db, quest_ids)}
-    eligible = [
-        quest_id for quest_id in quest_ids if highest_mandatory_level_requirement(quests[quest_id]) <= reveal_threshold
-    ]
+    eligible = [quest.id for quest in quests if highest_mandatory_level_requirement(quest) <= reveal_threshold]
     offered = set(random.sample(eligible, min(count, len(eligible))))
+    await quest_crud.insert_links_if_absent(db, vault_id, {quest.id: quest.id in offered for quest in quests})
+    quest_ids = [quest.id for quest in quests]
     links = {link.quest_id: link for link in await quest_crud.get_links_for_quest_ids(db, vault_id, quest_ids)}
-    for quest_id in quest_ids:
-        is_visible = quest_id in offered
-        link = links.get(quest_id)
-        if link is None:
-            db.add(VaultQuestCompletionLink(vault_id=vault_id, quest_id=quest_id, is_visible=is_visible))
-        elif _is_in_flight(link):
+    for quest_id, link in links.items():
+        if _is_in_flight(link):
             link.is_visible = True
         else:
-            _reset_link(link, is_visible=is_visible)
+            _reset_link(link, is_visible=quest_id in offered)
     return len(offered)
 
 

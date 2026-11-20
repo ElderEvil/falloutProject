@@ -19,11 +19,13 @@ from app.models.quest_reward import QuestReward
 from app.models.vault_quest import VaultQuestCompletionLink
 from app.schemas.quest import QuestCreate, QuestRead, QuestRequirementRead, QuestRewardRead, QuestUpdate
 from app.utils.dweller_availability import DwellerAction, available_dweller_conditions, purposeful_action_error
+from app.utils.exceptions import ValidationException, ensure_found
 from app.utils.quest_duration import STATE_QUEST_CATEGORIES, effective_quest_duration_minutes
 from app.utils.time import utcnow
 
-# Rotation owns these quests' visibility, so the lazy read-path backfill must not reveal them.
-ROTATING_QUEST_TYPES = frozenset({QuestType.DAILY, QuestType.REPEATABLE})
+# Scheduler-owned quests: rotation owns daily/weekly visibility, and event questlines stay
+# hidden until the seasonal scheduler ships. The lazy read-path backfill must not reveal them.
+SCHEDULED_QUEST_TYPES = frozenset({QuestType.DAILY, QuestType.REPEATABLE, QuestType.EVENT})
 
 
 def _previous_quest_id(quest: Quest, requirements: list[QuestRequirement]) -> UUID | str | None:
@@ -148,10 +150,9 @@ class CRUDQuest(
         missing_quests = (await db_session.execute(missing_quests_query)).scalars().all()
 
         dirty = False
-        for quest in missing_quests:
-            is_visible = quest.quest_type not in ROTATING_QUEST_TYPES
-            db_session.add(self.link_model(quest_id=quest.id, vault_id=vault_id, is_visible=is_visible))
-            dirty = True
+        visibility = {quest.id: quest.quest_type not in SCHEDULED_QUEST_TYPES for quest in missing_quests}
+        await self.insert_links_if_absent(db_session, vault_id, visibility)
+        dirty = bool(visibility)
         if dirty:
             await db_session.commit()
 
@@ -357,9 +358,17 @@ class CRUDQuest(
         )
         return set(result.scalars().all())
 
-    async def get_quest_ids_by_types(self, db_session: AsyncSession, quest_types: list[QuestType]) -> list[UUID]:
-        """Quest template ids of the supplied types (rotation pools)."""
-        result = await db_session.execute(select(Quest.id).where(Quest.quest_type.in_(quest_types)).order_by(Quest.id))
+    async def get_rotation_candidates(
+        self, db_session: AsyncSession, quest_type: QuestType, *, limit: int = 1_000
+    ) -> list[Quest]:
+        """Scheduler pool for one quest type: requirements eager-loaded, stable order, page-capped."""
+        result = await db_session.execute(
+            select(Quest)
+            .options(selectinload(Quest.quest_requirements))
+            .where(Quest.quest_type == quest_type)
+            .order_by(Quest.id)
+            .limit(limit)
+        )
         return list(result.scalars().all())
 
     async def get_links_for_quest_ids(
@@ -451,10 +460,10 @@ class CRUDQuest(
         commit: bool = True,
     ) -> VaultQuestCompletionLink:
         """Assign a quest to a vault, making it available for completion."""
-        # Same lock order as the list backfill and rotation: the vault row first, so
-        # assignment can never hold a link key while waiting on the vault lock. The
-        # manual-assignment eligibility rule lives in QuestService; CRUD owns persistence.
-        await db_session.execute(select(Vault).where(Vault.id == vault_id).with_for_update())
+        quest = await self.get(db_session, quest_id)
+        quest = ensure_found(quest, Quest, identifier=quest_id)
+        if quest.quest_type in SCHEDULED_QUEST_TYPES:
+            raise ValidationException("Daily, weekly and event quest visibility is managed by the scheduler")
 
         existing_link_query = select(self.link_model).where(
             and_(self.link_model.vault_id == vault_id, self.link_model.quest_id == quest_id)

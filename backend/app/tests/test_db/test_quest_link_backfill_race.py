@@ -111,10 +111,14 @@ async def test_backfill_and_rotation_race_without_deadlock(
                 await session.commit()
 
             contest_quest = cleanup_quest_ids[1]
+            starting_caps = vault.bottle_caps
             setup.add(QuestReward(quest_id=contest_quest, reward_type=RewardType.CAPS, reward_data={"amount": 10}))
+            # Start the contest link hidden so the assignment's visibility flip emits
+            # a real link UPDATE that must interleave with the claim's link UPDATE;
+            # an already-visible link would make the assignment a no-op statement.
             setup.add(
                 VaultQuestCompletionLink(
-                    vault_id=vault.id, quest_id=contest_quest, is_visible=True, is_reward_ready=True
+                    vault_id=vault.id, quest_id=contest_quest, is_visible=False, is_reward_ready=True
                 )
             )
             await setup.commit()
@@ -172,6 +176,9 @@ async def test_backfill_and_rotation_race_without_deadlock(
             claimed = await crud.quest_crud.get_link(setup, quest_id=contest_quest, vault_id=vault.id)
             assert claimed is not None
             assert claimed.is_completed
+            assert claimed.is_visible
+            await setup.refresh(vault)
+            assert vault.bottle_caps == starting_caps + 10
     finally:
         if cleanup_vault_id is not None or cleanup_quest_ids or cleanup_user_id is not None:
             await _cleanup(live_pg_engine, cleanup_quest_ids, cleanup_vault_id, cleanup_user_id)

@@ -135,14 +135,15 @@ async def get_quests_for_vault(
         quest = quest_by_id.get(quest_read.id)
         if quest is None:
             continue
-        # Unsettled links (party away, prizes unclaimed, completed) never lose their
-        # offer: a prerequisite lost after dispatch must not hide an active quest
-        # or its claimable rewards from the quest screen.
-        settled = (
-            quest_read.started_at is None
-            and quest_read.return_started_at is None
-            and not quest_read.is_reward_ready
-            and not quest_read.is_completed
+        if has_office and highest_mandatory_level_requirement(quest_read) > reveal_threshold:
+            continue
+        availability = await quest_availability(
+            db_session,
+            vault_id,
+            quest,
+            has_office=has_office,
+            completed_quest_ids=completed_quest_ids,
+            resolve_quest=quest_by_id.get,
         )
         if settled and has_office and highest_mandatory_level_requirement(quest_read) > reveal_threshold:
             continue
@@ -172,10 +173,7 @@ async def get_quests_for_vault(
                 if requirement.id in states:
                     requirement.is_met = states[requirement.id]
         visible_reads.append(quest_read)
-        # /available lists startable offers only: unsettled links (active, returning,
-        # reward-ready, completed) stay in the full list instead of displacing
-        # startable offers from a page.
-        if available_only and settled and quest_read.is_visible and not quest_read.is_locked:
+        if available_only and quest_read.is_visible:
             available_reads.append(quest_read)
 
     if available_only:

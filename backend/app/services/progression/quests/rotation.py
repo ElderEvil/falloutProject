@@ -48,43 +48,40 @@ def _reset_link(link: VaultQuestCompletionLink, *, is_visible: bool) -> None:
     link.is_visible = is_visible
 
 
-async def _roll_pool(
-    db: AsyncSession, vault_id: UUID, quest_type: QuestType, count: int, reveal_threshold: int
-) -> tuple[int, bool]:
-    """Offer ``count`` quests of one pool and hide the rest, returning the offered count and pool presence.
+async def _roll_pool(db: AsyncSession, vault_id: UUID, quest_type: QuestType, count: int, reveal_threshold: int) -> int:
+    """Offer ``count`` quests of one pool and hide the rest, returning the offered count.
 
-    Unsettled links (a party away, or prizes unclaimed) are excluded from the draw
-    before sampling, so a carried-over quest never consumes one of the fresh slots;
-    they keep their state and stay visible. Only quests inside the vault's reveal
-    window are sampled: a mandatory LEVEL gate above ``reveal_threshold`` is dropped
-    from both read paths, so offering it would silently consume a slot the vault can
-    never see.
+    Only quests inside the vault's reveal window are sampled: a mandatory LEVEL gate above
+    ``reveal_threshold`` is dropped from both read paths, so offering it would silently
+    consume a slot the vault can never see.
     """
-    quests = await quest_crud.get_rotation_candidates(db, quest_type)
-    if not quests:
-        return 0, False
-    quest_ids = [quest.id for quest in quests]
+    quest_ids = await quest_crud.get_quest_ids_by_types(db, [quest_type])
+    if not quest_ids:
+        return 0
+    quests = {quest.id: quest for quest in await quest_crud.get_multi_by_ids(db, quest_ids)}
+    eligible = [
+        quest_id for quest_id in quest_ids if highest_mandatory_level_requirement(quests[quest_id]) <= reveal_threshold
+    ]
+    offered = set(random.sample(eligible, min(count, len(eligible))))
     links = {link.quest_id: link for link in await quest_crud.get_links_for_quest_ids(db, vault_id, quest_ids)}
-    in_flight = {quest_id for quest_id, link in links.items() if _is_in_flight(link)}
-    fresh = [quest for quest in quests if quest.id not in in_flight]
-    eligible = [quest for quest in fresh if highest_mandatory_level_requirement(quest) <= reveal_threshold]
-    offered = {quest.id for quest in random.sample(eligible, min(count, len(eligible)))}
-    await quest_crud.insert_links_if_absent(db, vault_id, {quest.id: quest.id in offered for quest in fresh})
-    for quest_id, link in links.items():
-        if quest_id in in_flight:
+    for quest_id in quest_ids:
+        is_visible = quest_id in offered
+        link = links.get(quest_id)
+        if link is None:
+            db.add(VaultQuestCompletionLink(vault_id=vault_id, quest_id=quest_id, is_visible=is_visible))
+        elif _is_in_flight(link):
             link.is_visible = True
         else:
-            _reset_link(link, is_visible=quest_id in offered)
-    return len(offered), True
+            _reset_link(link, is_visible=is_visible)
+    return len(offered)
 
 
 async def ensure_current_quest_rotation(db: AsyncSession, vault_id: UUID, *, now: datetime | None = None) -> int:
     """Rotate expired daily/weekly quest pools and commit atomically; returns quests re-offered.
 
     Idempotent within a period: an already-current vault commits (releasing the vault
-    lock) and reports 0. A populated pool records its period even when it offers
-    nothing, so a later trigger cannot re-roll mid-period; only a truly empty catalog
-    defers, so seeding one later still rotates on the next tick.
+    lock) and reports 0. An empty pool does not record its period, so seeding a catalog
+    later still rotates on the next tick.
     """
     await vault_crud.lock_for_update(db, vault_id)
     state = await game_state_crud.get_or_create(db, vault_id, commit=False)
@@ -105,9 +102,9 @@ async def ensure_current_quest_rotation(db: AsyncSession, vault_id: UUID, *, now
         previous = getattr(state, field)
         if previous is not None and previous >= period:
             continue  # Monotonic guard: never re-roll on a clock rollback.
-        rolled, populated = await _roll_pool(db, vault_id, quest_type, count, reveal_threshold)
-        if not populated:
-            continue  # An empty catalog does not record its period; seeding later still rotates.
+        rolled = await _roll_pool(db, vault_id, quest_type, count, reveal_threshold)
+        if not rolled:
+            continue  # Do not record a successful rotation of an empty catalog.
         offered += rolled
         setattr(state, field, period)
 

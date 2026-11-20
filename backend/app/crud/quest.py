@@ -22,9 +22,8 @@ from app.utils.dweller_availability import DwellerAction, available_dweller_cond
 from app.utils.quest_duration import STATE_QUEST_CATEGORIES, effective_quest_duration_minutes
 from app.utils.time import utcnow
 
-# Scheduler-owned quests: rotation owns daily/weekly visibility, and event questlines stay
-# hidden until the seasonal scheduler ships. The lazy read-path backfill must not reveal them.
-SCHEDULED_QUEST_TYPES = frozenset({QuestType.DAILY, QuestType.REPEATABLE, QuestType.EVENT})
+# Rotation owns these quests' visibility, so the lazy read-path backfill must not reveal them.
+ROTATING_QUEST_TYPES = frozenset({QuestType.DAILY, QuestType.REPEATABLE})
 
 
 def _previous_quest_id(quest: Quest, requirements: list[QuestRequirement]) -> UUID | str | None:
@@ -148,14 +147,12 @@ class CRUDQuest(
         missing_quests_query = select(Quest).where(~Quest.id.in_(existing_link_query))
         missing_quests = (await db_session.execute(missing_quests_query)).scalars().all()
 
-        visibility = {quest.id: quest.quest_type not in SCHEDULED_QUEST_TYPES for quest in missing_quests}
-        if visibility:
-            # Backfill only: agree on the shared lock order (vault row first). The
-            # insert's conflict no-op covers quests another reader, the rotation sweep
-            # or an assignment linked while this scan ran without the lock.
-            await db_session.execute(select(Vault).where(Vault.id == vault_id).with_for_update())
-            await self.insert_links_if_absent(db_session, vault_id, visibility)
-            # Commit releases the vault lock whether or not the insert left work.
+        dirty = False
+        for quest in missing_quests:
+            is_visible = quest.quest_type not in ROTATING_QUEST_TYPES
+            db_session.add(self.link_model(quest_id=quest.id, vault_id=vault_id, is_visible=is_visible))
+            dirty = True
+        if dirty:
             await db_session.commit()
 
         query = select(Quest).join(self.link_model).where(self.link_model.vault_id == vault_id)
@@ -360,14 +357,9 @@ class CRUDQuest(
         )
         return set(result.scalars().all())
 
-    async def get_rotation_candidates(self, db_session: AsyncSession, quest_type: QuestType) -> list[Quest]:
-        """Scheduler pool for one quest type: requirements eager-loaded, stable order."""
-        result = await db_session.execute(
-            select(Quest)
-            .options(selectinload(Quest.quest_requirements))
-            .where(Quest.quest_type == quest_type)
-            .order_by(Quest.id)
-        )
+    async def get_quest_ids_by_types(self, db_session: AsyncSession, quest_types: list[QuestType]) -> list[UUID]:
+        """Quest template ids of the supplied types (rotation pools)."""
+        result = await db_session.execute(select(Quest.id).where(Quest.quest_type.in_(quest_types)).order_by(Quest.id))
         return list(result.scalars().all())
 
     async def get_links_for_quest_ids(

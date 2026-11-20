@@ -223,10 +223,9 @@ Rotation resets links in place (never deletes them: the read-path backfill would
 Sampled quests become visible; the rest become invisible and lose completion state, so a sampled quest
 can be started again. Completing a daily does not remove it — it stays available until the next rollover.
 A quest whose party is away (started, travelling home, or sitting on unclaimed rewards) is skipped entirely
-and forced visible, so rotation never strands a questing dweller or destroys a claimable prize. Side and
-main quests keep their link state. Daily, weekly and event questlines are scheduler-owned: the assign
-endpoint rejects visibility changes for them, and event questlines stay hidden until the seasonal scheduler
-ships. Rotation is silent: it dispatches no notification or event.
+and forced visible, so rotation never strands a questing dweller or destroys a claimable prize. Side, main
+and event quests are outside rotation and keep their link state. Rotation is silent: it dispatches no
+notification or event.
 
 The read path creates links for daily and repeatable quests invisible, and only visible links are offered:
 `available_only` reads exclude rotated-out quests and starting a hidden quest is rejected. Event questlines

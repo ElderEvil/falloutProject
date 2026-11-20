@@ -167,7 +167,7 @@ async def test_writer_locks_vault_before_link_ops(case: str, pg_session_maker) -
                 if case == "claim":
                     await quest_service.claim_quest_rewards(session, side_two, vault_id)
                 elif case in ("assign_existing", "assign_missing"):
-                    await crud.quest_crud.assign_to_vault(
+                    await quest_service.assign_quest_to_vault(
                         db_session=session, quest_id=side_one, vault_id=vault_id, is_visible=True
                     )
                 elif case == "list_backfill":

@@ -176,10 +176,10 @@ const lastSeenUtcDay = ref(new Date().toISOString().slice(0, 10))
 
 const refreshOnUtcDayChange = async () => {
   const utcDay = new Date().toISOString().slice(0, 10)
-  if (utcDay === lastSeenUtcDay.value) return
-  lastSeenUtcDay.value = utcDay
-  if (!vaultId.value) return
+  if (utcDay === lastSeenUtcDay.value || !vaultId.value) return
   await questStore.fetchVaultQuests(vaultId.value, { silent: true })
+  // Marked after the fetch so a failed attempt retries on the next poll.
+  lastSeenUtcDay.value = utcDay
   await loadPartyMembers()
 }
 

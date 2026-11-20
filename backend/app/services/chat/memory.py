@@ -195,7 +195,5 @@ async def extract_memories(
             stored.append(memory)
 
     if stored:
-        await dweller_memory_crud.trim_to_cap(
-            db, dweller_id=dweller.id, cap=game_config.chat.memory_max_per_dweller
-        )
+        await dweller_memory_crud.trim_to_cap(db, dweller_id=dweller.id, cap=game_config.chat.memory_max_per_dweller)
     return stored

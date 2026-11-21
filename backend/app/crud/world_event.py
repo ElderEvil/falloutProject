@@ -21,9 +21,7 @@ class CRUDWorldEvent(CRUDBase[WorldEvent, None, None]):
 
     async def get_current(self, db_session: AsyncSession) -> WorldEvent | None:
         """The ACTIVE event when one exists, else the newest finished event."""
-        active = await db_session.execute(
-            select(self.model).where(self.model.status == WorldEventStatus.ACTIVE)
-        )
+        active = await db_session.execute(select(self.model).where(self.model.status == WorldEventStatus.ACTIVE))
         if event := active.scalar_one_or_none():
             return event
 

@@ -546,7 +546,11 @@ watch(vaultId, async (id) => {
                     :key="group.type"
                     class="quest-section"
                   >
-                    <h3 class="section-label">{{ group.label }} ({{ group.quests.length }})</h3>
+                    <h3
+                      class="mb-3 font-mono text-sm font-semibold uppercase tracking-wide text-theme-primary"
+                    >
+                      {{ group.label }} ({{ group.quests.length }})
+                    </h3>
                     <div class="quest-grid">
                       <QuestCard
                         v-for="quest in group.quests"

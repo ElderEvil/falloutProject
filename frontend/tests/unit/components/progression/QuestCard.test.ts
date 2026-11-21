@@ -645,7 +645,12 @@ describe('QuestCard', () => {
     expect(header.get('[role="img"]').attributes('title')).toBe(label)
     expect(header.findComponent(Icon).props('icon')).toBe(icon)
     expect(header.text()).toContain(quest.title)
-    expect(header.text()).toContain('Side') // The visible type badge.
+    const typeBadge = header.get('[data-slot="badge"]')
+    expect(typeBadge.text()).toBe('Side')
+    expect(typeBadge.classes()).toEqual(
+      expect.arrayContaining(['bg-quest-side', 'text-theme-primary', 'border-quest-side'])
+    )
+    expect(typeBadge.attributes('style')).toBeUndefined()
   })
 
   it('keeps the chain position after the title and identifies main quests', () => {

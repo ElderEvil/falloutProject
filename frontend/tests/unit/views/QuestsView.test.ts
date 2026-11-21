@@ -523,7 +523,7 @@ describe('QuestsView', () => {
       expect(wrapper.text()).toContain('First Quest')
       expect(wrapper.text()).not.toContain('Locked Quest')
       // Default filter: startable quests only - the locked daily is not shown yet.
-      expect(wrapper.text()).toContain('Side quests (1)')
+      expect(wrapper.text()).toContain('Other quests (1)')
       expect(wrapper.text()).not.toContain('Daily Patrol')
       expect(wrapper.text()).not.toContain('Hidden Daily')
 
@@ -535,7 +535,7 @@ describe('QuestsView', () => {
       // while the hidden scheduler daily stays excluded in both modes.
       expect(wrapper.text()).toContain('Daily quests (1)')
       expect(wrapper.text()).toContain('Daily Patrol')
-      expect(wrapper.text()).toContain('Side quests (2)')
+      expect(wrapper.text()).toContain('Other quests (2)')
       expect(wrapper.text()).not.toContain('Hidden Daily')
     })
 

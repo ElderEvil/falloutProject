@@ -238,15 +238,7 @@ const handleAction = () => {
       </span>
     </template>
     <template #badges>
-      <Badge
-        variant="outline"
-        class="shrink-0 gap-1 text-xs"
-        :style="{
-          backgroundColor: typeColor.bg,
-          color: typeColor.text,
-          borderColor: typeColor.border,
-        }"
-      >
+      <Badge variant="outline" class="shrink-0 gap-1 text-xs" :class="typeColor.badge">
         {{ questTypeLabel(quest.quest_type) }}
       </Badge>
       <Badge v-if="chainProgress" variant="outline" class="shrink-0 gap-1 text-xs">

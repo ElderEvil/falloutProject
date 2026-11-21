@@ -541,7 +541,7 @@ describe('Quest Store', () => {
 describe('groupQuestsByType', () => {
   const quest = (id: string, quest_type: string) => ({ id, quest_type }) as unknown as VaultQuest
 
-  it('orders daily, weekly, event, main, side and omits empty groups', () => {
+  it('orders rotating groups first and groups main and side together', () => {
     const groups = groupQuestsByType([
       quest('side-1', 'side'),
       quest('daily-1', 'daily'),
@@ -550,20 +550,14 @@ describe('groupQuestsByType', () => {
       quest('main-1', 'main'),
     ])
 
-    expect(groups.map((group) => group.type)).toEqual([
-      'daily',
-      'repeatable',
-      'event',
-      'main',
-      'side',
-    ])
+    expect(groups.map((group) => group.type)).toEqual(['daily', 'repeatable', 'event', 'other'])
     expect(groups.map((group) => group.label)).toEqual([
       'Daily quests',
       'Weekly quests',
       'Event quests',
-      'Main quests',
-      'Side quests',
+      'Other quests',
     ])
+    expect(groups[3].quests.map((entry) => entry.id)).toEqual(['side-1', 'main-1'])
   })
 
   it('labels repeatable as Weekly and omits empty groups', () => {
@@ -573,10 +567,10 @@ describe('groupQuestsByType', () => {
     expect(groups[0].quests.map((entry) => entry.id)).toEqual(['weekly-1'])
   })
 
-  it('buckets unknown types into the side group', () => {
+  it('buckets unknown types into the other group', () => {
     const groups = groupQuestsByType([quest('odd-1', 'unknown-kind')])
     expect(groups).toHaveLength(1)
-    expect(groups[0].type).toBe('side')
+    expect(groups[0].type).toBe('other')
     expect(groups[0].quests.map((entry) => entry.id)).toEqual(['odd-1'])
   })
 })

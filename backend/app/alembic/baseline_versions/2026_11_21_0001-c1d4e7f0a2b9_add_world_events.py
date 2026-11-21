@@ -57,6 +57,8 @@ def upgrade() -> None:
         ["status"],
         unique=True,
         postgresql_where=sa.text("status = 'ACTIVE'"),
+        # Keep the SQLite shape identical so the fragment migration test enforces the same rule.
+        sqlite_where=sa.text("status = 'ACTIVE'"),
     )
 
     op.create_table(

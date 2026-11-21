@@ -17,11 +17,12 @@
 --   status          SCHEDULED
 --   id              literal (worldevent.id has no server default; the ORM generates it)
 
--- 1) Clear a stuck ACTIVE event. This ends whatever is ACTIVE, including a genuinely running
---    event, so only run it when an ACTIVE row blocks the seed below.
+-- 1) Clear a stuck ACTIVE event: only rows already past their deadline. A running event that met
+--    its target must reach the tick so advance() can complete it, otherwise its rewards are
+--    unclaimable. Re-runnable.
 UPDATE worldevent
 SET status = 'EXPIRED', updated_at = now()
-WHERE status = 'ACTIVE';
+WHERE status = 'ACTIVE' AND ends_at <= now();
 
 -- 2) Insert the first event. Re-runnable: no-op while a SCHEDULED or ACTIVE event exists.
 WITH seed AS (

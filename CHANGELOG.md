@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 3.13.0 (2026-11-21)
+
+### Features
+
+* **pvp:** async exhibition duels behind a dark flag (M1 of [#1474](https://github.com/ElderEvil/falloutProject/issues/1474)) ([#1476](https://github.com/ElderEvil/falloutProject/issues/1476)) dff5e9c
+
 ## 3.12.1 (2026-11-21)
 
 ### Bug Fixes

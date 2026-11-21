@@ -68,7 +68,7 @@ class PvpDuelService:
         vault_id: UUID,
         *,
         defender_vault_id: UUID | None = None,
-        dweller_ids: list[UUID] | None = None,
+        dweller_ids: list[UUID],
     ) -> PvpDuelRead:
         """Post one open duel; lazily releases this vault's expired slot first."""
         now = utcnow()
@@ -129,7 +129,7 @@ class PvpDuelService:
         vault_id: UUID,
         duel_id: UUID,
         *,
-        dweller_ids: list[UUID] | None = None,
+        dweller_ids: list[UUID],
     ) -> PvpDuelRead:
         """Accept, freeze the defender party, settle and notify the challenger once."""
         duel = await pvp_duel_crud.get_for_update(db_session, duel_id)
@@ -207,7 +207,7 @@ class PvpDuelService:
             raise ResourceConflictException("Your vault already has an open duel.")
         await db_session.flush()
 
-    async def _snapshot(self, db_session: AsyncSession, vault: Vault, dweller_ids: list[UUID] | None) -> dict[str, Any]:
+    async def _snapshot(self, db_session: AsyncSession, vault: Vault, dweller_ids: list[UUID]) -> dict[str, Any]:
         pool = await pvp_duel_crud.get_party(db_session, vault.id, dweller_ids)
         try:
             party = select_party(pool, dweller_ids)

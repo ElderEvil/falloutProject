@@ -110,3 +110,14 @@ async def test_replay_is_stable_after_settlement(
 
     assert first.journal == second.journal
     assert first.outcome == second.outcome
+
+
+async def test_party_is_explicit_and_capped_at_three(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller
+) -> None:
+    """Same contract as an expedition dispatch: the player names the party, 1-3, never the server."""
+    with pytest.raises(ValidationException):
+        await pvp_duel_service.post(async_session, vault.id, dweller_ids=[])
+
+    with pytest.raises(ValidationException):
+        await pvp_duel_service.post(async_session, vault.id, dweller_ids=[dweller.id] * 4)

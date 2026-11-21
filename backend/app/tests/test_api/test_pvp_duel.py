@@ -100,3 +100,16 @@ async def test_post_board_accept_and_replay(
     assert body["defender_party"]["vault_name"]
     assert body["journal"][-1]["kind"] == "outcome"
     assert body["accepted_at"] is not None
+
+
+async def test_post_rejects_a_party_outside_one_to_three(async_client, vault: Vault, dweller: Dweller, owner) -> None:
+    app.dependency_overrides[get_current_active_user] = lambda: owner
+
+    empty = await async_client.post(f"/vaults/{vault.id}/pvp-duels", json={"dweller_ids": []})
+    assert empty.status_code == 422, empty.text
+
+    oversized = await async_client.post(f"/vaults/{vault.id}/pvp-duels", json={"dweller_ids": [str(dweller.id)] * 4})
+    assert oversized.status_code == 422, oversized.text
+
+    missing = await async_client.post(f"/vaults/{vault.id}/pvp-duels", json={})
+    assert missing.status_code == 422, missing.text

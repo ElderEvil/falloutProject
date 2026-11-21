@@ -10365,11 +10365,14 @@ export interface components {
         };
         /**
          * PvpDuelAccept
-         * @description The accepting party; ignored when the post already pre-selected a defender.
+         * @description The accepting party: same contract, and the same sheet a dispatch would use.
          */
         PvpDuelAccept: {
-            /** Dweller Ids */
-            dweller_ids?: string[] | null;
+            /**
+             * Dweller Ids
+             * @description Party of 1-3 dwellers, no leader
+             */
+            dweller_ids: string[];
         };
         /**
          * PvpDuelBoardEntry
@@ -10397,13 +10400,16 @@ export interface components {
         };
         /**
          * PvpDuelCreate
-         * @description A challenge post; ids omitted means the vault's five strongest post for it.
+         * @description The posting party: same contract as an expedition dispatch — 1-3 dwellers, no leader.
          */
         PvpDuelCreate: {
             /** Defender Vault Id */
             defender_vault_id?: string | null;
-            /** Dweller Ids */
-            dweller_ids?: string[] | null;
+            /**
+             * Dweller Ids
+             * @description Party of 1-3 dwellers, no leader
+             */
+            dweller_ids: string[];
         };
         /**
          * PvpDuelRead

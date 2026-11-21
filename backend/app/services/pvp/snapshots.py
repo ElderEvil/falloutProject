@@ -56,13 +56,21 @@ def build_snapshot(vault: Vault, dwellers: list[Dweller]) -> dict[str, Any]:
     }
 
 
-def select_party(dwellers: list[Dweller], dweller_ids: list[UUID] | None) -> list[Dweller]:
-    """Requested dwellers in request order, else the vault's five strongest."""
-    if dweller_ids is not None:
-        by_id = {dweller.id: dweller for dweller in dwellers}
-        missing = [str(dweller_id) for dweller_id in dweller_ids if dweller_id not in by_id]
-        if missing:
-            raise ValueError(f"Unknown dwellers: {', '.join(missing)}")
-        return [by_id[dweller_id] for dweller_id in dweller_ids]
-    ranked = sorted(dwellers, key=lambda dweller: (-combat_power(dweller), str(dweller.id)))
-    return ranked[:5]
+PARTY_LIMIT = 3
+
+
+def select_party(dwellers: list[Dweller], dweller_ids: list[UUID]) -> list[Dweller]:
+    """The requested dwellers in request order — the same roster an expedition dispatch takes.
+
+    No implicit default: the server never decides who fights on the player's behalf, exactly as
+    dispatch requires an explicit party.
+    """
+    if not dweller_ids:
+        raise ValueError("Pick at least one dweller to fight.")
+    if len(dweller_ids) > PARTY_LIMIT:
+        raise ValueError(f"A party is at most {PARTY_LIMIT} dwellers.")
+    by_id = {dweller.id: dweller for dweller in dwellers}
+    missing = [str(dweller_id) for dweller_id in dweller_ids if dweller_id not in by_id]
+    if missing:
+        raise ValueError(f"Unknown dwellers: {', '.join(missing)}")
+    return [by_id[dweller_id] for dweller_id in dweller_ids]

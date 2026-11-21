@@ -10,16 +10,16 @@ from app.utils.serialize_types import OptionalUTCDateTimeJSON, UTCDateTimeJSON
 
 
 class PvpDuelCreate(BaseModel):
-    """A challenge post; ids omitted means the vault's five strongest post for it."""
+    """The posting party: same contract as an expedition dispatch — 1-3 dwellers, no leader."""
 
     defender_vault_id: UUID | None = None
-    dweller_ids: list[UUID] | None = Field(default=None, max_length=5)
+    dweller_ids: list[UUID] = Field(min_length=1, max_length=3, description="Party of 1-3 dwellers, no leader")
 
 
 class PvpDuelAccept(BaseModel):
-    """The accepting party; ignored when the post already pre-selected a defender."""
+    """The accepting party: same contract, and the same sheet a dispatch would use."""
 
-    dweller_ids: list[UUID] | None = Field(default=None, max_length=5)
+    dweller_ids: list[UUID] = Field(min_length=1, max_length=3, description="Party of 1-3 dwellers, no leader")
 
 
 class PvpPartyRead(BaseModel):

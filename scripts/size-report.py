@@ -164,12 +164,18 @@ def resolve_ref(repo: Path, ref: str) -> str:
 
 
 def list_files(repo: Path, commit: str) -> list[str]:
-    """Every path in the commit's tree."""
-    return (
-        git(repo, "ls-tree", "-r", "--name-only", commit)
+    """Every path in the commit's tree, unquoted.
+
+    ``-z`` matters: with default quoting Git escapes non-ASCII names, so a path like
+    ``frontend/src/components/Café.vue`` arrives quoted and silently misses its category.
+    """
+    return [
+        path
+        for path in git(repo, "ls-tree", "-r", "--name-only", "-z", commit)
         .decode("utf-8", errors="replace")
-        .splitlines()
-    )
+        .split("\0")
+        if path
+    ]
 
 
 def is_generated(path: str) -> bool:
@@ -253,8 +259,12 @@ def count_lines(repo: Path, commit: str, paths: list[str]) -> dict[str, int]:
     return counts
 
 
-def snapshot(repo: Path, ref: str) -> Snapshot:
-    """Count one ref's categories, tree shape and large files."""
+def snapshot(repo: Path, ref: str, label: str | None = None) -> Snapshot:
+    """Count one ref's categories, tree shape and large files.
+
+    ``label`` keeps the human-readable ref in the report while counting a commit that was resolved
+    once, so a moving ``HEAD`` cannot make the two halves of the report disagree.
+    """
     commit = resolve_ref(repo, ref)
     paths = list_files(repo, commit)
     grouped = category_paths(paths)
@@ -296,7 +306,7 @@ def snapshot(repo: Path, ref: str) -> Snapshot:
     }
 
     return Snapshot(
-        ref=ref,
+        ref=label or ref,
         lines=lines,
         files=files,
         modules=len(modules),
@@ -319,7 +329,9 @@ def added_lines(
     category_of = {
         path: category for category, paths in categories.items() for path in paths
     }
-    output = git(repo, "diff", "--numstat", "-M", "-z", base, head)
+    # ``-a`` forces text counting: a .gitattributes rule marking a source file as binary would
+    # otherwise report 0 added lines. Categories are extension-filtered, so no binary slips in.
+    output = git(repo, "diff", "--numstat", "-M", "-z", "-a", base, head)
     tokens = output.split(b"\0")
     additions = dict.fromkeys(CATEGORY_ORDER, 0)
 
@@ -363,8 +375,8 @@ def build_report(repo: Path, base_ref: str, head_ref: str) -> Report:
     head_commit = resolve_ref(repo, head_ref)
     head_paths = list_files(repo, head_commit)
     return Report(
-        base=snapshot(repo, base_ref),
-        head=snapshot(repo, head_ref),
+        base=snapshot(repo, base_commit, base_ref),
+        head=snapshot(repo, head_commit, head_ref),
         base_commit=base_commit,
         head_commit=head_commit,
         changed_files=changed_files(repo, base_commit, head_commit),

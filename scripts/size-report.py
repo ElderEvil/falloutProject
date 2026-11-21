@@ -394,10 +394,22 @@ def print_report(report: Report) -> None:
 
     for label, base_lines, head_lines in (
         (
+            "Backend production",
+            base.line_total(BACKEND_PRODUCTION),
+            head.line_total(BACKEND_PRODUCTION),
+        ),
+        (
+            "Frontend production",
+            base.line_total(FRONTEND_PRODUCTION),
+            head.line_total(FRONTEND_PRODUCTION),
+        ),
+        (
             "Handwritten production",
             base.handwritten_production,
             head.handwritten_production,
         ),
+        ("Backend tests", base.line_total(BACKEND_TESTS), head.line_total(BACKEND_TESTS)),
+        ("Frontend tests", base.line_total(FRONTEND_TESTS), head.line_total(FRONTEND_TESTS)),
         ("Handwritten tests", base.handwritten_tests, head.handwritten_tests),
     ):
         print(
@@ -471,8 +483,9 @@ def print_report(report: Report) -> None:
         print(f"  {line_count:>6,}  {path}")
     print()
     print(
-        "Note: backend production excludes alembic and tests; add Backend migrations to reproduce the "
-        "89k backend figure quoted in #1469. Generated and catalog lines are not part of the production budget."
+        "Definitions: backend production excludes migrations and tests; frontend production excludes "
+        "generated files; catalog data (quests, dweller lines, seeds) and tooling count toward no budget. "
+        "'Handwritten' rows sum both sides."
     )
 
 

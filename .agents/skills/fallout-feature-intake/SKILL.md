@@ -38,10 +38,16 @@ Refresh with `python3 scripts/size-report.py <base-ref> [head-ref]`; it prints t
 the gross handwritten application/test additions that trigger the ~300-line PR prompt (tooling excluded).
 Compare trends, not one number.
 
-| Metric | Advisory target |
-|---|---|
-| handwritten backend production | ~100k lines |
-| handwritten frontend production | ~110k lines |
+| Metric (the report's own definitions) | Today | Advisory target |
+|---|---|---|
+| handwritten backend production, excl. migrations and catalog | 78k | ~90k |
+| handwritten frontend production, excl. generated and catalog | 81k | ~90k |
+| backend test:production, excl. migrations | 1.27 | must not grow |
+| frontend test:production | 1.07 | must not grow |
+
+Quote the backend ratio as **1.27**. The 1.12 quoted elsewhere includes migrations in the denominator,
+which flatters the digit by hiding an 11k-line unpaid column — the tests defend the code, not the schema
+history.
 
 There is no test-ratio ceiling, module-count ban or mandatory deletion. Those are trends and judgement
 calls. A material overage calls for a short explanation in the PR body; it is not a merge blocker.

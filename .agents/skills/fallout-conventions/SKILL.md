@@ -118,3 +118,106 @@ workflow run, the migration Job and `/readiness` before treating the deploy as s
 
 Postgres must never be `rollout`-ed (RollingUpdate + RWO PVC double-mounts) — delete the pod instead.
 Inline SQL through `sh -c` breaks on quoting: write the SQL to a file and pipe it into `psql -f -`.
+
+## Merge and release traps
+
+- `gh pr merge --squash` takes its subject from the branch's **first commit**, not the PR title — retitling
+  does not change the release bump. Pass `--subject` when the bump matters.
+- Check `baseRefName` before merging a stacked PR: GitHub silently points a child PR at the parent branch,
+  and `--delete-branch` then orphans the commit.
+- Rebasing someone else's branch: re-fetch, compare against the SHA the worktree started from, push with
+  `--force-with-lease`. A stale rebase force-push deletes their commits.
+- Never hand-create git tags; semantic-release owns them.
+- `run_migrations=true` is required whenever the release carries a migration. With it false the deploy
+  succeeds and ships code whose models expect missing columns (symptom: 500 on `/vaults/` with
+  `column vault.scenario_key does not exist`).
+
+## Local test runs — measured pitfalls
+
+- `cd backend && uv sync` first: `backend/.venv` drifts and an old fastapi fails every import with
+  `Depends() got an unexpected keyword argument 'max_concurrency'`.
+- A fresh worktree lacks `backend/.env` (gitignored) → conftest dies with `KeyError: 'POSTGRES_USER'`.
+- **`prek`'s `ty` hook is a CI gate** (changed backend files, excluding `app/(tests|alembic|crud)`), so a
+  clean ruff run proves nothing: `ty check --output-format concise --exit-zero-on-warning <files>`.
+- ruff bans `assert` (S101) — narrow optionals with an explicit `raise`, never `assert x is not None`.
+- `test_architecture/test_ci_hook_scope.py` fails locally with `prek: command not found` (127);
+  environmental, CI supplies prek via `uv run`.
+- `conftest.py` has two vault fixtures — `vault` (own) and `user_with_vault` / `room_in_vault` /
+  `dweller_in_vault` (another vault). Mixing `dweller` with `room_in_vault` silently tests a cross-vault
+  flow; run the full suite after adding a cross-vault invariant.
+
+## Frontend toolchain traps
+
+- lightningcss rejects `var(--token/N)` in the production build; use
+  `color-mix(in srgb, var(--token) N%, transparent)`.
+- `vi.mock(` factory helpers must be imported before any non-inert app import (mockImportOrderGuard), with
+  the component under test imported statically after them — not via `await import()` inside each test.
+- `new Audio(url)` needs a constructable stub (`vi.stubGlobal('Audio', AudioStub)`).
+- jsdom 31 returns `''` from `getComputedStyle()` on a detached node, so VTU `isVisible()` ignores
+  `v-show`: mount with `{ attachTo: document.body }` and unmount after, do not weaken the assertion.
+- Frontend tests run through `pnpm test:run <paths>` (`vp test`); there is no bare `vitest` binary.
+
+## Live playtest traps
+
+- **Never run `python -m app.cli.simulate_*` inside the production backend pod** — the heavy static-data
+  import is OOM-killed (exit 137) and takes the container with it.
+- `POST /game/vaults/{id}/tick` does **not** advance incident combat: incidents run on wall-clock
+  `elapsed_time` in the worker (incident tick every 2 min, game tick every 1 min). Wait real minutes.
+- Never derive chat row counts from `conversation.context` — the stored state is longer than the rows it
+  covers, which is exactly why summarisation never fired in production (#1462).
+- Playtest endpoints: `/vaults/initiate`, `/vaults/{id}`, `/rooms/vault/{id}/`, `/dwellers/vault/{id}/`,
+  `/game/vaults/{id}/tick`, `/game/vaults/{id}/incidents`, `/rooms/{room_id}/rush` (GET quote, POST attempt).
+- Since #1457 an all-zero rush payout blocks the quote (`can_rush: false`): `resources_full` for real
+  capacity exhaustion, `no_yield` for sub-0.5 rounding or a missing medical storage row. `rush()` re-checks
+  the same guard at submission, so a stale quote raises instead of burning a stack.
+- Living-room occupants are seeded `status=RESTING`, which matches no positive branch in
+  `happiness_service`, so they decay to the floor (#1454).
+
+## Code prose and test size
+
+- Prefer one terse line over a paragraph; delete comments that narrate what the code plainly does. Keep
+  invariants, ordering constraints and measured facts — with the number that justifies them.
+- Fewer lines is a deliverable: feature delivery time outranks completeness.
+- **FastAPI endpoint docstrings are the public OpenAPI descriptions** — shorten them, never drop them.
+  `app/tests/**` ignores ruff `D`/`DOC`; `app/` enforces the Google convention.
+- Tests: one per distinct failure mode. Merge near-identical cases, drop assertions on framework defaults.
+  Trim cases, never the assertions inside a case that survives.
+
+## Architecture guards beyond the endpoint layer
+
+- Services never issue raw `select()`/`execute()` — SQL lives in `app/crud/<entity>.py`.
+- A `*_service.py` module must own persistence, orchestration or an external boundary; pure functions
+  belong in `app/utils/` (e.g. `utils/broadcast_script.py`).
+- Never add entries to a guard's baseline — fix the code, and shrink baselines with each batch.
+
+## Alembic autogenerate drift
+
+- `alembic check` requires byte-match with model metadata: column types (`Text` vs `String`), nullability,
+  indexes (`BaseUUIDModel` auto-indexes `id`), and FK naming per the sibling-model convention.
+- Always branch from **current** origin/master: master gains migrations between feature branches, so
+  re-check `down_revision` and single-head state before pushing.
+- Verify migrations against a throwaway scratch Postgres pod, never the `fallout` namespace DB.
+
+## Frontend dependency upgrades (Vite+)
+
+- Upgrading Vite+ means bumping the **catalog pair**: `vite-plus: X` and
+  `vite: npm:@voidzero-dev/vite-plus-core@Y`, where Y encodes the bundled Vite — they no longer share a
+  version. Read Y from `npm view vite-plus@X dependencies.vite`.
+- `@vitest/coverage-v8` and `@vitest/ui` must match the vitest that vite-plus bundles.
+- `minimumReleaseAge: 10080` gates every bump; a fresh release fails install with
+  `ERR_PNPM_NO_MATURE_MATCHING_VERSION`. Wait for maturity rather than excluding it casually.
+- `pnpm run typecheck` is `vue-tsc --noEmit`, so it keeps covering `.vue` files; tsrs powers type-aware
+  `vp lint` rules only and does not replace it.
+
+## Diagnosing CI and deploy failures (host facts)
+
+- CI SSH probe failures: suspect ufw rule `22/tcp LIMIT IN` before fail2ban — ufw caps new SSH connections
+  per source and shared runner IPs trip it. Fix with `ufw delete limit 22/tcp` then `ufw allow 22/tcp`.
+- The workflow's fail2ban hint (`mode=aggressive, maxretry=3`) is stale; `fail2ban-client status sshd`
+  showing zero bans clears it as a suspect.
+- Prove world reachability with `check-host.net/check-tcp`; `tcpdump` is not installed on the production
+  host, so local captures need an install first.
+- CI logs: `gh run view <run-id> -R ElderEvil/falloutProject --log-failed`.
+- Background shells lose exported env on reset — `set -a; source <env>; set +a` inside the background
+  command itself.
+- A subagent's "verified" is a self-report; re-check external effects (merges, pushes, tags) yourself.

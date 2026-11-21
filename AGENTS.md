@@ -169,12 +169,16 @@ Answer these in the feature issue before building a new system or a meaningful e
 5. What would a playtest need to show?
 6. Who owns any flag, and when will they decide to enable or remove it?
 
-Review targets and trends:
+Review targets and trends — the definitions below are the report's own, so the numbers cannot drift apart:
 
-- Handwritten backend production: ~100k lines advisory target; handwritten frontend production: ~110k.
+- Handwritten backend production (excluding migrations and catalog data): **~90k** advisory target, 78k today.
+- Handwritten frontend production (excluding generated types and catalog data): **~90k** advisory target, 81k today.
+- Test:production ratios are tracked as trends, not targets: they must not grow. Today, backend **1.27**
+  excluding migrations and 1.12 including them — the migrations flatter the digit, so quote 1.27 —
+  and frontend 1.07.
 - A material overage calls for a short explanation in the PR body; it is not a merge blocker.
-- Track production/test LOC and their ratio, module count and feature-doc count as trends. Preserve the
-  distinct coverage families in rule 10.
+- Track these as trends alongside module count and feature-doc count. Preserve the distinct coverage
+  families in rule 10.
 - Before adding a frontend module, explain why an existing module cannot own the behavior. Keep the layer
   boundaries in rule 4.
 - At ~300 handwritten application and test lines added (tooling such as `scripts/` is outside this

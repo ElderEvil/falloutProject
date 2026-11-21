@@ -94,6 +94,15 @@ const router = createRouter({
             },
             component: () => import('@/core/views/AssetGalleryView.vue'),
           },
+          {
+            path: '/dev/combat-zone',
+            name: 'combat-zone-preview',
+            meta: {
+              devTitle: 'Combat Zone',
+              devDescription: 'Preview The Pit duel UI with real vault dwellers.',
+            },
+            component: () => import('@/modules/pvp/views/CombatZonePreview.vue'),
+          },
         ]
       : []),
     {

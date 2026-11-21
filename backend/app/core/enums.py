@@ -142,6 +142,18 @@ class WorldEventStatus(StrEnum):
     EXPIRED = "EXPIRED"
 
 
+class PvpDuelStatus(StrEnum):
+    """Lifecycle of a cross-vault exhibition duel; stored as VARCHAR, not a PG enum.
+
+    No DECLINED: a defender who does not want the fight ignores it and it expires.
+    """
+
+    OPEN = "OPEN"
+    ACCEPTED = "ACCEPTED"
+    CANCELLED = "CANCELLED"
+    EXPIRED = "EXPIRED"
+
+
 class SPECIALEnum(CaseInsensitiveEnum):
     STRENGTH = "strength"
     PERCEPTION = "perception"

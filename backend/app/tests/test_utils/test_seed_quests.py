@@ -792,14 +792,14 @@ def test_quest_gear_rewards_are_catalog_backed() -> None:
                 if item_type in catalog and item_type != "junk":
                     assert str(name).lower() in catalog[item_type], f"{name!r} is not a catalog {item_type}"
                 if item_type == "junk":
-                    # Catalog-backed, a placeholder, or an authored price - never an orphan.
-                    from app.services.rewards.items import _JUNK_PLACEHOLDER_RE
+                    # Settle the reward the way grant_item will: every quest junk reward
+                    # must resolve to a priced row, never a valueless orphan.
+                    from app.services.rewards.items import _resolve_junk
 
-                    assert (
-                        str(name).lower() in catalog["junk"]
-                        or _JUNK_PLACEHOLDER_RE.match(str(name))
-                        or (item_data or {}).get("value") is not None
-                    ), f"{name!r} settles as a synthetic junk row"
+                    resolved = _resolve_junk(
+                        str(name), str((item_data or {}).get("rarity", "common")), dict(item_data or {})
+                    )[2]
+                    assert resolved.get("value") is not None, f"{name!r} settles as a valueless junk row"
             for value in node.values():
                 walk(value)
         elif isinstance(node, list):

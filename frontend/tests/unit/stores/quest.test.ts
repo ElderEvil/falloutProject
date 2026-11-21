@@ -493,6 +493,37 @@ describe('Quest Store', () => {
 
       expect(store.questPartyMap).toEqual({ 'active-quest': [] })
     })
+
+    it("keeps the newest vault's party map when an older load resolves later", async () => {
+      const store = useQuestStore()
+      store.vaultQuests = [
+        {
+          id: 'active-quest',
+          title: 'Active Quest',
+          short_description: 'Test',
+          long_description: 'Test',
+          requirements: 'Test',
+          rewards: 'Test',
+          created_at: '2025-01-01',
+          updated_at: '2025-01-01',
+          is_visible: true,
+          is_completed: false,
+          started_at: '2025-01-02T00:00:00Z',
+          duration_minutes: 60,
+        },
+      ]
+      const pending = deferred<{ data: unknown }>()
+      vi.mocked(axios.get)
+        .mockReturnValueOnce(pending.promise as never)
+        .mockResolvedValueOnce({ data: [] })
+      const stale = store.fetchPartiesForActiveQuests('vault-a')
+      await store.fetchPartiesForActiveQuests('vault-b')
+      pending.resolve({ data: [] })
+      await stale
+
+      expect(store.questPartyMap).toEqual({ 'active-quest': [] })
+      expect(axios.get).toHaveBeenCalledTimes(2)
+    })
   })
 
   function deferred<T>() {

@@ -187,7 +187,9 @@ usePolling(refreshOnUtcDayChange, { interval: 60_000, immediate: false })
 
 const loadPartyMembers = async () => {
   if (!vaultId.value) return
+  const requestedVault = vaultId.value
   await questStore.fetchPartiesForActiveQuests(vaultId.value)
+  if (vaultId.value !== requestedVault) return
   const map: Record<string, DwellerShort[]> = {}
   for (const [questId, members] of Object.entries(questStore.questPartyMap)) {
     map[questId] = members

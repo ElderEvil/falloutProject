@@ -45,7 +45,7 @@ def get_generic_items_data():
 def vault_data_fixture():
     return {
         "number": random_vault_number(),  # Must be < 1000 per validation; seeded numbers reserved
-        "bottle_caps": random.randint(100, 1_000_000),
+        "bottle_caps": random.randint(100, 999_999),  # Vault.bottle_caps enforces lt=1_000_000.
         "happiness": random.randint(0, 100),
         "power": random.randint(0, 100),
         "food": random.randint(0, 100),

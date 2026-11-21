@@ -20,7 +20,7 @@ from alembic.script import ScriptDirectory
 
 BACKEND = Path(__file__).resolve().parents[3]
 REVISION = "c1d4e7f0a2b9"
-PARENT = "a80944c56929"
+PARENT = "b3f7a2c9d4e8"
 MIGRATIONS_DIR = BACKEND / "app/alembic/baseline_versions"
 
 

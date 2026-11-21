@@ -1,8 +1,17 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
-import { enableAutoUnmount, mount } from '@vue/test-utils'
-import { defineComponent } from 'vue'
+import { createAxiosMock } from '../../helpers/mocks'
+import { enableAutoUnmount, flushPromises, mount } from '@vue/test-utils'
+import { defineComponent, nextTick } from 'vue'
+import { createPinia, setActivePinia } from 'pinia'
 import RoomDwellers from '@/modules/dwellers/components/RoomDwellers.vue'
+import { useDwellerFilterStore } from '@/modules/dwellers/stores/dwellerFilter'
+import { useRoomStore } from '@/modules/rooms/stores/room'
+import { useAuthStore } from '@/modules/auth/stores/auth'
+import { useVaultStore } from '@/modules/vault/stores/vault'
 import { TooltipProvider } from '@/core/components/ui/tooltip'
+import axios from '@/core/plugins/axios'
+
+vi.mock('@/core/plugins/axios', () => createAxiosMock())
 
 vi.mock('@iconify/vue', () => ({
   Icon: {
@@ -10,16 +19,6 @@ vi.mock('@iconify/vue', () => ({
     props: ['icon'],
     template: '<span :data-icon="icon" />',
   },
-}))
-
-const roster = vi.hoisted(() => ({
-  dwellers: [] as Array<Record<string, unknown>>,
-}))
-
-vi.mock('@/modules/dwellers/stores/dweller', () => ({
-  useDwellerStore: () => ({
-    filter: { dwellers: roster.dwellers },
-  }),
 }))
 
 enableAutoUnmount(afterEach)
@@ -34,6 +33,18 @@ const alice = {
   thumbnail_url: null,
 }
 
+const bob = {
+  ...alice,
+  id: 'd2',
+  room_id: 'r2',
+  first_name: 'Bob',
+  last_name: 'Jones',
+}
+
+function setFilteredDwellers(dwellers: Array<Record<string, unknown>>) {
+  useDwellerFilterStore().dwellers = dwellers as never
+}
+
 const mountDwellers = () =>
   mount(
     defineComponent({
@@ -45,7 +56,8 @@ const mountDwellers = () =>
   )
 
 beforeEach(() => {
-  roster.dwellers.splice(0, roster.dwellers.length, alice)
+  setActivePinia(createPinia())
+  setFilteredDwellers([alice])
 })
 
 it('shows dweller details in an app tooltip on keyboard focus without a browser title', async () => {
@@ -60,10 +72,12 @@ it('shows dweller details in an app tooltip on keyboard focus without a browser 
 })
 
 it('marks an equipped pet on the avatar and in the tooltip', async () => {
-  roster.dwellers.splice(0, roster.dwellers.length, {
-    ...alice,
-    pet: { id: 'pet-1', name: 'Dogmeat', image_url: '/static/pets/dogmeat.webp' },
-  })
+  setFilteredDwellers([
+    {
+      ...alice,
+      pet: { id: 'pet-1', name: 'Dogmeat', image_url: '/static/pets/dogmeat.webp' },
+    },
+  ])
 
   const wrapper = mountDwellers()
   const avatar = wrapper.get('.dweller-avatar')
@@ -78,19 +92,19 @@ it('marks an equipped pet on the avatar and in the tooltip', async () => {
 })
 
 it('falls back to a paw when the equipped pet has no image', () => {
-  roster.dwellers.splice(0, roster.dwellers.length, {
-    ...alice,
-    pet: { id: 'pet-2', name: 'Dogmeat', image_url: null },
-  })
+  setFilteredDwellers([
+    {
+      ...alice,
+      pet: { id: 'pet-2', name: 'Dogmeat', image_url: null },
+    },
+  ])
 
   const wrapper = mountDwellers()
   expect(wrapper.get('.dweller-pet-fallback').exists()).toBe(true)
 })
 
 it('orders workers before apprentices and marks the apprentice avatar', () => {
-  roster.dwellers.splice(
-    0,
-    roster.dwellers.length,
+  setFilteredDwellers([
     {
       ...alice,
       id: 'a1',
@@ -99,8 +113,8 @@ it('orders workers before apprentices and marks the apprentice avatar', () => {
       level: 2,
       apprentice_stat: 'strength',
     },
-    alice
-  )
+    alice,
+  ])
 
   const wrapper = mountDwellers()
   const avatars = wrapper.findAll('.dweller-avatar')
@@ -113,4 +127,59 @@ it('orders workers before apprentices and marks the apprentice avatar', () => {
   expect(avatars[1].attributes('class')).toContain('dweller-avatar--apprentice')
   expect(avatars[0].find('.apprentice-badge').exists()).toBe(false)
   expect(avatars[1].find('.apprentice-badge').exists()).toBe(true)
+})
+
+it('keeps the worker visible while a build refresh reloads the filtered page', async () => {
+  const filter = useDwellerFilterStore()
+  const roomStore = useRoomStore()
+  useVaultStore().activeVaultId = 'vault-1'
+  useAuthStore().token = 'test-token'
+  filter.allDwellers = []
+  filter.allDwellersLoadedVaultId = null
+  setFilteredDwellers([alice])
+
+  const wrapper = mountDwellers()
+  expect(wrapper.findAll('.dweller-avatar')).toHaveLength(1)
+
+  let resolveRoster!: () => void
+  const rosterSpy = vi.spyOn(filter, 'fetchAllDwellers').mockReturnValueOnce(
+    new Promise<void>((resolve) => {
+      resolveRoster = resolve
+    })
+  )
+  const filteredSpy = vi.spyOn(filter, 'fetchWithCurrentFilters').mockImplementation(async () => {
+    setFilteredDwellers([bob])
+  })
+  vi.mocked(axios.post).mockResolvedValueOnce({ data: [] })
+  // Preload the dweller barrel: the room store reaches it through a lazy import.
+  await import('@/modules/dwellers/stores/dweller')
+
+  const refresh = roomStore.remodelRoom('r1')
+  await flushPromises()
+  expect(rosterSpy).toHaveBeenCalledWith('vault-1', false, true)
+  expect(filteredSpy).not.toHaveBeenCalled()
+  expect(wrapper.findAll('.dweller-avatar')).toHaveLength(1)
+  expect(wrapper.get('.dweller-avatar').attributes('aria-label')).toContain('Alice Smith')
+
+  filter.allDwellers = [alice, bob] as never
+  filter.allDwellersLoadedVaultId = 'vault-1'
+  resolveRoster()
+  await refresh
+  await nextTick()
+
+  expect(filteredSpy).toHaveBeenCalledWith('vault-1')
+  expect(wrapper.findAll('.dweller-avatar')).toHaveLength(1)
+  expect(wrapper.get('.dweller-avatar').attributes('aria-label')).toContain('Alice Smith')
+})
+
+it('ignores a roster loaded for a different vault', () => {
+  const filter = useDwellerFilterStore()
+  filter.allDwellers = [alice] as never
+  filter.allDwellersLoadedVaultId = 'vault-1'
+  useVaultStore().activeVaultId = 'vault-2'
+  setFilteredDwellers([])
+
+  const wrapper = mountDwellers()
+
+  expect(wrapper.find('.dweller-avatar').exists()).toBe(false)
 })

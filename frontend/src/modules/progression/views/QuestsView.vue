@@ -5,6 +5,7 @@ import { useLocalStorage } from '@vueuse/core'
 import { useQuestStore } from '@/modules/progression/stores/quest'
 import { useRoomStore } from '@/modules/rooms/stores/room'
 import { useAuthStore } from '@/modules/auth/stores/auth'
+import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import SidePanel from '@/core/components/common/SidePanel.vue'
 import PageContentRail from '@/core/components/common/PageContentRail.vue'
@@ -47,6 +48,7 @@ const router = useRouter()
 const questStore = useQuestStore()
 const roomStore = useRoomStore()
 const authStore = useAuthStore()
+const vaultStore = useVaultStore()
 const { filter: dwellerStore } = useDwellerStore()
 const { isCollapsed } = useSidePanel()
 const toast = useToast()
@@ -335,7 +337,11 @@ async function loadVault(id: string): Promise<void> {
   const token = authStore.token || localStorage.getItem('token')?.replace(/^"|"$/g, '')
   if (!token) return
   const session = authStore.sessionGeneration
+  // Guarded reads reject for the previous active vault, so adopt this vault first.
+  await vaultStore.ensureVaultLoaded(id).catch(() => undefined)
+  if (id !== vaultId.value || session !== authStore.sessionGeneration) return
   await roomStore.fetchRooms(id)
+  if (id !== vaultId.value || session !== authStore.sessionGeneration) return
   await dwellerStore.fetchDwellersByVault(id)
   // A switch may have superseded this load while it was paused on the earlier steps.
   if (id !== vaultId.value || session !== authStore.sessionGeneration) return

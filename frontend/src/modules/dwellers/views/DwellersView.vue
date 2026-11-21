@@ -435,26 +435,35 @@ const fetchDwellers = async (signal?: AbortSignal) => {
  */
 async function loadVaultOverview(): Promise<void> {
   const id = vaultId.value
+  const session = authStore.sessionGeneration
   if (!authStore.isAuthenticated || !id) return
 
   vaultLoadError.value = null
   isAllDwellersLoading.value = true
   isIncidentsLoading.value = true
-  await Promise.all([
-    fetchDwellers(),
-    vaultStore.ensureVaultLoaded(id).catch((error: unknown) => {
+  try {
+    // The guarded reads reject for the previous active vault, so adopt this vault first.
+    await vaultStore.ensureVaultLoaded(id).catch((error: unknown) => {
       vaultLoadError.value = error instanceof Error ? error.message : 'Failed to load vault'
-    }),
-    dwellerStore.fetchAllDwellers(id).finally(() => {
-      isAllDwellersLoading.value = false
-    }),
-    incidentStore.fetchIncidents(id, authStore.token as string).finally(() => {
-      isIncidentsLoading.value = false
-    }),
-    roomStore.fetchRooms(id),
-    // Recall gating reads the exploration store; a failed load must not block the roster.
-    explorationStore.fetchExplorationsByVault(id).catch(() => undefined),
-  ])
+    })
+    if (
+      vaultLoadError.value !== null ||
+      vaultId.value !== id ||
+      authStore.sessionGeneration !== session
+    )
+      return
+    await Promise.all([
+      fetchDwellers(),
+      dwellerStore.fetchAllDwellers(id),
+      incidentStore.fetchIncidents(id, authStore.token as string),
+      roomStore.fetchRooms(id),
+      // Recall gating reads the exploration store; a failed load must not block the roster.
+      explorationStore.fetchExplorationsByVault(id).catch(() => undefined),
+    ])
+  } finally {
+    isAllDwellersLoading.value = false
+    isIncidentsLoading.value = false
+  }
 }
 
 const retryVaultLoad = async (): Promise<void> => {

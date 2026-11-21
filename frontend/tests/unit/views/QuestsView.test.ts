@@ -6,6 +6,8 @@ import QuestsView from '@/modules/progression/views/QuestsView.vue'
 import { useQuestStore } from '@/modules/progression/stores/quest'
 import { useRoomStore } from '@/modules/rooms/stores/room'
 import { useVaultStore } from '@/modules/vault/stores/vault'
+import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
+import { useAuthStore } from '@/modules/auth/stores/auth'
 
 const routerReplaceMock = vi.hoisted(() => vi.fn())
 const routerPushMock = vi.hoisted(() => vi.fn())
@@ -46,6 +48,7 @@ describe('QuestsView', () => {
     // Prevent unhandled rejections from real HTTP calls during onMounted
     vi.spyOn(questStore, 'fetchAllQuests').mockResolvedValue()
     vi.spyOn(questStore, 'fetchVaultQuests').mockResolvedValue()
+    vi.spyOn(_vaultStore, 'ensureVaultLoaded').mockResolvedValue()
     vi.spyOn(questStore, 'fetchPartiesForActiveQuests').mockResolvedValue()
   })
 
@@ -55,6 +58,38 @@ describe('QuestsView', () => {
     if (pinia) disposePinia(pinia)
     vi.useRealTimers()
     document.querySelectorAll('[role="tooltip"]').forEach((element) => element.remove())
+  })
+
+  it('stops before the dweller read when the session changes during the room fetch', async () => {
+    localStorage.setItem('token', 'test-token')
+    const authStore = useAuthStore()
+    const dwellerStore = useDwellerStore().filter
+    const fetchDwellersSpy = vi
+      .spyOn(dwellerStore, 'fetchDwellersByVault')
+      .mockResolvedValue()
+    let resolveRooms!: (value: 'loaded') => void
+    vi.spyOn(roomStore, 'fetchRooms').mockImplementation(
+      () =>
+        new Promise<'loaded'>((resolve) => {
+          resolveRooms = resolve
+        })
+    )
+
+    wrapper = mount(QuestsView, {
+      global: {
+        stubs: {
+          SidePanel: true,
+          Icon: true,
+        },
+      },
+    })
+    await flushPromises()
+
+    authStore.sessionGeneration++
+    resolveRooms('loaded')
+    await flushPromises()
+
+    expect(fetchDwellersSpy).not.toHaveBeenCalled()
   })
 
   describe('Overseer Office Lock', () => {

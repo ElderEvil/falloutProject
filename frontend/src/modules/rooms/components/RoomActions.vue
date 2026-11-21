@@ -43,8 +43,12 @@ const isInnerRoom = computed(
   () => props.room.name.toLowerCase() !== 'elevator' && !isRoomAtRowEnd(roomStore.rooms, props.room)
 )
 
+// The backend refuses to split the unique Radio studio, so never offer it.
 const canSplit = computed(
-  () => canRemodelRoom(props.room) && (props.room.size ?? props.room.size_min) > props.room.size_min
+  () =>
+    props.room.name.toLowerCase() !== 'radio studio' &&
+    canRemodelRoom(props.room) &&
+    (props.room.size ?? props.room.size_min) > props.room.size_min
 )
 const mergeCandidates = computed(() => getMergeCandidates(roomStore.rooms, props.room))
 const busy = computed(

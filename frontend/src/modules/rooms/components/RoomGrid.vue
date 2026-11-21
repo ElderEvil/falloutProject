@@ -8,6 +8,7 @@ import { useRoomStore } from '../stores/room'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
+import { useVaultRoster } from '@/modules/dwellers/composables/useVaultRoster'
 import { useTrainingStore } from '@/modules/progression/stores/training'
 import TerminalConfirmation from '@/core/components/common/TerminalConfirmation.vue'
 import { useRoomInteractions } from '../composables/useRoomInteractions'
@@ -58,6 +59,7 @@ const roomStore = useRoomStore()
 const authStore = useAuthStore()
 const vaultStore = useVaultStore()
 const { filter: dwellerStore, management: dwellerManagementStore } = useDwellerStore()
+const roster = useVaultRoster()
 const trainingStore = useTrainingStore()
 const toast = useToast()
 const rooms = computed(() => (Array.isArray(roomStore.rooms) ? roomStore.rooms : []))
@@ -212,10 +214,10 @@ const handleDrop = async (event: DragEvent, roomId: string) => {
     // Check room capacity. Youth apprentices sit outside worker capacity
     // (backend policy: one per production room) — gate adults on staffed
     // slots only; apprentices never count toward them.
-    const dweller = dwellerStore.dwellers.find((d) => d.id === dwellerId)
+    const dweller = roster.value.find((d) => d.id === dwellerId)
     if (targetRoom && (!dweller || ADULT_AGE_GROUPS.has(dweller.age_group))) {
       const capacity = getTrainingRoomCapacity(targetRoom)
-      const staffedDwellers = dwellerStore.dwellers.filter(
+      const staffedDwellers = roster.value.filter(
         (d) => d.room_id === roomId && !d.apprentice_stat
       ).length
       if (staffedDwellers >= capacity) {

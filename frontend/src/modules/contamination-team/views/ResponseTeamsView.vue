@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useToast } from '@/core/composables/useToast'
 import { useRoomStore } from '@/modules/rooms/stores/room'
+import { useVaultStore } from '@/modules/vault/stores/vault'
 
 /**
  * Compatibility route for the retired standalone Response Teams page.
@@ -16,6 +17,7 @@ const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
 const roomStore = useRoomStore()
+const vaultStore = useVaultStore()
 const toast = useToast()
 
 const vaultId = computed(() => route.params.id as string)
@@ -31,19 +33,36 @@ async function openStationOrExplain(): Promise<void> {
   const token = authStore.token
   if (!id || typeof token !== 'string' || !token || handled.value) return
 
+  // Guarded reads reject for the previous active vault, so adopt this vault first.
+  const session = authStore.sessionGeneration
+  let adopted = true
+  await vaultStore.ensureVaultLoaded(id).catch(() => {
+    adopted = false
+  })
+  if (disposed.value || id !== vaultId.value || session !== authStore.sessionGeneration) return
+  if (!adopted) {
+    handled.value = true
+    await router.replace({ path: `/vault/${id}` })
+    return
+  }
+
+  const stale = () =>
+    disposed.value || id !== vaultId.value || session !== authStore.sessionGeneration
+
   let result = await roomStore.fetchRooms(id)
-  if (disposed.value || id !== vaultId.value) return
+  if (stale()) return
 
   // A superseded load lost a race to a newer request; retry so the redirect reads
   // that request's state instead of reporting a load that simply lost the race.
   for (let attempt = 0; result === 'superseded' && attempt < 3; attempt++) {
     result = await roomStore.fetchRooms(id)
-    if (disposed.value || id !== vaultId.value) return
+    if (stale()) return
   }
 
   handled.value = true
 
-  if (result === 'failed') {
+  // An unread layout must not decide between station and explanation.
+  if (result !== 'loaded' || roomStore.roomsLoadedVaultId !== id) {
     await router.replace({ path: `/vault/${id}` })
     return
   }

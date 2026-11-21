@@ -73,6 +73,7 @@ async function mountLoadedVault() {
   vi.spyOn(roomStore, 'fetchBuildableRooms').mockResolvedValue()
   vi.spyOn(roomStore, 'deselectRoom').mockImplementation(() => {})
   vi.spyOn(dwellerStore, 'fetchDwellersByVault').mockResolvedValue()
+  vi.spyOn(dwellerStore, 'fetchAllDwellers').mockResolvedValue()
   vi.spyOn(explorationStore, 'fetchExplorationsByVault').mockResolvedValue()
   vi.spyOn(incidentStore, 'startPolling').mockImplementation(() => {})
 
@@ -91,7 +92,7 @@ async function mountLoadedVault() {
   })
   await flushPromises()
 
-  return { wrapper, roomStore }
+  return { wrapper, roomStore, filter: dwellerStore }
 }
 
 const buildDialog = (wrapper: ReturnType<typeof mount>) =>
@@ -130,6 +131,69 @@ describe('VaultView', () => {
     await flushPromises()
     expect(wrapper.text()).not.toContain('Review incident report')
     wrapper.unmount()
+  })
+
+  it('loads the unfiltered vault roster on overview entry', async () => {
+    const { filter } = await mountLoadedVault()
+
+    expect(filter.fetchAllDwellers).toHaveBeenCalledWith('vault-1')
+  })
+
+  it('drops a superseded vault load before it reads the old vault', async () => {
+    const authStore = useAuthStore()
+    const vaultStore = useVaultStore()
+    const roomStore = useRoomStore()
+    const { filter: dwellerStore } = useDwellerStore()
+    const explorationStore = useExplorationStore()
+    const incidentStore = useIncidentStore()
+
+    authStore.token = 'test-token'
+    vaultStore.loadedVaults['vault-1'] = vaultFixture
+    vaultStore.loadedVaults['vault-2'] = { ...vaultFixture, id: 'vault-2' }
+    vi.spyOn(vaultStore, 'fetchVaults').mockResolvedValue(true)
+    vi.spyOn(vaultStore, 'fetchGameState').mockResolvedValue()
+    vi.spyOn(vaultStore, 'startResourcePolling').mockImplementation(() => {})
+    vi.spyOn(roomStore, 'fetchRooms').mockResolvedValue('loaded')
+    vi.spyOn(roomStore, 'fetchBuildableRooms').mockResolvedValue()
+    vi.spyOn(dwellerStore, 'fetchDwellersByVault').mockResolvedValue()
+    vi.spyOn(dwellerStore, 'fetchAllDwellers').mockResolvedValue()
+    vi.spyOn(explorationStore, 'fetchExplorationsByVault').mockResolvedValue()
+    vi.spyOn(incidentStore, 'startPolling').mockImplementation(() => {})
+
+    let resolveStale!: () => void
+    let resolveCurrent!: () => void
+    vi.spyOn(vaultStore, 'revalidateVault').mockImplementation((id) =>
+      id === 'vault-1'
+        ? new Promise<void>((resolve) => {
+            resolveStale = resolve
+          })
+        : new Promise<void>((resolve) => {
+            resolveCurrent = resolve
+          })
+    )
+
+    const router = createRouter({
+      history: createMemoryHistory(),
+      routes: [
+        { path: '/', component: { template: '<div />' } },
+        { path: '/vault/:id?', component: VaultView },
+      ],
+    })
+    await router.push('/vault/vault-1')
+    await router.isReady()
+    mount(VaultView, { global: { plugins: [router], stubs } })
+    await flushPromises()
+
+    await router.push('/vault/vault-2')
+    await flushPromises()
+    resolveCurrent()
+    await flushPromises()
+    expect(roomStore.fetchRooms).toHaveBeenCalledTimes(1)
+    expect(roomStore.fetchRooms).toHaveBeenCalledWith('vault-2')
+
+    resolveStale()
+    await flushPromises()
+    expect(roomStore.fetchRooms).toHaveBeenCalledTimes(1)
   })
 
   it('renders the vault loading error state with a way back', async () => {

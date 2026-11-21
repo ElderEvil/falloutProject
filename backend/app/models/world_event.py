@@ -55,6 +55,8 @@ class WorldEvent(BaseUUIDModel, WorldEventBase, TimeStampMixin, table=True):
             "status",
             unique=True,
             postgresql_where=text("status = 'ACTIVE'"),
+            # Mirrors the PG partial index so SQLite tests enforce the same rule.
+            sqlite_where=text("status = 'ACTIVE'"),
         ),
     )
 

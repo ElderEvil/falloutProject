@@ -148,7 +148,8 @@ async def test_completed_daily_is_reset_and_can_be_started_again(async_session, 
     )
     await async_session.commit()
 
-    assert await ensure_current_quest_rotation(async_session, vault.id, now=TUESDAY) == DAILY_COUNT
+    # Real clock: the offer-period guard in start_quest compares against utcnow().
+    assert await ensure_current_quest_rotation(async_session, vault.id) == DAILY_COUNT
 
     await async_session.refresh(spent)
     assert not spent.is_completed
@@ -289,20 +290,22 @@ async def test_failed_roll_persists_nothing(async_session, vault, monkeypatch):
     state = await game_state_crud.get_or_create(async_session, vault.id)
     await async_session.commit()
 
-    original = quest_crud.get_links_for_quest_ids
+    original = quest_crud.insert_links_if_absent
     calls = 0
 
-    async def fail_second_pool(db_session, vault_id, quest_ids):
+    async def fail_second_pool(db_session, vault_id, visibility):
         nonlocal calls
         calls += 1
         if calls == 2:
             raise RuntimeError("late rotation failure")
-        return await original(db_session, vault_id, quest_ids)
+        return await original(db_session, vault_id, visibility)
 
-    monkeypatch.setattr(quest_crud, "get_links_for_quest_ids", fail_second_pool)
+    monkeypatch.setattr(quest_crud, "insert_links_if_absent", fail_second_pool)
     with pytest.raises(RuntimeError):
         await ensure_current_quest_rotation(async_session, vault.id, now=MONDAY)
     assert calls == 2
+    # The first pool's insert is a real write, visible in the still-open transaction.
+    assert await quest_crud.get_link(async_session, quest_id=unlinked_daily_id, vault_id=vault_id) is not None
 
     await async_session.rollback()
     for link in links:

@@ -11,6 +11,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app import crud
 from app.core.enums import DwellerStatusEnum, QuestType
 from app.core.event_bus import GameEvent, event_bus
+from app.crud.game_state import game_state_crud
 from app.crud.quest import SCHEDULED_QUEST_TYPES
 from app.models.quest import Quest
 from app.models.vault_quest import VaultQuestCompletionLink
@@ -28,7 +29,12 @@ from app.services.progression.quests.requirements import (
 from app.services.reward_service import reward_service
 from app.services.team_service import team_service
 from app.utils.dweller_availability import DwellerAction, availability_error
-from app.utils.exceptions import AccessDeniedException, ValidationException, ensure_found
+from app.utils.exceptions import (
+    AccessDeniedException,
+    ResourceConflictException,
+    ValidationException,
+    ensure_found,
+)
 from app.utils.quest_duration import (
     STATE_QUEST_CATEGORIES,
     effective_quest_duration_minutes,
@@ -69,7 +75,7 @@ class QuestService:
                 # Keep one quest failure isolated; the raw-session completion path is tested end to end.
                 # The rollback releases any row locks the failed attempt held.
                 await db_session.rollback()
-                logger.exception(f"Failed to start return for quest {link.quest_id} for vault {link.vault_id}")
+                logger.exception(f"Failed to start return for quest {quest_id} for vault {candidate_vault_id}")
             else:
                 logger.info(f"Quest {quest_id} party is travelling home for vault {candidate_vault_id}")
 
@@ -85,7 +91,7 @@ class QuestService:
                 # Keep one quest failure isolated; the raw-session completion path is tested end to end.
                 # The rollback releases any row locks the failed attempt held.
                 await db_session.rollback()
-                logger.exception(f"Failed to auto-complete quest {link.quest_id} for vault {link.vault_id}")
+                logger.exception(f"Failed to auto-complete quest {quest_id} for vault {candidate_vault_id}")
             else:
                 completed_count += 1
                 logger.info(f"Quest {quest_id} is ready to claim for vault {candidate_vault_id}")
@@ -139,6 +145,19 @@ class QuestService:
         await db_session.refresh(link)
         if not link.is_visible:
             raise AccessDeniedException("Quest is not currently offered")
+
+        quest = await crud.quest_crud.get_or_none(db_session, quest_id)
+        quest = ensure_found(quest, Quest, identifier=quest_id)
+        if quest.quest_type in (QuestType.DAILY, QuestType.REPEATABLE):
+            # The offer was revealed by the rotation of its period; under this same vault
+            # lock a stale stamp means the visible set is expired and dispatching it
+            # would hand out yesterday's draw. The client's next read rotates and retries.
+            state = await game_state_crud.get_or_create(db_session, vault_id, commit=False)
+            daily, weekly = objective_periods(utcnow())
+            stamped = state.daily_quests_period if quest.quest_type == QuestType.DAILY else state.weekly_quests_period
+            current = daily if quest.quest_type == QuestType.DAILY else weekly
+            if stamped is None or stamped < current:
+                raise ResourceConflictException("Quest offer has expired; refresh the quest list and retry")
         if link.is_completed:
             raise AccessDeniedException("Quest already completed")
         if link.started_at is not None:

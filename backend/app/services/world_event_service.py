@@ -27,6 +27,13 @@ logger = logging.getLogger(__name__)
 # Fallback when an event's own window is degenerate (ends_at at or before starts_at).
 DEFAULT_EXTENSION_WINDOW = timedelta(days=1)
 
+# Which contribution sources each event kind accepts. A kind missing here still credits (with a
+# warning) so a newly seeded kind cannot silently stop counting.
+CONTRIBUTION_SOURCES: dict[str, frozenset[str]] = {
+    "BLACKOUT_WATCH": frozenset({"incident"}),
+    "WASTELAND_RELAY": frozenset({"expedition"}),
+}
+
 
 def _extension_window(event: WorldEvent) -> timedelta:
     """One extension worth of time: the event's original window, floored to a day."""
@@ -40,7 +47,7 @@ class WorldEventService:
     async def record_contribution(self, db_session: AsyncSession, vault_id: UUID, amount: int, *, kind: str) -> None:
         """Credit the ACTIVE event from ordinary play; never raises into the caller.
 
-        ``kind`` names the contributing source for attribution in logs. The caller owns the
+        ``kind`` names the contributing source; the ACTIVE event's kind must accept it.
         transaction: this method only stages changes. No-op when there is no ACTIVE event or
         the amount is non-positive. A concurrent first-time insert may drop one contribution,
         which is preferable to a 500 on the exploration path.
@@ -141,6 +148,12 @@ class WorldEventService:
         await db_session.flush()
         event = await world_event_crud.get_for_update(db_session, current.id)
         if event is None or event.status != WorldEventStatus.ACTIVE:
+            return
+
+        sources = CONTRIBUTION_SOURCES.get(event.kind)
+        if sources is None:
+            logger.warning("World event kind %r has no contribution sources; crediting %s", event.kind, kind)
+        elif kind not in sources:
             return
 
         participation = await world_event_crud.get_participation_for_update(db_session, event.id, vault_id)

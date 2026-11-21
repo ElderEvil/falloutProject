@@ -17,6 +17,7 @@ from app.core.enums import WorldEventStatus
 from app.crud import world_event as world_event_crud
 from app.models.world_event import WorldEvent, WorldEventParticipation
 from app.schemas.world_event import WorldEventClaimRead, WorldEventRead
+from app.services.notification_service import NotificationService
 from app.services.reward_service import reward_service
 from app.utils.exceptions import ResourceConflictException, ValidationException
 from app.utils.reward_delivery import defer_reward_delivery
@@ -39,6 +40,12 @@ def _extension_window(event: WorldEvent) -> timedelta:
     """One extension worth of time: the event's original window, floored to a day."""
     window = event.ends_at - event.starts_at
     return window if window > timedelta(0) else DEFAULT_EXTENSION_WINDOW
+
+
+def _reward_summary(reward: list[dict[str, Any]]) -> str:
+    """One-line summary for the completion notification, e.g. ``2000 caps + 1 lunchbox``."""
+    parts = [f"{item.get('amount', 1)} {item.get('reward_type', 'reward')}" for item in reward]
+    return " + ".join(parts) or "no reward"
 
 
 class WorldEventService:
@@ -65,8 +72,12 @@ class WorldEventService:
             change = await self._advance(db_session)
             await db_session.commit()
         except Exception:
+            NotificationService.discard_deferred_notifications(db_session)
             await db_session.rollback()
             raise
+        # Completion notifications are staged inside the transaction and only pushed now, so a
+        # rolled-back advance never tells anyone the event is done.
+        await NotificationService.deliver_deferred_notifications(db_session)
         return change
 
     async def get_state(self, db_session: AsyncSession, vault_id: UUID) -> WorldEventRead:
@@ -210,6 +221,7 @@ class WorldEventService:
         if event.progress_amount >= event.target_amount:
             event.status = WorldEventStatus.COMPLETED
             db_session.add(event)
+            await self._notify_completed(db_session, event)
             return self._change("completed", event)
         if now < event.ends_at:
             return self._change(None, event)
@@ -221,6 +233,24 @@ class WorldEventService:
         event.status = WorldEventStatus.EXPIRED
         db_session.add(event)
         return self._change("expired", event)
+
+    async def _notify_completed(self, db_session: AsyncSession, event: WorldEvent) -> None:
+        """Stage one completion notification per participating vault; ``advance`` delivers it."""
+        reward_summary = _reward_summary(event.reward or [])
+        for vault_id in await world_event_crud.list_participant_vault_ids(db_session, event.id):
+            await NotificationService.notify_owner(
+                db_session,
+                vault_id,
+                context=f"world event completed vault={vault_id} event={event.id}",
+                sender=lambda user_id, vault_id=vault_id: NotificationService.notify_world_event_completed(
+                    db_session,
+                    user_id=user_id,
+                    vault_id=vault_id,
+                    event_id=event.id,
+                    event_title=event.title,
+                    reward_summary=reward_summary,
+                ),
+            )
 
     @staticmethod
     def _change(action: str | None, event: WorldEvent | None) -> dict[str, Any]:

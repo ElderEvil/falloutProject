@@ -99,6 +99,13 @@ class CRUDWorldEvent(CRUDBase[WorldEvent, None, None]):
         )
         return list(result.scalars().all())
 
+    async def list_participant_vault_ids(self, db_session: AsyncSession, event_id: UUID) -> list[UUID]:
+        """Every vault that contributed to one event, for completion fan-out."""
+        result = await db_session.execute(
+            select(col(WorldEventParticipation.vault_id)).where(WorldEventParticipation.world_event_id == event_id)
+        )
+        return list(result.scalars().all())
+
     async def totals(self, db_session: AsyncSession, event_id: UUID) -> tuple[int, int]:
         """(distinct participating vaults, summed contributions) for one event."""
         result = await db_session.execute(

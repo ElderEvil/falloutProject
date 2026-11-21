@@ -483,6 +483,7 @@ class NotificationType(StrEnum):
 
     LOCATION_CLEARED = "location_cleared"
     LOCATION_READY = "location_ready"
+    WORLD_EVENT_COMPLETED = "world_event_completed"
 
 
 class NotificationPriority(StrEnum):

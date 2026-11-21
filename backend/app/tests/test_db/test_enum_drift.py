@@ -102,6 +102,7 @@ PG_ENUM_LABELS_SNAPSHOT: dict[str, set[str]] = {
         "MAP_REGISTRATION_FAILED",
         "LOCATION_CLEARED",
         "LOCATION_READY",
+        "WORLD_EVENT_COMPLETED",
     },
     "outfittypeenum": {"COMMON", "RARE", "LEGENDARY", "POWER_ARMOR", "TIERED"},
     "placekind": {"PLACE", "VAULT"},

@@ -8,7 +8,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
 from app import crud
-from app.core.enums import WorldEventStatus
+from app.core.enums import NotificationType, WorldEventStatus
+from app.models.notification import Notification
 from app.models.vault import Vault
 from app.models.world_event import WorldEvent, WorldEventParticipation
 from app.schemas.user import UserCreate
@@ -190,6 +191,55 @@ async def test_advance_completes_at_target(async_session: AsyncSession) -> None:
 
     assert result["action"] == "completed"
     assert event.status == WorldEventStatus.COMPLETED
+
+
+async def test_advance_completion_notifies_participants_only(async_session: AsyncSession) -> None:
+    event = await _create_event(async_session, target_amount=10)
+    participants = [await _create_vault(async_session) for _ in range(2)]
+    bystander = await _create_vault(async_session)
+    for vault in participants:
+        await _create_participation(async_session, event, vault.id, 5)
+    event.progress_amount = 10
+    async_session.add(event)
+    await async_session.commit()
+
+    result = await world_event_service.advance(async_session)
+
+    assert result["action"] == "completed"
+    notified = (
+        (
+            await async_session.execute(
+                select(Notification.vault_id).where(
+                    Notification.notification_type == NotificationType.WORLD_EVENT_COMPLETED
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    assert sorted(notified) == sorted(vault.id for vault in participants)
+    assert bystander.id not in notified
+
+
+async def test_second_advance_does_not_renotify(async_session: AsyncSession) -> None:
+    event = await _create_event(async_session, target_amount=10)
+    vault = await _create_vault(async_session)
+    await _create_participation(async_session, event, vault.id, 10)
+    event.progress_amount = 10
+    async_session.add(event)
+    await async_session.commit()
+
+    await world_event_service.advance(async_session)
+    await world_event_service.advance(async_session)
+
+    count = (
+        await async_session.execute(
+            select(func.count())
+            .select_from(Notification)
+            .where(Notification.notification_type == NotificationType.WORLD_EVENT_COMPLETED)
+        )
+    ).scalar_one()
+    assert count == 1
 
 
 async def test_advance_extends_once_then_expires(async_session: AsyncSession) -> None:

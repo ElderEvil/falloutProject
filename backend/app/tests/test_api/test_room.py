@@ -570,6 +570,48 @@ async def test_split_and_merge_room_endpoints(async_client, async_session, vault
     assert merge.json()["size"] == 6
 
 
+@pytest.mark.asyncio
+async def test_build_endpoint_extends_upgraded_radio_studio(
+    async_client: AsyncClient,
+    superuser_token_headers: dict[str, str],
+    async_session: AsyncSession,
+    vault: Vault,
+) -> None:
+    """An adjacent segment beside a tier-2 studio adopts that tier, merges, and pays the tier upgrade."""
+    from app.schemas.dweller import DwellerCreate
+    from app.tests.factory.dwellers import create_random_common_dweller
+    from app.tests.test_services.test_room_service import _create_elevator, _create_radio_studio
+
+    vault.bottle_caps = 10_000
+    async_session.add(vault)
+    await async_session.commit()
+    for _ in range(20):
+        await crud.dweller.create(
+            async_session, obj_in=DwellerCreate(**create_random_common_dweller(), vault_id=vault.id)
+        )
+    studio = await _create_radio_studio(async_session, vault.id, coordinate_x=1, coordinate_y=1)
+    await _create_elevator(async_session, vault.id, 1, coordinate_x=0)
+    await room_service.upgrade_room(async_session, studio.id)
+    await async_session.refresh(vault)
+    starting_caps = vault.bottle_caps
+
+    response = await async_client.post(
+        "/rooms/build/",
+        json={"vault_id": str(vault.id), "room_name": "Radio studio", "coordinate_x": 4, "coordinate_y": 1},
+        headers=superuser_token_headers,
+    )
+
+    assert response.status_code == 200
+    grown = response.json()
+    assert grown["id"] == str(studio.id)
+    assert grown["tier"] == 2
+    assert grown["size"] == 6
+    await async_session.refresh(vault)
+    # Catalog pricing: base 600 + one segment * incremental 150, plus 1500 to raise the added segment to tier 2.
+    assert vault.bottle_caps == starting_caps - 2250
+    assert (await crud.room.get_names_by_vault(async_session, vault.id)).count("Radio studio") == 1
+
+
 @pytest.mark.parametrize("action", ["split", "merge"])
 async def test_room_remodel_requires_ownership(async_client, async_session, vault, action):
     from app.tests.test_services.test_room_service import _create_existing_room

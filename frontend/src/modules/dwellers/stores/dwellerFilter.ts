@@ -296,6 +296,9 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
 
   const { run: runFetchDwellers, isLoading } = useAsyncAction(
     async (vaultId: string, options?: DwellerFetchOptions) => {
+      // An off-vault read must not bump the request counter or supersede the active vault's page.
+      const activeVaultAtStart = useVaultStore().activeVaultId
+      if (activeVaultAtStart && activeVaultAtStart !== vaultId) return
       const requestSeq = ++dwellersRequestSeq
       const session = authStore.sessionGeneration
       const tickEpochAtStart = tickEpoch
@@ -558,11 +561,19 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
   }
 
   async function loadAllDwellers(vaultId: string): Promise<boolean> {
+    // An off-vault read must be rejected before it clears the active vault's roster.
+    const requestedForActiveVault = useVaultStore().activeVaultId
+    if (requestedForActiveVault && requestedForActiveVault !== vaultId) return false
     const session = authStore.sessionGeneration
     const tickEpochAtStart = tickEpoch
     const knownIds = new Set(allDwellers.value.map((d) => d.id))
-    allDwellers.value = []
-    allDwellersLoadedVaultId.value = null
+    const retainsRoster =
+      allDwellersLoadedVaultId.value === vaultId &&
+      (!requestedForActiveVault || requestedForActiveVault === vaultId)
+    if (!retainsRoster) {
+      allDwellers.value = []
+      allDwellersLoadedVaultId.value = null
+    }
     allDwellersVaultId = vaultId
     const requestSeq = ++allDwellersRequestSeq
 
@@ -744,7 +755,9 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
       void fetchWithCurrentFilters(vaultId)
     }
     if (rosterLoaded && hasNewDweller) {
-      void fetchAllDwellers(vaultId, false, true)
+      // Share a pending roster refresh instead of forcing one per tick; the next tick retries if
+      // that response predates the new dweller. Mutation refreshes stay forced.
+      void fetchAllDwellers(vaultId)
     }
   }
 

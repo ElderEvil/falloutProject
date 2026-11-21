@@ -379,6 +379,30 @@ class CRUDRoom(CRUDBase[Room, RoomCreate, RoomUpdate]):
         return list((await db_session.execute(query)).scalars().all())
 
     @staticmethod
+    async def get_adjacent_room_tiers(
+        *,
+        db_session: AsyncSession,
+        vault_id: UUID,
+        name: str,
+        coordinate_x: int,
+        coordinate_y: int,
+        size: int,
+    ) -> list[int]:
+        """Tiers of same-name rooms on the same row whose footprint touches the candidate's."""
+        existing_size = func.coalesce(Room.size, Room.size_min)
+        query = select(Room.tier).where(
+            Room.vault_id == vault_id,
+            Room.name == name,
+            Room.coordinate_y == coordinate_y,
+            Room.coordinate_x.is_not(None),
+            or_(
+                (Room.coordinate_x + existing_size) == coordinate_x,
+                (coordinate_x + size) == Room.coordinate_x,
+            ),
+        )
+        return list((await db_session.execute(query)).scalars().all())
+
+    @staticmethod
     async def get_room_build_price(*, db_session: AsyncSession, room_in: RoomCreate) -> int:
         """Build price = base cost plus incremental cost per built segment of this room type;
         unique rooms (zero/null incremental cost) charge only their base price.

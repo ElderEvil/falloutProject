@@ -13,7 +13,10 @@ type GridConfig = components['schemas']['GridConfig']
 
 export const roomApi = {
   getByVault: (vaultId: string, limit: number) =>
-    apiGet<Room[]>(`/api/v1/rooms/vault/${vaultId}/`, { params: { limit } }),
+    apiGet<Room[]>(`/api/v1/rooms/vault/${vaultId}/`, {
+      params: { limit },
+      skipErrorNotification: true,
+    }),
 
   getBuildable: (vaultId: string) => apiGet<RoomTemplate[]>(`/api/v1/rooms/buildable/${vaultId}/`),
 

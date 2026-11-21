@@ -1,6 +1,7 @@
 import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
 import type { components } from '@/core/types/api.generated'
+import type { DwellerShort } from '@/modules/dwellers/models/dweller'
 import type {
   Room,
   RoomBuild,
@@ -9,6 +10,7 @@ import type {
   RoomStyleValue,
   RoomTemplate,
 } from '../models/room'
+import { roomStyle } from '../models/room'
 import { roomApi } from '../api/room'
 import {
   FLOOR_UNITS,
@@ -72,10 +74,9 @@ export const useRoomStore = defineStore('room', () => {
     if (vaultStore.activeVaultId && vaultStore.activeVaultId !== vaultId) return
     const { useDwellerStore } = await import('@/modules/dwellers/stores/dweller')
     const { filter } = useDwellerStore()
-    await Promise.allSettled([
-      filter.fetchWithCurrentFilters(vaultId),
-      filter.fetchAllDwellers(vaultId, false, true),
-    ])
+    // Roster first: tiles switch to it before a filtered page replacement lands.
+    await Promise.allSettled([filter.fetchAllDwellers(vaultId, false, true)])
+    await Promise.allSettled([filter.fetchWithCurrentFilters(vaultId)])
     await roomsReady
     const activeVaultId = vaultStore.activeVaultId
     if (
@@ -96,18 +97,29 @@ export const useRoomStore = defineStore('room', () => {
   }
 
   async function fetchRooms(vaultId: string, throwOnError = false): Promise<FetchRoomsResult> {
+    // An off-vault read must not supersede the active vault's read or publish a foreign layout.
+    const activeVaultId = useVaultStore().activeVaultId
+    if (activeVaultId && activeVaultId !== vaultId) return 'superseded'
     const requestSequence = ++fetchRoomsRequestSequence
-
+    const generation = authStore.sessionGeneration
+    const stale = () => {
+      const nowActive = useVaultStore().activeVaultId
+      return (
+        requestSequence !== fetchRoomsRequestSequence ||
+        (nowActive !== null && nowActive !== vaultId) ||
+        authStore.sessionGeneration !== generation
+      )
+    }
     try {
       // Every room occupies at least one unit, so this covers the entire grid.
       const fetched = await roomApi.getByVault(vaultId, floorUnits.value * (yMax.value + 1))
-      if (requestSequence !== fetchRoomsRequestSequence) return 'superseded'
+      if (stale()) return 'superseded'
       rooms.value = fetched
       roomsLoadedVaultId.value = vaultId
       return 'loaded'
     } catch (error) {
+      if (stale()) return 'superseded'
       handleStoreError(error, 'Failed to fetch rooms')
-      if (requestSequence !== fetchRoomsRequestSequence) return 'superseded'
       rooms.value = [] // Reset to empty array on error
       roomsLoadedVaultId.value = null
       if (throwOnError) throw error
@@ -131,12 +143,33 @@ export const useRoomStore = defineStore('room', () => {
     }
   }
 
+  // The backend merges the same name/tier/style component and the survivor keeps the candidate's id,
+  // so every such room inside the survivor's span was absorbed.
+  function absorbMergeNeighbours(built: Room): Room[] {
+    const builtStart = built.coordinate_x ?? 0
+    const builtEnd = builtStart + (built.size ?? built.size_min)
+    return rooms.value.filter(
+      (room) =>
+        room.id !== built.id &&
+        room.name === built.name &&
+        room.coordinate_y === built.coordinate_y &&
+        (room.tier ?? 1) === (built.tier ?? 1) &&
+        roomStyle(room) === roomStyle(built) &&
+        (room.coordinate_x ?? 0) >= builtStart &&
+        (room.coordinate_x ?? 0) + (room.size ?? room.size_min) <= builtEnd
+    )
+  }
+
   async function buildRoom(
     roomName: string,
     coordinateX: number,
     coordinateY: number,
     vaultId: string
   ): Promise<'built' | 'extended'> {
+    const vaultStore = useVaultStore()
+    const generation = vaultStore.currentSessionGeneration()
+    const { useDwellerStore } = await import('@/modules/dwellers/stores/dweller')
+    const { filter } = useDwellerStore()
     let result: 'built' | 'extended' = 'built'
     try {
       const roomData: RoomBuild = {
@@ -146,13 +179,35 @@ export const useRoomStore = defineStore('room', () => {
         coordinate_y: coordinateY,
       }
       const built = await roomApi.build(roomData)
-      const existingIndex = rooms.value.findIndex((room) => room.id === built.id)
-      if (existingIndex !== -1) {
-        rooms.value[existingIndex] = built
+      if (
+        (vaultStore.activeVaultId && vaultStore.activeVaultId !== vaultId) ||
+        vaultStore.currentSessionGeneration() !== generation
+      )
+        return result
+      // Publish the survivor and its repointed occupants together or the absorbed tile blanks.
+      const absorbed = roomsLoadedVaultId.value === vaultId ? absorbMergeNeighbours(built) : []
+      const absorbedIds = new Set(absorbed.map((room) => room.id))
+      const repoint = (dweller: DwellerShort): DwellerShort =>
+        dweller.room_id && absorbedIds.has(dweller.room_id)
+          ? { ...dweller, room_id: built.id }
+          : dweller
+      filter.dwellers = filter.dwellers.map(repoint)
+      filter.allDwellers = filter.allDwellers.map(repoint)
+      for (const [id, detailed] of Object.entries(filter.detailedDwellers)) {
+        if (detailed?.room && absorbedIds.has(detailed.room.id)) {
+          filter.detailedDwellers[id] = { ...detailed, room: built }
+        }
+      }
+      rooms.value = rooms.value.filter((room) => !absorbedIds.has(room.id))
+      const index = rooms.value.findIndex((room) => room.id === built.id)
+      if (index !== -1) {
+        rooms.value[index] = built
+        result = 'extended'
+      } else if (absorbedIds.size > 0 || (built.size ?? built.size_min) > built.size_min) {
+        rooms.value = rooms.value.concat(built)
         result = 'extended'
       } else {
         rooms.value.push(built)
-        result = 'built'
       }
     } catch (error) {
       handleStoreError(error, 'Failed to build room')

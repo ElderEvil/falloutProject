@@ -58,6 +58,35 @@ describe('RoomMenuItem', () => {
     wrapper.unmount()
   })
 
+  it('quotes a radio extension at the existing studio tier including its upgrade charge', async () => {
+    const roomStore = useRoomStore()
+    roomStore.roomsLoadedVaultId = 'vault-1'
+    const radioTemplate = { ...room, name: 'Radio studio' }
+    roomStore.rooms = [{ ...radioTemplate, id: 'studio', tier: 2, size: 3 }] as Room[]
+    useVaultStore().loadedVaults['vault-1'] = { bottle_caps: 1000, dweller_count: 10 } as never
+
+    const wrapper = mount(RoomMenuItem, { props: { room: radioTemplate } })
+    expect(wrapper.get('.room-cost').text()).toContain('625')
+
+    roomStore.rooms[0].tier = 3
+    await wrapper.vm.$nextTick()
+    expect(wrapper.get('.room-cost').text()).toContain('2125')
+
+    roomStore.rooms.push({ ...room, id: 'generator', tier: 2, size: 3 } as Room)
+    const generator = mount(RoomMenuItem, { props: { room } })
+    await generator.vm.$nextTick()
+    expect(generator.get('.room-cost').text()).toContain('125')
+    generator.unmount()
+
+    roomStore.rooms = [
+      { ...radioTemplate, id: 'studio-t1', tier: 1, size: 3 },
+      { ...radioTemplate, id: 'studio-t2', tier: 2, size: 3 },
+    ] as Room[]
+    await wrapper.vm.$nextTick()
+    expect(wrapper.get('.room-cost').text()).toContain('150-650')
+    wrapper.unmount()
+  })
+
   it('keeps population progress visible once a room is unlocked', () => {
     const vaultStore = useVaultStore()
     vaultStore.loadedVaults['vault-1'] = { bottle_caps: 1000, dweller_count: 10 } as never

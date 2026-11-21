@@ -2,6 +2,7 @@ import { computed, type Ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
+import { useVaultRoster } from '@/modules/dwellers/composables/useVaultRoster'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { getTrainingRoomCapacity } from '../utils/room'
 import type { Room } from '../models/room'
@@ -13,12 +14,13 @@ export function useRoomDwellers(
 ) {
   const route = useRoute()
   const router = useRouter()
-  const { filter: dwellerStore, management: dwellerManagementStore } = useDwellerStore()
+  const { management: dwellerManagementStore } = useDwellerStore()
   const authStore = useAuthStore()
+  const roster = useVaultRoster()
 
   const assignedDwellers = computed<DwellerShort[]>(() => {
     if (!room.value) return []
-    return dwellerStore.dwellers.filter((d) => d.room_id === room.value!.id)
+    return roster.value.filter((d) => d.room_id === room.value!.id)
   })
 
   const dwellerCapacity = computed(() => {

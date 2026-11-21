@@ -9,9 +9,9 @@ from app.core import db_locks
 from app.crud.incident import incident_crud
 from app.models.room import Room
 from app.services.room_assignment_policy import room_occupancy_lock_key, vault_placement_guard
-from app.utils.exceptions import ResourceConflictException, VaultOperationException
+from app.utils.exceptions import ResourceConflictException, UniqueRoomViolationException, VaultOperationException
 from app.utils.room_assets import get_room_image_url
-from app.utils.room_rules import room_refund
+from app.utils.room_rules import RADIO_STUDIO, room_refund
 
 
 def _validate_remodelable(room: Room) -> tuple[int, int]:
@@ -36,6 +36,11 @@ async def remodel_room(db_session: AsyncSession, room_id: UUID, other_room_id: U
     async with vault_placement_guard(db_session, source.vault_id, conflict_detail="Vault layout is busy — try again."):
         await db_session.refresh(source)
         source_x, _ = _validate_remodelable(source)
+        if other_room_id is None and source.name == RADIO_STUDIO:
+            raise UniqueRoomViolationException(
+                room_name=RADIO_STUDIO,
+                detail="A Radio studio cannot be split: a vault may only have one.",
+            )
         rooms = [source]
         if other_room_id is not None:
             other = await crud.room.get(db_session, other_room_id)

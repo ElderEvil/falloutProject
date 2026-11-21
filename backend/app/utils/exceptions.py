@@ -178,10 +178,16 @@ class InsufficientResourcesException(VaultOperationException):
 class UniqueRoomViolationException(VaultOperationException):
     """Raised when attempting to create a room that violates the unique room constraint."""
 
-    def __init__(self, room_name: str | None = None, headers: dict[str, Any] | None = None) -> None:
-        detail = "A unique room of this type already exists in the vault."
-        if room_name is not None:
-            detail += f" Room name: {room_name}."
+    def __init__(
+        self,
+        room_name: str | None = None,
+        headers: dict[str, Any] | None = None,
+        detail: str | None = None,
+    ) -> None:
+        if detail is None:
+            detail = "A unique room of this type already exists in the vault."
+            if room_name is not None:
+                detail += f" Room name: {room_name}."
         super().__init__(detail, headers)
 
 

@@ -28,6 +28,12 @@ vi.mock('vue-router', async () => {
 
 vi.mock('@/modules/rooms/stores/room', () => ({ useRoomStore: vi.fn() }))
 
+const ensureAdoption = vi.fn()
+
+vi.mock('@/modules/vault/stores/vault', () => ({
+  useVaultStore: () => ({ ensureVaultLoaded: ensureAdoption }),
+}))
+
 type RoomStub = { id: string; category: string }
 
 let returnedRooms: RoomStub[] = []
@@ -40,6 +46,7 @@ const storeState = {
 describe('ResponseTeamsView (compatibility redirect)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    ensureAdoption.mockResolvedValue(undefined)
     routeState.params.id = 'vault-1'
     returnedRooms = []
     storeState.rooms = []
@@ -74,6 +81,17 @@ describe('ResponseTeamsView (compatibility redirect)', () => {
 
     expect(mockToast.info).toHaveBeenCalledTimes(1)
     expect(mockReplace).toHaveBeenCalledWith({ path: '/vault/vault-1', query: {} })
+  })
+
+  it('redirects without a station lookup when vault adoption fails', async () => {
+    ensureAdoption.mockRejectedValue(new Error('Vault unavailable'))
+    returnedRooms = [{ id: 'a-station', category: 'response' }]
+
+    mountWithSetup(ResponseTeamsView)
+    await flushPromises()
+
+    expect(mockReplace).toHaveBeenCalledWith({ path: '/vault/vault-1' })
+    expect(mockToast.info).not.toHaveBeenCalled()
   })
 
   it('renders no second management surface', async () => {
@@ -135,6 +153,6 @@ describe('ResponseTeamsView (compatibility redirect)', () => {
     await flushPromises()
 
     expect(mockToast.error).not.toHaveBeenCalled()
-    expect(mockReplace).toHaveBeenCalledWith({ path: '/vault/vault-1', query: {} })
+    expect(mockReplace).toHaveBeenCalledWith({ path: '/vault/vault-1' })
   })
 })

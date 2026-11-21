@@ -12,6 +12,7 @@ import type { ExplorationPartyMember } from '@/modules/exploration/api/explorati
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { useQuestStore } from '@/modules/progression/stores/quest'
 import { useAuthStore } from '@/modules/auth/stores/auth'
+import { useVaultStore } from '@/modules/vault/stores/vault'
 import {
   acknowledgeReport,
   addPendingReport,
@@ -172,6 +173,7 @@ describe('ExplorationView', () => {
     vi.spyOn(dwellerStore, 'fetchDwellerDetails').mockResolvedValue(undefined)
     vi.spyOn(questStore, 'fetchVaultQuests').mockResolvedValue()
     vi.spyOn(questStore, 'fetchPartiesForActiveQuests').mockResolvedValue()
+    vi.spyOn(useVaultStore(), 'ensureVaultLoaded').mockResolvedValue()
 
     authStore.token = 'mock-token'
     dwellerStore.dwellers = [
@@ -197,6 +199,27 @@ describe('ExplorationView', () => {
 
     const refreshSpy = vi.mocked(explorationStore.refreshActiveExplorations)
     expect(refreshSpy).toHaveBeenCalledWith('vault-123', { includeParties: true })
+  })
+
+  it('stops loading when vault adoption fails', async () => {
+    vi.mocked(useVaultStore().ensureVaultLoaded).mockRejectedValueOnce(
+      new Error('Vault unavailable')
+    )
+
+    wrapper = mount(ExplorationView, {
+      global: {
+        stubs: {
+          SidePanel: true,
+          QuestPartyCard: true,
+          ExplorationRewardsModal: true,
+        },
+      },
+    })
+    await flushPromises()
+
+    expect(dwellerStore.fetchDwellersByVault).not.toHaveBeenCalled()
+    expect(questStore.fetchVaultQuests).not.toHaveBeenCalled()
+    expect(questStore.fetchPartiesForActiveQuests).not.toHaveBeenCalled()
   })
 
   it('refreshes the list with a silent poll and keeps the quest refreshes', async () => {

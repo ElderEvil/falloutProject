@@ -19,6 +19,7 @@ describe('roomApi', () => {
     await expect(roomApi.getByVault('vault-1', 40)).resolves.toEqual([room])
     expect(axios.get).toHaveBeenCalledWith('/api/v1/rooms/vault/vault-1/', {
       params: { limit: 40 },
+      _skipErrorNotification: true,
     })
   })
 

@@ -194,7 +194,7 @@ describe('DwellersView', () => {
       )
     })
 
-    it('starts all initial data requests together', async () => {
+    it('adopts the vault before starting the guarded data reads', async () => {
       const startedRequests: string[] = []
       const resolvers: Array<() => void> = []
       const deferredRequest = (name: string) => {
@@ -225,6 +225,9 @@ describe('DwellersView', () => {
       await flushPromises()
 
       try {
+        expect(startedRequests).toEqual(['vault'])
+        resolvers.splice(0).forEach((resolve) => resolve())
+        await flushPromises()
         expect(startedRequests).toEqual(
           expect.arrayContaining([
             'vault',
@@ -240,6 +243,45 @@ describe('DwellersView', () => {
           await flushPromises()
         }
       }
+    })
+
+    it('skips the guarded reads when the session changes while adopting the vault', async () => {
+      const reads: string[] = []
+      let resolveVault!: () => void
+      vi.spyOn(vaultStore, 'ensureVaultLoaded').mockImplementation(
+        () =>
+          new Promise<void>((resolve) => {
+            resolveVault = resolve
+          })
+      )
+      vi.spyOn(_dwellerStore.filter, 'fetchWithCurrentFilters').mockImplementation(async () => {
+        reads.push('filtered dwellers')
+      })
+      vi.spyOn(_dwellerStore.filter, 'fetchAllDwellers').mockImplementation(async () => {
+        reads.push('all dwellers')
+      })
+      vi.spyOn(incidentStore, 'fetchIncidents').mockImplementation(async () => {
+        reads.push('incidents')
+        return []
+      })
+      vi.spyOn(_roomStore, 'fetchRooms').mockImplementation(async () => {
+        reads.push('rooms')
+        return 'loaded'
+      })
+
+      await router.isReady()
+      mount(DwellersView, {
+        global: {
+          plugins: [router, pinia],
+        },
+      })
+      await flushPromises()
+
+      _authStore.sessionGeneration++
+      resolveVault()
+      await flushPromises()
+
+      expect(reads).toEqual([])
     })
 
     it('shows an error when the vault cannot be loaded', async () => {

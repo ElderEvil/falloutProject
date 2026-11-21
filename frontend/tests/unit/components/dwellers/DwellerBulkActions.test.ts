@@ -1,12 +1,15 @@
 import { describe, it, expect, beforeEach, vi } from 'vite-plus/test'
-import { createIconifyMock } from '../../helpers/mocks'
+import { createAxiosMock, createIconifyMock } from '../../helpers/mocks'
 import { mount } from '@vue/test-utils'
+import { nextTick } from 'vue'
 import { createPinia, setActivePinia } from 'pinia'
+import axios from '@/core/plugins/axios'
 import DwellerBulkActions from '@/modules/dwellers/components/DwellerBulkActions.vue'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { useRoomStore } from '@/modules/rooms/stores/room'
 
 vi.mock('@iconify/vue', () => createIconifyMock())
+vi.mock('@/core/plugins/axios', () => createAxiosMock())
 
 vi.mock('@/core/components/ui/tooltip', () => {
   const passthrough = { template: '<div><slot /></div>' }
@@ -72,5 +75,23 @@ describe('DwellerBulkActions counts', () => {
     filter.filterAgeGroup = 'teen'
 
     expect(counts(mountToolbar())).toEqual(['1', '1', '0', '0'])
+  })
+
+  it('drops the count immediately after a single assignment from the full roster', async () => {
+    const { filter, management } = useDwellerStore()
+    filter.dwellers = [idle({ id: 'a' }), idle({ id: 'b' })] as never
+    filter.allDwellers = [idle({ id: 'a' }), idle({ id: 'b' })]
+    filter.allDwellersLoadedVaultId = 'vault-1'
+    vi.mocked(axios.post).mockResolvedValueOnce({
+      data: { id: 'a', room_id: 'room-1', status: 'working' },
+    })
+
+    const wrapper = mountToolbar()
+    expect(counts(wrapper)).toEqual(['2', '2'])
+
+    await management.assignDwellerToRoom('a', 'room-1')
+    await nextTick()
+
+    expect(counts(wrapper)).toEqual(['1', '1'])
   })
 })

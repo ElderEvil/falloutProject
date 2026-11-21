@@ -7,6 +7,11 @@ import SidePanel from '@/core/components/common/SidePanel.vue'
 
 vi.mock('@iconify/vue', () => createIconifyMock())
 
+// The panel reads the world-event flag for its "Relay" entry; keep it off here.
+vi.mock('@/core/stores/featureFlags', () => ({
+  useFeatureFlagsStore: () => ({ worldEvents: false, loaded: true, fetchFlags: vi.fn() }),
+}))
+
 // Keep the real module surface (`reactiveOmit` etc. are used by the shadcn
 // primitives SidePanel renders) and override only the persisted ref so each
 // mount starts expanded and never touches localStorage.

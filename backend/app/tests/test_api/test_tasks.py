@@ -305,3 +305,54 @@ async def test_vault_tick_heartbeat_keeps_the_lease_alive(monkeypatch: pytest.Mo
     finally:
         await redis.delete(f"fallout:vault-tick:{vault_id}")
         await redis.aclose()
+
+
+def test_advance_world_event_actor_runs_the_impl_and_logs() -> None:
+    from app.api.world_event_tasks import advance_world_event
+
+    with (
+        patch(
+            "app.api.world_event_tasks._advance_world_event",
+            new=AsyncMock(return_value="completed"),
+        ) as advance,
+        patch("app.api.world_event_tasks.logger.info") as log,
+    ):
+        result = advance_world_event.fn()
+
+    advance.assert_awaited_once()
+    assert result == "completed"
+    log.assert_called_once()
+
+
+def test_world_event_advance_is_scheduled_every_five_minutes() -> None:
+    """Event windows lapse without a player request, so the cron must be registered."""
+    from app.api.world_event_tasks import advance_world_event
+
+    assert "periodic" in advance_world_event.options
+
+
+class _HeldLock:
+    """Async context manager standing in for ``hold_advisory_lock``."""
+
+    def __init__(self, *, acquired: bool) -> None:
+        self.acquired = acquired
+
+    async def __aenter__(self) -> bool:
+        return self.acquired
+
+    async def __aexit__(self, *args) -> None:
+        return None
+
+
+@pytest.mark.asyncio
+async def test_advance_world_event_skips_when_the_lock_is_held() -> None:
+    from app.api.world_event_tasks import _advance_world_event
+
+    with (
+        patch("app.api.world_event_tasks.task_session", new=lambda: _FakeTaskSession()),
+        patch("app.core.db_locks.hold_advisory_lock", new=lambda *_args: _HeldLock(acquired=False)),
+        patch("app.services.world_event_service.world_event_service.advance", new=AsyncMock()) as advance,
+    ):
+        assert await _advance_world_event() == "locked"
+
+    advance.assert_not_awaited()

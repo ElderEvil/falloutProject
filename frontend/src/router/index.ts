@@ -15,6 +15,7 @@ import { storageRoutes } from '@/modules/storage/routes'
 import { aiSettingsRoutes } from '@/modules/ai-settings/routes'
 import { tradingRoutes } from '@/modules/trading/routes'
 import { contaminationTeamRoutes } from '@/modules/contamination-team/routes'
+import { worldEventRoutes } from '@/modules/world-event/routes'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -35,6 +36,7 @@ const router = createRouter({
     ...tradingRoutes,
     // Contamination team module routes
     ...contaminationTeamRoutes,
+    ...worldEventRoutes,
     // Progression module routes (training, quests, objectives)
     ...progressionRoutes,
     // Radio module routes

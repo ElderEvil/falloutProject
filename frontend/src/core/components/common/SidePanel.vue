@@ -4,6 +4,7 @@ import { Icon } from '@iconify/vue'
 import { useMediaQuery } from '@vueuse/core'
 import { useRoute, useRouter } from 'vue-router'
 import { useSidePanel } from '@/core/composables/useSidePanel'
+import { useFeatureFlagsStore } from '@/core/stores/featureFlags'
 import {
   Tooltip,
   TooltipContent,
@@ -16,6 +17,7 @@ const router = useRouter()
 const { isCollapsed, toggle } = useSidePanel()
 
 const props = defineProps<{ vaultId?: string | null }>()
+const featureFlags = useFeatureFlagsStore()
 
 const vaultId = computed(() => (route.params.id as string | undefined) ?? props.vaultId)
 
@@ -103,6 +105,16 @@ const navItems = computed((): NavItem[] => {
       wip: true,
     },
   ]
+
+  if (featureFlags.worldEvents) {
+    navItems.push({
+      id: 'world-event',
+      label: 'Relay',
+      icon: 'mdi:radio-tower',
+      path: `/vault/${vaultId.value}/world-event`,
+    })
+  }
+
   return navItems
 })
 
@@ -225,6 +237,7 @@ const handleKeyPress = (e: KeyboardEvent) => {
 
 onMounted(() => {
   window.addEventListener('keydown', handleKeyPress)
+  void featureFlags.fetchFlags()
 })
 
 onUnmounted(() => {

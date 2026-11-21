@@ -102,6 +102,7 @@ PG_ENUM_LABELS_SNAPSHOT: dict[str, set[str]] = {
         "MAP_REGISTRATION_FAILED",
         "LOCATION_CLEARED",
         "LOCATION_READY",
+        "WORLD_EVENT_COMPLETED",
     },
     "outfittypeenum": {"COMMON", "RARE", "LEGENDARY", "POWER_ARMOR", "TIERED"},
     "placekind": {"PLACE", "VAULT"},
@@ -136,6 +137,7 @@ PG_ENUM_LABELS_SNAPSHOT: dict[str, set[str]] = {
         "FLAMER",
     },
     "weapontypeenum": {"MELEE", "GUN", "ENERGY", "HEAVY"},
+    "worldeventstatus": {"SCHEDULED", "ACTIVE", "COMPLETED", "EXPIRED"},
 }
 
 # Deliberate non-native exceptions: StrEnum-annotated fields stored as plain

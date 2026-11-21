@@ -93,11 +93,10 @@ async def test_timestamp_inventory_matches_migrated_schema(utc_connection: Async
         for column in table.c
         if isinstance(column.type, UTCDateTime)
     }
-    # Pinned totals: the chat-continuity tables add five UTC timestamps across two tables
-    # (conversation: created_at/updated_at/last_message_at; dweller_memory: created_at/updated_at)
-    # and the rotation period columns add two more on game_state.
-    assert len(expected) == 129
-    assert len({table for table, _ in expected}) == 41
+    # Pinned totals: chat continuity (+5) and quest rotation (+2) are in the base; the world-event
+    # tables add eight more across two tables (worldevent 5, worldeventparticipation 3).
+    assert len(expected) == 137
+    assert len({table for table, _ in expected}) == 43
     rows = await utc_connection.execute(
         text(
             "SELECT table_name, column_name, data_type FROM information_schema.columns "

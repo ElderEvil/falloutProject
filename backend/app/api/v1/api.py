@@ -34,6 +34,7 @@ from app.api.v1.endpoints import (
     vault,
     weapon,
     websocket,
+    world_event,
 )
 from app.api.v1.endpoints import map as map_endpoints
 
@@ -70,4 +71,5 @@ api_router.include_router(training.router)
 api_router.include_router(user.router)
 api_router.include_router(vault.router)
 api_router.include_router(weapon.router)
+api_router.include_router(world_event.router)
 api_router.include_router(websocket.router, tags=["WebSocket"])

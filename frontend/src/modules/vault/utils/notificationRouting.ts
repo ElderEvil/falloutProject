@@ -47,6 +47,7 @@ const NOTIFICATION_SOUNDS = {
   map_registration_failed: 'mapRegistrationFailed',
   location_cleared: 'locationCleared',
   location_ready: 'locationReady',
+  world_event_completed: 'success',
 } as const satisfies Record<components['schemas']['NotificationType'], SoundKey>
 
 /** Resolve a notification type to its bell cue, falling back to the generic alert. */

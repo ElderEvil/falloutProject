@@ -181,6 +181,18 @@ async def _process_single_reward(
             raise ValueError(msg)
 
 
+async def grant_reward(
+    db_session: AsyncSession,
+    vault_id: UUID,
+    reward_type: RewardType | str,
+    reward_data: dict[str, Any],
+    *,
+    emit_event: bool = True,
+) -> dict[str, Any]:
+    """Grant one already-parsed reward dict through the shared dispatch table."""
+    return await _process_single_reward(db_session, vault_id, reward_type, reward_data, emit_event=emit_event)
+
+
 def _parse_objective_reward(reward_str: str) -> tuple[RewardType, dict[str, Any]]:
     """Parse objective reward string into (RewardType, data).
 

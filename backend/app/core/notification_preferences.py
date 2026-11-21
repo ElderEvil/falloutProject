@@ -34,6 +34,7 @@ NOTIFICATION_CATEGORY_BY_TYPE: dict[NotificationType, NotificationCategory | Non
     NotificationType.RADIO_AUTO_SWITCHED_TO_HAPPINESS: NotificationCategory.VAULT_ACTIVITY,
     NotificationType.LOCATION_CLEARED: NotificationCategory.ARRIVALS_AND_COMPLETIONS,
     NotificationType.LOCATION_READY: NotificationCategory.EXPLORATION_UPDATES,
+    NotificationType.WORLD_EVENT_COMPLETED: NotificationCategory.ARRIVALS_AND_COMPLETIONS,
     # These are intentionally always enabled: they are urgent, actionable, or
     # progression-critical. Unknown future types also default to enabled.
     NotificationType.STORAGE_ITEM_DEGRADED: None,

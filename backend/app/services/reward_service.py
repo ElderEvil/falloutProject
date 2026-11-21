@@ -69,6 +69,14 @@ class RewardService:
         """Consume one unopened pet carrier and add its pet to storage."""
         return await pet_carrier.open_pet_carrier(db_session, vault_id, item_id)
 
+    async def grant(self, db_session: AsyncSession, vault_id: UUID, reward: dict[str, Any]) -> dict[str, Any]:
+        """Grant one stored reward dict: ``{"reward_type": <type>, ...reward data}``."""
+        data = dict(reward)
+        reward_type = data.pop("reward_type", None) or data.pop("type", None)
+        if reward_type is None:
+            raise ValueError("Reward dict is missing 'reward_type'")
+        return await settlement.grant_reward(db_session, vault_id, reward_type, data)
+
     async def process_quest_rewards(
         self, db_session: AsyncSession, vault_id: UUID, quest: Quest
     ) -> list[dict[str, Any]]:

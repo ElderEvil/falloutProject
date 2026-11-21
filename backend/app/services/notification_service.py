@@ -542,6 +542,37 @@ class NotificationService:
         )
 
     @staticmethod
+    async def notify_world_event_completed(
+        db: AsyncSession,
+        user_id: UUID,
+        vault_id: UUID,
+        *,
+        event_id: UUID,
+        event_title: str,
+        reward_summary: str,
+        commit: bool = False,
+    ):
+        """Notify the owner that the event finished and rewards are claimable.
+
+        commit=False: raised inside the lifecycle actor's transaction, which delivers after its commit.
+        """
+        return await NotificationService.create_and_send(
+            db,
+            user_id=user_id,
+            vault_id=vault_id,
+            notification_type=NotificationType.WORLD_EVENT_COMPLETED,
+            priority=NotificationPriority.HIGH,
+            title=f"{event_title} Complete",
+            message=f"Rewards are ready to claim: {reward_summary}.",
+            meta_data={
+                "event_id": str(event_id),
+                "vault_id": str(vault_id),
+                "reward_summary": reward_summary,
+            },
+            commit=commit,
+        )
+
+    @staticmethod
     async def notify_recipe_unlocked(
         db: AsyncSession,
         user_id: UUID,

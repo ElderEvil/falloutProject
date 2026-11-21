@@ -3,7 +3,7 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import DwellerFilterPanel from '@/modules/dwellers/components/DwellerFilterPanel.vue'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
-import { useFeatureFlagsStore } from '@/modules/dwellers/stores/featureFlags'
+import { useFeatureFlagsStore } from '@/core/stores/featureFlags'
 import { getDwellersByVault, getIdentityOptions } from '@/modules/dwellers/services/dwellerService'
 
 vi.mock('@/modules/auth/stores/auth', () => ({
@@ -15,9 +15,16 @@ vi.mock('@/core/utils/errorHandler', async (importOriginal) => ({
   handleStoreError: vi.fn(),
 }))
 
+vi.mock('@/core/utils/api', () => ({
+  apiGet: vi.fn().mockResolvedValue({
+    race_mechanics: true,
+    faction_mechanics: true,
+    world_events: false,
+  }),
+}))
+
 vi.mock('@/modules/dwellers/services/dwellerService', () => ({
   getDwellersByVault: vi.fn().mockResolvedValue([]),
-  getFeatureFlags: vi.fn().mockResolvedValue({ race_mechanics: true, faction_mechanics: true }),
   getIdentityOptions: vi.fn().mockResolvedValue({
     races: ['human', 'ghoul', 'super_mutant', 'synth'],
     factions_by_race: {

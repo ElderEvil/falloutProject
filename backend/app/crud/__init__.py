@@ -29,6 +29,7 @@ from .vault import vault
 from .vault_recipe_unlock import vault_recipe_unlock
 from .vault_theme import vault_theme
 from .weapon import weapon
+from .world_event import world_event
 from .world_location import world_location
 
 outfit = CRUDItem(Outfit)

@@ -13,13 +13,7 @@ export interface paths {
         };
         /**
          * Perform Healthcheck
-         * @description Health check endpoint.
-         *
-         *     Args:
-         *         detailed: If True, return detailed health information for all services
-         *
-         *     Returns:
-         *         Basic health status or detailed service information
+         * @description Health check endpoint; detailed=True returns per-service information.
          */
         get: operations["perform_healthcheck_healthcheck_get"];
         put?: never;
@@ -41,9 +35,9 @@ export interface paths {
          * Perform Readiness Check
          * @description Readiness probe: only the dependencies required to serve HTTP traffic.
          *
-         *     Liveness stays on ``/healthcheck``. Optional integrations (RustFS, local AI,
-         *     SMTP) and the worker broker must not remove an otherwise healthy API pod from
-         *     service, so they are deliberately excluded here.
+         *     Liveness stays on /healthcheck; optional integrations (RustFS, local AI, SMTP) and the
+         *     worker broker are deliberately excluded so they cannot remove a healthy API pod from
+         *     service.
          */
         get: operations["perform_readiness_check_readiness_get"];
         put?: never;
@@ -5452,15 +5446,53 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/vaults/{vault_id}/world-event": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get World Event
+         * @description Return global progress plus this vault's contribution and claim eligibility.
+         */
+        get: operations["get_world_event_api_v1_vaults__vault_id__world_event_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/vaults/{vault_id}/world-event/claim": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Claim World Event
+         * @description Pay the completed event's reward list to a qualifying vault exactly once.
+         */
+        post: operations["claim_world_event_api_v1_vaults__vault_id__world_event_claim_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
         /**
          * AIOperationStats
-         * @description Token breakdown for one operation tag (LLMInteraction.usage).
-         *
-         *     NULL usage is reported as "unknown"; legacy tags may also appear.
+         * @description Token breakdown per operation tag; NULL usage reports as "unknown", legacy tags may appear.
          */
         AIOperationStats: {
             /** Operation */
@@ -5566,13 +5598,9 @@ export interface components {
         };
         /**
          * AIUsageResponse
-         * @description Per-user AI usage with quota status.
-         *
-         *     by_operation covers the current month so operation shares align with
-         *     quota_used ("bio generation: 40% of quota"). Cost estimation is
-         *     intentionally deferred: honest pricing needs per-interaction provider/model
-         *     rates (input/output prices differ; image/audio are not token-priced).
-         *     LLMInteraction already snapshots provider/model to support that later.
+         * @description Per-user AI usage with quota status; by_operation covers the current month
+         *     so shares align with quota_used. Cost estimation is deferred: it needs
+         *     per-interaction provider/model rates (snapshotted on LLMInteraction).
          */
         AIUsageResponse: {
             all_time: components["schemas"]["AIUsageStats"];
@@ -6174,11 +6202,8 @@ export interface components {
         };
         /**
          * ChatDebug
-         * @description Dev-only diagnostics for one chat turn. Populated only when opt-in requested.
-         *
-         *     Never persisted: this rides the live response (and the streamed done event) so
-         *     stored history stays bounded, and any message-shaped schema may embed it as an
-         *     optional field.
+         * @description Dev-only, opt-in diagnostics for one chat turn; never persisted — rides the
+         *     live response and streamed done event so stored history stays bounded.
          */
         ChatDebug: {
             /**
@@ -6255,10 +6280,8 @@ export interface components {
         };
         /**
          * ChatJevField
-         * @description One judged Jev field, answer and confidence together.
-         *
-         *     ``confidence`` is the probability of ``answer``; a ``False`` at 0.96 means
-         *     "96% sure it is not this", so the pair must be read together.
+         * @description One judged Jev field. confidence is the probability of answer: False at
+         *     0.96 means 96% sure it is not this — read the pair together.
          */
         ChatJevField: {
             /**
@@ -6327,6 +6350,8 @@ export interface components {
              * @description Reason for happiness change
              */
             happiness_reason?: string | null;
+            /** Conversation Id */
+            conversation_id?: string | null;
             /**
              * Id
              * Format: uuid
@@ -6522,10 +6547,8 @@ export interface components {
         };
         /**
          * CraftResultRead
-         * @description The crafted item plus the materials that were spent.
-         *
-         *     Theme orders grant permanent ownership rather than a storage item, so
-         *     ``item_id`` is null for them.
+         * @description Crafted item plus spent materials; item_id is null for theme orders (they
+         *     grant permanent ownership, not a storage item).
          */
         CraftResultRead: {
             /** Item Type */
@@ -6602,11 +6625,8 @@ export interface components {
         };
         /**
          * CraftingRecipeRead
-         * @description One catalog entry with its costs, affordability, and unlock state.
-         *
-         *     A gated schematic the vault has not learned is still listed so the player can
-         *     see what is out there; ``unlocked``/``unlock_hint`` tell the UI to disable it
-         *     and explain how to learn it.
+         * @description Catalog entry with costs, affordability, and unlock state; unlearned gated
+         *     schematics stay listed (unlocked/unlock_hint tell the UI to disable + explain).
          */
         CraftingRecipeRead: {
             /** Name */
@@ -6799,10 +6819,8 @@ export interface components {
         };
         /**
          * DiscoveryRoutePoint
-         * @description One journey point, projected into map coordinates.
-         *
-         *     Legacy runs contribute discovery events (each with a location id); spatial
-         *     runs contribute their movement trail, whose points have no single location.
+         * @description One journey point in map coordinates; location_id is None for spatial-run
+         *     trail points (legacy runs contribute discovery events with a location).
          */
         DiscoveryRoutePoint: {
             /** Location Id */
@@ -6816,10 +6834,8 @@ export interface components {
         };
         /**
          * DiscoveryRouteRead
-         * @description Ordered discovery trail for a single exploration.
-         *
-         *     ``is_active`` marks an in-progress run. Routes are always returned (the fog
-         *     corridor is derived from every route), but only active ones draw a trail.
+         * @description Ordered discovery trail for one exploration. All routes are returned (the
+         *     fog corridor derives from every route); only is_active ones draw a trail.
          */
         DiscoveryRouteRead: {
             /**
@@ -6881,9 +6897,6 @@ export interface components {
         /**
          * DwellerChatResponse
          * @description Response schema for dweller chat interactions.
-         *
-         *     Includes the AI-generated response, happiness impact analysis,
-         *     and optional action suggestions.
          */
         DwellerChatResponse: {
             /**
@@ -7871,11 +7884,7 @@ export interface components {
         };
         /**
          * DwellerVisualAttributes
-         * @description Unified schema for dweller visual attributes.
-         *
-         *     Merges user-facing input fields (race, faction, equipment, scene)
-         *     with AI-generated fields (height, appearance, build, clothing_style, etc.).
-         *     All fields are optional — only populated fields are stored in the JSONB column.
+         * @description User + AI visual fields; all optional — only populated fields land in the JSONB column.
          */
         DwellerVisualAttributes: {
             race?: components["schemas"]["RaceEnum"] | null;
@@ -8112,11 +8121,9 @@ export interface components {
         ExpeditionSceneId: "desert_highway" | "supermarket_interior" | "subway_station" | "amusement_park" | "arctic_research_station" | "gloomwater_bog" | "gloomwater_bog_night" | "outskirts_interchange" | "red_rocket" | "raider_tollbooth" | "campsite";
         /**
          * ExpeditionSiteMarkerRead
-         * @description One interactive expedition site on the world map, with per-vault state.
-         *
-         *     ``block_reason`` mirrors the expedition anti-farm gate: ``"open"`` while a
-         *     run for this vault+site is in progress, ``"cooldown"`` while a recent
-         *     terminal run's anti-farm window is still active, else ``None`` (ready).
+         * @description Interactive expedition site with per-vault state. block_reason mirrors the
+         *     anti-farm gate: "open" while a run is in progress, "cooldown" during the
+         *     post-run window, None when ready.
          */
         ExpeditionSiteMarkerRead: {
             /** Id */
@@ -8402,11 +8409,8 @@ export interface components {
         };
         /**
          * ExplorationSendRequest
-         * @description Schema for sending dwellers out — the single departure boundary.
-         *
-         *     One roster, one optional destination: `dweller_ids` (or the legacy single
-         *     `dweller_id`) is the roster; `target_location_id` present means travel to a
-         *     known place (clear), absent means roam. Roaming sends exactly one dweller.
+         * @description Single departure boundary: dweller_ids (or legacy dweller_id) is the roster;
+         *     target_location_id present = travel-and-clear, absent = roam (one dweller only).
          */
         ExplorationSendRequest: {
             /**
@@ -8468,6 +8472,8 @@ export interface components {
             race_mechanics: boolean;
             /** Faction Mechanics */
             faction_mechanics: boolean;
+            /** World Events */
+            world_events: boolean;
         };
         /**
          * GameBalanceResponse
@@ -8571,10 +8577,7 @@ export interface components {
         };
         /**
          * HappinessImpact
-         * @description Schema describing the happiness impact of a chat interaction.
-         *
-         *     Provides both numerical impact (delta) and human-readable context
-         *     for understanding why happiness changed.
+         * @description Happiness impact of a chat interaction: delta plus reason.
          */
         HappinessImpact: {
             /**
@@ -8627,9 +8630,8 @@ export interface components {
          * HazardTeam
          * @description A standing hazard-response team a dweller earns a place on.
          *
-         *     Membership is earned from service, never assigned: a dweller qualifies by
-         *     fighting incidents of the team's hazard (see ``models/incident.py`` for the
-         *     type mapping and ``services/hazard_team_service.py`` for the rule).
+         *     Membership is earned by fighting incidents of the team's hazard, never assigned (type
+         *     mapping in models/incident.py, rule in services/hazard_team_service.py).
          * @enum {string}
          */
         HazardTeam: "fire" | "radiation";
@@ -9194,10 +9196,8 @@ export interface components {
         };
         /**
          * LocationClearStateRead
-         * @description Per-point clear state for a clearable map point (issue 772, phase 1).
-         *
-         *     Read-only projection of ``VaultLocationState`` clear fields; availability is
-         *     derived from ``now`` at read time and never persisted by this phase.
+         * @description Read-only projection of VaultLocationState clear fields; availability is
+         *     derived from now at read time, never persisted.
          */
         LocationClearStateRead: {
             /** Clearable */
@@ -9469,7 +9469,7 @@ export interface components {
          * @description Types of notifications
          * @enum {string}
          */
-        NotificationType: "exploration_update" | "exploration_complete" | "level_up" | "training_complete" | "training_started" | "crafting_complete" | "recipe_unlocked" | "storage_item_degraded" | "storage_item_upgraded" | "relationship_formed" | "pregnancy_detected" | "baby_born" | "combat_started" | "combat_victory" | "combat_defeat" | "arena_morale_boost" | "dweller_injured" | "dweller_died" | "dweller_exit_requested" | "hazard_team_joined" | "resource_low" | "resource_critical" | "power_outage" | "rush_succeeded" | "rush_failed" | "quest_complete" | "objective_completed" | "objectives_refreshed" | "room_unlocked" | "achievement_unlocked" | "radio_new_dweller" | "radio_auto_switched_to_happiness" | "map_registration_failed" | "location_cleared" | "location_ready";
+        NotificationType: "exploration_update" | "exploration_complete" | "level_up" | "training_complete" | "training_started" | "crafting_complete" | "recipe_unlocked" | "storage_item_degraded" | "storage_item_upgraded" | "relationship_formed" | "pregnancy_detected" | "baby_born" | "combat_started" | "combat_victory" | "combat_defeat" | "arena_morale_boost" | "dweller_injured" | "dweller_died" | "dweller_exit_requested" | "hazard_team_joined" | "resource_low" | "resource_critical" | "power_outage" | "rush_succeeded" | "rush_failed" | "quest_complete" | "objective_completed" | "objectives_refreshed" | "room_unlocked" | "achievement_unlocked" | "radio_new_dweller" | "radio_auto_switched_to_happiness" | "map_registration_failed" | "location_cleared" | "location_ready" | "world_event_completed";
         /** OAuthHandoffRequest */
         OAuthHandoffRequest: {
             /** Code */
@@ -9951,11 +9951,8 @@ export interface components {
         };
         /**
          * PetEffectRead
-         * @description Wire shape for the catalog-resolved bonus a pet grants.
-         *
-         *     Fields come from ``PetEffect``; the empty subclass keeps the public schema
-         *     name stable for generated clients. All-zero for pets without a catalog
-         *     entry, so the client can always read the shape without a null check.
+         * @description Catalog-resolved pet bonus; all-zero without a catalog entry (never null).
+         *     Empty subclass keeps the public schema name stable for generated clients.
          */
         PetEffectRead: {
             /**
@@ -10950,10 +10947,8 @@ export interface components {
         };
         /**
          * RoomRushQuote
-         * @description Server-computed rush risk and payout preview for one room.
-         *
-         *     Chances are percentages in ``0..100``; the service keeps internal
-         *     probabilities in ``0..1``.
+         * @description Server-computed rush risk/payout preview; chances are percentages 0..100
+         *     (the service keeps internal probabilities in 0..1).
          */
         RoomRushQuote: {
             /** Can Rush */
@@ -11900,11 +11895,10 @@ export interface components {
         };
         /**
          * VaultModeEnum
-         * @description Per-vault difficulty mode.
+         * @description Per-vault difficulty mode, chosen at creation and immutable afterwards.
          *
-         *     Chosen once at vault creation and immutable afterwards. ``SURVIVAL`` makes every
-         *     dweller death permanent (immediate permanent-death memorial, no caps revival
-         *     window). Stored as a plain string column, mirroring ``Vault.radio_mode``.
+         *     SURVIVAL makes every death permanent (immediate memorial, no caps revival window).
+         *     Stored as a plain string column.
          * @enum {string}
          */
         VaultModeEnum: "standard" | "survival";
@@ -12481,6 +12475,90 @@ export interface components {
             storage_id?: string | null;
         };
         /**
+         * WorldEventClaimRead
+         * @description Outcome of a successful one-time claim.
+         */
+        WorldEventClaimRead: {
+            /**
+             * Event Id
+             * Format: uuid
+             */
+            event_id: string;
+            /**
+             * Claimed
+             * @default true
+             */
+            claimed: boolean;
+            /**
+             * Contribution
+             * @default 0
+             */
+            contribution: number;
+        };
+        /**
+         * WorldEventRead
+         * @description Current (or latest) event plus this vault's standing.
+         *
+         *     Every event field is optional so an empty table yields a valid body instead of an error.
+         */
+        WorldEventRead: {
+            /** Event Id */
+            event_id?: string | null;
+            /** Kind */
+            kind?: string | null;
+            /** Title */
+            title?: string | null;
+            /** Description */
+            description?: string | null;
+            /**
+             * Target Amount
+             * @default 0
+             */
+            target_amount: number;
+            /**
+             * Progress Amount
+             * @default 0
+             */
+            progress_amount: number;
+            /**
+             * Participant Count
+             * @default 0
+             */
+            participant_count: number;
+            /**
+             * Contribution
+             * @default 0
+             */
+            contribution: number;
+            /**
+             * Personal Min
+             * @default 0
+             */
+            personal_min: number;
+            /**
+             * Can Claim
+             * @default false
+             */
+            can_claim: boolean;
+            status?: components["schemas"]["WorldEventStatus"] | null;
+            /** Starts At */
+            starts_at?: string | null;
+            /** Ends At */
+            ends_at?: string | null;
+            /** Extended At */
+            extended_at?: string | null;
+            /** Reward */
+            reward?: {
+                [key: string]: unknown;
+            }[];
+        };
+        /**
+         * WorldEventStatus
+         * @description Lifecycle of a server-wide co-op world event.
+         * @enum {string}
+         */
+        WorldEventStatus: "SCHEDULED" | "ACTIVE" | "COMPLETED" | "EXPIRED";
+        /**
          * WorldRoadRead
          * @description Backend-validated centerline in registry coordinates, including rounded bends.
          */
@@ -12528,10 +12606,8 @@ export interface components {
         };
         /**
          * WorldSnapshotRead
-         * @description Public base-world snapshot the production map renders.
-         *
-         *     Terrain is row-major over ``width x height`` tiles. Private ownership,
-         *     discoveries, and expedition state are never part of this payload.
+         * @description Public base-world snapshot; terrain is row-major over width x height.
+         *     Private ownership, discoveries, and expedition state are never included.
          */
         WorldSnapshotRead: {
             /** World Id */
@@ -20409,6 +20485,68 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["WeaponCreate"][];
+                };
+            };
+        };
+    };
+    get_world_event_api_v1_vaults__vault_id__world_event_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                vault_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorldEventRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    claim_world_event_api_v1_vaults__vault_id__world_event_claim_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                vault_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorldEventClaimRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

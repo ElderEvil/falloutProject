@@ -196,26 +196,50 @@ function rewardAmount(value: unknown): number {
   return typeof value === 'number' ? value : Number(value) || 0
 }
 
-/** Type chip colors shared by the quest card and detail badges. */
-export const QUEST_TYPE_COLORS: Record<string, { bg: string; text: string; border: string }> = {
-  main: { bg: 'var(--color-theme-primary)', text: '#000000', border: 'var(--color-theme-primary)' },
+/** Badge colors and available-card accents. */
+export const QUEST_TYPE_COLORS: Record<string, { badge: string; border: string }> = {
+  main: { badge: 'bg-quest-main text-black border-quest-main', border: 'var(--color-quest-main)' },
   side: {
-    bg: 'var(--color-quest-side)',
-    text: 'var(--color-theme-primary)',
+    badge: 'bg-quest-side text-theme-primary border-quest-side',
     border: 'var(--color-quest-side)',
   },
-  daily: { bg: 'var(--color-quest-daily)', text: '#000000', border: 'var(--color-quest-daily)' },
-  event: { bg: 'var(--color-quest-event)', text: '#ffffff', border: 'var(--color-quest-event)' },
+  daily: {
+    badge: 'bg-quest-daily text-black border-quest-daily',
+    border: 'var(--color-quest-daily)',
+  },
+  event: {
+    badge: 'bg-quest-event text-white border-quest-event',
+    border: 'var(--color-quest-event)',
+  },
   repeatable: {
-    bg: 'var(--color-theme-primary)',
-    text: '#000000',
+    badge: 'bg-theme-primary text-black border-theme-primary',
     border: 'var(--color-theme-primary)',
   },
 }
 
 export function questTypeLabel(questType: string | null | undefined): string {
   const normalized = questType || 'side'
+  if (normalized === 'repeatable') return 'Weekly'
   return capitalize(normalized)
+}
+
+const QUEST_TYPE_GROUP_ORDER = ['daily', 'repeatable', 'event', 'other'] as const
+
+/** Rotating pools first, followed by one group for the remaining quests. */
+export function groupQuestsByType(quests: VaultQuest[]) {
+  const buckets = new Map<(typeof QUEST_TYPE_GROUP_ORDER)[number], VaultQuest[]>()
+  for (const quest of quests) {
+    const type = QUEST_TYPE_GROUP_ORDER.find((group) => group === quest.quest_type) ?? 'other'
+    const bucket = buckets.get(type) ?? []
+    bucket.push(quest)
+    buckets.set(type, bucket)
+  }
+  return QUEST_TYPE_GROUP_ORDER.flatMap((type) => {
+    const entries = buckets.get(type)
+    if (!entries) return []
+    const label = type === 'other' ? 'Other quests' : `${questTypeLabel(type)} quests`
+    return [{ type, label, quests: entries }]
+  })
 }
 
 /** State quests settle from vault progress and start without a party. */

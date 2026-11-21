@@ -32,13 +32,14 @@ import {
 import { QuestCard, PartySelectionModal } from '../components'
 import { Badge } from '@/core/components/ui/badge'
 import QuestRewardsModal from '../components/QuestRewardsModal.vue'
-import type { QuestAvailableSortBy, QuestType, VaultQuest } from '../models/quest'
 import {
   compareQuestsByAvailableSort,
+  groupQuestsByType,
   isQuestReturning,
   officeSpeedPercent,
   questSlotLimitForVault,
 } from '../models/quest'
+import type { QuestAvailableSortBy, QuestType, VaultQuest } from '../models/quest'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
 
 const route = useRoute()
@@ -68,6 +69,15 @@ const availableQuests = computed(() =>
 
 const SCHEDULER_OWNED_QUEST_TYPES = new Set<QuestType>(['daily', 'event', 'repeatable'])
 
+const groupedAvailableQuests = computed(() =>
+  groupQuestsByType(filteredAvailableQuests.value).map((group) => ({
+    ...group,
+    quests: [...group.quests].sort((a, b) =>
+      compareQuestsByAvailableSort(a, b, availableSort.value)
+    ),
+  }))
+)
+
 const filteredAvailableQuests = computed(() => {
   if (showAllQuests.value) {
     return questStore.vaultQuests.filter(
@@ -79,22 +89,17 @@ const filteredAvailableQuests = computed(() => {
   return availableQuests.value
 })
 
+// Grouping replaced the Type sort; a saved 'type' preference falls back to level.
 const availableSort = useLocalStorage<QuestAvailableSortBy>('questAvailableSort', 'level')
+if (availableSort.value === 'type') availableSort.value = 'level'
 const availableSortOptions: { value: QuestAvailableSortBy; label: string }[] = [
   { value: 'level', label: 'Required Level' },
   { value: 'duration', label: 'Duration' },
-  { value: 'type', label: 'Type' },
 ]
 
 const onAvailableSortChange = (value: unknown) => {
   availableSort.value = String(value) as QuestAvailableSortBy
 }
-
-const sortedAvailableQuests = computed(() =>
-  [...filteredAvailableQuests.value].sort((a, b) =>
-    compareQuestsByAvailableSort(a, b, availableSort.value)
-  )
-)
 
 // Modal state
 const showPartyModal = ref(false)
@@ -536,18 +541,29 @@ watch(vaultId, async (id) => {
               <div v-if="activeTab === 'available'" class="tab-content">
                 <!-- Available Quests Section -->
                 <div v-if="filteredAvailableQuests.length > 0" class="quest-section">
-                  <div class="quest-grid">
-                    <QuestCard
-                      v-for="quest in sortedAvailableQuests"
-                      :key="quest.id"
-                      :quest="quest"
-                      :vault-id="vaultId"
-                      :status="quest.is_locked ? 'locked' : 'available'"
-                      :is-locked="quest.is_locked"
-                      :party-members="questPartyMembersMap[quest.id] || []"
-                      @start="vaultId && questStore.startQuest(vaultId, $event)"
-                      @assign-party="handleAssignParty"
-                    />
+                  <div
+                    v-for="group in groupedAvailableQuests"
+                    :key="group.type"
+                    class="quest-section"
+                  >
+                    <h3
+                      class="mb-3 font-mono text-sm font-semibold uppercase tracking-wide text-theme-primary"
+                    >
+                      {{ group.label }} ({{ group.quests.length }})
+                    </h3>
+                    <div class="quest-grid">
+                      <QuestCard
+                        v-for="quest in group.quests"
+                        :key="quest.id"
+                        :quest="quest"
+                        :vault-id="vaultId"
+                        :status="quest.is_locked ? 'locked' : 'available'"
+                        :is-locked="quest.is_locked"
+                        :party-members="questPartyMembersMap[quest.id] || []"
+                        @start="vaultId && questStore.startQuest(vaultId, $event)"
+                        @assign-party="handleAssignParty"
+                      />
+                    </div>
                   </div>
                 </div>
 

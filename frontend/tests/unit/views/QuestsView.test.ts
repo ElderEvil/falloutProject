@@ -459,6 +459,40 @@ describe('QuestsView', () => {
           duration_minutes: null,
         },
         {
+          id: 'daily-visible-locked',
+          title: 'Daily Patrol',
+          short_description: 'Offered but start-locked',
+          long_description: 'Offered daily the vault cannot start yet',
+          requirements: 'Level 10 dwellers',
+          rewards: '30 caps',
+          quest_type: 'daily',
+          created_at: '2025-01-01',
+          updated_at: '2025-01-01',
+          is_visible: true,
+          is_locked: true,
+          lock_reason: 'Requires a higher dweller level',
+          is_completed: false,
+          started_at: null,
+          duration_minutes: null,
+        },
+        {
+          id: 'daily-hidden',
+          title: 'Hidden Daily',
+          short_description: 'Scheduler-owned',
+          long_description: 'The scheduler has not offered this daily yet',
+          requirements: 'Level 5 dwellers',
+          rewards: '20 caps',
+          quest_type: 'daily',
+          created_at: '2025-01-01',
+          updated_at: '2025-01-01',
+          is_visible: false,
+          is_locked: true,
+          lock_reason: 'Not currently offered',
+          is_completed: false,
+          started_at: null,
+          duration_minutes: null,
+        },
+        {
           id: 'quest-2',
           title: 'Locked Quest',
           short_description: 'Continue the chain',
@@ -488,11 +522,21 @@ describe('QuestsView', () => {
 
       expect(wrapper.text()).toContain('First Quest')
       expect(wrapper.text()).not.toContain('Locked Quest')
+      // Default filter: startable quests only - the locked daily is not shown yet.
+      expect(wrapper.text()).toContain('Other quests (1)')
+      expect(wrapper.text()).not.toContain('Daily Patrol')
+      expect(wrapper.text()).not.toContain('Hidden Daily')
 
       await wrapper.find('.toggle-input').setValue(true)
 
       expect(wrapper.text()).toContain('Locked Quest')
       expect(wrapper.text()).toContain('Requires completing a previous quest')
+      // Show All adds the locked previews: the daily group counts its one card,
+      // while the hidden scheduler daily stays excluded in both modes.
+      expect(wrapper.text()).toContain('Daily quests (1)')
+      expect(wrapper.text()).toContain('Daily Patrol')
+      expect(wrapper.text()).toContain('Other quests (2)')
+      expect(wrapper.text()).not.toContain('Hidden Daily')
     })
 
     it('should display completed quests in completed tab', async () => {

@@ -329,14 +329,17 @@ function openOverseersOffice(): void {
 async function loadVault(id: string): Promise<void> {
   const token = authStore.token || localStorage.getItem('token')?.replace(/^"|"$/g, '')
   if (!token) return
+  const session = authStore.sessionGeneration
   await roomStore.fetchRooms(id)
   await dwellerStore.fetchDwellersByVault(id)
   // A switch may have superseded this load while it was paused on the earlier steps.
-  if (id !== vaultId.value) return
+  if (id !== vaultId.value || session !== authStore.sessionGeneration) return
 
   // Fetch the catalog first so chain badges resolve on the vault quests' first paint,
   // then the vault quests (filtered client-side, including locked ones).
   await questStore.fetchAllQuests()
+  // Recheck after the catalog fetch too: B may have finished loading while it ran.
+  if (id !== vaultId.value || session !== authStore.sessionGeneration) return
   await questStore.fetchVaultQuests(id)
   await loadPartyMembers(id)
 }

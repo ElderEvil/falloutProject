@@ -6,17 +6,20 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 import pytest_asyncio
+from sqlalchemy import func
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.core.enums import OutfitTypeEnum, RarityEnum, WeaponSubtypeEnum, WeaponTypeEnum
+from app.core.enums import OutfitTypeEnum, RarityEnum, WeaponSubtypeEnum, WeaponTypeEnum, WorldEventStatus
 from app.crud.vault import vault as vault_crud
 from app.models.dweller import Dweller
+from app.models.exploration import Exploration
 from app.models.junk import Junk
 from app.models.outfit import Outfit
 from app.models.storage import Storage
 from app.models.vault import Vault
 from app.models.weapon import Weapon
+from app.models.world_event import WorldEvent, WorldEventParticipation
 from app.schemas.exploration_event import (
     ItemSchema,
     LootEventSchema,
@@ -28,6 +31,8 @@ from app.services.exploration.coordinator import exploration_coordinator
 from app.services.exploration.event_service import event_service
 from app.services.exploration.rewards_service import rewards_service
 from app.services.exploration_service import exploration_service
+from app.services.world_event_service import world_event_service
+from app.utils.exceptions import ValidationException
 from app.utils.time import utcnow
 
 
@@ -484,3 +489,163 @@ async def test_auto_stimpak_skips_at_radiation_capped_health(
     assert exploration.stimpaks == 1
     assert dweller.health == 40
     assert not [e for e in exploration.events if e["type"] == "item_use"]
+
+
+# --- world event contribution -------------------------------------------------
+
+
+async def _create_world_event(
+    async_session: AsyncSession, *, status: WorldEventStatus = WorldEventStatus.ACTIVE
+) -> WorldEvent:
+    now = utcnow()
+    event = WorldEvent(
+        kind="migration",
+        title="Migration surge",
+        description="Creatures are on the move.",
+        target_amount=100,
+        personal_min=0,
+        reward=[],
+        starts_at=now - timedelta(hours=1),
+        ends_at=now + timedelta(hours=1),
+        status=status,
+    )
+    async_session.add(event)
+    await async_session.commit()
+    await async_session.refresh(event)
+    return event
+
+
+async def _participation_count(async_session: AsyncSession) -> int:
+    return int((await async_session.execute(select(func.count()).select_from(WorldEventParticipation))).scalar_one())
+
+
+async def _event_totals(async_session: AsyncSession, event_id, vault_id) -> tuple[int, int]:
+    """(shared event progress, this vault's contribution)."""
+    event = await async_session.get(WorldEvent, event_id)
+    rows = (
+        (
+            await async_session.execute(
+                select(WorldEventParticipation).where(
+                    WorldEventParticipation.world_event_id == event_id,
+                    WorldEventParticipation.vault_id == vault_id,
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    return event.progress_amount, sum(row.contribution for row in rows)
+
+
+async def _returning_run(async_session: AsyncSession, vault: Vault, dweller: Dweller) -> Exploration:
+    """A free-roam run that has explored its full duration and is due home."""
+    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
+    exploration.start_time = utcnow() - timedelta(hours=exploration.duration)
+    async_session.add(exploration)
+    await async_session.flush()
+    await exploration_coordinator.start_return(async_session, exploration.id)
+    await async_session.refresh(exploration)
+    exploration.return_completes_at = utcnow() - timedelta(seconds=1)
+    async_session.add(exploration)
+    await async_session.commit()
+    return exploration
+
+
+@pytest.mark.asyncio
+async def test_finalize_return_credits_active_world_event(
+    async_session: AsyncSession,
+    vault: Vault,
+    dweller: Dweller,
+    make_vault_storage,
+):
+    """A resolved free-roam expedition credits the ACTIVE event and its own participation row."""
+    await make_vault_storage()
+    event = await _create_world_event(async_session)
+    exploration = await _returning_run(async_session, vault, dweller)
+
+    rewards = await exploration_coordinator.finalize_return(async_session, exploration.id)
+
+    assert rewards.exploration_id == exploration.id
+    assert await _event_totals(async_session, event.id, vault.id) == (1, 1)
+
+
+@pytest.mark.asyncio
+async def test_finalize_return_weights_hazard_tier_run_triple(
+    async_session: AsyncSession,
+    vault: Vault,
+    dweller: Dweller,
+    make_vault_storage,
+):
+    """A run carrying a dispatch escalation tier (a hazard-site clear) counts for three units."""
+    await make_vault_storage()
+    event = await _create_world_event(async_session)
+    exploration = await _returning_run(async_session, vault, dweller)
+    exploration.clear_tier = 2
+    async_session.add(exploration)
+    await async_session.commit()
+
+    await exploration_coordinator.finalize_return(async_session, exploration.id)
+
+    assert await _event_totals(async_session, event.id, vault.id) == (3, 3)
+
+
+@pytest.mark.asyncio
+async def test_finalize_return_credits_world_event_once(
+    async_session: AsyncSession,
+    vault: Vault,
+    dweller: Dweller,
+    make_vault_storage,
+):
+    """Re-finalising a finished run credits nothing more: the terminal-state guard owns idempotency."""
+    await make_vault_storage()
+    event = await _create_world_event(async_session)
+    exploration = await _returning_run(async_session, vault, dweller)
+
+    await exploration_coordinator.finalize_return(async_session, exploration.id)
+    totals = await _event_totals(async_session, event.id, vault.id)
+
+    with pytest.raises(ValidationException):
+        await exploration_coordinator.finalize_return(async_session, exploration.id)
+
+    assert await _event_totals(async_session, event.id, vault.id) == totals
+
+
+@pytest.mark.asyncio
+async def test_finalize_return_without_active_world_event_still_succeeds(
+    async_session: AsyncSession,
+    vault: Vault,
+    dweller: Dweller,
+    make_vault_storage,
+):
+    """No ACTIVE event: the run finalises normally and no participation row appears."""
+    await make_vault_storage()
+    exploration = await _returning_run(async_session, vault, dweller)
+
+    rewards = await exploration_coordinator.finalize_return(async_session, exploration.id)
+
+    assert rewards.exploration_id == exploration.id
+    assert await _participation_count(async_session) == 0
+
+
+@pytest.mark.asyncio
+async def test_finalize_return_survives_world_event_failure(
+    async_session: AsyncSession,
+    vault: Vault,
+    dweller: Dweller,
+    make_vault_storage,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """A raising contribution never fails a finalised run and leaves the event untouched."""
+    await make_vault_storage()
+    event = await _create_world_event(async_session)
+    exploration = await _returning_run(async_session, vault, dweller)
+
+    async def _boom(*args, **kwargs):
+        raise RuntimeError("world event store down")
+
+    monkeypatch.setattr(world_event_service, "record_contribution", _boom)
+
+    rewards = await exploration_coordinator.finalize_return(async_session, exploration.id)
+
+    assert rewards.exploration_id == exploration.id
+    assert await _event_totals(async_session, event.id, vault.id) == (0, 0)

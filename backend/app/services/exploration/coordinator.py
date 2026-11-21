@@ -30,6 +30,15 @@ ERROR_NOT_RETURNING = "Exploration is not on the return leg"
 ERROR_NOT_ARRIVED = "Exploration has not arrived home yet"
 
 
+def _contribution_weight(run: Exploration) -> int:
+    """World-event units one resolved run is worth.
+
+    Exploration has no mode/kind column: ``clear_tier`` is its only per-run difficulty signal — NULL on a free-roam
+    trip, the snapshotted escalation tier on a dispatch run sent to clear a hazard site.
+    """
+    return 3 if run.clear_tier is not None else 1
+
+
 class ExplorationCoordinator:
     """Coordinates exploration completion and recall; events and rewards live in their own services."""
 
@@ -100,6 +109,20 @@ class ExplorationCoordinator:
         await notification_service.deliver_deferred_notifications(db_session)
         await leveling_service.deliver_deferred_level_ups(db_session)
         await rewards_service.deliver_pending_reward_events(db_session)
+
+        # Post-commit: credit the shared world event. The run is already terminal, so a retry cannot double-credit;
+        # a failure here must not undo a finalised run, hence its own try/commit/rollback.
+        from app.services.world_event_service import world_event_service
+
+        try:
+            await world_event_service.record_contribution(
+                db_session, exploration.vault_id, _contribution_weight(exploration), kind="expedition"
+            )
+            await db_session.commit()
+        except Exception:
+            logger.exception("world event contribution (expedition) failed")
+            await db_session.rollback()
+
         await self._notify_arrival(db_session, exploration, rewards)
         await event_service.publish_sse(
             exploration,

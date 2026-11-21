@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 3.10.0 (2026-11-21)
+
+### Features
+
+* **quests:** Fallout Shelter wiki quest catalog + daily/weekly rotation support ([#1460](https://github.com/ElderEvil/falloutProject/issues/1460)) 33c24df
+
 ## 3.9.0 (2026-11-21)
 
 ### Features

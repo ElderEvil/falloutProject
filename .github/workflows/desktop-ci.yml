@@ -36,8 +36,6 @@ jobs:
     env:
       # Never bake a developer's local API override into downloadable packages.
       VITE_API_BASE_URL: https://fallout-api.evillab.tech
-      # linuxdeploy and its AppImage plugin must also work without a FUSE mount.
-      APPIMAGE_EXTRACT_AND_RUN: '1'
 
     steps:
       - name: Checkout code
@@ -115,7 +113,8 @@ jobs:
 
       - name: Build Linux packages
         if: github.event_name != 'pull_request'
-        run: pnpm run desktop:build --ci --bundles deb,appimage -- --locked
+        # AppImage disabled for now: the linuxdeploy bundling kept failing the release attach.
+        run: pnpm run desktop:build --ci --bundles deb -- --locked
 
       - name: Validate packages and record checksums
         if: github.event_name != 'pull_request'
@@ -123,7 +122,7 @@ jobs:
         run: |
           dpkg-deb --info deb/*.deb
           desktop-file-validate deb/*/data/usr/share/applications/*.desktop
-          sha256sum deb/*.deb appimage/*.AppImage > SHA256SUMS
+          sha256sum deb/*.deb > SHA256SUMS.linux
 
       - name: Upload Linux packages
         if: github.event_name != 'pull_request'
@@ -132,8 +131,7 @@ jobs:
           name: fallout-desktop-linux-x86_64-${{ github.sha }}
           path: |
             frontend/src-tauri/target/release/bundle/deb/*.deb
-            frontend/src-tauri/target/release/bundle/appimage/*.AppImage
-            frontend/src-tauri/target/release/bundle/SHA256SUMS
+            frontend/src-tauri/target/release/bundle/SHA256SUMS.linux
           if-no-files-found: error
           compression-level: 0
           retention-days: 14
@@ -144,7 +142,9 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         working-directory: frontend/src-tauri/target/release/bundle
         run: |
-          gh release upload "${{ inputs.release_tag }}" deb/*.deb appimage/*.AppImage SHA256SUMS
+          # Per-platform checksum names and --clobber so the two attach jobs cannot
+          # race each other or fail on a rerun of the same release.
+          gh release upload --clobber "${{ inputs.release_tag }}" deb/*.deb SHA256SUMS.linux
           gh release view "${{ inputs.release_tag }}" --json assets --jq '.assets[] | "\(.name) \(.size) bytes"'
 
   windows:
@@ -220,7 +220,7 @@ jobs:
         if: github.event_name != 'pull_request'
         working-directory: frontend/src-tauri/target/release/bundle
         run: |
-          sha256sum nsis/*.exe > SHA256SUMS
+          sha256sum nsis/*.exe > SHA256SUMS.windows
 
       - name: Upload Windows packages
         if: github.event_name != 'pull_request'
@@ -229,7 +229,7 @@ jobs:
           name: fallout-desktop-windows-x86_64-${{ github.sha }}
           path: |
             frontend/src-tauri/target/release/bundle/nsis/*.exe
-            frontend/src-tauri/target/release/bundle/SHA256SUMS
+            frontend/src-tauri/target/release/bundle/SHA256SUMS.windows
           if-no-files-found: error
           compression-level: 0
           retention-days: 14
@@ -240,5 +240,5 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         working-directory: frontend/src-tauri/target/release/bundle
         run: |
-          gh release upload "${{ inputs.release_tag }}" nsis/*.exe SHA256SUMS
+          gh release upload --clobber "${{ inputs.release_tag }}" nsis/*.exe SHA256SUMS.windows
           gh release view "${{ inputs.release_tag }}" --json assets --jq '.assets[] | "\(.name) \(.size) bytes"'

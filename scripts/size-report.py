@@ -420,8 +420,16 @@ def print_report(report: Report) -> None:
             base.handwritten_production,
             head.handwritten_production,
         ),
-        ("Backend tests", base.line_total(BACKEND_TESTS), head.line_total(BACKEND_TESTS)),
-        ("Frontend tests", base.line_total(FRONTEND_TESTS), head.line_total(FRONTEND_TESTS)),
+        (
+            "Backend tests",
+            base.line_total(BACKEND_TESTS),
+            head.line_total(BACKEND_TESTS),
+        ),
+        (
+            "Frontend tests",
+            base.line_total(FRONTEND_TESTS),
+            head.line_total(FRONTEND_TESTS),
+        ),
         ("Handwritten tests", base.handwritten_tests, head.handwritten_tests),
     ):
         print(

@@ -110,8 +110,8 @@ def fix_room_image_urls() -> None:
 
     async def _run() -> tuple[int, int]:
         async with async_session_maker() as session:
-            result = await session.exec(select(Room))
-            rooms = result.all()
+            result = await session.execute(select(Room))
+            rooms = result.scalars().all()
 
             updated_url_count = 0
             updated_room_count = 0

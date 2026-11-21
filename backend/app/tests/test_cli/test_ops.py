@@ -13,10 +13,10 @@ runner = CliRunner()
 
 
 def _patch_ops_session(rooms: list) -> MagicMock:
-    exec_result = MagicMock()
-    exec_result.all.return_value = rooms
+    execute_result = MagicMock()
+    execute_result.scalars.return_value.all.return_value = rooms
     session = AsyncMock()
-    session.exec = AsyncMock(return_value=exec_result)
+    session.execute = AsyncMock(return_value=execute_result)
     session.commit = AsyncMock()
     patcher = patch("app.cli.ops.async_session_maker")
     mock_session_maker = patcher.start()

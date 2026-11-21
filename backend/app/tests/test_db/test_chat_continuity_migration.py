@@ -112,7 +112,11 @@ def test_revision_chain_and_single_head() -> None:
     assert MIGRATION.revision == REVISION
     assert MIGRATION.down_revision == "9a73f29c2ed1"
     script = ScriptDirectory.from_config(Config(str(BACKEND / "alembic.ini")))
-    assert script.get_heads() == [REVISION]
+    # The rotation migration chained after chat: chat stays in the ancestry, not at the head.
+    heads = script.get_heads()
+    assert len(heads) == 1
+    assert heads[0] != REVISION
+    assert REVISION in {rev.revision for rev in script.walk_revisions()}
 
 
 def test_upgrade_backfills_one_conversation_per_pair(monkeypatch) -> None:

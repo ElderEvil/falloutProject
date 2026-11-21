@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import logging
 from operator import itemgetter
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from app import crud
 from app.core.grid_config import ELEVATOR_UNITS, FLOOR_UNITS
@@ -38,6 +38,11 @@ RESOURCE_ROOM_NAMES = {"Power Generator", "Diner", "Water Treatment"}
 
 def _size(room: Room) -> int:
     return room.size if room.size is not None else room.size_min
+
+
+def _layout_sort_key(room: Room) -> tuple[bool, int, str]:
+    """Positioned rooms keep input order; unpositioned rooms follow, ordered by id."""
+    return (True, 0, str(room.id)) if room.coordinate_x is None else (False, room.coordinate_x, "")
 
 
 class VaultLayoutBackfillService:
@@ -65,7 +70,7 @@ class VaultLayoutBackfillService:
             level = [room for room in rooms if (room.coordinate_y or 0) == y]
             resource = sorted(
                 (room for room in level if room.name in RESOURCE_ROOM_NAMES),
-                key=lambda room: room.coordinate_x,
+                key=_layout_sort_key,
             )
             others = sorted(
                 (
@@ -73,7 +78,7 @@ class VaultLayoutBackfillService:
                     for room in level
                     if room is not door and not is_elevator(room.name) and room.name not in RESOURCE_ROOM_NAMES
                 ),
-                key=lambda room: room.coordinate_x,
+                key=_layout_sort_key,
             )
 
             right = shaft_x + ELEVATOR_UNITS
@@ -124,16 +129,14 @@ class VaultLayoutBackfillService:
         if template is None:
             raise ValueError("Elevator template missing from game data")
         for y in levels:
-            room_in = RoomCreate(
-                **template.model_dump()
-                | {
-                    "vault_id": vault_id,
-                    "size": template.size_min,
-                    "coordinate_x": shaft_x,
-                    "coordinate_y": y,
-                }
-            )
-            await crud.room.create(db_session, obj_in=room_in)
+            payload: dict[str, Any] = {
+                **template.model_dump(),
+                "vault_id": vault_id,
+                "size": template.size_min,
+                "coordinate_x": shaft_x,
+                "coordinate_y": y,
+            }
+            await crud.room.create(db_session, obj_in=RoomCreate(**payload))
 
     def _validate(
         self,

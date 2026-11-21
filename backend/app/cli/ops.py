@@ -19,7 +19,7 @@ from typing import Annotated, Any
 import httpx
 import typer
 from sqlalchemy import or_
-from sqlmodel import select
+from sqlmodel import col, select
 
 from app.core.config import settings
 from app.db.session import async_session_maker
@@ -66,10 +66,10 @@ def fix_dweller_image_urls() -> None:
         base_url = (settings.RUSTFS_PUBLIC_URL or "https://s3-api.evillab.dev").rstrip("/")
 
         async with async_session_maker() as session:
-            result = await session.execute(
-                select(Dweller).where(or_(Dweller.image_url.is_not(None), Dweller.thumbnail_url.is_not(None)))
+            result = await session.exec(
+                select(Dweller).where(or_(col(Dweller.image_url).is_not(None), col(Dweller.thumbnail_url).is_not(None)))
             )
-            dwellers = result.scalars().all()
+            dwellers = result.all()
 
             updated_url_count = 0
             updated_dweller_count = 0
@@ -110,8 +110,8 @@ def fix_room_image_urls() -> None:
 
     async def _run() -> tuple[int, int]:
         async with async_session_maker() as session:
-            result = await session.execute(select(Room))
-            rooms = result.scalars().all()
+            result = await session.exec(select(Room))
+            rooms = result.all()
 
             updated_url_count = 0
             updated_room_count = 0

@@ -1,12 +1,25 @@
 """Regression tests for production log-file configuration."""
 
+import json
 import logging
 
 import pytest
 from pydantic import ValidationError
 
 from app.core.config import Settings
-from app.core.logging import setup_logging
+from app.core.logging import CustomJsonFormatter, setup_logging
+
+
+def test_custom_json_formatter_accepts_base_class_keywords_and_emits_json() -> None:
+    """pythonjsonlogger may pass ``log_data`` by keyword; the override must keep that name."""
+    record = logging.LogRecord("test.json", logging.INFO, __file__, 1, "hello %s", ("world",), None)
+    data: dict[str, object] = {}
+    formatter = CustomJsonFormatter("%(message)s")
+
+    formatter.add_fields(log_data=data, record=record, message_dict={})
+
+    assert (data["level"], data["logger"]) == ("INFO", "test.json")
+    assert json.loads(formatter.format(record))["message"] == "hello world"
 
 
 def test_quest_duration_multiplier_is_local_only(monkeypatch: pytest.MonkeyPatch) -> None:

@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## 3.11.0 (2026-11-21)
+
+### Features
+
+* **quests:** color-coded type badges and grouped available quests 94ee65b
+
+### Continuous Integration
+
+* **desktop:** skip the AppImage bundling and give each platform its own checksums ([#1466](https://github.com/ElderEvil/falloutProject/issues/1466)) e9803c7
+
 ## 3.10.0 (2026-11-21)
 
 ### Features

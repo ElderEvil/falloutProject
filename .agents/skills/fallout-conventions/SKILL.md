@@ -157,22 +157,6 @@ Inline SQL through `sh -c` breaks on quoting: write the SQL to a file and pipe i
   `v-show`: mount with `{ attachTo: document.body }` and unmount after, do not weaken the assertion.
 - Frontend tests run through `pnpm test:run <paths>` (`vp test`); there is no bare `vitest` binary.
 
-## Live playtest traps
-
-- **Never run `python -m app.cli.simulate_*` inside the production backend pod** — the heavy static-data
-  import is OOM-killed (exit 137) and takes the container with it.
-- `POST /game/vaults/{id}/tick` does **not** advance incident combat: incidents run on wall-clock
-  `elapsed_time` in the worker (incident tick every 2 min, game tick every 1 min). Wait real minutes.
-- Never derive chat row counts from `conversation.context` — the stored state is longer than the rows it
-  covers, which is exactly why summarisation never fired in production (#1462).
-- Playtest endpoints: `/vaults/initiate`, `/vaults/{id}`, `/rooms/vault/{id}/`, `/dwellers/vault/{id}/`,
-  `/game/vaults/{id}/tick`, `/game/vaults/{id}/incidents`, `/rooms/{room_id}/rush` (GET quote, POST attempt).
-- Since #1457 an all-zero rush payout blocks the quote (`can_rush: false`): `resources_full` for real
-  capacity exhaustion, `no_yield` for sub-0.5 rounding or a missing medical storage row. `rush()` re-checks
-  the same guard at submission, so a stale quote raises instead of burning a stack.
-- Living-room occupants are seeded `status=RESTING`, which matches no positive branch in
-  `happiness_service`, so they decay to the floor (#1454).
-
 ## Code prose and test size
 
 - Prefer one terse line over a paragraph; delete comments that narrate what the code plainly does. Keep

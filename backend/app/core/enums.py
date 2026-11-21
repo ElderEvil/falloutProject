@@ -133,6 +133,15 @@ class ObjectiveCategoryEnum(CaseInsensitiveEnum):
     STARTER = "starter"
 
 
+class WorldEventStatus(StrEnum):
+    """Lifecycle of a server-wide co-op world event."""
+
+    SCHEDULED = "SCHEDULED"
+    ACTIVE = "ACTIVE"
+    COMPLETED = "COMPLETED"
+    EXPIRED = "EXPIRED"
+
+
 class SPECIALEnum(CaseInsensitiveEnum):
     STRENGTH = "strength"
     PERCEPTION = "perception"

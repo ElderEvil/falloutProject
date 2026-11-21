@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 3.9.0 (2026-11-21)
+
+### Features
+
+* **quests:** daily and weekly quest rotation with paginated vault quest reads ([#1461](https://github.com/ElderEvil/falloutProject/issues/1461)) 9a561e7
+
 ## 3.8.1 (2026-11-20)
 
 ### Bug Fixes

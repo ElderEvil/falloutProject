@@ -5,9 +5,11 @@ from datetime import UTC, datetime
 import pytest
 from sqlalchemy import event
 
+from app import crud
 from app.core.enums import QuestType, RequirementType
 from app.crud.game_state import game_state_crud
 from app.crud.quest import quest_crud
+from app.crud.vault import vault as vault_crud
 from app.models.dweller import Dweller
 from app.models.quest import Quest
 from app.models.quest_requirement import QuestRequirement
@@ -305,37 +307,47 @@ async def test_tick_hook_recovers_from_failure_and_rotates_next_tick(async_sessi
     state = await game_state_crud.get_or_create(async_session, vault_id)
     await async_session.commit()
 
-    original = rotation._roll_pool
-    calls = 0
+    # Statement-boundary fault: the first link insert fails, the recovery write succeeds.
+    insert_calls = 0
 
-    async def fail_once(db_session, vault_id, quest_type, count, reveal_threshold):
-        nonlocal calls
-        calls += 1
-        if calls == 1:
-            raise RuntimeError("tick rotation failure")
-        return await original(db_session, vault_id, quest_type, count, reveal_threshold)
+    def fail_first_insert(conn, cursor, statement, parameters, context, executemany):
+        nonlocal insert_calls
+        if statement.startswith("INSERT INTO vaultquestcompletionlink"):
+            insert_calls += 1
+            if insert_calls == 1:
+                raise RuntimeError("tick rotation failure")
 
-    monkeypatch.setattr(rotation, "_roll_pool", fail_once)
-    await game_loop_service._rotate_quests(async_session, vault_id, state)
-    await async_session.refresh(state)
-    assert state.daily_quests_period is None
+    event.listen(async_session.get_bind().engine, "before_cursor_execute", fail_first_insert)
+    try:
+        await game_loop_service._rotate_quests(async_session, vault_id, state)
+        await async_session.refresh(state)
+        assert state.daily_quests_period is None
 
-    await game_loop_service._rotate_quests(async_session, vault_id, state)
-    await async_session.refresh(state)
-    assert state.daily_quests_period is not None
-    assert state.weekly_quests_period is not None
+        await game_loop_service._rotate_quests(async_session, vault_id, state)
+        await async_session.refresh(state)
+        assert state.daily_quests_period is not None
+        assert state.weekly_quests_period is not None
+    finally:
+        event.remove(async_session.get_bind().engine, "before_cursor_execute", fail_first_insert)
 
 
 async def test_rotation_sweep_finishes_other_vaults_then_fails_retryably(async_session, vault, monkeypatch):
     """The midnight actor keeps rotating the other vaults, then raises so Dramatiq retries."""
-    import uuid as uuid_module
     from contextlib import asynccontextmanager
 
     from app.api import tasks
-    from app.crud.vault import vault as vault_crud
-    from app.services.progression.quests import rotation as rotation_module
+    from app.crud.game_state import game_state_crud
+    from app.schemas.user import UserCreate
+    from app.schemas.vault import VaultCreateWithUserID
+    from app.tests.factory.users import create_fake_user
+    from app.tests.factory.vaults import create_fake_vault
 
     first = vault.id  # Captured early: the sweep's session recovery expires loaded rows.
+    user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
+    second = await crud.vault.create(
+        async_session, obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id)
+    )
+    ids = [quest.id for quest in await _seed_pools(async_session)]
 
     @asynccontextmanager
     async def fake_task_session():
@@ -343,22 +355,37 @@ async def test_rotation_sweep_finishes_other_vaults_then_fails_retryably(async_s
 
     monkeypatch.setattr(tasks, "task_session", lambda: fake_task_session())
 
-    stuck = uuid_module.UUID("00000000-0000-0000-0000-0000000000aa")
-    calls: list[UUID] = []
+    # Statement-boundary fault: the sweep's first link insert fails; the vault it
+    # belonged to is captured so the rollback assertions stay order-independent.
+    failing_hex: str | None = None
 
-    async def rolling(db, vault_id):
-        calls.append(vault_id)
-        if vault_id == first:
-            raise RuntimeError("vault rotation failed")
-        return 0
+    def fail_first_vault_insert(conn, cursor, statement, parameters, context, executemany):
+        nonlocal failing_hex
+        if failing_hex is not None or not statement.startswith("INSERT INTO vaultquestcompletionlink"):
+            return  # One-shot: only the first link insert fails, the other vault rotates.
+        # asyncpg renders uuid params in the compact hex form; the first param is vault_id.
+        rows = parameters if isinstance(parameters, list) else [parameters]
+        first_row = next((row for row in rows if row), None)
+        failing_hex = str(first_row[0]) if isinstance(first_row, tuple) else ""
+        raise RuntimeError("vault rotation failure")
 
-    monkeypatch.setattr(rotation_module, "ensure_current_quest_rotation", rolling)
+    engine = async_session.get_bind().engine
+    event.listen(engine, "before_cursor_execute", fail_first_vault_insert)
+    try:
+        with pytest.raises(RuntimeError, match="Quest rotation failed for vaults"):
+            await tasks._refresh_quest_rotation()
+    finally:
+        event.remove(engine, "before_cursor_execute", fail_first_vault_insert)
 
-    async def two_vaults(session):
-        return [first, stuck]
+    assert failing_hex is not None
+    failing = next(v for v in (first, second.id) if v.hex == failing_hex)
+    rotating = second.id if failing == first else first
 
-    monkeypatch.setattr(vault_crud, "get_non_deleted_ids", two_vaults)
-
-    with pytest.raises(RuntimeError, match="Quest rotation failed for vaults"):
-        await tasks._refresh_quest_rotation()
-    assert calls == [first, stuck]
+    # The failing vault rolled back: no links and not even its sweep-created
+    # gamestate row survived, so the retry starts from a clean slate.
+    assert await quest_crud.get_links_for_quest_ids(async_session, failing, ids) == []
+    assert await game_state_crud.get_by_vault_id(async_session, failing) is None
+    assert len(await quest_crud.get_links_for_quest_ids(async_session, rotating, ids)) == DAILY_COUNT + WEEKLY_COUNT
+    rotating_state = await game_state_crud.get_by_vault_id(async_session, rotating)
+    assert rotating_state is not None
+    assert rotating_state.daily_quests_period is not None

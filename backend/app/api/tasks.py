@@ -408,14 +408,9 @@ async def _refresh_quest_rotation() -> dict:
 @dramatiq.actor(actor_name="refresh_quest_rotation", max_retries=3, min_backoff=3600000)
 def refresh_quest_rotation():
     """Rotate daily and weekly quests for all vaults."""
-    try:
-        result = run_async(_refresh_quest_rotation())
-    except Exception:
-        logger.exception("Quest rotation failed")
-        raise
-    else:
-        logger.info(f"Quest rotation completed: {result}")
-        return result
+    result = run_async(_refresh_quest_rotation())
+    logger.info("Quest rotation completed: %s", result)
+    return result
 
 
 async def _cleanup_old_records() -> dict:

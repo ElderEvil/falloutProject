@@ -51,25 +51,22 @@ def _reset_link(link: VaultQuestCompletionLink, *, is_visible: bool) -> None:
 async def _roll_pool(
     db: AsyncSession, vault_id: UUID, quest_type: QuestType, count: int, reveal_threshold: int
 ) -> tuple[int, bool]:
-    """Offer ``count`` quests of one pool and hide the rest, returning the offered count and pool presence.
-
-    Unsettled links (a party away, or prizes unclaimed) are excluded from the draw
-    before sampling, so a carried-over quest never consumes one of the fresh slots;
-    they keep their state and stay visible. Only quests inside the vault's reveal
-    window are sampled: a mandatory LEVEL gate above ``reveal_threshold`` is dropped
-    from both read paths, so offering it would silently consume a slot the vault can
-    never see.
-    """
+    """Offer quests inside the reveal window while preserving in-flight links and draw slots."""
     quests = await quest_crud.get_rotation_candidates(db, quest_type)
     if not quests:
         return 0, False
     quest_ids = [quest.id for quest in quests]
     links = {link.quest_id: link for link in await quest_crud.get_links_for_quest_ids(db, vault_id, quest_ids)}
     in_flight = {quest_id for quest_id, link in links.items() if _is_in_flight(link)}
-    fresh = [quest for quest in quests if quest.id not in in_flight]
-    eligible = [quest for quest in fresh if highest_mandatory_level_requirement(quest) <= reveal_threshold]
+    eligible = [
+        quest
+        for quest in quests
+        if quest.id not in in_flight and highest_mandatory_level_requirement(quest) <= reveal_threshold
+    ]
     offered = {quest.id for quest in random.sample(eligible, min(count, len(eligible)))}
-    await quest_crud.insert_links_if_absent(db, vault_id, {quest.id: quest.id in offered for quest in fresh})
+    await quest_crud.insert_links_if_absent(
+        db, vault_id, {quest_id: quest_id in offered for quest_id in quest_ids if quest_id not in links}
+    )
     for quest_id, link in links.items():
         if quest_id in in_flight:
             link.is_visible = True

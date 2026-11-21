@@ -58,7 +58,18 @@ export const useWorldEventStore = defineStore('worldEvent', () => {
     }
   }
 
-  return { event, hasEvent, progressPercent, loading, claiming, claimed, error, claimError, load, claim }
+  return {
+    event,
+    hasEvent,
+    progressPercent,
+    loading,
+    claiming,
+    claimed,
+    error,
+    claimError,
+    load,
+    claim,
+  }
 })
 
 export { ALREADY_CLAIMED }

@@ -20,7 +20,9 @@ onMounted(() => store.load(props.vaultId, { silent: true }))
     <Icon icon="mdi:radio-tower" class="h-5 w-5 shrink-0" />
     <span class="truncate font-bold">{{ store.event?.title }}</span>
     <span class="ml-auto whitespace-nowrap text-terminal-green/70">
-      {{ store.event?.progress_amount }} / {{ store.event?.target_amount }} ({{ store.progressPercent }}%)
+      {{ store.event?.progress_amount }} / {{ store.event?.target_amount }} ({{
+        store.progressPercent
+      }}%)
     </span>
     <Icon icon="mdi:chevron-right" class="h-4 w-4 shrink-0" />
   </router-link>

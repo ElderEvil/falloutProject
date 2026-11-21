@@ -629,7 +629,7 @@ describe('QuestCard', () => {
     ['training', 'mdi:dumbbell'],
     [null, 'mdi:flag'],
     ['unknown', 'mdi:flag'],
-  ])('represents %s with an accessible icon instead of written badges', (category, icon) => {
+  ])('represents %s with an accessible category icon and a type badge', (category, icon) => {
     setActivePinia(createPinia())
     const wrapper = mount(QuestCard, {
       props: {
@@ -644,7 +644,8 @@ describe('QuestCard', () => {
     expect(header.get('[role="img"]').attributes('aria-label')).toBe(label)
     expect(header.get('[role="img"]').attributes('title')).toBe(label)
     expect(header.findComponent(Icon).props('icon')).toBe(icon)
-    expect(header.text()).toBe(quest.title)
+    expect(header.text()).toContain(quest.title)
+    expect(header.text()).toContain('Side') // The visible type badge.
   })
 
   it('keeps the chain position after the title and identifies main quests', () => {
@@ -677,7 +678,8 @@ describe('QuestCard', () => {
       'mdi:sword-cross',
       'mdi:link-variant',
     ])
-    expect(header.get('h3').element.nextElementSibling?.textContent).toContain('2/3')
+    expect(header.text()).toContain('Main') // The type badge precedes the chain badge.
+    expect(header.text()).toContain('2/3')
   })
 
   it.each([

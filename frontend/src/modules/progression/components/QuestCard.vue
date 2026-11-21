@@ -237,8 +237,19 @@ const handleAction = () => {
         <Icon :icon="questIcon" class="text-lg" ariaHidden="true" />
       </span>
     </template>
-    <template v-if="chainProgress" #badges>
-      <Badge variant="outline" class="shrink-0 gap-1 text-xs">
+    <template #badges>
+      <Badge
+        variant="outline"
+        class="shrink-0 gap-1 text-xs"
+        :style="{
+          backgroundColor: typeColor.bg,
+          color: typeColor.text,
+          borderColor: typeColor.border,
+        }"
+      >
+        {{ questTypeLabel(quest.quest_type) }}
+      </Badge>
+      <Badge v-if="chainProgress" variant="outline" class="shrink-0 gap-1 text-xs">
         <Icon icon="mdi:link-variant" ariaHidden="true" />
         <span class="sr-only">Quest </span>{{ chainProgress }}
         <span class="sr-only"> in chain</span>

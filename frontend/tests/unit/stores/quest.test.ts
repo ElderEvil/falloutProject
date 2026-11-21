@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vite-plus/test'
 import { setActivePinia, createPinia } from 'pinia'
+import { groupQuestsByType } from '@/modules/progression/models/quest'
 import { useQuestStore } from '@/modules/progression/stores/quest'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import axios from '@/core/plugins/axios'
@@ -535,4 +536,47 @@ describe('Quest Store', () => {
     })
     return { promise, resolve, reject }
   }
+})
+
+describe('groupQuestsByType', () => {
+  const quest = (id: string, quest_type: string) => ({ id, quest_type }) as unknown as VaultQuest
+
+  it('orders daily, weekly, event, main, side and omits empty groups', () => {
+    const groups = groupQuestsByType([
+      quest('side-1', 'side'),
+      quest('daily-1', 'daily'),
+      quest('event-1', 'event'),
+      quest('weekly-1', 'repeatable'),
+      quest('main-1', 'main'),
+    ])
+
+    expect(groups.map((group) => group.type)).toEqual([
+      'daily',
+      'repeatable',
+      'event',
+      'main',
+      'side',
+    ])
+    expect(groups.map((group) => group.label)).toEqual([
+      'Daily quests',
+      'Weekly quests',
+      'Event quests',
+      'Main quests',
+      'Side quests',
+    ])
+  })
+
+  it('labels repeatable as Weekly and omits empty groups', () => {
+    const groups = groupQuestsByType([quest('weekly-1', 'repeatable')])
+    expect(groups).toHaveLength(1)
+    expect(groups[0].label).toBe('Weekly quests')
+    expect(groups[0].quests.map((entry) => entry.id)).toEqual(['weekly-1'])
+  })
+
+  it('buckets unknown types into the side group', () => {
+    const groups = groupQuestsByType([quest('odd-1', 'unknown-kind')])
+    expect(groups).toHaveLength(1)
+    expect(groups[0].type).toBe('side')
+    expect(groups[0].quests.map((entry) => entry.id)).toEqual(['odd-1'])
+  })
 })

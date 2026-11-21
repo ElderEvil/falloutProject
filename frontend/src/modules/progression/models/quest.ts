@@ -198,7 +198,7 @@ function rewardAmount(value: unknown): number {
 
 /** Type chip colors shared by the quest card and detail badges. */
 export const QUEST_TYPE_COLORS: Record<string, { bg: string; text: string; border: string }> = {
-  main: { bg: 'var(--color-theme-primary)', text: '#000000', border: 'var(--color-theme-primary)' },
+  main: { bg: 'var(--color-quest-main)', text: '#000000', border: 'var(--color-quest-main)' },
   side: {
     bg: 'var(--color-quest-side)',
     text: 'var(--color-theme-primary)',
@@ -215,8 +215,40 @@ export const QUEST_TYPE_COLORS: Record<string, { bg: string; text: string; borde
 
 export function questTypeLabel(questType: string | null | undefined): string {
   const normalized = questType || 'side'
+  if (normalized === 'repeatable') return 'Weekly'
   return capitalize(normalized)
 }
+
+/** Rotating pools first, then the story chains; empty groups are omitted. */
+export interface QuestTypeGroup {
+  type: string
+  label: string
+  quests: VaultQuest[]
+}
+
+const QUEST_TYPE_GROUP_ORDER: { type: string; label: string }[] = [
+  { type: 'daily', label: 'Daily quests' },
+  { type: 'repeatable', label: 'Weekly quests' },
+  { type: 'event', label: 'Event quests' },
+  { type: 'main', label: 'Main quests' },
+  { type: 'side', label: 'Side quests' },
+]
+
+export function groupQuestsByType(quests: VaultQuest[]): QuestTypeGroup[] {
+  const buckets = new Map<string, VaultQuest[]>()
+  for (const quest of quests) {
+    const type = QUEST_TYPE_GROUP_TYPES.has(quest.quest_type) ? quest.quest_type : 'side'
+    const bucket = buckets.get(type) ?? []
+    bucket.push(quest)
+    buckets.set(type, bucket)
+  }
+  return QUEST_TYPE_GROUP_ORDER.filter((group) => buckets.has(group.type)).map((group) => ({
+    ...group,
+    quests: buckets.get(group.type) ?? [],
+  }))
+}
+
+const QUEST_TYPE_GROUP_TYPES = new Set(['daily', 'repeatable', 'event', 'main', 'side'])
 
 /** State quests settle from vault progress and start without a party. */
 export function isStateQuestCategory(category: string | null | undefined): boolean {

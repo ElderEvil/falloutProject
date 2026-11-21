@@ -7,8 +7,8 @@
 -- Editable values (all other columns are derived or fixed below):
 --
 --   kind            BLACKOUT_WATCH
---   title           Blackout Watch
---   description     one line, civil-defence tone
+--   title           Lights Out
+--   description     states the verb: incidents and expeditions both count
 --   target_amount   400
 --   personal_min    20
 --   reward          [{caps 2000}, {lunchbox 1}]  -- keys consumed by reward_service.grant
@@ -29,8 +29,8 @@ WITH seed AS (
     SELECT
         '019a5e2c-7b4d-7c31-9f2a-6d1e8c4b5a70'::uuid AS id,
         'BLACKOUT_WATCH'::varchar(50) AS kind,
-        'Blackout Watch'::varchar(120) AS title,
-        'The lights went out across the wasteland. Man the civil-defence stations and survive the dark.'::varchar(500) AS description,
+        'Lights Out'::varchar(120) AS title,
+        'Put down raiders while the power''s out. Somebody cut the power to every vault at once and nobody''s admitting it. Raiders are moving while the lights are down — every incident your dwellers put down counts for the whole network, and so does every expedition that comes back loaded.'::varchar(500) AS description,
         400 AS target_amount,
         20 AS personal_min,
         '[{"reward_type": "caps", "amount": 2000}, {"reward_type": "lunchbox", "amount": 1}]'::jsonb AS reward,

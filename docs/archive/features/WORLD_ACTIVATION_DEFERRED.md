@@ -1,5 +1,8 @@
 # World Activation — Deferred (Parked)
 
+> **Archived:** no scheduled work. The decision log below and the preserved PR #901 branch are the
+> reference if a world swap is ever scheduled.
+>
 > Status: **deferred, not abandoned.** PR #901 (`feat/world-activation`, Track C of
 > the exploration/world plan) is **draft** and unmerged. Master keeps a single shared
 > world. Revisit only when a world swap becomes a real, scheduled need.

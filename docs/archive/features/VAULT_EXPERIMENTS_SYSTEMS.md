@@ -1,6 +1,10 @@
 # Vault Experiments — Underlying Systems Plan
 
-Implementation plan for the data, persistence, modifier, and content systems behind
+> **Archived:** no scheduled work. The deferred register
+> [#1113](https://github.com/ElderEvil/falloutProject/issues/1113) owns reopening conditions; keep this
+> plan as the build-order reference if experiments are scheduled.
+>
+> Implementation plan for the data, persistence, modifier, and content systems behind
 playable Vault-Tec experiments (canon: 17 control vaults, 105 experiments — food
 shortages, skewed demographics, early openings, prototype testing). Control vaults
 stay today's game, byte-for-byte; experiments are opt-in condition bundles.

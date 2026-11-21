@@ -1,8 +1,12 @@
 # Server Co-op Events — Design Contract
 
-> Status: **proposed, not implemented.** Feature-flagged off by default. This is the project's first
-> multiplayer element; like `RESOURCE_ECONOMY_BALANCE.md`, the numbers are a playtest baseline, not a
-> specification.
+> **Archived:** implemented in #1464. The as-built contract now lives in
+> `docs/backend/GAME_MECHANICS.md` (World events); this file preserves the original design, candidate kinds
+> and open questions. Where they disagree with the code, the code and `GAME_MECHANICS.md` win.
+>
+> Status: **implemented (#1464)**, feature-flagged off by default. `WorldEvent` / `WorldEventParticipation`,
+> `world_event_service`, the `advance_world_event` cron, `/vaults/{vault_id}/world-event` reads and the
+> one-time claim are live. The numbers below are a playtest baseline, not a specification.
 
 ## Goal
 

@@ -1,7 +1,14 @@
 # Dweller Templates — Rare & Legendary System (Lore-Accurate)
 
-> **Status:** Design doc — `rare.json` / `legendary.json` enrichment + curated origin/visited system. Branch intent: make rare/legendary non-procedural (fixed lore templates, not sampled stats). Names normalization deferred per owner request.
-> Related: `BIO_MAP_UNCOVERING.md`, `WORLD_MAP.md`, `EXPLORATION_SYSTEM.md`, `FAMILY_SYSTEM.md`
+> **Archived:** design record for the shipped template system. The cap table below (`common 2 / rare 4 /
+> legendary 5`) is superseded by the shipped defaults `0 / 1 / 2` in
+> `game_config.bio.visited_by_rarity`. The current contract is
+> `docs/backend/GAME_MECHANICS.md` (Dweller rarity and templates).
+>
+> **Status:** Implemented. `rare.json` / `legendary.json` drive curated rare/legendary dwellers through
+> `app/utils/static_data.py` and `create_dweller_from_template`. Names normalization stays deferred per
+> owner request. Related live docs: `docs/features/BIO_MAP_UNCOVERING.md`, `docs/features/WORLD_MAP.md`,
+> `docs/features/EXPLORATION_SYSTEM.md`, `docs/features/FAMILY_SYSTEM.md`.
 
 ## 1. Goal
 

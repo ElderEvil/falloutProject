@@ -153,10 +153,55 @@ pnpm run test:run             # CI-equivalent (or: pnpm run test -- <file>)
 11. **Layer dependency direction (mechanically enforced):** dependency flows endpoints → services → CRUD, never upward. CRUD modules must not import `app.services.*` except the shared policy kernel (`room_assignment_policy`); cross-cutting messaging lives in `app.core.event_bus`, outside the service layer. Services must not issue raw `select()`/`exec()` (queries live in CRUD). Both rules are AST-guarded in `backend/app/tests/test_architecture/test_service_layer_guard.py` with self-shrinking baselines — new violations fail the suite, and stale baseline entries fail until removed. Shrink the baselines with every domain batch; never extend them.
 12. **Module naming (mechanically enforced):** new top-level `backend/app/services/*.py` modules are `*_service.py`; `backend/app/crud/` stays flat lowercase files with no subpackages. Same guard test, same ratchet: grandfather lists cover only pre-existing names and must shrink, never grow.
 
+## Feature intake and size policy (advisory)
+
+The game must stay small enough for one person to maintain. Content is data and is cheap; systems are code
+and are not. A feature that cannot justify its integration tax is not built. This section is review
+guidance: CI gains no size gate. Load the `fallout-feature-intake` skill for the long form and
+`fallout-conventions` for what each existing gate charges.
+
+Answer these in the feature issue before building a new system or a meaningful expansion:
+
+1. What player action does this extend, and can existing code own it?
+2. Can a catalog or configuration entry deliver it?
+3. What existing behavior or maintenance work would it replace?
+4. What production, test, and integration work will it require? Use a comparable change when possible.
+5. What would a playtest need to show?
+6. Who owns any flag, and when will they decide to enable or remove it?
+
+Review targets and trends — the definitions below are the report's own, so the numbers cannot drift apart:
+
+- Handwritten backend production (excluding migrations and catalog data): **~90k** advisory target, 78k today.
+- Handwritten frontend production (excluding generated types and catalog data): **~90k** advisory target, 81k today.
+- Test:production ratios are tracked as trends, not targets: they must not grow. Today, backend **1.27**
+  excluding migrations and 1.12 including them — the migrations flatter the digit, so quote 1.27 —
+  and frontend 1.07.
+- A material overage calls for a short explanation in the PR body; it is not a merge blocker.
+- Track these as trends alongside module count and feature-doc count. Preserve the distinct coverage
+  families in rule 10.
+- Before adding a frontend module, explain why an existing module cannot own the behavior. Keep the layer
+  boundaries in rule 4.
+- At ~300 handwritten application and test lines added (tooling such as `scripts/` is outside this
+  count), identify any code or docs the change replaces. "Nothing to remove" is acceptable. Generated
+  files and catalog data do not count toward this prompt.
+- `docs/features/` is a working set: keep a small set of active plans and contracts that still guide
+  development. Superseded reference material moves to `docs/archive/`; proposals without scheduled work
+  live in their issue. Repoint live links before deleting or moving a doc.
+
+Measure any change against a base ref with one command:
+
+```bash
+python3 scripts/size-report.py <base-ref> [head-ref]   # head defaults to HEAD
+```
+
+It reports handwritten production and test lines with deltas and test:production ratios, gross handwritten
+application/test additions (the ~300-line prompt; tooling excluded), changed files, module/feature-doc/
+migration counts, generated and catalog lines separately, and files over 600 lines.
+
 ## Dev Environment (Agent Quick-Start)
 
 In Zed, use the project tasks: `Fallout: Run Podman infrastructure`, then `Fallout: Run backend server (Podman)` and `Fallout: Run frontend server`. The backend task applies migrations before starting FastAPI; use `Fallout: Stop Podman infrastructure` when finished. Podman is the primary engine; on Docker-only machines use the matching `Fallout: ... (Docker)` tasks instead (the compose files are engine-neutral).
 
 ---
 
-_Last updated: 2026-09-17_
+_Last updated: 2026-11-21_

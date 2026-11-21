@@ -610,7 +610,7 @@ it. Design deferred; decide the navigation shape when the exploration module nex
 (draft PR #901, `feat/world-activation`) is **not shipping now** — one shared world is enough and the machinery
 had no candidate source to exercise on master. Work is preserved on the branch; master keeps a single shared
 world and `generator_version` stays as recipe identity. Record and revival steps:
-`docs/features/WORLD_ACTIVATION_DEFERRED.md`.
+`docs/archive/features/WORLD_ACTIVATION_DEFERRED.md`.
 
 
 - 🔧 **Deployment parity** — deploy the v2.46.1 Dramatiq worker image with the discovery-unlock fix so new
@@ -1373,7 +1373,7 @@ Current blocker map (what stalls what):
 _Last updated: 2026-10-06_ — **pets recorded as SHIPPED** (dweller-equip pet domain, v2.164.0 #851 / fix
 v2.165.1 #858; overrides the #470 room-assignment idea). **World activation (Track C) recorded as DEFERRED** —
 not shipping; work parked on `feat/world-activation`, draft PR #901 unmerged, revival steps in
-`docs/features/WORLD_ACTIVATION_DEFERRED.md`. Earlier: grey-surface styling policy recorded under Frontend
+`docs/archive/features/WORLD_ACTIVATION_DEFERRED.md`. Earlier: grey-surface styling policy recorded under Frontend
 Design-System Consolidation (quest/objective cards lost their grey background in an earlier pass; a deliberate
 "which parts, on what condition, which shade" decision is deferred). Also 2026-09-19: quest/objective progression
 plan recorded (`.omo/plans/quest-objective-progression.md`): sequenced starter objectives drive

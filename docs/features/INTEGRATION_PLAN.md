@@ -73,8 +73,8 @@ engine, automatic claims, equipment selection or staffing policy is approved by 
 
 - [Service ownership and compaction #740](https://github.com/ElderEvil/falloutProject/issues/740) absorbs
   [#1032](https://github.com/ElderEvil/falloutProject/issues/1032). Reconcile merged overflow, item-factory
-  and departure work (#1075, #1077, #1094) before starting another batch. Preserve the source analysis in
-  [service-compaction-analysis.md](../../.omo/service-compaction-analysis.md), rejected abstractions,
+  and departure work (#1075, #1077, #1094) before starting another batch. Preserve the source analysis
+  (`.omo/service-compaction-analysis.md`, a local untracked workspace file), rejected abstractions,
   concurrency guarantees and transaction boundaries. Count actual duplication removed, not module moves.
 - [Operational correctness #885](https://github.com/ElderEvil/falloutProject/issues/885) remains independent.
   Inventory actual production before asserting repository gaps are live failures. Prioritize reproducible
@@ -91,8 +91,8 @@ bell delivery. This plan does not relax AGENTS.md or game-domain invariants.
 
 [Deferred register #1113](https://github.com/ElderEvil/falloutProject/issues/1113) owns the shared recovery
 index and reopening conditions. Closed sources remain readable; closure means deferred/consolidated,
-not implemented. All original open-item bodies are in the
-[pre-consolidation snapshot](../planning/BACKLOG_SNAPSHOT_2026-10-20.md).
+not implemented. All original open-item bodies remain on GitHub and in the historical
+[pre-consolidation snapshot](https://github.com/ElderEvil/falloutProject/blob/6fa41900d4eac8514c1b0160d93da4ddbaaf52a8/docs/planning/BACKLOG_SNAPSHOT_2026-10-20.md).
 
 | Area | Preserved sources | Condition before scheduling |
 | --- | --- | --- |
@@ -143,7 +143,8 @@ then; reopening a source requires its recorded condition and a bounded implement
   four experimental PRs were closed with disposition/recovery links. Closed source bodies remain
   unchanged, none of the deferred PRs was merged, and all four source branches were verified on origin.
 - [Historical roadmap](../ROADMAP_ARCHIVE_2026-10-20.md): complete prior roadmap, retained as dated evidence.
-- [Original open-item snapshot](../planning/BACKLOG_SNAPSHOT_2026-10-20.md): all 23 issue bodies, all 9 PR
+- [Original open-item snapshot](https://github.com/ElderEvil/falloutProject/blob/6fa41900d4eac8514c1b0160d93da4ddbaaf52a8/docs/planning/BACKLOG_SNAPSHOT_2026-10-20.md)
+  (historical): all 23 issue bodies, all 9 PR
   descriptions, exact PR heads and captured discussion/reviews for the four deferred PRs.
 - Original GitHub bodies/discussions remain intact below added planning notices or at closed source items.
 - Existing specialist docs remain reference material. Their historical priority/status text is superseded

@@ -107,16 +107,23 @@ class WorldEventService:
         )
 
     async def claim(self, db_session: AsyncSession, vault_id: UUID) -> WorldEventClaimRead:
-        """Pay the latest completed event's reward list to a qualifying vault exactly once."""
-        event = await world_event_crud.get_current(db_session)
-        if event is None or event.status != WorldEventStatus.COMPLETED:
+        """Pay the newest completed event this vault joined, exactly once.
+
+        Deliberately not `get_current`: while the next event is ACTIVE that returns the ACTIVE
+        row, which would strand the previous event's reward for every vault that had not claimed
+        it yet.
+        """
+        event = await world_event_crud.get_claimable_for_vault(db_session, vault_id)
+        if event is None:
+            if await world_event_crud.has_completed(db_session):
+                raise ValidationException("Your vault took no part in this world event.")
             raise ValidationException("The world event is not complete yet.")
 
         await db_session.flush()
         # The participation row lock serialises competing claims for one vault; the second
         # claim then observes reward_claimed_at and is rejected.
         participation = await world_event_crud.get_participation_for_update(db_session, event.id, vault_id)
-        if participation is None:
+        if participation is None:  # defensive: the query already joined on participation
             raise ValidationException("Your vault took no part in this world event.")
         if participation.reward_claimed_at is not None:
             raise ResourceConflictException("World event reward already claimed.")

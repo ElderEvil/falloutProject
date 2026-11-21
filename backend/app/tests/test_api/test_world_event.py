@@ -3,6 +3,7 @@
 from collections.abc import AsyncGenerator
 from datetime import UTC, datetime, timedelta
 
+import pytest
 import pytest_asyncio
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -10,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app import crud
 from app.api.deps import get_current_active_user
 from app.core.enums import WorldEventStatus
+from app.core.game_config import game_config
 from app.models.user import User
 from app.models.vault import Vault
 from app.models.world_event import WorldEvent, WorldEventParticipation
@@ -53,6 +55,12 @@ async def _add_participation(
     async_session.add(participation)
     await async_session.commit()
     return participation
+
+
+@pytest.fixture(autouse=True)
+def _world_events_enabled(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The feature ships dark; these tests exercise the enabled surface."""
+    monkeypatch.setattr(game_config.features, "world_events", True)
 
 
 @pytest_asyncio.fixture(name="owner")
@@ -134,11 +142,61 @@ async def test_claim_rejected_while_ineligible(
     assert response.status_code == 400
     assert response.json()["detail"] == "Your vault took no part in this world event."
 
+    # Contributing to a still-running event is not enough: the only completed event on record
+    # is the one this vault never joined.
     active = await _add_event(async_session)
     await _add_participation(async_session, active, vault, completed.target_amount)
     response = await async_client.post(f"/vaults/{vault.id}/world-event/claim")
     assert response.status_code == 400
+    assert response.json()["detail"] == "Your vault took no part in this world event."
+
+
+async def test_claim_rejected_before_any_event_completes(
+    async_client: AsyncClient, async_session: AsyncSession, owner: User, vault: Vault
+) -> None:
+    active = await _add_event(async_session)
+    await _add_participation(async_session, active, vault, 90)
+
+    response = await async_client.post(f"/vaults/{vault.id}/world-event/claim")
+
+    assert response.status_code == 400
     assert response.json()["detail"] == "The world event is not complete yet."
+
+
+async def test_claim_still_pays_a_completed_event_after_the_next_one_activates(
+    async_client: AsyncClient, async_session: AsyncSession, owner: User, vault: Vault
+) -> None:
+    """Rotation must not strand an unclaimed reward: claims target the finished event."""
+    finished = await _add_event(async_session, status=WorldEventStatus.COMPLETED)
+    await _add_participation(async_session, finished, vault, 25)
+    await _add_event(async_session)  # next event is now ACTIVE
+    vault.bottle_caps = 500
+    async_session.add(vault)
+    await async_session.commit()
+
+    response = await async_client.post(f"/vaults/{vault.id}/world-event/claim")
+
+    assert response.status_code == 200, response.text
+    assert response.json()["event_id"] == str(finished.id)
+    await async_session.refresh(vault)
+    assert vault.bottle_caps == 550
+
+
+async def test_endpoints_are_hidden_while_the_flag_is_off(
+    async_client: AsyncClient,
+    async_session: AsyncSession,
+    owner: User,
+    vault: Vault,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(game_config.features, "world_events", False)
+    await _add_event(async_session)
+
+    read = await async_client.get(f"/vaults/{vault.id}/world-event")
+    claim = await async_client.post(f"/vaults/{vault.id}/world-event/claim")
+
+    assert read.status_code == 404
+    assert claim.status_code == 404
 
 
 async def test_claim_pays_rewards_once(

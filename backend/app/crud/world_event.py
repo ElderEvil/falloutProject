@@ -29,6 +29,31 @@ class CRUDWorldEvent(CRUDBase[WorldEvent, None, None]):
         )
         return finished.scalar_one_or_none()
 
+    async def get_claimable_for_vault(self, db_session: AsyncSession, vault_id: UUID) -> WorldEvent | None:
+        """The newest COMPLETED event this vault took part in — what a claim targets.
+
+        A claim must not follow the ACTIVE event: once the next event activates, a vault that
+        contributed to the finished one can still collect its reward.
+        """
+        result = await db_session.execute(
+            select(self.model)
+            .join(WorldEventParticipation, col(WorldEventParticipation.world_event_id) == col(self.model.id))
+            .where(
+                self.model.status == WorldEventStatus.COMPLETED,
+                col(WorldEventParticipation.vault_id) == vault_id,
+            )
+            .order_by(col(self.model.ends_at).desc())
+            .limit(1)
+        )
+        return result.scalar_one_or_none()
+
+    async def has_completed(self, db_session: AsyncSession) -> bool:
+        """True when any event has ever completed; separates "too early" from "never took part"."""
+        result = await db_session.execute(
+            select(self.model.id).where(self.model.status == WorldEventStatus.COMPLETED).limit(1)
+        )
+        return result.scalar_one_or_none() is not None
+
     async def get_for_update(self, db_session: AsyncSession, event_id: UUID) -> WorldEvent | None:
         """FOR UPDATE, or None; populate_existing so a stale identity-map row cannot be returned."""
         result = await db_session.execute(

@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 3.12.0 (2026-11-21)
+
+### Features
+
+* **world-event:** server-wide cooperative objective ([#1464](https://github.com/ElderEvil/falloutProject/issues/1464)) 4c5e182, closes #1465
+
 ## 3.11.0 (2026-11-21)
 
 ### Features

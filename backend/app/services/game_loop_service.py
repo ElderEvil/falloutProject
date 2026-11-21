@@ -182,6 +182,8 @@ class GameLoopService:
                     await self.resource_manager.emit_production_events(vault_id, resource_events)
             with tick_phase("objective_refresh"):
                 await self._refresh_objectives(db_session, vault_id, game_state)
+            with tick_phase("quest_rotation"):
+                await self._rotate_quests(db_session, vault_id, game_state)
             results["updates"]["resources"] = {
                 "power": resource_update.power,
                 "food": resource_update.food,
@@ -385,6 +387,16 @@ class GameLoopService:
         except Exception:
             await recover_session(db_session)
             self.logger.exception("Objective refresh failed for vault %s; will retry next tick", vault_id)
+            await db_session.refresh(game_state)
+
+    async def _rotate_quests(self, db_session: AsyncSession, vault_id: UUID, game_state: GameState) -> None:
+        from app.services.progression.quests.rotation import ensure_current_quest_rotation
+
+        try:
+            await ensure_current_quest_rotation(db_session, vault_id)
+        except Exception:
+            await recover_session(db_session)
+            self.logger.exception("Quest rotation failed for vault %s; will retry next tick", vault_id)
             await db_session.refresh(game_state)
 
     async def _process_explorations(self, db_session: AsyncSession, vault_id: UUID) -> ExplorationStats:

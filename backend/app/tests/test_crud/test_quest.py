@@ -11,6 +11,7 @@ from sqlmodel import select
 
 from app import crud
 from app.core.enums import AgeGroupEnum, DwellerStatusEnum
+from app.models.vault_quest import VaultQuestCompletionLink
 from app.schemas.quest import QuestCreate, QuestUpdate
 from app.schemas.user import UserCreate
 from app.schemas.vault import VaultCreateWithUserID
@@ -143,7 +144,7 @@ async def test_get_multi_for_vault(async_session: AsyncSession) -> None:
 
     assert quest_dict["Quest 1"].duration_minutes == effective_quest_duration_minutes(quest1.duration_minutes)
     assert "Quest 2" in quest_dict
-    assert quest_dict["Quest 2"].is_visible is False  # Locked but still returned for Show All
+    assert quest_dict["Quest 2"].is_visible is True  # Offered; the lock reason explains the chain gate
     assert quest_dict["Quest 2"].is_locked is True
     assert quest_dict["Quest 2"].previous_quest_id == quest1.id
     assert "Quest 3" in quest_dict
@@ -671,7 +672,7 @@ async def test_timed_quest_completion_simulation(async_session: AsyncSession) ->
 
 @pytest.mark.asyncio
 async def test_get_multi_for_vault_auto_assigns_quests(async_session: AsyncSession) -> None:
-    """Test that get_multi_for_vault auto-assigns quests when none exist for vault."""
+    """Auto-assign backfills links: plain quests visible, scheduler-owned quests hidden."""
     from app.models.quest import Quest
 
     user_data = create_fake_user()
@@ -682,32 +683,32 @@ async def test_get_multi_for_vault_auto_assigns_quests(async_session: AsyncSessi
     vault_in = VaultCreateWithUserID(**vault_data, user_id=user.id)
     vault = await crud.vault.create(async_session, obj_in=vault_in)
 
-    quest1_data = QuestCreate(
-        title="Auto Quest 1",
-        short_description="First auto quest",
-        long_description="First auto quest description",
-        requirements="Level 1",
-        rewards="10 caps",
-    )
-    await crud.quest_crud.create(async_session, obj_in=quest1_data)
-
-    quest2_data = QuestCreate(
-        title="Auto Quest 2",
-        short_description="Second auto quest",
-        long_description="Second auto quest description",
-        requirements="Level 2",
-        rewards="20 caps",
-    )
-    await crud.quest_crud.create(async_session, obj_in=quest2_data)
+    by_type = {
+        "side": "Auto Side Quest",
+        "daily": "Auto Daily Quest",
+        "repeatable": "Auto Weekly Quest",
+        "event": "Auto Event Quest",
+    }
+    for quest_type, title in by_type.items():
+        await crud.quest_crud.create(
+            async_session,
+            obj_in=QuestCreate(
+                title=title,
+                short_description="Auto-assign fixture",
+                long_description="Backfill visibility defaults per quest type.",
+                requirements="No prerequisites",
+                rewards="10 caps",
+                quest_type=quest_type,
+            ),
+        )
 
     quests = await crud.quest_crud.get_multi_for_vault(db_session=async_session, skip=0, limit=100, vault_id=vault.id)
 
-    assert len(quests) == 2
-    quest_titles = {q.title for q in quests}
-    assert "Auto Quest 1" in quest_titles
-    assert "Auto Quest 2" in quest_titles
-    for q in quests:
-        assert q.is_visible is True
+    assert len(quests) == len(by_type)
+    visibility = {q.title: q.is_visible for q in quests}
+    assert visibility["Auto Side Quest"] is True
+    for scheduled in ("Auto Daily Quest", "Auto Weekly Quest", "Auto Event Quest"):
+        assert visibility[scheduled] is False, scheduled
 
 
 @pytest.mark.asyncio
@@ -946,3 +947,58 @@ async def test_get_link_for_update_returns_committed_state(async_session: AsyncS
     assert refreshed.is_reward_ready is True
 
     assert await crud.quest_crud.get_link_for_update(async_session, quest_id=uuid4(), vault_id=vault.id) is None
+
+
+async def _user_and_vault(async_session: AsyncSession):
+    user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
+    return await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id))
+
+
+@pytest.mark.asyncio
+async def test_get_quests_for_vault_paginates_beyond_the_first_page(async_session: AsyncSession) -> None:
+    """The catalog outgrew the default page: offers, parties and rewards past row 100 stay reachable."""
+    from app.models.quest import Quest
+    from app.services.progression.quests.service import quest_service
+
+    vault = await _user_and_vault(async_session)
+    await _add_office(async_session, vault.id)
+    quests = [
+        Quest(
+            title=f"Paginated side {number}",
+            short_description="Pagination fixture",
+            long_description="Catalog growth must not hide quests past the first page.",
+            requirements="No prerequisites",
+            rewards="10 caps",
+            duration_minutes=60,
+        )
+        for number in range(150)
+    ]
+    async_session.add_all(quests)
+    await async_session.commit()
+
+    offer, party, ready = quests[100], quests[101], quests[102]
+    async_session.add_all(
+        [
+            VaultQuestCompletionLink(vault_id=vault.id, quest_id=offer.id, is_visible=True),
+            VaultQuestCompletionLink(
+                vault_id=vault.id, quest_id=party.id, is_visible=True, started_at=utcnow(), duration_minutes=60
+            ),
+            VaultQuestCompletionLink(
+                vault_id=vault.id, quest_id=ready.id, is_visible=True, is_reward_ready=True, started_at=utcnow()
+            ),
+        ]
+    )
+    await async_session.commit()
+
+    first_page = await quest_service.get_quests_for_vault(async_session, vault.id, 0, 100)
+    assert len(first_page) == 100
+
+    page_two = await quest_service.get_quests_for_vault(async_session, vault.id, 100, 100)
+    page_two_ids = {quest_read.id for quest_read in page_two}
+    expected_page_two = {quest.id for quest in quests[100:]}
+    assert page_two_ids == expected_page_two
+    states = {quest_read.id: quest_read for quest_read in page_two}
+    assert states[offer.id].is_visible
+    assert states[offer.id].started_at is None
+    assert states[party.id].started_at is not None
+    assert states[ready.id].is_reward_ready

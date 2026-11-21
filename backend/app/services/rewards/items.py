@@ -7,6 +7,7 @@ original paths. Public entry points go through the reward_service facade.
 
 import logging
 import random
+import re
 from typing import Any
 from uuid import UUID
 
@@ -144,18 +145,58 @@ def _build_outfit(name: str, rarity: str, data: dict[str, Any], storage_id: UUID
     return build_outfit(data | {"name": name}, rarity, storage_id)
 
 
+_JUNK_PLACEHOLDER_RE = re.compile(r"^(?:common|uncommon|rare|legendary)\s+junk$", re.IGNORECASE)
+
+
+def _resolve_junk(name: str, rarity: str, data: dict[str, Any]) -> tuple[str, str, dict[str, Any]]:
+    """Junk rewards settle from the junk catalog; a '<Rarity> junk' placeholder resolves
+    to that rarity's valuables entry; resolved entries carry the catalog rarity, while
+    authored junk_type, value or art overrides win.
+    """
+    from app.services.catalog_service import load_junk_items
+
+    entries = load_junk_items()
+    entry = next((e for e in entries if str(e["name"]).lower() == name.lower()), None)
+    if (
+        entry is None
+        and data.get("junk_type") is None
+        and data.get("value") is None
+        and _JUNK_PLACEHOLDER_RE.fullmatch(name)
+    ):
+        entry = next(
+            (
+                e
+                for e in entries
+                if str(e.get("junk_type", "")).lower() == "valuables"
+                and str(e.get("rarity", "")).lower() == rarity.lower()
+            ),
+            None,
+        )
+    if entry is not None:
+        resolved = dict(entry)
+        resolved.update(
+            {key: data[key] for key in ("junk_type", "value", "description", "image_url") if data.get(key) is not None}
+        )
+        return str(entry["name"]), str(entry.get("rarity", rarity)), resolved
+    return name, rarity, data
+
+
 def _build_junk(name: str, rarity: str, data: dict[str, Any], storage_id: UUID):
     from app.core.enums import JunkTypeEnum
     from app.utils.item_factory import build_junk
     from app.utils.junk_assets import get_junk_image_url
 
+    name, rarity, data = _resolve_junk(name, rarity, data)
+    junk_type = data.get("junk_type", JunkTypeEnum.VALUABLES)
+    if isinstance(junk_type, str):
+        junk_type = JunkTypeEnum(junk_type)
     return build_junk(
         name,
         rarity,
         storage_id,
         value=data.get("value"),
         description=data.get("description", name),
-        junk_type=data.get("junk_type", JunkTypeEnum.VALUABLES),
+        junk_type=junk_type,
         image_url=data.get("image_url") or get_junk_image_url(name),
     )
 

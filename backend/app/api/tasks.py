@@ -348,12 +348,17 @@ async def _refresh_objectives() -> dict:
     async with task_session() as session:
         vault_ids = await vault_crud.get_non_deleted_ids(session)
         refreshed_count = 0
+        failed: list[str] = []
         for vault_id in vault_ids:
             try:
                 refreshed_count += len(await ensure_current_objectives(session, vault_id))
             except Exception:
                 await recover_session(session)
                 logger.exception("Objective refresh failed for vault %s", vault_id)
+                failed.append(str(vault_id))
+        if failed:
+            # Retryable: the period stamps make re-refreshing already-current vaults a no-op.
+            raise RuntimeError(f"Objective refresh failed for vaults: {', '.join(failed)}")
         return {"vaults_processed": len(vault_ids), "categories_refreshed": refreshed_count}
 
 
@@ -381,6 +386,36 @@ def refresh_weekly_objectives():
     else:
         logger.info(f"Weekly objectives refresh completed: {result}")
         return result
+
+
+async def _refresh_quest_rotation() -> dict:
+    """Rotate due daily/weekly quests for every non-deleted vault through the shared UTC policy."""
+    from app.crud.vault import vault as vault_crud
+    from app.services.progression.quests.rotation import ensure_current_quest_rotation
+
+    async with task_session() as session:
+        vault_ids = await vault_crud.get_non_deleted_ids(session)
+        offered_count = 0
+        failed: list[str] = []
+        for vault_id in vault_ids:
+            try:
+                offered_count += await ensure_current_quest_rotation(session, vault_id)
+            except Exception:
+                await recover_session(session)
+                logger.exception("Quest rotation failed for vault %s", vault_id)
+                failed.append(str(vault_id))
+        if failed:
+            # Retryable: period stamps make re-rotation idempotent.
+            raise RuntimeError(f"Quest rotation failed for vaults: {', '.join(failed)}")
+        return {"vaults_processed": len(vault_ids), "quests_offered": offered_count}
+
+
+@dramatiq.actor(actor_name="refresh_quest_rotation", max_retries=3, min_backoff=3600000)
+def refresh_quest_rotation():
+    """Rotate daily and weekly quests for all vaults."""
+    result = run_async(_refresh_quest_rotation())
+    logger.info("Quest rotation completed: %s", result)
+    return result
 
 
 async def _cleanup_old_records() -> dict:
@@ -417,6 +452,7 @@ check_location_reclears.options["periodic"] = periodiq.cron("*/5 * * * *")
 
 check_permanent_deaths.options["periodic"] = periodiq.cron("0 0 * * *")
 refresh_daily_objectives.options["periodic"] = periodiq.cron("0 0 * * *")
+refresh_quest_rotation.options["periodic"] = periodiq.cron("0 0 * * *")
 cleanup_old_records.options["periodic"] = periodiq.cron("0 0 * * *")
 
 refresh_weekly_objectives.options["periodic"] = periodiq.cron("0 0 * * 1")

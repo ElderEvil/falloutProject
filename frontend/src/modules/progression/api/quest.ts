@@ -67,12 +67,18 @@ function toEligibleDweller(dweller: EligibleDwellerRead): EligibleDweller {
   return { ...dweller, last_name: dweller.last_name ?? null }
 }
 
+// One request per list: the server paginates over stable membership, so a client loop
+// can skip rows when the reveal window shifts between pages.
+const QUEST_LIST_LIMIT = 1000
+
 export function listQuests(): Promise<QuestRead[]> {
-  return apiGet<QuestRead[]>('/api/v1/quests/')
+  return apiGet<QuestRead[]>('/api/v1/quests/', { params: { limit: QUEST_LIST_LIMIT } })
 }
 
 export async function listVaultQuests(vaultId: string): Promise<VaultQuest[]> {
-  const data = await apiGet<unknown>(`/api/v1/quests/${vaultId}/`)
+  const data = await apiGet<unknown>(`/api/v1/quests/${vaultId}/`, {
+    params: { limit: QUEST_LIST_LIMIT },
+  })
   if (!Array.isArray(data)) {
     throw new TypeError('Expected a list of vault quests')
   }

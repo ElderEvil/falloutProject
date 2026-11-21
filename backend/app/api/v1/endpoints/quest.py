@@ -19,6 +19,7 @@ from app.schemas.quest import (
     QuestUpdate,
 )
 from app.schemas.rewards import granted_reward_adapter
+from app.services.progression.quests.rotation import ensure_current_quest_rotation
 from app.services.progression.quests.service import quest_service
 from app.utils.exceptions import ValidationException, ensure_found
 from app.utils.serialize import serialize_optional_utc_datetime
@@ -86,6 +87,7 @@ async def read_vault_quests(
     """
     await get_user_vault_or_403(vault_id, user, db_session)
     await quest_service.check_and_complete_quests(db_session, vault_id=vault_id)
+    await ensure_current_quest_rotation(db_session, vault_id)
     return await quest_service.get_quests_for_vault(db_session, vault_id, pagination.skip, pagination.limit)
 
 
@@ -102,6 +104,7 @@ async def get_available_quests(
         List of available quests.
     """
     await get_user_vault_or_403(vault_id, user, db_session)
+    await ensure_current_quest_rotation(db_session, vault_id)
     return await quest_service.get_quests_for_vault(
         db_session, vault_id, pagination.skip, pagination.limit, available_only=True
     )
@@ -178,7 +181,7 @@ async def assign_quest_to_vault(
         The vault-quest assignment.
     """
     await get_user_vault_or_403(vault_id, user, db_session)
-    return await crud.quest_crud.assign_to_vault(
+    return await quest_service.assign_quest_to_vault(
         db_session=db_session, quest_id=quest_id, vault_id=vault_id, is_visible=is_visible
     )
 
@@ -243,6 +246,7 @@ async def start_quest(
         ValidationException: If requirements not met or quest cannot be started.
     """
     await get_user_vault_or_403(vault_id, user, db_session)
+    await ensure_current_quest_rotation(db_session, vault_id)
     return await quest_service.start_quest_for_vault(
         db_session, vault_id, quest_id, dweller_ids=party_data.dweller_ids if party_data else None
     )

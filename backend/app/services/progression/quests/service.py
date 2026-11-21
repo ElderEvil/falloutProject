@@ -9,13 +9,16 @@ from sqlalchemy import func, inspect
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
-from app.core.enums import DwellerStatusEnum
+from app.core.enums import DwellerStatusEnum, QuestType
 from app.core.event_bus import GameEvent, event_bus
+from app.crud.game_state import game_state_crud
+from app.crud.quest import SCHEDULED_QUEST_TYPES
 from app.models.quest import Quest
 from app.models.vault_quest import VaultQuestCompletionLink
 from app.schemas.quest import EligibleDwellerRead, QuestRead
 from app.schemas.rewards import format_reward_summary, granted_reward_adapter
 from app.services.notification_service import notification_service
+from app.services.progression.objectives.refresh_service import objective_periods
 from app.services.progression.quests import availability
 from app.services.progression.quests.availability import QuestAvailability
 from app.services.progression.quests.requirements import (
@@ -26,7 +29,12 @@ from app.services.progression.quests.requirements import (
 from app.services.reward_service import reward_service
 from app.services.team_service import team_service
 from app.utils.dweller_availability import DwellerAction, availability_error
-from app.utils.exceptions import ValidationException, ensure_found
+from app.utils.exceptions import (
+    AccessDeniedException,
+    ResourceConflictException,
+    ValidationException,
+    ensure_found,
+)
 from app.utils.quest_duration import (
     STATE_QUEST_CATEGORIES,
     effective_quest_duration_minutes,
@@ -54,29 +62,39 @@ class QuestService:
         else:
             expires_at = VaultQuestCompletionLink.started_at + func.make_interval(0, 0, 0, 0, 0, duration_minutes)
 
-        expired_links = await crud.quest_crud.get_expired_party_links(
-            db_session, now=now, expires_at=expires_at, vault_id=vault_id
-        )
-        for link in expired_links:
+        expired_candidates = [
+            (link.quest_id, link.vault_id)
+            for link in await crud.quest_crud.get_expired_party_links(
+                db_session, now=now, expires_at=expires_at, vault_id=vault_id
+            )
+        ]
+        for quest_id, candidate_vault_id in expired_candidates:
             try:
-                await self.start_quest_return(db_session, link.quest_id, link.vault_id)
+                await self.start_quest_return(db_session, quest_id, candidate_vault_id)
             except Exception:
                 # Keep one quest failure isolated; the raw-session completion path is tested end to end.
-                logger.exception(f"Failed to start return for quest {link.quest_id} for vault {link.vault_id}")
+                # The rollback releases any row locks the failed attempt held.
+                await db_session.rollback()
+                logger.exception(f"Failed to start return for quest {quest_id} for vault {candidate_vault_id}")
             else:
-                logger.info(f"Quest {link.quest_id} party is travelling home for vault {link.vault_id}")
+                logger.info(f"Quest {quest_id} party is travelling home for vault {candidate_vault_id}")
 
-        arrived_links = await crud.quest_crud.get_arrived_party_links(db_session, now=now, vault_id=vault_id)
+        arrived_candidates = [
+            (link.quest_id, link.vault_id)
+            for link in await crud.quest_crud.get_arrived_party_links(db_session, now=now, vault_id=vault_id)
+        ]
         completed_count = 0
-        for link in arrived_links:
+        for quest_id, candidate_vault_id in arrived_candidates:
             try:
-                await self.mark_quest_ready_to_claim(db_session, link.quest_id, link.vault_id)
+                await self.mark_quest_ready_to_claim(db_session, quest_id, candidate_vault_id)
             except Exception:
                 # Keep one quest failure isolated; the raw-session completion path is tested end to end.
-                logger.exception(f"Failed to auto-complete quest {link.quest_id} for vault {link.vault_id}")
+                # The rollback releases any row locks the failed attempt held.
+                await db_session.rollback()
+                logger.exception(f"Failed to auto-complete quest {quest_id} for vault {candidate_vault_id}")
             else:
                 completed_count += 1
-                logger.info(f"Quest {link.quest_id} is ready to claim for vault {link.vault_id}")
+                logger.info(f"Quest {quest_id} is ready to claim for vault {candidate_vault_id}")
 
         return completed_count
 
@@ -114,7 +132,6 @@ class QuestService:
         """Start a quest or ready a state objective."""
         from app.utils.exceptions import (
             AccessDeniedException,
-            ResourceConflictException,
             ValidationException,
             ensure_found,
         )
@@ -126,13 +143,26 @@ class QuestService:
         link = ensure_found(link, VaultQuestCompletionLink, identifier=f"quest {quest_id} for vault {vault_id}")
 
         await db_session.refresh(link)
+        if not link.is_visible:
+            raise AccessDeniedException("Quest is not currently offered")
+
+        quest = await crud.quest_crud.get_or_none(db_session, quest_id)
+        quest = ensure_found(quest, Quest, identifier=quest_id)
+        if quest.quest_type in (QuestType.DAILY, QuestType.REPEATABLE):
+            # The offer was revealed by the rotation of its period; under this same vault
+            # lock a stale stamp means the visible set is expired and dispatching it
+            # would hand out yesterday's draw. The client's next read rotates and retries.
+            state = await game_state_crud.get_or_create(db_session, vault_id, commit=False)
+            daily, weekly = objective_periods(utcnow())
+            stamped = state.daily_quests_period if quest.quest_type == QuestType.DAILY else state.weekly_quests_period
+            current = daily if quest.quest_type == QuestType.DAILY else weekly
+            if stamped is None or stamped < current:
+                raise ResourceConflictException("Quest offer has expired; refresh the quest list and retry")
         if link.is_completed:
             raise AccessDeniedException("Quest already completed")
         if link.started_at is not None:
             raise ResourceConflictException("Quest is already in progress")
 
-        quest = await crud.quest_crud.get_or_none(db_session, quest_id)
-        quest = ensure_found(quest, Quest, identifier=quest_id)
         if quest.quest_category in STATE_QUEST_CATEGORIES:
             if dweller_ids is not None:
                 raise ValidationException("State objectives cannot take a quest party")
@@ -200,6 +230,12 @@ class QuestService:
         quest = await crud.quest_crud.get_or_none(db_session, quest_id)
         quest = ensure_found(quest, Quest, identifier=quest_id)
 
+        # Precedence: no link (404), then hidden (403), then requirements (400).
+        link = await crud.quest_crud.get_link(db_session, quest_id=quest_id, vault_id=vault_id)
+        link = ensure_found(link, VaultQuestCompletionLink, identifier=f"quest {quest_id} for vault {vault_id}")
+        if not link.is_visible:
+            raise AccessDeniedException("Quest is not currently offered")
+
         await db_session.refresh(quest, ["quest_requirements"])
 
         availability = await self.get_quest_availability(db_session, vault_id, quest)
@@ -214,6 +250,21 @@ class QuestService:
         await self.start_quest(db_session, quest_id, vault_id, dweller_ids=dweller_ids)
         await db_session.refresh(quest, ["quest_requirements", "quest_rewards"])
         return quest
+
+    async def assign_quest_to_vault(
+        self, db_session: AsyncSession, quest_id: UUID, vault_id: UUID, *, is_visible: bool = True
+    ) -> VaultQuestCompletionLink:
+        """Assign a quest to a vault; daily, weekly and event visibility stays scheduler-owned."""
+        quest = await crud.quest_crud.get(db_session, quest_id)
+        quest = ensure_found(quest, Quest, identifier=quest_id)
+        if quest.quest_type in SCHEDULED_QUEST_TYPES:
+            raise ValidationException("Daily, weekly and event quest visibility is managed by the scheduler")
+        link = await crud.quest_crud.assign_to_vault(
+            db_session=db_session, quest_id=quest_id, vault_id=vault_id, is_visible=is_visible, commit=False
+        )
+        await db_session.commit()
+        await db_session.refresh(link)
+        return link
 
     async def get_quest_availability(
         self,
@@ -258,6 +309,9 @@ class QuestService:
         quest = await crud.quest_crud.get_or_none(db_session, quest_id)
         quest = ensure_found(quest, Quest, identifier=quest_id)
         if link.is_reward_ready:
+            # Another worker already made it claimable; end the transaction so the
+            # link lock cannot deadlock a vault-first writer in the same request.
+            await db_session.commit()
             return quest
         if link.return_completes_at is None:
             raise ValidationException("Party has not been sent home")
@@ -299,6 +353,10 @@ class QuestService:
         """Atomically deliver rewards that a returning party has made claimable."""
         from app.utils.exceptions import ValidationException, ensure_found
 
+        # Same lock order as assignment (vault row before the quest-link row):
+        # assignment locks vault -> link, a claim locks link -> vault caps, so
+        # without this shared prefix the two can deadlock.
+        await crud.vault.lock_for_update(db_session, vault_id)
         link = await crud.quest_crud.get_link(db_session, quest_id=quest_id, vault_id=vault_id)
         link = ensure_found(link, VaultQuestCompletionLink, identifier=f"quest {quest_id} for vault {vault_id}")
         if not link.is_reward_ready:

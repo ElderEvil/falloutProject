@@ -32,7 +32,7 @@ import {
 import { QuestCard, PartySelectionModal } from '../components'
 import { Badge } from '@/core/components/ui/badge'
 import QuestRewardsModal from '../components/QuestRewardsModal.vue'
-import type { QuestAvailableSortBy, VaultQuest } from '../models/quest'
+import type { QuestAvailableSortBy, QuestType, VaultQuest } from '../models/quest'
 import {
   compareQuestsByAvailableSort,
   isQuestReturning,
@@ -66,9 +66,15 @@ const availableQuests = computed(() =>
   )
 )
 
+const SCHEDULER_OWNED_QUEST_TYPES = new Set<QuestType>(['daily', 'event', 'repeatable'])
+
 const filteredAvailableQuests = computed(() => {
   if (showAllQuests.value) {
-    return questStore.vaultQuests.filter(isUnstartedQuest)
+    return questStore.vaultQuests.filter(
+      (quest) =>
+        isUnstartedQuest(quest) &&
+        (quest.is_visible || !SCHEDULER_OWNED_QUEST_TYPES.has(quest.quest_type))
+    )
   }
   return availableQuests.value
 })
@@ -102,10 +108,16 @@ const vaultId = computed(() => route.params.id as string)
 
 const claimQuestId = computed(() => (route.query.claimQuest as string) || '')
 
-// The backend owns quest locking; the full-screen gate shows while the Overseer's Office is missing.
-const officeLocked = computed(() =>
-  questStore.vaultQuests.some((quest) => quest.lock_reason === "Requires Overseer's Office")
-)
+// The backend owns quest locking; the full-screen gate shows while the Overseer's Office is
+// missing and nothing is active, returning or claimable (the store's own categories, which
+// exclude completed history), so losing the room never hides quests in flight.
+const officeLocked = computed(() => {
+  if (!questStore.vaultQuests.some((quest) => quest.lock_reason === "Requires Overseer's Office")) {
+    return false
+  }
+  const { active, returning, readyToClaim } = questStore.questCategories
+  return active.length === 0 && returning.length === 0 && readyToClaim.length === 0
+})
 
 // Computed properties for quest lists
 const activeQuests = computed(() => questStore.questCategories.active)
@@ -159,9 +171,24 @@ watch(
   { immediate: true }
 )
 
-const loadPartyMembers = async () => {
-  if (!vaultId.value) return
-  await questStore.fetchPartiesForActiveQuests(vaultId.value)
+// The party poll pauses with nothing in flight; refresh offers when the UTC day flips.
+const lastSeenUtcDay = ref(new Date().toISOString().slice(0, 10))
+
+const refreshOnUtcDayChange = async () => {
+  const utcDay = new Date().toISOString().slice(0, 10)
+  if (utcDay === lastSeenUtcDay.value || !vaultId.value) return
+  await questStore.fetchVaultQuests(vaultId.value, { silent: true })
+  // Marked after the fetch so a failed attempt retries on the next poll.
+  lastSeenUtcDay.value = utcDay
+  await loadPartyMembers()
+}
+
+usePolling(refreshOnUtcDayChange, { interval: 60_000, immediate: false })
+
+const loadPartyMembers = async (requestedVault: string | null = vaultId.value) => {
+  if (!requestedVault) return
+  await questStore.fetchPartiesForActiveQuests(requestedVault)
+  if (vaultId.value !== requestedVault) return
   const map: Record<string, DwellerShort[]> = {}
   for (const [questId, members] of Object.entries(questStore.questPartyMap)) {
     map[questId] = members
@@ -302,14 +329,19 @@ function openOverseersOffice(): void {
 async function loadVault(id: string): Promise<void> {
   const token = authStore.token || localStorage.getItem('token')?.replace(/^"|"$/g, '')
   if (!token) return
+  const session = authStore.sessionGeneration
   await roomStore.fetchRooms(id)
   await dwellerStore.fetchDwellersByVault(id)
+  // A switch may have superseded this load while it was paused on the earlier steps.
+  if (id !== vaultId.value || session !== authStore.sessionGeneration) return
 
   // Fetch the catalog first so chain badges resolve on the vault quests' first paint,
   // then the vault quests (filtered client-side, including locked ones).
   await questStore.fetchAllQuests()
+  // Recheck after the catalog fetch too: B may have finished loading while it ran.
+  if (id !== vaultId.value || session !== authStore.sessionGeneration) return
   await questStore.fetchVaultQuests(id)
-  await loadPartyMembers()
+  await loadPartyMembers(id)
 }
 
 onMounted(async () => {

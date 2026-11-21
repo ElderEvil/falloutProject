@@ -79,6 +79,7 @@ export const useQuestStore = defineStore('quest', () => {
   const timedQuestLimitReached = computed(() => activeTimedQuestCount.value >= questSlotLimit.value)
 
   let vaultRequest = 0
+  let partyRequest = 0
 
   // Actions
   async function fetchAllQuests(): Promise<void> {
@@ -112,6 +113,8 @@ export const useQuestStore = defineStore('quest', () => {
   }
 
   async function fetchPartiesForActiveQuests(vaultId: string): Promise<void> {
+    const request = ++partyRequest
+    const session = authStore.sessionGeneration
     const active = vaultQuests.value.filter(
       (q) => q.is_visible && q.started_at != null && !q.is_completed
     )
@@ -128,6 +131,7 @@ export const useQuestStore = defineStore('quest', () => {
         nextPartyMap[quest.id] = []
       }
     }
+    if (request !== partyRequest || session !== authStore.sessionGeneration) return
     questPartyMap.value = nextPartyMap
   }
 

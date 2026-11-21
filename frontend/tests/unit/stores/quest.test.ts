@@ -247,7 +247,7 @@ describe('Quest Store', () => {
       const store = useQuestStore()
       await store.fetchAllQuests()
 
-      expect(axios.get).toHaveBeenCalledWith('/api/v1/quests/')
+      expect(axios.get).toHaveBeenCalledWith('/api/v1/quests/', { params: { limit: 1000 } })
       expect(store.quests).toEqual(mockQuests)
       expect(store.isLoading).toBe(false)
     })
@@ -283,7 +283,6 @@ describe('Quest Store', () => {
       const store = useQuestStore()
       await store.fetchVaultQuests('vault-123')
 
-      expect(axios.get).toHaveBeenCalledWith('/api/v1/quests/vault-123/')
       expect(store.vaultQuests).toMatchObject([{ id: '1', title: 'Quest 1' }])
     })
 
@@ -295,6 +294,9 @@ describe('Quest Store', () => {
       expect(store.isLoading).toBe(false)
     })
 
+    const questPage = (prefix: string, count: number) =>
+      Array.from({ length: count }, (_, index) => ({ id: `${prefix}-${index}` }))
+
     it('keeps the cached list intact when the API payload is not a list', async () => {
       const store = useQuestStore()
       store.vaultQuests = [{ id: 'cached' } as VaultQuest]
@@ -305,6 +307,21 @@ describe('Quest Store', () => {
       )
 
       expect(store.vaultQuests).toEqual([{ id: 'cached' }])
+    })
+
+    it('fetches the vault quest list in one request past row 100', async () => {
+      vi.mocked(axios.get).mockResolvedValueOnce({
+        data: [...questPage('q', 150), { id: 'q-tail' }],
+      })
+
+      const store = useQuestStore()
+      await store.fetchVaultQuests('vault-123')
+
+      expect(store.vaultQuests).toHaveLength(151)
+      expect(axios.get).toHaveBeenCalledTimes(1)
+      expect(axios.get).toHaveBeenCalledWith('/api/v1/quests/vault-123/', {
+        params: { limit: 1000 },
+      })
     })
 
     it("keeps the newest vault's quests when an older load resolves later", async () => {
@@ -475,6 +492,37 @@ describe('Quest Store', () => {
       await store.fetchPartiesForActiveQuests('vault-123')
 
       expect(store.questPartyMap).toEqual({ 'active-quest': [] })
+    })
+
+    it("keeps the newest vault's party map when an older load resolves later", async () => {
+      const store = useQuestStore()
+      store.vaultQuests = [
+        {
+          id: 'active-quest',
+          title: 'Active Quest',
+          short_description: 'Test',
+          long_description: 'Test',
+          requirements: 'Test',
+          rewards: 'Test',
+          created_at: '2025-01-01',
+          updated_at: '2025-01-01',
+          is_visible: true,
+          is_completed: false,
+          started_at: '2025-01-02T00:00:00Z',
+          duration_minutes: 60,
+        },
+      ]
+      const pending = deferred<{ data: unknown }>()
+      vi.mocked(axios.get)
+        .mockReturnValueOnce(pending.promise as never)
+        .mockResolvedValueOnce({ data: [{ id: 'party-b', quest_id: 'active-quest' }] })
+      const stale = store.fetchPartiesForActiveQuests('vault-a')
+      await store.fetchPartiesForActiveQuests('vault-b')
+      pending.resolve({ data: [{ id: 'party-a', quest_id: 'active-quest' }] })
+      await stale
+
+      expect(store.questPartyMap['active-quest']?.[0]?.id).toBe('party-b')
+      expect(axios.get).toHaveBeenCalledTimes(2)
     })
   })
 

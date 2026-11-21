@@ -1,13 +1,13 @@
 from collections import defaultdict
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from typing import Any
 from uuid import UUID
 
 from sqlalchemy.orm import selectinload
-from sqlmodel import and_, func, or_, select
+from sqlmodel import func, or_, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.core.enums import RequirementType
+from app.core.enums import QuestType, RequirementType
 from app.crud.base import CRUDBase
 from app.crud.mixins import CompletionMixin
 from app.crud.vault_mixin import VaultActionsMixin
@@ -19,9 +19,12 @@ from app.models.quest_reward import QuestReward
 from app.models.vault_quest import VaultQuestCompletionLink
 from app.schemas.quest import QuestCreate, QuestRead, QuestRequirementRead, QuestRewardRead, QuestUpdate
 from app.utils.dweller_availability import DwellerAction, available_dweller_conditions, purposeful_action_error
-from app.utils.exceptions import ensure_found
 from app.utils.quest_duration import STATE_QUEST_CATEGORIES, effective_quest_duration_minutes
 from app.utils.time import utcnow
+
+# Scheduler-owned quests: rotation owns daily/weekly visibility, and event questlines stay
+# hidden until the seasonal scheduler ships. The lazy read-path backfill must not reveal them.
+SCHEDULED_QUEST_TYPES = frozenset({QuestType.DAILY, QuestType.REPEATABLE, QuestType.EVENT})
 
 
 def _previous_quest_id(quest: Quest, requirements: list[QuestRequirement]) -> UUID | str | None:
@@ -142,20 +145,19 @@ class CRUDQuest(
         self, *, db_session: AsyncSession, skip: int, limit: int, vault_id: UUID, office_tier: int | None = None
     ) -> Sequence[QuestRead]:
         existing_link_query = select(self.link_model.quest_id).where(self.link_model.vault_id == vault_id)
-
         missing_quests_query = select(Quest).where(~Quest.id.in_(existing_link_query))
-        missing_result = await db_session.execute(missing_quests_query)
-        missing_quests = missing_result.scalars().all()
+        missing_quests = (await db_session.execute(missing_quests_query)).scalars().all()
 
-        dirty = False
-        for quest in missing_quests:
-            db_session.add(self.link_model(quest_id=quest.id, vault_id=vault_id, is_visible=True))
-            dirty = True
-        if dirty:
+        visibility = {quest.id: quest.quest_type not in SCHEDULED_QUEST_TYPES for quest in missing_quests}
+        if visibility:
+            # Backfill only: vault-first lock order; the conflict no-op covers concurrent links.
+            await db_session.execute(select(Vault).where(Vault.id == vault_id).with_for_update())
+            await self.insert_links_if_absent(db_session, vault_id, visibility)
+            # Commit releases the vault lock whether or not the insert left work.
             await db_session.commit()
 
         query = select(Quest).join(self.link_model).where(self.link_model.vault_id == vault_id)
-        query = query.offset(skip).limit(limit)
+        query = query.order_by(Quest.id).offset(skip).limit(limit)
         response = await db_session.execute(query)
         quests = response.scalars().all()
 
@@ -356,6 +358,30 @@ class CRUDQuest(
         )
         return set(result.scalars().all())
 
+    async def get_rotation_candidates(self, db_session: AsyncSession, quest_type: QuestType) -> list[Quest]:
+        """Scheduler pool for one quest type: requirements eager-loaded, stable order."""
+        result = await db_session.execute(
+            select(Quest)
+            .options(selectinload(Quest.quest_requirements))
+            .where(Quest.quest_type == quest_type)
+            .order_by(Quest.id)
+        )
+        return list(result.scalars().all())
+
+    async def get_links_for_quest_ids(
+        self, db_session: AsyncSession, vault_id: UUID, quest_ids: list[UUID]
+    ) -> list[VaultQuestCompletionLink]:
+        """The vault's links for the supplied quests, for in-place rotation resets."""
+        if not quest_ids:
+            return []
+        result = await db_session.execute(
+            select(VaultQuestCompletionLink).where(
+                VaultQuestCompletionLink.vault_id == vault_id,
+                VaultQuestCompletionLink.quest_id.in_(quest_ids),
+            )
+        )
+        return list(result.scalars().all())
+
     async def get_multi_by_ids(self, db_session: AsyncSession, quest_ids: list[UUID]) -> list[Quest]:
         """Quests by ids with requirements/rewards eager-loaded."""
         if not quest_ids:
@@ -396,29 +422,56 @@ class CRUDQuest(
             if purposeful_action_error(dweller, DwellerAction.EXPLORE) is None
         ]
 
-    async def assign_to_vault(
-        self, db_session: AsyncSession, quest_id: UUID, vault_id: UUID, *, is_visible: bool = True
-    ) -> VaultQuestCompletionLink:
-        """Assign a quest to a vault, making it available for completion."""
-        quest = await self.get(db_session, quest_id)
-        quest = ensure_found(quest, Quest, identifier=quest_id)
+    async def insert_links_if_absent(
+        self, db_session: AsyncSession, vault_id: UUID, visibility: Mapping[UUID, bool]
+    ) -> None:
+        """Insert vault-quest links that do not exist yet; concurrent inserts conflict no-op.
 
-        existing_link_query = select(self.link_model).where(
-            and_(self.link_model.vault_id == vault_id, self.link_model.quest_id == quest_id)
+        INSERT ... ON CONFLICT DO NOTHING makes the loser's insert a no-op instead of a
+        unique-violation rollback, so the read-path backfill and rotation can race safely.
+        Callers re-select afterwards to observe the surviving rows.
+        """
+        if not visibility:
+            return
+        from sqlalchemy.dialects.postgresql import insert as pg_insert
+
+        stmt = (
+            pg_insert(VaultQuestCompletionLink)
+            .values(
+                [
+                    {"vault_id": vault_id, "quest_id": quest_id, "is_visible": is_visible}
+                    for quest_id, is_visible in visibility.items()
+                ]
+            )
+            .on_conflict_do_nothing(index_elements=["vault_id", "quest_id"])
         )
-        result = await db_session.execute(existing_link_query)
-        existing_link = result.scalar_one_or_none()
+        await db_session.execute(stmt)
 
-        if existing_link:
-            existing_link.is_visible = is_visible
+    async def assign_to_vault(
+        self,
+        db_session: AsyncSession,
+        quest_id: UUID,
+        vault_id: UUID,
+        *,
+        is_visible: bool = True,
+        commit: bool = True,
+    ) -> VaultQuestCompletionLink:
+        """Assign a quest to a vault, making it available for completion.
+
+        ``commit=False`` stages the write for a service-side transaction owner; the
+        standalone default keeps committing and refreshing as before.
+        """
+        # Vault-first lock order; the scheduler-pool eligibility rule lives in QuestService.
+        await db_session.execute(select(Vault).where(Vault.id == vault_id).with_for_update())
+
+        link = await self.get_link(db_session, quest_id=quest_id, vault_id=vault_id)
+        if link is None:
+            link = self.link_model(vault_id=vault_id, quest_id=quest_id)
+            db_session.add(link)
+        link.is_visible = is_visible
+        if commit:
             await db_session.commit()
-            await db_session.refresh(existing_link)
-            return existing_link
-
-        link = self.link_model(vault_id=vault_id, quest_id=quest_id, is_visible=is_visible, is_completed=False)
-        db_session.add(link)
-        await db_session.commit()
-        await db_session.refresh(link)
+            await db_session.refresh(link)
         return link
 
 

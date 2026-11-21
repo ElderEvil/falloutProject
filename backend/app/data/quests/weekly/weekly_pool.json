@@ -1,0 +1,40 @@
+[
+  {
+    "quest_name": "Game Show Gauntlet",
+    "long_description": "You've been invited to play Lose Your Head! Answer the questions or...",
+    "short_description": "Play to win!",
+    "requirements": ["Open to all dwellers"],
+    "quest_objective": "Play to win!",
+    "quest_type": "repeatable",
+    "quest_category": "exploration",
+    "duration_minutes": 60,
+    "quest_requirements": [],
+    "quest_rewards": [
+      {"reward_type": "CAPS", "reward_data": {"amount": 500}, "reward_chance": 1.0},
+      {"reward_type": "ITEM", "reward_data": {"item_name": "Nuka-Cola Quantum", "quantity": 4}, "reward_chance": 1.0, "item_data": {"name": "Nuka-Cola Quantum", "item_type": "consumable", "rarity": "rare"}},
+      {"reward_type": "ITEM", "reward_data": {"item_name": "Pet Carrier", "quantity": 1}, "reward_chance": 1.0, "item_data": {"name": "Pet Carrier", "item_type": "pet_carrier", "rarity": "common"}},
+      {"reward_type": "LUNCHBOX", "reward_data": {"amount": 1}, "reward_chance": 1.0, "item_data": {"name": "Lunchbox", "item_type": "lunchbox", "rarity": "common"}}
+    ]
+  },
+  {
+    "quest_name": "Vault-Tec Experiment Review",
+    "long_description": "Vault-Tec wants you to check up on some...experiments we're running in other Vaults.",
+    "short_description": "Check in on the experiments in other vaults.",
+    "requirements": ["Open to all dwellers"],
+    "quest_objective": [
+      {"title": "Talk to the vault dwellers."},
+      {"title": "Talk to the vault dwellers."},
+      {"title": "Talk to the vault dwellers."}
+    ],
+    "quest_type": "repeatable",
+    "quest_category": "exploration",
+    "duration_minutes": 60,
+    "quest_requirements": [],
+    "quest_rewards": [
+      {"reward_type": "CAPS", "reward_data": {"amount": 500}, "reward_chance": 1.0},
+      {"reward_type": "ITEM", "reward_data": {"item_name": "Nuka-Cola Quantum", "quantity": 4}, "reward_chance": 1.0, "item_data": {"name": "Nuka-Cola Quantum", "item_type": "consumable", "rarity": "rare"}},
+      {"reward_type": "ITEM", "reward_data": {"item_name": "Pet Carrier", "quantity": 1}, "reward_chance": 1.0, "item_data": {"name": "Pet Carrier", "item_type": "pet_carrier", "rarity": "common"}},
+      {"reward_type": "LUNCHBOX", "reward_data": {"amount": 1}, "reward_chance": 1.0, "item_data": {"name": "Lunchbox", "item_type": "lunchbox", "rarity": "common"}}
+    ]
+  }
+]

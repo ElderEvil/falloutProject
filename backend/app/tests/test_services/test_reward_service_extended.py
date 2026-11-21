@@ -1074,7 +1074,7 @@ def test_reward_junk_uses_data_supplied_type_value_prose_and_art() -> None:
 
     assert isinstance(junk, Junk)
     assert (junk.name, junk.junk_type, junk.value, junk.description, junk.image_url, junk.storage_id) == (
-        "Desk Fan",
+        "Desk fan",  # Catalog casing; the authored type, value, prose and art still win.
         JunkTypeEnum.CIRCUITRY,
         42,
         "A dusty fan",
@@ -1090,12 +1090,13 @@ def test_reward_junk_falls_back_to_valuables_and_name_keyed_art() -> None:
     from app.core.enums import JunkTypeEnum
     from app.utils.junk_assets import get_junk_image_url
 
-    junk = items._build_junk("Desk Fan", "common", {}, uuid4())
+    junk = items._build_junk("Mystery trinket", "common", {}, uuid4())
 
+    assert junk.name == "Mystery trinket"
     assert junk.junk_type is JunkTypeEnum.VALUABLES
-    assert junk.description == "Desk Fan"
+    assert junk.description == "Mystery trinket"
     assert junk.value is None
-    assert junk.image_url == get_junk_image_url("Desk Fan")
+    assert junk.image_url == get_junk_image_url("Mystery trinket")
 
 
 @pytest.mark.asyncio

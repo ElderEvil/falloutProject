@@ -9469,7 +9469,7 @@ export interface components {
          * @description Types of notifications
          * @enum {string}
          */
-        NotificationType: "exploration_update" | "exploration_complete" | "level_up" | "training_complete" | "training_started" | "crafting_complete" | "recipe_unlocked" | "storage_item_degraded" | "storage_item_upgraded" | "relationship_formed" | "pregnancy_detected" | "baby_born" | "combat_started" | "combat_victory" | "combat_defeat" | "arena_morale_boost" | "dweller_injured" | "dweller_died" | "dweller_exit_requested" | "hazard_team_joined" | "resource_low" | "resource_critical" | "power_outage" | "rush_succeeded" | "rush_failed" | "quest_complete" | "objective_completed" | "objectives_refreshed" | "room_unlocked" | "achievement_unlocked" | "radio_new_dweller" | "radio_auto_switched_to_happiness" | "map_registration_failed" | "location_cleared" | "location_ready";
+        NotificationType: "exploration_update" | "exploration_complete" | "level_up" | "training_complete" | "training_started" | "crafting_complete" | "recipe_unlocked" | "storage_item_degraded" | "storage_item_upgraded" | "relationship_formed" | "pregnancy_detected" | "baby_born" | "combat_started" | "combat_victory" | "combat_defeat" | "arena_morale_boost" | "dweller_injured" | "dweller_died" | "dweller_exit_requested" | "hazard_team_joined" | "resource_low" | "resource_critical" | "power_outage" | "rush_succeeded" | "rush_failed" | "quest_complete" | "objective_completed" | "objectives_refreshed" | "room_unlocked" | "achievement_unlocked" | "radio_new_dweller" | "radio_auto_switched_to_happiness" | "map_registration_failed" | "location_cleared" | "location_ready" | "world_event_completed";
         /** OAuthHandoffRequest */
         OAuthHandoffRequest: {
             /** Code */
@@ -12476,7 +12476,7 @@ export interface components {
         };
         /**
          * WorldEventClaimRead
-         * @description Outcome of a successful one-time world event reward claim.
+         * @description Outcome of a successful one-time claim.
          */
         WorldEventClaimRead: {
             /**
@@ -12494,18 +12494,12 @@ export interface components {
              * @default 0
              */
             contribution: number;
-            /** Rewards */
-            rewards?: {
-                [key: string]: unknown;
-            }[];
         };
         /**
          * WorldEventRead
-         * @description Global progress plus this vault's standing for the current or latest world event.
+         * @description Current (or latest) event plus this vault's standing.
          *
-         *     Every event field is optional so an empty table yields a well-formed "no event" body
-         *     instead of an error; ``event_id``/``kind``/``title``/``description`` stay stable once an
-         *     event exists, including after it completes (the claim UI keeps reading it).
+         *     Every event field is optional so an empty table yields a valid body instead of an error.
          */
         WorldEventRead: {
             /** Event Id */

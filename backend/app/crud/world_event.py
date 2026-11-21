@@ -108,18 +108,6 @@ class CRUDWorldEvent(CRUDBase[WorldEvent, None, None]):
         )
         return result.scalar_one_or_none()
 
-    async def list_participations(
-        self, db_session: AsyncSession, event_id: UUID, limit: int = 50
-    ) -> list[WorldEventParticipation]:
-        """Participations for one event, largest contributor first."""
-        result = await db_session.execute(
-            select(WorldEventParticipation)
-            .where(WorldEventParticipation.world_event_id == event_id)
-            .order_by(col(WorldEventParticipation.contribution).desc())
-            .limit(limit)
-        )
-        return list(result.scalars().all())
-
     async def list_participant_vault_ids(self, db_session: AsyncSession, event_id: UUID) -> list[UUID]:
         """Every vault that contributed to one event, for completion fan-out."""
         result = await db_session.execute(
@@ -127,16 +115,14 @@ class CRUDWorldEvent(CRUDBase[WorldEvent, None, None]):
         )
         return list(result.scalars().all())
 
-    async def totals(self, db_session: AsyncSession, event_id: UUID) -> tuple[int, int]:
-        """(distinct participating vaults, summed contributions) for one event."""
+    async def participant_count(self, db_session: AsyncSession, event_id: UUID) -> int:
+        """Distinct vaults that contributed to one event."""
         result = await db_session.execute(
-            select(
-                func.count(func.distinct(col(WorldEventParticipation.vault_id))),
-                func.coalesce(func.sum(WorldEventParticipation.contribution), 0),
-            ).where(WorldEventParticipation.world_event_id == event_id)
+            select(func.count(func.distinct(col(WorldEventParticipation.vault_id)))).where(
+                WorldEventParticipation.world_event_id == event_id
+            )
         )
-        participants, contributed = result.one()
-        return int(participants), int(contributed)
+        return int(result.scalar_one())
 
 
 world_event = CRUDWorldEvent(WorldEvent)

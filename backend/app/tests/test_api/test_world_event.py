@@ -57,6 +57,14 @@ async def _add_participation(
     return participation
 
 
+async def _claim(async_client: AsyncClient, vault: Vault, *, status: int = 400, detail: str | None = None):
+    response = await async_client.post(f"/vaults/{vault.id}/world-event/claim")
+    assert response.status_code == status, response.text
+    if detail is not None:
+        assert response.json()["detail"] == detail
+    return response
+
+
 @pytest.fixture(autouse=True)
 def _world_events_enabled(monkeypatch: pytest.MonkeyPatch) -> None:
     """The feature ships dark; these tests exercise the enabled surface."""
@@ -134,21 +142,18 @@ async def test_no_event_yields_well_formed_empty_payload(async_client: AsyncClie
     }
 
 
+@pytest.mark.parametrize("join_active", [False, True], ids=["no-participation", "only-active-participation"])
 async def test_claim_rejected_while_ineligible(
-    async_client: AsyncClient, async_session: AsyncSession, owner: User, vault: Vault
+    async_client: AsyncClient, async_session: AsyncSession, owner: User, vault: Vault, join_active: bool
 ) -> None:
-    completed = await _add_event(async_session, status=WorldEventStatus.COMPLETED)
-    response = await async_client.post(f"/vaults/{vault.id}/world-event/claim")
-    assert response.status_code == 400
-    assert response.json()["detail"] == "Your vault took no part in this world event."
+    await _add_event(async_session, status=WorldEventStatus.COMPLETED)
+    if join_active:
+        # Contributing to a still-running event is not enough: the only completed event on record
+        # is the one this vault never joined.
+        active = await _add_event(async_session)
+        await _add_participation(async_session, active, vault, 100)
 
-    # Contributing to a still-running event is not enough: the only completed event on record
-    # is the one this vault never joined.
-    active = await _add_event(async_session)
-    await _add_participation(async_session, active, vault, completed.target_amount)
-    response = await async_client.post(f"/vaults/{vault.id}/world-event/claim")
-    assert response.status_code == 400
-    assert response.json()["detail"] == "Your vault took no part in this world event."
+    await _claim(async_client, vault, detail="Your vault took no part in this world event.")
 
 
 async def test_claim_rejected_before_any_event_completes(
@@ -157,10 +162,7 @@ async def test_claim_rejected_before_any_event_completes(
     active = await _add_event(async_session)
     await _add_participation(async_session, active, vault, 90)
 
-    response = await async_client.post(f"/vaults/{vault.id}/world-event/claim")
-
-    assert response.status_code == 400
-    assert response.json()["detail"] == "The world event is not complete yet."
+    await _claim(async_client, vault, detail="The world event is not complete yet.")
 
 
 async def test_claim_still_pays_a_completed_event_after_the_next_one_activates(
@@ -174,9 +176,8 @@ async def test_claim_still_pays_a_completed_event_after_the_next_one_activates(
     async_session.add(vault)
     await async_session.commit()
 
-    response = await async_client.post(f"/vaults/{vault.id}/world-event/claim")
+    response = await _claim(async_client, vault, status=200)
 
-    assert response.status_code == 200, response.text
     assert response.json()["event_id"] == str(finished.id)
     await async_session.refresh(vault)
     assert vault.bottle_caps == 550
@@ -209,9 +210,8 @@ async def test_claim_pays_rewards_once(
     await async_session.commit()
     caps_before = vault.bottle_caps
 
-    response = await async_client.post(f"/vaults/{vault.id}/world-event/claim")
+    response = await _claim(async_client, vault, status=200)
 
-    assert response.status_code == 200, response.text
     body = response.json()
     assert set(body) == set(WorldEventClaimRead.model_fields)
     assert body["event_id"] == str(event.id)
@@ -222,8 +222,6 @@ async def test_claim_pays_rewards_once(
     assert vault.bottle_caps - caps_before == 50
     assert participation.reward_claimed_at is not None
 
-    repeat = await async_client.post(f"/vaults/{vault.id}/world-event/claim")
-
-    assert repeat.status_code == 409
+    await _claim(async_client, vault, status=409)
     await async_session.refresh(vault)
     assert vault.bottle_caps == caps_before + 50

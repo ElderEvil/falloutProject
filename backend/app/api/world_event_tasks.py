@@ -17,14 +17,14 @@ from app.db.session import task_session
 logger = logging.getLogger(__name__)
 
 
-async def _advance_world_event() -> dict:
+async def _advance_world_event() -> str | None:
     """Advance the active event one lifecycle step under the cross-worker tick lock."""
     from app.services.world_event_service import world_event_service
 
     async with task_session() as session, db_locks.hold_advisory_lock(session, "world-event-tick") as acquired:
         if not acquired:
             # Another worker is mid-advance; the next cron tick retries.
-            return {"status": "locked"}
+            return "locked"
         return await world_event_service.advance(session)
 
 

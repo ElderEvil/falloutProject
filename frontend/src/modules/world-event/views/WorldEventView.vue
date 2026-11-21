@@ -32,11 +32,7 @@ const countdownLabel = computed(() => {
   return formatDuration(secondsLeft.value, { omitZeroHours: true, suffix: 'left' })
 })
 
-const progressPercent = computed(() => {
-  const target = store.event?.target_amount ?? 0
-  if (target <= 0) return 0
-  return Math.min(100, Math.round(((store.event?.progress_amount ?? 0) / target) * 100))
-})
+const progressPercent = computed(() => store.progressPercent)
 
 async function claim() {
   const ok = await store.claim(vaultId.value)

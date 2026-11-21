@@ -16,6 +16,12 @@ export const useWorldEventStore = defineStore('worldEvent', () => {
 
   const hasEvent = computed(() => Boolean(event.value?.event_id))
 
+  const progressPercent = computed(() => {
+    const target = event.value?.target_amount ?? 0
+    if (target <= 0) return 0
+    return Math.min(100, Math.round(((event.value?.progress_amount ?? 0) / target) * 100))
+  })
+
   /** Never throws: background polls pass `silent` so a flaky tick stays quiet. */
   async function load(vaultId: string, { silent = false } = {}): Promise<void> {
     if (!event.value) loading.value = true
@@ -52,7 +58,7 @@ export const useWorldEventStore = defineStore('worldEvent', () => {
     }
   }
 
-  return { event, hasEvent, loading, claiming, claimed, error, claimError, load, claim }
+  return { event, hasEvent, progressPercent, loading, claiming, claimed, error, claimError, load, claim }
 })
 
 export { ALREADY_CLAIMED }

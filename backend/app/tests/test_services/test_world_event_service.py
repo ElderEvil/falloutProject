@@ -29,27 +29,29 @@ async def _create_vault(async_session: AsyncSession) -> Vault:
     return await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id))
 
 
-async def _create_event(
+async def seed_event(
     async_session: AsyncSession,
     *,
     status: WorldEventStatus = WorldEventStatus.ACTIVE,
-    starts_at=None,
-    ends_at=None,
-    target_amount: int = 100,
+    window: tuple[timedelta, timedelta] = (timedelta(hours=-1), timedelta(hours=1)),
+    target: int = 100,
+    progress: int = 0,
     personal_min: int = 10,
     kind: str = KIND,
     reward: list[dict] | None = None,
 ) -> WorldEvent:
+    """Seed one event; ``window`` is the (start, end) offset from now."""
     now = utcnow()
     event = WorldEvent(
         kind=kind,
         title="Migration surge",
         description="Creatures are on the move.",
-        target_amount=target_amount,
+        target_amount=target,
+        progress_amount=progress,
         personal_min=personal_min,
         reward=reward or [],
-        starts_at=starts_at or now - timedelta(hours=1),
-        ends_at=ends_at or now + timedelta(hours=1),
+        starts_at=now + window[0],
+        ends_at=now + window[1],
         status=status,
     )
     async_session.add(event)
@@ -58,7 +60,7 @@ async def _create_event(
     return event
 
 
-async def _create_participation(
+async def _seed_participation(
     async_session: AsyncSession, event: WorldEvent, vault_id, contribution: int
 ) -> WorldEventParticipation:
     participation = WorldEventParticipation(world_event_id=event.id, vault_id=vault_id, contribution=contribution)
@@ -68,70 +70,69 @@ async def _create_participation(
     return participation
 
 
+async def _contribution(async_session: AsyncSession, event: WorldEvent, vault_id) -> int:
+    participation = await crud.world_event.get_participation(async_session, event.id, vault_id)
+    assert participation is not None
+    return participation.contribution
+
+
 async def _participation_count(async_session: AsyncSession) -> int:
     return int((await async_session.execute(select(func.count()).select_from(WorldEventParticipation))).scalar_one())
 
 
-async def test_contribution_credits_active_event(async_session: AsyncSession, vault: Vault) -> None:
-    event = await _create_event(async_session)
-
-    await world_event_service.record_contribution(async_session, vault.id, 5, kind=SOURCE)
-    await world_event_service.record_contribution(async_session, vault.id, 7, kind=SOURCE)
+async def _credit(async_session: AsyncSession, vault_id, amount: int, *, kind: str = SOURCE) -> None:
+    await world_event_service.record_contribution(async_session, vault_id, amount, kind=kind)
     await async_session.commit()
+
+
+async def _completed_notifications(async_session: AsyncSession) -> list:
+    result = await async_session.execute(
+        select(Notification.vault_id).where(Notification.notification_type == NotificationType.WORLD_EVENT_COMPLETED)
+    )
+    return list(result.scalars().all())
+
+
+async def test_contribution_credits_active_event(async_session: AsyncSession, vault: Vault) -> None:
+    event = await seed_event(async_session)
+
+    await _credit(async_session, vault.id, 5)
+    await _credit(async_session, vault.id, 7)
     await async_session.refresh(event)
 
-    participation = await crud.world_event.get_participation(async_session, event.id, vault.id)
-    assert participation is not None
-    assert participation.contribution == 12
+    assert await _contribution(async_session, event, vault.id) == 12
     assert event.progress_amount == 12
 
 
-async def test_contribution_noop_without_event_or_for_non_positive_amount(
-    async_session: AsyncSession, vault: Vault
+@pytest.mark.parametrize(
+    ("seed_kwargs", "kind", "amount"),
+    [
+        (None, SOURCE, 7),
+        ({"status": WorldEventStatus.SCHEDULED}, SOURCE, 7),
+        ({}, "expedition", 7),
+        ({}, SOURCE, 0),
+        ({}, SOURCE, -5),
+    ],
+    ids=["no-event", "not-active", "foreign-source", "zero", "negative"],
+)
+async def test_contribution_is_noop(
+    async_session: AsyncSession, vault: Vault, seed_kwargs: dict | None, kind: str, amount: int
 ) -> None:
-    await world_event_service.record_contribution(async_session, vault.id, 7, kind=SOURCE)
-    await async_session.commit()
-    assert await _participation_count(async_session) == 0
+    event = None if seed_kwargs is None else await seed_event(async_session, **seed_kwargs)
 
-    event = await _create_event(async_session)
-    await world_event_service.record_contribution(async_session, vault.id, 0, kind=SOURCE)
-    await world_event_service.record_contribution(async_session, vault.id, -5, kind=SOURCE)
-    await async_session.commit()
-    await async_session.refresh(event)
+    await _credit(async_session, vault.id, amount, kind=kind)
 
     assert await _participation_count(async_session) == 0
-    assert event.progress_amount == 0
-
-
-async def test_contribution_ignores_non_active_event(async_session: AsyncSession, vault: Vault) -> None:
-    event = await _create_event(async_session, status=WorldEventStatus.SCHEDULED)
-
-    await world_event_service.record_contribution(async_session, vault.id, 7, kind=SOURCE)
-    await async_session.commit()
-    await async_session.refresh(event)
-
-    assert await _participation_count(async_session) == 0
-    assert event.progress_amount == 0
-
-
-async def test_contribution_from_foreign_source_is_noop(async_session: AsyncSession, vault: Vault) -> None:
-    event = await _create_event(async_session)
-
-    await world_event_service.record_contribution(async_session, vault.id, 7, kind="expedition")
-    await async_session.commit()
-    await async_session.refresh(event)
-
-    assert await _participation_count(async_session) == 0
-    assert event.progress_amount == 0
+    if event is not None:
+        await async_session.refresh(event)
+        assert event.progress_amount == 0
 
 
 async def test_contribution_unknown_event_kind_still_credits(
     async_session: AsyncSession, vault: Vault, caplog: pytest.LogCaptureFixture
 ) -> None:
-    event = await _create_event(async_session, kind="migration")
+    event = await seed_event(async_session, kind="migration")
 
-    await world_event_service.record_contribution(async_session, vault.id, 7, kind=SOURCE)
-    await async_session.commit()
+    await _credit(async_session, vault.id, 7)
     await async_session.refresh(event)
 
     assert await _participation_count(async_session) == 1
@@ -140,131 +141,95 @@ async def test_contribution_unknown_event_kind_still_credits(
 
 
 async def test_two_vaults_first_contribution_both_land(async_session: AsyncSession, vault: Vault) -> None:
-    event = await _create_event(async_session)
+    event = await seed_event(async_session)
     other_vault = await _create_vault(async_session)
 
-    await world_event_service.record_contribution(async_session, vault.id, 4, kind=SOURCE)
-    await world_event_service.record_contribution(async_session, other_vault.id, 6, kind=SOURCE)
-    await async_session.commit()
+    await _credit(async_session, vault.id, 4)
+    await _credit(async_session, other_vault.id, 6)
     await async_session.refresh(event)
 
     assert await _participation_count(async_session) == 2
-    assert await crud.world_event.totals(async_session, event.id) == (2, 10)
+    assert await crud.world_event.participant_count(async_session, event.id) == 2
     assert event.progress_amount == 10
 
 
 async def test_advance_activates_due_event_but_never_a_second(async_session: AsyncSession) -> None:
-    now = utcnow()
-    event = await _create_event(async_session, status=WorldEventStatus.SCHEDULED, starts_at=now - timedelta(minutes=5))
+    window = (timedelta(minutes=-5), timedelta(hours=1))
+    event = await seed_event(async_session, status=WorldEventStatus.SCHEDULED, window=window)
 
-    result = await world_event_service.advance(async_session)
+    assert await world_event_service.advance(async_session) == "activated"
     await async_session.refresh(event)
-
-    assert result["action"] == "activated"
-    assert result["event_id"] == event.id
     assert event.status == WorldEventStatus.ACTIVE
 
-    other = await _create_event(async_session, status=WorldEventStatus.SCHEDULED, starts_at=now - timedelta(minutes=5))
-    result = await world_event_service.advance(async_session)
+    other = await seed_event(async_session, status=WorldEventStatus.SCHEDULED, window=window)
+    assert await world_event_service.advance(async_session) is None
     await async_session.refresh(event)
     await async_session.refresh(other)
 
-    assert result["action"] is None
     assert event.status == WorldEventStatus.ACTIVE
     assert other.status == WorldEventStatus.SCHEDULED
 
 
 async def test_advance_completion_notifies_participants_only(async_session: AsyncSession) -> None:
-    event = await _create_event(async_session, target_amount=10)
+    event = await seed_event(async_session, target=10, progress=10)
     participants = [await _create_vault(async_session) for _ in range(2)]
     bystander = await _create_vault(async_session)
-    for vault in participants:
-        await _create_participation(async_session, event, vault.id, 5)
-    event.progress_amount = 10
-    async_session.add(event)
-    await async_session.commit()
+    for participant in participants:
+        await _seed_participation(async_session, event, participant.id, 5)
 
-    result = await world_event_service.advance(async_session)
+    assert await world_event_service.advance(async_session) == "completed"
     await async_session.refresh(event)
-
-    assert result["action"] == "completed"
     assert event.status == WorldEventStatus.COMPLETED
-    notified = (
-        (
-            await async_session.execute(
-                select(Notification.vault_id).where(
-                    Notification.notification_type == NotificationType.WORLD_EVENT_COMPLETED
-                )
-            )
-        )
-        .scalars()
-        .all()
-    )
-    assert sorted(notified) == sorted(vault.id for vault in participants)
+
+    notified = await _completed_notifications(async_session)
+    assert sorted(notified) == sorted(participant.id for participant in participants)
     assert bystander.id not in notified
 
 
 async def test_second_advance_does_not_renotify(async_session: AsyncSession) -> None:
-    event = await _create_event(async_session, target_amount=10)
+    event = await seed_event(async_session, target=10, progress=10)
     vault = await _create_vault(async_session)
-    await _create_participation(async_session, event, vault.id, 10)
-    event.progress_amount = 10
-    async_session.add(event)
-    await async_session.commit()
+    await _seed_participation(async_session, event, vault.id, 10)
 
     await world_event_service.advance(async_session)
     await world_event_service.advance(async_session)
 
-    count = (
-        await async_session.execute(
-            select(func.count())
-            .select_from(Notification)
-            .where(Notification.notification_type == NotificationType.WORLD_EVENT_COMPLETED)
-        )
-    ).scalar_one()
-    assert count == 1
+    assert len(await _completed_notifications(async_session)) == 1
 
 
 async def test_advance_extends_once_then_expires(async_session: AsyncSession) -> None:
     now = utcnow()
-    event = await _create_event(
+    event = await seed_event(
         async_session,
-        starts_at=now - timedelta(hours=2),
-        ends_at=now - timedelta(minutes=1),
-        target_amount=100,
+        window=(timedelta(hours=-2), timedelta(minutes=-1)),
     )
 
-    first = await world_event_service.advance(async_session)
+    assert await world_event_service.advance(async_session) == "extended"
     await async_session.refresh(event)
-    assert first["action"] == "extended"
     assert event.status == WorldEventStatus.ACTIVE
     assert event.extended_at is not None
-    extended_ends_at = event.ends_at
-    assert extended_ends_at > now
+    assert event.ends_at > now
 
     # Past the extension window: the same event can no longer be extended again.
     event.ends_at = utcnow() - timedelta(minutes=1)
     async_session.add(event)
     await async_session.commit()
 
-    second = await world_event_service.advance(async_session)
+    assert await world_event_service.advance(async_session) == "expired"
     await async_session.refresh(event)
-    assert second["action"] == "expired"
     assert event.status == WorldEventStatus.EXPIRED
     assert event.extended_at is not None
 
 
 async def test_claim_grants_exactly_once(async_session: AsyncSession, vault: Vault) -> None:
-    event = await _create_event(
+    event = await seed_event(
         async_session,
         status=WorldEventStatus.COMPLETED,
-        target_amount=10,
+        target=10,
+        progress=10,
         reward=[{"reward_type": "caps", "amount": 250}],
     )
-    event.progress_amount = 10
-    async_session.add(event)
-    await _create_participation(async_session, event, vault.id, 10)
-    await async_session.commit()
+    await _seed_participation(async_session, event, vault.id, 10)
     starting_caps = vault.bottle_caps
 
     claim = await world_event_service.claim(async_session, vault.id)
@@ -288,8 +253,8 @@ async def test_claim_rejections(async_session: AsyncSession, vault: Vault) -> No
     with pytest.raises(ValidationException):  # no event at all
         await world_event_service.claim(async_session, vault.id)
 
-    event = await _create_event(async_session)
-    await _create_participation(async_session, event, vault.id, 10)
+    event = await seed_event(async_session)
+    await _seed_participation(async_session, event, vault.id, 10)
     with pytest.raises(ValidationException):  # still active
         await world_event_service.claim(async_session, vault.id)
 
@@ -306,11 +271,10 @@ async def test_claim_rejections(async_session: AsyncSession, vault: Vault) -> No
 
 
 async def test_get_state_reports_progress_without_writing(async_session: AsyncSession, vault: Vault) -> None:
-    event = await _create_event(async_session)
+    event = await seed_event(async_session)
     other_vault = await _create_vault(async_session)
-    await world_event_service.record_contribution(async_session, vault.id, 6, kind=SOURCE)
-    await world_event_service.record_contribution(async_session, other_vault.id, 4, kind=SOURCE)
-    await async_session.commit()
+    await _credit(async_session, vault.id, 6)
+    await _credit(async_session, other_vault.id, 4)
     await async_session.refresh(event)
 
     participation = await crud.world_event.get_participation(async_session, event.id, vault.id)
@@ -348,19 +312,18 @@ async def test_get_state_without_any_event_returns_empty_state(async_session: As
 
 
 async def test_lifecycle_flow_activate_contribute_complete_claim(async_session: AsyncSession, vault: Vault) -> None:
-    event = await _create_event(
+    event = await seed_event(
         async_session,
         status=WorldEventStatus.SCHEDULED,
-        starts_at=utcnow() - timedelta(minutes=1),
-        target_amount=5,
+        window=(timedelta(minutes=-1), timedelta(hours=1)),
+        target=5,
         personal_min=5,
         reward=[{"reward_type": "caps", "amount": 100}],
     )
 
-    assert (await world_event_service.advance(async_session))["action"] == "activated"
-    await world_event_service.record_contribution(async_session, vault.id, 5, kind=SOURCE)
-    await async_session.commit()
-    assert (await world_event_service.advance(async_session))["action"] == "completed"
+    assert await world_event_service.advance(async_session) == "activated"
+    await _credit(async_session, vault.id, 5)
+    assert await world_event_service.advance(async_session) == "completed"
 
     claim = await world_event_service.claim(async_session, vault.id)
     assert claim.event_id == event.id

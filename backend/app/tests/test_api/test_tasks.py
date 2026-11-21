@@ -313,14 +313,14 @@ def test_advance_world_event_actor_runs_the_impl_and_logs() -> None:
     with (
         patch(
             "app.api.world_event_tasks._advance_world_event",
-            new=AsyncMock(return_value={"action": "completed"}),
+            new=AsyncMock(return_value="completed"),
         ) as advance,
         patch("app.api.world_event_tasks.logger.info") as log,
     ):
         result = advance_world_event.fn()
 
     advance.assert_awaited_once()
-    assert result == {"action": "completed"}
+    assert result == "completed"
     log.assert_called_once()
 
 
@@ -353,6 +353,6 @@ async def test_advance_world_event_skips_when_the_lock_is_held() -> None:
         patch("app.core.db_locks.hold_advisory_lock", new=lambda *_args: _HeldLock(acquired=False)),
         patch("app.services.world_event_service.world_event_service.advance", new=AsyncMock()) as advance,
     ):
-        assert await _advance_world_event() == {"status": "locked"}
+        assert await _advance_world_event() == "locked"
 
     advance.assert_not_awaited()

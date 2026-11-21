@@ -2,7 +2,7 @@
 
 import logging
 from datetime import datetime, timedelta
-from typing import Any
+from typing import Any, cast
 from uuid import UUID
 
 from sqlalchemy.exc import IntegrityError
@@ -20,9 +20,6 @@ from app.utils.time import utcnow
 
 logger = logging.getLogger(__name__)
 
-# Fallback when an event's own window is degenerate (ends_at at or before starts_at).
-DEFAULT_EXTENSION_WINDOW = timedelta(days=1)
-
 # Which contribution sources each event kind accepts. A kind missing here still credits (with a
 # warning) so a newly seeded kind cannot silently stop counting.
 CONTRIBUTION_SOURCES: dict[str, frozenset[str]] = {
@@ -31,10 +28,10 @@ CONTRIBUTION_SOURCES: dict[str, frozenset[str]] = {
 }
 
 
-def _extension_window(event: WorldEvent) -> timedelta:
-    """One extension worth of time: the event's original window, floored to a day."""
+def _extension_window(event: WorldEvent, floor: timedelta = timedelta(days=1)) -> timedelta:
+    """One extension worth of time: the event's original window, floored for a degenerate one."""
     window = event.ends_at - event.starts_at
-    return window if window > timedelta(0) else DEFAULT_EXTENSION_WINDOW
+    return window if window > timedelta(0) else floor
 
 
 def _reward_summary(reward: list[dict[str, Any]]) -> str:
@@ -55,11 +52,42 @@ class WorldEventService:
         if amount <= 0:
             return
         try:
-            await self._record_contribution(db_session, vault_id, amount, kind=kind)
+            current = await world_event_crud.get_current(db_session)
+            if current is None or current.status != WorldEventStatus.ACTIVE:
+                return
+
+            # Sessions run with autoflush off; flush pending work so the row-locked reload below
+            # sees this caller's earlier contributions instead of overwriting them.
+            await db_session.flush()
+            event = await world_event_crud.get_for_update(db_session, current.id)
+            if event is None or event.status != WorldEventStatus.ACTIVE:
+                return
+
+            sources = CONTRIBUTION_SOURCES.get(event.kind)
+            if sources is None:
+                logger.warning("World event kind %r has no contribution sources; crediting %s", event.kind, kind)
+            elif kind not in sources:
+                return
+
+            participation = await world_event_crud.get_participation_for_update(db_session, event.id, vault_id)
+            if participation is None:
+                participation = await self._insert_participation(db_session, event.id, vault_id)
+                if participation is None:
+                    logger.warning(
+                        "Lost world event contribution for vault %s (%s): participation insert raced",
+                        vault_id,
+                        kind,
+                    )
+                    return
+
+            participation.contribution += amount
+            event.progress_amount += amount
+            db_session.add(participation)
+            db_session.add(event)
         except Exception:
             logger.exception("Failed to record world event contribution for vault %s (%s)", vault_id, kind)
 
-    async def advance(self, db_session: AsyncSession) -> dict[str, Any]:
+    async def advance(self, db_session: AsyncSession) -> str | None:
         """Run one lifecycle step and commit it; owns the transaction, called by the actor."""
         try:
             change = await self._advance(db_session)
@@ -79,7 +107,7 @@ class WorldEventService:
         if event is None:
             return WorldEventRead()
 
-        participant_count, _ = await world_event_crud.totals(db_session, event.id)
+        participant_count = await world_event_crud.participant_count(db_session, event.id)
         participation = await world_event_crud.get_participation(db_session, event.id, vault_id)
         contribution = participation.contribution if participation is not None else 0
         can_claim = (
@@ -122,9 +150,10 @@ class WorldEventService:
         await db_session.flush()
         # The participation row lock serialises competing claims for one vault; the second
         # claim then observes reward_claimed_at and is rejected.
-        participation = await world_event_crud.get_participation_for_update(db_session, event.id, vault_id)
-        if participation is None:  # defensive: the query already joined on participation
-            raise ValidationException("Your vault took no part in this world event.")
+        participation = cast(
+            "WorldEventParticipation",
+            await world_event_crud.get_participation_for_update(db_session, event.id, vault_id),
+        )
         if participation.reward_claimed_at is not None:
             raise ResourceConflictException("World event reward already claimed.")
         if participation.contribution < event.personal_min:
@@ -132,9 +161,8 @@ class WorldEventService:
 
         try:
             async with defer_reward_delivery(db_session):
-                granted: list[dict[str, Any]] = [
-                    await reward_service.grant(db_session, vault_id, reward) for reward in event.reward or []
-                ]
+                for reward in event.reward or []:
+                    await reward_service.grant(db_session, vault_id, reward)
                 participation.reward_claimed_at = utcnow()
                 db_session.add(participation)
                 await db_session.commit()
@@ -146,40 +174,7 @@ class WorldEventService:
         return WorldEventClaimRead(
             event_id=event.id,
             contribution=participation.contribution,
-            rewards=granted,
         )
-
-    async def _record_contribution(self, db_session: AsyncSession, vault_id: UUID, amount: int, *, kind: str) -> None:
-        current = await world_event_crud.get_current(db_session)
-        if current is None or current.status != WorldEventStatus.ACTIVE:
-            return
-
-        # Sessions run with autoflush off; flush pending work so the row-locked reload below
-        # sees this caller's earlier contributions instead of overwriting them.
-        await db_session.flush()
-        event = await world_event_crud.get_for_update(db_session, current.id)
-        if event is None or event.status != WorldEventStatus.ACTIVE:
-            return
-
-        sources = CONTRIBUTION_SOURCES.get(event.kind)
-        if sources is None:
-            logger.warning("World event kind %r has no contribution sources; crediting %s", event.kind, kind)
-        elif kind not in sources:
-            return
-
-        participation = await world_event_crud.get_participation_for_update(db_session, event.id, vault_id)
-        if participation is None:
-            participation = await self._insert_participation(db_session, event.id, vault_id)
-            if participation is None:
-                logger.warning(
-                    "Lost world event contribution for vault %s (%s): participation insert raced", vault_id, kind
-                )
-                return
-
-        participation.contribution += amount
-        event.progress_amount += amount
-        db_session.add(participation)
-        db_session.add(event)
 
     async def _insert_participation(
         self, db_session: AsyncSession, event_id: UUID, vault_id: UUID
@@ -195,7 +190,7 @@ class WorldEventService:
             return await world_event_crud.get_participation_for_update(db_session, event_id, vault_id)
         return participation
 
-    async def _advance(self, db_session: AsyncSession) -> dict[str, Any]:
+    async def _advance(self, db_session: AsyncSession) -> str | None:
         now = utcnow()
         current = await world_event_crud.get_current(db_session)
         if current is not None and current.status == WorldEventStatus.ACTIVE:
@@ -205,34 +200,33 @@ class WorldEventService:
 
         scheduled = await world_event_crud.get_next_scheduled(db_session, at=now)
         if scheduled is None:
-            return self._change(None, None)
+            return None
         event = await world_event_crud.get_for_update(db_session, scheduled.id)
         if event is None or event.status != WorldEventStatus.SCHEDULED:
-            return self._change(None, event)
+            return None
         # The partial unique index is only a backstop; never let the service propose a second ACTIVE.
-        active = await world_event_crud.get_current(db_session)
-        if active is not None and active.status == WorldEventStatus.ACTIVE:
-            return self._change(None, event)
+        if current is not None and current.status == WorldEventStatus.ACTIVE:
+            return None
         event.status = WorldEventStatus.ACTIVE
         db_session.add(event)
-        return self._change("activated", event)
+        return "activated"
 
-    async def _advance_active(self, db_session: AsyncSession, event: WorldEvent, now: datetime) -> dict[str, Any]:
+    async def _advance_active(self, db_session: AsyncSession, event: WorldEvent, now: datetime) -> str | None:
         if event.progress_amount >= event.target_amount:
             event.status = WorldEventStatus.COMPLETED
             db_session.add(event)
             await self._notify_completed(db_session, event)
-            return self._change("completed", event)
+            return "completed"
         if now < event.ends_at:
-            return self._change(None, event)
+            return None
         if event.extended_at is None:
             event.ends_at += _extension_window(event)
             event.extended_at = now
             db_session.add(event)
-            return self._change("extended", event)
+            return "extended"
         event.status = WorldEventStatus.EXPIRED
         db_session.add(event)
-        return self._change("expired", event)
+        return "expired"
 
     async def _notify_completed(self, db_session: AsyncSession, event: WorldEvent) -> None:
         """Stage one completion notification per participating vault; ``advance`` delivers it."""
@@ -251,14 +245,6 @@ class WorldEventService:
                     reward_summary=reward_summary,
                 ),
             )
-
-    @staticmethod
-    def _change(action: str | None, event: WorldEvent | None) -> dict[str, Any]:
-        return {
-            "action": action,
-            "event_id": event.id if event is not None else None,
-            "status": event.status if event is not None else None,
-        }
 
 
 world_event_service = WorldEventService()

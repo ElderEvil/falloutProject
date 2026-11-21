@@ -38,4 +38,3 @@ class WorldEventClaimRead(SQLModel):
     event_id: UUID
     claimed: bool = True
     contribution: int = 0
-    rewards: list[dict[str, Any]] = Field(default_factory=list)

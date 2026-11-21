@@ -1145,6 +1145,13 @@ class FeatureConfig(BaseSettings):
             "(choice, filters, dossier) is deliberately not gated by it."
         ),
     )
+    world_events: bool = Field(
+        default=False,
+        description=(
+            "Server-wide co-op world events: shared progress, rewards and claims. Ships dark until the "
+            "endpoints and UI are play-tested; existing event rows are unaffected by the flag."
+        ),
+    )
     emergent_sites: bool = Field(
         default=True,
         description=(

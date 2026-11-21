@@ -45,6 +45,7 @@ class FeaturesResponse(BaseModel):
 
     race_mechanics: bool
     faction_mechanics: bool
+    world_events: bool
 
 
 class ChangeEntry(BaseModel):

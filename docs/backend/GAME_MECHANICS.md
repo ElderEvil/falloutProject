@@ -68,10 +68,15 @@ Reward XP, levels and health persist together; deferred rewards remain rollback-
 
 Rare and legendary dwellers come from curated JSON templates
 (`backend/app/data/dwellers/{rare,legendary}.json`) via `app/utils/static_data.py` and
-`create_dweller_from_template`; commons stay procedural. Templates fix identity, SPECIAL, bio, origin and
+`create_dweller_from_template`; commons stay procedural. **Reward grants are the exception:** once the
+legendary roster is exhausted, `rewards/items._grant_as_dweller` grants a legendary with a canonical name
+from `_fallback_legendary_identity` and procedural stats, so a rare or legendary dweller does not always
+imply a template payload. Templates fix identity, SPECIAL, bio, origin and
 visited places. Origin always registers; visited places are rarity-gated by
 `game_config.bio.visited_by_rarity` — common 0, rare 1, legendary 2. Starting levels come from the
-`leveling` config: common 1, rare 6–10, legendary 19–43. Build catalog-backed rows through `item_factory`.
+`leveling` config: common 1, rare 6–10, legendary 19–43. A **lunchbox** common rolls its own level 1–5 and
+`grant_dweller` preserves it rather than clamping to 1, so "common starts at 1" holds for vault-built and
+template dwellers, not for lunchbox rolls. Build catalog-backed rows through `item_factory`.
 The archived design record is `docs/archive/features/DWELLER_TEMPLATES.md`.
 
 ## Objectives: guidance, earned progress and explicit claims
@@ -289,8 +294,12 @@ Each vault owns one `WorldEventParticipation` per event, unique on `(world_event
 Contributions come from ordinary play — the per-kind source map in `world_event_service` decides which
 game events credit — and never raise into the gameplay path. A vault claims its reward at most once:
 `reward_claimed_at` is set once and never cleared, and the claim requires the event to be `COMPLETED` and
-the vault to have reached `personal_min`. Completion and claim delivery go through the notification stack,
-and the progression-visibility red line applies. The as-built design record is
+the vault to have reached `personal_min`. A claim targets the **newest** `COMPLETED` event the vault took
+part in (`order_by(ends_at).limit(1)`); joining two completed events does not leave the older one claimable
+in a later request, because the claim only ever resolves the newest. **Completion** stages one notification
+per participating vault through the notification stack; **claiming** commits the grant and returns it in the
+response without sending its own notification, so the two paths must not be described as one. The
+progression-visibility red line applies to both. The as-built design record is
 `docs/archive/features/WORLD_EVENTS.md`; the code and this section are the source of truth.
 
 ## Relationship affinity

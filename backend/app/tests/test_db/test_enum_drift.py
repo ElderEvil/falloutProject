@@ -136,6 +136,7 @@ PG_ENUM_LABELS_SNAPSHOT: dict[str, set[str]] = {
         "FLAMER",
     },
     "weapontypeenum": {"MELEE", "GUN", "ENERGY", "HEAVY"},
+    "worldeventstatus": {"SCHEDULED", "ACTIVE", "COMPLETED", "EXPIRED"},
 }
 
 # Deliberate non-native exceptions: StrEnum-annotated fields stored as plain

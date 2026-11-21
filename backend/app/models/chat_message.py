@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Optional
 from uuid import UUID
 
+import sqlalchemy as sa
 from sqlmodel import Field, Relationship, SQLModel
 
 from app.models.base import BaseUUIDModel
@@ -38,6 +39,11 @@ class ChatMessageBase(SQLModel):
 
     happiness_delta: float | None = Field(default=None, description="Happiness change caused by this message")
     happiness_reason: str | None = Field(default=None, max_length=255, description="Reason for happiness change")
+
+    conversation_id: UUID | None = Field(
+        default=None,
+        sa_column=sa.Column(sa.UUID, sa.ForeignKey("conversation.id", use_alter=True), index=True, nullable=True),
+    )
 
 
 class ChatMessage(BaseUUIDModel, ChatMessageBase, table=True):

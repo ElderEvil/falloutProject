@@ -163,6 +163,7 @@ async def test_apply_moves_every_owned_row_and_tombstones_source(async_session: 
         "notifications": 1,
         "llm_interactions": 1,
         "chat_messages": 2,
+        "conversations": 0,
         "oauth_links": 1,
         "profiles": 1,
     }

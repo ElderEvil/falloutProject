@@ -3,6 +3,7 @@ inside app/services may not own contracts.
 """
 
 from dataclasses import dataclass, field
+from typing import Any
 from uuid import UUID
 
 from app.schemas.chat import ActionSuggestion
@@ -20,6 +21,8 @@ class AgentChatResult:
     completion_tokens: int | None
     total_tokens: int | None
     jev_decisions: dict[str, dict[str, float]] = field(default_factory=dict)
+    #: Serialised pydantic-ai conversation after this run; None when the run fell back.
+    conversation_state: dict | None = None
 
 
 @dataclass
@@ -38,6 +41,7 @@ class StreamBundle:
     instructions_hash: str | None = None
     instructions_snapshot: str | None = None
     jev_decisions: dict[str, dict[str, float]] = field(default_factory=dict)
+    conversation_state: dict[str, Any] | None = None
 
 
 @dataclass

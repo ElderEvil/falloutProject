@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## 3.8.1 (2026-11-20)
+
+### Bug Fixes
+
+* **chat:** age the rows the next window will not carry 29db881
+* **chat:** age the rows the next window will not carry ([#1463](https://github.com/ElderEvil/falloutProject/issues/1463)) 49805d7
+
+## 3.8.0 (2026-11-20)
+
+### Features
+
+* **chat:** continue conversations across days ([#1459](https://github.com/ElderEvil/falloutProject/issues/1459)) 1408f7e
+
 ## 3.7.3 (2026-11-20)
 
 ### Bug Fixes

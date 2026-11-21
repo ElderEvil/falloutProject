@@ -81,6 +81,17 @@ def _survivor_field_values(
     }
 
 
+def _segment_upgrade_cost(room_in: RoomCreate, target_tier: int) -> int | None:
+    """Caps to raise the built segment to ``target_tier``; mirrors the per-segment pricing of ``upgrade_room``."""
+    per_segment = 0
+    for tier in range(room_in.tier, target_tier):
+        step = room_in.t2_upgrade_cost if tier == 1 else room_in.t3_upgrade_cost
+        if not step:
+            return None
+        per_segment += step
+    return per_segment * room_in.segment_count
+
+
 async def _apply_merged_size(
     db_session: AsyncSession,
     room_id: UUID,
@@ -484,7 +495,44 @@ class RoomService:
 
         price = await crud.room.get_room_build_price(db_session=db_session, room_in=obj_in)
         merge_preview = await self.merge_adjacent_rooms(db_session=db_session, candidate=obj_in, dry_run=True)
+        if not merge_preview.merged and obj_in.name == room_rules.RADIO_STUDIO:
+            # Adopt a touching studio's tier only when the re-run preview proves the merge succeeds;
+            # try touching tiers from the highest down so a maxed studio cannot block a growable one.
+            adjacent_tiers = await crud.room.get_adjacent_room_tiers(
+                db_session=db_session,
+                vault_id=vault.id,
+                name=obj_in.name,
+                coordinate_x=obj_in.coordinate_x,
+                coordinate_y=obj_in.coordinate_y,
+                size=obj_in.size or obj_in.size_min,
+            )
+            original_tier = obj_in.tier
+            for studio_tier in sorted(set(adjacent_tiers), reverse=True):
+                if studio_tier <= original_tier:
+                    continue
+                upgrade_cost = _segment_upgrade_cost(obj_in, studio_tier)
+                if upgrade_cost is None:
+                    continue
+                obj_in.tier = studio_tier
+                retiered_preview = await self.merge_adjacent_rooms(
+                    db_session=db_session, candidate=obj_in, dry_run=True
+                )
+                if retiered_preview.merged:
+                    merge_preview = retiered_preview
+                    price += upgrade_cost
+                    break
+                obj_in.tier = original_tier
         if not merge_preview.merged:
+            if obj_in.name == room_rules.RADIO_STUDIO and await crud.room.has_room_type(
+                db_session, vault.id, room_rules.RADIO_STUDIO
+            ):
+                raise UniqueRoomViolationException(
+                    room_name=room_rules.RADIO_STUDIO,
+                    detail=(
+                        "You already have a Radio studio. "
+                        "Extend it by placing adjacent segments instead of building another one."
+                    ),
+                )
             await crud.room.check_is_unique_room(db_session=db_session, obj_in=obj_in)
 
         await vault_service.withdraw_caps(db_session=db_session, vault_obj=vault, amount=price, commit=False)

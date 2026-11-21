@@ -194,7 +194,7 @@ describe('DwellersView', () => {
       )
     })
 
-    it('starts all initial data requests together', async () => {
+    it('adopts the vault before starting the guarded data reads', async () => {
       const startedRequests: string[] = []
       const resolvers: Array<() => void> = []
       const deferredRequest = (name: string) => {
@@ -225,6 +225,9 @@ describe('DwellersView', () => {
       await flushPromises()
 
       try {
+        expect(startedRequests).toEqual(['vault'])
+        resolvers.splice(0).forEach((resolve) => resolve())
+        await flushPromises()
         expect(startedRequests).toEqual(
           expect.arrayContaining([
             'vault',

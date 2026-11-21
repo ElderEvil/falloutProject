@@ -6,6 +6,7 @@ import QuestsView from '@/modules/progression/views/QuestsView.vue'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useQuestStore } from '@/modules/progression/stores/quest'
 import { useRoomStore } from '@/modules/rooms/stores/room'
+import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 
 // Regression for the vault-switch race: a load paused on the catalog fetch must not
@@ -49,6 +50,7 @@ describe('QuestsView vault-switch orchestration', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     vi.clearAllMocks()
+    vi.spyOn(useVaultStore(), 'ensureVaultLoaded').mockResolvedValue()
   })
 
   it('does not let a stale vault load overwrite the newer vault after the catalog fetch', async () => {

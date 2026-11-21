@@ -73,6 +73,7 @@ async function mountLoadedVault() {
   vi.spyOn(roomStore, 'fetchBuildableRooms').mockResolvedValue()
   vi.spyOn(roomStore, 'deselectRoom').mockImplementation(() => {})
   vi.spyOn(dwellerStore, 'fetchDwellersByVault').mockResolvedValue()
+  vi.spyOn(dwellerStore, 'fetchAllDwellers').mockResolvedValue()
   vi.spyOn(explorationStore, 'fetchExplorationsByVault').mockResolvedValue()
   vi.spyOn(incidentStore, 'startPolling').mockImplementation(() => {})
 
@@ -91,7 +92,7 @@ async function mountLoadedVault() {
   })
   await flushPromises()
 
-  return { wrapper, roomStore }
+  return { wrapper, roomStore, filter: dwellerStore }
 }
 
 const buildDialog = (wrapper: ReturnType<typeof mount>) =>
@@ -130,6 +131,12 @@ describe('VaultView', () => {
     await flushPromises()
     expect(wrapper.text()).not.toContain('Review incident report')
     wrapper.unmount()
+  })
+
+  it('loads the unfiltered vault roster on overview entry', async () => {
+    const { filter } = await mountLoadedVault()
+
+    expect(filter.fetchAllDwellers).toHaveBeenCalledWith('vault-1')
   })
 
   it('renders the vault loading error state with a way back', async () => {

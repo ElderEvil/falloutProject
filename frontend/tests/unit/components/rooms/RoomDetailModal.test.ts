@@ -728,6 +728,24 @@ describe('RoomDetailModal', () => {
       expect(wrapper.find('.dweller-list-row').exists()).toBe(false)
     })
 
+    it('reads assigned occupants from the vault roster when it is loaded', () => {
+      const dwellerStore = useDwellerStore().filter
+      dwellerStore.dwellers = []
+      dwellerStore.allDwellers = mockDwellers as never
+      dwellerStore.allDwellersLoadedVaultId = 'vault-123'
+
+      const wrapper = mount(RoomDetailModal, {
+        props: {
+          room: mockRoom,
+          modelValue: true,
+          vaultId: 'vault-123',
+        },
+      })
+
+      expect(wrapper.find('[aria-label="Open John Doe"]').exists()).toBe(true)
+      expect(wrapper.find('[aria-label="Open Jane Smith"]').exists()).toBe(true)
+    })
+
     it('should show empty state when no dwellers assigned', () => {
       const dwellerStore = useDwellerStore().filter
       dwellerStore.dwellers = []
@@ -1031,6 +1049,34 @@ describe('RoomDetailModal', () => {
 
       expect(wrapper.text()).toContain('Unassign All Dwellers')
     })
+
+    it.each([
+      ['Radio Studio', 'SPECIAL', 'CHARISMA', false],
+      ['Living quarters', 'LIVING', 'CHARISMA', true],
+    ])(
+      'shows a split action for %s only when the room allows it',
+      (name, category, ability, split) => {
+        const room = {
+          ...mockRoom,
+          name,
+          category,
+          ability,
+          size: 6,
+          size_min: 3,
+          size_max: 9,
+          incremental_cost: 25,
+        }
+
+        const wrapper = mount(RoomDetailModal, {
+          props: { room, modelValue: true },
+        })
+
+        const splitButton = wrapper
+          .findAll('.mock-button')
+          .some((button) => button.text().includes('Split into'))
+        expect(splitButton).toBe(split)
+      }
+    )
 
     it('confirms unassign-all in a themed dialog and cancels without changing dwellers', async () => {
       const { filter, management } = useDwellerStore()

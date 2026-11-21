@@ -8,6 +8,7 @@ import { useRelationshipStore } from '@/modules/social/stores/relationship'
 import { usePregnancyStore } from '@/modules/social/stores/pregnancy'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { useAuthStore } from '@/modules/auth/stores/auth'
+import { useVaultStore } from '@/modules/vault/stores/vault'
 
 // Mock Iconify
 vi.mock('@iconify/vue', () => createIconifyMock())
@@ -62,6 +63,7 @@ describe('RelationshipsView', () => {
     vi.spyOn(relationshipStore, 'fetchVaultRelationships').mockResolvedValue(undefined)
     vi.spyOn(pregnancyStore, 'fetchVaultPregnancies').mockResolvedValue(undefined)
     vi.spyOn(dwellerStore, 'fetchAllDwellers').mockResolvedValue(undefined)
+    vi.spyOn(useVaultStore(), 'ensureVaultLoaded').mockResolvedValue(undefined)
 
     // Set up mock data
     relationshipStore.relationships = []

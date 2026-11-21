@@ -22,6 +22,7 @@ vi.mock('@/core/audio/audioManager', () => ({
 const dwellerRefresh = vi.hoisted(() => ({
   fetchWithCurrentFilters: vi.fn().mockResolvedValue(undefined),
   fetchAllDwellers: vi.fn().mockResolvedValue(undefined),
+  dwellers: [] as unknown[],
   allDwellers: [] as unknown[],
   detailedDwellers: {} as Record<string, unknown>,
 }))
@@ -65,6 +66,7 @@ describe('Room Store', () => {
     useAuthStore().token = 'test-token'
     vi.clearAllMocks()
     dwellerRefresh.allDwellers = []
+    dwellerRefresh.dwellers = []
     dwellerRefresh.detailedDwellers = {}
     vi.spyOn(console, 'error').mockImplementation(() => {})
   })
@@ -81,6 +83,63 @@ describe('Room Store', () => {
   })
 
   describe('fetchRooms', () => {
+    it('rejects an off-vault rooms read before it requests or publishes anything', async () => {
+      useVaultStore().activeVaultId = 'vault-2'
+
+      const store = useRoomStore()
+      const result = await store.fetchRooms('vault-1')
+
+      expect(result).toBe('superseded')
+      expect(vi.mocked(axios.get)).not.toHaveBeenCalled()
+      expect(store.rooms).toEqual([])
+    })
+
+    it('does not publish a rooms response that lands after a vault switch', async () => {
+      useVaultStore().activeVaultId = 'vault-1'
+      const store = useRoomStore()
+      store.rooms = [makeRoom({ id: 'kept' })]
+      let release!: (value: { data: Room[] }) => void
+      const gate = new Promise<{ data: Room[] }>((resolve) => {
+        release = resolve
+      })
+      vi.mocked(axios.get).mockReturnValueOnce(gate)
+
+      const pending = store.fetchRooms('vault-1')
+      useVaultStore().activeVaultId = 'vault-2'
+      release({ data: [makeRoom({ id: 'stale' })] })
+      const result = await pending
+
+      expect(result).toBe('superseded')
+      expect(store.rooms.map((room) => room.id)).toEqual(['kept'])
+
+      let releaseSecond!: (value: { data: Room[] }) => void
+      const secondGate = new Promise<{ data: Room[] }>((resolve) => {
+        releaseSecond = resolve
+      })
+      vi.mocked(axios.get).mockReturnValueOnce(secondGate)
+
+      const second = store.fetchRooms('vault-2')
+      useAuthStore().sessionGeneration++
+      releaseSecond({ data: [makeRoom({ id: 'post-logout' })] })
+
+      expect(await second).toBe('superseded')
+      expect(store.rooms.map((room) => room.id)).toEqual(['kept'])
+
+      let rejectThird!: (error: unknown) => void
+      const thirdGate = new Promise<never>((_resolve, reject) => {
+        rejectThird = reject
+      })
+      vi.mocked(axios.get).mockReturnValueOnce(thirdGate as never)
+
+      const third = store.fetchRooms('vault-2')
+      useAuthStore().sessionGeneration++
+      rejectThird(new Error('Network gone'))
+      await third
+
+      expect(mockToast.error).not.toHaveBeenCalled()
+      expect(store.rooms.map((room) => room.id)).toEqual(['kept'])
+    })
+
     it('should fetch rooms for a vault', async () => {
       const mockRooms = [
         {
@@ -305,6 +364,80 @@ describe('Room Store', () => {
       expect(store.rooms[0]).toEqual(newRoom)
       expect(dwellerRefresh.fetchWithCurrentFilters).toHaveBeenCalledWith('vault-1')
       expect(audioManager.play).toHaveBeenCalledWith('vaultBuild', 'sfx')
+    })
+
+    it('publishes a left-side merge survivor and repoints its occupants', async () => {
+      const store = useRoomStore()
+      store.roomsLoadedVaultId = 'vault-1'
+      const occupant = { id: 'd1', room_id: 'absorbed', status: 'working' }
+      store.rooms = [makeRoom({ id: 'absorbed', name: 'Water Treatment', coordinate_x: 3 })]
+      dwellerRefresh.allDwellers = [occupant]
+      dwellerRefresh.dwellers = [occupant]
+
+      const survivor = makeRoom({
+        id: 'survivor',
+        name: 'Water Treatment',
+        coordinate_x: 0,
+        size: 6,
+      })
+      vi.mocked(axios.post).mockResolvedValueOnce({ data: survivor })
+      vi.mocked(axios.get)
+        .mockResolvedValueOnce({ data: { id: 'vault-1', bottle_caps: 900 } })
+        .mockResolvedValueOnce({ data: [survivor] })
+
+      expect(await store.buildRoom('Water Treatment', 0, 0, 'vault-1')).toBe('extended')
+      expect(store.rooms.map((room) => room.id)).toEqual(['survivor'])
+      expect(dwellerRefresh.allDwellers[0]?.room_id).toBe('survivor')
+      expect(dwellerRefresh.dwellers[0]?.room_id).toBe('survivor')
+    })
+
+    it('repoints occupants absorbed by a same-id merge survivor', async () => {
+      const store = useRoomStore()
+      store.roomsLoadedVaultId = 'vault-1'
+      const occupant = { id: 'd1', room_id: 'right', status: 'working' }
+      store.rooms = [
+        makeRoom({ id: 'left', name: 'Water Treatment', coordinate_x: 0 }),
+        makeRoom({ id: 'right', name: 'Water Treatment', coordinate_x: 6 }),
+      ]
+      dwellerRefresh.allDwellers = [occupant]
+      dwellerRefresh.dwellers = [occupant]
+
+      const survivor = makeRoom({ id: 'left', name: 'Water Treatment', coordinate_x: 0, size: 9 })
+      vi.mocked(axios.post).mockResolvedValueOnce({ data: survivor })
+      vi.mocked(axios.get)
+        .mockResolvedValueOnce({ data: { id: 'vault-1', bottle_caps: 900 } })
+        .mockResolvedValueOnce({ data: [survivor] })
+
+      expect(await store.buildRoom('Water Treatment', 3, 0, 'vault-1')).toBe('extended')
+      expect(store.rooms.map((room) => room.id)).toEqual(['left'])
+      expect(dwellerRefresh.allDwellers[0]?.room_id).toBe('left')
+      expect(dwellerRefresh.dwellers[0]?.room_id).toBe('left')
+    })
+
+    it('skips the local publish when the build response lands on another vault', async () => {
+      const store = useRoomStore()
+      store.roomsLoadedVaultId = 'vault-1'
+      const occupant = { id: 'd1', room_id: 'absorbed', status: 'working' }
+      store.rooms = [makeRoom({ id: 'absorbed', name: 'Water Treatment', coordinate_x: 3 })]
+      dwellerRefresh.allDwellers = [occupant]
+      dwellerRefresh.dwellers = [occupant]
+      useVaultStore().activeVaultId = 'vault-1'
+
+      const survivor = makeRoom({
+        id: 'survivor',
+        name: 'Water Treatment',
+        coordinate_x: 0,
+        size: 6,
+      })
+      vi.mocked(axios.post).mockResolvedValueOnce({ data: survivor })
+
+      const building = store.buildRoom('Water Treatment', 0, 0, 'vault-1')
+      useVaultStore().activeVaultId = 'vault-2'
+      await building
+
+      expect(vi.mocked(axios.get)).not.toHaveBeenCalled()
+      expect(store.rooms.map((room) => room.id)).toEqual(['absorbed'])
+      expect(dwellerRefresh.allDwellers[0]?.room_id).toBe('absorbed')
     })
 
     it('should replace an existing room when the response id is already present', async () => {

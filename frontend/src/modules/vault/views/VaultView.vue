@@ -152,8 +152,8 @@ const loadVaultData = async (id: string) => {
     // Fetch rooms for this vault
     await roomStore.fetchRooms(id)
 
-    // Fetch dwellers for this vault
-    await dwellerStore.fetchDwellersByVault(id)
+    // The unfiltered roster feeds room tiles.
+    await Promise.all([dwellerStore.fetchDwellersByVault(id), dwellerStore.fetchAllDwellers(id)])
 
     // Fetch explorations for this vault
     try {

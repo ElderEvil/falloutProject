@@ -2,13 +2,14 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import * as managementApi from '../api/management'
 import type { components } from '@/core/types/api.generated'
-import type { Dweller } from '../models/dweller'
+import type { Dweller, DwellerShort } from '../models/dweller'
 import { handleStoreError } from '@/core/utils/errorHandler'
 import { audioManager } from '@/core/audio/audioManager'
 import { useToast } from '@/core/composables/useToast'
 import { useGaryMode } from '@/core/composables/useGaryMode'
 import { useDwellerFilterStore } from './dwellerFilter'
 import { useRoomStore } from '@/modules/rooms/stores/room'
+import { useVaultStore } from '@/modules/vault/stores/vault'
 import { getLineage, type LineageResponse } from '../services/lineageService'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 
@@ -20,7 +21,7 @@ export const useDwellerManagementStore = defineStore('dwellerManagement', () => 
   const filterStore = useDwellerFilterStore()
   const authStore = useAuthStore()
   const roomStore = useRoomStore()
-  const assignmentMutations = new Map<string, number>()
+  const assignmentMutations = new Map<string, { sequence: number; pending: number }>()
   const confirmedAssignments = new Map<
     string,
     { roomId: string | null; status: Dweller['status'] | undefined }
@@ -32,13 +33,24 @@ export const useDwellerManagementStore = defineStore('dwellerManagement', () => 
   let lineageRequestSeq = 0
 
   function beginAssignmentMutation(dwellerId: string): number {
-    const sequence = (assignmentMutations.get(dwellerId) ?? 0) + 1
-    assignmentMutations.set(dwellerId, sequence)
-    return sequence
+    const mutation = assignmentMutations.get(dwellerId) ?? { sequence: 0, pending: 0 }
+    mutation.sequence += 1
+    mutation.pending += 1
+    assignmentMutations.set(dwellerId, mutation)
+    return mutation.sequence
+  }
+
+  function finishAssignmentMutation(dwellerId: string): void {
+    const mutation = assignmentMutations.get(dwellerId)
+    if (!mutation) return
+    mutation.pending -= 1
+    if (mutation.pending > 0) return
+    assignmentMutations.delete(dwellerId)
+    confirmedAssignments.delete(dwellerId)
   }
 
   function ownsAssignmentMutation(dwellerId: string, sequence: number): boolean {
-    return assignmentMutations.get(dwellerId) === sequence
+    return assignmentMutations.get(dwellerId)?.sequence === sequence
   }
 
   function sessionIdentity(): string {
@@ -55,19 +67,35 @@ export const useDwellerManagementStore = defineStore('dwellerManagement', () => 
     return roomId ? (roomStore.rooms.find((room) => room.id === roomId) ?? null) : null
   }
 
+  function assignmentBaseline(dwellerId: string): {
+    roomId: string | null
+    status: Dweller['status'] | undefined
+  } {
+    const dweller =
+      filterStore.dwellers.find((d) => d.id === dwellerId) ??
+      filterStore.allDwellers.find((d) => d.id === dwellerId)
+    return { roomId: dweller?.room_id ?? null, status: dweller?.status }
+  }
+
   function patchRoomAssignment(
     dwellerId: string,
     roomId: string | null,
     status?: Dweller['status']
   ): void {
+    const patchListing = (dweller: DwellerShort): DwellerShort => ({
+      ...dweller,
+      room_id: roomId,
+      ...(status ? { status } : {}),
+    })
     const index = filterStore.dwellers.findIndex((d) => d.id === dwellerId)
     const current = filterStore.dwellers[index]
     if (index !== -1 && current) {
-      filterStore.dwellers[index] = {
-        ...current,
-        room_id: roomId,
-        ...(status ? { status } : {}),
-      }
+      filterStore.dwellers[index] = patchListing(current)
+    }
+    const rosterIndex = filterStore.allDwellers.findIndex((d) => d.id === dwellerId)
+    const rosterEntry = filterStore.allDwellers[rosterIndex]
+    if (rosterIndex !== -1 && rosterEntry) {
+      filterStore.allDwellers[rosterIndex] = patchListing(rosterEntry)
     }
     const detailed = filterStore.detailedDwellers[dwellerId]
     if (detailed) {
@@ -83,12 +111,8 @@ export const useDwellerManagementStore = defineStore('dwellerManagement', () => 
     const identity = sessionIdentity()
     scopeConfirmedAssignmentsToSession(identity)
     const mutation = beginAssignmentMutation(dwellerId)
-    const previous = filterStore.dwellers.find((d) => d.id === dwellerId)
     if (!confirmedAssignments.has(dwellerId)) {
-      confirmedAssignments.set(dwellerId, {
-        roomId: previous?.room_id ?? null,
-        status: previous?.status,
-      })
+      confirmedAssignments.set(dwellerId, assignmentBaseline(dwellerId))
     }
     patchRoomAssignment(dwellerId, roomId)
     try {
@@ -118,6 +142,8 @@ export const useDwellerManagementStore = defineStore('dwellerManagement', () => 
       }
       handleStoreError(error, `Failed to assign dweller ${dwellerId} to room ${roomId}`)
       throw error
+    } finally {
+      finishAssignmentMutation(dwellerId)
     }
   }
 
@@ -127,6 +153,7 @@ export const useDwellerManagementStore = defineStore('dwellerManagement', () => 
 
       // Remove the dweller from the active list and detail cache
       filterStore.dwellers = filterStore.dwellers.filter((d) => d.id !== dwellerId)
+      filterStore.allDwellers = filterStore.allDwellers.filter((d) => d.id !== dwellerId)
       delete filterStore.detailedDwellers[dwellerId]
 
       toast.success('Dweller moved to the Trading Post pool')
@@ -141,12 +168,8 @@ export const useDwellerManagementStore = defineStore('dwellerManagement', () => 
     const identity = sessionIdentity()
     scopeConfirmedAssignmentsToSession(identity)
     const mutation = beginAssignmentMutation(dwellerId)
-    const previous = filterStore.dwellers.find((d) => d.id === dwellerId)
     if (!confirmedAssignments.has(dwellerId)) {
-      confirmedAssignments.set(dwellerId, {
-        roomId: previous?.room_id ?? null,
-        status: previous?.status,
-      })
+      confirmedAssignments.set(dwellerId, assignmentBaseline(dwellerId))
     }
     patchRoomAssignment(dwellerId, null, 'idle')
     try {
@@ -177,6 +200,8 @@ export const useDwellerManagementStore = defineStore('dwellerManagement', () => 
       }
       handleStoreError(error, `Failed to unassign dweller ${dwellerId}`)
       throw error
+    } finally {
+      finishAssignmentMutation(dwellerId)
     }
   }
 
@@ -184,14 +209,7 @@ export const useDwellerManagementStore = defineStore('dwellerManagement', () => 
     try {
       const data = await managementApi.autoAssign(dwellerId)
 
-      // Update the dweller in the list
-      const dwellerIndex = filterStore.dwellers.findIndex((d) => d.id === dwellerId)
-      if (dwellerIndex !== -1 && filterStore.dwellers[dwellerIndex]) {
-        filterStore.dwellers[dwellerIndex] = {
-          ...filterStore.dwellers[dwellerIndex]!,
-          room_id: data.room_id,
-        }
-      }
+      patchRoomAssignment(dwellerId, data.room_id, data.status)
 
       // Update detailed dweller if cached
       if (filterStore.detailedDwellers[dwellerId]) {
@@ -309,11 +327,23 @@ export const useDwellerManagementStore = defineStore('dwellerManagement', () => 
   async function unassignAllDwellers(
     vaultId: string
   ): Promise<{ unassigned_count: number } | null> {
+    const identity = sessionIdentity()
+    const vaultStore = useVaultStore()
+    const activeVaultId = vaultStore.activeVaultId
     try {
       const data = await managementApi.unassignAll(vaultId)
+      if (
+        activeVaultId !== vaultId ||
+        vaultStore.activeVaultId !== vaultId ||
+        sessionIdentity() !== identity
+      )
+        return data
 
       // Refetch dwellers to update UI
-      await filterStore.fetchDwellersByVault(vaultId)
+      await Promise.all([
+        filterStore.fetchDwellersByVault(vaultId),
+        filterStore.fetchAllDwellers(vaultId, false, true),
+      ])
 
       toast.success(`Unassigned ${data.unassigned_count} dwellers`)
       return data
@@ -335,11 +365,23 @@ export const useDwellerManagementStore = defineStore('dwellerManagement', () => 
     successSuffix: string,
     failureLabel: string
   ): Promise<AutoAssignResponse | null> {
+    const identity = sessionIdentity()
+    const vaultStore = useVaultStore()
+    const activeVaultId = vaultStore.activeVaultId
     try {
       const data = await managementApi.autoAssignVault(endpoint, vaultId, filters?.ageGroup)
+      if (
+        activeVaultId !== vaultId ||
+        vaultStore.activeVaultId !== vaultId ||
+        sessionIdentity() !== identity
+      )
+        return data
 
       // Refetch dwellers to update UI
-      await filterStore.fetchWithCurrentFilters(vaultId)
+      await Promise.all([
+        filterStore.fetchWithCurrentFilters(vaultId),
+        filterStore.fetchAllDwellers(vaultId, false, true),
+      ])
 
       const { assigned_count, eligible_count } = data
       const summary =

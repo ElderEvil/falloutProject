@@ -9,6 +9,7 @@ import { useRoomStore } from '@/modules/rooms/stores/room'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { useTrainingStore } from '@/modules/progression/stores/training'
 import { useAuthStore } from '@/modules/auth/stores/auth'
+import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useToast } from '@/core/composables/useToast'
 
 vi.mock('vue-router', () => createRouterMock({ params: { id: 'vault-1' } }))
@@ -965,6 +966,28 @@ describe('RoomGrid', () => {
 
       const assignSpy = vi
         .spyOn(dwellerStore.management, 'assignDwellerToRoom')
+        .mockResolvedValue({ id: 'teen-1' } as any)
+
+      const wrapper = mount(RoomGrid, { props: { incidents: [] } })
+      await dropOn(wrapper, 'teen-1')
+
+      expect(assignSpy).toHaveBeenCalledWith('teen-1', 'production-room-123')
+    })
+
+    it('admits an apprentice the filter hides when the vault roster has it', async () => {
+      useAuthStore().token = 'mock-token'
+      useVaultStore().activeVaultId = 'vault-1'
+      useRoomStore().rooms = [productionRoom]
+      const { filter, management } = useDwellerStore()
+      filter.dwellers = [...staffedFull]
+      filter.allDwellers = [
+        ...staffedFull,
+        dwellerIn({ id: 'teen-1', room_id: null, age_group: 'teen' }),
+      ]
+      filter.allDwellersLoadedVaultId = 'vault-1'
+
+      const assignSpy = vi
+        .spyOn(management, 'assignDwellerToRoom')
         .mockResolvedValue({ id: 'teen-1' } as any)
 
       const wrapper = mount(RoomGrid, { props: { incidents: [] } })

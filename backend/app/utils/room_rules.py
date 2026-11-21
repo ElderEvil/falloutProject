@@ -20,6 +20,7 @@ from app.models.room import Room, RoomBase
 from app.utils.exceptions import VaultOperationException
 
 ELEVATOR = "elevator"
+RADIO_STUDIO = "Radio studio"
 
 
 def is_elevator(room_name: str | None) -> bool:

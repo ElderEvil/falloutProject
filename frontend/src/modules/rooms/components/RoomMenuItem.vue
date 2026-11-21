@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 import { Icon } from '@iconify/vue'
 import { useRoomStore } from '../stores/room'
 import { getRoomSegmentCount } from '../utils/room'
+import { isRadioRoom } from '../models/roomParts'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useRoute } from 'vue-router'
 import { getRoomImageUrl } from '@/core/utils/image'
@@ -40,17 +41,31 @@ const currentVault = computed(() => {
 })
 
 const roomCost = computed(() => {
-  const count =
+  const sameName =
     roomStore.roomsLoadedVaultId === vaultId.value
-      ? roomStore.rooms
-          .filter((room) => room.name === props.room.name)
-          .reduce((total, room) => total + getRoomSegmentCount(room), 0)
-      : 0
-  return props.room.base_cost + count * (props.room.incremental_cost ?? 0)
+      ? roomStore.rooms.filter((room) => room.name === props.room.name)
+      : []
+  const count = sameName.reduce((total, room) => total + getRoomSegmentCount(room), 0)
+  const base = props.room.base_cost + count * (props.room.incremental_cost ?? 0)
+  if (!(sameName.length > 0 && isRadioRoom({ name: props.room.name }))) {
+    return { min: base, max: base }
+  }
+  // The build adopts the touched studio's tier, so legacy mixed tiers offer a price range.
+  const upgradeCharge = (tier: number) =>
+    (tier >= 2 ? (props.room.t2_upgrade_cost ?? 0) : 0) +
+    (tier >= 3 ? (props.room.t3_upgrade_cost ?? 0) : 0)
+  const costs = [...new Set(sameName.map((room) => room.tier ?? 1))].map(
+    (tier) => base + upgradeCharge(tier)
+  )
+  return { min: Math.min(...costs), max: Math.max(...costs) }
+})
+const roomCostLabel = computed(() => {
+  const { min, max } = roomCost.value
+  return min === max ? `${min}` : `${min}-${max}`
 })
 const canAfford = computed(() => {
   const caps = currentVault.value?.bottle_caps ?? 0
-  return caps >= roomCost.value
+  return caps >= roomCost.value.min
 })
 
 const currentPopulation = computed(() => currentVault.value?.dweller_count ?? 0)
@@ -122,7 +137,7 @@ const onboardingAnchor = computed(() =>
         <div class="room-detail-row">
           <div class="room-cost text-theme-primary">
             <Icon icon="mdi:coins" class="w-4 h-4" />
-            <span>{{ roomCost }}</span>
+            <span>{{ roomCostLabel }}</span>
           </div>
 
           <div v-if="room.population_required" class="room-population text-theme-primary">

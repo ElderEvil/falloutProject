@@ -2,7 +2,6 @@
 import { computed, reactive } from 'vue'
 import { Icon } from '@iconify/vue'
 import { PawPrint } from '@lucide/vue'
-import { useDwellerStore } from '../stores/dweller'
 import type { DwellerShort } from '../models/dweller'
 import {
   getAbilityConfig,
@@ -13,22 +12,23 @@ import {
 import DwellerPortrait from './DwellerPortrait.vue'
 import { getStaticImageUrl } from '@/core/utils/image'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/core/components/ui/tooltip'
+import { useVaultRoster } from '../composables/useVaultRoster'
 
 interface Props {
   roomId: string
 }
 
 const props = defineProps<Props>()
-const { filter: dwellerStore } = useDwellerStore()
 
 const emit = defineEmits<{
   dragStart: [dweller: DwellerShort]
   dragEnd: []
 }>()
 
-// Get dwellers assigned to this room
+const roster = useVaultRoster()
+
 const roomDwellers = computed(() =>
-  orderRoomDwellers(dwellerStore.dwellers.filter((dweller) => dweller.room_id === props.roomId))
+  orderRoomDwellers(roster.value.filter((dweller) => dweller.room_id === props.roomId))
 )
 
 const failedPetImages = reactive(new Set<string>())

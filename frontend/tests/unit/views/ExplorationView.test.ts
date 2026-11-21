@@ -12,6 +12,7 @@ import type { ExplorationPartyMember } from '@/modules/exploration/api/explorati
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { useQuestStore } from '@/modules/progression/stores/quest'
 import { useAuthStore } from '@/modules/auth/stores/auth'
+import { useVaultStore } from '@/modules/vault/stores/vault'
 import {
   acknowledgeReport,
   addPendingReport,
@@ -172,6 +173,7 @@ describe('ExplorationView', () => {
     vi.spyOn(dwellerStore, 'fetchDwellerDetails').mockResolvedValue(undefined)
     vi.spyOn(questStore, 'fetchVaultQuests').mockResolvedValue()
     vi.spyOn(questStore, 'fetchPartiesForActiveQuests').mockResolvedValue()
+    vi.spyOn(useVaultStore(), 'ensureVaultLoaded').mockResolvedValue()
 
     authStore.token = 'mock-token'
     dwellerStore.dwellers = [

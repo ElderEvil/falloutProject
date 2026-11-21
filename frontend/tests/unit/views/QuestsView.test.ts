@@ -46,6 +46,7 @@ describe('QuestsView', () => {
     // Prevent unhandled rejections from real HTTP calls during onMounted
     vi.spyOn(questStore, 'fetchAllQuests').mockResolvedValue()
     vi.spyOn(questStore, 'fetchVaultQuests').mockResolvedValue()
+    vi.spyOn(_vaultStore, 'ensureVaultLoaded').mockResolvedValue()
     vi.spyOn(questStore, 'fetchPartiesForActiveQuests').mockResolvedValue()
   })
 

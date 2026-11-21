@@ -26,7 +26,7 @@ export type RoomPart =
 
 // Special rooms are identified by their seed-data-stable names; the string
 // matching lives here and nowhere else.
-export function isRadioRoom(room: Room | null): boolean {
+export function isRadioRoom(room: Pick<Room, 'name'> | null): boolean {
   return room?.name.toLowerCase().includes('radio') ?? false
 }
 

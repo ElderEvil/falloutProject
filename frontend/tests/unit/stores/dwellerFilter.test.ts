@@ -245,6 +245,19 @@ describe('DwellerFilter Store', () => {
   })
 
   describe('fetchAllDwellers', () => {
+    it('rejects an off-vault roster read before it clears the loaded roster', async () => {
+      useVaultStore().activeVaultId = 'vault-b'
+      const store = useDwellerFilterStore()
+      store.allDwellers = [{ id: 'local', room_id: 'room-b', status: 'working' }] as never
+      store.allDwellersLoadedVaultId = 'vault-b'
+
+      await store.fetchAllDwellers('vault-a')
+
+      expect(vi.mocked(axios.get)).not.toHaveBeenCalled()
+      expect(store.allDwellersLoadedVaultId).toBe('vault-b')
+      expect(store.allDwellers).toEqual([{ id: 'local', room_id: 'room-b', status: 'working' }])
+    })
+
     it('accepts the filtered response after access-token rotation in the same session', async () => {
       const auth = useAuthStore()
       auth.token = 'token-a'
@@ -452,6 +465,28 @@ describe('DwellerFilter Store', () => {
       await promise
       expect(store.allDwellers).toHaveLength(1)
       expect(store.allDwellers[0].id).toBe('new')
+    })
+
+    it('keeps the loaded roster visible while a same-vault refresh is in flight', async () => {
+      useVaultStore().activeVaultId = 'vault-1'
+      let resolveRequest!: (value: unknown) => void
+      vi.mocked(axios.get).mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveRequest = resolve
+          })
+      )
+      const store = useDwellerFilterStore()
+      store.allDwellers = [{ id: 'd1', room_id: 'room-1' }] as never
+      store.allDwellersLoadedVaultId = 'vault-1'
+
+      const request = store.fetchAllDwellers('vault-1', false, true)
+      expect(store.allDwellers).toEqual([{ id: 'd1', room_id: 'room-1' }])
+      expect(store.allDwellersLoadedVaultId).toBe('vault-1')
+
+      resolveRequest({ data: [{ id: 'd1', room_id: 'room-2' }] })
+      await request
+      expect(store.allDwellers).toEqual([{ id: 'd1', room_id: 'room-2' }])
     })
 
     it('shares one request between concurrent same-vault loads', async () => {

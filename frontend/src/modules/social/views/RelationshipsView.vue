@@ -12,6 +12,7 @@ import PageHeaderMetric from '@/core/components/common/PageHeaderMetric.vue'
 import PageContentRail from '@/core/components/common/PageContentRail.vue'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { useAuthStore } from '@/modules/auth/stores/auth'
+import { useVaultStore } from '@/modules/vault/stores/vault'
 import VaultPageShell from '@/core/components/common/VaultPageShell.vue'
 import RelationshipList from '../components/relationships/RelationshipList.vue'
 import PregnancyTracker from '../components/pregnancy/PregnancyTracker.vue'
@@ -24,6 +25,7 @@ const relationshipStore = useRelationshipStore()
 const pregnancyStore = usePregnancyStore()
 const { filter: dwellerStore } = useDwellerStore()
 const authStore = useAuthStore()
+const vaultStore = useVaultStore()
 
 const vaultId = computed(() => route.params.id as string)
 const activeStage = ref<'forming' | 'tensions' | 'partners' | 'pregnancies' | 'children'>('forming')
@@ -94,10 +96,14 @@ function setActiveStage(stage: string) {
 
 onMounted(async () => {
   if (vaultId.value && authStore.token) {
+    // The roster read is vault-guarded, so adopt this vault before loading.
+    const id = vaultId.value
+    await vaultStore.ensureVaultLoaded(id).catch(() => undefined)
+    if (vaultId.value !== id) return
     await Promise.all([
-      relationshipStore.fetchVaultRelationships(vaultId.value),
-      pregnancyStore.fetchVaultPregnancies(vaultId.value),
-      dwellerStore.fetchAllDwellers(vaultId.value),
+      relationshipStore.fetchVaultRelationships(id),
+      pregnancyStore.fetchVaultPregnancies(id),
+      dwellerStore.fetchAllDwellers(id),
     ])
   }
 })

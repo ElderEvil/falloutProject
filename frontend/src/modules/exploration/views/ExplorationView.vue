@@ -6,6 +6,7 @@ import { useRoute } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { Icon } from '@iconify/vue'
 import { useAuthStore } from '@/modules/auth/stores/auth'
+import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { getDwellerDisplayName } from '@/modules/dwellers/models/dweller'
 import { useQuestStore } from '@/modules/progression/stores/quest'
@@ -41,6 +42,7 @@ import { useExplorationFinish } from '../composables/useExplorationFinish'
 
 const route = useRoute()
 const authStore = useAuthStore()
+const vaultStore = useVaultStore()
 const { isCollapsed } = useSidePanel()
 const { filter: dwellerStore } = useDwellerStore()
 const explorationStore = useExplorationStore()
@@ -160,17 +162,28 @@ async function refreshPendingOverflow(): Promise<void> {
 
 const loadData = async () => {
   if (!vaultId.value || !authStore.token) return
+  const id = vaultId.value
+  const session = authStore.sessionGeneration
+  const stale = () => id !== vaultId.value || session !== authStore.sessionGeneration
 
   try {
-    await explorationStore.refreshActiveExplorations(vaultId.value, {
+    await explorationStore.refreshActiveExplorations(id, {
       includeParties: true,
     })
-    await dwellerStore.fetchDwellersByVault(vaultId.value)
-    await questStore.fetchVaultQuests(vaultId.value)
-    await questStore.fetchPartiesForActiveQuests(vaultId.value)
+    if (stale()) return
+    // The roster read is vault-guarded, so adopt this vault before loading it.
+    await vaultStore.ensureVaultLoaded(id).catch(() => undefined)
+    if (stale()) return
+    await dwellerStore.fetchDwellersByVault(id)
+    if (stale()) return
+    await questStore.fetchVaultQuests(id)
+    if (stale()) return
+    await questStore.fetchPartiesForActiveQuests(id)
+    if (stale()) return
 
     for (const exploration of activeExplorationsArray.value) {
       await dwellerStore.fetchDwellerDetails(exploration.dweller_id)
+      if (stale()) return
     }
   } catch (error) {
     notifyErrorOnce(error, 'Failed to load exploration data')

@@ -815,6 +815,177 @@ async def test_adjacent_station_segment_at_size_max_rejected_without_charge(
     assert names.count("Response Station") == 1
 
 
+# ---------------------------------------------------------------------------
+# Radio studio — one per vault, still growable through adjacent segments
+# ---------------------------------------------------------------------------
+
+
+def _make_radio_create(
+    vault_id: UUID, *, coordinate_x: int, coordinate_y: int = 0, size: int = 3, tier: int = 1
+) -> RoomCreate:
+    """A Radio studio catalog payload: per-segment incremental cost, 3..9 footprint."""
+    return RoomCreate(
+        vault_id=vault_id,
+        name="Radio studio",
+        category=RoomTypeEnum.PRODUCTION,
+        ability=SPECIALEnum.CHARISMA,
+        population_required=None,
+        base_cost=600,
+        incremental_cost=150,
+        t2_upgrade_cost=1500,
+        t3_upgrade_cost=4500,
+        capacity=None,
+        output=None,
+        size_min=3,
+        size_max=9,
+        size=size,
+        tier=tier,
+        coordinate_x=coordinate_x,
+        coordinate_y=coordinate_y,
+        image_url=None,
+        capacity_formula=None,
+        output_formula=None,
+    )
+
+
+async def _create_radio_studio(
+    session: AsyncSession,
+    vault_id: UUID,
+    *,
+    coordinate_x: int = 1,
+    coordinate_y: int = 0,
+    size: int = 3,
+    tier: int = 1,
+) -> Room:
+    return await crud.room.create(
+        session,
+        obj_in=_make_radio_create(vault_id, coordinate_x=coordinate_x, coordinate_y=coordinate_y, size=size, tier=tier),
+    )
+
+
+@pytest.mark.asyncio
+async def test_adjacent_radio_segment_merges_into_one_studio(async_session: AsyncSession, rich_vault: Vault):
+    """An adjacent segment joins the studio (same row id), grows it 3 -> 6 -> 9, and charges per segment."""
+    studio = await _create_radio_studio(async_session, rich_vault.id, coordinate_x=1)
+    starting_caps = rich_vault.bottle_caps
+
+    grown_to_six, created = await room_service._build(
+        db_session=async_session,
+        obj_in=_make_radio_create(rich_vault.id, coordinate_x=4),
+    )
+
+    assert grown_to_six.id == studio.id
+    assert created is False
+    assert grown_to_six.size == 6
+    await async_session.refresh(rich_vault)
+    assert rich_vault.bottle_caps == starting_caps - 750
+
+    grown_to_nine, created = await room_service._build(
+        db_session=async_session,
+        obj_in=_make_radio_create(rich_vault.id, coordinate_x=7),
+    )
+
+    assert grown_to_nine.id == studio.id
+    assert created is False
+    assert grown_to_nine.size == 9
+    await async_session.refresh(rich_vault)
+    assert rich_vault.bottle_caps == starting_caps - 1650
+
+    names = await crud.room.get_names_by_vault(async_session, rich_vault.id)
+    assert names.count("Radio studio") == 1
+
+
+@pytest.mark.asyncio
+async def test_disconnected_second_radio_studio_rejected_without_charge(async_session: AsyncSession, rich_vault: Vault):
+    """A second studio that cannot merge is rejected before any caps move or row is created."""
+    await _create_radio_studio(async_session, rich_vault.id, coordinate_x=1)
+    await _create_elevator(async_session, rich_vault.id, coordinate_y=1, coordinate_x=0)
+    starting_caps = rich_vault.bottle_caps
+
+    with pytest.raises(UniqueRoomViolationException) as excinfo:
+        await room_service._build(
+            db_session=async_session,
+            obj_in=_make_radio_create(rich_vault.id, coordinate_x=1, coordinate_y=1),
+        )
+
+    detail = str(excinfo.value)
+    assert "Radio studio" in detail
+    assert "adjacent" in detail
+    await async_session.refresh(rich_vault)
+    assert rich_vault.bottle_caps == starting_caps
+    names = await crud.room.get_names_by_vault(async_session, rich_vault.id)
+    assert names.count("Radio studio") == 1
+
+
+@pytest.mark.asyncio
+async def test_adjacent_tier_resolution_extends_the_touching_studio(async_session: AsyncSession, rich_vault: Vault):
+    """The adopted tier comes from the studio the placement touches, not the first studio found."""
+    upgraded = await _create_radio_studio(async_session, rich_vault.id, coordinate_x=1)
+    await room_service.upgrade_room(async_session, upgraded.id)
+    await _create_radio_studio(async_session, rich_vault.id, coordinate_x=1, coordinate_y=1)
+
+    await room_service._build(
+        db_session=async_session,
+        obj_in=_make_radio_create(rich_vault.id, coordinate_x=4),
+    )
+
+    await async_session.refresh(upgraded)
+    assert upgraded.tier == 2
+    assert upgraded.size == 6
+
+
+@pytest.mark.asyncio
+async def test_maxed_adjacent_studio_does_not_block_a_growable_one(async_session: AsyncSession, rich_vault: Vault):
+    """A placement touching a maxed tier-3 studio and a growable tier-2 studio extends the tier-2 one."""
+    growable = await _create_radio_studio(async_session, rich_vault.id, coordinate_x=1)
+    await room_service.upgrade_room(async_session, growable.id)
+    await _create_radio_studio(async_session, rich_vault.id, coordinate_x=7, size=9, tier=3)
+    starting_caps = rich_vault.bottle_caps
+
+    grown, _ = await room_service._build(
+        db_session=async_session,
+        obj_in=_make_radio_create(rich_vault.id, coordinate_x=4),
+    )
+
+    assert grown.id == growable.id
+    assert grown.tier == 2
+    assert grown.size == 6
+    await async_session.refresh(rich_vault)
+    assert rich_vault.bottle_caps == starting_caps - 2700
+
+
+@pytest.mark.asyncio
+async def test_split_radio_studio_rejected_by_remodel_service(async_session: AsyncSession, rich_vault: Vault):
+    """Splitting a Radio studio would create a second one, so the vault keeps it whole."""
+    from app.services.room_remodel_service import remodel_room
+
+    studio = await _create_radio_studio(async_session, rich_vault.id, coordinate_x=1, size=6)
+
+    with pytest.raises(UniqueRoomViolationException, match="cannot be split"):
+        await remodel_room(async_session, studio.id)
+
+    await async_session.refresh(studio)
+    assert studio.size == 6
+    names = await crud.room.get_names_by_vault(async_session, rich_vault.id)
+    assert names.count("Radio studio") == 1
+
+
+@pytest.mark.asyncio
+async def test_explicit_merge_of_legacy_radio_studios_still_succeeds(async_session: AsyncSession, rich_vault: Vault):
+    """Legacy duplicate studios can still be merged into one; only building and splitting are blocked."""
+    from app.services.room_remodel_service import remodel_room
+
+    left = await _create_radio_studio(async_session, rich_vault.id, coordinate_x=1)
+    right = await _create_radio_studio(async_session, rich_vault.id, coordinate_x=4)
+
+    merged = (await remodel_room(async_session, left.id, right.id))[0]
+
+    assert merged.id == left.id
+    assert merged.size == 6
+    names = await crud.room.get_names_by_vault(async_session, rich_vault.id)
+    assert names.count("Radio studio") == 1
+
+
 @asynccontextmanager
 async def _placement_lock_held(*_args, **_kwargs):
     """Stand-in for hold_advisory_lock when another build owns the vault placement lock."""

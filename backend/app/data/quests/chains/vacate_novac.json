@@ -2,16 +2,16 @@
   "title": "Vacate Novac",
   "chain_id": "vacate_novac",
   "chain_name": "Vacate Novac",
-  "chain_description": "Take the Dino Dee-Lite Motel back from the Khans, furnish it, staff it, and open the doors.",
+  "chain_description": "Take the Dino Dee-Lite Motel back from the Khans, furnish it, find someone to run it, and open the doors.",
   "quests": [
     {
       "quest_name": "Eviction Notice",
-      "short_description": "Clear the Khans out of the Dino Dee-Lite Motel.",
-      "long_description": "The Dino Dee-Lite motel in Novac was once a bustling hub for travelers; now it is overrun by raiders who call themselves Khans. Clear them out room by room and take the property back. Vault-Tec advises against leaving a tip.",
+      "short_description": "Get the Khans out of the Dino Dee-Lite Motel in Novac.",
+      "long_description": "The Dino Dee-Lite motel in Novac was once a bustling hub for travelers, but it is now overrun by raiders who call themselves Khans. We're going to take it back and turn it into a motel again. Vault-Tec recommends settling the bill before checking out.",
       "requirements": [
         "Level 5 dwellers"
       ],
-      "quest_objective": "Get the Khans out of the Dino Dee-Lite Motel in Novac.",
+      "quest_objective": "Ask the Khans to leave.",
       "quest_type": "side",
       "quest_category": "combat",
       "chain_order": 1,
@@ -20,8 +20,7 @@
         {
           "requirement_type": "level",
           "requirement_data": {
-            "level": 5,
-            "count": 1
+            "level": 5
           },
           "is_mandatory": true
         }
@@ -33,6 +32,19 @@
             "amount": 100
           },
           "reward_chance": 1.0
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Assault rifle",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Assault rifle",
+            "item_type": "weapon",
+            "rarity": "rare"
+          }
         },
         {
           "reward_type": "ITEM",
@@ -59,31 +71,25 @@
             "item_type": "weapon",
             "rarity": "rare"
           }
-        },
-        {
-          "reward_type": "ITEM",
-          "reward_data": {
-            "item_name": "Assault rifle",
-            "quantity": 1
-          },
-          "reward_chance": 1.0,
-          "item_data": {
-            "name": "Assault rifle",
-            "item_type": "weapon",
-            "rarity": "rare"
-          }
         }
       ]
     },
     {
       "quest_name": "Ghoul Supplies",
-      "short_description": "Find the ghoul salesperson to furnish the motel.",
-      "long_description": "We have a space for our new motel, but now we need things to put in it. A ghoul salesperson runs a furniture outlet nearby and can help us stock the place. Some of the sales staff has gone feral, so bring something louder than a clipboard.",
+      "short_description": "Find the ghoul salesperson to help furnish our hotel.",
+      "long_description": "We have a space for our new motel, but now we need stuff to put in it. Apparently there's a ghoul salesperson nearby who can help us out. Word of warning: some of the sales staff has gone feral, so mind the showroom.",
       "requirements": [
         "Level 5 dwellers",
         "Complete \"Eviction Notice\" quest"
       ],
-      "quest_objective": "Find the ghoul salesperson to help furnish our hotel.",
+      "quest_objective": [
+        {
+          "title": "Ask about the salesperson"
+        },
+        {
+          "title": "Strike a deal with the salesperson"
+        }
+      ],
       "quest_type": "side",
       "quest_category": "combat",
       "chain_order": 2,
@@ -92,8 +98,7 @@
         {
           "requirement_type": "level",
           "requirement_data": {
-            "level": 5,
-            "count": 1
+            "level": 5
           },
           "is_mandatory": true
         },
@@ -156,13 +161,13 @@
     },
     {
       "quest_name": "Headhunting",
-      "short_description": "Rescue a manager from the raiders holding him.",
-      "long_description": "Apparently there's someone with some administrative skill who was kidnapped by raiders. Break him out, and maybe in return he'll help us run our motel. The raiders have grown fond of his bedtime stories, so expect a fight on the way out.",
+      "short_description": "Rescue a manager from a group of raiders.",
+      "long_description": "Apparently there's someone with some administrative skill who was kidnapped by raiders. Let's get him out of there, and maybe in return he'll help us run our motel. The raiders have grown fond of his storytime, so expect company on the way out.",
       "requirements": [
         "Level 5 dwellers",
         "Complete \"Ghoul Supplies\" quest"
       ],
-      "quest_objective": "Rescue a manager from a group of raiders.",
+      "quest_objective": "Rescue Mr. Manager.",
       "quest_type": "side",
       "quest_category": "combat",
       "chain_order": 3,
@@ -171,8 +176,7 @@
         {
           "requirement_type": "level",
           "requirement_data": {
-            "level": 5,
-            "count": 1
+            "level": 5
           },
           "is_mandatory": true
         },
@@ -222,13 +226,13 @@
     },
     {
       "quest_name": "Room Service",
-      "short_description": "Clear the motel of vermin before opening night.",
-      "long_description": "The motel is almost ready, but the Khans left a mess behind and it has attracted a swarm of vermin. Clear the building out before the doors open, then get ready for the ribbon cutting. Housekeeping has been notified that it now exists.",
+      "short_description": "Clear the motel of dangerous creatures before opening.",
+      "long_description": "The motel is almost ready! But those Khans left a mess behind, and it attracted a bunch of vermin. Let's get them out before we open the doors. Housekeeping has been notified that it now exists.",
       "requirements": [
         "Level 5 dwellers",
         "Complete \"Headhunting\" quest"
       ],
-      "quest_objective": "Clear the motel of dangerous creatures before opening.",
+      "quest_objective": "Clean up the motel.",
       "quest_type": "side",
       "quest_category": "combat",
       "chain_order": 4,
@@ -237,8 +241,7 @@
         {
           "requirement_type": "level",
           "requirement_data": {
-            "level": 5,
-            "count": 1
+            "level": 5
           },
           "is_mandatory": true
         },

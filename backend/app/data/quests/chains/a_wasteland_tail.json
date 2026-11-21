@@ -2,12 +2,12 @@
   "title": "A Wasteland Tail",
   "chain_id": "a_wasteland_tail",
   "chain_name": "A Wasteland Tail",
-  "chain_description": "Follow a distress call and a missing dog named Bigsby from an abandoned warehouse to Vault 314.",
+  "chain_description": "Follow a distress call across the wastes and help a traveler track down a missing dog named Bigsby.",
   "quests": [
     {
       "quest_name": "SOS!",
       "short_description": "Find the source of the distress call.",
-      "long_description": "You've picked up a distress call from an abandoned building. Assemble a rescue team and find the source before whatever is in there goes quiet. Vault-Tec recommends bringing weapons to what is almost certainly not a book club.",
+      "long_description": "You've picked up a distress call from an abandoned building. Assemble a rescue team and find the source! Vault-Tec recommends bringing weapons to what is almost certainly not a book club.",
       "requirements": [
         "Level 25 dwellers",
         "10+ average equipped weapon damage"
@@ -16,21 +16,19 @@
       "quest_type": "side",
       "quest_category": "exploration",
       "chain_order": 1,
-      "duration_minutes": 240,
+      "duration_minutes": 60,
       "quest_requirements": [
         {
           "requirement_type": "level",
           "requirement_data": {
-            "level": 25,
-            "count": 1
+            "level": 25
           },
           "is_mandatory": true
         },
         {
           "requirement_type": "attack",
           "requirement_data": {
-            "attack": 10,
-            "count": 1
+            "attack": 10
           },
           "is_mandatory": true
         }
@@ -71,21 +69,19 @@
       "quest_type": "side",
       "quest_category": "combat",
       "chain_order": 2,
-      "duration_minutes": 240,
+      "duration_minutes": 60,
       "quest_requirements": [
         {
           "requirement_type": "level",
           "requirement_data": {
-            "level": 27,
-            "count": 1
+            "level": 27
           },
           "is_mandatory": true
         },
         {
           "requirement_type": "attack",
           "requirement_data": {
-            "attack": 11,
-            "count": 1
+            "attack": 11
           },
           "is_mandatory": true
         },
@@ -129,7 +125,7 @@
     {
       "quest_name": "Vault 199",
       "short_description": "Look for Bigsby in Vault 199.",
-      "long_description": "The raiders mentioned Bigsby may have fled to Vault 199. Go ask around and hope the dwellers there have him. If they do, be polite; a dog-napping accusation is a poor way to open a diplomatic visit.",
+      "long_description": "The raiders mentioned Bigsby may have fled to Vault 199. I should go ask around. Hopefully, the dwellers there have him. If they do, be polite; throwing around dog-napping accusations is a poor way to open a diplomatic visit.",
       "requirements": [
         "Level 29 dwellers",
         "12+ average equipped weapon damage",
@@ -139,21 +135,19 @@
       "quest_type": "side",
       "quest_category": "exploration",
       "chain_order": 3,
-      "duration_minutes": 240,
+      "duration_minutes": 60,
       "quest_requirements": [
         {
           "requirement_type": "level",
           "requirement_data": {
-            "level": 29,
-            "count": 1
+            "level": 29
           },
           "is_mandatory": true
         },
         {
           "requirement_type": "attack",
           "requirement_data": {
-            "attack": 12,
-            "count": 1
+            "attack": 12
           },
           "is_mandatory": true
         },
@@ -204,7 +198,7 @@
     {
       "quest_name": "In Another Vault",
       "short_description": "Look for Bigsby in Vault 899.",
-      "long_description": "Bigsby wasn't in Vault 199, but a member told me he may be in their sister vault, Vault 899. Check it out. The directions are legible, which is more than the average wasteland lead.",
+      "long_description": "Bigsby wasn't in Vault 199, but a member told me he may be in their sister vault, Vault 899. I should go check it out. The directions are legible, which is more than the average wasteland lead.",
       "requirements": [
         "Level 31 dwellers",
         "Complete \"Vault 199\" quest"
@@ -213,13 +207,12 @@
       "quest_type": "side",
       "quest_category": "exploration",
       "chain_order": 4,
-      "duration_minutes": 240,
+      "duration_minutes": 60,
       "quest_requirements": [
         {
           "requirement_type": "level",
           "requirement_data": {
-            "level": 31,
-            "count": 1
+            "level": 31
           },
           "is_mandatory": true
         },
@@ -263,7 +256,7 @@
     {
       "quest_name": "The Tail Continues",
       "short_description": "Find the salvage team from Vault 899 in the old Atomatoys Warehouse.",
-      "long_description": "Overseer Emma said Bigsby stopped by their vault. Since then a salvage team took him on a run to the Atomatoys warehouse and hasn't returned. Find them, and mind the shelves; a warehouse full of robot toys is exactly as dangerous as it sounds.",
+      "long_description": "Overseer Emma said Bigsby stopped by their vault. Since then, a salvage team took him on a run with them to the Atomatoys warehouse, and they haven't returned. Find them, and mind the shelves; a warehouse full of robot toys is exactly as dangerous as it sounds.",
       "requirements": [
         "Level 33 dwellers",
         "Laser rifle",
@@ -273,13 +266,12 @@
       "quest_type": "side",
       "quest_category": "combat",
       "chain_order": 5,
-      "duration_minutes": 240,
+      "duration_minutes": 60,
       "quest_requirements": [
         {
           "requirement_type": "level",
           "requirement_data": {
-            "level": 33,
-            "count": 1
+            "level": 33
           },
           "is_mandatory": true
         },
@@ -334,13 +326,12 @@
       "quest_type": "side",
       "quest_category": "combat",
       "chain_order": 6,
-      "duration_minutes": 240,
+      "duration_minutes": 60,
       "quest_requirements": [
         {
           "requirement_type": "level",
           "requirement_data": {
-            "level": 35,
-            "count": 1
+            "level": 35
           },
           "is_mandatory": true
         },

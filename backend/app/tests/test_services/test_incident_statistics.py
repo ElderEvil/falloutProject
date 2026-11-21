@@ -98,9 +98,6 @@ async def test_spread_counts_a_happened_incident(
     assert profile.total_incidents == 1
 
 
-# --- world event contribution ------------------------------------------------
-
-
 async def _create_world_event(async_session: AsyncSession) -> WorldEvent:
     now = utcnow()
     event = WorldEvent(
@@ -139,7 +136,7 @@ async def _world_event_totals(async_session: AsyncSession, event_id, vault_id) -
 
 
 async def _won_fight(async_session: AsyncSession, room_with_dwellers: dict, monkeypatch: pytest.MonkeyPatch):
-    """Drive one incident round to victory by making the responders' return fire overwhelming."""
+    """One round to victory: responders' return fire is made overwhelming."""
     room = room_with_dwellers["room"]
     await full_health(async_session, room_with_dwellers["dwellers"])
     await _profile(async_session, room_with_dwellers["vault"])
@@ -153,7 +150,6 @@ async def _won_fight(async_session: AsyncSession, room_with_dwellers: dict, monk
 async def test_won_incident_credits_active_world_event_once(
     async_session: AsyncSession, room_with_dwellers: dict, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """A victory credits the ACTIVE event one unit; re-processing the resolved incident adds nothing."""
     vault_id = room_with_dwellers["vault"].id
     event = await _create_world_event(async_session)
 
@@ -172,7 +168,6 @@ async def test_won_incident_credits_active_world_event_once(
 async def test_undecided_incident_round_credits_nothing(
     async_session: AsyncSession, room_with_dwellers: dict, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """A round that does not finish the incident leaves the world event untouched."""
     vault_id = room_with_dwellers["vault"].id
     event = await _create_world_event(async_session)
     room = room_with_dwellers["room"]
@@ -189,7 +184,6 @@ async def test_undecided_incident_round_credits_nothing(
 
 @pytest.mark.asyncio
 async def test_failed_incident_credits_nothing(async_session: AsyncSession, vault) -> None:
-    """A lost incident credits no world event participation."""
     event = await _create_world_event(async_session)
     room = await empty_room(async_session, vault.id)
     await _profile(async_session, vault)

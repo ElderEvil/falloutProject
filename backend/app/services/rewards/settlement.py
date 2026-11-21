@@ -189,11 +189,7 @@ async def grant_reward(
     *,
     emit_event: bool = True,
 ) -> dict[str, Any]:
-    """Grant one already-parsed reward dict through the shared dispatch table.
-
-    Public entry point for stored reward lists (world events); quest/objective settlement
-    keeps using the same dispatcher indirectly.
-    """
+    """Grant one already-parsed reward dict through the shared dispatch table."""
     return await _process_single_reward(db_session, vault_id, reward_type, reward_data, emit_event=emit_event)
 
 

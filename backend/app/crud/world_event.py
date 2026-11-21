@@ -1,8 +1,4 @@
-"""Queries for server-wide co-op world events and per-vault participation.
-
-Lifecycle and contribution rules live in app.services.world_event_service; this module only
-reads rows (and row-locks them) so the service stays query-free.
-"""
+"""Queries for world events and per-vault participation; rules live in world_event_service."""
 
 from datetime import datetime
 from uuid import UUID
@@ -17,10 +13,10 @@ from app.models.world_event import WorldEvent, WorldEventParticipation
 
 
 class CRUDWorldEvent(CRUDBase[WorldEvent, None, None]):
-    """Query access for the global world event and its participations."""
+    """Query access for world events and participations."""
 
     async def get_current(self, db_session: AsyncSession) -> WorldEvent | None:
-        """The ACTIVE event when one exists, else the newest finished event."""
+        """The ACTIVE event, else the newest finished one."""
         active = await db_session.execute(select(self.model).where(self.model.status == WorldEventStatus.ACTIVE))
         if event := active.scalar_one_or_none():
             return event
@@ -34,7 +30,7 @@ class CRUDWorldEvent(CRUDBase[WorldEvent, None, None]):
         return finished.scalar_one_or_none()
 
     async def get_for_update(self, db_session: AsyncSession, event_id: UUID) -> WorldEvent | None:
-        """One event row locked FOR UPDATE, or None when missing; refreshes past the identity map."""
+        """FOR UPDATE, or None; populate_existing so a stale identity-map row cannot be returned."""
         result = await db_session.execute(
             select(self.model)
             .where(self.model.id == event_id)
@@ -44,7 +40,7 @@ class CRUDWorldEvent(CRUDBase[WorldEvent, None, None]):
         return result.scalar_one_or_none()
 
     async def get_next_scheduled(self, db_session: AsyncSession, *, at: datetime) -> WorldEvent | None:
-        """The earliest SCHEDULED event whose window has opened, or None."""
+        """The earliest SCHEDULED event whose window has opened."""
         result = await db_session.execute(
             select(self.model)
             .where(
@@ -73,8 +69,8 @@ class CRUDWorldEvent(CRUDBase[WorldEvent, None, None]):
     ) -> WorldEventParticipation | None:
         """One participation row locked FOR UPDATE, or None.
 
-        The unique (event, vault) constraint means this row lock serializes every
-        contribution and claim for that vault.
+        The unique (event, vault) key makes this lock serialize every contribution and claim
+        for that vault.
         """
         result = await db_session.execute(
             select(WorldEventParticipation)

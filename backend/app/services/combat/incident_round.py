@@ -166,8 +166,8 @@ async def resolve_victory(db_session: AsyncSession, incident: Incident, dwellers
     incident.loot = incident_math.generate_loot(incident.difficulty, incident.type)
     incident.resolve(success=True)
 
-    # Credit the shared world event inside this round's transaction, so the counter and the resolution commit or roll
-    # back together. process_incident only calls this for an ACTIVE/SPREADING incident, which makes it credit once.
+    # Credit inside this round's transaction so counter and resolution commit together; process_incident
+    # only calls this for ACTIVE/SPREADING incidents, which is what makes it credit once.
     from app.services.world_event_service import world_event_service
 
     await world_event_service.record_contribution(db_session, incident.vault_id, 1, kind="incident")

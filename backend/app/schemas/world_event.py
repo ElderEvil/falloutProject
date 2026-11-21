@@ -10,11 +10,9 @@ from app.utils.serialize_types import OptionalUTCDateTimeJSON
 
 
 class WorldEventRead(SQLModel):
-    """Global progress plus this vault's standing for the current or latest world event.
+    """Current (or latest) event plus this vault's standing.
 
-    Every event field is optional so an empty table yields a well-formed "no event" body
-    instead of an error; ``event_id``/``kind``/``title``/``description`` stay stable once an
-    event exists, including after it completes (the claim UI keeps reading it).
+    Every event field is optional so an empty table yields a valid body instead of an error.
     """
 
     event_id: UUID | None = None
@@ -35,7 +33,7 @@ class WorldEventRead(SQLModel):
 
 
 class WorldEventClaimRead(SQLModel):
-    """Outcome of a successful one-time world event reward claim."""
+    """Outcome of a successful one-time claim."""
 
     event_id: UUID
     claimed: bool = True

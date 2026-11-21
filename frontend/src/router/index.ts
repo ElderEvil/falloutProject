@@ -36,7 +36,6 @@ const router = createRouter({
     ...tradingRoutes,
     // Contamination team module routes
     ...contaminationTeamRoutes,
-    // World event module routes
     ...worldEventRoutes,
     // Progression module routes (training, quests, objectives)
     ...progressionRoutes,

@@ -308,7 +308,6 @@ async def test_vault_tick_heartbeat_keeps_the_lease_alive(monkeypatch: pytest.Mo
 
 
 def test_advance_world_event_actor_runs_the_impl_and_logs() -> None:
-    """The cron reaches the lifecycle service and reports what changed."""
     from app.api.world_event_tasks import advance_world_event
 
     with (
@@ -347,7 +346,6 @@ class _HeldLock:
 
 @pytest.mark.asyncio
 async def test_advance_world_event_skips_when_the_lock_is_held() -> None:
-    """A concurrent advance on another worker must not step the event twice."""
     from app.api.world_event_tasks import _advance_world_event
 
     with (

@@ -1,6 +1,6 @@
-"""World event lifecycle tick, isolated so endpoints can wake it safely.
+"""World event lifecycle tick.
 
-Importing app.api.tasks from an endpoint creates a circular import chain
+A separate module because importing app.api.tasks from an endpoint is circular
 (tasks -> crud.pregnancy -> app.api.deps).
 """
 

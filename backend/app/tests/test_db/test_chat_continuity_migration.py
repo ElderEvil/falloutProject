@@ -112,8 +112,7 @@ def test_revision_chain_and_single_head() -> None:
     assert MIGRATION.revision == REVISION
     assert MIGRATION.down_revision == "9a73f29c2ed1"
     script = ScriptDirectory.from_config(Config(str(BACKEND / "alembic.ini")))
-    # The head moves as later migrations land: assert a single head and that this revision is
-    # still in the chain, rather than pinning the newest revision id.
+    # The head moves as later migrations land: assert a single head with this revision in the chain.
     heads = script.get_heads()
     assert len(heads) == 1, f"expected one head, got {heads}"
     assert REVISION in {rev.revision for rev in script.walk_revisions()}

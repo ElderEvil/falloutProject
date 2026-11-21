@@ -320,7 +320,6 @@ const reviewActiveIncidents = () => {
                block for the trigger's fixed positioning (and clip it). -->
           <RadioNewsWidget v-if="vaultId" :vault-id="vaultId" />
 
-          <!-- Server-wide co-op event: only renders while an event exists -->
           <WorldEventBanner v-if="vaultId" :vault-id="vaultId" class="w-full mb-4" />
 
           <!-- Incident Alert Banner -->

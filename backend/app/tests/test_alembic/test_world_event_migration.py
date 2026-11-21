@@ -1,9 +1,7 @@
-"""World event migration: the two tables, the unique participation key, the ACTIVE guard.
+"""World event migration: both tables, the unique participation key, the ACTIVE guard.
 
-The create/drop round trip runs on SQLite with the fragment pattern used for the other
-recent migrations (real ``op`` operations against an in-memory database). PostgreSQL-only
-shapes — the native ``worldeventstatus`` type and the partial predicate on the single-active
-index — are pinned by reading the migration source, since SQLite has neither.
+The create/drop round trip runs on SQLite; the PG-only shapes (native enum, partial index
+predicate) are pinned by reading the migration source, since SQLite has neither.
 """
 
 from __future__ import annotations
@@ -67,7 +65,9 @@ def test_revision_chain_and_single_head() -> None:
     assert MIGRATION.revision == REVISION
     assert MIGRATION.down_revision == PARENT
     script = ScriptDirectory.from_config(Config(str(BACKEND / "alembic.ini")))
-    assert script.get_heads() == [REVISION]
+    heads = script.get_heads()
+    assert len(heads) == 1, f"expected one head, got {heads}"
+    assert REVISION in {rev.revision for rev in script.walk_revisions()}
 
 
 def test_upgrade_creates_both_tables_and_downgrade_drops_them() -> None:

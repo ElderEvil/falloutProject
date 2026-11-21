@@ -552,10 +552,9 @@ class NotificationService:
         reward_summary: str,
         commit: bool = False,
     ):
-        """Notify the owner that the server-wide event finished and rewards are claimable.
+        """Notify the owner that the event finished and rewards are claimable.
 
-        Defaults to ``commit=False``: raised inside the lifecycle actor's transaction, the
-        caller delivers after its own commit.
+        commit=False: raised inside the lifecycle actor's transaction, which delivers after its commit.
         """
         return await NotificationService.create_and_send(
             db,

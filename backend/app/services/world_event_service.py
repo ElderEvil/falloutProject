@@ -1,9 +1,4 @@
-"""Server-wide co-op world events: contributions, lifecycle, read state and claims.
-
-The single ACTIVE event is the shared goal. Contributions are credited from ordinary play
-(best-effort, never raising into the caller); the lifecycle advances from a periodic actor
-(which owns its transaction); reads never write; a claim pays the stored reward list once.
-"""
+"""Server-wide co-op world events: contributions, lifecycle ticks, reads and one-time claims."""
 
 import logging
 from datetime import datetime, timedelta
@@ -49,15 +44,13 @@ def _reward_summary(reward: list[dict[str, Any]]) -> str:
 
 
 class WorldEventService:
-    """Lifecycle and contribution rules for the global co-op event."""
+    """Lifecycle, contribution and claim rules for the ACTIVE event."""
 
     async def record_contribution(self, db_session: AsyncSession, vault_id: UUID, amount: int, *, kind: str) -> None:
-        """Credit the ACTIVE event from ordinary play; never raises into the caller.
+        """Credit the ACTIVE event from ordinary play; stages changes, never raises into the caller.
 
-        ``kind`` names the contributing source; the ACTIVE event's kind must accept it.
-        transaction: this method only stages changes. No-op when there is no ACTIVE event or
-        the amount is non-positive. A concurrent first-time insert may drop one contribution,
-        which is preferable to a 500 on the exploration path.
+        No-op without an ACTIVE event or for a non-positive amount. A first-time insert that loses
+        a race drops one contribution, which beats a 500 on the exploration path.
         """
         if amount <= 0:
             return
@@ -67,7 +60,7 @@ class WorldEventService:
             logger.exception("Failed to record world event contribution for vault %s (%s)", vault_id, kind)
 
     async def advance(self, db_session: AsyncSession) -> dict[str, Any]:
-        """Run one lifecycle step and commit it; called by the periodic actor, not a request."""
+        """Run one lifecycle step and commit it; owns the transaction, called by the actor."""
         try:
             change = await self._advance(db_session)
             await db_session.commit()
@@ -81,7 +74,7 @@ class WorldEventService:
         return change
 
     async def get_state(self, db_session: AsyncSession, vault_id: UUID) -> WorldEventRead:
-        """Read-only snapshot of the current or latest event; never writes."""
+        """Read-only snapshot of the current or latest event."""
         event = await world_event_crud.get_current(db_session)
         if event is None:
             return WorldEventRead()

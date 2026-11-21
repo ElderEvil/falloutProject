@@ -7,8 +7,7 @@ import SidePanel from '@/core/components/common/SidePanel.vue'
 
 vi.mock('@iconify/vue', () => createIconifyMock())
 
-// The panel reads the world-event flag for its "Relay" entry; keep the mount
-// store-free and off by default so the nav assertions stay stable.
+// The panel reads the world-event flag for its "Relay" entry; keep it off here.
 vi.mock('@/modules/dwellers/stores/featureFlags', () => ({
   useFeatureFlagsStore: () => ({ worldEvents: false, loaded: true, fetchFlags: vi.fn() }),
 }))

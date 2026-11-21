@@ -1,4 +1,4 @@
-"""World event service: contributions, lifecycle advances, reads and one-time claims."""
+"""World event service: contributions, lifecycle, reads and claims."""
 
 from datetime import timedelta
 
@@ -70,9 +70,6 @@ async def _create_participation(
 
 async def _participation_count(async_session: AsyncSession) -> int:
     return int((await async_session.execute(select(func.count()).select_from(WorldEventParticipation))).scalar_one())
-
-
-# --- contributions -----------------------------------------------------------
 
 
 async def test_contribution_credits_active_event(async_session: AsyncSession, vault: Vault) -> None:
@@ -156,9 +153,6 @@ async def test_two_vaults_first_contribution_both_land(async_session: AsyncSessi
     assert event.progress_amount == 10
 
 
-# --- lifecycle ---------------------------------------------------------------
-
-
 async def test_advance_activates_due_event_but_never_a_second(async_session: AsyncSession) -> None:
     now = utcnow()
     event = await _create_event(async_session, status=WorldEventStatus.SCHEDULED, starts_at=now - timedelta(minutes=5))
@@ -180,19 +174,6 @@ async def test_advance_activates_due_event_but_never_a_second(async_session: Asy
     assert other.status == WorldEventStatus.SCHEDULED
 
 
-async def test_advance_completes_at_target(async_session: AsyncSession) -> None:
-    event = await _create_event(async_session, target_amount=10)
-    event.progress_amount = 10
-    async_session.add(event)
-    await async_session.commit()
-
-    result = await world_event_service.advance(async_session)
-    await async_session.refresh(event)
-
-    assert result["action"] == "completed"
-    assert event.status == WorldEventStatus.COMPLETED
-
-
 async def test_advance_completion_notifies_participants_only(async_session: AsyncSession) -> None:
     event = await _create_event(async_session, target_amount=10)
     participants = [await _create_vault(async_session) for _ in range(2)]
@@ -204,8 +185,10 @@ async def test_advance_completion_notifies_participants_only(async_session: Asyn
     await async_session.commit()
 
     result = await world_event_service.advance(async_session)
+    await async_session.refresh(event)
 
     assert result["action"] == "completed"
+    assert event.status == WorldEventStatus.COMPLETED
     notified = (
         (
             await async_session.execute(
@@ -271,9 +254,6 @@ async def test_advance_extends_once_then_expires(async_session: AsyncSession) ->
     assert event.extended_at is not None
 
 
-# --- claim -------------------------------------------------------------------
-
-
 async def test_claim_grants_exactly_once(async_session: AsyncSession, vault: Vault) -> None:
     event = await _create_event(
         async_session,
@@ -325,9 +305,6 @@ async def test_claim_rejections(async_session: AsyncSession, vault: Vault) -> No
         await world_event_service.claim(async_session, other_vault.id)
 
 
-# --- reads -------------------------------------------------------------------
-
-
 async def test_get_state_reports_progress_without_writing(async_session: AsyncSession, vault: Vault) -> None:
     event = await _create_event(async_session)
     other_vault = await _create_vault(async_session)
@@ -368,3 +345,26 @@ async def test_get_state_without_any_event_returns_empty_state(async_session: As
     assert state.status is None
     assert state.can_claim is False
     assert state.contribution == 0
+
+
+async def test_lifecycle_flow_activate_contribute_complete_claim(async_session: AsyncSession, vault: Vault) -> None:
+    event = await _create_event(
+        async_session,
+        status=WorldEventStatus.SCHEDULED,
+        starts_at=utcnow() - timedelta(minutes=1),
+        target_amount=5,
+        personal_min=5,
+        reward=[{"reward_type": "caps", "amount": 100}],
+    )
+
+    assert (await world_event_service.advance(async_session))["action"] == "activated"
+    await world_event_service.record_contribution(async_session, vault.id, 5, kind=SOURCE)
+    await async_session.commit()
+    assert (await world_event_service.advance(async_session))["action"] == "completed"
+
+    claim = await world_event_service.claim(async_session, vault.id)
+    assert claim.event_id == event.id
+    assert claim.claimed is True
+
+    with pytest.raises(ResourceConflictException):
+        await world_event_service.claim(async_session, vault.id)

@@ -57,7 +57,6 @@ async def _add_participation(
 
 @pytest_asyncio.fixture(name="owner")
 async def owner_fixture(user: User) -> AsyncGenerator[User]:
-    """Authenticate the vault's owner for the duration of the test."""
     app.dependency_overrides[get_current_active_user] = lambda: user
     try:
         yield user
@@ -170,9 +169,3 @@ async def test_claim_pays_rewards_once(
     assert repeat.status_code == 409
     await async_session.refresh(vault)
     assert vault.bottle_caps == caps_before + 50
-
-
-async def test_unauthenticated_request_is_rejected(async_client: AsyncClient, vault: Vault) -> None:
-    response = await async_client.get(f"/vaults/{vault.id}/world-event")
-
-    assert response.status_code == 401

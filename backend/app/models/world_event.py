@@ -1,8 +1,6 @@
-"""Server-wide co-op world events.
+"""Server-wide co-op world events and each vault's participation.
 
-One WorldEvent row is the shared goal every vault contributes to; WorldEventParticipation
-records each vault's contribution and one-time reward claim. At most one event may be ACTIVE
-at a time (partial unique index), enforced by the database rather than the application.
+At most one event may be ACTIVE (partial unique index, enforced by the database).
 """
 
 from __future__ import annotations
@@ -21,7 +19,7 @@ from app.utils.types import UTCDateTime
 
 
 class WorldEventBase(SQLModel):
-    """Shared fields for a co-op world event."""
+    """Shared event fields."""
 
     kind: str = Field(max_length=50, index=True)
     title: str = Field(max_length=120)
@@ -40,7 +38,7 @@ class WorldEventBase(SQLModel):
             default=WorldEventStatus.SCHEDULED,
         ),
     )
-    # Set when the end time was pushed back; NULL when the event runs as first scheduled.
+    # Set when ends_at was pushed back; NULL until the first extension.
     extended_at: datetime | None = Field(sa_type=UTCDateTime, default=None)
 
 
@@ -62,7 +60,7 @@ class WorldEvent(BaseUUIDModel, WorldEventBase, TimeStampMixin, table=True):
 
 
 class WorldEventParticipation(BaseUUIDModel, TimeStampMixin, table=True):
-    """One vault's contribution to a world event; one row per (event, vault)."""
+    """One vault's contribution to an event."""
 
     __tablename__ = "worldeventparticipation"
 

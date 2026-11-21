@@ -792,12 +792,18 @@ def test_quest_gear_rewards_are_catalog_backed() -> None:
                 if item_type in catalog and item_type != "junk":
                     assert str(name).lower() in catalog[item_type], f"{name!r} is not a catalog {item_type}"
                 if item_type == "junk":
-                    # Settle the reward the way grant_item will: every quest junk reward
-                    # must resolve to a priced row, never a valueless orphan.
+                    # Settle the reward the way settlement.py will: the typed loader's
+                    # normalized payload merged as reward_data | item_data; every quest
+                    # junk reward must resolve to a priced row, never a valueless orphan.
+                    from app.schemas.quest import QuestRewardJSON
                     from app.services.rewards.items import _resolve_junk
 
+                    parsed = QuestRewardJSON.model_validate(node)
+                    merged = parsed.reward_data | (parsed.item_data_json or {})  # computed field
                     resolved = _resolve_junk(
-                        str(name), str((item_data or {}).get("rarity", "common")), dict(item_data or {})
+                        str(merged.get("item_name") or merged.get("name") or name),
+                        str(merged.get("rarity", "common")),
+                        dict(merged),
                     )[2]
                     assert resolved.get("value") is not None, f"{name!r} settles as a valueless junk row"
             for value in node.values():

@@ -185,10 +185,9 @@ const refreshOnUtcDayChange = async () => {
 
 usePolling(refreshOnUtcDayChange, { interval: 60_000, immediate: false })
 
-const loadPartyMembers = async () => {
-  if (!vaultId.value) return
-  const requestedVault = vaultId.value
-  await questStore.fetchPartiesForActiveQuests(vaultId.value)
+const loadPartyMembers = async (requestedVault: string | null = vaultId.value) => {
+  if (!requestedVault) return
+  await questStore.fetchPartiesForActiveQuests(requestedVault)
   if (vaultId.value !== requestedVault) return
   const map: Record<string, DwellerShort[]> = {}
   for (const [questId, members] of Object.entries(questStore.questPartyMap)) {
@@ -332,12 +331,14 @@ async function loadVault(id: string): Promise<void> {
   if (!token) return
   await roomStore.fetchRooms(id)
   await dwellerStore.fetchDwellersByVault(id)
+  // A switch may have superseded this load while it was paused on the earlier steps.
+  if (id !== vaultId.value) return
 
   // Fetch the catalog first so chain badges resolve on the vault quests' first paint,
   // then the vault quests (filtered client-side, including locked ones).
   await questStore.fetchAllQuests()
   await questStore.fetchVaultQuests(id)
-  await loadPartyMembers()
+  await loadPartyMembers(id)
 }
 
 onMounted(async () => {

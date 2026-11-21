@@ -515,13 +515,13 @@ describe('Quest Store', () => {
       const pending = deferred<{ data: unknown }>()
       vi.mocked(axios.get)
         .mockReturnValueOnce(pending.promise as never)
-        .mockResolvedValueOnce({ data: [] })
+        .mockResolvedValueOnce({ data: [{ id: 'party-b', quest_id: 'active-quest' }] })
       const stale = store.fetchPartiesForActiveQuests('vault-a')
       await store.fetchPartiesForActiveQuests('vault-b')
-      pending.resolve({ data: [] })
+      pending.resolve({ data: [{ id: 'party-a', quest_id: 'active-quest' }] })
       await stale
 
-      expect(store.questPartyMap).toEqual({ 'active-quest': [] })
+      expect(store.questPartyMap['active-quest']?.[0]?.id).toBe('party-b')
       expect(axios.get).toHaveBeenCalledTimes(2)
     })
   })

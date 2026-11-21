@@ -355,32 +355,36 @@ async def test_rotation_sweep_finishes_other_vaults_then_fails_retryably(async_s
 
     monkeypatch.setattr(tasks, "task_session", lambda: fake_task_session())
 
-    # Statement-boundary fault: whichever vault the sweep touches first fails on its
-    # link insert; the other vault's rotation runs for real.
-    vault_order = await vault_crud.get_non_deleted_ids(async_session)
-    failing, rotating = vault_order[0], vault_order[1]
+    # Statement-boundary fault: the sweep's first link insert fails; the vault it
+    # belonged to is captured so the rollback assertions stay order-independent.
+    failing_hex: str | None = None
 
-    def fail_failing_vault_insert(conn, cursor, statement, parameters, context, executemany):
-        if not statement.startswith("INSERT INTO vaultquestcompletionlink"):
-            return
-        # asyncpg renders uuid params in the compact hex form.
+    def fail_first_vault_insert(conn, cursor, statement, parameters, context, executemany):
+        nonlocal failing_hex
+        if failing_hex is not None or not statement.startswith("INSERT INTO vaultquestcompletionlink"):
+            return  # One-shot: only the first link insert fails, the other vault rotates.
+        # asyncpg renders uuid params in the compact hex form; the first param is vault_id.
         rows = parameters if isinstance(parameters, list) else [parameters]
-        if any(failing.hex in str(row) for row in rows if row):
-            raise RuntimeError("vault rotation failure")
+        first_row = next((row for row in rows if row), None)
+        failing_hex = str(first_row[0]) if isinstance(first_row, tuple) else ""
+        raise RuntimeError("vault rotation failure")
 
     engine = async_session.get_bind().engine
-    event.listen(engine, "before_cursor_execute", fail_failing_vault_insert)
+    event.listen(engine, "before_cursor_execute", fail_first_vault_insert)
     try:
         with pytest.raises(RuntimeError, match="Quest rotation failed for vaults"):
             await tasks._refresh_quest_rotation()
     finally:
-        event.remove(engine, "before_cursor_execute", fail_failing_vault_insert)
+        event.remove(engine, "before_cursor_execute", fail_first_vault_insert)
 
-    # The failing vault rolled back; the other vault really rotated.
+    assert failing_hex is not None
+    failing = next(v for v in (first, second.id) if v.hex == failing_hex)
+    rotating = second.id if failing == first else first
+
+    # The failing vault rolled back: no links and not even its sweep-created
+    # gamestate row survived, so the retry starts from a clean slate.
     assert await quest_crud.get_links_for_quest_ids(async_session, failing, ids) == []
-    # get_or_create: the sweep's own gamestate row rolled back with the failed vault.
-    failing_state = await game_state_crud.get_or_create(async_session, failing)
-    assert failing_state.daily_quests_period is None
+    assert await game_state_crud.get_by_vault_id(async_session, failing) is None
     assert len(await quest_crud.get_links_for_quest_ids(async_session, rotating, ids)) == DAILY_COUNT + WEEKLY_COUNT
     rotating_state = await game_state_crud.get_by_vault_id(async_session, rotating)
     assert rotating_state is not None

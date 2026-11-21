@@ -79,6 +79,7 @@ let boutTimer: ReturnType<typeof setInterval> | null = null
 let rng = 7
 let journalKey = 0
 
+const rosterSettled = ref(false)
 const vaultId = computed(() => vaultStore.currentVaultId)
 const vaultNumber = computed(
   () =>
@@ -318,18 +319,23 @@ onMounted(async () => {
     nowMs.value = Date.now()
   }, 1000)
 
-  if (!vaultStore.vaults.length) await vaultStore.fetchVaults()
-  const activeId = vaultId.value
-  if (!activeId) return
-  await dwellerFilter.fetchAllDwellers(activeId)
-
-  const other = vaultStore.vaults.find((vault) => vault.id !== activeId)
-  if (!other) return
+  // A preview that can never finish loading is a lie: always settle the empty state.
   try {
-    oppositionRoster.value = await getDwellersByVault(other.id, { limit: PARTY_SIZE * 2 })
-  } catch {
-    // A preview must still render: the reserve trio stands in for an unreachable vault.
-    oppositionRoster.value = []
+    if (!vaultStore.vaults.length) await vaultStore.fetchVaults()
+    const activeId = vaultId.value
+    if (!activeId) return
+    await dwellerFilter.fetchAllDwellers(activeId)
+
+    const other = vaultStore.vaults.find((vault) => vault.id !== activeId)
+    if (!other) return
+    try {
+      oppositionRoster.value = await getDwellersByVault(other.id, { limit: PARTY_SIZE * 2 })
+    } catch {
+      // A preview must still render: the reserve trio stands in for an unreachable vault.
+      oppositionRoster.value = []
+    }
+  } finally {
+    rosterSettled.value = true
   }
 })
 
@@ -431,10 +437,16 @@ onUnmounted(() => {
                 </Badge>
               </li>
               <li
-                v-if="!ownTrio.length"
+                v-if="!ownTrio.length && !rosterSettled"
                 class="rounded border border-dashed border-theme-primary/30 p-4 text-sm text-theme-primary/60"
               >
                 Loading the vault roster…
+              </li>
+              <li
+                v-else-if="!ownTrio.length"
+                class="rounded border border-dashed border-theme-primary/30 p-4 text-sm text-theme-primary/60"
+              >
+                No roster to draw from. Select a vault, or seed dwellers, then reload this page.
               </li>
             </ul>
           </CardContent>

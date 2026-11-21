@@ -78,6 +78,8 @@ class PvpDuelService:
                 raise ValidationException("A vault cannot challenge itself.")
             await self._vault(db_session, defender_vault_id)
 
+        # Two posts racing would both see an empty slot; the vault row is the natural lock.
+        await pvp_duel_crud.lock_vault(db_session, vault_id)
         await self._release_expired_slots(db_session, vault_id, now)
         challenger_snapshot = await self._snapshot(db_session, vault, dweller_ids)
         duel = PvpDuel(
@@ -95,10 +97,11 @@ class PvpDuelService:
         """Open challenges this vault may accept, with expiry applied on read."""
         now = utcnow()
         entries: list[PvpDuelBoardEntry] = []
-        for duel in await pvp_duel_crud.list_open_board(db_session, vault_id):
+        board = await pvp_duel_crud.list_open_board(db_session, vault_id)
+        stale = [duel.id for duel in board if duel.expires_at <= now]
+        await pvp_duel_crud.expire_open(db_session, stale, now)
+        for duel in board:
             if duel.expires_at <= now:
-                duel.status = PvpDuelStatus.EXPIRED
-                db_session.add(duel)
                 continue
             snapshot = duel.challenger_snapshot
             entries.append(
@@ -118,9 +121,9 @@ class PvpDuelService:
         """Full duel for replay; only its two participants may read it."""
         duel = await self._duel_for_vault(db_session, vault_id, duel_id)
         if PvpDuelStatus(duel.status) == PvpDuelStatus.OPEN and duel.expires_at <= utcnow():
-            duel.status = PvpDuelStatus.EXPIRED
-            db_session.add(duel)
+            await pvp_duel_crud.expire_open(db_session, [duel.id], utcnow())
             await db_session.commit()
+            await db_session.refresh(duel)
         return _read(duel)
 
     async def accept(
@@ -151,8 +154,13 @@ class PvpDuelService:
         if duel.defender_vault_id is not None and duel.defender_vault_id != vault_id:
             raise AccessDeniedException("This duel is aimed at another vault.")
 
+        challenger = await self._vault(db_session, duel.challenger_vault_id)
         defender = await self._vault(db_session, vault_id)
-        defender_snapshot = await self._snapshot(db_session, defender, dweller_ids)
+        # The accepting side adopts the challenger's frozen tuning: a deploy between post
+        # and accept must not strand a duel that can never settle.
+        defender_snapshot = await self._snapshot(
+            db_session, defender, dweller_ids, tuning=duel.challenger_snapshot["tuning"]
+        )
         resolution = resolve_duel(duel.challenger_snapshot, defender_snapshot)
 
         duel.defender_vault_id = vault_id
@@ -164,13 +172,12 @@ class PvpDuelService:
         db_session.add(duel)
 
         won = resolution.outcome == "challenger"
-        await NotificationService.notify_owner(
-            db_session,
-            duel.challenger_vault_id,
-            context=f"pvp duel settled duel={duel.id} challenger={duel.challenger_vault_id}",
-            sender=lambda user_id: NotificationService.create_and_send(
+        # The bell row is part of the settlement, not a best-effort side effect: staged in
+        # this transaction so a settled duel always has exactly one, or neither exists.
+        if challenger.user_id is not None:
+            await NotificationService.create_and_send(
                 db_session,
-                user_id=user_id,
+                user_id=challenger.user_id,
                 vault_id=duel.challenger_vault_id,
                 notification_type=NotificationType.COMBAT_VICTORY if won else NotificationType.COMBAT_DEFEAT,
                 title="Exhibition duel won" if won else "Exhibition duel lost",
@@ -181,8 +188,7 @@ class PvpDuelService:
                 ),
                 meta_data={"duel_id": str(duel.id)},
                 commit=False,
-            ),
-        )
+            )
         try:
             await db_session.commit()
         except Exception:
@@ -196,18 +202,20 @@ class PvpDuelService:
     async def _release_expired_slots(self, db_session: AsyncSession, vault_id: UUID, now: datetime) -> None:
         """Expire this vault's stale OPEN rows; any survivor means the slot is still taken."""
         open_duels = await pvp_duel_crud.list_open_by_challenger(db_session, vault_id)
-        live = 0
-        for duel in open_duels:
-            if duel.expires_at <= now:
-                duel.status = PvpDuelStatus.EXPIRED
-                db_session.add(duel)
-            else:
-                live += 1
+        stale = [duel.id for duel in open_duels if duel.expires_at <= now]
+        await pvp_duel_crud.expire_open(db_session, stale, now)
+        live = sum(1 for duel in open_duels if duel.expires_at > now)
         if live:
             raise ResourceConflictException("Your vault already has an open duel.")
         await db_session.flush()
 
-    async def _snapshot(self, db_session: AsyncSession, vault: Vault, dweller_ids: list[UUID]) -> dict[str, Any]:
+    async def _snapshot(
+        self,
+        db_session: AsyncSession,
+        vault: Vault,
+        dweller_ids: list[UUID],
+        tuning: dict[str, float] | None = None,
+    ) -> dict[str, Any]:
         pool = await pvp_duel_crud.get_party(db_session, vault.id, dweller_ids)
         try:
             party = select_party(pool, dweller_ids)
@@ -215,7 +223,7 @@ class PvpDuelService:
             raise ValidationException(str(exc)) from exc
         if not party:
             raise ValidationException("Pick at least one living dweller to fight.")
-        return build_snapshot(vault, party)
+        return build_snapshot(vault, party, tuning)
 
     async def _vault(self, db_session: AsyncSession, vault_id: UUID) -> Vault:
         vault = await pvp_duel_crud.get_vault(db_session, vault_id)

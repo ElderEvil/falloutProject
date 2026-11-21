@@ -121,3 +121,52 @@ async def test_party_is_explicit_and_capped_at_three(
 
     with pytest.raises(ValidationException):
         await pvp_duel_service.post(async_session, vault.id, dweller_ids=[dweller.id] * 4)
+
+
+async def test_one_dweller_cannot_fill_a_party(async_session: AsyncSession, vault: Vault, dweller: Dweller) -> None:
+    """Duplicates would triple that dweller's power; the roster is a set, not a list."""
+    with pytest.raises(ValidationException):
+        await pvp_duel_service.post(async_session, vault.id, dweller_ids=[dweller.id] * 3)
+
+
+async def test_accept_adopts_the_challenger_tuning(
+    async_session: AsyncSession,
+    vault: Vault,
+    dweller: Dweller,
+    user_with_vault: tuple,
+    dweller_in_vault: Dweller,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A deploy between post and accept changes TUNING; the duel must still settle."""
+    from app.services.pvp import snapshots
+
+    _, defender_vault = user_with_vault
+    read = await pvp_duel_service.post(async_session, vault.id, dweller_ids=[dweller.id])
+
+    monkeypatch.setitem(snapshots.TUNING, "max_rounds", 3)
+    settled = await pvp_duel_service.accept(
+        async_session, defender_vault.id, read.duel_id, dweller_ids=[dweller_in_vault.id]
+    )
+
+    duel = await pvp_duel_crud.get_duel(async_session, read.duel_id)
+    assert duel is not None
+    assert duel.defender_snapshot is not None
+    assert duel.defender_snapshot["tuning"] == duel.challenger_snapshot["tuning"]
+    assert PvpDuelStatus(settled.status) == PvpDuelStatus.ACCEPTED
+
+
+async def test_expiry_never_overwrites_a_settled_duel(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller, user_with_vault: tuple, dweller_in_vault: Dweller
+) -> None:
+    """The conditional UPDATE is what keeps a late reader from erasing a result."""
+    _, defender_vault = user_with_vault
+    read = await pvp_duel_service.post(async_session, vault.id, dweller_ids=[dweller.id])
+    await pvp_duel_service.accept(async_session, defender_vault.id, read.duel_id, dweller_ids=[dweller_in_vault.id])
+
+    await pvp_duel_crud.expire_open(async_session, [read.duel_id], utcnow() + timedelta(days=1))
+    await async_session.commit()
+
+    duel = await pvp_duel_crud.get_duel(async_session, read.duel_id)
+    assert duel is not None
+    assert PvpDuelStatus(duel.status) == PvpDuelStatus.ACCEPTED
+    assert duel.outcome is not None

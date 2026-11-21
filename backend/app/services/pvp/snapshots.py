@@ -31,8 +31,12 @@ def power_band(total_power: float) -> str:
     return "light"
 
 
-def build_snapshot(vault: Vault, dwellers: list[Dweller]) -> dict[str, Any]:
-    """Freeze a party's per-dweller power, damage range, level bonus and the tuning used."""
+def build_snapshot(vault: Vault, dwellers: list[Dweller], tuning: dict[str, float] | None = None) -> dict[str, Any]:
+    """Freeze a party's per-dweller power, damage range, level bonus and the tuning used.
+
+    ``tuning`` lets the accepting side adopt the challenger's frozen block, so a deploy
+    between post and accept cannot make a duel unsettleable.
+    """
     members = []
     for dweller in dwellers:
         power = combat_power(dweller)
@@ -52,7 +56,7 @@ def build_snapshot(vault: Vault, dwellers: list[Dweller]) -> dict[str, Any]:
         "party_size": len(members),
         "power_band": power_band(sum(float(member["power"]) for member in members)),
         "members": members,
-        "tuning": dict(TUNING),
+        "tuning": dict(tuning if tuning is not None else TUNING),
     }
 
 
@@ -69,6 +73,8 @@ def select_party(dwellers: list[Dweller], dweller_ids: list[UUID]) -> list[Dwell
         raise ValueError("Pick at least one dweller to fight.")
     if len(dweller_ids) > PARTY_LIMIT:
         raise ValueError(f"A party is at most {PARTY_LIMIT} dwellers.")
+    if len(set(dweller_ids)) != len(dweller_ids):
+        raise ValueError("Each dweller may only fight once.")
     by_id = {dweller.id: dweller for dweller in dwellers}
     missing = [str(dweller_id) for dweller_id in dweller_ids if dweller_id not in by_id]
     if missing:

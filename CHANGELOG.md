@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 3.12.1 (2026-11-21)
+
+### Bug Fixes
+
+* **vault:** one Radio studio per vault and live vault state ([#1472](https://github.com/ElderEvil/falloutProject/issues/1472)) 0ef8394
+
 ## 3.12.0 (2026-11-21)
 
 ### Features

@@ -31,6 +31,7 @@ class GameEvent(StrEnum):
     ITEM_COLLECTED = "item_collected"
     ITEM_EQUIPPED = "item_equipped"
     ITEM_SCRAPPED = "item_scrapped"
+    COLLECTIBLE_FOUND = "collectible_found"
     RECIPE_UNLOCKED = "recipe_unlocked"
     THEME_CRAFTED = "theme_crafted"
     QUEST_COMPLETED = "quest_completed"

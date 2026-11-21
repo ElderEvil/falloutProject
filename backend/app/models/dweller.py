@@ -164,6 +164,9 @@ class Dweller(BaseUUIDModel, DwellerBase, TimeStampMixin, SoftDeleteMixin, table
     # (e.g. template load-time identity validation) without an inherited override.
     visual_attributes: dict | None = Field(default=None, sa_column=sa.Column(JSONB))
 
+    # Derived from vaultcollectible claims; cleared on death and cross-vault recycling.
+    collectible_bonus: dict[str, int] | None = Field(default=None, sa_column=sa.Column(JSONB))
+
     # Youth apprenticeship in a production room.
     apprentice_stat: SPECIALEnum | None = Field(default=None)
     apprentice_started_at: datetime | None = Field(sa_type=UTCDateTime, default=None)

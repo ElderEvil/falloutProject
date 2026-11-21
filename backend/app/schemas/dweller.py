@@ -372,6 +372,7 @@ class DwellerReadFull(DwellerRead):
 class DwellerUpdate(DwellerBase):
     room_id: UUID | None = None
     visual_attributes: DwellerVisualAttributesInput | None = Field(default=None)
+    collectible_bonus: dict[str, int] | None = None
     # Canonical state is system-written (death/expiry/revival); deliberately absent from DwellerUpdateRequest.
     lifecycle: LifecycleEnum | None = None
     availability: AvailabilityEnum | None = None

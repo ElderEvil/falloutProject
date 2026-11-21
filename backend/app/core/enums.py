@@ -459,6 +459,8 @@ class NotificationType(StrEnum):
     CRAFTING_COMPLETE = "crafting_complete"
     RECIPE_UNLOCKED = "recipe_unlocked"
 
+    COLLECTIBLE_FOUND = "collectible_found"
+
     STORAGE_ITEM_DEGRADED = "storage_item_degraded"
     STORAGE_ITEM_UPGRADED = "storage_item_upgraded"
 

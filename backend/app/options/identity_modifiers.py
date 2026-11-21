@@ -80,20 +80,28 @@ def identity_modifiers_for(entity: object) -> IdentityModifiers:
 
 
 def effective_stat(entity: object, stat: str) -> int:
-    """A dweller's stat after identity, equipped-outfit, and equipped-pet modifiers, floored at 1.
+    """A dweller's stat after identity, outfit, pet and bobblehead modifiers, floored at 1.
 
     Derived on read and never persisted: the stored SPECIAL stays the trained value,
     so removing a race, faction, outfit, or pet cannot leave a permanent stat change behind.
     The outfit and pet are read via ``__dict__`` (no lazy IO, a missing relationship means no
-    bonus), and the result is not capped — a 10 S dweller in a +5 S outfit with a +2 S pet
-    counts as 17.
+    bonus), the collectible bonus is a plain column, and the result is not capped — a 10 S
+    dweller in a +5 S outfit with a +2 S pet and one Strength bobblehead counts as 18.
     """
     if stat not in SPECIAL_STATS:
         raise ValueError(f"Unknown SPECIAL stat: {stat!r}")
     outfit = equipped_outfit(entity)
     outfit_bonus = getattr(outfit, stat, 0) if outfit is not None else 0
     pet_bonus = getattr(pet_modifiers_for(entity), stat)
-    return max(1, getattr(entity, stat) + getattr(identity_modifiers_for(entity), stat) + outfit_bonus + pet_bonus)
+    collectible_bonus = (getattr(entity, "collectible_bonus", None) or {}).get(stat, 0)
+    return max(
+        1,
+        getattr(entity, stat)
+        + getattr(identity_modifiers_for(entity), stat)
+        + outfit_bonus
+        + pet_bonus
+        + collectible_bonus,
+    )
 
 
 def weapon_damage_pct(entity: object, weapon_type: str) -> float:

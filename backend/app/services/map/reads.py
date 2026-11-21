@@ -7,7 +7,7 @@ contract, and site markers project the expedition catalog onto the map.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 from uuid import UUID
 
 from app.core.enums import LocationTypeEnum
@@ -35,6 +35,7 @@ from app.services.exploration.site_offers import (
     uses_single_scene,
 )
 from app.services.map import bio_registration, discovery
+from app.utils.collectibles import bobblehead_for_location
 from app.utils.place_groups import effective_place_group, load_place_groups
 from app.utils.places import WORLD_SCALE
 from app.utils.time import utcnow
@@ -75,6 +76,22 @@ def _clear_state_for(state: VaultLocationState, location: WorldLocation) -> Loca
         time_remaining_seconds=state.time_remaining_seconds(now),
         loot_table=group.get("loot_table"),
     )
+
+
+def _action_for(state: VaultLocationState, location: WorldLocation) -> Literal["clear", "salvage", "none"]:
+    """What the map offers at this point: clear, a one-time salvage, or nothing.
+
+    Salvage implies the place is not clearable and the catalog binds a bobblehead to its name;
+    the collectible feature flag keeps inert places inert while the content is switched off.
+    """
+    group = effective_place_group(location.group_key, location.kind)
+    if group is not None and group.get("clearable"):
+        return "clear"
+    if game_config.features.collectibles and state.searched_at is None:
+        entry = bobblehead_for_location(location.name)
+        if entry is not None and entry["action"] == "salvage":
+            return "salvage"
+    return "none"
 
 
 def _group_key_for(location: WorldLocation) -> str | None:
@@ -129,6 +146,7 @@ async def get_location_detail(
         dwellers=dweller_refs,
         is_unlocked=any(r.is_unlocked for r in dweller_refs),
         clear_state=_clear_state_for(state, location),
+        action=_action_for(state, location),
     )
 
 
@@ -180,6 +198,7 @@ async def get_vault_map(db_session: AsyncSession, vault: Vault, *, unlocked_only
                 dwellers=dweller_refs,
                 is_unlocked=location_unlocked,
                 clear_state=_clear_state_for(state, location),
+                action=_action_for(state, location),
             )
         )
 

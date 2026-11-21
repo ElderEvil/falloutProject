@@ -914,6 +914,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/dwellers/{dweller_id}/collectibles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Dweller Collectibles
+         * @description Bobbleheads this dweller found in its current vault.
+         *
+         *     Scoped to both the dweller and its current vault: recycling keeps the dweller UUID, so an
+         *     ownership check alone would expose a previous vault's claims.
+         */
+        get: operations["read_dweller_collectibles_api_v1_dwellers__dweller_id__collectibles_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/dwellers/{dweller_id}/lineage": {
         parameters: {
             query?: never;
@@ -6989,6 +7012,29 @@ export interface components {
             /** @description Dev diagnostics (tokens, model, guardrail/Jev decisions); only when debug is requested */
             debug?: components["schemas"]["ChatDebug"] | null;
         };
+        /**
+         * DwellerCollectibleRead
+         * @description One bobblehead a dweller found, joined with its catalog entry.
+         */
+        DwellerCollectibleRead: {
+            /** Key */
+            key: string;
+            /** Name */
+            name: string;
+            /** Stat */
+            stat: string;
+            /** Amount */
+            amount: number;
+            /** Image */
+            image: string;
+            /** Location */
+            location: string;
+            /**
+             * Found At
+             * Format: date-time
+             */
+            found_at: string;
+        };
         /** DwellerCreate */
         DwellerCreate: {
             /**
@@ -9535,7 +9581,7 @@ export interface components {
          * @description Types of notifications
          * @enum {string}
          */
-        NotificationType: "exploration_update" | "exploration_complete" | "level_up" | "training_complete" | "training_started" | "crafting_complete" | "recipe_unlocked" | "storage_item_degraded" | "storage_item_upgraded" | "relationship_formed" | "pregnancy_detected" | "baby_born" | "combat_started" | "combat_victory" | "combat_defeat" | "arena_morale_boost" | "dweller_injured" | "dweller_died" | "dweller_exit_requested" | "hazard_team_joined" | "resource_low" | "resource_critical" | "power_outage" | "rush_succeeded" | "rush_failed" | "quest_complete" | "objective_completed" | "objectives_refreshed" | "room_unlocked" | "achievement_unlocked" | "radio_new_dweller" | "radio_auto_switched_to_happiness" | "map_registration_failed" | "location_cleared" | "location_ready" | "world_event_completed";
+        NotificationType: "exploration_update" | "exploration_complete" | "level_up" | "training_complete" | "training_started" | "crafting_complete" | "recipe_unlocked" | "collectible_found" | "storage_item_degraded" | "storage_item_upgraded" | "relationship_formed" | "pregnancy_detected" | "baby_born" | "combat_started" | "combat_victory" | "combat_defeat" | "arena_morale_boost" | "dweller_injured" | "dweller_died" | "dweller_exit_requested" | "hazard_team_joined" | "resource_low" | "resource_critical" | "power_outage" | "rush_succeeded" | "rush_failed" | "quest_complete" | "objective_completed" | "objectives_refreshed" | "room_unlocked" | "achievement_unlocked" | "radio_new_dweller" | "radio_auto_switched_to_happiness" | "map_registration_failed" | "location_cleared" | "location_ready" | "world_event_completed";
         /** OAuthHandoffRequest */
         OAuthHandoffRequest: {
             /** Code */
@@ -12547,6 +12593,12 @@ export interface components {
             /** Created At */
             created_at: string | null;
             clear_state?: components["schemas"]["LocationClearStateRead"] | null;
+            /**
+             * Action
+             * @default none
+             * @enum {string}
+             */
+            action: "clear" | "salvage" | "none";
             /** Dwellers */
             dwellers: components["schemas"]["DwellerRef"][];
             /**
@@ -14097,6 +14149,37 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_dweller_collectibles_api_v1_dwellers__dweller_id__collectibles_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                dweller_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DwellerCollectibleRead"][];
+                };
             };
             /** @description Validation Error */
             422: {

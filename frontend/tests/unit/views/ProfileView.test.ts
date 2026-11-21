@@ -15,6 +15,12 @@ import type { DeathStatistics } from '@/modules/profile/stores/profile'
 
 vi.mock('@/core/plugins/axios')
 
+// SidePanel requests feature flags on mount; without the stub that call would
+// consume the `mockRejectedValueOnce` these tests queue for the profile fetch.
+vi.mock('@/modules/dwellers/stores/featureFlags', () => ({
+  useFeatureFlagsStore: () => ({ worldEvents: false, loaded: true, fetchFlags: vi.fn() }),
+}))
+
 const { usePollingMock } = vi.hoisted(() => ({
   usePollingMock: vi.fn(() => ({ pause: vi.fn(), resume: vi.fn(), isActive: { value: false } })),
 }))

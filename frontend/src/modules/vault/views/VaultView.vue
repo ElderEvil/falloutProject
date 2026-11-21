@@ -17,6 +17,7 @@ import BuildModeButton from '@/core/components/common/BuildModeButton.vue'
 import RoomMenu from '@/modules/rooms/components/RoomMenu.vue'
 import GameControlPanel from '@/modules/vault/components/shell/GameControlPanel.vue'
 import RadioNewsWidget from '@/modules/radio-news/components/RadioNewsWidget.vue'
+import WorldEventBanner from '@/modules/world-event/components/WorldEventBanner.vue'
 import { getOverseerAttentionCount } from '@/modules/vault/models/overseerBriefing'
 import UnassignedDwellers from '@/modules/dwellers/components/UnassignedDwellers.vue'
 import WastelandPanel from '@/modules/exploration/components/WastelandPanel.vue'
@@ -318,6 +319,9 @@ const reviewActiveIncidents = () => {
                -translate-x-1/2 transform would turn it into the containing
                block for the trigger's fixed positioning (and clip it). -->
           <RadioNewsWidget v-if="vaultId" :vault-id="vaultId" />
+
+          <!-- Server-wide co-op event: only renders while an event exists -->
+          <WorldEventBanner v-if="vaultId" :vault-id="vaultId" class="w-full mb-4" />
 
           <!-- Incident Alert Banner -->
           <div v-if="activeIncidents.length > 0" class="w-full mb-4">

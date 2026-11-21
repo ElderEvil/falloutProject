@@ -899,6 +899,24 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
 
         return DwellerReadFull.model_validate(dweller_obj)
 
+    async def get_joined_since(self, db_session: AsyncSession, *, vault_id: UUID, since: datetime) -> list[Dweller]:
+        """Dwellers that entered this vault after ``since``, oldest first."""
+        query = (
+            select(Dweller)
+            .where(col(Dweller.vault_id) == vault_id, col(Dweller.created_at) > since)
+            .order_by(col(Dweller.created_at).asc())
+        )
+        return list((await db_session.exec(query)).all())
+
+    async def get_died_since(self, db_session: AsyncSession, *, vault_id: UUID, since: datetime) -> list[Dweller]:
+        """Dwellers of this vault whose death was recorded after ``since``."""
+        query = select(Dweller).where(
+            col(Dweller.vault_id) == vault_id,
+            col(Dweller.is_dead).is_(True),
+            col(Dweller.death_timestamp) > since,
+        )
+        return list((await db_session.exec(query)).all())
+
     async def get_dead_dwellers(
         self,
         db_session: AsyncSession,

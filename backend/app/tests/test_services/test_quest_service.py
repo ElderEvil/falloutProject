@@ -6,7 +6,7 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import crud
-from app.core.enums import RequirementType
+from app.core.enums import QuestType, RequirementType
 from app.models.quest import Quest
 from app.models.quest_requirement import QuestRequirement
 from app.models.room import Room
@@ -22,18 +22,16 @@ from app.utils.exceptions import AccessDeniedException, ResourceNotFoundExceptio
 from app.utils.time import utcnow
 
 
-async def _vault_with_office(async_session: AsyncSession, tier: int = 1):
-    """A vault that has built the Overseer's Office."""
-    user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
-    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id))
-    async_session.add(Room(**create_overseers_office(tier=tier), vault_id=vault.id))
-    await async_session.commit()
-    return vault
-
-
 async def _vault(async_session: AsyncSession):
     user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
     return await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id))
+
+
+async def _vault_with_office(async_session: AsyncSession, tier: int = 1):
+    vault = await _vault(async_session)
+    async_session.add(Room(**create_overseers_office(tier=tier), vault_id=vault.id))
+    await async_session.commit()
+    return vault
 
 
 async def _create_quest(async_session: AsyncSession, *, title: str, previous_quest_id=None) -> Quest:
@@ -1213,86 +1211,44 @@ async def test_assign_rejects_scheduler_owned_quest_types(async_session: AsyncSe
 
 
 @pytest.mark.asyncio
-async def test_hidden_quest_start_denies_before_requirements(async_session: AsyncSession) -> None:
-    """A quest the scheduler has not offered must deny before leaking its requirement details."""
-    vault = await _vault(async_session)
-    quest = Quest(
-        title="Hidden Gate",
-        short_description="Scheduler-owned quest",
-        long_description="Hidden quest with an unmet requirement must not leak the requirement text.",
-        requirements="Level 50 dwellers",
-        rewards="10 caps",
-        quest_type="daily",
-        duration_minutes=60,
-        quest_requirements=[
-            QuestRequirement(requirement_type=RequirementType.LEVEL, requirement_data={"level": 50}, is_mandatory=True)
-        ],
+@pytest.mark.parametrize(
+    ("visible", "error", "message"),
+    [
+        (None, ResourceNotFoundException, "VaultQuestCompletionLink"),
+        (False, AccessDeniedException, "not currently offered"),
+    ],
+    ids=["missing-link", "hidden-link"],
+)
+async def test_start_checks_offer_before_requirements(async_session: AsyncSession, visible, error, message):
+    vault = await _vault_with_office(async_session)
+    quest = await _create_quest(async_session, title="Level gate")
+    quest.quest_type = QuestType.DAILY
+    async_session.add(
+        QuestRequirement(
+            quest_id=quest.id, requirement_type=RequirementType.LEVEL, requirement_data={"level": 50}, is_mandatory=True
+        )
     )
-    async_session.add(quest)
-    await async_session.commit()
-    async_session.add(VaultQuestCompletionLink(vault_id=vault.id, quest_id=quest.id, is_visible=False))
+    if visible is not None:
+        async_session.add(VaultQuestCompletionLink(vault_id=vault.id, quest_id=quest.id, is_visible=visible))
     await async_session.commit()
 
-    with pytest.raises(AccessDeniedException, match="not currently offered"):
+    with pytest.raises(error, match=message):
         await quest_service.start_quest_for_vault(async_session, vault.id, quest.id)
 
 
 @pytest.mark.asyncio
-async def test_absent_link_start_reports_missing_before_requirements(async_session: AsyncSession) -> None:
-    """A quest with no vault link is not offered to it (404) before its requirement details."""
+async def test_failed_arrival_candidate_does_not_abort_the_sweep(async_session: AsyncSession, caplog):
     vault = await _vault_with_office(async_session)
-    quest = Quest(
-        title="Unlinked Gate",
-        short_description="No link yet",
-        long_description="Requirements must not leak for a quest the vault was never offered.",
-        requirements="Level 50 dwellers",
-        rewards="10 caps",
-        quest_type="side",
-        duration_minutes=60,
-        quest_requirements=[
-            QuestRequirement(requirement_type=RequirementType.LEVEL, requirement_data={"level": 50}, is_mandatory=True)
-        ],
-    )
-    async_session.add(quest)
-    await async_session.commit()
-
-    with pytest.raises(ResourceNotFoundException, match="VaultQuestCompletionLink"):
-        await quest_service.start_quest_for_vault(async_session, vault.id, quest.id)
-
-
-@pytest.mark.asyncio
-async def test_failed_arrival_candidate_does_not_abort_the_sweep(async_session: AsyncSession) -> None:
-    """A rollback from one failed arrival must not stop the remaining candidates."""
-    vault = await _vault_with_office(async_session)
-    broken = Quest(
-        title="Broken arrival",
-        short_description="Never started",
-        long_description="A candidate whose arrival fails must not abort the sweep.",
-        requirements="None",
-        rewards="10 caps",
-        quest_type="side",
-        duration_minutes=60,
-    )
-    good = Quest(
-        title="Arrived party",
-        short_description="Ready to claim",
-        long_description="A valid arrived party becomes reward-ready.",
-        requirements="None",
-        rewards="10 caps",
-        quest_type="side",
-        duration_minutes=60,
-    )
-    async_session.add_all([broken, good])
-    await async_session.commit()
+    broken = await _create_quest(async_session, title="Never started")
+    good = await _create_quest(async_session, title="Arrived party")
+    vault_id, good_id = vault.id, good.id
     arrived_at = utcnow() - timedelta(hours=2)
     async_session.add_all(
         [
-            # Invalid: the party never started, so the arrival helper raises.
-            VaultQuestCompletionLink(vault_id=vault.id, quest_id=broken.id, is_visible=True, is_completed=True),
+            VaultQuestCompletionLink(vault_id=vault_id, quest_id=broken.id, return_completes_at=arrived_at),
             VaultQuestCompletionLink(
-                vault_id=vault.id,
-                quest_id=good.id,
-                is_visible=True,
+                vault_id=vault_id,
+                quest_id=good_id,
                 started_at=arrived_at,
                 return_started_at=arrived_at,
                 return_completes_at=arrived_at,
@@ -1302,7 +1258,8 @@ async def test_failed_arrival_candidate_does_not_abort_the_sweep(async_session: 
     )
     await async_session.commit()
 
-    assert await quest_service.check_and_complete_quests(async_session, vault_id=vault.id) == 1
-    ready = await crud.quest_crud.get_link(async_session, quest_id=good.id, vault_id=vault.id)
+    assert await quest_service.check_and_complete_quests(async_session, vault_id=vault_id) == 1
+    assert "Quest must be started before it can be completed" in caplog.text
+    ready = await crud.quest_crud.get_link(async_session, quest_id=good_id, vault_id=vault_id)
     assert ready is not None
     assert ready.is_reward_ready

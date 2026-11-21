@@ -2,19 +2,23 @@
 
 PostgreSQL cases use connection-local temporary tables and the existing enum type.
 Set UTC_MIGRATION_REQUIRE_POSTGRES=1 to fail rather than skip unavailable PostgreSQL.
-These checks are preparation, not a substitute for testing the eventual Alembic revision.
+The quest rotation revision is also exercised against a pre-existing row on SQLite.
 """
 
+import importlib.util
 import json
 import os
 from collections.abc import AsyncGenerator
 from datetime import UTC, datetime, timedelta, timezone
+from pathlib import Path
 from uuid import uuid4
 from zoneinfo import ZoneInfo
 
 import pytest
 import pytest_asyncio
-from sqlalchemy import Column, Integer, MetaData, Table, text
+from alembic.migration import MigrationContext
+from alembic.operations import Operations
+from sqlalchemy import Column, Integer, MetaData, Table, create_engine, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncConnection, create_async_engine
@@ -89,8 +93,11 @@ async def test_timestamp_inventory_matches_migrated_schema(utc_connection: Async
         for column in table.c
         if isinstance(column.type, UTCDateTime)
     }
-    assert len(expected) == 124
-    assert len({table for table, _ in expected}) == 39
+    # Pinned totals: the chat-continuity tables add five UTC timestamps across two tables
+    # (conversation: created_at/updated_at/last_message_at; dweller_memory: created_at/updated_at)
+    # and the rotation period columns add two more on game_state.
+    assert len(expected) == 129
+    assert len({table for table, _ in expected}) == 41
     rows = await utc_connection.execute(
         text(
             "SELECT table_name, column_name, data_type FROM information_schema.columns "
@@ -256,3 +263,27 @@ async def test_utc_datetime_type_round_trips_on_postgres(utc_connection: AsyncCo
 
     result = await utc_connection.execute(table.select().where(table.c.ts <= instant + timedelta(minutes=15)))
     assert result.one().id == 1
+
+
+def test_quest_rotation_migration_adds_nullable_unadopted_periods(monkeypatch):
+    migration_path = (
+        Path(__file__).parents[2] / "alembic/baseline_versions/2026_11_20_0002-b3f7a2c9d4e8_quest_rotation_periods.py"
+    )
+    spec = importlib.util.spec_from_file_location("quest_rotation_periods", migration_path)
+    migration = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(migration)
+    engine = create_engine("sqlite://")
+    with engine.begin() as db:
+        db.exec_driver_sql("CREATE TABLE gamestate (id INTEGER PRIMARY KEY)")
+        db.exec_driver_sql("INSERT INTO gamestate VALUES (1)")
+        monkeypatch.setattr(migration, "op", Operations(MigrationContext.configure(db)))
+        migration.upgrade()
+        columns = [column[1] for column in db.exec_driver_sql("PRAGMA table_info(gamestate)")]
+        assert {"daily_quests_period", "weekly_quests_period"} <= set(columns)
+        assert db.exec_driver_sql("SELECT daily_quests_period, weekly_quests_period FROM gamestate").one() == (
+            None,
+            None,
+        )
+        migration.downgrade()
+        assert [column[1] for column in db.exec_driver_sql("PRAGMA table_info(gamestate)")] == ["id"]
+    engine.dispose()

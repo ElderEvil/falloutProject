@@ -1,10 +1,13 @@
 """Tests for chat service error handling, especially AI provider failures."""
 
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, PropertyMock, patch
 from uuid import uuid4
 
 import pytest
 import pytest_asyncio
+from pydantic_ai.conversation import Conversation
+from pydantic_ai.messages import ModelRequest, ModelResponse, TextPart, UserPromptPart
 from pydantic_ai.usage import RunUsage
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -24,6 +27,52 @@ from app.tests.factory.dwellers import create_fake_dweller
 from app.utils.exceptions import ResourceNotFoundException, ValidationException
 
 pytestmark = pytest.mark.asyncio(scope="module")
+
+
+def _fake_run_stream(
+    output,
+    *,
+    partial: str | None = None,
+    conversation: Conversation | None = None,
+    captured: dict | None = None,
+):
+    """Stand in for ``dweller_chat_agent.run_stream``; records the kwargs chat passed."""
+    usage = RunUsage(input_tokens=5, output_tokens=6)
+    settled = conversation if conversation is not None else Conversation(usage=usage)
+
+    async def stream_output():
+        if partial is not None:
+            yield output.model_copy(update={"response_text": partial})
+        yield output
+
+    class _Result:
+        def stream_output(self):
+            return stream_output()
+
+        @property
+        def usage(self):
+            return usage
+
+        @property
+        def result(self) -> SimpleNamespace:
+            return SimpleNamespace(conversation=settled)
+
+        async def get_output(self):
+            return output
+
+    class _RunStream:
+        async def __aenter__(self):
+            return _Result()
+
+        async def __aexit__(self, *exc):
+            return False
+
+    def _run(*_args, **kwargs):
+        if captured is not None:
+            captured.update(kwargs)
+        return _RunStream()
+
+    return _run
 
 
 @pytest_asyncio.fixture(name="chat_dweller")
@@ -477,35 +526,10 @@ class TestChatServiceErrorHandling:
             action_type="no_action",
         )
 
-        async def fake_stream_output():
-            yield output.model_copy(update={"response_text": "Helo vault"})
-            yield output
-
-        class FakeStreamResult:
-            def __init__(self) -> None:
-                self.output = output
-
-            def stream_output(self):
-                return fake_stream_output()
-
-            @property
-            def usage(self):
-                return RunUsage(input_tokens=5, output_tokens=6)
-
-            async def get_output(self):
-                return output
-
-        class FakeRunStreamCM:
-            async def __aenter__(self):
-                return FakeStreamResult()
-
-            async def __aexit__(self, *exc):
-                return False
-
         with (
             patch(
                 "app.services.chat.streaming.dweller_chat_agent.run_stream",
-                return_value=FakeRunStreamCM(),
+                new=_fake_run_stream(output, partial="Helo vault"),
             ),
             patch(
                 "app.services.chat_service.quota_service.check_quota",
@@ -574,32 +598,8 @@ class TestChatServiceErrorHandling:
             action_stat=None,
         )
 
-        async def fake_stream_output():
-            yield output
-
-        class FakeStreamResult:
-            def __init__(self) -> None:
-                self.output = output
-
-            def stream_output(self):
-                return fake_stream_output()
-
-            @property
-            def usage(self):
-                return RunUsage(input_tokens=5, output_tokens=6)
-
-            async def get_output(self):
-                return output
-
-        class FakeRunStreamCM:
-            async def __aenter__(self):
-                return FakeStreamResult()
-
-            async def __aexit__(self, *exc):
-                return False
-
         with (
-            patch("app.services.chat.streaming.dweller_chat_agent.run_stream", return_value=FakeRunStreamCM()),
+            patch("app.services.chat.streaming.dweller_chat_agent.run_stream", new=_fake_run_stream(output)),
             patch("app.services.chat.streaming.apply_chat_happiness", new=AsyncMock(return_value=(80, None))),
             patch("app.services.chat.streaming.parse_action_suggestion", new=AsyncMock(return_value=NoAction())),
             patch("app.services.chat.notifications.maybe_unlock_places", new=AsyncMock(return_value=[])),
@@ -622,6 +622,71 @@ class TestChatServiceErrorHandling:
         assert isinstance(events[-1], ChatStreamDone)
         assert events[-1].debug is not None
         assert events[-1].debug.total_tokens == 11
+
+    async def test_stream_response_continues_the_thread(
+        self,
+        async_session: AsyncSession,
+        chat_dweller: DwellerReadFull,
+        test_user: User,
+    ) -> None:
+        """The streamed path must load prior turns and store the state it produced."""
+        from app.agents.dweller_chat_agent import DwellerChatOutput
+        from app.models.conversation import Conversation as ConversationRow
+        from app.services.chat.context import dump_context, load_context
+        from app.services.chat.continuation import open_thread, save_context
+
+        output = DwellerChatOutput(
+            response_text="Hello vault dweller!",
+            sentiment_score=2,
+            reason_text="Friendly greeting",
+            action_type="no_action",
+            action_reason="Nothing to do",
+        )
+        prior = Conversation(
+            messages=[
+                ModelRequest(parts=[UserPromptPart(content="Earlier question")]),
+                ModelResponse(parts=[TextPart(content="Earlier answer")]),
+            ]
+        )
+        thread = await open_thread(async_session, user_id=test_user.id, dweller=chat_dweller)
+        await save_context(async_session, thread, state=dump_context(prior))
+        await async_session.commit()
+        thread_id = thread.id
+        continued = Conversation(messages=[*prior.messages, *prior.messages], usage=prior.usage)
+        captured: dict = {}
+
+        with (
+            patch(
+                "app.services.chat.streaming.dweller_chat_agent.run_stream",
+                new=_fake_run_stream(output, conversation=continued, captured=captured),
+            ),
+            patch("app.services.chat.streaming.apply_chat_happiness", new=AsyncMock(return_value=(80, None))),
+            patch("app.services.chat.streaming.parse_action_suggestion", new=AsyncMock(return_value=NoAction())),
+            patch("app.services.chat.notifications.maybe_unlock_places", new=AsyncMock(return_value=[])),
+            patch(
+                "app.services.chat.persistence.chat_message_crud.create_message",
+                new=AsyncMock(return_value=MagicMock(id=uuid4())),
+            ),
+        ):
+            events = [
+                event
+                async for event in chat_service.stream_response(
+                    db_session=async_session,
+                    user=test_user,
+                    dweller_id=chat_dweller.id,
+                    message_text="Hello",
+                )
+            ]
+
+        assert isinstance(events[-1], ChatStreamDone)
+        # Prior turns reached the model rather than being answered as a first message.
+        carried = captured["conversation"]
+        assert carried is not None
+        assert carried.messages[0].parts[0].content == "Earlier question"
+        # And the state carried forward is the one this run produced.
+        refreshed = await async_session.get(ConversationRow, thread_id)
+        assert refreshed is not None
+        assert len(load_context(refreshed.context).messages) == 4
 
     async def test_stream_response_yields_provider_reason_on_model_http_error(
         self,
@@ -907,7 +972,7 @@ async def test_chat_commits_usage_messages_and_happiness_together(
             raise RuntimeError("reply write failed")
         return await original(db, obj_in=obj_in)
 
-    async def generate_stream(deps, dweller, message_text, bundle, instructions):
+    async def generate_stream(deps, dweller, message_text, bundle, instructions, *, conversation=None):
         from app.services.chat_happiness_service import apply_chat_happiness
 
         await apply_chat_happiness(deps.db_session, dweller.id, 5)
@@ -965,3 +1030,60 @@ async def test_discovery_failure_preserves_pending_conversation(async_session, c
         assert await maybe_unlock_places(async_session, chat_dweller) == []
     await async_session.commit()
     assert (await chat_message_crud.get(async_session, message.id)).message_text == "Keep this message"
+
+
+async def test_persist_chat_threads_messages_through_one_conversation(async_session, chat_dweller, test_user):
+    from sqlalchemy import func, select
+
+    from app.crud.conversation import conversation as conversation_crud
+    from app.models.chat_message import ChatMessage
+    from app.models.conversation import Conversation
+    from app.services.chat.persistence import persist_chat
+
+    conversation = await conversation_crud.get_or_create(
+        async_session, vault_id=chat_dweller.vault.id, user_id=test_user.id, dweller_id=chat_dweller.id
+    )
+    bundle = StreamBundle(response_text="Hello", prompt_tokens=3, completion_tokens=2, total_tokens=5)
+    await persist_chat(
+        db_session=async_session,
+        user=test_user,
+        dweller=chat_dweller,
+        message_text="Hi",
+        bundle=bundle,
+        conversation=conversation,
+    )
+    await async_session.commit()
+
+    conversations = (await async_session.execute(select(Conversation))).scalars().all()
+    assert len(conversations) == 1
+    conversation = conversations[0]
+    assert conversation.user_id == test_user.id
+    assert conversation.dweller_id == chat_dweller.id
+    assert conversation.vault_id == chat_dweller.vault.id
+    assert conversation.message_count == 2
+    assert conversation.last_message_at is not None
+    linked = (
+        (await async_session.execute(select(ChatMessage).where(ChatMessage.conversation_id == conversation.id)))
+        .scalars()
+        .all()
+    )
+    assert len(linked) == 2
+
+    # A second exchange reuses the same permanent thread.
+    await persist_chat(
+        db_session=async_session,
+        user=test_user,
+        dweller=chat_dweller,
+        message_text="Again",
+        bundle=bundle,
+        conversation=conversation,
+    )
+    await async_session.commit()
+    await async_session.refresh(conversation)
+    assert conversation.message_count == 4
+    assert (await async_session.execute(select(func.count()).select_from(Conversation))).scalar_one() == 1
+    assert (
+        await async_session.execute(
+            select(func.count()).select_from(ChatMessage).where(ChatMessage.conversation_id == conversation.id)
+        )
+    ).scalar_one() == 4

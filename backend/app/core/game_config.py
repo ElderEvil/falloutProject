@@ -1258,6 +1258,17 @@ class RushConfig(BaseSettings):
     difficulty_per_segment: int = Field(default=1, ge=0)
 
 
+class ChatConfig(BaseSettings):
+    """Conversation continuity, summary and memory bounds."""
+
+    history_messages: int = 12
+    history_token_budget: int = 1500
+    summary_max_chars: int = 900
+    memory_max_per_dweller: int = 20
+    memory_prompt_limit: int = 12
+    awareness_max_lines: int = 8
+
+
 class GameConfig(BaseSettings):
     """Master game configuration."""
 
@@ -1288,6 +1299,7 @@ class GameConfig(BaseSettings):
     storage: StorageConfig = Field(default_factory=StorageConfig)
     container: ContainerConfig = Field(default_factory=ContainerConfig)
     rush: RushConfig = Field(default_factory=RushConfig)
+    chat: ChatConfig = Field(default_factory=ChatConfig)
 
 
 game_config = GameConfig()

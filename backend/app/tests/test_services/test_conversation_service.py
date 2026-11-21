@@ -1,5 +1,6 @@
 """Tests for conversation service (audio chat)."""
 
+from contextlib import asynccontextmanager
 from unittest.mock import AsyncMock, MagicMock, PropertyMock, patch
 from uuid import uuid4
 
@@ -73,6 +74,45 @@ class TestAudioChatProvenance:
         assert saved_interaction.instructions_snapshot == "Respond in character."
 
 
+async def test_voice_exchange_advances_the_thread() -> None:
+    """A voice turn must move the thread's clock, or the gap line measures from the last typed message."""
+    payload = VoiceMessagePayload(
+        transcribed_text="Status report?",
+        user_audio_url=None,
+        audio_duration=None,
+        dweller_response_text="All clear.",
+        dweller_audio_url=None,
+    )
+    user = MagicMock(id=uuid4())
+    dweller = MagicMock(id=uuid4(), vault=MagicMock(id=uuid4()))
+    message = MagicMock(id=uuid4())
+    thread = MagicMock(id=uuid4(), message_count=6)
+    db = MagicMock()
+
+    @asynccontextmanager
+    async def savepoint():
+        yield
+
+    db.begin_nested = savepoint
+
+    with (
+        patch(
+            "app.services.conversation_service.llm_interaction_crud.create",
+            new=AsyncMock(return_value=MagicMock(id=uuid4())),
+        ),
+        patch(
+            "app.services.conversation_service.chat_message_crud.create_message",
+            new=AsyncMock(return_value=message),
+        ),
+        patch("app.services.chat.continuation.conversation_crud.touch", new=AsyncMock()) as touch,
+    ):
+        await conversation_service._save_messages_to_db(db, user, dweller, payload, conversation=thread)
+
+    touch.assert_awaited_once()
+    assert touch.await_args.kwargs["message_count"] == 8
+    assert touch.await_args.kwargs["at"] is message.created_at
+
+
 # Note: Integration tests for audio processing are omitted as they require complex mocking
 # of external services (OpenAI API, storage). The unit tests above (voice selection and
 # prompt building) cover the core logic of the conversation service.
@@ -139,7 +179,12 @@ async def test_voice_generation_uses_shared_audio_agent_runner() -> None:
         result = await conversation_service._generate_response_with_agent(db_session, dweller, "Status?", "Chat")
 
     assert result is generated
-    runner.assert_awaited_once_with(db_session, dweller, "Status?", "Chat", for_audio=True)
+    args, kwargs = runner.await_args
+    assert args == (db_session, dweller, "Status?", "Chat")
+    assert kwargs["for_audio"] is True
+    # Continuation threads through the shared runner; this direct call passes no state.
+    assert "conversation" in kwargs
+    assert kwargs["conversation"] is None
 
 
 async def test_audio_helpers_do_not_log_transcript_or_gender(caplog, monkeypatch):

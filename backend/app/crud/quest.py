@@ -4,7 +4,7 @@ from typing import Any
 from uuid import UUID
 
 from sqlalchemy.orm import selectinload
-from sqlmodel import and_, func, or_, select
+from sqlmodel import func, or_, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.enums import QuestType, RequirementType
@@ -464,21 +464,11 @@ class CRUDQuest(
         # Vault-first lock order; the scheduler-pool eligibility rule lives in QuestService.
         await db_session.execute(select(Vault).where(Vault.id == vault_id).with_for_update())
 
-        existing_link_query = select(self.link_model).where(
-            and_(self.link_model.vault_id == vault_id, self.link_model.quest_id == quest_id)
-        )
-        result = await db_session.execute(existing_link_query)
-        existing_link = result.scalar_one_or_none()
-
-        if existing_link:
-            existing_link.is_visible = is_visible
-            if commit:
-                await db_session.commit()
-                await db_session.refresh(existing_link)
-            return existing_link
-
-        link = self.link_model(vault_id=vault_id, quest_id=quest_id, is_visible=is_visible, is_completed=False)
-        db_session.add(link)
+        link = await self.get_link(db_session, quest_id=quest_id, vault_id=vault_id)
+        if link is None:
+            link = self.link_model(vault_id=vault_id, quest_id=quest_id)
+            db_session.add(link)
+        link.is_visible = is_visible
         if commit:
             await db_session.commit()
             await db_session.refresh(link)

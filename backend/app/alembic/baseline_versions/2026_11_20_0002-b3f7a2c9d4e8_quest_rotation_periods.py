@@ -11,7 +11,7 @@ import sqlalchemy as sa
 from alembic import op
 
 revision: str = "b3f7a2c9d4e8"
-down_revision: str | None = "9a73f29c2ed1"
+down_revision: str | None = "a80944c56929"  # The chat-continuity migration landed first on master.
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

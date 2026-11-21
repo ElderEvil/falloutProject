@@ -348,12 +348,17 @@ async def _refresh_objectives() -> dict:
     async with task_session() as session:
         vault_ids = await vault_crud.get_non_deleted_ids(session)
         refreshed_count = 0
+        failed: list[str] = []
         for vault_id in vault_ids:
             try:
                 refreshed_count += len(await ensure_current_objectives(session, vault_id))
             except Exception:
                 await recover_session(session)
                 logger.exception("Objective refresh failed for vault %s", vault_id)
+                failed.append(str(vault_id))
+        if failed:
+            # Retryable: the period stamps make re-refreshing already-current vaults a no-op.
+            raise RuntimeError(f"Objective refresh failed for vaults: {', '.join(failed)}")
         return {"vaults_processed": len(vault_ids), "categories_refreshed": refreshed_count}
 
 

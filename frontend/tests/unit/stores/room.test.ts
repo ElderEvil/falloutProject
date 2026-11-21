@@ -429,10 +429,17 @@ describe('Room Store', () => {
         coordinate_x: 0,
         size: 6,
       })
-      vi.mocked(axios.post).mockResolvedValueOnce({ data: survivor })
+      let resolveBuild!: (value: unknown) => void
+      vi.mocked(axios.post).mockReturnValueOnce(
+        new Promise((resolve) => {
+          resolveBuild = resolve
+        }) as never
+      )
 
       const building = store.buildRoom('Water Treatment', 0, 0, 'vault-1')
+      await vi.waitFor(() => expect(vi.mocked(axios.post)).toHaveBeenCalled())
       useVaultStore().activeVaultId = 'vault-2'
+      resolveBuild({ data: survivor })
       await building
 
       expect(vi.mocked(axios.get)).not.toHaveBeenCalled()

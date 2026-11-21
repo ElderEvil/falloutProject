@@ -201,6 +201,27 @@ describe('ExplorationView', () => {
     expect(refreshSpy).toHaveBeenCalledWith('vault-123', { includeParties: true })
   })
 
+  it('stops loading when vault adoption fails', async () => {
+    vi.mocked(useVaultStore().ensureVaultLoaded).mockRejectedValueOnce(
+      new Error('Vault unavailable')
+    )
+
+    wrapper = mount(ExplorationView, {
+      global: {
+        stubs: {
+          SidePanel: true,
+          QuestPartyCard: true,
+          ExplorationRewardsModal: true,
+        },
+      },
+    })
+    await flushPromises()
+
+    expect(dwellerStore.fetchDwellersByVault).not.toHaveBeenCalled()
+    expect(questStore.fetchVaultQuests).not.toHaveBeenCalled()
+    expect(questStore.fetchPartiesForActiveQuests).not.toHaveBeenCalled()
+  })
+
   it('refreshes the list with a silent poll and keeps the quest refreshes', async () => {
     wrapper = mount(ExplorationView, {
       global: {

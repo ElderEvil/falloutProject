@@ -172,7 +172,7 @@ const loadData = async () => {
     })
     if (stale()) return
     // The roster read is vault-guarded, so adopt this vault before loading it.
-    await vaultStore.ensureVaultLoaded(id).catch(() => undefined)
+    await vaultStore.ensureVaultLoaded(id)
     if (stale()) return
     await dwellerStore.fetchDwellersByVault(id)
     if (stale()) return

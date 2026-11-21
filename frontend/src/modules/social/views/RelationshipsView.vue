@@ -98,8 +98,9 @@ onMounted(async () => {
   if (vaultId.value && authStore.token) {
     // The roster read is vault-guarded, so adopt this vault before loading.
     const id = vaultId.value
+    const session = authStore.sessionGeneration
     await vaultStore.ensureVaultLoaded(id).catch(() => undefined)
-    if (vaultId.value !== id) return
+    if (vaultId.value !== id || session !== authStore.sessionGeneration) return
     await Promise.all([
       relationshipStore.fetchVaultRelationships(id),
       pregnancyStore.fetchVaultPregnancies(id),

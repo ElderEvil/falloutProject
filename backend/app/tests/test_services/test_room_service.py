@@ -955,6 +955,25 @@ async def test_maxed_adjacent_studio_does_not_block_a_growable_one(async_session
 
 
 @pytest.mark.asyncio
+async def test_higher_touching_tier_wins_over_a_mergeable_lower_tier(async_session: AsyncSession, rich_vault: Vault):
+    """A placement touching tier-2 and tier-1 studios adopts the higher tier even though tier 1 merges."""
+    upgraded = await _create_radio_studio(async_session, rich_vault.id, coordinate_x=1, tier=2)
+    await _create_radio_studio(async_session, rich_vault.id, coordinate_x=7)
+    starting_caps = rich_vault.bottle_caps
+
+    grown, _ = await room_service._build(
+        db_session=async_session,
+        obj_in=_make_radio_create(rich_vault.id, coordinate_x=4),
+    )
+
+    assert grown.id == upgraded.id
+    assert grown.tier == 2
+    assert grown.size == 6
+    await async_session.refresh(rich_vault)
+    assert rich_vault.bottle_caps == starting_caps - 2400
+
+
+@pytest.mark.asyncio
 async def test_split_radio_studio_rejected_by_remodel_service(async_session: AsyncSession, rich_vault: Vault):
     """Splitting a Radio studio would create a second one, so the vault keeps it whole."""
     from app.services.room_remodel_service import remodel_room

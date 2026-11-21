@@ -435,6 +435,7 @@ const fetchDwellers = async (signal?: AbortSignal) => {
  */
 async function loadVaultOverview(): Promise<void> {
   const id = vaultId.value
+  const session = authStore.sessionGeneration
   if (!authStore.isAuthenticated || !id) return
 
   vaultLoadError.value = null
@@ -445,7 +446,12 @@ async function loadVaultOverview(): Promise<void> {
     await vaultStore.ensureVaultLoaded(id).catch((error: unknown) => {
       vaultLoadError.value = error instanceof Error ? error.message : 'Failed to load vault'
     })
-    if (vaultLoadError.value !== null || vaultId.value !== id) return
+    if (
+      vaultLoadError.value !== null ||
+      vaultId.value !== id ||
+      authStore.sessionGeneration !== session
+    )
+      return
     await Promise.all([
       fetchDwellers(),
       dwellerStore.fetchAllDwellers(id),

@@ -26,10 +26,11 @@ describe('useDwellerManagementStore', () => {
     vi.clearAllMocks()
   })
 
-  it('renames both names and updates both cached representations', async () => {
+  it('renames both names and updates every cached roster representation', async () => {
     const filter = useDwellerFilterStore()
     const management = useDwellerManagementStore()
     filter.dwellers = [{ id: 'd1', first_name: 'John', last_name: 'Doe' }] as never
+    filter.allDwellers = [{ id: 'd1', first_name: 'John', last_name: 'Doe' }] as never
     filter.detailedDwellers.d1 = filter.dwellers[0] as never
     vi.mocked(axios.patch).mockResolvedValue({
       data: { id: 'd1', first_name: 'Jane', last_name: 'Smith' },
@@ -40,6 +41,7 @@ describe('useDwellerManagementStore', () => {
       last_name: 'Smith',
     })
     expect(filter.dwellers[0]).toMatchObject({ first_name: 'Jane', last_name: 'Smith' })
+    expect(filter.allDwellers[0]).toMatchObject({ first_name: 'Jane', last_name: 'Smith' })
     expect(filter.detailedDwellers.d1).toMatchObject({ first_name: 'Jane', last_name: 'Smith' })
   })
 

@@ -755,7 +755,9 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
       void fetchWithCurrentFilters(vaultId)
     }
     if (rosterLoaded && hasNewDweller) {
-      void fetchAllDwellers(vaultId, false, true)
+      // Share a pending roster refresh instead of forcing one per tick; the next tick retries if
+      // that response predates the new dweller. Mutation refreshes stay forced.
+      void fetchAllDwellers(vaultId)
     }
   }
 

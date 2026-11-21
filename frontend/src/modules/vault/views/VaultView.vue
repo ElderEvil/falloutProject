@@ -124,7 +124,15 @@ usePresenceHeartbeat(
   () => authStore.token
 )
 
+// A routing or session change supersedes whichever load is in flight; only the latest may write state.
+let latestLoadToken = 0
+
 const loadVaultData = async (id: string) => {
+  const loadToken = ++latestLoadToken
+  const session = authStore.sessionGeneration
+  const stale = () =>
+    loadToken !== latestLoadToken || id !== vaultId.value || session !== authStore.sessionGeneration
+
   if (!id) {
     errorMessage.value = 'No vault ID provided in URL'
     isLoading.value = false
@@ -143,6 +151,7 @@ const loadVaultData = async (id: string) => {
 
     // Revalidate on overview entry; the shell's header load shares this request.
     await Promise.all([vaultStore.fetchVaults(), vaultStore.revalidateVault(id)])
+    if (stale()) return
 
     // Verify vault was loaded
     if (!vaultStore.loadedVaults[id]) {
@@ -151,17 +160,21 @@ const loadVaultData = async (id: string) => {
 
     // Fetch rooms for this vault
     await roomStore.fetchRooms(id)
+    if (stale()) return
 
     // The unfiltered roster feeds room tiles.
     await Promise.all([dwellerStore.fetchDwellersByVault(id), dwellerStore.fetchAllDwellers(id)])
+    if (stale()) return
 
     // Fetch explorations for this vault
     try {
       await explorationStore.fetchExplorationsByVault(id)
     } catch (error) {
+      if (stale()) return
       toast.warning('Vault loaded, but explorations could not be loaded')
       // Don't fail the whole page load if explorations fail
     }
+    if (stale()) return
 
     // Fetch game state (the shared vault action owns the tick stream)
     try {
@@ -169,12 +182,14 @@ const loadVaultData = async (id: string) => {
     } catch (error) {
       // Game state not available, continuing without it
     }
+    if (stale()) return
 
     // Start incident polling
     incidentStore.startPolling(id, authStore.token)
 
     isLoading.value = false
   } catch (error) {
+    if (stale()) return
     notifyErrorOnce(error, 'Failed to load vault')
     errorMessage.value = error instanceof Error ? error.message : 'Failed to load vault data'
     isLoading.value = false

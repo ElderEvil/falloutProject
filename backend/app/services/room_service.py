@@ -495,9 +495,11 @@ class RoomService:
 
         price = await crud.room.get_room_build_price(db_session=db_session, room_in=obj_in)
         merge_preview = await self.merge_adjacent_rooms(db_session=db_session, candidate=obj_in, dry_run=True)
-        if not merge_preview.merged and obj_in.name == room_rules.RADIO_STUDIO:
+        if obj_in.name == room_rules.RADIO_STUDIO:
             # Adopt a touching studio's tier only when the re-run preview proves the merge succeeds;
             # try touching tiers from the highest down so a maxed studio cannot block a growable one.
+            # Evaluate these even when the initial preview merges: a lower-tier neighbour must not win
+            # over a higher-tier one that also touches the placement.
             adjacent_tiers = await crud.room.get_adjacent_room_tiers(
                 db_session=db_session,
                 vault_id=vault.id,

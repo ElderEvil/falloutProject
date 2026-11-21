@@ -1504,6 +1504,44 @@ describe('DwellerFilter Store', () => {
       expect(store.detailedDwellers.new).toBeUndefined()
     })
 
+    it('shares one pending roster refresh across ticks that add ids', async () => {
+      useVaultStore().activeVaultId = 'vault-1'
+      let resolveRoster!: (value: unknown) => void
+      vi.mocked(axios.get).mockImplementation(((url: string) =>
+        String(url).includes('limit=1000')
+          ? new Promise((resolve) => {
+              resolveRoster = resolve
+            })
+          : Promise.resolve({ data: [] })) as never)
+      const store = useDwellerFilterStore()
+      store.dwellers = [{ id: 'd1' }] as never
+      store.allDwellers = [{ id: 'd1' }] as never
+      store.allDwellersLoadedVaultId = 'vault-1'
+
+      store.applyDwellerTick(
+        'vault-1',
+        [tickSnapshot({ id: 'd1' }), tickSnapshot({ id: 'new' })],
+        'token'
+      )
+      const rosterCalls = () =>
+        vi
+          .mocked(axios.get)
+          .mock.calls.filter(([url]) => String(url).includes('limit=1000'))
+      await vi.waitFor(() => expect(rosterCalls()).toHaveLength(1))
+
+      store.applyDwellerTick(
+        'vault-1',
+        [tickSnapshot({ id: 'd1' }), tickSnapshot({ id: 'new' })],
+        'token'
+      )
+      expect(rosterCalls()).toHaveLength(1)
+
+      resolveRoster({ data: [{ id: 'd1' }, { id: 'new' }] })
+      await vi.waitFor(() =>
+        expect(store.allDwellers.map((d) => d.id)).toEqual(['d1', 'new'])
+      )
+    })
+
     it('reapplies a tick that lands during an ordinary filtered fetch', async () => {
       useVaultStore().activeVaultId = 'vault-1'
       let resolvePage!: (value: unknown) => void

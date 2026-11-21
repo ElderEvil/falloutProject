@@ -341,6 +341,7 @@ async function loadVault(id: string): Promise<void> {
   await vaultStore.ensureVaultLoaded(id).catch(() => undefined)
   if (id !== vaultId.value || session !== authStore.sessionGeneration) return
   await roomStore.fetchRooms(id)
+  if (id !== vaultId.value || session !== authStore.sessionGeneration) return
   await dwellerStore.fetchDwellersByVault(id)
   // A switch may have superseded this load while it was paused on the earlier steps.
   if (id !== vaultId.value || session !== authStore.sessionGeneration) return

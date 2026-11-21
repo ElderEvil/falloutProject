@@ -117,6 +117,33 @@ describe('RelationshipsView', () => {
       wrapper.unmount()
     })
 
+    it('skips family reads when the session changes during vault adoption', async () => {
+      let resolveVault!: () => void
+      vi.spyOn(useVaultStore(), 'ensureVaultLoaded').mockImplementation(
+        () =>
+          new Promise<void>((resolve) => {
+            resolveVault = resolve
+          })
+      )
+
+      const wrapper = mount(RelationshipsView, {
+        global: {
+          plugins: [router],
+        },
+      })
+      await flushPromises()
+      expect(relationshipStore.fetchVaultRelationships).not.toHaveBeenCalled()
+
+      authStore.sessionGeneration++
+      resolveVault()
+      await flushPromises()
+
+      expect(relationshipStore.fetchVaultRelationships).not.toHaveBeenCalled()
+      expect(pregnancyStore.fetchVaultPregnancies).not.toHaveBeenCalled()
+      expect(dwellerStore.fetchAllDwellers).not.toHaveBeenCalled()
+      wrapper.unmount()
+    })
+
     it('should render relationships view with header', async () => {
       const wrapper = mount(RelationshipsView, {
         global: {

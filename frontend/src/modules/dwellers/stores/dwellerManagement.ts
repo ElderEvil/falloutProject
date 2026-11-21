@@ -286,6 +286,16 @@ export const useDwellerManagementStore = defineStore('dwellerManagement', () => 
         }
       }
 
+      // Room tiles and assignment counts read the shared roster, so keep its names fresh too.
+      const rosterIndex = filterStore.allDwellers.findIndex((d) => d.id === dwellerId)
+      if (rosterIndex !== -1 && filterStore.allDwellers[rosterIndex]) {
+        filterStore.allDwellers[rosterIndex] = {
+          ...filterStore.allDwellers[rosterIndex]!,
+          first_name: data.first_name,
+          last_name: data.last_name ?? null,
+        }
+      }
+
       // Trigger Gary easter egg if renamed to "Gary" (case-insensitive)
       if (firstName.toLowerCase() === 'gary') {
         const { triggerGaryMode } = useGaryMode()

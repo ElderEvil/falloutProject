@@ -28,8 +28,8 @@ depends_on: str | Sequence[str] | None = None
 def upgrade() -> None:
     op.create_table(
         "worldevent",
-        sa.Column("created_at", sa.DateTime(), nullable=True),
-        sa.Column("updated_at", sa.DateTime(), nullable=True),
+        sa.Column("created_at", sa.DateTime(timezone=True), nullable=True),
+        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("id", sa.Uuid(), nullable=False),
         sa.Column("kind", sqlmodel.sql.sqltypes.AutoString(length=50), nullable=False),
         sa.Column("title", sqlmodel.sql.sqltypes.AutoString(length=120), nullable=False),
@@ -38,14 +38,14 @@ def upgrade() -> None:
         sa.Column("progress_amount", sa.Integer(), nullable=False),
         sa.Column("personal_min", sa.Integer(), nullable=False),
         sa.Column("reward", postgresql.JSONB(astext_type=sa.Text()), nullable=False),
-        sa.Column("starts_at", sa.DateTime(), nullable=False),
-        sa.Column("ends_at", sa.DateTime(), nullable=False),
+        sa.Column("starts_at", sa.DateTime(timezone=True), nullable=False),
+        sa.Column("ends_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column(
             "status",
             sa.Enum("SCHEDULED", "ACTIVE", "COMPLETED", "EXPIRED", name="worldeventstatus"),
             nullable=False,
         ),
-        sa.Column("extended_at", sa.DateTime(), nullable=True),
+        sa.Column("extended_at", sa.DateTime(timezone=True), nullable=True),
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index(op.f("ix_worldevent_id"), "worldevent", ["id"], unique=False)
@@ -61,13 +61,13 @@ def upgrade() -> None:
 
     op.create_table(
         "worldeventparticipation",
-        sa.Column("created_at", sa.DateTime(), nullable=True),
-        sa.Column("updated_at", sa.DateTime(), nullable=True),
+        sa.Column("created_at", sa.DateTime(timezone=True), nullable=True),
+        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("id", sa.Uuid(), nullable=False),
         sa.Column("world_event_id", sa.Uuid(), nullable=False),
         sa.Column("vault_id", sa.Uuid(), nullable=False),
         sa.Column("contribution", sa.Integer(), nullable=False),
-        sa.Column("reward_claimed_at", sa.DateTime(), nullable=True),
+        sa.Column("reward_claimed_at", sa.DateTime(timezone=True), nullable=True),
         sa.ForeignKeyConstraint(["vault_id"], ["vault.id"], ondelete="CASCADE"),
         sa.ForeignKeyConstraint(["world_event_id"], ["worldevent.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),

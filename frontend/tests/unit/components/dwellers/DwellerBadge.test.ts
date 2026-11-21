@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vite-plus/test'
 import { createIconifyMock } from '../../helpers/mocks'
 import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
-import { useFeatureFlagsStore } from '@/modules/dwellers/stores/featureFlags'
+import { useFeatureFlagsStore } from '@/core/stores/featureFlags'
 import DwellerBadge from '@/modules/dwellers/components/DwellerBadge.vue'
 import DwellerIdentitySignal from '@/modules/dwellers/components/DwellerIdentitySignal.vue'
 

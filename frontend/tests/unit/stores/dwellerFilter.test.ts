@@ -17,7 +17,7 @@ import {
   useDwellerFilterStore,
   ALL_DWELLERS_FETCH_LIMIT,
 } from '@/modules/dwellers/stores/dwellerFilter'
-import { useFeatureFlagsStore } from '@/modules/dwellers/stores/featureFlags'
+import { useFeatureFlagsStore } from '@/core/stores/featureFlags'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useRoomStore } from '@/modules/rooms/stores/room'

@@ -17,7 +17,7 @@ vi.mock('@/core/plugins/axios')
 
 // SidePanel requests feature flags on mount; unstubbed, that call would consume the
 // `mockRejectedValueOnce` queued for the profile fetch.
-vi.mock('@/modules/dwellers/stores/featureFlags', () => ({
+vi.mock('@/core/stores/featureFlags', () => ({
   useFeatureFlagsStore: () => ({ worldEvents: false, loaded: true, fetchFlags: vi.fn() }),
 }))
 

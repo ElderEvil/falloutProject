@@ -12,6 +12,7 @@ from app.core.enums import RoomTypeEnum
 from app.models.vault import Vault
 from app.schemas.room import RoomCreate
 from app.services.vault_layout_backfill_service import vault_layout_backfill_service
+from app.utils.room_rules import is_elevator
 
 FIXED_ROOMS = {"Vault Door", "Elevator"}
 
@@ -96,3 +97,20 @@ async def test_relayout_dry_run_does_not_move_the_door(async_session: AsyncSessi
     await async_session.refresh(door)
     assert (door.coordinate_x, door.coordinate_y) == (3, 2)
     assert summary["moved"] >= 1
+
+
+@pytest.mark.asyncio
+async def test_relayout_apply_creates_the_elevator_through_the_room_schema(async_session: AsyncSession, vault: Vault):
+    """An apply run builds the missing shaft elevator from the catalog template."""
+    for name, x, y, size in (("Vault Door", 0, 0, 6), ("Elevator", 6, 0, 1), ("Diner", 0, 1, 3)):
+        await crud.room.create(
+            async_session, obj_in=_room_payload(vault.id, name=name, coordinate_x=x, coordinate_y=y, size=size)
+        )
+
+    summary = await vault_layout_backfill_service.relayout(async_session, vault.id, dry_run=False)
+
+    assert summary["elevators_to_add"] == 1
+    rooms = await crud.room.get_all_by_vault(async_session, vault.id)
+    assert (6, 1) in {(room.coordinate_x, room.coordinate_y) for room in rooms if is_elevator(room.name)}
+    diner = next(room for room in rooms if room.name == "Diner")
+    assert (diner.coordinate_x, diner.coordinate_y) == (3, 1)

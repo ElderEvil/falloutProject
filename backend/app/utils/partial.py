@@ -4,7 +4,7 @@
 
 from collections.abc import Callable
 from copy import deepcopy
-from typing import Any, TypeVar
+from typing import Any, TypeVar, cast
 
 from pydantic import BaseModel, create_model
 from pydantic.fields import FieldInfo
@@ -18,31 +18,23 @@ def optional(without_fields: list[str] | None = None) -> Callable[[Model], Model
     params: without_fields: list[str] | None: List of fields to exclude from the model.
     return: type[BaseModel]: ModelBase partial model.
     """
-    if without_fields is None:
-        without_fields = []
+    excluded = without_fields or []
 
-    def wrapper(model: type[Model]) -> type[Model]:
-        base_model: type[Model] = model
-
+    def wrapper(model: Model) -> Model:
         def make_field_optional(field: FieldInfo, default: Any = None) -> tuple[Any, FieldInfo]:
             new = deepcopy(field)
             new.default = default
             new.default_factory = None  # Pydantic rejects a factory alongside a None default.
-            new.annotation = field.annotation | None
+            new.annotation = cast("Any", field.annotation) | None
             return new.annotation, new
 
-        if without_fields:
-            base_model = BaseModel
-
-        return create_model(
-            model.__name__,
-            __base__=base_model,
-            __module__=model.__module__,
-            **{
-                field_name: make_field_optional(field_info)
-                for field_name, field_info in model.model_fields.items()
-                if field_name not in without_fields
-            },
+        field_definitions: dict[str, Any] = {
+            name: make_field_optional(info) for name, info in model.model_fields.items() if name not in excluded
+        }
+        base: type[BaseModel] = BaseModel if excluded else model
+        return cast(
+            "Model",
+            create_model(model.__name__, __base__=base, __module__=model.__module__, **field_definitions),
         )
 
     return wrapper

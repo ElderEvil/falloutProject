@@ -24,27 +24,27 @@ class CustomJsonFormatter(jsonlogger.JsonFormatter):
 
     def add_fields(
         self,
-        log_record: dict[str, Any],
+        log_data: dict[str, Any],
         record: logging.LogRecord,
         message_dict: dict[str, Any],
     ) -> None:
-        super().add_fields(log_record, record, message_dict)
+        super().add_fields(log_data, record, message_dict)
 
         # Add standard fields
-        log_record["timestamp"] = self.formatTime(record, self.datefmt)
-        log_record["level"] = record.levelname
-        log_record["logger"] = record.name
-        log_record["module"] = record.module
-        log_record["function"] = record.funcName
+        log_data["timestamp"] = self.formatTime(record, self.datefmt)
+        log_data["level"] = record.levelname
+        log_data["logger"] = record.name
+        log_data["module"] = record.module
+        log_data["function"] = record.funcName
 
         # Add request ID if available
         request_id = getattr(record, "request_id", None)
         if request_id:
-            log_record["request_id"] = request_id
+            log_data["request_id"] = request_id
 
         # Add exception info if present
         if record.exc_info:
-            log_record["exception"] = self.formatException(record.exc_info)
+            log_data["exception"] = self.formatException(record.exc_info)
 
 
 def setup_logging(

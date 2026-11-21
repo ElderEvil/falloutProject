@@ -20,7 +20,7 @@ from app.utils.seed_quests import seed_quests_from_json
 from app.utils.static_data import game_data_store
 
 _LEVEL_GATE_RE = re.compile(r"level\s+(\d+)", re.IGNORECASE)
-_PREDECESSOR_RE = re.compile(r"complete\s+['\"]?([^'\"]+?)['\"]?\s+quest", re.IGNORECASE)
+_PREDECESSOR_RE = re.compile(r"complete\s+['\"](.+?)['\"]\s+quest", re.IGNORECASE)
 
 
 @pytest.mark.parametrize("file_format", ["single", "list", "chain"])

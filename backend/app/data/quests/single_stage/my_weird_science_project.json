@@ -1,0 +1,79 @@
+{
+  "quest_name": "My Weird Science Project",
+  "long_description": "What better way to learn about the deadly Glowing Radscorpion than first-hand observation? Send your research team to the monster's lair. Of course, you'll need to kill it first.",
+  "short_description": "Kill the Glowing Radscorpion in the name of science!",
+  "requirements": [
+    "Level 38 dwellers",
+    "Lab coat",
+    "7 Intelligence"
+  ],
+  "quest_objective": "Eliminate the Glowing Radscorpion.",
+  "quest_type": "side",
+  "quest_category": "combat",
+  "duration_minutes": 60,
+  "quest_requirements": [
+    {
+      "requirement_type": "level",
+      "requirement_data": {
+        "level": 38
+      },
+      "is_mandatory": true
+    },
+    {
+      "requirement_type": "item",
+      "requirement_data": {
+        "item_name": "Lab coat"
+      },
+      "is_mandatory": true
+    },
+    {
+      "requirement_type": "stat",
+      "requirement_data": {
+        "stat": "intelligence",
+        "value": 7
+      },
+      "is_mandatory": true
+    }
+  ],
+  "quest_rewards": [
+    {
+      "reward_type": "ITEM",
+      "reward_data": {
+        "item_name": "Nuka-Cola Quantum",
+        "quantity": 2
+      },
+      "reward_chance": 1.0,
+      "item_data": {
+        "name": "Nuka-Cola Quantum",
+        "item_type": "consumable",
+        "rarity": "common"
+      }
+    },
+    {
+      "reward_type": "ITEM",
+      "reward_data": {
+        "item_name": "Legendary junk",
+        "quantity": 1
+      },
+      "reward_chance": 1.0,
+      "item_data": {
+        "name": "Legendary junk",
+        "item_type": "junk",
+        "rarity": "legendary"
+      }
+    },
+    {
+      "reward_type": "ITEM",
+      "reward_data": {
+        "item_name": "Plasma rifle",
+        "quantity": 1
+      },
+      "reward_chance": 1.0,
+      "item_data": {
+        "name": "Plasma rifle",
+        "item_type": "weapon",
+        "rarity": "legendary"
+      }
+    }
+  ]
+}

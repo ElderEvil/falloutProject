@@ -1,0 +1,64 @@
+{
+  "quest_name": "Vault 789",
+  "long_description": "While out exploring, one of your Dwellers found an old advertisement for Vault 789. Time to check it out!",
+  "short_description": "Time to check out Vault 789!",
+  "requirements": [
+    "Level 20 dwellers",
+    "9+ DAM weapons"
+  ],
+  "quest_objective": "Explore Vault 789.",
+  "quest_type": "side",
+  "quest_category": "exploration",
+  "duration_minutes": 60,
+  "quest_requirements": [
+    {
+      "requirement_type": "level",
+      "requirement_data": {
+        "level": 20
+      },
+      "is_mandatory": true
+    },
+    {
+      "requirement_type": "attack",
+      "requirement_data": {
+        "attack": 9
+      },
+      "is_mandatory": true
+    }
+  ],
+  "quest_rewards": [
+    {
+      "reward_type": "ITEM",
+      "reward_data": {
+        "item_name": "Pet Carrier",
+        "quantity": 1
+      },
+      "reward_chance": 1.0,
+      "item_data": {
+        "name": "Pet Carrier",
+        "item_type": "pet_carrier",
+        "rarity": "common"
+      }
+    },
+    {
+      "reward_type": "LUNCHBOX",
+      "reward_data": {
+        "amount": 1
+      },
+      "reward_chance": 1.0
+    },
+    {
+      "reward_type": "ITEM",
+      "reward_data": {
+        "item_name": "T-45a power armor",
+        "quantity": 1
+      },
+      "reward_chance": 1.0,
+      "item_data": {
+        "name": "T-45a power armor",
+        "item_type": "outfit",
+        "rarity": "legendary"
+      }
+    }
+  ]
+}

@@ -1,0 +1,277 @@
+{
+  "title": "The Wizard of Water",
+  "chain_id": "wizard_of_water",
+  "chain_name": "The Wizard of Water",
+  "chain_description": "A miracle water is sweeping the Wasteland, curing ills and boosting crops. Follow the trail of empty bottles to the man selling it.",
+  "quests": [
+    {
+      "quest_name": "Fons Vivus",
+      "long_description": "People are talking about a new kind of water that has healing properties, makes you stronger and brings good fortune. Adventure! Action! Refreshing Beverages! We can drink to that!",
+      "short_description": "Learn more about the magical water people are talking about.",
+      "requirements": [
+        "Level 18 dwellers",
+        "8+ average equipped weapon damage"
+      ],
+      "quest_objective": "Talk to settlers who've tried the magical new water.",
+      "quest_type": "side",
+      "quest_category": "exploration",
+      "chain_order": 1,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {"requirement_type": "level", "requirement_data": {"level": 18}, "is_mandatory": true},
+        {"requirement_type": "attack", "requirement_data": {"attack": 8}, "is_mandatory": true}
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "CAPS",
+          "reward_data": {"amount": 2000},
+          "reward_chance": 1.0
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {"item_name": "Rare junk", "quantity": 1},
+          "reward_chance": 1.0,
+          "item_data": {"name": "Rare junk", "item_type": "junk", "rarity": "rare"}
+        }
+      ]
+    },
+    {
+      "quest_name": "Our Cups Runneth Over... WITH FAILURE",
+      "long_description": "Can it be true? Has someone figured out a way to create water so powerful it can heal any ill, boost any crop, and fix any door? The people at Vault 315 should know more!",
+      "short_description": "Visit Vault 315 to gather information on the magical water.",
+      "requirements": [
+        "Level 20 dwellers",
+        "9+ average equipped weapon damage",
+        "Complete \"Fons Vivus\" quest"
+      ],
+      "quest_objective": "Get more info on the so-called magical water.",
+      "quest_type": "side",
+      "quest_category": "exploration",
+      "chain_order": 2,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {"requirement_type": "level", "requirement_data": {"level": 20}, "is_mandatory": true},
+        {"requirement_type": "attack", "requirement_data": {"attack": 9}, "is_mandatory": true},
+        {"requirement_type": "quest_completed", "requirement_data": {"quest_name": "Fons Vivus"}, "is_mandatory": true}
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "ITEM",
+          "reward_data": {"item_name": "Nuka-Cola Quantum", "quantity": 3},
+          "reward_chance": 1.0,
+          "item_data": {"name": "Nuka-Cola Quantum", "item_type": "consumable", "rarity": "rare"}
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {"item_name": "Plasma rifle", "quantity": 1},
+          "reward_chance": 1.0,
+          "item_data": {"name": "Plasma rifle", "item_type": "weapon", "rarity": "legendary"}
+        }
+      ]
+    },
+    {
+      "quest_name": "Half Full, Half Empty",
+      "long_description": "Apparently there's more to this story than meets the taste buds. This refreshing miracle beverage isn't so miraculous or refreshing after all, and the folks at the old RobCo plant just may know the truth...",
+      "short_description": "Find more info about the magical water at the old RobCo plant.",
+      "requirements": [
+        "Level 22 dwellers",
+        "9+ average equipped weapon damage",
+        "Complete \"Our Cups Runneth Over... WITH FAILURE\" quest"
+      ],
+      "quest_objective": "Meet the people at the old RobCo plant.",
+      "quest_type": "side",
+      "quest_category": "exploration",
+      "chain_order": 3,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {"requirement_type": "level", "requirement_data": {"level": 22}, "is_mandatory": true},
+        {"requirement_type": "attack", "requirement_data": {"attack": 9}, "is_mandatory": true},
+        {"requirement_type": "quest_completed", "requirement_data": {"quest_name": "Our Cups Runneth Over... WITH FAILURE"}, "is_mandatory": true}
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "ITEM",
+          "reward_data": {"item_name": "Legendary junk", "quantity": 1},
+          "reward_chance": 1.0,
+          "item_data": {"name": "Legendary junk", "item_type": "junk", "rarity": "legendary"}
+        },
+        {
+          "reward_type": "CAPS",
+          "reward_data": {"amount": 2500},
+          "reward_chance": 1.0
+        }
+      ]
+    },
+    {
+      "quest_name": "Water into Brine",
+      "long_description": "Does the \"magical\" water really work or is it a total sham? We need to track down this Water Wizard and see if he's the real deal or a snake oil salesman.",
+      "short_description": "Talk to the folks at the Vault-Tec offices about the water.",
+      "requirements": [
+        "Level 24 dwellers",
+        "10+ average equipped weapon damage",
+        "Complete \"Half Full, Half Empty\" quest"
+      ],
+      "quest_objective": "Ask about the Wizard's water at the old Vault-Tec offices.",
+      "quest_type": "side",
+      "quest_category": "exploration",
+      "chain_order": 4,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {"requirement_type": "level", "requirement_data": {"level": 24}, "is_mandatory": true},
+        {"requirement_type": "attack", "requirement_data": {"attack": 10}, "is_mandatory": true},
+        {"requirement_type": "quest_completed", "requirement_data": {"quest_name": "Half Full, Half Empty"}, "is_mandatory": true}
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "ITEM",
+          "reward_data": {"item_name": "Nuka-Cola Quantum", "quantity": 2},
+          "reward_chance": 1.0,
+          "item_data": {"name": "Nuka-Cola Quantum", "item_type": "consumable", "rarity": "rare"}
+        },
+        {
+          "reward_type": "CAPS",
+          "reward_data": {"amount": 2750},
+          "reward_chance": 1.0
+        }
+      ]
+    },
+    {
+      "quest_name": "Aqua Nuka-Cola",
+      "long_description": "The only way we can get more information about the Water Wizard is to clear out this Raider camp. Should be a walk in the park!",
+      "short_description": "Clear out the Raider camp for the settlers in the Vault-Tec offices.",
+      "requirements": [
+        "Level 26 dwellers",
+        "11+ average equipped weapon damage",
+        "Complete \"Water into Brine\" quest"
+      ],
+      "quest_objective": "Clear out the Raider camp.",
+      "quest_type": "side",
+      "quest_category": "combat",
+      "chain_order": 5,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {"requirement_type": "level", "requirement_data": {"level": 26}, "is_mandatory": true},
+        {"requirement_type": "attack", "requirement_data": {"attack": 11}, "is_mandatory": true},
+        {"requirement_type": "quest_completed", "requirement_data": {"quest_name": "Water into Brine"}, "is_mandatory": true}
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "LUNCHBOX",
+          "reward_data": {"amount": 1},
+          "reward_chance": 1.0
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {"item_name": "Nuka-Cola Quantum", "quantity": 2},
+          "reward_chance": 1.0,
+          "item_data": {"name": "Nuka-Cola Quantum", "item_type": "consumable", "rarity": "rare"}
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {"item_name": "Legendary junk", "quantity": 1},
+          "reward_chance": 1.0,
+          "item_data": {"name": "Legendary junk", "item_type": "junk", "rarity": "legendary"}
+        }
+      ]
+    },
+    {
+      "quest_name": "Aqua-schema",
+      "long_description": "We did what the people at the Vault-Tec offices asked. Now it's time for some answers!",
+      "short_description": "Return to the Vault-Tec offices.",
+      "requirements": [
+        "Level 28 dwellers",
+        "12+ average equipped weapon damage",
+        "Complete \"Aqua Nuka-Cola\" quest"
+      ],
+      "quest_objective": "Return to the Vault-Tec offices.",
+      "quest_type": "side",
+      "quest_category": "exploration",
+      "chain_order": 6,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {"requirement_type": "level", "requirement_data": {"level": 28}, "is_mandatory": true},
+        {"requirement_type": "attack", "requirement_data": {"attack": 12}, "is_mandatory": true},
+        {"requirement_type": "quest_completed", "requirement_data": {"quest_name": "Aqua Nuka-Cola"}, "is_mandatory": true}
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "ITEM",
+          "reward_data": {"item_name": "Legendary junk", "quantity": 1},
+          "reward_chance": 1.0,
+          "item_data": {"name": "Legendary junk", "item_type": "junk", "rarity": "legendary"}
+        },
+        {
+          "reward_type": "CAPS",
+          "reward_data": {"amount": 3250},
+          "reward_chance": 1.0
+        }
+      ]
+    },
+    {
+      "quest_name": "The Reluctant Shill",
+      "long_description": "We're close to tracking down the Wizard! Apparently his assistant abandoned him and is holed up at a Super-Duper Mart. We'll beat the truth out of him if we have to!",
+      "short_description": "Track down the Wizard's assistant.",
+      "requirements": [
+        "Level 30 dwellers",
+        "13+ average equipped weapon damage",
+        "Complete \"Aqua-schema\" quest"
+      ],
+      "quest_objective": "Track down the Wizard's assistant.",
+      "quest_type": "side",
+      "quest_category": "combat",
+      "chain_order": 7,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {"requirement_type": "level", "requirement_data": {"level": 30}, "is_mandatory": true},
+        {"requirement_type": "attack", "requirement_data": {"attack": 13}, "is_mandatory": true},
+        {"requirement_type": "quest_completed", "requirement_data": {"quest_name": "Aqua-schema"}, "is_mandatory": true}
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "CAPS",
+          "reward_data": {"amount": 5000},
+          "reward_chance": 1.0
+        }
+      ]
+    },
+    {
+      "quest_name": "Snake Water",
+      "long_description": "We've finally pinned down the Wizard of Water. Time to confront him and stop him from selling any more of his glorified tap water. Maybe we can make some money on the side as well...",
+      "short_description": "Shut down the Water Wizard's operation.",
+      "requirements": [
+        "Level 32 dwellers",
+        "13+ average equipped weapon damage",
+        "Complete \"The Reluctant Shill\" quest"
+      ],
+      "quest_objective": "Shut down the Water Wizard's operation.",
+      "quest_type": "side",
+      "quest_category": "combat",
+      "chain_order": 8,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {"requirement_type": "level", "requirement_data": {"level": 32}, "is_mandatory": true},
+        {"requirement_type": "attack", "requirement_data": {"attack": 13}, "is_mandatory": true},
+        {"requirement_type": "quest_completed", "requirement_data": {"quest_name": "The Reluctant Shill"}, "is_mandatory": true}
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "ITEM",
+          "reward_data": {"item_name": "Elder robe", "quantity": 1},
+          "reward_chance": 1.0,
+          "item_data": {"name": "Elder robe", "item_type": "outfit", "rarity": "legendary"}
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {"item_name": "Nuka-Cola Quantum", "quantity": 2},
+          "reward_chance": 1.0,
+          "item_data": {"name": "Nuka-Cola Quantum", "item_type": "consumable", "rarity": "rare"}
+        },
+        {
+          "reward_type": "CAPS",
+          "reward_data": {"amount": 3500},
+          "reward_chance": 1.0
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,63 @@
+{
+  "quest_name": "Honeymoon Horror",
+  "long_description": "Some newlyweds from a nearby settlement went to a secluded cave to \"celebrate\" in private. They haven't returned, and neither has the original rescue party! Maybe those rumors of Radscorpions are true after all. Better gear up!",
+  "short_description": "Rescue the newlyweds from the Radscorpions.",
+  "requirements": [
+    "Level 24 dwellers",
+    "10+ DAM weapons",
+    "Wasteland gear"
+  ],
+  "quest_objective": [
+    {
+      "title": "Rescue the newlyweds."
+    },
+    {
+      "title": "Kill the Glowing Radscorpion."
+    },
+    {
+      "title": "Discover the fate of the original rescue party."
+    }
+  ],
+  "quest_type": "side",
+  "quest_category": "combat",
+  "duration_minutes": 60,
+  "quest_requirements": [
+    {
+      "requirement_type": "level",
+      "requirement_data": {
+        "level": 24
+      },
+      "is_mandatory": true
+    },
+    {
+      "requirement_type": "attack",
+      "requirement_data": {
+        "attack": 10
+      },
+      "is_mandatory": true
+    },
+    {
+      "requirement_type": "item",
+      "requirement_data": {
+        "item_name": "Wasteland gear",
+        "count": 1
+      },
+      "is_mandatory": true
+    }
+  ],
+  "quest_rewards": [
+    {
+      "reward_type": "ITEM",
+      "reward_data": {
+        "item_name": "Pallas's Cat",
+        "quantity": 1
+      },
+      "reward_chance": 1.0,
+      "item_data": {
+        "name": "Pallas's Cat",
+        "item_type": "pet",
+        "rarity": "common"
+      }
+    }
+  ]
+}

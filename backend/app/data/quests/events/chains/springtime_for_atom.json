@@ -1,0 +1,401 @@
+{
+  "title": "Springtime for Atom",
+  "chain_id": "springtime_for_atom",
+  "chain_name": "Springtime for Atom",
+  "chain_description": "Settlers are being sprayed with radioactive material, and the trail leads to a local chapter of the Church of the Children of Atom and their plans for E-Ster Sunday.",
+  "quests": [
+    {
+      "quest_name": "The Rite of Spr(ay)ing",
+      "long_description": "We've had reports of nearby Settlers being randomly sprayed with radioactive material by unknown assailants. We should deliver some RadAway to those settlers and find out more about the attacks.",
+      "short_description": "Investigate radioactive spraying incidents.",
+      "requirements": [
+        "Level 12 dwellers",
+        "3+ average equipped weapon damage"
+      ],
+      "quest_objective": [
+        {
+          "title": "Talk to Settlers."
+        },
+        {
+          "title": "Talk to more Settlers."
+        }
+      ],
+      "quest_type": "event",
+      "quest_category": "exploration",
+      "chain_order": 1,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 12
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "attack",
+          "requirement_data": {
+            "attack": 3
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Nuka-Cola Quantum",
+            "quantity": 2
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Nuka-Cola Quantum",
+            "item_type": "consumable",
+            "rarity": "common"
+          }
+        },
+        {
+          "reward_type": "CAPS",
+          "reward_data": {
+            "amount": 1850
+          },
+          "reward_chance": 1.0
+        },
+        {
+          "reward_type": "CAPS",
+          "reward_data": {
+            "amount": 500
+          },
+          "reward_chance": 1.0
+        }
+      ]
+    },
+    {
+      "quest_name": "Spring Forward, Fall Back",
+      "long_description": "Our investigation has indicated that a local chapter of the Church of the Children of Atom was responsible for the recent toxic spraying attacks. We have to confront their leader, Confessor Alvarado, and tell him to stop these attacks, or else.",
+      "short_description": "Confront the local Children of Atom leader.",
+      "requirements": [
+        "Level 13 dwellers",
+        "4+ average equipped weapon damage",
+        "Complete \"The Rite of Spr(ay)ing\" quest"
+      ],
+      "quest_objective": "Talk to Confessor Alvarado.",
+      "quest_type": "event",
+      "quest_category": "exploration",
+      "chain_order": 2,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 13
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "attack",
+          "requirement_data": {
+            "attack": 4
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "quest_completed",
+          "requirement_data": {
+            "quest_name": "The Rite of Spr(ay)ing"
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Nuka-Cola Quantum",
+            "quantity": 2
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Nuka-Cola Quantum",
+            "item_type": "consumable",
+            "rarity": "common"
+          }
+        },
+        {
+          "reward_type": "CAPS",
+          "reward_data": {
+            "amount": 1500
+          },
+          "reward_chance": 1.0
+        }
+      ]
+    },
+    {
+      "quest_name": "E-Ster is Coming",
+      "long_description": "Confessor Alvarado has agreed to put a stop to radioactive spraying, and as a sign of goodwill we've agreed to help the Church recover a sacred circuit board rumored to contain data about the ancient rite of E-Ster.",
+      "short_description": "Help the Children of Atom recover an ancient artifact.",
+      "requirements": [
+        "Level 14 dwellers",
+        "4+ average equipped weapon damage",
+        "Complete \"Spring Forward, Fall Back\" quest"
+      ],
+      "quest_objective": "Recover the Sacred Circuit Board.",
+      "quest_type": "event",
+      "quest_category": "collection",
+      "chain_order": 3,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 14
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "attack",
+          "requirement_data": {
+            "attack": 4
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "quest_completed",
+          "requirement_data": {
+            "quest_name": "Spring Forward, Fall Back"
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Nuka-Cola Quantum",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Nuka-Cola Quantum",
+            "item_type": "consumable",
+            "rarity": "common"
+          }
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Military circuit board",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Military circuit board",
+            "item_type": "junk",
+            "rarity": "legendary"
+          }
+        },
+        {
+          "reward_type": "CAPS",
+          "reward_data": {
+            "amount": 1600
+          },
+          "reward_chance": 1.0
+        }
+      ]
+    },
+    {
+      "quest_name": "The Sixth Sun",
+      "long_description": "We think Brother Will, the Church initiate who has gone missing, may have been kidnapped by a band of Raiders camped nearby. We'll send a team to rescue him, then inform Confessor Alvarado if and when we've brought him back to safety.",
+      "short_description": "Rescue the Church's missing Brother.",
+      "requirements": [
+        "Level 15 dwellers",
+        "5+ average equipped weapon damage",
+        "Complete \"E-Ster is Coming\" quest"
+      ],
+      "quest_objective": "Brother Will from the Raiders.",
+      "quest_type": "event",
+      "quest_category": "combat",
+      "chain_order": 4,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 15
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "attack",
+          "requirement_data": {
+            "attack": 5
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "quest_completed",
+          "requirement_data": {
+            "quest_name": "E-Ster is Coming"
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Nuka-Cola Quantum",
+            "quantity": 2
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Nuka-Cola Quantum",
+            "item_type": "consumable",
+            "rarity": "common"
+          }
+        },
+        {
+          "reward_type": "CAPS",
+          "reward_data": {
+            "amount": 1750
+          },
+          "reward_chance": 1.0
+        }
+      ]
+    },
+    {
+      "quest_name": "E-Ster Egg Hunt",
+      "long_description": "We've been invited to the Children of Atom's annual Deathclaw Egg Hunt! This is a good opportunity to validate Brother Will's claims that the Church plans to detonate a large nuclear bomb on E-Ster Sunday...",
+      "short_description": "Find out more about the alleged nuclear bomb.",
+      "requirements": [
+        "Level 16 dwellers",
+        "5+ average equipped weapon damage",
+        "Complete \"The Sixth Sun\" quest"
+      ],
+      "quest_objective": [
+        {
+          "title": "Learn more about the alleged nuclear bomb."
+        },
+        {
+          "title": "Harvest some Deathclaw Eggs."
+        }
+      ],
+      "quest_type": "event",
+      "quest_category": "collection",
+      "chain_order": 5,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 16
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "attack",
+          "requirement_data": {
+            "attack": 5
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "quest_completed",
+          "requirement_data": {
+            "quest_name": "The Sixth Sun"
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "LUNCHBOX",
+          "reward_data": {
+            "amount": 1
+          },
+          "reward_chance": 1.0
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Legendary junk",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Legendary junk",
+            "item_type": "junk",
+            "rarity": "legendary"
+          }
+        },
+        {
+          "reward_type": "CAPS",
+          "reward_data": {
+            "amount": 500
+          },
+          "reward_chance": 1.0
+        }
+      ]
+    },
+    {
+      "quest_name": "Saving Daylight",
+      "long_description": "We need to stop Confessor Alvarado and the Church of the Children of Atom before they detonate their 20-megaton nuclear device, lest the entire area be vaporized!",
+      "short_description": "Stop the Children of Atom from blowing up the area!",
+      "requirements": [
+        "Level 17 dwellers",
+        "5+ average equipped weapon damage",
+        "Complete \"E-Ster Egg Hunt\" quest"
+      ],
+      "quest_objective": "Stop Confessor Alvarado's Plans.",
+      "quest_type": "event",
+      "quest_category": "combat",
+      "chain_order": 6,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 17
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "attack",
+          "requirement_data": {
+            "attack": 5
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "quest_completed",
+          "requirement_data": {
+            "quest_name": "E-Ster Egg Hunt"
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Confessor Cromwell's rags",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Confessor Cromwell's rags",
+            "item_type": "outfit",
+            "rarity": "legendary"
+          }
+        },
+        {
+          "reward_type": "CAPS",
+          "reward_data": {
+            "amount": 2000
+          },
+          "reward_chance": 1.0
+        }
+      ]
+    }
+  ]
+}

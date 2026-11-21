@@ -1,0 +1,51 @@
+{
+  "quest_name": "Beware of Over-dog!",
+  "long_description": "The Overseer from Vault 850 has sent us a distress signal! The catch is the Overseer is apparently a dog...",
+  "short_description": "Go to Vault 850 and find the Overseer.",
+  "requirements": [
+    "Level 36 dwellers",
+    "15+ DAM weapons"
+  ],
+  "quest_objective": "Find the Overseer of Vault 850.",
+  "quest_type": "side",
+  "quest_category": "exploration",
+  "duration_minutes": 60,
+  "quest_requirements": [
+    {
+      "requirement_type": "level",
+      "requirement_data": {
+        "level": 36
+      },
+      "is_mandatory": true
+    },
+    {
+      "requirement_type": "attack",
+      "requirement_data": {
+        "attack": 15
+      },
+      "is_mandatory": true
+    }
+  ],
+  "quest_rewards": [
+    {
+      "reward_type": "ITEM",
+      "reward_data": {
+        "item_name": "Legendary junk",
+        "quantity": 1
+      },
+      "reward_chance": 1.0,
+      "item_data": {
+        "name": "Legendary junk",
+        "item_type": "junk",
+        "rarity": "legendary"
+      }
+    },
+    {
+      "reward_type": "CAPS",
+      "reward_data": {
+        "amount": 3003
+      },
+      "reward_chance": 1.0
+    }
+  ]
+}

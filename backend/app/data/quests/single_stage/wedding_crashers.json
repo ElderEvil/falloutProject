@@ -1,0 +1,70 @@
+{
+  "quest_name": "Wedding Crashers",
+  "long_description": "The notorious Raider, Sally Switchblade, is getting married to the infamous Marcus Hammer. But they're both having second thoughts because neither wants to live the Raider lifestyle anymore. If only they'd communicate! Bust in and solve their problems for them.",
+  "short_description": "Help an engaged Raider couple work through their problems.",
+  "requirements": [
+    "Level 31 dwellers",
+    "12+ DAM weapons"
+  ],
+  "quest_objective": "Stop the wedding.",
+  "quest_type": "side",
+  "quest_category": "combat",
+  "duration_minutes": 60,
+  "quest_requirements": [
+    {
+      "requirement_type": "level",
+      "requirement_data": {
+        "level": 31
+      },
+      "is_mandatory": true
+    },
+    {
+      "requirement_type": "attack",
+      "requirement_data": {
+        "attack": 12
+      },
+      "is_mandatory": true
+    }
+  ],
+  "quest_rewards": [
+    {
+      "reward_type": "ITEM",
+      "reward_data": {
+        "item_name": "Assault rifle",
+        "quantity": 1
+      },
+      "reward_chance": 1.0,
+      "item_data": {
+        "name": "Assault rifle",
+        "item_type": "weapon",
+        "rarity": "rare"
+      }
+    },
+    {
+      "reward_type": "ITEM",
+      "reward_data": {
+        "item_name": "Wedding dress",
+        "quantity": 1
+      },
+      "reward_chance": 1.0,
+      "item_data": {
+        "name": "Wedding dress",
+        "item_type": "outfit",
+        "rarity": "rare"
+      }
+    },
+    {
+      "reward_type": "ITEM",
+      "reward_data": {
+        "item_name": "Rare junk",
+        "quantity": 1
+      },
+      "reward_chance": 1.0,
+      "item_data": {
+        "name": "Rare junk",
+        "item_type": "junk",
+        "rarity": "rare"
+      }
+    }
+  ]
+}

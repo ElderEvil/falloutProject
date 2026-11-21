@@ -1,0 +1,281 @@
+{
+  "title": "Vacate Novac",
+  "chain_id": "vacate_novac",
+  "chain_name": "Vacate Novac",
+  "chain_description": "Take the Dino Dee-Lite Motel back from the Khans, furnish it, find someone to run it, and open the doors.",
+  "quests": [
+    {
+      "quest_name": "Eviction Notice",
+      "short_description": "Get the Khans out of the Dino Dee-Lite Motel in Novac.",
+      "long_description": "The Dino Dee-Lite motel in Novac was once a bustling hub for travelers, but it is now overrun by raiders who call themselves Khans. We're going to take it back and turn it into a motel again. Vault-Tec recommends settling the bill before checking out.",
+      "requirements": [
+        "Level 5 dwellers"
+      ],
+      "quest_objective": "Ask the Khans to leave.",
+      "quest_type": "side",
+      "quest_category": "combat",
+      "chain_order": 1,
+      "duration_minutes": 240,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 5
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "CAPS",
+          "reward_data": {
+            "amount": 100
+          },
+          "reward_chance": 1.0
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Assault rifle",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Assault rifle",
+            "item_type": "weapon",
+            "rarity": "rare"
+          }
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Swimsuit",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Swimsuit",
+            "item_type": "outfit",
+            "rarity": "rare"
+          }
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Armor piercing BB gun",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Armor piercing BB gun",
+            "item_type": "weapon",
+            "rarity": "rare"
+          }
+        }
+      ]
+    },
+    {
+      "quest_name": "Ghoul Supplies",
+      "short_description": "Find the ghoul salesperson to help furnish our hotel.",
+      "long_description": "We have a space for our new motel, but now we need stuff to put in it. Apparently there's a ghoul salesperson nearby who can help us out. Word of warning: some of the sales staff has gone feral, so mind the showroom.",
+      "requirements": [
+        "Level 5 dwellers",
+        "Complete \"Eviction Notice\" quest"
+      ],
+      "quest_objective": [
+        {
+          "title": "Ask about the salesperson"
+        },
+        {
+          "title": "Strike a deal with the salesperson"
+        }
+      ],
+      "quest_type": "side",
+      "quest_category": "combat",
+      "chain_order": 2,
+      "duration_minutes": 240,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 5
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "quest_completed",
+          "requirement_data": {
+            "quest_name": "Eviction Notice"
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "CAPS",
+          "reward_data": {
+            "amount": 150
+          },
+          "reward_chance": 1.0
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Alarm clock",
+            "quantity": 2
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Alarm clock",
+            "item_type": "junk",
+            "rarity": "common"
+          }
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Desk fan",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Desk fan",
+            "item_type": "junk",
+            "rarity": "common"
+          }
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Tuned laser rifle",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Tuned laser rifle",
+            "item_type": "weapon",
+            "rarity": "rare"
+          }
+        }
+      ]
+    },
+    {
+      "quest_name": "Headhunting",
+      "short_description": "Rescue a manager from a group of raiders.",
+      "long_description": "Apparently there's someone with some administrative skill who was kidnapped by raiders. Let's get him out of there, and maybe in return he'll help us run our motel. The raiders have grown fond of his storytime, so expect company on the way out.",
+      "requirements": [
+        "Level 5 dwellers",
+        "Complete \"Ghoul Supplies\" quest"
+      ],
+      "quest_objective": "Rescue Mr. Manager.",
+      "quest_type": "side",
+      "quest_category": "combat",
+      "chain_order": 3,
+      "duration_minutes": 240,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 5
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "quest_completed",
+          "requirement_data": {
+            "quest_name": "Ghoul Supplies"
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "CAPS",
+          "reward_data": {
+            "amount": 200
+          },
+          "reward_chance": 1.0
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Nuka-Cola Quantum",
+            "quantity": 6
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Nuka-Cola Quantum",
+            "item_type": "consumable",
+            "rarity": "rare"
+          }
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Business suit",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Business suit",
+            "item_type": "outfit",
+            "rarity": "common"
+          }
+        }
+      ]
+    },
+    {
+      "quest_name": "Room Service",
+      "short_description": "Clear the motel of dangerous creatures before opening.",
+      "long_description": "The motel is almost ready! But those Khans left a mess behind, and it attracted a bunch of vermin. Let's get them out before we open the doors. Housekeeping has been notified that it now exists.",
+      "requirements": [
+        "Level 5 dwellers",
+        "Complete \"Headhunting\" quest"
+      ],
+      "quest_objective": "Clean up the motel.",
+      "quest_type": "side",
+      "quest_category": "combat",
+      "chain_order": 4,
+      "duration_minutes": 240,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 5
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "quest_completed",
+          "requirement_data": {
+            "quest_name": "Headhunting"
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "CAPS",
+          "reward_data": {
+            "amount": 250
+          },
+          "reward_chance": 1.0
+        },
+        {
+          "reward_type": "LUNCHBOX",
+          "reward_data": {
+            "amount": 1
+          },
+          "reward_chance": 1.0
+        },
+        {
+          "reward_type": "DWELLER",
+          "reward_data": {
+            "template_id": "ma-june"
+          },
+          "reward_chance": 1.0
+        }
+      ]
+    }
+  ]
+}

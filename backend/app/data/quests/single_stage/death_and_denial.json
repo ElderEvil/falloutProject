@@ -1,0 +1,62 @@
+{
+  "quest_name": "Death and Denial",
+  "long_description": "Egads! We've just received word that William Peabody III, Esq., has been found murdered in his bedchambers. We must send our brightest detective and his trusty sidekick to solve this gruesome mystery!",
+  "short_description": "Solve a murder mystery.",
+  "requirements": [
+    "Level 15 dwellers",
+    "Formal wear"
+  ],
+  "quest_objective": [
+    {
+      "title": "Solve the Murder of William Peabody."
+    },
+    {
+      "title": "Interrogate the first group of suspects."
+    },
+    {
+      "title": "Interrogate the second group of suspects."
+    }
+  ],
+  "quest_type": "side",
+  "quest_category": "exploration",
+  "duration_minutes": 60,
+  "quest_requirements": [
+    {
+      "requirement_type": "level",
+      "requirement_data": {
+        "level": 15
+      },
+      "is_mandatory": true
+    },
+    {
+      "requirement_type": "item",
+      "requirement_data": {
+        "item_name": "Formal wear",
+        "count": 1
+      },
+      "is_mandatory": true
+    }
+  ],
+  "quest_rewards": [
+    {
+      "reward_type": "ITEM",
+      "reward_data": {
+        "item_name": "Nuka-Cola Quantum",
+        "quantity": 2
+      },
+      "reward_chance": 1.0,
+      "item_data": {
+        "name": "Nuka-Cola Quantum",
+        "item_type": "consumable",
+        "rarity": "common"
+      }
+    },
+    {
+      "reward_type": "CAPS",
+      "reward_data": {
+        "amount": 1000
+      },
+      "reward_chance": 1.0
+    }
+  ]
+}

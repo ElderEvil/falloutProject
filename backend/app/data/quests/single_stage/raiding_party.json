@@ -1,0 +1,81 @@
+{
+  "quest_name": "Raiding Party",
+  "long_description": "A group of Raiders is holding a rowdy shindig while their Boss is away. Now's our chance to infiltrate them while they're partying. If we can turn them against their Boss, the whole gang will be destroyed from within!",
+  "short_description": "Infiltrate the Raiders' hideout and sow the seeds of distrust.",
+  "requirements": [
+    "Level 20 dwellers",
+    "Raider armor"
+  ],
+  "quest_objective": [
+    {
+      "title": "Spread lies among the partying Raiders."
+    },
+    {
+      "title": "Spread lies among the belligerent Raiders."
+    },
+    {
+      "title": "Spread lies among the drinking Raiders."
+    }
+  ],
+  "quest_type": "side",
+  "quest_category": "exploration",
+  "duration_minutes": 60,
+  "quest_requirements": [
+    {
+      "requirement_type": "level",
+      "requirement_data": {
+        "level": 20
+      },
+      "is_mandatory": true
+    },
+    {
+      "requirement_type": "item",
+      "requirement_data": {
+        "item_name": "Raider armor",
+        "count": 1
+      },
+      "is_mandatory": true
+    }
+  ],
+  "quest_rewards": [
+    {
+      "reward_type": "ITEM",
+      "reward_data": {
+        "item_name": "Assault rifle",
+        "quantity": 1
+      },
+      "reward_chance": 1.0,
+      "item_data": {
+        "name": "Assault rifle",
+        "item_type": "weapon",
+        "rarity": "rare"
+      }
+    },
+    {
+      "reward_type": "ITEM",
+      "reward_data": {
+        "item_name": "Combat shotgun",
+        "quantity": 1
+      },
+      "reward_chance": 1.0,
+      "item_data": {
+        "name": "Combat shotgun",
+        "item_type": "weapon",
+        "rarity": "rare"
+      }
+    },
+    {
+      "reward_type": "ITEM",
+      "reward_data": {
+        "item_name": "Sturdy raider armor",
+        "quantity": 1
+      },
+      "reward_chance": 1.0,
+      "item_data": {
+        "name": "Sturdy raider armor",
+        "item_type": "outfit",
+        "rarity": "rare"
+      }
+    }
+  ]
+}

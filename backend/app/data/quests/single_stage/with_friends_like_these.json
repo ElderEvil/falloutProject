@@ -1,0 +1,71 @@
+{
+  "quest_name": "With Friends Like These",
+  "long_description": "I've found a ransom note written by a Raider Boss named Willard Glover. He says he's captured a settler and taken him to the nearby Corvega Factory.",
+  "short_description": "Rescue the settler trapped in the Corvega Factory.",
+  "requirements": [
+    "Level 50 dwellers",
+    "15+ DAM weapons"
+  ],
+  "quest_objective": [
+    {
+      "title": "Kill Willard Glover."
+    },
+    {
+      "title": "Rescue the settler."
+    }
+  ],
+  "quest_type": "side",
+  "quest_category": "combat",
+  "duration_minutes": 60,
+  "quest_requirements": [
+    {
+      "requirement_type": "level",
+      "requirement_data": {
+        "level": 50
+      },
+      "is_mandatory": true
+    },
+    {
+      "requirement_type": "attack",
+      "requirement_data": {
+        "attack": 15
+      },
+      "is_mandatory": true
+    }
+  ],
+  "quest_rewards": [
+    {
+      "reward_type": "ITEM",
+      "reward_data": {
+        "item_name": "Pet Carrier",
+        "quantity": 1
+      },
+      "reward_chance": 1.0,
+      "item_data": {
+        "name": "Pet Carrier",
+        "item_type": "pet_carrier",
+        "rarity": "common"
+      }
+    },
+    {
+      "reward_type": "CAPS",
+      "reward_data": {
+        "amount": 500
+      },
+      "reward_chance": 1.0
+    },
+    {
+      "reward_type": "ITEM",
+      "reward_data": {
+        "item_name": "Fat Man",
+        "quantity": 1
+      },
+      "reward_chance": 1.0,
+      "item_data": {
+        "name": "Fat Man",
+        "item_type": "weapon",
+        "rarity": "legendary"
+      }
+    }
+  ]
+}

@@ -1,0 +1,78 @@
+{
+  "quest_name": "Out of the Vault, Into the Shadows",
+  "long_description": "For too long, the evil bandit Eli Calvert has raided the innocent Dwellers of the Wasteland. For the safety of your Vault, assemble your soldiers and rain death upon Eli and his gang of madmen!",
+  "short_description": "Destroy Eli Calvert's Raiders with your Military Death Squad.",
+  "requirements": [
+    "Level 30 dwellers",
+    "Officer fatigues",
+    "10+ DAM weapons"
+  ],
+  "quest_objective": "Kill Eli Calvert.",
+  "quest_type": "side",
+  "quest_category": "combat",
+  "duration_minutes": 60,
+  "quest_requirements": [
+    {
+      "requirement_type": "level",
+      "requirement_data": {
+        "level": 30
+      },
+      "is_mandatory": true
+    },
+    {
+      "requirement_type": "item",
+      "requirement_data": {
+        "item_name": "Officer fatigues"
+      },
+      "is_mandatory": true
+    },
+    {
+      "requirement_type": "attack",
+      "requirement_data": {
+        "attack": 10
+      },
+      "is_mandatory": true
+    }
+  ],
+  "quest_rewards": [
+    {
+      "reward_type": "ITEM",
+      "reward_data": {
+        "item_name": "BoS paladin jacket",
+        "quantity": 1
+      },
+      "reward_chance": 1.0,
+      "item_data": {
+        "name": "BoS paladin jacket",
+        "item_type": "outfit",
+        "rarity": "legendary"
+      }
+    },
+    {
+      "reward_type": "ITEM",
+      "reward_data": {
+        "item_name": "Laser rifle",
+        "quantity": 1
+      },
+      "reward_chance": 1.0,
+      "item_data": {
+        "name": "Laser rifle",
+        "item_type": "weapon",
+        "rarity": "rare"
+      }
+    },
+    {
+      "reward_type": "ITEM",
+      "reward_data": {
+        "item_name": "Sturdy combat armor",
+        "quantity": 1
+      },
+      "reward_chance": 1.0,
+      "item_data": {
+        "name": "Sturdy combat armor",
+        "item_type": "outfit",
+        "rarity": "rare"
+      }
+    }
+  ]
+}

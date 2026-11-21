@@ -1,0 +1,54 @@
+{
+  "quest_name": "Too Good to be True",
+  "long_description": "That abandoned Vault stocked with supplies? That's Deathclaw territory now. How he got in there, nobody knows, but you won't get to the stash without facing him first. Time to break out the big guns!",
+  "short_description": "Claim a stash of supplies... if you can get past the Deathclaw that's guarding them!",
+  "requirements": [
+    "Level 50 dwellers",
+    ".50 cal machine gun",
+    "7 Strength"
+  ],
+  "quest_objective": "Claim the supply stash in the abandoned Vault.",
+  "quest_type": "side",
+  "quest_category": "collection",
+  "duration_minutes": 60,
+  "quest_requirements": [
+    {
+      "requirement_type": "level",
+      "requirement_data": {
+        "level": 50
+      },
+      "is_mandatory": true
+    },
+    {
+      "requirement_type": "item",
+      "requirement_data": {
+        "item_name": ".50 cal machine gun"
+      },
+      "is_mandatory": true
+    },
+    {
+      "requirement_type": "stat",
+      "requirement_data": {
+        "stat": "strength",
+        "value": 7
+      },
+      "is_mandatory": true
+    }
+  ],
+  "quest_rewards": [
+    {
+      "reward_type": "CAPS",
+      "reward_data": {
+        "amount": 500
+      },
+      "reward_chance": 1.0
+    },
+    {
+      "reward_type": "LUNCHBOX",
+      "reward_data": {
+        "amount": 1
+      },
+      "reward_chance": 1.0
+    }
+  ]
+}

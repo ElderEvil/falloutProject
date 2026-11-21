@@ -1,0 +1,56 @@
+{
+  "quest_name": "Robot Retrieval",
+  "long_description": "We think Vault-Tec delivered a Mr. Handy box to this building. Pip pip cheerio!",
+  "short_description": "Find the Mr. Handy Box.",
+  "requirements": [
+    "Level 50 dwellers"
+  ],
+  "quest_objective": "Find the Mr. Handy Box.",
+  "quest_type": "side",
+  "quest_category": "collection",
+  "duration_minutes": 60,
+  "quest_requirements": [
+    {
+      "requirement_type": "level",
+      "requirement_data": {
+        "level": 50
+      },
+      "is_mandatory": true
+    }
+  ],
+  "quest_rewards": [
+    {
+      "reward_type": "CAPS",
+      "reward_data": {
+        "amount": 500
+      },
+      "reward_chance": 1.0
+    },
+    {
+      "reward_type": "ITEM",
+      "reward_data": {
+        "item_name": "Legendary junk",
+        "quantity": 1
+      },
+      "reward_chance": 1.0,
+      "item_data": {
+        "name": "Legendary junk",
+        "item_type": "junk",
+        "rarity": "legendary"
+      }
+    },
+    {
+      "reward_type": "ITEM",
+      "reward_data": {
+        "item_name": "Laser rifle",
+        "quantity": 1
+      },
+      "reward_chance": 1.0,
+      "item_data": {
+        "name": "Laser rifle",
+        "item_type": "weapon",
+        "rarity": "rare"
+      }
+    }
+  ]
+}

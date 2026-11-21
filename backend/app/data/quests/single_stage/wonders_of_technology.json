@@ -1,0 +1,73 @@
+{
+  "quest_name": "Wonders of Technology",
+  "long_description": "Famed scientist Otto von Hurfburg is nearby, working on a Mr. Handy capable of exploring space. See what he's discovered!",
+  "short_description": "Dr. Hurfburg is on a Quest for knowledge and adventure!",
+  "requirements": [
+    "Level 45 dwellers",
+    "Gauss rifle",
+    "6 Intelligence"
+  ],
+  "quest_objective": [
+    {
+      "title": "Find Dr. Hurfburg."
+    },
+    {
+      "title": "Kill the Alpha Deathclaw."
+    }
+  ],
+  "quest_type": "side",
+  "quest_category": "combat",
+  "duration_minutes": 60,
+  "quest_requirements": [
+    {
+      "requirement_type": "level",
+      "requirement_data": {
+        "level": 45
+      },
+      "is_mandatory": true
+    },
+    {
+      "requirement_type": "item",
+      "requirement_data": {
+        "item_name": "Gauss rifle"
+      },
+      "is_mandatory": true
+    },
+    {
+      "requirement_type": "stat",
+      "requirement_data": {
+        "stat": "intelligence",
+        "value": 6
+      },
+      "is_mandatory": true
+    }
+  ],
+  "quest_rewards": [
+    {
+      "reward_type": "ITEM",
+      "reward_data": {
+        "item_name": "Military circuit board",
+        "quantity": 1
+      },
+      "reward_chance": 1.0,
+      "item_data": {
+        "name": "Military circuit board",
+        "item_type": "junk",
+        "rarity": "legendary"
+      }
+    },
+    {
+      "reward_type": "ITEM",
+      "reward_data": {
+        "item_name": "Legendary junk",
+        "quantity": 2
+      },
+      "reward_chance": 1.0,
+      "item_data": {
+        "name": "Legendary junk",
+        "item_type": "junk",
+        "rarity": "legendary"
+      }
+    }
+  ]
+}

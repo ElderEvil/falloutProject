@@ -1,0 +1,76 @@
+{
+  "quest_name": "Monday Night Brawl",
+  "long_description": "A nearby Raider gang is calling you out! Time to show them who's boss...in style! Put on your best threads and start kicking butt!",
+  "short_description": "Defeat the Raider Bosses.",
+  "requirements": [
+    "Level 23 dwellers",
+    "Formal wear",
+    "13+ DAM weapons"
+  ],
+  "quest_objective": [
+    {
+      "title": "Defeat Beef Slam Bednarski."
+    },
+    {
+      "title": "Defeat Hatchet O'Houlihan."
+    },
+    {
+      "title": "Defeat The Embalmer."
+    }
+  ],
+  "quest_type": "side",
+  "quest_category": "combat",
+  "duration_minutes": 60,
+  "quest_requirements": [
+    {
+      "requirement_type": "level",
+      "requirement_data": {
+        "level": 23
+      },
+      "is_mandatory": true
+    },
+    {
+      "requirement_type": "item",
+      "requirement_data": {
+        "item_name": "Formal wear"
+      },
+      "is_mandatory": true
+    },
+    {
+      "requirement_type": "attack",
+      "requirement_data": {
+        "attack": 13
+      },
+      "is_mandatory": true
+    }
+  ],
+  "quest_rewards": [
+    {
+      "reward_type": "LUNCHBOX",
+      "reward_data": {
+        "amount": 1
+      },
+      "reward_chance": 1.0
+    },
+    {
+      "reward_type": "ITEM",
+      "reward_data": {
+        "item_name": "Baseball bat",
+        "quantity": 1
+      },
+      "reward_chance": 1.0,
+      "item_data": {
+        "name": "Baseball bat",
+        "item_type": "weapon",
+        "rarity": "rare"
+      }
+    },
+    {
+      "reward_type": "CAPS",
+      "reward_data": {
+        "amount": 1390
+      },
+      "reward_chance": 1.0
+    }
+  ]
+}

@@ -1,0 +1,58 @@
+{
+  "quest_name": "Diplomatic Mission!",
+  "long_description": "A local settlement wants to make contact with our Vault! We should send some diplomats.",
+  "short_description": "Send a team in Formal Wear out to talk to a settlement.",
+  "requirements": [
+    "Level 23 dwellers",
+    "Formal wear"
+  ],
+  "rewards": "2x Nuka-Cola Quantum, Rare junk",
+  "quest_objective": "Talk to the settlers.",
+  "quest_type": "side",
+  "quest_category": "exploration",
+  "duration_minutes": 60,
+  "quest_requirements": [
+    {
+      "requirement_type": "level",
+      "requirement_data": {
+        "level": 23
+      },
+      "is_mandatory": true
+    },
+    {
+      "requirement_type": "item",
+      "requirement_data": {
+        "item_name": "Formal wear"
+      },
+      "is_mandatory": true
+    }
+  ],
+  "quest_rewards": [
+    {
+      "reward_type": "ITEM",
+      "reward_data": {
+        "item_name": "Nuka-Cola Quantum",
+        "quantity": 2
+      },
+      "reward_chance": 1.0,
+      "item_data": {
+        "name": "Nuka-Cola Quantum",
+        "item_type": "consumable",
+        "rarity": "rare"
+      }
+    },
+    {
+      "reward_type": "ITEM",
+      "reward_data": {
+        "item_name": "Rare junk",
+        "quantity": 1
+      },
+      "reward_chance": 1.0,
+      "item_data": {
+        "name": "Rare junk",
+        "item_type": "junk",
+        "rarity": "rare"
+      }
+    }
+  ]
+}

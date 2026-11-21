@@ -1,0 +1,64 @@
+{
+  "quest_name": "The Mystery of Vault 666",
+  "long_description": "While adventuring, a Dweller discovered a map to Vault 666. It's not on any official Vault-Tec registry. What secrets could it hold?",
+  "short_description": "Vault 666 isn't on any official Vault-Tec registry. Time to investigate.",
+  "requirements": [
+    "Level 30 dwellers",
+    "13+ DAM weapons"
+  ],
+  "quest_objective": "Investigate Vault 666.",
+  "quest_type": "side",
+  "quest_category": "exploration",
+  "duration_minutes": 60,
+  "quest_requirements": [
+    {
+      "requirement_type": "level",
+      "requirement_data": {
+        "level": 30
+      },
+      "is_mandatory": true
+    },
+    {
+      "requirement_type": "attack",
+      "requirement_data": {
+        "attack": 13
+      },
+      "is_mandatory": true
+    }
+  ],
+  "quest_rewards": [
+    {
+      "reward_type": "LUNCHBOX",
+      "reward_data": {
+        "amount": 1
+      },
+      "reward_chance": 1.0
+    },
+    {
+      "reward_type": "ITEM",
+      "reward_data": {
+        "item_name": "Pet Carrier",
+        "quantity": 1
+      },
+      "reward_chance": 1.0,
+      "item_data": {
+        "name": "Pet Carrier",
+        "item_type": "pet_carrier",
+        "rarity": "common"
+      }
+    },
+    {
+      "reward_type": "ITEM",
+      "reward_data": {
+        "item_name": "T-60a power armor",
+        "quantity": 1
+      },
+      "reward_chance": 1.0,
+      "item_data": {
+        "name": "T-60a power armor",
+        "item_type": "outfit",
+        "rarity": "legendary"
+      }
+    }
+  ]
+}

@@ -1,0 +1,79 @@
+{
+  "quest_name": "Burnout",
+  "long_description": "Mole rats! Is there any creature more sneaky or disgusting? Grab a flamer and clear out a nest of those tunneling terrors.",
+  "short_description": "Put a nest of pesky Mole rats to the torch.",
+  "requirements": [
+    "Level 40 dwellers",
+    "Flamer",
+    "7 Strength"
+  ],
+  "quest_objective": "Clear out the Mole rat nest.",
+  "quest_type": "side",
+  "quest_category": "combat",
+  "duration_minutes": 60,
+  "quest_requirements": [
+    {
+      "requirement_type": "level",
+      "requirement_data": {
+        "level": 40
+      },
+      "is_mandatory": true
+    },
+    {
+      "requirement_type": "item",
+      "requirement_data": {
+        "item_name": "Flamer"
+      },
+      "is_mandatory": true
+    },
+    {
+      "requirement_type": "stat",
+      "requirement_data": {
+        "stat": "strength",
+        "value": 7
+      },
+      "is_mandatory": true
+    }
+  ],
+  "quest_rewards": [
+    {
+      "reward_type": "ITEM",
+      "reward_data": {
+        "item_name": "Nuka-Cola Quantum",
+        "quantity": 2
+      },
+      "reward_chance": 1.0,
+      "item_data": {
+        "name": "Nuka-Cola Quantum",
+        "item_type": "consumable",
+        "rarity": "common"
+      }
+    },
+    {
+      "reward_type": "ITEM",
+      "reward_data": {
+        "item_name": "Legendary junk",
+        "quantity": 1
+      },
+      "reward_chance": 1.0,
+      "item_data": {
+        "name": "Legendary junk",
+        "item_type": "junk",
+        "rarity": "legendary"
+      }
+    },
+    {
+      "reward_type": "ITEM",
+      "reward_data": {
+        "item_name": "Firefighter suit",
+        "quantity": 1
+      },
+      "reward_chance": 1.0,
+      "item_data": {
+        "name": "Firefighter suit",
+        "item_type": "outfit",
+        "rarity": "rare"
+      }
+    }
+  ]
+}

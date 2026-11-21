@@ -1,0 +1,64 @@
+{
+  "quest_name": "Wasteland: The Musical",
+  "long_description": "A duet of singing Raiders has been spreading terror in the Wasteland using high production value musical numbers. We need to ring down the curtain on these musical thugs!",
+  "short_description": "Stop a gang of singing Raiders from terrorizing the area.",
+  "requirements": [
+    "Level 20 dwellers",
+    "6+ DAM weapons"
+  ],
+  "quest_objective": "Stop the Singing Raiders.",
+  "quest_type": "side",
+  "quest_category": "combat",
+  "duration_minutes": 60,
+  "quest_requirements": [
+    {
+      "requirement_type": "level",
+      "requirement_data": {
+        "level": 20
+      },
+      "is_mandatory": true
+    },
+    {
+      "requirement_type": "attack",
+      "requirement_data": {
+        "attack": 6
+      },
+      "is_mandatory": true
+    }
+  ],
+  "quest_rewards": [
+    {
+      "reward_type": "ITEM",
+      "reward_data": {
+        "item_name": "Nuka-Cola Quantum",
+        "quantity": 2
+      },
+      "reward_chance": 1.0,
+      "item_data": {
+        "name": "Nuka-Cola Quantum",
+        "item_type": "consumable",
+        "rarity": "common"
+      }
+    },
+    {
+      "reward_type": "ITEM",
+      "reward_data": {
+        "item_name": "Giddyup Buttercup",
+        "quantity": 1
+      },
+      "reward_chance": 1.0,
+      "item_data": {
+        "name": "Giddyup Buttercup",
+        "item_type": "junk",
+        "rarity": "legendary"
+      }
+    },
+    {
+      "reward_type": "CAPS",
+      "reward_data": {
+        "amount": 1000
+      },
+      "reward_chance": 1.0
+    }
+  ]
+}

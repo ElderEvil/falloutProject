@@ -1,0 +1,70 @@
+{
+  "quest_name": "Monster Under the Bed",
+  "long_description": "One of the Vault youngsters was playing outside when a terrifying monster stole their teddy bear. Now they refuse to sleep, claiming the monster comes back every night to hide under their bed! We've got to track the beast down to end the kid's fears - permanently.",
+  "short_description": "Track down and kill a teddy bear-stealing monster!",
+  "requirements": [
+    "Level 25 dwellers",
+    "10+ DAM weapons"
+  ],
+  "quest_objective": "Find and kill the monster.",
+  "quest_type": "side",
+  "quest_category": "combat",
+  "duration_minutes": 60,
+  "quest_requirements": [
+    {
+      "requirement_type": "level",
+      "requirement_data": {
+        "level": 25
+      },
+      "is_mandatory": true
+    },
+    {
+      "requirement_type": "attack",
+      "requirement_data": {
+        "attack": 10
+      },
+      "is_mandatory": true
+    }
+  ],
+  "quest_rewards": [
+    {
+      "reward_type": "ITEM",
+      "reward_data": {
+        "item_name": "Pickaxe",
+        "quantity": 1
+      },
+      "reward_chance": 1.0,
+      "item_data": {
+        "name": "Pickaxe",
+        "item_type": "weapon",
+        "rarity": "rare"
+      }
+    },
+    {
+      "reward_type": "ITEM",
+      "reward_data": {
+        "item_name": "Horror fan outfit",
+        "quantity": 1
+      },
+      "reward_chance": 1.0,
+      "item_data": {
+        "name": "Horror fan outfit",
+        "item_type": "outfit",
+        "rarity": "rare"
+      }
+    },
+    {
+      "reward_type": "ITEM",
+      "reward_data": {
+        "item_name": "Teddy bear",
+        "quantity": 1
+      },
+      "reward_chance": 1.0,
+      "item_data": {
+        "name": "Teddy bear",
+        "item_type": "junk",
+        "rarity": "rare"
+      }
+    }
+  ]
+}

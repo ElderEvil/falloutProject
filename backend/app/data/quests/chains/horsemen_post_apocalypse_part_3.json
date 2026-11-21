@@ -1,0 +1,463 @@
+{
+  "title": "Horsemen of the Post-Apocalypse Part 3",
+  "chain_id": "horsemen_post_apocalypse_part_3",
+  "chain_name": "Horsemen of the Post-Apocalypse Part 3",
+  "chain_description": "The truce breaks and the Horsemen converge on Vault 226. Lure them into a trap, save Three Dog, and end the apocalypse once and for all.",
+  "quests": [
+    {
+      "quest_name": "Set 'em Up: Pestilence",
+      "short_description": "Lure Pestilence to the abandoned Vault 226.",
+      "long_description": "The truce forgotten, War is now out for blood, ready to tear the Wasteland apart looking for Pestilence! The longer it takes, the more innocent Settlers will die, so let's dress as Warshippers and convince the Pests to bring Pestilence to War. Vault 226, abandoned and in the mountains, will make a great arena for their apocalyptic faceoff!",
+      "requirements": [
+        "Level 26 dwellers",
+        "10+ average equipped weapon damage",
+        "Raider armor"
+      ],
+      "quest_objective": [
+        {
+          "title": "Get the Pests to lead Pestilence to Vault 226."
+        },
+        {
+          "title": "Talk to the Weekly Exposition reporter."
+        }
+      ],
+      "quest_type": "side",
+      "quest_category": "combat",
+      "chain_order": 1,
+      "duration_minutes": 240,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 26
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "attack",
+          "requirement_data": {
+            "attack": 10
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "item",
+          "requirement_data": {
+            "item_name": "Raider armor"
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Legendary junk",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Legendary junk",
+            "item_type": "junk",
+            "rarity": "legendary"
+          }
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Missile launcher",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Missile launcher",
+            "item_type": "weapon",
+            "rarity": "legendary"
+          }
+        },
+        {
+          "reward_type": "CAPS",
+          "reward_data": {
+            "amount": 3000
+          },
+          "reward_chance": 1.0
+        }
+      ]
+    },
+    {
+      "quest_name": "Set 'em Up: Famine",
+      "short_description": "Lure Famine to the abandoned Vault 226.",
+      "long_description": "The Pests will bring Pestilence to Vault 226, so War is sure to follow. If we could get Famine there as well, the Horsemen and their cultists might all take care of each other! We need to dress as Pests and speak to the Hungry Horde's non-feral leaders.",
+      "requirements": [
+        "Level 27 dwellers",
+        "11+ average equipped weapon damage",
+        "Radiation suit",
+        "Complete \"Set 'em Up: Pestilence\" quest"
+      ],
+      "quest_objective": [
+        {
+          "title": "Get the Hungry to lead Famine to Vault 226."
+        },
+        {
+          "title": "Talk to Drusilla."
+        }
+      ],
+      "quest_type": "side",
+      "quest_category": "combat",
+      "chain_order": 2,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 27
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "attack",
+          "requirement_data": {
+            "attack": 11
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "item",
+          "requirement_data": {
+            "item_name": "Radiation suit"
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "quest_completed",
+          "requirement_data": {
+            "quest_name": "Set 'em Up: Pestilence"
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "CAPS",
+          "reward_data": {
+            "amount": 500
+          },
+          "reward_chance": 1.0
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Combat shotgun",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Combat shotgun",
+            "item_type": "weapon",
+            "rarity": "rare"
+          }
+        },
+        {
+          "reward_type": "CAPS",
+          "reward_data": {
+            "amount": 3300
+          },
+          "reward_chance": 1.0
+        }
+      ]
+    },
+    {
+      "quest_name": "Run, Three Dog, Run!",
+      "short_description": "Save Three Dog from the Death cultists chasing him.",
+      "long_description": "All this time, Three Dog has been saving lives, helping Settlers evade the Horsemen's followers, but it's put him on Vault 144's hit list! His last broadcast has him on the run from Death cultists. We need to get to him before they do, and one of his pursuers might know the location of Death's cave!",
+      "requirements": [
+        "Level 28 dwellers",
+        "12+ average equipped weapon damage",
+        "Complete \"Set 'em Up: Famine\" quest"
+      ],
+      "quest_objective": [
+        {
+          "title": "Save Three Dog."
+        },
+        {
+          "title": "Talk to the Weekly Exposition reporter."
+        },
+        {
+          "title": "Kill the Vault 144 Death cultists."
+        }
+      ],
+      "quest_type": "side",
+      "quest_category": "combat",
+      "chain_order": 3,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 28
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "attack",
+          "requirement_data": {
+            "attack": 12
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "quest_completed",
+          "requirement_data": {
+            "quest_name": "Set 'em Up: Famine"
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "LUNCHBOX",
+          "reward_data": {
+            "amount": 1
+          },
+          "reward_chance": 1.0
+        },
+        {
+          "reward_type": "CAPS",
+          "reward_data": {
+            "amount": 3575
+          },
+          "reward_chance": 1.0
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Gauss rifle",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Gauss rifle",
+            "item_type": "weapon",
+            "rarity": "rare"
+          }
+        }
+      ]
+    },
+    {
+      "quest_name": "Knock 'Em Down",
+      "short_description": "Kill Famine, Pestilence and War.",
+      "long_description": "War vs. Pestilence vs. Famine. Warshippers vs. Pests vs. Hungry. Everyone's arrived at Vault 226, ready to fight, but we shouldn't leave anything to chance. Let's wade through the carnage and make sure none of the Horsemen survive!",
+      "requirements": [
+        "Level 29 dwellers",
+        "12+ average equipped weapon damage",
+        "Complete \"Run, Three Dog, Run!\" quest"
+      ],
+      "quest_objective": [
+        {
+          "title": "Kill War."
+        },
+        {
+          "title": "Kill Famine."
+        },
+        {
+          "title": "Kill Pestilence."
+        }
+      ],
+      "quest_type": "side",
+      "quest_category": "combat",
+      "chain_order": 4,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 29
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "attack",
+          "requirement_data": {
+            "attack": 12
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "quest_completed",
+          "requirement_data": {
+            "quest_name": "Run, Three Dog, Run!"
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Nuka-Cola Quantum",
+            "quantity": 2
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Nuka-Cola Quantum",
+            "item_type": "consumable",
+            "rarity": "rare"
+          }
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Legendary junk",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Legendary junk",
+            "item_type": "junk",
+            "rarity": "legendary"
+          }
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "War's armor",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "War's armor",
+            "item_type": "outfit",
+            "rarity": "legendary"
+          }
+        }
+      ]
+    },
+    {
+      "quest_name": "At Death's Door",
+      "short_description": "Kill Death, the final Horseman.",
+      "long_description": "Three down, one to go, and thanks to Three Dog, we know where Death's cave is. But will he be awake? Only one way to find out!",
+      "requirements": [
+        "Level 30 dwellers",
+        "12+ average equipped weapon damage",
+        "Complete \"Knock 'Em Down\" quest"
+      ],
+      "quest_objective": "Kill Death.",
+      "quest_type": "side",
+      "quest_category": "combat",
+      "chain_order": 5,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 30
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "attack",
+          "requirement_data": {
+            "attack": 12
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "quest_completed",
+          "requirement_data": {
+            "quest_name": "Knock 'Em Down"
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Legendary junk",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Legendary junk",
+            "item_type": "junk",
+            "rarity": "legendary"
+          }
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Enhanced flamer",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Enhanced flamer",
+            "item_type": "weapon",
+            "rarity": "rare"
+          }
+        },
+        {
+          "reward_type": "CAPS",
+          "reward_data": {
+            "amount": 3250
+          },
+          "reward_chance": 1.0
+        }
+      ]
+    },
+    {
+      "quest_name": "Just Deserts",
+      "short_description": "Discover the origin of the Horsemen.",
+      "long_description": "The Vault received an anonymous message promising to reveal the secret origin of the Horsemen. The location it gives is far into the Wasteland, but it's worth the risk to find out what this person has to say.",
+      "requirements": [
+        "Level 30 dwellers",
+        "12+ average equipped weapon damage",
+        "Complete \"At Death's Door\" quest"
+      ],
+      "quest_objective": "Discover the origin of the Horsemen.",
+      "quest_type": "side",
+      "quest_category": "exploration",
+      "chain_order": 6,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 30
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "attack",
+          "requirement_data": {
+            "attack": 12
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "quest_completed",
+          "requirement_data": {
+            "quest_name": "At Death's Door"
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "CAPS",
+          "reward_data": {
+            "amount": 500
+          },
+          "reward_chance": 1.0
+        },
+        {
+          "reward_type": "CAPS",
+          "reward_data": {
+            "amount": 1750
+          },
+          "reward_chance": 1.0
+        }
+      ]
+    }
+  ]
+}

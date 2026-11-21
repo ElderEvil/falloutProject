@@ -1,0 +1,217 @@
+{
+  "title": "Detective Case Files",
+  "chain_id": "detective_case_files",
+  "chain_name": "Detective Case Files",
+  "chain_description": "Work through the unsolved case files of the Wasteland's greatest detective, Nick Valentine, one mystery at a time.",
+  "quests": [
+    {
+      "quest_name": "The Case of the Captured Canine",
+      "long_description": "You've discovered some unsolved case files of the legendary Wasteland detective, Nick Valentine! First up - the case of the captured canine!",
+      "short_description": "Feral Ghouls have captured a canine! Rescue the potentially delicious doggie.",
+      "requirements": [
+        "Level 20 dwellers",
+        "8+ average equipped weapon damage",
+        "3 Perception"
+      ],
+      "quest_objective": "Rescue the dog from the Feral Ghouls.",
+      "quest_type": "side",
+      "quest_category": "combat",
+      "chain_order": 1,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {"requirement_type": "level", "requirement_data": {"level": 20}, "is_mandatory": true},
+        {"requirement_type": "attack", "requirement_data": {"attack": 8}, "is_mandatory": true},
+        {"requirement_type": "stat", "requirement_data": {"stat": "perception", "value": 3}, "is_mandatory": true}
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "ITEM",
+          "reward_data": {"item_name": "Dogmeat (Fallout 4)", "quantity": 1},
+          "reward_chance": 1.0,
+          "item_data": {"name": "Dogmeat (Fallout 4)", "item_type": "pet", "rarity": "legendary"}
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {"item_name": "Sleazy suit", "quantity": 1},
+          "reward_chance": 1.0,
+          "item_data": {"name": "Sleazy suit", "item_type": "outfit", "rarity": "rare"}
+        },
+        {
+          "reward_type": "CAPS",
+          "reward_data": {"amount": 1200},
+          "reward_chance": 1.0
+        }
+      ]
+    },
+    {
+      "quest_name": "The Case of the Missing Mitt",
+      "long_description": "A note among Nick's files requested his help in recovering a lost family heirloom - a pre-war catcher's mitt with great sentimental value.",
+      "short_description": "Help an old Ghoul recover a precious family heirloom, would ya?",
+      "requirements": [
+        "Level 25 dwellers",
+        "10+ average equipped weapon damage",
+        "4 Perception",
+        "Complete \"The Case of the Captured Canine\" quest"
+      ],
+      "quest_objective": [
+        {"title": "Speak to Clarence."},
+        {"title": "Confront the thief."},
+        {"title": "Recover the catcher's mitt."}
+      ],
+      "quest_type": "side",
+      "quest_category": "combat",
+      "chain_order": 2,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {"requirement_type": "level", "requirement_data": {"level": 25}, "is_mandatory": true},
+        {"requirement_type": "attack", "requirement_data": {"attack": 10}, "is_mandatory": true},
+        {"requirement_type": "stat", "requirement_data": {"stat": "perception", "value": 4}, "is_mandatory": true},
+        {"requirement_type": "quest_completed", "requirement_data": {"quest_name": "The Case of the Captured Canine"}, "is_mandatory": true}
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "ITEM",
+          "reward_data": {"item_name": "Nuka-Cola Quantum", "quantity": 1},
+          "reward_chance": 1.0,
+          "item_data": {"name": "Nuka-Cola Quantum", "item_type": "consumable", "rarity": "rare"}
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {"item_name": "Henrietta", "quantity": 1},
+          "reward_chance": 1.0,
+          "item_data": {"name": "Henrietta", "item_type": "weapon", "rarity": "legendary"}
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {"item_name": "Baseball bat", "quantity": 1},
+          "reward_chance": 1.0,
+          "item_data": {"name": "Baseball bat", "item_type": "weapon", "rarity": "rare"}
+        }
+      ]
+    },
+    {
+      "quest_name": "The Case of the Quantum Creeper",
+      "long_description": "Nick was asked to solve the mystery of \"The Quantum Creeper,\" a beast that's been munching on the citizens of a local Vault and stealing their Quantum. What say you lend them a hand?",
+      "short_description": "Track down the Quantum Creeper.",
+      "requirements": [
+        "Level 30 dwellers",
+        "12+ average equipped weapon damage",
+        "5 Perception",
+        "Complete \"The Case of the Missing Mitt\" quest"
+      ],
+      "quest_objective": [
+        {"title": "Speak to the Vault Dwellers."},
+        {"title": "Deal with \"The Quantum Creeper.\""}
+      ],
+      "quest_type": "side",
+      "quest_category": "combat",
+      "chain_order": 3,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {"requirement_type": "level", "requirement_data": {"level": 30}, "is_mandatory": true},
+        {"requirement_type": "attack", "requirement_data": {"attack": 12}, "is_mandatory": true},
+        {"requirement_type": "stat", "requirement_data": {"stat": "perception", "value": 5}, "is_mandatory": true},
+        {"requirement_type": "quest_completed", "requirement_data": {"quest_name": "The Case of the Missing Mitt"}, "is_mandatory": true}
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "ITEM",
+          "reward_data": {"item_name": "Nuka-Cola Quantum", "quantity": 5},
+          "reward_chance": 1.0,
+          "item_data": {"name": "Nuka-Cola Quantum", "item_type": "consumable", "rarity": "rare"}
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {"item_name": "Vault 33 suit", "quantity": 1},
+          "reward_chance": 1.0,
+          "item_data": {"name": "Vault 33 suit", "item_type": "outfit", "rarity": "rare"}
+        },
+        {
+          "reward_type": "CAPS",
+          "reward_data": {"amount": 1000},
+          "reward_chance": 1.0
+        }
+      ]
+    },
+    {
+      "quest_name": "The Case of the Lost Lunch",
+      "long_description": "You uncovered a poorly written note among Nick's files, asking for his help in finding a kidnapped friend.",
+      "short_description": "Someone's been kidnapped! Help bring them home!",
+      "requirements": [
+        "Level 35 dwellers",
+        "14+ average equipped weapon damage",
+        "6 Perception",
+        "Complete \"The Case of the Quantum Creeper\" quest"
+      ],
+      "quest_objective": [
+        {"title": "Speak to the Raider."},
+        {"title": "Speak to the settlers."},
+        {"title": "Confront the thief."}
+      ],
+      "quest_type": "side",
+      "quest_category": "combat",
+      "chain_order": 4,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {"requirement_type": "level", "requirement_data": {"level": 35}, "is_mandatory": true},
+        {"requirement_type": "attack", "requirement_data": {"attack": 14}, "is_mandatory": true},
+        {"requirement_type": "stat", "requirement_data": {"stat": "perception", "value": 6}, "is_mandatory": true},
+        {"requirement_type": "quest_completed", "requirement_data": {"quest_name": "The Case of the Quantum Creeper"}, "is_mandatory": true}
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "ITEM",
+          "reward_data": {"item_name": "Laser musket", "quantity": 1},
+          "reward_chance": 1.0,
+          "item_data": {"name": "Laser musket", "item_type": "weapon", "rarity": "legendary"}
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {"item_name": "Combat shotgun", "quantity": 2},
+          "reward_chance": 1.0,
+          "item_data": {"name": "Combat shotgun", "item_type": "weapon", "rarity": "rare"}
+        }
+      ]
+    },
+    {
+      "quest_name": "The Bigsby Brown Case",
+      "long_description": "Nick's old pal Bigsby Brown has gone missing. An old file suggests he'd gone out in search of a missing Vault Dweller, but no one's heard from him since. Track down that sleuth!",
+      "short_description": "Track down missing sleuth Bigsby Brown.",
+      "requirements": [
+        "Level 40 dwellers",
+        "16+ average equipped weapon damage",
+        "7 Perception",
+        "Complete \"The Case of the Lost Lunch\" quest"
+      ],
+      "quest_objective": [
+        {"title": "Find Bigsby Brown."},
+        {"title": "Kill the Alpha Deathclaw."},
+        {"title": "Rescue the missing Vault Dweller."}
+      ],
+      "quest_type": "side",
+      "quest_category": "combat",
+      "chain_order": 5,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {"requirement_type": "level", "requirement_data": {"level": 40}, "is_mandatory": true},
+        {"requirement_type": "attack", "requirement_data": {"attack": 16}, "is_mandatory": true},
+        {"requirement_type": "stat", "requirement_data": {"stat": "perception", "value": 7}, "is_mandatory": true},
+        {"requirement_type": "quest_completed", "requirement_data": {"quest_name": "The Case of the Lost Lunch"}, "is_mandatory": true}
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "ITEM",
+          "reward_data": {"item_name": "Nuka-Cola Quantum", "quantity": 2},
+          "reward_chance": 1.0,
+          "item_data": {"name": "Nuka-Cola Quantum", "item_type": "consumable", "rarity": "rare"}
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {"item_name": "Legendary junk", "quantity": 2},
+          "reward_chance": 1.0,
+          "item_data": {"name": "Legendary junk", "item_type": "junk", "rarity": "legendary"}
+        }
+      ]
+    }
+  ]
+}

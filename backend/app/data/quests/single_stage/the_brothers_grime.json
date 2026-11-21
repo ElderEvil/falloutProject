@@ -1,0 +1,77 @@
+{
+  "quest_name": "The Brothers Grime",
+  "long_description": "Few Raiders play dirtier than the two Raider bosses known as the Brothers Grime. Teach these black-hearted sibling scoundrels a lesson.",
+  "short_description": "Confront a dastardly pair of Raider siblings.",
+  "requirements": [
+    "Level 18 dwellers",
+    "5+ DAM weapons"
+  ],
+  "quest_objective": [
+    {
+      "title": "Kill the Brothers Grime."
+    },
+    {
+      "title": "Kill the Brothers Grime."
+    }
+  ],
+  "quest_type": "side",
+  "quest_category": "combat",
+  "duration_minutes": 60,
+  "quest_requirements": [
+    {
+      "requirement_type": "level",
+      "requirement_data": {
+        "level": 18
+      },
+      "is_mandatory": true
+    },
+    {
+      "requirement_type": "attack",
+      "requirement_data": {
+        "attack": 5
+      },
+      "is_mandatory": true
+    }
+  ],
+  "quest_rewards": [
+    {
+      "reward_type": "ITEM",
+      "reward_data": {
+        "item_name": "Hunting rifle",
+        "quantity": 1
+      },
+      "reward_chance": 1.0,
+      "item_data": {
+        "name": "Hunting rifle",
+        "item_type": "weapon",
+        "rarity": "common"
+      }
+    },
+    {
+      "reward_type": "ITEM",
+      "reward_data": {
+        "item_name": "Sturdy leather armor",
+        "quantity": 1
+      },
+      "reward_chance": 1.0,
+      "item_data": {
+        "name": "Sturdy leather armor",
+        "item_type": "outfit",
+        "rarity": "rare"
+      }
+    },
+    {
+      "reward_type": "ITEM",
+      "reward_data": {
+        "item_name": "Rare junk",
+        "quantity": 1
+      },
+      "reward_chance": 1.0,
+      "item_data": {
+        "name": "Rare junk",
+        "item_type": "junk",
+        "rarity": "rare"
+      }
+    }
+  ]
+}

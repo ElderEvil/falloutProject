@@ -1,0 +1,70 @@
+{
+  "quest_name": "Argh, Matey!",
+  "long_description": "Grandpa wants to play Pirates, but he needs a Parrot first.",
+  "short_description": "Find a Parrot.",
+  "requirements": [
+    "Level 35 dwellers",
+    "14+ DAM weapons"
+  ],
+  "quest_objective": "Find the Parrot.",
+  "quest_type": "side",
+  "quest_category": "exploration",
+  "duration_minutes": 60,
+  "quest_requirements": [
+    {
+      "requirement_type": "level",
+      "requirement_data": {
+        "level": 35
+      },
+      "is_mandatory": true
+    },
+    {
+      "requirement_type": "attack",
+      "requirement_data": {
+        "attack": 14
+      },
+      "is_mandatory": true
+    }
+  ],
+  "quest_rewards": [
+    {
+      "reward_type": "ITEM",
+      "reward_data": {
+        "item_name": "Vault-Tec Parrot",
+        "quantity": 1
+      },
+      "reward_chance": 1.0,
+      "item_data": {
+        "name": "Vault-Tec Parrot",
+        "item_type": "pet",
+        "rarity": "rare"
+      }
+    },
+    {
+      "reward_type": "ITEM",
+      "reward_data": {
+        "item_name": "Butcher knife",
+        "quantity": 1
+      },
+      "reward_chance": 1.0,
+      "item_data": {
+        "name": "Butcher knife",
+        "item_type": "weapon",
+        "rarity": "rare"
+      }
+    },
+    {
+      "reward_type": "ITEM",
+      "reward_data": {
+        "item_name": "Prewar cowboy costume",
+        "quantity": 1
+      },
+      "reward_chance": 1.0,
+      "item_data": {
+        "name": "Prewar cowboy costume",
+        "item_type": "outfit",
+        "rarity": "rare"
+      }
+    }
+  ]
+}

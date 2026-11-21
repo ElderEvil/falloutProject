@@ -1,0 +1,60 @@
+{
+  "quest_name": "Ghooooooooooooooooooul!",
+  "long_description": "Strange radio signals have been emitting from Vault 93. It sounds like old sports broadcasts from before the bombs dropped. Go check it out!",
+  "short_description": "Explore the ruins of Vault 93.",
+  "requirements": [
+    "Level 29 dwellers",
+    "12+ DAM weapons",
+    "5 Perception"
+  ],
+  "quest_objective": "Explore Vault 93.",
+  "quest_type": "side",
+  "quest_category": "exploration",
+  "duration_minutes": 60,
+  "quest_requirements": [
+    {
+      "requirement_type": "level",
+      "requirement_data": {
+        "level": 29
+      },
+      "is_mandatory": true
+    },
+    {
+      "requirement_type": "attack",
+      "requirement_data": {
+        "attack": 12
+      },
+      "is_mandatory": true
+    },
+    {
+      "requirement_type": "stat",
+      "requirement_data": {
+        "stat": "perception",
+        "value": 5
+      },
+      "is_mandatory": true
+    }
+  ],
+  "quest_rewards": [
+    {
+      "reward_type": "ITEM",
+      "reward_data": {
+        "item_name": "Rare junk",
+        "quantity": 1
+      },
+      "reward_chance": 1.0,
+      "item_data": {
+        "name": "Rare junk",
+        "item_type": "junk",
+        "rarity": "rare"
+      }
+    },
+    {
+      "reward_type": "CAPS",
+      "reward_data": {
+        "amount": 600
+      },
+      "reward_chance": 1.0
+    }
+  ]
+}

@@ -1,0 +1,58 @@
+{
+  "quest_name": "Collector's Edition",
+  "long_description": "We've heard that local Raiders have found a brand-new Mr. Handy, still in his original box, in an abandoned industrial building. We should try to get our hands on this collector's item before those Raiders ruin it.",
+  "short_description": "Retrieve a brand-new Mr. Handy from Raiders.",
+  "requirements": [
+    "Level 25 dwellers",
+    "9+ DAM weapons"
+  ],
+  "quest_objective": "Retrieve the Mr. Handy Box.",
+  "quest_type": "side",
+  "quest_category": "collection",
+  "duration_minutes": 60,
+  "quest_requirements": [
+    {
+      "requirement_type": "level",
+      "requirement_data": {
+        "level": 25
+      },
+      "is_mandatory": true
+    },
+    {
+      "requirement_type": "attack",
+      "requirement_data": {
+        "attack": 9
+      },
+      "is_mandatory": true
+    }
+  ],
+  "quest_rewards": [
+    {
+      "reward_type": "ITEM",
+      "reward_data": {
+        "item_name": "Pet Carrier",
+        "quantity": 1
+      },
+      "reward_chance": 1.0,
+      "item_data": {
+        "name": "Pet Carrier",
+        "item_type": "pet_carrier",
+        "rarity": "common"
+      }
+    },
+    {
+      "reward_type": "CAPS",
+      "reward_data": {
+        "amount": 500
+      },
+      "reward_chance": 1.0
+    },
+    {
+      "reward_type": "CAPS",
+      "reward_data": {
+        "amount": 600
+      },
+      "reward_chance": 1.0
+    }
+  ]
+}

@@ -1,0 +1,75 @@
+{
+  "quest_name": "Divide and Conquer",
+  "long_description": "There's a new Raider gang, Euler's Angels, terrorizing the Wasteland's perimeter! Without going on a tangent, we need to send our smartest Dwellers to reduce the threat these radicals pose and solve this acute situation.",
+  "short_description": "Defeat the Euler's Angels.",
+  "requirements": [
+    "Level 20 dwellers",
+    "4 Intelligence"
+  ],
+  "quest_objective": [
+    {
+      "title": "Defeat the Raider Boss."
+    },
+    {
+      "title": "Defeat the Raiders."
+    },
+    {
+      "title": "Defeat the Raiders."
+    }
+  ],
+  "quest_type": "side",
+  "quest_category": "combat",
+  "duration_minutes": 60,
+  "quest_requirements": [
+    {
+      "requirement_type": "level",
+      "requirement_data": {
+        "level": 20
+      },
+      "is_mandatory": true
+    },
+    {
+      "requirement_type": "stat",
+      "requirement_data": {
+        "stat": "intelligence",
+        "value": 4
+      },
+      "is_mandatory": true
+    }
+  ],
+  "quest_rewards": [
+    {
+      "reward_type": "ITEM",
+      "reward_data": {
+        "item_name": "Nuka-Cola Quantum",
+        "quantity": 1
+      },
+      "reward_chance": 1.0,
+      "item_data": {
+        "name": "Nuka-Cola Quantum",
+        "item_type": "consumable",
+        "rarity": "common"
+      }
+    },
+    {
+      "reward_type": "ITEM",
+      "reward_data": {
+        "item_name": "Legendary junk",
+        "quantity": 1
+      },
+      "reward_chance": 1.0,
+      "item_data": {
+        "name": "Legendary junk",
+        "item_type": "junk",
+        "rarity": "legendary"
+      }
+    },
+    {
+      "reward_type": "CAPS",
+      "reward_data": {
+        "amount": 500
+      },
+      "reward_chance": 1.0
+    }
+  ]
+}

@@ -1,0 +1,52 @@
+{
+  "quest_name": "Radiation Leak!",
+  "long_description": "A neighboring Vault has had a massive radiation leak and the citizens have turned into Feral Ghouls!",
+  "short_description": "Send a team with Radiation Suits to a neighboring Vault.",
+  "requirements": [
+    "Level 22 dwellers",
+    "Radiation suit",
+    "10+ DAM weapons"
+  ],
+  "quest_objective": "Rescue the Vault Overseer.",
+  "quest_type": "side",
+  "quest_category": "exploration",
+  "duration_minutes": 60,
+  "quest_requirements": [
+    {
+      "requirement_type": "level",
+      "requirement_data": {
+        "level": 22
+      },
+      "is_mandatory": true
+    },
+    {
+      "requirement_type": "item",
+      "requirement_data": {
+        "item_name": "Radiation suit"
+      },
+      "is_mandatory": true
+    },
+    {
+      "requirement_type": "attack",
+      "requirement_data": {
+        "attack": 10
+      },
+      "is_mandatory": true
+    }
+  ],
+  "quest_rewards": [
+    {
+      "reward_type": "ITEM",
+      "reward_data": {
+        "item_name": "Rare junk",
+        "quantity": 1
+      },
+      "reward_chance": 1.0,
+      "item_data": {
+        "name": "Rare junk",
+        "item_type": "junk",
+        "rarity": "rare"
+      }
+    }
+  ]
+}

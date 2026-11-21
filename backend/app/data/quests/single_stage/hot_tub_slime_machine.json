@@ -1,0 +1,64 @@
+{
+  "quest_name": "Hot Tub Slime Machine",
+  "long_description": "Rumors have been circulating about a Vault with a pool, sauna, and even a hot tub! Search Vault 189 to find this oasis of relaxation, but beware of the ghoul infestation!",
+  "short_description": "Find the pool room in Vault 189.",
+  "requirements": [
+    "Level 25 dwellers",
+    "Swimsuit"
+  ],
+  "quest_objective": [
+    {
+      "title": "Find the pool room."
+    },
+    {
+      "title": "Kill the Glowing One."
+    }
+  ],
+  "quest_type": "side",
+  "quest_category": "exploration",
+  "duration_minutes": 60,
+  "quest_requirements": [
+    {
+      "requirement_type": "level",
+      "requirement_data": {
+        "level": 25
+      },
+      "is_mandatory": true
+    },
+    {
+      "requirement_type": "item",
+      "requirement_data": {
+        "item_name": "Swimsuit"
+      },
+      "is_mandatory": true
+    }
+  ],
+  "quest_rewards": [
+    {
+      "reward_type": "ITEM",
+      "reward_data": {
+        "item_name": "Legendary junk",
+        "quantity": 1
+      },
+      "reward_chance": 1.0,
+      "item_data": {
+        "name": "Legendary junk",
+        "item_type": "junk",
+        "rarity": "legendary"
+      }
+    },
+    {
+      "reward_type": "ITEM",
+      "reward_data": {
+        "item_name": "Combat shotgun",
+        "quantity": 1
+      },
+      "reward_chance": 1.0,
+      "item_data": {
+        "name": "Combat shotgun",
+        "item_type": "weapon",
+        "rarity": "rare"
+      }
+    }
+  ]
+}

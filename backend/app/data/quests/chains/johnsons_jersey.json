@@ -1,0 +1,1053 @@
+{
+  "title": "The Search for Jobinson's Jersey!",
+  "chain_id": "search_for_johnsons_jersey",
+  "chain_name": "The Search for Jobinson's Jersey!",
+  "chain_description": "Chase down the legendary baseball jersey of Rackie Jobinson, and tangle with the worst coach in the Wasteland.",
+  "quests": [
+    {
+      "quest_name": "Man on First",
+      "long_description": "Somewhere out there in the Wasteland is the Jersey of legendary baseball player Rackie Jobinson. Play ball!",
+      "short_description": "Find the Jersey of baseball legend Rackie Jobinson!",
+      "quest_objective": "Search for Rackie Jobinson's Baseball Jersey.",
+      "requirements": [
+        "Level 36 dwellers",
+        "14+ average equipped weapon damage",
+        "5 Perception"
+      ],
+      "quest_type": "side",
+      "quest_category": "combat",
+      "chain_order": 1,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 36
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "attack",
+          "requirement_data": {
+            "attack": 14
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "stat",
+          "requirement_data": {
+            "stat": "perception",
+            "value": 5
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Nuka-Cola Quantum",
+            "quantity": 2
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Nuka-Cola Quantum",
+            "item_type": "consumable",
+            "rarity": "common"
+          }
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Plasma rifle",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Plasma rifle",
+            "item_type": "weapon",
+            "rarity": "legendary"
+          }
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Baseball uniform",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Baseball uniform",
+            "item_type": "outfit",
+            "rarity": "rare"
+          }
+        }
+      ]
+    },
+    {
+      "quest_name": "Man on Second",
+      "long_description": "We found a note from someone named Coach, who claims he has Rackie Jobinson's Jersey! Maybe he's hiding out in the ruins of Vault 428...",
+      "short_description": "Look for Coach in Vault 428.",
+      "quest_objective": "Search for Rackie Jobinson's Baseball Jersey.",
+      "requirements": [
+        "Level 37 dwellers",
+        "15+ average equipped weapon damage",
+        "Complete \"Man on First\" quest"
+      ],
+      "quest_type": "side",
+      "quest_category": "combat",
+      "chain_order": 2,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 37
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "attack",
+          "requirement_data": {
+            "attack": 15
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "quest_completed",
+          "requirement_data": {
+            "quest_name": "Man on First"
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "LUNCHBOX",
+          "reward_data": {
+            "amount": 1
+          },
+          "reward_chance": 1.0
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Baseball uniform",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Baseball uniform",
+            "item_type": "outfit",
+            "rarity": "rare"
+          }
+        },
+        {
+          "reward_type": "CAPS",
+          "reward_data": {
+            "amount": 797
+          },
+          "reward_chance": 1.0
+        }
+      ]
+    },
+    {
+      "quest_name": "Man on Third",
+      "long_description": "Does Coach really have the Jersey? Evidence suggests he may be in an old office building, so it's worth a look.",
+      "short_description": "Hunt Coach down in an office building.",
+      "quest_objective": "Search for Rackie Jobinson's Baseball Jersey.",
+      "requirements": [
+        "Level 38 dwellers",
+        "15+ average equipped weapon damage",
+        "Complete \"Man on Second\" quest"
+      ],
+      "quest_type": "side",
+      "quest_category": "combat",
+      "chain_order": 3,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 38
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "attack",
+          "requirement_data": {
+            "attack": 15
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "quest_completed",
+          "requirement_data": {
+            "quest_name": "Man on Second"
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Nuka-Cola Quantum",
+            "quantity": 2
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Nuka-Cola Quantum",
+            "item_type": "consumable",
+            "rarity": "common"
+          }
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Giddyup Buttercup",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Giddyup Buttercup",
+            "item_type": "junk",
+            "rarity": "legendary"
+          }
+        }
+      ]
+    },
+    {
+      "quest_name": "Time for a Grand Slam?",
+      "long_description": "A note from someone named Henrietta has led us to Vault 232. Hopefully she can lead us to Rackie Jobinson's Jersey!",
+      "short_description": "Can Henrietta lead us to the Jersey?",
+      "quest_objective": "Search for Rackie Jobinson's Baseball Jersey.",
+      "requirements": [
+        "Level 39 dwellers",
+        "15+ average equipped weapon damage",
+        "5 Charisma",
+        "Complete \"Man on Third\" quest"
+      ],
+      "quest_type": "side",
+      "quest_category": "combat",
+      "chain_order": 4,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 39
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "attack",
+          "requirement_data": {
+            "attack": 15
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "stat",
+          "requirement_data": {
+            "stat": "charisma",
+            "value": 5
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "quest_completed",
+          "requirement_data": {
+            "quest_name": "Man on Third"
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Military duct tape",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Military duct tape",
+            "item_type": "junk",
+            "rarity": "legendary"
+          }
+        },
+        {
+          "reward_type": "CAPS",
+          "reward_data": {
+            "amount": 842
+          },
+          "reward_chance": 1.0
+        }
+      ]
+    },
+    {
+      "quest_name": "Worst. Coach. Ever.",
+      "long_description": "Henrietta was Coach's old girlfriend. She doesn't know where he is, but gave us a sweet weapon to help take him down. The search goes on!",
+      "short_description": "The search goes on!",
+      "quest_objective": "Search for Rackie Jobinson's Baseball Jersey.",
+      "requirements": [
+        "Level 40 dwellers",
+        "16+ average equipped weapon damage",
+        "Complete \"Time for a Grand Slam?\" quest"
+      ],
+      "quest_type": "side",
+      "quest_category": "combat",
+      "chain_order": 5,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 40
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "attack",
+          "requirement_data": {
+            "attack": 16
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "quest_completed",
+          "requirement_data": {
+            "quest_name": "Time for a Grand Slam?"
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Nuka-Cola Quantum",
+            "quantity": 2
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Nuka-Cola Quantum",
+            "item_type": "consumable",
+            "rarity": "common"
+          }
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Chemistry flask",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Chemistry flask",
+            "item_type": "junk",
+            "rarity": "legendary"
+          }
+        }
+      ]
+    },
+    {
+      "quest_name": "Picked off at Second!",
+      "long_description": "We found a Rackie Jobinson baseball card with a taunting note from Coach. Looks like he really does have the Jersey. But we'll never give up!",
+      "short_description": "Keep the search alive!",
+      "quest_objective": "Search for Rackie Jobinson's Baseball Jersey.",
+      "requirements": [
+        "Level 41 dwellers",
+        "16+ average equipped weapon damage",
+        "Complete \"Worst. Coach. Ever.\" quest"
+      ],
+      "quest_type": "side",
+      "quest_category": "combat",
+      "chain_order": 6,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 41
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "attack",
+          "requirement_data": {
+            "attack": 16
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "quest_completed",
+          "requirement_data": {
+            "quest_name": "Worst. Coach. Ever."
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Pet carrier",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Pet carrier",
+            "item_type": "pet_carrier",
+            "rarity": "common"
+          }
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Baseball uniform",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Baseball uniform",
+            "item_type": "outfit",
+            "rarity": "rare"
+          }
+        },
+        {
+          "reward_type": "CAPS",
+          "reward_data": {
+            "amount": 888
+          },
+          "reward_chance": 1.0
+        }
+      ]
+    },
+    {
+      "quest_name": "Seventh Inning Stretch",
+      "long_description": "Some Raiders have taken over an old apartment complex. Maybe these jerks know the big jerk, Coach. Can't hurt to ask!",
+      "short_description": "Do the Raiders know where Coach is?",
+      "quest_objective": "Search for Rackie Jobinson's Baseball Jersey.",
+      "requirements": [
+        "Level 42 dwellers",
+        "16+ average equipped weapon damage",
+        "6 Strength",
+        "Complete \"Picked off at Second!\" quest"
+      ],
+      "quest_type": "side",
+      "quest_category": "combat",
+      "chain_order": 7,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 42
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "attack",
+          "requirement_data": {
+            "attack": 16
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "stat",
+          "requirement_data": {
+            "stat": "strength",
+            "value": 6
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "quest_completed",
+          "requirement_data": {
+            "quest_name": "Picked off at Second!"
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Nuka-Cola Quantum",
+            "quantity": 2
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Nuka-Cola Quantum",
+            "item_type": "consumable",
+            "rarity": "common"
+          }
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Tri-fold flag",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Tri-fold flag",
+            "item_type": "junk",
+            "rarity": "legendary"
+          }
+        }
+      ]
+    },
+    {
+      "quest_name": "Getcha' Peanuts Here!",
+      "long_description": "Okay, so the Raiders didn't lead us to Coach. It was worth a shot. Maybe he's taking a nap in the old mattress factory!",
+      "short_description": "Explore the mattress factory to find Coach.",
+      "quest_objective": "Search for Rackie Jobinson's Baseball Jersey.",
+      "requirements": [
+        "Level 43 dwellers",
+        "17+ average equipped weapon damage",
+        "Complete \"Seventh Inning Stretch\" quest"
+      ],
+      "quest_type": "side",
+      "quest_category": "combat",
+      "chain_order": 8,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 43
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "attack",
+          "requirement_data": {
+            "attack": 17
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "quest_completed",
+          "requirement_data": {
+            "quest_name": "Seventh Inning Stretch"
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "X-01 Mk I power armor",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "X-01 Mk I power armor",
+            "item_type": "outfit",
+            "rarity": "legendary"
+          }
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Assault rifle",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Assault rifle",
+            "item_type": "weapon",
+            "rarity": "rare"
+          }
+        }
+      ]
+    },
+    {
+      "quest_name": "Last Inning! Or not...",
+      "long_description": "Still no sign of Coach, or Rackie Jobinson's Jersey. Time to venture farther out. No risk, no reward!",
+      "short_description": "Search farther out for Coach and the Jersey.",
+      "quest_objective": "Search for Rackie Jobinson's Baseball Jersey.",
+      "requirements": [
+        "Level 44 dwellers",
+        "17+ average equipped weapon damage",
+        "Complete \"Getcha' Peanuts Here!\" quest"
+      ],
+      "quest_type": "side",
+      "quest_category": "combat",
+      "chain_order": 9,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 44
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "attack",
+          "requirement_data": {
+            "attack": 17
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "quest_completed",
+          "requirement_data": {
+            "quest_name": "Getcha' Peanuts Here!"
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Nuka-Cola Quantum",
+            "quantity": 2
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Nuka-Cola Quantum",
+            "item_type": "consumable",
+            "rarity": "common"
+          }
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Yao guai hide",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Yao guai hide",
+            "item_type": "junk",
+            "rarity": "legendary"
+          }
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Plasma rifle",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Plasma rifle",
+            "item_type": "weapon",
+            "rarity": "legendary"
+          }
+        }
+      ]
+    },
+    {
+      "quest_name": "There's no Crying in Baseball!",
+      "long_description": "We have word that a fierce Alpha Deathclaw has taken up residence in an old office building. Maybe it killed Coach! Dare to dream, right?",
+      "short_description": "Did an Alpha Deathclaw take Coach out?",
+      "quest_objective": "Search for Rackie Jobinson's Baseball Jersey.",
+      "requirements": [
+        "Level 45 dwellers",
+        "17+ average equipped weapon damage",
+        "6 Endurance",
+        "Complete \"Last Inning! Or not...\" quest"
+      ],
+      "quest_type": "side",
+      "quest_category": "combat",
+      "chain_order": 10,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 45
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "attack",
+          "requirement_data": {
+            "attack": 17
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "stat",
+          "requirement_data": {
+            "stat": "endurance",
+            "value": 6
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "quest_completed",
+          "requirement_data": {
+            "quest_name": "Last Inning! Or not..."
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "LUNCHBOX",
+          "reward_data": {
+            "amount": 1
+          },
+          "reward_chance": 1.0
+        },
+        {
+          "reward_type": "CAPS",
+          "reward_data": {
+            "amount": 989
+          },
+          "reward_chance": 1.0
+        }
+      ]
+    },
+    {
+      "quest_name": "Runners in Scoring Position!",
+      "long_description": "Coach survived the Alpha Deathclaw, but he won't survive me! The Sultan of Slime left another narcissistic note, so we know he's still out there. The search continues!",
+      "short_description": "Keep tracking Coach and the Jersey.",
+      "quest_objective": "Search for Rackie Jobinson's Baseball Jersey.",
+      "requirements": [
+        "Level 46 dwellers",
+        "18+ average equipped weapon damage",
+        "Complete \"There's no Crying in Baseball!\" quest"
+      ],
+      "quest_type": "side",
+      "quest_category": "combat",
+      "chain_order": 11,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 46
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "attack",
+          "requirement_data": {
+            "attack": 18
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "quest_completed",
+          "requirement_data": {
+            "quest_name": "There's no Crying in Baseball!"
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Nuka-Cola Quantum",
+            "quantity": 2
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Nuka-Cola Quantum",
+            "item_type": "consumable",
+            "rarity": "common"
+          }
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Military circuit board",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Military circuit board",
+            "item_type": "junk",
+            "rarity": "legendary"
+          }
+        }
+      ]
+    },
+    {
+      "quest_name": "Conference on the Mound",
+      "long_description": "Call it a gut feeling, but Coach may be taking a breather in the ruins of Holy Heart Hospital. If he's there, so is Rackie Jobinson's Jersey!",
+      "short_description": "Comb through Holy Heart Hospital.",
+      "quest_objective": "Search for Rackie Jobinson's Baseball Jersey.",
+      "requirements": [
+        "Level 47 dwellers",
+        "18+ average equipped weapon damage",
+        "Complete \"Runners in Scoring Position!\" quest"
+      ],
+      "quest_type": "side",
+      "quest_category": "combat",
+      "chain_order": 12,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 47
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "attack",
+          "requirement_data": {
+            "attack": 18
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "quest_completed",
+          "requirement_data": {
+            "quest_name": "Runners in Scoring Position!"
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Alien blaster",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Alien blaster",
+            "item_type": "weapon",
+            "rarity": "legendary"
+          }
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Plasma rifle",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Plasma rifle",
+            "item_type": "weapon",
+            "rarity": "legendary"
+          }
+        }
+      ]
+    },
+    {
+      "quest_name": "Here's the Pitch...",
+      "long_description": "Okay, so Holy Heart Hospital was a dead end. But at least we're still alive! Next stop, the ruins of Lakeville Library.",
+      "short_description": "Track Coach down in the Lakeville Library.",
+      "quest_objective": "Search for Rackie Jobinson's Baseball Jersey.",
+      "requirements": [
+        "Level 48 dwellers",
+        "18+ average equipped weapon damage",
+        "7 Luck",
+        "Complete \"Conference on the Mound\" quest"
+      ],
+      "quest_type": "side",
+      "quest_category": "combat",
+      "chain_order": 13,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 48
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "attack",
+          "requirement_data": {
+            "attack": 18
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "stat",
+          "requirement_data": {
+            "stat": "luck",
+            "value": 7
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "quest_completed",
+          "requirement_data": {
+            "quest_name": "Conference on the Mound"
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Nuka-Cola Quantum",
+            "quantity": 2
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Nuka-Cola Quantum",
+            "item_type": "consumable",
+            "rarity": "common"
+          }
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Gold watch",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Gold watch",
+            "item_type": "junk",
+            "rarity": "legendary"
+          }
+        },
+        {
+          "reward_type": "CAPS",
+          "reward_data": {
+            "amount": 1060
+          },
+          "reward_chance": 1.0
+        }
+      ]
+    },
+    {
+      "quest_name": "Homerun!",
+      "long_description": "Coach left a taunting message spray painted on the wall of the Lakeville Library! We're closing in! Time to search the ruins of Vault 789.",
+      "short_description": "Chase after Coach in Vault 789.",
+      "quest_objective": "Search for Rackie Jobinson's Baseball Jersey.",
+      "requirements": [
+        "Level 49 dwellers",
+        "19+ average equipped weapon damage",
+        "Complete \"Here's the Pitch...\" quest"
+      ],
+      "quest_type": "side",
+      "quest_category": "combat",
+      "chain_order": 14,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 49
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "attack",
+          "requirement_data": {
+            "attack": 19
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "quest_completed",
+          "requirement_data": {
+            "quest_name": "Here's the Pitch..."
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Pet carrier",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Pet carrier",
+            "item_type": "pet_carrier",
+            "rarity": "common"
+          }
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Baseball uniform",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Baseball uniform",
+            "item_type": "outfit",
+            "rarity": "rare"
+          }
+        }
+      ]
+    },
+    {
+      "quest_name": "Here's to You, Rackie Jobinson",
+      "long_description": "This is it, the end of the game! It's a bench-clearing brawl with Coach in the Dugout. Time to retire this washout, and claim Rackie Jobinson's Jersey for our own!",
+      "short_description": "Bottom of the 9th! Head to the Dugout and get that Jersey!",
+      "quest_objective": "Search for Rackie Jobinson's Baseball Jersey.",
+      "requirements": [
+        "Level 50 dwellers",
+        "19+ average equipped weapon damage",
+        "Baseball uniform",
+        "Complete \"Homerun!\" quest"
+      ],
+      "quest_type": "side",
+      "quest_category": "combat",
+      "chain_order": 15,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 50
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "attack",
+          "requirement_data": {
+            "attack": 19
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "item",
+          "requirement_data": {
+            "item_name": "Baseball uniform"
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "quest_completed",
+          "requirement_data": {
+            "quest_name": "Homerun!"
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Baseball glove",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Baseball glove",
+            "item_type": "junk",
+            "rarity": "legendary"
+          }
+        }
+      ]
+    }
+  ]
+}

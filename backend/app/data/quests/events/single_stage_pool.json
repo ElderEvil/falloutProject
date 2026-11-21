@@ -1,0 +1,216 @@
+[
+  {
+    "quest_name": "Who's Carving the Turkey?",
+    "long_description": "The cook went to go find his butcher knife. Now who will carve the turkey?",
+    "short_description": "Rescue the cook.",
+    "requirements": ["Level 10 dwellers", "Pilgrim outfit", "1 dweller"],
+    "quest_objective": "Find the cook.",
+    "quest_type": "event",
+    "quest_category": "exploration",
+    "duration_minutes": 60,
+    "quest_requirements": [
+      {"requirement_type": "level", "requirement_data": {"level": 10}, "is_mandatory": true},
+      {"requirement_type": "item", "requirement_data": {"item_name": "Pilgrim outfit"}, "is_mandatory": true}
+    ],
+    "quest_rewards": [
+      {
+        "reward_type": "ITEM",
+        "reward_data": {"item_name": "Nuka-Cola Quantum", "quantity": 5},
+        "reward_chance": 1.0,
+        "item_data": {"name": "Nuka-Cola Quantum", "item_type": "consumable", "rarity": "rare"}
+      },
+      {
+        "reward_type": "ITEM",
+        "reward_data": {"item_name": "Butcher knife", "quantity": 1},
+        "reward_chance": 1.0,
+        "item_data": {"name": "Butcher knife", "item_type": "weapon", "rarity": "rare"}
+      }
+    ]
+  },
+  {
+    "quest_name": "The Door Buster",
+    "long_description": "Across the Wasteland rumors swirl of a treasure called \"Door Buster.\" The race is on to claim this mysterious prize!",
+    "short_description": "Be the first to claim the Door Buster!",
+    "requirements": ["Level 10 dwellers", "3+ DAM weapons"],
+    "quest_objective": "Search for the Door Buster.",
+    "quest_type": "event",
+    "quest_category": "exploration",
+    "duration_minutes": 60,
+    "quest_requirements": [
+      {"requirement_type": "level", "requirement_data": {"level": 10}, "is_mandatory": true},
+      {"requirement_type": "attack", "requirement_data": {"attack": 3}, "is_mandatory": true}
+    ],
+    "quest_rewards": [
+      {"reward_type": "LUNCHBOX", "reward_data": {"amount": 1}, "reward_chance": 1.0},
+      {
+        "reward_type": "ITEM",
+        "reward_data": {"item_name": "Ripper", "quantity": 1},
+        "reward_chance": 1.0,
+        "item_data": {"name": "Ripper", "item_type": "weapon", "rarity": "rare"}
+      },
+      {
+        "reward_type": "ITEM",
+        "reward_data": {"item_name": "Bounty hunter gear", "quantity": 1},
+        "reward_chance": 1.0,
+        "item_data": {"name": "Bounty hunter gear", "item_type": "outfit", "rarity": "rare"}
+      }
+    ]
+  },
+  {
+    "quest_name": "Ghostly Gag",
+    "long_description": "Raiders are so superstitious. Let's give them something to be scared of.",
+    "short_description": "Time to scare some Raiders.",
+    "requirements": ["Level 18 dwellers", "Ghost costume", "1 dweller"],
+    "quest_objective": "Kill the Raider Boss.",
+    "quest_type": "event",
+    "quest_category": "combat",
+    "duration_minutes": 60,
+    "quest_requirements": [
+      {"requirement_type": "level", "requirement_data": {"level": 18}, "is_mandatory": true},
+      {"requirement_type": "item", "requirement_data": {"item_name": "Ghost costume"}, "is_mandatory": true}
+    ],
+    "quest_rewards": [
+      {
+        "reward_type": "ITEM",
+        "reward_data": {"item_name": "Skeleton costume", "quantity": 1},
+        "reward_chance": 1.0,
+        "item_data": {"name": "Skeleton costume", "item_type": "outfit", "rarity": "rare"}
+      },
+      {
+        "reward_type": "ITEM",
+        "reward_data": {"item_name": "Rare junk", "quantity": 1},
+        "reward_chance": 1.0,
+        "item_data": {"name": "Rare junk", "item_type": "junk", "rarity": "rare"}
+      }
+    ]
+  },
+  {
+    "quest_name": "The Haunting of Mass Chemical",
+    "long_description": "Like most bullies, Raiders are usually cowards. Rumor has it the Raider Boss who just took over the Mass Chemical building is exactly that, so maybe you can scare him off without a fight.",
+    "short_description": "Scare off a Raider Boss holed up in the Mass Chemical building.",
+    "requirements": ["Level 18 dwellers", "Ghost costume", "1 dweller"],
+    "quest_objective": "Scare off the Raider Boss.",
+    "quest_type": "event",
+    "quest_category": "exploration",
+    "duration_minutes": 60,
+    "quest_requirements": [
+      {"requirement_type": "level", "requirement_data": {"level": 18}, "is_mandatory": true},
+      {"requirement_type": "item", "requirement_data": {"item_name": "Ghost costume"}, "is_mandatory": true}
+    ],
+    "quest_rewards": [
+      {"reward_type": "LUNCHBOX", "reward_data": {"amount": 1}, "reward_chance": 1.0},
+      {
+        "reward_type": "ITEM",
+        "reward_data": {"item_name": "Hazmat suit", "quantity": 1},
+        "reward_chance": 1.0,
+        "item_data": {"name": "Hazmat suit", "item_type": "outfit", "rarity": "rare"}
+      }
+    ]
+  },
+  {
+    "quest_name": "Horror Movie Night!",
+    "long_description": "One of your dwellers is feeling... \"inspired\" by a horror movie he watched.",
+    "short_description": "Send out a lone Vault Dweller wearing a Ghost Costume to wreak havoc!",
+    "requirements": ["Level 18 dwellers", "Ghost costume", "1 dweller"],
+    "quest_objective": "Kill the Raider Boss.",
+    "quest_type": "event",
+    "quest_category": "combat",
+    "duration_minutes": 60,
+    "quest_requirements": [
+      {"requirement_type": "level", "requirement_data": {"level": 18}, "is_mandatory": true},
+      {"requirement_type": "item", "requirement_data": {"item_name": "Ghost costume"}, "is_mandatory": true}
+    ],
+    "quest_rewards": [
+      {
+        "reward_type": "ITEM",
+        "reward_data": {"item_name": "Death's jacket", "quantity": 1},
+        "reward_chance": 1.0,
+        "item_data": {"name": "Death's jacket", "item_type": "outfit", "rarity": "legendary"}
+      },
+      {
+        "reward_type": "ITEM",
+        "reward_data": {"item_name": "Combat shotgun", "quantity": 1},
+        "reward_chance": 1.0,
+        "item_data": {"name": "Combat shotgun", "item_type": "weapon", "rarity": "rare"}
+      },
+      {"reward_type": "CAPS", "reward_data": {"amount": 3000}, "reward_chance": 1.0}
+    ]
+  },
+  {
+    "quest_name": "The Spirit of Taking",
+    "long_description": "So much for the spirit of giving! Some heartless Raiders have robbed a Wasteland Settler and stolen a gift meant for his friend.",
+    "short_description": "Confront a gang of Raiders that stole a gift from a Wasteland Settler.",
+    "requirements": ["Level 13 dwellers", "5+ DAM weapons"],
+    "quest_objective": [
+      {"title": "Confront the Raiders."},
+      {"title": "Rescue the Wasteland Settler."}
+    ],
+    "quest_type": "event",
+    "quest_category": "combat",
+    "duration_minutes": 60,
+    "quest_requirements": [
+      {"requirement_type": "level", "requirement_data": {"level": 13}, "is_mandatory": true},
+      {"requirement_type": "attack", "requirement_data": {"attack": 5}, "is_mandatory": true}
+    ],
+    "quest_rewards": [
+      {
+        "reward_type": "ITEM",
+        "reward_data": {"item_name": "Pet Carrier", "quantity": 1},
+        "reward_chance": 1.0,
+        "item_data": {"name": "Pet Carrier", "item_type": "pet_carrier", "rarity": "common"}
+      },
+      {
+        "reward_type": "ITEM",
+        "reward_data": {"item_name": "Assault rifle", "quantity": 1},
+        "reward_chance": 1.0,
+        "item_data": {"name": "Assault rifle", "item_type": "weapon", "rarity": "rare"}
+      },
+      {
+        "reward_type": "ITEM",
+        "reward_data": {"item_name": "Santa suit", "quantity": 1},
+        "reward_chance": 1.0,
+        "item_data": {"name": "Santa suit", "item_type": "outfit", "rarity": "rare"}
+      },
+      {
+        "reward_type": "ITEM",
+        "reward_data": {"item_name": "Rare junk", "quantity": 1},
+        "reward_chance": 1.0,
+        "item_data": {"name": "Rare junk", "item_type": "junk", "rarity": "rare"}
+      }
+    ]
+  },
+  {
+    "quest_name": "To Grandmother's House We Go",
+    "long_description": "An old woman living near your Vault was expecting Holiday visitors, but they haven't arrived and she fears the worst!",
+    "short_description": "Help some Wasteland Settlers who got lost while travelling for the Holidays!",
+    "requirements": ["Level 19 dwellers", "5 Perception"],
+    "quest_objective": "Rescue the lost Wasteland Settlers.",
+    "quest_type": "event",
+    "quest_category": "exploration",
+    "duration_minutes": 60,
+    "quest_requirements": [
+      {"requirement_type": "level", "requirement_data": {"level": 19}, "is_mandatory": true},
+      {"requirement_type": "stat", "requirement_data": {"stat": "perception", "value": 5}, "is_mandatory": true}
+    ],
+    "quest_rewards": [
+      {
+        "reward_type": "ITEM",
+        "reward_data": {"item_name": "Sniper rifle", "quantity": 1},
+        "reward_chance": 1.0,
+        "item_data": {"name": "Sniper rifle", "item_type": "weapon", "rarity": "rare"}
+      },
+      {
+        "reward_type": "ITEM",
+        "reward_data": {"item_name": "Elf outfit", "quantity": 1},
+        "reward_chance": 1.0,
+        "item_data": {"name": "Elf outfit", "item_type": "outfit", "rarity": "rare"}
+      },
+      {
+        "reward_type": "ITEM",
+        "reward_data": {"item_name": "Rare junk", "quantity": 1},
+        "reward_chance": 1.0,
+        "item_data": {"name": "Rare junk", "item_type": "junk", "rarity": "rare"}
+      }
+    ]
+  }
+]

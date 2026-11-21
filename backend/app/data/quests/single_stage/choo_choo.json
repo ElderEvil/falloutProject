@@ -1,0 +1,70 @@
+{
+  "quest_name": "Choo-Choo!",
+  "long_description": "One of your Dwellers won't stop calling themselves “The Pain Train.” Let's make that nickname a reality...",
+  "short_description": "Send a lone Vault Dweller with a Railway Rifle out to wreak havoc!",
+  "requirements": [
+    "Level 26 dwellers",
+    "Railway rifle"
+  ],
+  "quest_objective": "Kill the Raider Boss.",
+  "quest_type": "side",
+  "quest_category": "combat",
+  "duration_minutes": 60,
+  "quest_requirements": [
+    {
+      "requirement_type": "level",
+      "requirement_data": {
+        "level": 26
+      },
+      "is_mandatory": true
+    },
+    {
+      "requirement_type": "item",
+      "requirement_data": {
+        "item_name": "Railway rifle"
+      },
+      "is_mandatory": true
+    }
+  ],
+  "quest_rewards": [
+    {
+      "reward_type": "ITEM",
+      "reward_data": {
+        "item_name": "Nuka-Cola Quantum",
+        "quantity": 3
+      },
+      "reward_chance": 1.0,
+      "item_data": {
+        "name": "Nuka-Cola Quantum",
+        "item_type": "consumable",
+        "rarity": "common"
+      }
+    },
+    {
+      "reward_type": "ITEM",
+      "reward_data": {
+        "item_name": "Legendary junk",
+        "quantity": 1
+      },
+      "reward_chance": 1.0,
+      "item_data": {
+        "name": "Legendary junk",
+        "item_type": "junk",
+        "rarity": "legendary"
+      }
+    },
+    {
+      "reward_type": "ITEM",
+      "reward_data": {
+        "item_name": "Engineer outfit",
+        "quantity": 1
+      },
+      "reward_chance": 1.0,
+      "item_data": {
+        "name": "Engineer outfit",
+        "item_type": "outfit",
+        "rarity": "rare"
+      }
+    }
+  ]
+}

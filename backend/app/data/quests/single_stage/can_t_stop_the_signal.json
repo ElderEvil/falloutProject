@@ -1,0 +1,64 @@
+{
+  "quest_name": "Can't Stop the Signal",
+  "long_description": "A strange, high-pitched sound is coming through over the radio. The signal seems to originate from an old, abandoned building.",
+  "short_description": "Investigate a strange radio broadcast.",
+  "requirements": [
+    "Level 5 dwellers",
+    "3+ DAM weapons"
+  ],
+  "quest_objective": "Find the signal's source.",
+  "quest_type": "side",
+  "quest_category": "exploration",
+  "duration_minutes": 60,
+  "quest_requirements": [
+    {
+      "requirement_type": "level",
+      "requirement_data": {
+        "level": 5
+      },
+      "is_mandatory": true
+    },
+    {
+      "requirement_type": "attack",
+      "requirement_data": {
+        "attack": 3
+      },
+      "is_mandatory": true
+    }
+  ],
+  "quest_rewards": [
+    {
+      "reward_type": "ITEM",
+      "reward_data": {
+        "item_name": "Hardened scoped .44",
+        "quantity": 1
+      },
+      "reward_chance": 1.0,
+      "item_data": {
+        "name": "Hardened scoped .44",
+        "item_type": "weapon",
+        "rarity": "rare"
+      }
+    },
+    {
+      "reward_type": "ITEM",
+      "reward_data": {
+        "item_name": "Laser pistol",
+        "quantity": 1
+      },
+      "reward_chance": 1.0,
+      "item_data": {
+        "name": "Laser pistol",
+        "item_type": "weapon",
+        "rarity": "rare"
+      }
+    },
+    {
+      "reward_type": "CAPS",
+      "reward_data": {
+        "amount": 140
+      },
+      "reward_chance": 1.0
+    }
+  ]
+}

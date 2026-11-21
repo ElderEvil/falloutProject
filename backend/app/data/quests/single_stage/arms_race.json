@@ -1,0 +1,74 @@
+{
+  "quest_name": "Arms Race",
+  "long_description": "The gunsmith's plea came in loud and clear over the radio. “Feral Ghouls! Help! I'll give one of my best pieces to whoever bails me out!” Better hurry if you're going to claim that prize!",
+  "short_description": "Save the gunsmith from the Feral Ghouls.",
+  "requirements": [
+    "Level 50 dwellers",
+    "7 Agility",
+    "7 Endurance"
+  ],
+  "quest_objective": [
+    {
+      "title": "Eliminate the Feral Ghouls."
+    },
+    {
+      "title": "Claim your reward."
+    }
+  ],
+  "quest_type": "side",
+  "quest_category": "combat",
+  "duration_minutes": 60,
+  "quest_requirements": [
+    {
+      "requirement_type": "level",
+      "requirement_data": {
+        "level": 50
+      },
+      "is_mandatory": true
+    },
+    {
+      "requirement_type": "stat",
+      "requirement_data": {
+        "stat": "agility",
+        "value": 7
+      },
+      "is_mandatory": true
+    },
+    {
+      "requirement_type": "stat",
+      "requirement_data": {
+        "stat": "endurance",
+        "value": 7
+      },
+      "is_mandatory": true
+    }
+  ],
+  "quest_rewards": [
+    {
+      "reward_type": "ITEM",
+      "reward_data": {
+        "item_name": "Legendary junk",
+        "quantity": 2
+      },
+      "reward_chance": 1.0,
+      "item_data": {
+        "name": "Legendary junk",
+        "item_type": "junk",
+        "rarity": "legendary"
+      }
+    },
+    {
+      "reward_type": "ITEM",
+      "reward_data": {
+        "item_name": "Gauss rifle",
+        "quantity": 1
+      },
+      "reward_chance": 1.0,
+      "item_data": {
+        "name": "Gauss rifle",
+        "item_type": "weapon",
+        "rarity": "rare"
+      }
+    }
+  ]
+}

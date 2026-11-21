@@ -1,0 +1,64 @@
+{
+  "quest_name": "Den of Thieves",
+  "long_description": "Red Rachel is a ruthless Raider boss, and she's stolen some of your supplies. Take back what's yours, and teach that reckless rogue a lesson!",
+  "short_description": "Reclaim the stolen supplies from the Raiders.",
+  "requirements": [
+    "Level 15 dwellers",
+    "6+ DAM weapons"
+  ],
+  "quest_objective": [
+    {
+      "title": "Reclaim the lost supplies."
+    },
+    {
+      "title": "Confront the Raider Boss."
+    }
+  ],
+  "quest_type": "side",
+  "quest_category": "collection",
+  "duration_minutes": 60,
+  "quest_requirements": [
+    {
+      "requirement_type": "level",
+      "requirement_data": {
+        "level": 15
+      },
+      "is_mandatory": true
+    },
+    {
+      "requirement_type": "attack",
+      "requirement_data": {
+        "attack": 6
+      },
+      "is_mandatory": true
+    }
+  ],
+  "quest_rewards": [
+    {
+      "reward_type": "ITEM",
+      "reward_data": {
+        "item_name": "Assault rifle",
+        "quantity": 1
+      },
+      "reward_chance": 1.0,
+      "item_data": {
+        "name": "Assault rifle",
+        "item_type": "weapon",
+        "rarity": "rare"
+      }
+    },
+    {
+      "reward_type": "ITEM",
+      "reward_data": {
+        "item_name": "Sturdy raider armor",
+        "quantity": 1
+      },
+      "reward_chance": 1.0,
+      "item_data": {
+        "name": "Sturdy raider armor",
+        "item_type": "outfit",
+        "rarity": "rare"
+      }
+    }
+  ]
+}

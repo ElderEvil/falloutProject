@@ -1,0 +1,60 @@
+{
+  "quest_name": "The Scorpion... King?",
+  "long_description": "Folks are being stung all over, and the problem is coming from Earl's Radscorpion Emporium. Time to put him out of business.",
+  "short_description": "Raising Radscorpions is a hazardous business.",
+  "requirements": [
+    "Level 32 dwellers",
+    "Plasma pistol",
+    "5 Agility"
+  ],
+  "quest_objective": [
+    {
+      "title": "Find Earl."
+    },
+    {
+      "title": "Kill the Glowing Radscorpion."
+    }
+  ],
+  "quest_type": "side",
+  "quest_category": "combat",
+  "duration_minutes": 60,
+  "quest_requirements": [
+    {
+      "requirement_type": "level",
+      "requirement_data": {
+        "level": 32
+      },
+      "is_mandatory": true
+    },
+    {
+      "requirement_type": "item",
+      "requirement_data": {
+        "item_name": "Plasma pistol"
+      },
+      "is_mandatory": true
+    },
+    {
+      "requirement_type": "stat",
+      "requirement_data": {
+        "stat": "agility",
+        "value": 5
+      },
+      "is_mandatory": true
+    }
+  ],
+  "quest_rewards": [
+    {
+      "reward_type": "ITEM",
+      "reward_data": {
+        "item_name": "Common junk",
+        "quantity": 1
+      },
+      "reward_chance": 1.0,
+      "item_data": {
+        "name": "Common junk",
+        "item_type": "junk",
+        "rarity": "common"
+      }
+    }
+  ]
+}

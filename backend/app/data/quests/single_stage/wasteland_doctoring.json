@@ -1,0 +1,58 @@
+{
+  "quest_name": "Wasteland Doctoring",
+  "long_description": "We've picked up a radio transmission. A nearby settlement has sick and wounded in need of help!",
+  "short_description": "Bring medical aid to a nearby settlement.",
+  "requirements": [
+    "Level 50 dwellers",
+    "Wasteland surgeon"
+  ],
+  "quest_objective": "Talk to the settlement leader.",
+  "quest_type": "side",
+  "quest_category": "exploration",
+  "duration_minutes": 60,
+  "quest_requirements": [
+    {
+      "requirement_type": "level",
+      "requirement_data": {
+        "level": 50
+      },
+      "is_mandatory": true
+    },
+    {
+      "requirement_type": "item",
+      "requirement_data": {
+        "item_name": "Wasteland surgeon",
+        "count": 1
+      },
+      "is_mandatory": true
+    }
+  ],
+  "quest_rewards": [
+    {
+      "reward_type": "ITEM",
+      "reward_data": {
+        "item_name": "Legendary junk",
+        "quantity": 1
+      },
+      "reward_chance": 1.0,
+      "item_data": {
+        "name": "Legendary junk",
+        "item_type": "junk",
+        "rarity": "legendary"
+      }
+    },
+    {
+      "reward_type": "ITEM",
+      "reward_data": {
+        "item_name": "Expert lab coat",
+        "quantity": 1
+      },
+      "reward_chance": 1.0,
+      "item_data": {
+        "name": "Expert lab coat",
+        "item_type": "outfit",
+        "rarity": "legendary"
+      }
+    }
+  ]
+}

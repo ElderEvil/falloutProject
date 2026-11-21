@@ -1,0 +1,209 @@
+{
+  "title": "The Great Tato Famine",
+  "chain_id": "great_tato_famine",
+  "chain_name": "The Great Tato Famine",
+  "chain_description": "A blight is wiping out the Commonwealth's Tatos and the settlers are starving. Trace the die-off to its source and stop the man behind it.",
+  "quests": [
+    {
+      "quest_name": "The Mysterious Disappearing Spuds",
+      "long_description": "All across the Commonwealth, Tatos are being wiped out by a mysterious blight. Settlers are starving! Maybe we can help.",
+      "short_description": "Find out more about the Tato blight.",
+      "requirements": [
+        "Level 12 dwellers",
+        "5+ average equipped weapon damage"
+      ],
+      "quest_objective": "Meet the Farmers.",
+      "quest_type": "side",
+      "quest_category": "exploration",
+      "chain_order": 1,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {"requirement_type": "level", "requirement_data": {"level": 12}, "is_mandatory": true},
+        {"requirement_type": "attack", "requirement_data": {"attack": 5}, "is_mandatory": true}
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "ITEM",
+          "reward_data": {"item_name": "Pickaxe", "quantity": 1},
+          "reward_chance": 1.0,
+          "item_data": {"name": "Pickaxe", "item_type": "weapon", "rarity": "rare"}
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {"item_name": "Pilgrim outfit", "quantity": 1},
+          "reward_chance": 1.0,
+          "item_data": {"name": "Pilgrim outfit", "item_type": "outfit", "rarity": "rare"}
+        }
+      ]
+    },
+    {
+      "quest_name": "The Spreading Blight",
+      "long_description": "We've found out from a group of farmers that the Tato blight isn't restricted to just one location - it's hitting multiple farms throughout the Wasteland!",
+      "short_description": "Meet up with another group of farmers that have been hit by the Tato blight.",
+      "requirements": [
+        "Level 13 dwellers",
+        "5+ average equipped weapon damage",
+        "Complete \"The Mysterious Disappearing Spuds\" quest"
+      ],
+      "quest_objective": "Get more information on the Tato blight.",
+      "quest_type": "side",
+      "quest_category": "exploration",
+      "chain_order": 2,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {"requirement_type": "level", "requirement_data": {"level": 13}, "is_mandatory": true},
+        {"requirement_type": "attack", "requirement_data": {"attack": 5}, "is_mandatory": true},
+        {"requirement_type": "quest_completed", "requirement_data": {"quest_name": "The Mysterious Disappearing Spuds"}, "is_mandatory": true}
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "ITEM",
+          "reward_data": {"item_name": "Gauss rifle", "quantity": 1},
+          "reward_chance": 1.0,
+          "item_data": {"name": "Gauss rifle", "item_type": "weapon", "rarity": "rare"}
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {"item_name": "Assault rifle", "quantity": 1},
+          "reward_chance": 1.0,
+          "item_data": {"name": "Assault rifle", "item_type": "weapon", "rarity": "rare"}
+        }
+      ]
+    },
+    {
+      "quest_name": "The Night Watch",
+      "long_description": "We've found out there's a group of settlers that has more information about the widespread Tato die-outs. Let's talk to them and see what they know.",
+      "short_description": "Find out more about the alternate theory concerning the Tato blight.",
+      "requirements": [
+        "Level 14 dwellers",
+        "5+ average equipped weapon damage",
+        "Complete \"The Spreading Blight\" quest"
+      ],
+      "quest_objective": "Get more information on the Tato blight.",
+      "quest_type": "side",
+      "quest_category": "exploration",
+      "chain_order": 3,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {"requirement_type": "level", "requirement_data": {"level": 14}, "is_mandatory": true},
+        {"requirement_type": "attack", "requirement_data": {"attack": 5}, "is_mandatory": true},
+        {"requirement_type": "quest_completed", "requirement_data": {"quest_name": "The Spreading Blight"}, "is_mandatory": true}
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "ITEM",
+          "reward_data": {"item_name": "Nuka-Cola Quantum", "quantity": 2},
+          "reward_chance": 1.0,
+          "item_data": {"name": "Nuka-Cola Quantum", "item_type": "consumable", "rarity": "rare"}
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {"item_name": "Laser pistol", "quantity": 1},
+          "reward_chance": 1.0,
+          "item_data": {"name": "Laser pistol", "item_type": "weapon", "rarity": "rare"}
+        }
+      ]
+    },
+    {
+      "quest_name": "Spear Fishing",
+      "long_description": "It turns out that this isn't a disease - someone has figured out how to steal Tatos from underground! We need to meet with the group that's figured it out.",
+      "short_description": "Meet up with the first Tato farmers to lose their Tatos.",
+      "requirements": [
+        "Level 15 dwellers",
+        "6+ average equipped weapon damage",
+        "Complete \"The Night Watch\" quest"
+      ],
+      "quest_objective": "Meet the first farmers to lose their crops.",
+      "quest_type": "side",
+      "quest_category": "exploration",
+      "chain_order": 4,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {"requirement_type": "level", "requirement_data": {"level": 15}, "is_mandatory": true},
+        {"requirement_type": "attack", "requirement_data": {"attack": 6}, "is_mandatory": true},
+        {"requirement_type": "quest_completed", "requirement_data": {"quest_name": "The Night Watch"}, "is_mandatory": true}
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "ITEM",
+          "reward_data": {"item_name": "Lifeguard outfit", "quantity": 1},
+          "reward_chance": 1.0,
+          "item_data": {"name": "Lifeguard outfit", "item_type": "outfit", "rarity": "rare"}
+        }
+      ]
+    },
+    {
+      "quest_name": "The Shadow Wolf",
+      "long_description": "Some nefarious person has been training Mole rats to steal Tatos from under people's noses. We need to meet with a tracker who might have found the source.",
+      "short_description": "Meet the tracker who may have found the source of the Mole rat infestation that's targeting Tatos.",
+      "requirements": [
+        "Level 16 dwellers",
+        "6+ average equipped weapon damage",
+        "Complete \"Spear Fishing\" quest"
+      ],
+      "quest_objective": "Track down the tracker.",
+      "quest_type": "side",
+      "quest_category": "exploration",
+      "chain_order": 5,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {"requirement_type": "level", "requirement_data": {"level": 16}, "is_mandatory": true},
+        {"requirement_type": "attack", "requirement_data": {"attack": 6}, "is_mandatory": true},
+        {"requirement_type": "quest_completed", "requirement_data": {"quest_name": "Spear Fishing"}, "is_mandatory": true}
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "LUNCHBOX",
+          "reward_data": {"amount": 1},
+          "reward_chance": 1.0
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {"item_name": "Ninja outfit", "quantity": 1},
+          "reward_chance": 1.0,
+          "item_data": {"name": "Ninja outfit", "item_type": "outfit", "rarity": "rare"}
+        }
+      ]
+    },
+    {
+      "quest_name": "The Mole Rat Man",
+      "long_description": "A lunatic who calls himself Mole Rat Man has been training Mole rats to attack settlements and steal their Tatos. Now's the time to strike!",
+      "short_description": "Confront Mole Rat Man at his base.",
+      "requirements": [
+        "Level 17 dwellers",
+        "6+ average equipped weapon damage",
+        "Complete \"The Shadow Wolf\" quest"
+      ],
+      "quest_objective": "Confront Mole Rat Man.",
+      "quest_type": "side",
+      "quest_category": "combat",
+      "chain_order": 6,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {"requirement_type": "level", "requirement_data": {"level": 17}, "is_mandatory": true},
+        {"requirement_type": "attack", "requirement_data": {"attack": 6}, "is_mandatory": true},
+        {"requirement_type": "quest_completed", "requirement_data": {"quest_name": "The Shadow Wolf"}, "is_mandatory": true}
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "ITEM",
+          "reward_data": {"item_name": "Expert lab coat", "quantity": 1},
+          "reward_chance": 1.0,
+          "item_data": {"name": "Expert lab coat", "item_type": "outfit", "rarity": "legendary"}
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {"item_name": "Fire hydrant bat", "quantity": 1},
+          "reward_chance": 1.0,
+          "item_data": {"name": "Fire hydrant bat", "item_type": "weapon", "rarity": "legendary"}
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {"item_name": "Sturdy merc gear", "quantity": 1},
+          "reward_chance": 1.0,
+          "item_data": {"name": "Sturdy merc gear", "item_type": "outfit", "rarity": "rare"}
+        }
+      ]
+    }
+  ]
+}

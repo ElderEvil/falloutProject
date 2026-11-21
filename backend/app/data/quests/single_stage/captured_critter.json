@@ -1,0 +1,44 @@
+{
+  "quest_name": "Captured Critter",
+  "long_description": "There's a lost and lonely animal who'd love to come home to your Vault. Too bad some hungry Ghouls found it first.",
+  "short_description": "Save a lost Pet from some hungry Ghouls.",
+  "requirements": [
+    "Level 20 dwellers",
+    "9+ DAM weapons"
+  ],
+  "quest_objective": "Rescue the Pet from the hungry Ghouls.",
+  "quest_type": "side",
+  "quest_category": "combat",
+  "duration_minutes": 60,
+  "quest_requirements": [
+    {
+      "requirement_type": "level",
+      "requirement_data": {
+        "level": 20
+      },
+      "is_mandatory": true
+    },
+    {
+      "requirement_type": "attack",
+      "requirement_data": {
+        "attack": 9
+      },
+      "is_mandatory": true
+    }
+  ],
+  "quest_rewards": [
+    {
+      "reward_type": "ITEM",
+      "reward_data": {
+        "item_name": "Pet Carrier",
+        "quantity": 1
+      },
+      "reward_chance": 1.0,
+      "item_data": {
+        "name": "Pet Carrier",
+        "item_type": "pet_carrier",
+        "rarity": "common"
+      }
+    }
+  ]
+}

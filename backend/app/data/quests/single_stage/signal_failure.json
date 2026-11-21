@@ -1,0 +1,64 @@
+{
+  "quest_name": "Signal Failure",
+  "long_description": "You've picked up a distress signal emanating from the supposedly abandoned Vault 233. It's up to you to investigate.",
+  "short_description": "Follow up on the old distress signal emanating from Vault 233!",
+  "requirements": [
+    "Level 28 dwellers",
+    "11+ DAM weapons"
+  ],
+  "quest_objective": "Find the source of the Vault 233 distress signal.",
+  "quest_type": "side",
+  "quest_category": "exploration",
+  "duration_minutes": 60,
+  "quest_requirements": [
+    {
+      "requirement_type": "level",
+      "requirement_data": {
+        "level": 28
+      },
+      "is_mandatory": true
+    },
+    {
+      "requirement_type": "attack",
+      "requirement_data": {
+        "attack": 11
+      },
+      "is_mandatory": true
+    }
+  ],
+  "quest_rewards": [
+    {
+      "reward_type": "ITEM",
+      "reward_data": {
+        "item_name": "Pet Carrier",
+        "quantity": 1
+      },
+      "reward_chance": 1.0,
+      "item_data": {
+        "name": "Pet Carrier",
+        "item_type": "pet_carrier",
+        "rarity": "common"
+      }
+    },
+    {
+      "reward_type": "ITEM",
+      "reward_data": {
+        "item_name": "Sniper rifle",
+        "quantity": 1
+      },
+      "reward_chance": 1.0,
+      "item_data": {
+        "name": "Sniper rifle",
+        "item_type": "weapon",
+        "rarity": "rare"
+      }
+    },
+    {
+      "reward_type": "CAPS",
+      "reward_data": {
+        "amount": 1200
+      },
+      "reward_chance": 1.0
+    }
+  ]
+}

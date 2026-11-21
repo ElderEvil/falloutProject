@@ -1,0 +1,71 @@
+{
+  "quest_name": "Dog Gone",
+  "long_description": "A hastily written and grammatically incorrect note was left outside the Vault door: \"IF U EVAR WANT TOO SEE YOU'RE DOG AGAN, COME TWO ARE BIG BILDING AND BRING GUNZ, CAPS, AND SNAX.\" It must've been written by some really stupid Raiders, because we don't even have a missing dog. But if those jerks really do have a kidnapped canine, it still needs rescuing!",
+  "short_description": "Save a kidnapped pooch from a band of Raiders.",
+  "requirements": [
+    "Level 19 dwellers",
+    "Assault rifle"
+  ],
+  "quest_objective": "Teach the Raiders a lesson and rescue the missing dog.",
+  "quest_type": "side",
+  "quest_category": "combat",
+  "duration_minutes": 60,
+  "quest_requirements": [
+    {
+      "requirement_type": "level",
+      "requirement_data": {
+        "level": 19
+      },
+      "is_mandatory": true
+    },
+    {
+      "requirement_type": "item",
+      "requirement_data": {
+        "item_name": "Assault rifle",
+        "count": 1
+      },
+      "is_mandatory": true
+    }
+  ],
+  "quest_rewards": [
+    {
+      "reward_type": "ITEM",
+      "reward_data": {
+        "item_name": "St. Bernard",
+        "quantity": 1
+      },
+      "reward_chance": 1.0,
+      "item_data": {
+        "name": "St. Bernard",
+        "item_type": "pet",
+        "rarity": "rare"
+      }
+    },
+    {
+      "reward_type": "ITEM",
+      "reward_data": {
+        "item_name": "Combat shotgun",
+        "quantity": 1
+      },
+      "reward_chance": 1.0,
+      "item_data": {
+        "name": "Combat shotgun",
+        "item_type": "weapon",
+        "rarity": "rare"
+      }
+    },
+    {
+      "reward_type": "ITEM",
+      "reward_data": {
+        "item_name": "Bounty hunter gear",
+        "quantity": 1
+      },
+      "reward_chance": 1.0,
+      "item_data": {
+        "name": "Bounty hunter gear",
+        "item_type": "outfit",
+        "rarity": "rare"
+      }
+    }
+  ]
+}

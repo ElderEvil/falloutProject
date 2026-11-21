@@ -1,0 +1,313 @@
+{
+  "title": "The Mystery of Vault 31",
+  "chain_id": "mystery_of_vault_31",
+  "chain_name": "The Mystery of Vault 31",
+  "chain_description": "Halloween brings rumors that Vault 31 is haunted. Follow the trail from a ruined library to the Vault itself and find out what really happened there.",
+  "quests": [
+    {
+      "quest_name": "Halloween (Non)Fiction",
+      "long_description": "As Halloween approaches, the story of Vault 31 and its strange past is being told once again. But is the Vault really haunted, or is something else to blame? It's up to you to solve... The Mystery of Vault 31!",
+      "short_description": "Learn more about Vault 31 at the ruined library.",
+      "requirements": [
+        "Level 10 dwellers",
+        "3+ average equipped weapon damage"
+      ],
+      "quest_objective": "Learn more about Vault 31 at the ruined library.",
+      "quest_type": "event",
+      "quest_category": "exploration",
+      "chain_order": 1,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 10
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "attack",
+          "requirement_data": {
+            "attack": 3
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Ghost costume",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Ghost costume",
+            "item_type": "outfit",
+            "rarity": "rare"
+          }
+        },
+        {
+          "reward_type": "CAPS",
+          "reward_data": {
+            "amount": 400
+          },
+          "reward_chance": 1.0
+        }
+      ]
+    },
+    {
+      "quest_name": "Go West",
+      "long_description": "The library caretaker told me someone named Herb Vest might know more about Vault 31. I can track him down at the old candy factory.",
+      "short_description": "Seek advice about Vault 31 from Herb Vest.",
+      "requirements": [
+        "Level 12 dwellers",
+        "4+ average equipped weapon damage",
+        "Complete \"Halloween (Non)Fiction\" quest"
+      ],
+      "quest_objective": "Search for Herb Vest at the old candy factory.",
+      "quest_type": "event",
+      "quest_category": "exploration",
+      "chain_order": 2,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 12
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "attack",
+          "requirement_data": {
+            "attack": 4
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "quest_completed",
+          "requirement_data": {
+            "quest_name": "Halloween (Non)Fiction"
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Assault rifle",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Assault rifle",
+            "item_type": "weapon",
+            "rarity": "rare"
+          }
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Wasteland gear",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Wasteland gear",
+            "item_type": "outfit",
+            "rarity": "common"
+          }
+        },
+        {
+          "reward_type": "CAPS",
+          "reward_data": {
+            "amount": 500
+          },
+          "reward_chance": 1.0
+        }
+      ]
+    },
+    {
+      "quest_name": "Days Gone Bye",
+      "long_description": "Herb Vest told me that people who go to Vault 31 end up missing. I'm going to head to Vault-Tec's offices to learn more about the Vault's past.",
+      "short_description": "Search the Vault-Tec offices for information about Vault 31.",
+      "requirements": [
+        "Level 13 dwellers",
+        "4+ average equipped weapon damage",
+        "Complete \"Go West\" quest"
+      ],
+      "quest_objective": "Track down information about Vault 31's past.",
+      "quest_type": "event",
+      "quest_category": "exploration",
+      "chain_order": 3,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 13
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "attack",
+          "requirement_data": {
+            "attack": 4
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "quest_completed",
+          "requirement_data": {
+            "quest_name": "Go West"
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Legendary junk",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Legendary junk",
+            "item_type": "junk",
+            "rarity": "legendary"
+          }
+        },
+        {
+          "reward_type": "CAPS",
+          "reward_data": {
+            "amount": 600
+          },
+          "reward_chance": 1.0
+        }
+      ]
+    },
+    {
+      "quest_name": "Mask Hysteria",
+      "long_description": "In order to scare the Raiders away from Vault 31, a helpful traveler suggested getting Ghost Costumes from an old factory nearby.",
+      "short_description": "Get the Ghost Costumes from the old costume factory.",
+      "requirements": [
+        "Level 14 dwellers",
+        "5+ average equipped weapon damage",
+        "Complete \"Days Gone Bye\" quest"
+      ],
+      "quest_objective": "Get the Ghost Costumes from the factory.",
+      "quest_type": "event",
+      "quest_category": "collection",
+      "chain_order": 4,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 14
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "attack",
+          "requirement_data": {
+            "attack": 5
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "quest_completed",
+          "requirement_data": {
+            "quest_name": "Days Gone Bye"
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Ghost costume",
+            "quantity": 2
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Ghost costume",
+            "item_type": "outfit",
+            "rarity": "rare"
+          }
+        }
+      ]
+    },
+    {
+      "quest_name": "Scare Tactics",
+      "long_description": "With the Ghost Costumes in hand, it's time to head out to Vault 31 and confront the Raiders there once and for all!",
+      "short_description": "Confront the Raiders at Vault 31.",
+      "requirements": [
+        "Level 15 dwellers",
+        "Ghost costume",
+        "Complete \"Mask Hysteria\" quest"
+      ],
+      "quest_objective": "Confront the Raiders at Vault 31.",
+      "quest_type": "event",
+      "quest_category": "combat",
+      "chain_order": 5,
+      "duration_minutes": 60,
+      "quest_requirements": [
+        {
+          "requirement_type": "level",
+          "requirement_data": {
+            "level": 15
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "item",
+          "requirement_data": {
+            "item_name": "Ghost costume"
+          },
+          "is_mandatory": true
+        },
+        {
+          "requirement_type": "quest_completed",
+          "requirement_data": {
+            "quest_name": "Mask Hysteria"
+          },
+          "is_mandatory": true
+        }
+      ],
+      "quest_rewards": [
+        {
+          "reward_type": "LUNCHBOX",
+          "reward_data": {
+            "amount": 1
+          },
+          "reward_chance": 1.0
+        },
+        {
+          "reward_type": "ITEM",
+          "reward_data": {
+            "item_name": "Horror fan outfit",
+            "quantity": 1
+          },
+          "reward_chance": 1.0,
+          "item_data": {
+            "name": "Horror fan outfit",
+            "item_type": "outfit",
+            "rarity": "rare"
+          }
+        },
+        {
+          "reward_type": "CAPS",
+          "reward_data": {
+            "amount": 500
+          },
+          "reward_chance": 1.0
+        }
+      ]
+    }
+  ]
+}

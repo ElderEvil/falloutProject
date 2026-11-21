@@ -21,6 +21,7 @@ from .oauth_account import oauth_account
 from .objective import objective_crud
 from .pet import pet
 from .pregnancy import pregnancy
+from .pvp_duel import pvp_duel
 from .quest import quest_crud
 from .room import room
 from .team import team_crud

@@ -1,0 +1,92 @@
+"""pvpduel migration: single head, columns, composite expiry index, VARCHAR status."""
+
+from __future__ import annotations
+
+import importlib.util
+from pathlib import Path
+from types import SimpleNamespace
+
+import pytest
+import sqlalchemy as sa
+from alembic.config import Config
+from alembic.migration import MigrationContext
+from alembic.operations import Operations
+from alembic.script import ScriptDirectory
+
+BACKEND = Path(__file__).resolve().parents[3]
+REVISION = "d4c8a1f6e293"
+PARENT = "e5a1b7c9d2f3"
+MIGRATIONS_DIR = BACKEND / "app/alembic/baseline_versions"
+
+
+def _find_migration() -> Path:
+    matches = sorted(MIGRATIONS_DIR.glob(f"*-{REVISION}_*.py"))
+    assert len(matches) == 1, f"expected one migration for {REVISION}, found {matches}"
+    return matches[0]
+
+
+MIGRATION_PATH = _find_migration()
+SPEC = importlib.util.spec_from_file_location("add_pvp_duels", MIGRATION_PATH)
+assert SPEC is not None
+assert SPEC.loader is not None
+MIGRATION = importlib.util.module_from_spec(SPEC)
+SPEC.loader.exec_module(MIGRATION)
+
+
+def _install(connection) -> None:
+    MIGRATION.op = Operations(MigrationContext.configure(connection))
+    MIGRATION.context = SimpleNamespace(is_offline_mode=lambda: False)
+
+
+def test_revision_chain_and_single_head() -> None:
+    assert MIGRATION.revision == REVISION
+    assert MIGRATION.down_revision == PARENT
+    script = ScriptDirectory.from_config(Config(str(BACKEND / "alembic.ini")))
+    heads = script.get_heads()
+    assert len(heads) == 1, f"expected one head, got {heads}"
+    assert REVISION in {rev.revision for rev in script.walk_revisions()}
+
+
+def test_upgrade_creates_table_and_downgrade_drops_it() -> None:
+    engine = sa.create_engine("sqlite://")
+    with engine.begin() as connection:
+        _install(connection)
+        MIGRATION.upgrade()
+
+        columns = {row[1] for row in connection.exec_driver_sql("PRAGMA table_info(pvpduel)")}
+        assert {
+            "id",
+            "challenger_vault_id",
+            "defender_vault_id",
+            "status",
+            "challenger_snapshot",
+            "defender_snapshot",
+            "outcome",
+            "journal",
+            "created_at",
+            "accepted_at",
+            "expires_at",
+        } == columns
+        indexes = {row[1] for row in connection.exec_driver_sql("PRAGMA index_list(pvpduel)")}
+        assert "ix_pvpduel_status_expires_at" in indexes
+        assert "ix_pvpduel_challenger_vault_id" in indexes
+
+        connection.exec_driver_sql(
+            "INSERT INTO pvpduel (id, challenger_vault_id, status, challenger_snapshot, created_at, expires_at)"
+            " VALUES ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000000f1',"
+            " 'OPEN', '{}', '2026-11-21 00:00:00', '2026-11-22 00:00:00')"
+        )
+        assert connection.exec_driver_sql("SELECT COUNT(*) FROM pvpduel").scalar_one() == 1
+
+        MIGRATION.downgrade()
+        tables = {row[0] for row in connection.exec_driver_sql("SELECT name FROM sqlite_master WHERE type='table'")}
+        assert "pvpduel" not in tables
+    engine.dispose()
+
+
+def test_status_is_a_plain_varchar_column() -> None:
+    """A native enum would need a type migration; the StrEnum is deliberately stored as VARCHAR."""
+    source = MIGRATION_PATH.read_text()
+    assert "sqlmodel.sql.sqltypes.AutoString(length=20)" in source
+    assert '"status"' in source
+    assert 'sa.Enum("OPEN"' not in source

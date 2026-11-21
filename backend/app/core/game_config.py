@@ -1152,6 +1152,13 @@ class FeatureConfig(BaseSettings):
             "endpoints and UI are play-tested; existing event rows are unaffected by the flag."
         ),
     )
+    pvp_duels: bool = Field(
+        default=False,
+        description=(
+            "Cross-vault exhibition duels: posted challenges, snapshotted parties and a replayed "
+            "journal. Ships dark until play-tested; duels never touch dweller rows."
+        ),
+    )
     emergent_sites: bool = Field(
         default=True,
         description=(

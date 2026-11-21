@@ -62,7 +62,12 @@ class TestFeaturesEndpoint:
         response = await async_client.get("/system/features")
 
         assert response.status_code == 200
-        assert response.json() == {"race_mechanics": True, "faction_mechanics": False, "world_events": False}
+        assert response.json() == {
+            "race_mechanics": True,
+            "faction_mechanics": False,
+            "world_events": False,
+            "pvp_duels": False,
+        }
 
     async def test_get_features_follows_switch_changes(
         self, async_client: AsyncClient, monkeypatch: pytest.MonkeyPatch

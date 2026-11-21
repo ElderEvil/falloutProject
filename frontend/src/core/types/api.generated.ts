@@ -5486,6 +5486,70 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/vaults/{vault_id}/pvp-duels": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Pvp Duels
+         * @description List open challenges this vault may accept.
+         */
+        get: operations["list_pvp_duels_api_v1_vaults__vault_id__pvp_duels_get"];
+        put?: never;
+        /**
+         * Post Pvp Duel
+         * @description Post one open exhibition challenge for this vault.
+         */
+        post: operations["post_pvp_duel_api_v1_vaults__vault_id__pvp_duels_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/vaults/{vault_id}/pvp-duels/{duel_id}/accept": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Accept Pvp Duel
+         * @description Accept a challenge, settle it and write the challenger's result notification.
+         */
+        post: operations["accept_pvp_duel_api_v1_vaults__vault_id__pvp_duels__duel_id__accept_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/vaults/{vault_id}/pvp-duels/{duel_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Pvp Duel
+         * @description Read one duel with its frozen parties and journal for replay.
+         */
+        get: operations["get_pvp_duel_api_v1_vaults__vault_id__pvp_duels__duel_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -8474,6 +8538,8 @@ export interface components {
             faction_mechanics: boolean;
             /** World Events */
             world_events: boolean;
+            /** Pvp Duels */
+            pvp_duels: boolean;
         };
         /**
          * GameBalanceResponse
@@ -10296,6 +10362,106 @@ export interface components {
             preferences?: {
                 [key: string]: unknown;
             } | null;
+        };
+        /**
+         * PvpDuelAccept
+         * @description The accepting party; ignored when the post already pre-selected a defender.
+         */
+        PvpDuelAccept: {
+            /** Dweller Ids */
+            dweller_ids?: string[] | null;
+        };
+        /**
+         * PvpDuelBoardEntry
+         * @description One open challenge in the discovery list.
+         */
+        PvpDuelBoardEntry: {
+            /**
+             * Duel Id
+             * Format: uuid
+             */
+            duel_id: string;
+            /** Challenger Vault Name */
+            challenger_vault_name: string;
+            /** Party Size */
+            party_size: number;
+            /** Member Names */
+            member_names: string[];
+            /** Power Band */
+            power_band: string;
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+        };
+        /**
+         * PvpDuelCreate
+         * @description A challenge post; ids omitted means the vault's five strongest post for it.
+         */
+        PvpDuelCreate: {
+            /** Defender Vault Id */
+            defender_vault_id?: string | null;
+            /** Dweller Ids */
+            dweller_ids?: string[] | null;
+        };
+        /**
+         * PvpDuelRead
+         * @description A duel with its frozen parties and (once settled) its journal.
+         */
+        PvpDuelRead: {
+            /**
+             * Duel Id
+             * Format: uuid
+             */
+            duel_id: string;
+            status: components["schemas"]["PvpDuelStatus"];
+            /** Outcome */
+            outcome?: string | null;
+            /**
+             * Challenger Vault Id
+             * Format: uuid
+             */
+            challenger_vault_id: string;
+            /** Defender Vault Id */
+            defender_vault_id?: string | null;
+            challenger_party: components["schemas"]["PvpPartyRead"];
+            defender_party?: components["schemas"]["PvpPartyRead"] | null;
+            /** Journal */
+            journal?: {
+                [key: string]: unknown;
+            }[] | null;
+            /** Created At */
+            created_at?: string | null;
+            /** Accepted At */
+            accepted_at?: string | null;
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+        };
+        /**
+         * PvpDuelStatus
+         * @description Lifecycle of a cross-vault exhibition duel; stored as VARCHAR, not a PG enum.
+         *
+         *     No DECLINED: a defender who does not want the fight ignores it and it expires.
+         * @enum {string}
+         */
+        PvpDuelStatus: "OPEN" | "ACCEPTED" | "CANCELLED" | "EXPIRED";
+        /**
+         * PvpPartyRead
+         * @description A side as the board may show it: names and a coarse band, never exact power.
+         */
+        PvpPartyRead: {
+            /** Vault Name */
+            vault_name: string;
+            /** Party Size */
+            party_size: number;
+            /** Member Names */
+            member_names: string[];
+            /** Power Band */
+            power_band: string;
         };
         /**
          * QuestCompleteResponse
@@ -20538,6 +20704,140 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["WorldEventClaimRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_pvp_duels_api_v1_vaults__vault_id__pvp_duels_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                vault_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PvpDuelBoardEntry"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_pvp_duel_api_v1_vaults__vault_id__pvp_duels_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                vault_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PvpDuelCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PvpDuelRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    accept_pvp_duel_api_v1_vaults__vault_id__pvp_duels__duel_id__accept_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                vault_id: string;
+                duel_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PvpDuelAccept"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PvpDuelRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_pvp_duel_api_v1_vaults__vault_id__pvp_duels__duel_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                vault_id: string;
+                duel_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PvpDuelRead"];
                 };
             };
             /** @description Validation Error */

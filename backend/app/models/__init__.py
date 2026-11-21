@@ -21,6 +21,7 @@ from .outfit import Outfit
 from .pet import Pet
 from .pregnancy import Pregnancy
 from .prompt import Prompt
+from .pvp_duel import PvpDuel
 from .quest import Quest
 from .quest_requirement import QuestRequirement
 from .quest_reward import QuestReward

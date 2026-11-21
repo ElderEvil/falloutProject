@@ -20,6 +20,7 @@ from app.api.v1.endpoints import (
     outfit,
     pet,
     pregnancy,
+    pvp_duel,
     quest,
     radio,
     radio_news,
@@ -72,4 +73,5 @@ api_router.include_router(user.router)
 api_router.include_router(vault.router)
 api_router.include_router(weapon.router)
 api_router.include_router(world_event.router)
+api_router.include_router(pvp_duel.router)
 api_router.include_router(websocket.router, tags=["WebSocket"])

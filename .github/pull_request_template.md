@@ -13,3 +13,6 @@
   duplicate-event/reconnect behavior checked.
 - Refactors: public/error/auth/locking contracts preserved; describe the ownership or duplication
   improvement. File moves and test deletion alone are not simplification evidence.
+- Size/scope (≥300 handwritten application/test lines added; tooling excluded): what this replaces, or
+  why nothing could be removed; any material overage against the advisory targets
+  (`python3 scripts/size-report.py <base-ref>`).

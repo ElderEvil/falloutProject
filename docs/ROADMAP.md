@@ -130,7 +130,8 @@ Closing a deferred source does **not** mean it shipped or its findings were reje
 
 - [Integration plan and recovery inventory](features/INTEGRATION_PLAN.md)
 - [Complete prior roadmap](ROADMAP_ARCHIVE_2026-10-20.md), preserved with its distinct decisions and links
-- [Pre-consolidation issue/PR snapshot](planning/BACKLOG_SNAPSHOT_2026-10-20.md)
+- [Pre-consolidation issue/PR snapshot](https://github.com/ElderEvil/falloutProject/blob/6fa41900d4eac8514c1b0160d93da4ddbaaf52a8/docs/planning/BACKLOG_SNAPSHOT_2026-10-20.md)
+  (historical; the original issue and PR bodies remain on GitHub)
 - [Release history](../CHANGELOG.md)
 
 ## Phase completion

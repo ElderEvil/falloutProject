@@ -1,7 +1,9 @@
 # Dweller Rarity Balance — Decisions
 
-> **Status:** Agreed direction, not yet implemented. Covers procedural dwellers and curated
-> templates alike. Related: `DWELLER_TEMPLATES.md` (template system),
+> **Status:** Implemented. Rarity-scaled visited caps ship in `game_config.bio.visited_by_rarity` and
+> `services/map/bio_registration.py`; starting-level bands ship in the `leveling` config; flat HP gain is
+> the standing rule. Covers procedural dwellers and curated templates alike. Related:
+> [`DWELLER_TEMPLATES.md`](../archive/features/DWELLER_TEMPLATES.md) (archived design),
 > `BIO_MAP_UNCOVERING.md` (bio → map flow), `BALANCE_FINDINGS.md` (simulator evidence).
 > Canon reference: Fallout Shelter wiki / Fallout Wiki (rare ~level 6–7, legendary 19–43,
 > 12/28/40 SPECIAL, lunchbox gear).
@@ -17,16 +19,13 @@ Well-traveled backstories are a rarity signal. Origin is identity and always reg
 | Rare | always | 1 | 2 |
 | Legendary | always | 2 | 3 |
 
-Mechanically this is a `visited_by_rarity` config change (`{"common": 0, "rare": 1,
-"legendary": 2}` — env `BIO_`, no code). Deliberately stricter than today
-(`{1, 2, 3}`): a common vault-born dweller knowing distant ruins is flavor noise,
-while a legendary wasteland hero knowing two places is character.
+Mechanically this is `visited_by_rarity` (`{"common": 0, "rare": 1, "legendary": 2}` — env `BIO_`,
+no code). The stricter curve is deliberate: a common vault-born dweller knowing distant ruins is flavor
+noise, while a legendary wasteland hero knowing two places is character.
 
-**Templates obey the same law.** Curated bios (e.g. Abraham Washington's four visited
-places) are currently exempt via `cap_bio_places=False`. Exemption ends: authorial
-intent does not outrank the discovery economy. Template authors pick the *best*
-N places for the cap instead of listing every mention. (Bio text may still name-drop
-freely — only map registration is capped.)
+**Templates obey the same law.** Curated bios are capped like procedurally generated ones. Authorial
+intent does not outrank the discovery economy, so template authors pick the *best* N places for the cap
+instead of listing every mention. (Bio text may still name-drop freely — only map registration is capped.)
 
 **Balance consequence:** bio registration feeds shared map markers, so this cap is a
 **map-reveal-rate knob**. Tightening it makes exploration — not recruitment — the

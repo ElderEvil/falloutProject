@@ -1,6 +1,7 @@
 # Player Connections & Chat — Smallest Playable Slice (A1 + A2 + B1)
 
-> Status: **plan + as-built notes.** First multiplayer slice chosen from `MULTIPLAYER_BACKLOG.md`.
+> Status: **plan + as-built notes.** First multiplayer slice chosen from the archived
+> [multiplayer backlog](../archive/features/MULTIPLAYER_BACKLOG.md).
 > Feature-flagged `player_connections`, **enabled by default** (backend PR #967 still ships it off;
 > the test branch #973 flips it on). This is the smallest version that is actually playable and safe —
 > not the full social system.

@@ -1,5 +1,9 @@
 # Internal Unrest — Design Contract
 
+> **Archived:** no scheduled work. The deferred register
+> [#1113](https://github.com/ElderEvil/falloutProject/issues/1113) owns reopening conditions; this file
+> preserves the design contract for that decision.
+>
 > Status: **proposed, not implemented.** Feature-flagged off by default. This document decides the
 > mechanic before any code, mirroring `RESOURCE_ECONOMY_BALANCE.md`: the numbers below are a **playtest
 > baseline, not a final specification**.

@@ -64,6 +64,16 @@ multiple levels, capped at the configured maximum. Each gained level adds the
 configured health increment and fully heals up to the radiation-reduced maximum.
 Reward XP, levels and health persist together; deferred rewards remain rollback-safe.
 
+## Dweller rarity and templates
+
+Rare and legendary dwellers come from curated JSON templates
+(`backend/app/data/dwellers/{rare,legendary}.json`) via `app/utils/static_data.py` and
+`create_dweller_from_template`; commons stay procedural. Templates fix identity, SPECIAL, bio, origin and
+visited places. Origin always registers; visited places are rarity-gated by
+`game_config.bio.visited_by_rarity` — common 0, rare 1, legendary 2. Starting levels come from the
+`leveling` config: common 1, rare 6–10, legendary 19–43. Build catalog-backed rows through `item_factory`.
+The archived design record is `docs/archive/features/DWELLER_TEMPLATES.md`.
+
 ## Objectives: guidance, earned progress and explicit claims
 
 - Objective progress advances automatically from game events; **rewards do not**. Reaching the target creates
@@ -271,6 +281,17 @@ events. Historical notifications and game/reward settlement are unchanged.
 Deaths, injuries, critical resource/power alerts, exit requests, combat events, achievements, map failures,
 and hazard-team confirmations are always enabled. Every `NotificationType` must be deliberately mapped in
 `app.core.notification_preferences`; unknown future types default to enabled.
+
+## World events (server co-op)
+
+`WorldEvent` is server-wide: at most one row may be `ACTIVE` (partial unique index, mirrored on SQLite).
+Each vault owns one `WorldEventParticipation` per event, unique on `(world_event_id, vault_id)`.
+Contributions come from ordinary play — the per-kind source map in `world_event_service` decides which
+game events credit — and never raise into the gameplay path. A vault claims its reward at most once:
+`reward_claimed_at` is set once and never cleared, and the claim requires the event to be `COMPLETED` and
+the vault to have reached `personal_min`. Completion and claim delivery go through the notification stack,
+and the progression-visibility red line applies. The as-built design record is
+`docs/archive/features/WORLD_EVENTS.md`; the code and this section are the source of truth.
 
 ## Relationship affinity
 

@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 3.15.1 (2026-11-22)
+
+### Bug Fixes
+
+* **map:** only offer what dispatch accepts, and one party per site ([#1488](https://github.com/ElderEvil/falloutProject/issues/1488)) f744700
+
 ## 3.15.0 (2026-11-22)
 
 ### Features

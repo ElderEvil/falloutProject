@@ -346,6 +346,65 @@ async def test_dispatch_zero_reward_clear_stores_zero_not_null(
 
 @pytest.mark.usefixtures("default_world_snapshot")
 @pytest.mark.asyncio
+async def test_dispatch_rejects_a_table_that_cannot_roll(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A destination whose table cannot satisfy a declared roll is refused before travel, not on arrival."""
+    location, _ = await _register_clearable(async_session, vault, dweller)
+    empty_table = {
+        "caps": {"min": 1, "max": 2},
+        "items": [{"type": "junk", "rarity": "common", "junk_types": ["steel"]}],
+    }
+    monkeypatch.setattr("app.services.exploration_service.loot_table", lambda key: empty_table)
+    monkeypatch.setattr("app.services.catalog_service.load_junk_items", list)
+
+    with pytest.raises(ValidationException, match="nothing to loot"):
+        await exploration_service.dispatch(async_session, vault.id, [dweller.id], location.id)
+
+
+@pytest.mark.usefixtures("default_world_snapshot")
+@pytest.mark.asyncio
+async def test_complete_exploration_resolves_an_expired_dispatch(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller
+) -> None:
+    """The API completion path resolves an expired dispatch instead of sending the party home unresolved."""
+    location, state = await _register_clearable(async_session, vault, dweller)
+    await _boost_dweller(async_session, dweller, **STRONG_STATS)
+    exploration = await _expired_dispatch(async_session, vault, dweller, location.id)
+
+    completed, rewards = await exploration_service.complete_exploration_with_data(async_session, exploration.id)
+
+    await async_session.refresh(completed)
+    await async_session.refresh(state)
+    assert completed.status == ExplorationStatus.RETURNING
+    assert rewards is None
+    assert state.cleared_at is not None
+    assert completed.location_xp == get_place_group(location.group_key)["xp_reward"]
+
+
+@pytest.mark.usefixtures("default_world_snapshot")
+@pytest.mark.asyncio
+async def test_early_recall_pays_no_location_xp(async_session: AsyncSession, vault: Vault, dweller: Dweller) -> None:
+    """Recalling before arrival forfeits the clear, so the run settles with zero XP."""
+    location, state = await _register_clearable(async_session, vault, dweller)
+    await _boost_dweller(async_session, dweller, **STRONG_STATS)
+    exploration = await exploration_service.dispatch(async_session, vault.id, [dweller.id], location.id)
+    experience_before = (await crud.dweller.get(async_session, dweller.id)).experience
+
+    await exploration_service.recall_exploration_with_data(async_session, exploration.id)
+    recalled = await crud.exploration.get(async_session, exploration.id)
+    recalled.return_completes_at = utcnow() - timedelta(seconds=1)
+    async_session.add(recalled)
+    await async_session.commit()
+    await exploration_service.complete_exploration_with_data(async_session, exploration.id)
+
+    await async_session.refresh(state)
+    assert state.cleared_at is None
+    assert (await crud.dweller.get(async_session, dweller.id)).experience == experience_before
+
+
+@pytest.mark.usefixtures("default_world_snapshot")
+@pytest.mark.asyncio
 async def test_dispatch_rejects_a_party_for_salvage(
     async_session: AsyncSession, vault: Vault, dweller: Dweller, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -427,6 +486,7 @@ async def test_dispatch_salvage_awards_the_bobblehead_without_combat(
     assert exploration.status == ExplorationStatus.RETURNING
     assert exploration.loot_collected == []
     assert exploration.total_caps_found >= 5
+    assert exploration.location_xp is None
     assert dweller.health == health_before
 
 

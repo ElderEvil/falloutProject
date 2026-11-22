@@ -98,9 +98,12 @@ they are *generic*, not that they are inert.
 | `tech` | Circuitry | Science | rare Circuitry, common outfit |
 | `medical` | Science | Cloth | rare Science, rare outfit |
 | `military` | rare Gun/Heavy weapon | rare Steel | rare outfit, legendary Gun/Heavy |
+| `energy` | rare Energy weapon | rare Circuitry, Science | rare outfit, legendary Energy weapon |
 
 Every junk type is reachable, and each signature has exactly one dedicated source, so the material
-goal maps to a destination.
+goal maps to a destination. Haul loss keeps the **prefix** of the rolled haul
+(`apply_party_haul_loss`), which is why a partial-party loss always protects the first roll and
+always drops the tail; that is deliberate and matches the "guaranteed roll" wording.
 
 ### 2. `place_groups.json` — theme, XP and cadence
 
@@ -118,7 +121,7 @@ goal maps to a destination.
 | `observation_facility` | tech | 75 | 96 | 0.78 | Circuitry |
 | `research` | medical | 150 | 120 | 1.25 | Science / XP |
 | `military` | military | 165 | 120 | 1.38 | Weapons / XP |
-| `brotherhood_outpost` | military | 200 | 168 | 1.19 | Weapons / XP |
+| `brotherhood_outpost` | energy | 200 | 120 | 1.67 | Energy weapons / XP |
 | `exclusion_zone` | military | 220 | 168 | 1.31 | Weapons / XP |
 | `wasteland_site` | `low` | 15 | 168 | 0.09 | Generic fallback |
 
@@ -191,6 +194,24 @@ XP gained, material gained, travel time, and whether the place was reachable in 
 Success: after three clears the tester can name (a) one place they go for a material and (b) one
 they are saving for levelling, and chose them by yield. Failure symptoms: they pick the nearest
 pin; or they cannot tell which material a place guarantees.
+
+## Known follow-ups (not in this slice)
+
+Both are pre-existing behaviour that this feature makes more valuable to fix; neither is caused by
+the loot/XP change.
+
+1. **Whole-resolution rollback.** `resolve_dispatch_arrival` stages damage, haul, cooldown, XP and
+   queued notices, then `start_return` commits. `guard_phase` in the tick rolls back only
+   `SQLAlchemyError`, so a non-database failure after staging can be swallowed and later committed.
+   The haul now rolls before damage, which removes the main window, but not the class. Fix by
+   wrapping the pre-commit resolution in one recovery boundary that discards deferred
+   notifications/level-ups and rolls back, using the existing `recover_session` semantics; test a
+   failure after the clear notice is staged, a tick commit, then a retry.
+2. **Dispatch party double-booking.** `exploration_service.dispatch` checks
+   `get_in_progress_for_dwellers` without the vault claim, and the later storage lock re-verifies
+   supplies only. Two concurrent departures can carry the same squad to two destinations and both
+   earn clear XP. Fix by taking the shared vault claim before the availability recheck; needs a
+   PostgreSQL concurrency test (the SQLite default cannot prove it).
 
 ## Non-goals
 

@@ -34,7 +34,7 @@ from app.services.exploration.party_resolution import (
     resolve_party_combat,
 )
 from app.services.notification_service import notification_service
-from app.utils.place_groups import effective_place_group
+from app.utils.place_groups import effective_place_group, location_xp_for
 from app.utils.place_loot import loot_table
 from app.utils.time import utcnow
 
@@ -134,7 +134,7 @@ async def resolve_dispatch_arrival(db_session: AsyncSession, exploration_id: UUI
             state.clear_count += 1
             db_session.add(state)
             # 0 is a real outcome (a clear with no XP reward); NULL stays reserved for "no clear".
-            exploration.location_xp = _location_xp(group, tier)
+            exploration.location_xp = location_xp_for(group, tier)
 
             vault = await vault_crud.get_or_none(db_session, exploration.vault_id)
             if vault is not None:
@@ -196,12 +196,6 @@ def _roll_dispatch_loot(
         for entry in table["items"]
     ]
     return caps, rolls
-
-
-def _location_xp(group: dict, tier: int) -> int:
-    """Location XP for a held clear, escalated with the tier like the caps payout."""
-    base = group.get("xp_reward") or 0
-    return int(base * (1 + game_config.exploration.dispatch.reward_per_tier * tier)) if base else 0
 
 
 def _collectible_payload(award: CollectibleAward) -> dict:

@@ -66,9 +66,16 @@ class LootCalculator:
         eligible = [item for item in items if rarity_meets_floor(item.get("rarity", "common"), min_rarity)]
         return _filter_categories(eligible, junk_types=junk_types, weapon_types=weapon_types)
 
-    def has_eligible(self, item_type: str, min_rarity: str) -> bool:
-        """Return whether the catalog has any item of this type at or above the rarity floor."""
-        return bool(self._eligible_items(item_type, min_rarity))
+    def has_eligible(
+        self,
+        item_type: str,
+        min_rarity: str,
+        *,
+        junk_types: list[str] | None = None,
+        weapon_types: list[str] | None = None,
+    ) -> bool:
+        """Return whether the catalog can satisfy this type, floor and category."""
+        return bool(self._eligible_items(item_type, min_rarity, junk_types=junk_types, weapon_types=weapon_types))
 
     def get_rarity_weights(self, luck: int) -> dict[str, float]:
         """Get rarity weights adjusted by luck stat."""

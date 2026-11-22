@@ -88,8 +88,8 @@
     "risk": "high",
     "description": "A steel-and-lasers chapter holding, jealous of its technology and its borders.",
     "clearable": true,
-    "reclear_hours": 168,
-    "loot_table": "military",
+    "reclear_hours": 120,
+    "loot_table": "energy",
     "xp_reward": 200,
     "base_difficulty": 4
   },

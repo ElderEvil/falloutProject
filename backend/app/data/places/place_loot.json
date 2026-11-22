@@ -69,6 +69,15 @@
         {"type": "outfit", "rarity": "rare"},
         {"type": "weapon", "rarity": "legendary", "weapon_types": ["gun", "heavy"]}
       ]
+    },
+    "energy": {
+      "caps": {"min": 110, "max": 210},
+      "items": [
+        {"type": "weapon", "rarity": "rare", "weapon_types": ["energy"]},
+        {"type": "junk", "rarity": "rare", "junk_types": ["circuitry", "science"]},
+        {"type": "outfit", "rarity": "rare"},
+        {"type": "weapon", "rarity": "legendary", "weapon_types": ["energy"]}
+      ]
     }
   }
 }

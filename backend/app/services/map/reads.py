@@ -37,7 +37,7 @@ from app.services.exploration.site_offers import (
 )
 from app.services.map import bio_registration, discovery
 from app.utils.collectibles import bobblehead_for_location
-from app.utils.place_groups import effective_place_group, load_place_groups
+from app.utils.place_groups import effective_place_group, load_place_groups, location_xp_for
 from app.utils.place_loot import loot_table
 from app.utils.places import WORLD_SCALE
 from app.utils.time import utcnow
@@ -78,15 +78,9 @@ def _clear_state_for(state: VaultLocationState, location: WorldLocation) -> Loca
         tier=tier,
         time_remaining_seconds=state.time_remaining_seconds(now),
         loot_table=group.get("loot_table"),
-        xp_per_survivor=_xp_per_survivor(group, tier),
+        xp_per_survivor=location_xp_for(group, tier),
         loot_preview=_loot_preview(group.get("loot_table")),
     )
-
-
-def _xp_per_survivor(group: dict, tier: int) -> int:
-    """Base XP one survivor earns for clearing at this tier, before the return bonuses."""
-    reward_per_tier = game_config.exploration.dispatch.reward_per_tier
-    return int((group.get("xp_reward") or 0) * (1 + reward_per_tier * tier))
 
 
 def _loot_preview(loot_key: str | None) -> list[LocationLootEntryRead]:

@@ -107,6 +107,12 @@ def get_place_group(key: str | None) -> dict[str, Any] | None:
     return place_groups_by_key().get(key) if key else None
 
 
+def location_xp_for(group: dict[str, Any] | None, tier: int) -> int:
+    """Base XP per survivor for clearing this archetype at a tier, before the return bonuses."""
+    base = (group or {}).get("xp_reward") or 0
+    return int(base * (1 + game_config.exploration.dispatch.reward_per_tier * tier)) if base else 0
+
+
 def effective_place_group(group_key: str | None, kind: PlaceKindEnum | None) -> dict[str, Any] | None:
     """Catalog entry for a place: its own group, or the default archetype for an ungrouped PLACE."""
     group = get_place_group(group_key)

@@ -1,0 +1,180 @@
+name: Hotfix deploy
+
+# One dispatch from merge to production: build the changed image, retag the other one, then hand the
+# pair to the standard deploy workflow. Same concurrency group and environment gates as a release.
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Branch, tag or commit to build and deploy'
+        required: true
+        default: master
+      component:
+        description: 'Image to rebuild'
+        type: choice
+        options:
+          - backend
+          - frontend
+          - both
+        default: backend
+      run_migrations:
+        description: 'Run database migrations'
+        required: false
+        type: boolean
+        default: true
+      maintenance_mode:
+        description: 'Stop API and worker, back up the database, migrate, then start the new build'
+        required: false
+        type: boolean
+        default: false
+
+concurrency:
+  group: fallout-production-deployment
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build hotfix images
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+    steps:
+      - name: Check out the hotfix ref
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.ref }}
+
+      - name: Resolve hotfix tag
+        id: tag
+        run: |
+          set -euo pipefail
+          VERSION=$(python3 - <<'PY'
+          import json
+          import tomllib
+
+          with open("backend/pyproject.toml", "rb") as file:
+              backend_version = tomllib.load(file)["project"]["version"]
+          with open("frontend/package.json") as file:
+              frontend_version = json.load(file)["version"]
+          assert backend_version == frontend_version, (backend_version, frontend_version)
+          print(backend_version)
+          PY
+          )
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "python_version=$(cat backend/.python-version)" >> "$GITHUB_OUTPUT"
+          echo "tag=v$VERSION-hotfix.${{ github.run_number }}" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v4
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Build backend image
+        if: ${{ inputs.component != 'frontend' }}
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: ./backend/Dockerfile
+          load: true
+          tags: ${{ secrets.DOCKER_USERNAME }}/fo-shelter-be:${{ steps.tag.outputs.tag }}
+          build-args: |
+            PYTHON_VERSION=${{ steps.tag.outputs.python_version }}
+            VERSION=${{ steps.tag.outputs.version }}
+          cache-from: |
+            type=registry,ref=${{ secrets.DOCKER_USERNAME }}/fo-shelter-be:buildcache
+            type=registry,ref=${{ secrets.DOCKER_USERNAME }}/fo-shelter-be:latest
+          cache-to: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/fo-shelter-be:buildcache,mode=max
+
+      - name: Check backend image
+        if: ${{ inputs.component != 'frontend' }}
+        env:
+          IMAGE: ${{ secrets.DOCKER_USERNAME }}/fo-shelter-be:${{ steps.tag.outputs.tag }}
+        run: |
+          docker run --rm -i --network=none --read-only \
+            --tmpfs /tmp --tmpfs /var/log/fallout_shelter:mode=1777 \
+            --entrypoint uv "$IMAGE" run --offline python - < scripts/check_backend_image.py
+
+      - name: Build frontend image
+        if: ${{ inputs.component != 'backend' }}
+        uses: docker/build-push-action@v7
+        with:
+          context: ./frontend
+          file: ./frontend/Dockerfile
+          load: true
+          tags: ${{ secrets.DOCKER_USERNAME }}/fo-shelter-fe:${{ steps.tag.outputs.tag }}
+          build-args: |
+            VITE_API_BASE_URL=${{ vars.PRODUCTION_API_URL }}
+            VERSION=${{ steps.tag.outputs.version }}
+          cache-from: |
+            type=registry,ref=${{ secrets.DOCKER_USERNAME }}/fo-shelter-fe:buildcache
+            type=registry,ref=${{ secrets.DOCKER_USERNAME }}/fo-shelter-fe:latest
+          cache-to: type=registry,ref=${{ secrets.DOCKER_USERNAME }}/fo-shelter-fe:buildcache,mode=max
+
+      - name: Retag the unchanged image
+        if: ${{ inputs.component != 'both' }}
+        env:
+          VERSION: ${{ steps.tag.outputs.version }}
+          HOTFIX_TAG: ${{ steps.tag.outputs.tag }}
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+          COMPONENT: ${{ inputs.component }}
+          PRODUCTION_API_URL: ${{ vars.PRODUCTION_API_URL }}
+        run: |
+          set -euo pipefail
+          if [ "$COMPONENT" = "backend" ]; then
+            image=fo-shelter-fe
+            context=./frontend
+            dockerfile=./frontend/Dockerfile
+          else
+            image=fo-shelter-be
+            context=.
+            dockerfile=./backend/Dockerfile
+          fi
+          if docker buildx imagetools inspect "$DOCKER_USERNAME/$image:v$VERSION" >/dev/null 2>&1; then
+            docker buildx imagetools create -t "$DOCKER_USERNAME/$image:$HOTFIX_TAG" \
+              "$DOCKER_USERNAME/$image:v$VERSION"
+            echo "Retagged $image:v$VERSION as $HOTFIX_TAG"
+          else
+            echo "::warning::$image:v$VERSION is missing; building $image instead"
+            if [ "$image" = "fo-shelter-fe" ]; then
+              docker buildx build --push -t "$DOCKER_USERNAME/$image:$HOTFIX_TAG" \
+                -f "$dockerfile" --build-arg "VITE_API_BASE_URL=$PRODUCTION_API_URL" \
+                --build-arg "VERSION=$VERSION" "$context"
+            else
+              docker buildx build --push -t "$DOCKER_USERNAME/$image:$HOTFIX_TAG" \
+                -f "$dockerfile" --build-arg "PYTHON_VERSION=$(cat backend/.python-version)" \
+                --build-arg "VERSION=$VERSION" "$context"
+            fi
+          fi
+
+      - name: Push built images
+        env:
+          TAG: ${{ steps.tag.outputs.tag }}
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+          COMPONENT: ${{ inputs.component }}
+        run: |
+          set -euo pipefail
+          if [ "$COMPONENT" != "frontend" ]; then docker push "$DOCKER_USERNAME/fo-shelter-be:$TAG"; fi
+          if [ "$COMPONENT" != "backend" ]; then docker push "$DOCKER_USERNAME/fo-shelter-fe:$TAG"; fi
+
+  deploy:
+    name: Deploy hotfix
+    needs: build
+    uses: ./.github/workflows/deploy-hetzner.yml
+    with:
+      image_tag: ${{ needs.build.outputs.tag }}
+      run_migrations: ${{ inputs.run_migrations }}
+      maintenance_mode: ${{ inputs.maintenance_mode }}
+      public_traffic_gate: false
+      preflight_only: false
+    secrets: inherit
+    permissions:
+      contents: read

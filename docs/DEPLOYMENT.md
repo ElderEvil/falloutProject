@@ -653,6 +653,30 @@ Release builds keep a full BuildKit cache under
 layers survive between releases. The backend uses a uv cache mount; the frontend uses a
 pnpm store cache. Podman 5/Buildah and Docker BuildKit both support these cache mounts.
 
+### Hotfix Deploys
+
+The `Hotfix deploy` workflow is one dispatch from a green fix to production: it builds the
+changed image, retags the untouched one from the current release, then hands both to
+`deploy-hetzner.yml` under the same concurrency group and environment gates as a release.
+
+```bash
+gh workflow run hotfix.yml --ref master \
+  -f ref=master -f component=backend \
+  -f run_migrations=true -f maintenance_mode=false
+```
+
+- `ref` is any branch, tag or commit; `component` is `backend`, `frontend` or `both`.
+- Images are published as `v<version>-hotfix.<run_number>`, with `<version>` taken from
+  `backend/pyproject.toml` and `frontend/package.json`. The deploy workflow accepts that
+  suffix; plain releases keep their strict `vX.Y.Z` tags.
+- The untouched image is retagged from `v<version>` with `buildx imagetools create`, so a
+  backend-only hotfix costs one cached build, not two.
+- Migrations still run in their own Job and `maintenance_mode` still triggers the verified
+  backup. A failed migration aborts the rollout exactly as in a release.
+- Roll back by dispatching `deploy-hetzner.yml` with the previous release tag; `latest` is
+  never deployable, and the next `fix:` commit takes the normal release path to fold the
+  hotfix into a versioned tag.
+
 ### Commit Conventions
 
 | Type | Version Bump | Example |

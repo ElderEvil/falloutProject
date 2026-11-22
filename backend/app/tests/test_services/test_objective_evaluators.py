@@ -1297,3 +1297,39 @@ async def test_objective_target_waits_for_claim_and_announces_once(
     assert vault.bottle_caps == initial_caps
     assert len(announced) == 1
     assert announced[0]["ready_to_claim"] is True
+
+
+@pytest.mark.parametrize(
+    ("target", "event", "expected"),
+    [
+        (
+            {"item_type": "junk", "junk_type": "adhesive", "source": "wasteland"},
+            {"item_type": "junk", "junk_type": "adhesive", "amount": 1, "source": "wasteland"},
+            True,
+        ),
+        (
+            {"item_type": "junk", "junk_type": "adhesive", "source": "wasteland"},
+            {"item_type": "junk", "junk_type": "circuitry", "amount": 1, "source": "wasteland"},
+            False,
+        ),
+        (
+            {"item_type": "junk", "junk_type": "adhesive", "source": "wasteland"},
+            {"item_type": "junk", "junk_type": "adhesive", "amount": 1},
+            False,
+        ),
+        ({"item_type": "junk"}, {"item_type": "junk", "junk_type": "circuitry", "amount": 1}, True),
+        ({"item_type": "junk"}, {"item_type": "junk", "amount": 1, "source": "wasteland"}, True),
+    ],
+)
+def test_collect_matches_material_and_source(target: dict, event: dict, expected: bool, fresh_event_bus) -> None:
+    """A material filter narrows to that catalog type; a source filter rejects unstamped events."""
+    objective = Objective(
+        challenge="Collect junk",
+        reward="50 caps",
+        objective_type="collect",
+        target_entity=target,
+        target_amount=6,
+        category=ObjectiveCategoryEnum.WEEKLY,
+    )
+
+    assert CollectEvaluator(fresh_event_bus)._matches(objective, GameEvent.ITEM_COLLECTED, event) is expected

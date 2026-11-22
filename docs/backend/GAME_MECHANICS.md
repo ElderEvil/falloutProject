@@ -106,6 +106,11 @@ The archived design record is `docs/archive/features/DWELLER_TEMPLATES.md`.
   objectives stop on the first failure and announce any rewards already collected, while quests show each
   claim's result and continue after failures. Failed claims remain available to retry.
 
+- Wasteland junk credits a collection objective only when it enters storage: on the settlement
+  transfer, or when the player later takes it from overflow. The event carries `junk_type` resolved
+  from the junk catalog by name and `source: "wasteland"`. Selling or abandoning overflow earns
+  nothing, and junk granted as an objective/quest reward is deferred and emits no collection event.
+
 ### Objective renewal
 
 Daily objectives renew at 00:00 UTC; weekly objectives renew on Monday at 00:00 UTC. Each vault holds three daily and seven weekly objectives at a time.

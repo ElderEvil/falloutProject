@@ -232,5 +232,23 @@
     "target_entity": {"quest_type": "main"},
     "target_amount": 1,
     "template_key": "weekly:complete 1 main quest"
+  },
+  {
+    "challenge": "Salvage 6 Adhesive",
+    "reward": "150 caps",
+    "category": "weekly",
+    "objective_type": "collect",
+    "target_entity": {"item_type": "junk", "junk_type": "adhesive", "source": "wasteland"},
+    "target_amount": 6,
+    "template_key": "weekly:salvage 6 adhesive"
+  },
+  {
+    "challenge": "Recover 4 Circuitry",
+    "reward": "150 caps",
+    "category": "weekly",
+    "objective_type": "collect",
+    "target_entity": {"item_type": "junk", "junk_type": "circuitry", "source": "wasteland"},
+    "target_amount": 4,
+    "template_key": "weekly:recover 4 circuitry"
   }
 ]

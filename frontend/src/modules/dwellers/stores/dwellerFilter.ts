@@ -244,15 +244,20 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
       const detail = detailedDwellers.value[row.id]
       if (!detail) continue
       const roomId = row.room_id ?? null
-      if (detail.status === row.status && (detail.room?.id ?? null) === roomId) continue
+      const cachedRoomId = (detail as Dweller & { room_id?: string | null }).room_id ?? null
+      const resolvedRoom =
+        roomId === null ? null : roomStore.rooms.find((room) => room.id === roomId)
+      if (
+        detail.status === row.status &&
+        cachedRoomId === roomId &&
+        (resolvedRoom?.id ?? detail.room?.id ?? null) === roomId
+      )
+        continue
       detailedDwellers.value[row.id] = {
         ...detail,
         status: row.status,
         room_id: roomId,
-        room:
-          roomId === null
-            ? null
-            : (roomStore.rooms.find((room) => room.id === roomId) ?? detail.room),
+        room: resolvedRoom ?? (detail.room?.id === roomId ? detail.room : null),
       } as Dweller
     }
   }

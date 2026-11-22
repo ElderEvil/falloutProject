@@ -173,6 +173,33 @@ describe('DwellerFilter Store', () => {
       expect(store.detailedDwellers['d1']?.room_id).toBeNull()
     })
 
+    it('moves room_id with an unresolved room and clears it on the next refresh', async () => {
+      const store = useDwellerFilterStore()
+      store.detailedDwellers['d1'] = {
+        id: 'd1',
+        status: 'idle',
+        room_id: 'room-a',
+        room: { id: 'room-a', name: 'Lobby' },
+      } as never
+
+      // Room B is not loaded: room_id must move and room A must not linger.
+      vi.mocked(axios.get).mockResolvedValueOnce({
+        data: [{ id: 'd1', status: 'idle', room_id: 'room-b' }],
+      })
+      await store.fetchDwellersByVault('vault-1')
+      expect(store.detailedDwellers['d1']?.room_id).toBe('room-b')
+      expect(store.detailedDwellers['d1']?.room).toBeNull()
+
+      // A later refresh clears the assignment; the guard must not skip it just
+      // because both resolved rooms are null.
+      vi.mocked(axios.get).mockResolvedValueOnce({
+        data: [{ id: 'd1', status: 'idle', room_id: null }],
+      })
+      await store.fetchDwellersByVault('vault-1')
+      expect(store.detailedDwellers['d1']?.room_id).toBeNull()
+      expect(store.detailedDwellers['d1']?.room).toBeNull()
+    })
+
     it('should pass filter parameters as query string', async () => {
       vi.mocked(axios.get).mockResolvedValueOnce({ data: [] })
 

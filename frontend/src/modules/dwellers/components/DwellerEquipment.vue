@@ -413,12 +413,7 @@ const modalIcon = computed(() => {
 
 .empty-slot:disabled {
   cursor: not-allowed;
-  opacity: 0.45;
-}
-
-.empty-slot:disabled .empty-icon,
-.empty-slot:disabled .empty-text {
-  opacity: 0.5;
+  opacity: 0.7;
 }
 
 .empty-icon {

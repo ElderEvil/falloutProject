@@ -602,11 +602,16 @@ RadAway is the only cure for humans.
   (see `OUTFIT_RADIATION_RESIST_BY_TYPE` / `OUTFIT_RADIATION_RESIST_BY_NAME` in
   `utils/hazard_resist.py`): hazmat suits block it fully, power armor blocks most.
 
-Drought radiation accrues at 1% of max health per tick after `dehydration_grace_ticks` of zero
-water, counting only the ticks past the grace boundary. Radiation saturates at the dweller's own
-`max_health` — never a flat cap — so the health ceiling bottoms out at 1 HP and radiation alone
-never kills. Recovery is the one-shot **Treat Irradiated Dwellers** action: RadAway first (raises
-the ceiling), then a Stimpack heals into it. Wasteland auto-use mirrors that order: RadAway fires
+Drought and famine are graded and non-lethal. Each tick accumulates active time at zero food and at zero
+water into `GameState.food_deprived_ms` / `water_deprived_ms` (paused and offline time excluded). Past a
+60-minute food grace or a 30-minute water grace, crews work at `hungry_output_multiplier` (0.7); food then
+erodes health at 0.10% of max health per minute and water adds 0.15% of max health per minute as radiation,
+both stopping at `deprivation_hp_floor_fraction` (25% of max health), so deprivation alone never kills.
+Increments are computed from the persisted counters before the refill reset, so retries and catch-up windows
+cannot heal a dweller. See `docs/backend/BALANCE_WAVE_3.md`.
+
+Recovery is the one-shot **Treat Irradiated Dwellers** action: RadAway first (raises the ceiling), then a
+Stimpack heals into it. Wasteland auto-use mirrors that order: RadAway fires
 first once radiation has cut the ceiling by 25% of max health, then a Stimpak heals into it (gate:
 health below 50% of full max health, so radiation never hides a wound); expedition-site damage is
 recorded in the journey log.

@@ -15,6 +15,9 @@ almost immediately, so room staffing, SPECIAL, capacity, and upgrades do not cre
 
 ## Baseline Contract
 
+> Superseded by balance wave 3 (`docs/backend/BALANCE_WAVE_3.md`); the rates below describe the
+> pre-wave-3 economy and are kept as history.
+
 For a standard starter vault with three tier-1, size-3 production rooms; nine dwellers; and two matching SPECIAL-5
 workers per room:
 

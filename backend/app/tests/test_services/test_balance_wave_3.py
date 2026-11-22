@@ -15,6 +15,7 @@ from app import crud
 from app.core.game_config import game_config
 from app.core.game_data import get_static_game_data
 from app.crud.resource import resource
+from app.options.identity_modifiers import effective_stat
 from app.services.resource_manager_service import ResourceManager
 from app.services.vault import seeding
 
@@ -41,8 +42,19 @@ async def _seed_layout(async_session, vault, boosted: bool):
     return await resource.get_vault_resource_data(async_session, vault.id)
 
 
-def _net_per_minute(model, data) -> dict[str, float]:
-    """Run one 60-second window from 20 % stock and return the net change per resource."""
+def _net_per_minute(model, data, crew_special: int) -> dict[str, float]:
+    """Run one 60-second window from 20 % stock and return the net change per resource.
+
+    Seeding rolls random SPECIAL and outfits, so each worker's effective stat is pinned here: the rate
+    contract is about the layout and the crew shape, never about which stats the seed happened to roll.
+    """
+    for room, crew in data.rooms_with_dwellers:
+        if room.ability is None:
+            continue
+        stat = room.ability.value.lower()
+        for dweller in crew:
+            setattr(dweller, stat, getattr(dweller, stat) + (crew_special - effective_stat(dweller, stat)))
+
     for name in RESOURCES:
         setattr(model, name, getattr(model, f"{name}_max") * 0.2)
     before = {name: getattr(model, name) for name in RESOURCES}
@@ -68,7 +80,7 @@ def _power_draw_per_minute(data) -> float:
 async def test_seeded_layout_is_net_positive_for_food_and_water(async_session, vault, boosted: bool) -> None:
     """Both seeds must not starve at the shipped rates; a paid boosted start must clear its draw."""
     data = await _seed_layout(async_session, vault, boosted)
-    net = _net_per_minute(data.vault, data)
+    net = _net_per_minute(data.vault, data, 8 if boosted else 5)
 
     assert net["food"] >= 0, f"seeded {boosted=} food net {net['food']}/min is negative"
     assert net["water"] >= 0, f"seeded {boosted=} water net {net['water']}/min is negative"
@@ -78,7 +90,7 @@ async def test_seeded_layout_is_net_positive_for_food_and_water(async_session, v
 async def test_standard_seed_power_surplus_stays_inside_the_band(async_session, vault) -> None:
     """The standard seed is the binding power case: 1.25-1.55x surplus, no more."""
     data = await _seed_layout(async_session, vault, boosted=False)
-    net = _net_per_minute(data.vault, data)
+    net = _net_per_minute(data.vault, data, 5)
     draw = _power_draw_per_minute(data)
     ratio = (net["power"] + draw) / draw
 
@@ -89,7 +101,7 @@ async def test_standard_seed_power_surplus_stays_inside_the_band(async_session, 
 async def test_boosted_seed_stays_power_rich_by_design(async_session, vault) -> None:
     """A boosted start is a paid head start: it must clear 1.15x, with no upper bound."""
     data = await _seed_layout(async_session, vault, boosted=True)
-    net = _net_per_minute(data.vault, data)
+    net = _net_per_minute(data.vault, data, 8)
     draw = _power_draw_per_minute(data)
     ratio = (net["power"] + draw) / draw
 

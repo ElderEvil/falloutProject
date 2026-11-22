@@ -154,6 +154,52 @@ describe('DwellerFilter Store', () => {
       expect(store.isLoading).toBe(false)
     })
 
+    it('keeps a cached detail in step with a roster refresh', async () => {
+      vi.mocked(axios.get).mockResolvedValueOnce({
+        data: [{ id: 'd1', status: 'exploring', room_id: null }],
+      })
+      const store = useDwellerFilterStore()
+      store.detailedDwellers['d1'] = {
+        id: 'd1',
+        status: 'idle',
+        room_id: 'room-1',
+        room: { id: 'room-1', name: 'Lobby' },
+      } as never
+
+      await store.fetchDwellersByVault('vault-1')
+
+      expect(store.detailedDwellers['d1']?.status).toBe('exploring')
+      expect(store.detailedDwellers['d1']?.room).toBeNull()
+      expect(store.detailedDwellers['d1']?.room_id).toBeNull()
+    })
+
+    it('moves room_id with an unresolved room and clears it on the next refresh', async () => {
+      const store = useDwellerFilterStore()
+      store.detailedDwellers['d1'] = {
+        id: 'd1',
+        status: 'idle',
+        room_id: 'room-a',
+        room: { id: 'room-a', name: 'Lobby' },
+      } as never
+
+      // Room B is not loaded: room_id must move and room A must not linger.
+      vi.mocked(axios.get).mockResolvedValueOnce({
+        data: [{ id: 'd1', status: 'idle', room_id: 'room-b' }],
+      })
+      await store.fetchDwellersByVault('vault-1')
+      expect(store.detailedDwellers['d1']?.room_id).toBe('room-b')
+      expect(store.detailedDwellers['d1']?.room).toBeNull()
+
+      // A later refresh clears the assignment; the guard must not skip it just
+      // because both resolved rooms are null.
+      vi.mocked(axios.get).mockResolvedValueOnce({
+        data: [{ id: 'd1', status: 'idle', room_id: null }],
+      })
+      await store.fetchDwellersByVault('vault-1')
+      expect(store.detailedDwellers['d1']?.room_id).toBeNull()
+      expect(store.detailedDwellers['d1']?.room).toBeNull()
+    })
+
     it('should pass filter parameters as query string', async () => {
       vi.mocked(axios.get).mockResolvedValueOnce({ data: [] })
 
@@ -1524,9 +1570,7 @@ describe('DwellerFilter Store', () => {
         'token'
       )
       const rosterCalls = () =>
-        vi
-          .mocked(axios.get)
-          .mock.calls.filter(([url]) => String(url).includes('limit=1000'))
+        vi.mocked(axios.get).mock.calls.filter(([url]) => String(url).includes('limit=1000'))
       await vi.waitFor(() => expect(rosterCalls()).toHaveLength(1))
 
       store.applyDwellerTick(
@@ -1537,9 +1581,7 @@ describe('DwellerFilter Store', () => {
       expect(rosterCalls()).toHaveLength(1)
 
       resolveRoster({ data: [{ id: 'd1' }, { id: 'new' }] })
-      await vi.waitFor(() =>
-        expect(store.allDwellers.map((d) => d.id)).toEqual(['d1', 'new'])
-      )
+      await vi.waitFor(() => expect(store.allDwellers.map((d) => d.id)).toEqual(['d1', 'new']))
     })
 
     it('reapplies a tick that lands during an ordinary filtered fetch', async () => {

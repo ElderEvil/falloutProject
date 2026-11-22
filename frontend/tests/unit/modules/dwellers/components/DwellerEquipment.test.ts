@@ -228,6 +228,10 @@ describe('DwellerEquipment', () => {
       const dweller = ref(makeDweller({ status }))
       const wrapper = mountEquip(dweller.value, { dweller: dweller as never })
       expect(wrapper.text()).toContain('Return to the vault to change equipment.')
+      expect(
+        wrapper.findAll('.empty-text').every((label) => label.text() === 'Locked while away')
+      ).toBe(true)
+      expect(wrapper.text()).not.toContain('Click to equip weapon')
       const slots = wrapper.findAll('button.empty-slot')
       expect(slots).toHaveLength(3)
       for (const slot of slots) {
@@ -238,6 +242,7 @@ describe('DwellerEquipment', () => {
       dweller.value.status = 'idle'
       await nextTick()
       expect(slots[0]!.attributes('disabled')).toBeUndefined()
+      expect(wrapper.text()).toContain('Click to equip weapon')
       await slots[0]!.trigger('click')
       expect(wrapper.findComponent({ name: 'Dialog' }).props('open')).toBe(true)
       dweller.value.status = status

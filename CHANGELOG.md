@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 3.17.0 (2026-11-22)
+
+### Features
+
+* **map:** mark places by identity, not by punctuation (wave 1) ([#1490](https://github.com/ElderEvil/falloutProject/issues/1490)) 466aa15
+
 ## 3.16.0 (2026-11-22)
 
 ### Features

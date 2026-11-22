@@ -80,6 +80,8 @@ export const useQuestStore = defineStore('quest', () => {
 
   let vaultRequest = 0
   let partyRequest = 0
+  /** Post-start quest list refresh; see startQuest. */
+  let questListSettled: Promise<void> = Promise.resolve()
 
   // Actions
   async function fetchAllQuests(): Promise<void> {
@@ -213,12 +215,22 @@ export const useQuestStore = defineStore('quest', () => {
       notifyErrorOnce(error, errorMessage)
       throw error
     }
-    // Refresh vault quests (silent — mutation already succeeded)
-    try {
-      await fetchVaultQuests(vaultId, { silent: true })
-    } catch {
-      toast.warning('Quest was started, but the quest list could not refresh')
-    }
+    // Refresh vault quests in the background. The list read evaluates every quest's
+    // requirements (one to four queries each, ~700 links on a mature vault), so
+    // awaiting it held the party modal open for seconds after the start landed.
+    // The mutation is already committed; the list can catch up a moment later.
+    questListSettled = (async () => {
+      try {
+        await fetchVaultQuests(vaultId, { silent: true })
+      } catch {
+        toast.warning('Quest was started, but the quest list could not refresh')
+      }
+    })()
+  }
+
+  /** Resolves when the post-start quest refresh settles, for callers that need the new row. */
+  function whenQuestsSettled(): Promise<void> {
+    return questListSettled
   }
 
   return {
@@ -238,5 +250,6 @@ export const useQuestStore = defineStore('quest', () => {
     getParty,
     getEligibleDwellers,
     startQuest,
+    whenQuestsSettled,
   }
 })

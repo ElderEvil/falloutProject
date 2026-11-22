@@ -235,10 +235,17 @@ const handleAssignAndStart = async (dwellerIds: string[]) => {
     return
   }
 
-  await loadPartyMembers()
-
+  // The start is committed: close the modal now instead of waiting on the list
+  // refresh, which re-evaluates every quest's requirements server-side.
   showPartyModal.value = false
   selectedQuest.value = null
+  const settledVault = vaultId.value
+  void questStore
+    .whenQuestsSettled()
+    .then(() => loadPartyMembers(settledVault))
+    .catch((error: unknown) => {
+      console.warn('Failed to load quest parties after start', getErrorMessage(error))
+    })
 }
 
 const handleClaimRewards = (questId: string, openedFromQuery = false) => {

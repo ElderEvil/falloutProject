@@ -42,6 +42,24 @@ describe('Quest Store', () => {
     })
   })
 
+  it('resolves the start before the quest list refresh settles', async () => {
+    const store = useQuestStore()
+    vi.mocked(axios.post).mockResolvedValue({ data: {} })
+    let releaseList: (value: unknown) => void = () => {}
+    vi.mocked(axios.get).mockReturnValue(
+      new Promise((resolve) => {
+        releaseList = resolve
+      }) as unknown as Promise<{ data: unknown }>
+    )
+
+    // Would hang here if the list read were still awaited.
+    await store.startQuest('vault-1', 'quest-1', ['dweller-1'])
+    expect(axios.get).toHaveBeenCalled()
+
+    releaseList({ data: [] })
+    await store.whenQuestsSettled()
+  })
+
   describe('Computed Properties', () => {
     it('should filter active quests', () => {
       const store = useQuestStore()

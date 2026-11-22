@@ -1,7 +1,8 @@
 name: Hotfix deploy
 
 # One dispatch from merge to production: build the changed image, retag the other one, then hand the
-# pair to the standard deploy workflow. Same concurrency group and environment gates as a release.
+# pair to the standard deploy workflow. Production concurrency lives in that workflow — a reusable
+# workflow cannot share the caller's group without waiting on itself.
 
 on:
   workflow_dispatch:
@@ -28,10 +29,6 @@ on:
         required: false
         type: boolean
         default: false
-
-concurrency:
-  group: fallout-production-deployment
-  cancel-in-progress: false
 
 permissions:
   contents: read
@@ -151,9 +148,14 @@ jobs:
                 -f "$dockerfile" --build-arg "VITE_API_BASE_URL=$PRODUCTION_API_URL" \
                 --build-arg "VERSION=$VERSION" "$context"
             else
-              docker buildx build --push -t "$DOCKER_USERNAME/$image:$HOTFIX_TAG" \
+              docker buildx build --load -t "$DOCKER_USERNAME/$image:$HOTFIX_TAG" \
                 -f "$dockerfile" --build-arg "PYTHON_VERSION=$(cat backend/.python-version)" \
                 --build-arg "VERSION=$VERSION" "$context"
+              docker run --rm -i --network=none --read-only \
+                --tmpfs /tmp --tmpfs /var/log/fallout_shelter:mode=1777 \
+                --entrypoint uv "$DOCKER_USERNAME/$image:$HOTFIX_TAG" run --offline python - \
+                < scripts/check_backend_image.py
+              docker push "$DOCKER_USERNAME/$image:$HOTFIX_TAG"
             fi
           fi
 

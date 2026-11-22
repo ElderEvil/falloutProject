@@ -673,9 +673,12 @@ gh workflow run hotfix.yml --ref master \
   backend-only hotfix costs one cached build, not two.
 - Migrations still run in their own Job and `maintenance_mode` still triggers the verified
   backup. A failed migration aborts the rollout exactly as in a release.
-- Roll back by dispatching `deploy-hetzner.yml` with the previous release tag; `latest` is
-  never deployable, and the next `fix:` commit takes the normal release path to fold the
-  hotfix into a versioned tag.
+- Roll back by dispatching `deploy-hetzner.yml` with the previous release tag — **only while the schema is
+  compatible**. The deploy runs `alembic upgrade head` and never downgrades, so if the hotfix carried a
+  migration, redeploying the old image strands it against a newer schema: restore the previous schema and
+  image together (see the migration-gate recovery steps above) instead of a tag-only rollback. `latest` is
+  never deployable, and the next `fix:` commit takes the normal release path to fold the hotfix into a
+  versioned tag.
 
 ### Commit Conventions
 

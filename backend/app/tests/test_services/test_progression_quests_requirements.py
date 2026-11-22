@@ -273,6 +273,52 @@ async def test_vault_missing_requirements_validator_error_fails_closed(
     assert missing == ["Need a dweller at level 100 or higher"]
 
 
+@pytest.mark.asyncio
+async def test_vault_missing_requirements_checker_error_fails_closed(
+    async_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A snapshot checker exception is logged and the gate fails closed (reported missing).
+
+    The batch path evaluates requirement checkers over a ``VaultFacts`` snapshot rather than the old
+    per-requirement async validators, so the fail-closed guarantee is pinned on the dispatch table itself.
+    """
+    user_data = create_fake_user()
+    user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))
+    vault_data = create_fake_vault()
+    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**vault_data, user_id=user.id))
+
+    quest = Quest(
+        title="Snapshot Boom Quest",
+        short_description="Test",
+        long_description="Test quest",
+        requirements="None",
+        rewards="100 caps",
+        quest_type="side",
+    )
+    async_session.add(quest)
+    await async_session.commit()
+    await async_session.refresh(quest)
+
+    async_session.add(
+        QuestRequirement(
+            quest_id=quest.id,
+            requirement_type=RequirementType.LEVEL,
+            requirement_data={"level": 100, "count": 1},
+            is_mandatory=True,
+        )
+    )
+    await async_session.commit()
+    await async_session.refresh(quest, ["quest_requirements"])
+
+    def _boom(_facts: object, _requirement_data: dict) -> bool:
+        raise RuntimeError("checker exploded")
+
+    monkeypatch.setitem(requirements._CHECKERS, RequirementType.LEVEL, _boom)
+
+    missing = await vault_missing_requirements(async_session, vault.id, quest)
+    assert missing == ["Need a dweller at level 100 or higher"]
+
+
 def test_individual_meets_requirement_ignores_count() -> None:
     """A candidate meeting a gate's threshold qualifies regardless of the aggregate count."""
     dweller = _party_dweller(level=5)

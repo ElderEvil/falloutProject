@@ -94,6 +94,33 @@ class CRUDItem[ModelType: Weapon | Outfit | Pet, CreateSchemaType: SQLModel, Upd
             query = query.where(func.lower(self.model.name) == name.lower())
         return int((await db_session.execute(query)).scalar_one())
 
+    async def count_by_name_in_storage(self, db_session: AsyncSession, storage_id: UUID) -> dict[str, int]:
+        """Count items of this type in one storage grouped by lowercased name (one statement)."""
+        from sqlalchemy import func
+
+        query = (
+            select(func.lower(self.model.name), func.count(self.model.id))
+            .where(self.model.storage_id == storage_id)
+            .group_by(func.lower(self.model.name))
+        )
+        return {str(name): int(count) for name, count in (await db_session.execute(query)).all()}
+
+    async def count_equipped_by_name(self, db_session: AsyncSession, vault_id: UUID) -> dict[str, int]:
+        """Count items of this type equipped by living vault residents, grouped by lowercased name."""
+        from sqlalchemy import func
+
+        living_dweller_ids = (
+            select(Dweller.id)
+            .where(Dweller.vault_id == vault_id, ~Dweller.is_dead, ~Dweller.is_deleted)
+            .scalar_subquery()
+        )
+        query = (
+            select(func.lower(self.model.name), func.count(self.model.id))
+            .where(self.model.dweller_id.in_(living_dweller_ids))
+            .group_by(func.lower(self.model.name))
+        )
+        return {str(name): int(count) for name, count in (await db_session.execute(query)).all()}
+
     async def get_equipped(self, db_session: AsyncSession, dweller_id: UUID) -> ModelType | None:
         """The item of this type currently equipped by the dweller, if any."""
         result = await db_session.execute(select(self.model).where(self.model.dweller_id == dweller_id))

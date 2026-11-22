@@ -5,7 +5,7 @@ from typing import Any
 from uuid import UUID
 
 from sqlalchemy import Float, Row, case, cast, exists, func, update
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import joinedload, selectinload
 from sqlmodel import and_, col, or_, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -441,6 +441,23 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         """Every living (non-deleted, non-dead) dweller in a vault."""
         query = self._vault_query(vault_id, *self._living_conditions())
         return (await db_session.execute(query)).scalars().all()
+
+    async def get_living_with_equipment(self, db_session: AsyncSession, vault_id: UUID) -> Sequence[Dweller]:
+        """Living dwellers with weapon, outfit and pet eagerly loaded in a single statement.
+
+        Batch requirement evaluation reads ``effective_stat`` and equipped weapon damage for every
+        dweller, so the modifiers must be in the identity map up front rather than per-dweller lazy loads.
+        """
+        query = (
+            self._vault_query(vault_id, *self._living_conditions())
+            .options(
+                joinedload(Dweller.weapon),
+                joinedload(Dweller.outfit),
+                joinedload(Dweller.pet),
+            )
+            .order_by(Dweller.id)
+        )
+        return (await db_session.execute(query)).unique().scalars().all()
 
     async def get_exit_requests_above_happiness(
         self, db_session: AsyncSession, vault_id: UUID, threshold: int

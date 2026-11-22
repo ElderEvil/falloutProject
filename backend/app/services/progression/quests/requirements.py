@@ -1,11 +1,14 @@
-"""Requirement policy for quests: stateless decision rules, CRUD-backed vault gate.
+"""Requirement policy for quests: stateless decision rules over a vault facts snapshot.
 
-A policy, not a service — no orchestration, transactions, events, or state; vault entry reads through CRUD,
-party entry and validators are pure.
+A policy, not a service — no orchestration, transactions, events, or state. The vault gate reads a
+point-in-time :class:`VaultFacts` snapshot, loaded once per request, so a quest list costs a fixed handful
+of aggregate queries instead of one to four per requirement; party entry and validators stay pure.
 """
 
 import logging
-from collections.abc import Sequence
+from collections import Counter
+from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
 from typing import Any
 from uuid import UUID
 
@@ -22,23 +25,112 @@ from app.utils.objective_constants import normalize_room_type
 logger = logging.getLogger(__name__)
 
 
-async def vault_requirement_states(db_session: AsyncSession, vault_id: UUID, quest: Quest) -> dict[UUID, bool]:
+@dataclass(frozen=True)
+class VaultFacts:
+    """Point-in-time vault snapshot the requirement gates read, so evaluation needs no DB session.
+
+    Loaded by :func:`load_vault_facts`. Counts are precomputed per requirement dimension: dweller levels,
+    effective SPECIAL values, equipped weapon damage, owned/equipped item names, room types and completed
+    quest ids — each check is then a Python count over the snapshot.
+    """
+
+    alive_dweller_count: int
+    max_dweller_level: int
+    dweller_levels: tuple[int, ...]
+    effective_stats: Mapping[str, tuple[int, ...]]
+    weapon_damage_sums: tuple[int, ...]
+    item_counts: Mapping[str, int]
+    room_type_counts: Mapping[str, int]
+    completed_quest_ids: frozenset[UUID]
+
+    def count_at_level(self, min_level: int) -> int:
+        """Living dwellers at or above ``min_level``."""
+        return sum(1 for level in self.dweller_levels if level >= min_level)
+
+    def count_with_stat(self, stat: str, min_value: int) -> int:
+        """Living dwellers whose effective ``stat`` is at or above ``min_value``."""
+        return sum(1 for value in self.effective_stats.get(stat, ()) if value >= min_value)
+
+    def count_with_attack(self, min_attack: int) -> int:
+        """Living dwellers whose equipped weapon's average damage reaches ``min_attack``."""
+        return sum(1 for damage_sum in self.weapon_damage_sums if damage_sum >= 2 * min_attack)
+
+    def count_item(self, item_name: str) -> int:
+        """Copies of an item owned in storage plus equipped, matched case-insensitively."""
+        return self.item_counts.get(item_name.lower(), 0)
+
+    def count_rooms(self, room_type: str) -> int:
+        """Rooms of a normalized type."""
+        return self.room_type_counts.get(room_type, 0)
+
+
+async def load_vault_facts(db_session: AsyncSession, vault_id: UUID) -> VaultFacts:
+    """Snapshot everything the vault requirement gates need in a fixed, small number of queries.
+
+    One statement for living dwellers (weapon/outfit/pet eagerly loaded), one per item type for storage and
+    equipped name counts, one for room names and one for completed quests.
+    """
+    dwellers = await crud.dweller.get_living_with_equipment(db_session, vault_id)
+
+    item_counts: Counter[str] = Counter()
+    storage = await crud.storage.get_storage_by_vault(db_session, vault_id)
+    if storage is not None:
+        item_counts.update(await crud.weapon.count_by_name_in_storage(db_session, storage.id))
+        item_counts.update(await crud.outfit.count_by_name_in_storage(db_session, storage.id))
+    item_counts.update(await crud.weapon.count_equipped_by_name(db_session, vault_id))
+    item_counts.update(await crud.outfit.count_equipped_by_name(db_session, vault_id))
+
+    room_type_counts: Counter[str] = Counter()
+    for name in await crud.dweller.count_room_names_by_type(db_session, vault_id):
+        normalized = normalize_room_type(name)
+        if normalized is not None:
+            room_type_counts[normalized] += 1
+
+    return VaultFacts(
+        alive_dweller_count=len(dwellers),
+        max_dweller_level=max((dweller.level for dweller in dwellers), default=0),
+        dweller_levels=tuple(dweller.level for dweller in dwellers),
+        effective_stats={stat: tuple(effective_stat(dweller, stat) for dweller in dwellers) for stat in SPECIAL_STATS},
+        weapon_damage_sums=tuple(
+            dweller.weapon.damage_min + dweller.weapon.damage_max for dweller in dwellers if dweller.weapon is not None
+        ),
+        item_counts=dict(item_counts),
+        room_type_counts=dict(room_type_counts),
+        completed_quest_ids=frozenset(await crud.quest_crud.get_completed_quest_ids(db_session, vault_id)),
+    )
+
+
+async def vault_requirement_states(
+    db_session: AsyncSession,
+    vault_id: UUID,
+    quest: Quest,
+    *,
+    facts: VaultFacts | None = None,
+) -> dict[UUID, bool]:
     """Per-requirement vault-scoped verdicts keyed by requirement id.
 
-    Every requirement (mandatory or optional) goes through the same fail-closed _check_requirement dispatch as
-    the availability gate, so the UI shows which requirement blocks a quest.
+    Every requirement (mandatory or optional) goes through the same fail-closed dispatch as the availability
+    gate, so the UI shows which requirement blocks a quest. Pass ``facts`` to reuse a snapshot a batch caller
+    already loaded; otherwise one is built on demand.
     """
-    states: dict[UUID, bool] = {}
-    for req in quest.quest_requirements:
-        states[req.id] = await _check_requirement(db_session, vault_id, req)
-    return states
+    requirements: list[QuestRequirement] = quest.quest_requirements
+    if facts is None and _requires_facts(requirements):
+        facts = await load_vault_facts(db_session, vault_id)
+    return {req.id: _check_requirement(vault_id, req, facts) for req in requirements}
 
 
-async def vault_missing_requirements(db_session: AsyncSession, vault_id: UUID, quest: Quest) -> list[str]:
+async def vault_missing_requirements(
+    db_session: AsyncSession,
+    vault_id: UUID,
+    quest: Quest,
+    *,
+    facts: VaultFacts | None = None,
+) -> list[str]:
     """Vault-level requirement gates for a quest, as human-readable reasons.
 
     Only mandatory requirements gate; unmet optional ones are debug-logged and skipped. Fail-closed: unknown
-    types or validator errors are logged and treated as not met.
+    types or validator errors are logged and treated as not met. Pass ``facts`` to reuse a snapshot a batch
+    caller already loaded; otherwise one is built on demand.
     """
     missing: list[str] = []
     requirements: list[QuestRequirement] = quest.quest_requirements
@@ -46,8 +138,11 @@ async def vault_missing_requirements(db_session: AsyncSession, vault_id: UUID, q
     if not requirements:
         return missing
 
+    if facts is None and _requires_facts(requirements):
+        facts = await load_vault_facts(db_session, vault_id)
+
     for req in requirements:
-        is_met = await _check_requirement(db_session, vault_id, req)
+        is_met = _check_requirement(vault_id, req, facts)
 
         if not is_met:
             if not req.is_mandatory:
@@ -69,72 +164,78 @@ async def vault_missing_requirements(db_session: AsyncSession, vault_id: UUID, q
 async def validate_level_requirement(
     db_session: AsyncSession, vault_id: UUID, requirement_data: dict[str, Any]
 ) -> bool:
-    required_level = requirement_data.get("level", 1)
-    required_count = requirement_data.get("count", 1)
-
-    matching_count = await crud.dweller.count_alive_in_vault(db_session, vault_id, min_level=required_level)
-    return matching_count >= required_count
+    """Evaluate a single LEVEL gate; convenience entry point for callers without a snapshot."""
+    return _level_met(await load_vault_facts(db_session, vault_id), requirement_data)
 
 
 async def validate_item_requirement(db_session: AsyncSession, vault_id: UUID, requirement_data: dict[str, Any]) -> bool:
-    item_name = requirement_data.get("item_name", "")
-    required_count = requirement_data.get("count", 1)
-
-    storage = await crud.storage.get_storage_by_vault(db_session, vault_id)
-    storage_count = 0
-    if storage:
-        storage_count = await crud.weapon.count_in_storage_by_name(db_session, storage.id, item_name)
-        storage_count += await crud.outfit.count_in_storage_by_name(db_session, storage.id, item_name)
-
-    equipped_count = await crud.weapon.count_equipped(db_session, vault_id, item_name)
-    equipped_count += await crud.outfit.count_equipped(db_session, vault_id, item_name)
-
-    return storage_count + equipped_count >= required_count
+    """Evaluate a single ITEM gate; convenience entry point for callers without a snapshot."""
+    return _item_met(await load_vault_facts(db_session, vault_id), requirement_data)
 
 
 async def validate_attack_requirement(
     db_session: AsyncSession, vault_id: UUID, requirement_data: dict[str, Any]
 ) -> bool:
-    required_attack = requirement_data.get("attack", 0)
-    required_count = requirement_data.get("count", 1)
-
-    matching_count = await crud.dweller.count_alive_with_weapon_attack(db_session, vault_id, required_attack)
-    return matching_count >= required_count
+    """Evaluate a single ATTACK gate; convenience entry point for callers without a snapshot."""
+    return _attack_met(await load_vault_facts(db_session, vault_id), requirement_data)
 
 
 async def validate_stat_requirement(db_session: AsyncSession, vault_id: UUID, requirement_data: dict[str, Any]) -> bool:
-    stat = requirement_data.get("stat")
-    if stat not in SPECIAL_STATS:
-        return False
-    min_value = requirement_data.get("value", 1)
-    required_count = requirement_data.get("count", 1)
-
-    matching_count = await crud.dweller.count_living_with_effective_stat(db_session, vault_id, stat, min_value)
-    return matching_count >= required_count
+    """Evaluate a single STAT gate; convenience entry point for callers without a snapshot."""
+    return _stat_met(await load_vault_facts(db_session, vault_id), requirement_data)
 
 
 async def validate_room_requirement(db_session: AsyncSession, vault_id: UUID, requirement_data: dict[str, Any]) -> bool:
-    room_type = normalize_room_type(requirement_data.get("room_type"))
-    required_count = requirement_data.get("count", 1)
-    if room_type is None:
-        return False
-
-    room_names = await crud.dweller.count_room_names_by_type(db_session, vault_id)
-    return sum(normalize_room_type(name) == room_type for name in room_names) >= required_count
+    """Evaluate a single ROOM gate; convenience entry point for callers without a snapshot."""
+    return _room_met(await load_vault_facts(db_session, vault_id), requirement_data)
 
 
 async def validate_dweller_count_requirement(
     db_session: AsyncSession, vault_id: UUID, requirement_data: dict[str, Any]
 ) -> bool:
-    required_count = requirement_data.get("count", 0)
-
-    current_count = await crud.dweller.count_alive_in_vault(db_session, vault_id)
-    return current_count >= required_count
+    """Evaluate a single DWELLER_COUNT gate; convenience entry point for callers without a snapshot."""
+    return _dweller_count_met(await load_vault_facts(db_session, vault_id), requirement_data)
 
 
 async def validate_quest_completed_requirement(
     db_session: AsyncSession, vault_id: UUID, requirement_data: dict[str, Any]
 ) -> bool:
+    """Evaluate a single QUEST_COMPLETED gate; convenience entry point for callers without a snapshot."""
+    return _quest_completed_met(await load_vault_facts(db_session, vault_id), requirement_data)
+
+
+def _level_met(facts: VaultFacts, requirement_data: dict[str, Any]) -> bool:
+    return facts.count_at_level(requirement_data.get("level", 1)) >= requirement_data.get("count", 1)
+
+
+def _item_met(facts: VaultFacts, requirement_data: dict[str, Any]) -> bool:
+    item_name = requirement_data.get("item_name", "")
+    return facts.count_item(item_name) >= requirement_data.get("count", 1)
+
+
+def _attack_met(facts: VaultFacts, requirement_data: dict[str, Any]) -> bool:
+    return facts.count_with_attack(requirement_data.get("attack", 0)) >= requirement_data.get("count", 1)
+
+
+def _stat_met(facts: VaultFacts, requirement_data: dict[str, Any]) -> bool:
+    stat = requirement_data.get("stat")
+    if stat not in SPECIAL_STATS:
+        return False
+    return facts.count_with_stat(stat, requirement_data.get("value", 1)) >= requirement_data.get("count", 1)
+
+
+def _room_met(facts: VaultFacts, requirement_data: dict[str, Any]) -> bool:
+    room_type = normalize_room_type(requirement_data.get("room_type"))
+    if room_type is None:
+        return False
+    return facts.count_rooms(room_type) >= requirement_data.get("count", 1)
+
+
+def _dweller_count_met(facts: VaultFacts, requirement_data: dict[str, Any]) -> bool:
+    return facts.alive_dweller_count >= requirement_data.get("count", 0)
+
+
+def _quest_completed_met(facts: VaultFacts, requirement_data: dict[str, Any]) -> bool:
     quest_id = requirement_data.get("quest_id")
     if not quest_id:
         logger.warning("quest_completed requirement missing quest_id")
@@ -146,47 +247,68 @@ async def validate_quest_completed_requirement(
         logger.warning(f"quest_completed requirement has invalid quest_id: {quest_id}")
         return False
 
-    link = await crud.quest_crud.get_link(db_session, quest_id=quest_id, vault_id=vault_id)
-    return link is not None and link.is_completed
+    return quest_id in facts.completed_quest_ids
 
 
-async def _check_requirement(db_session: AsyncSession, vault_id: UUID, requirement: QuestRequirement) -> bool:
-    """Dispatch to the correct validation function based on requirement type."""
-    validators = {
-        RequirementType.LEVEL: validate_level_requirement,
-        RequirementType.ITEM: validate_item_requirement,
-        RequirementType.ROOM: validate_room_requirement,
-        RequirementType.DWELLER_COUNT: validate_dweller_count_requirement,
-        RequirementType.QUEST_COMPLETED: validate_quest_completed_requirement,
-        RequirementType.ATTACK: validate_attack_requirement,
-        RequirementType.STAT: validate_stat_requirement,
-    }
+_CHECKERS = {
+    RequirementType.LEVEL: _level_met,
+    RequirementType.ITEM: _item_met,
+    RequirementType.ROOM: _room_met,
+    RequirementType.DWELLER_COUNT: _dweller_count_met,
+    RequirementType.QUEST_COMPLETED: _quest_completed_met,
+    RequirementType.ATTACK: _attack_met,
+    RequirementType.STAT: _stat_met,
+}
 
-    validator = validators.get(requirement.requirement_type)
-    if not validator:
+
+def _requires_facts(requirements: Sequence[QuestRequirement]) -> bool:
+    """Whether any requirement type can be evaluated from the snapshot at all."""
+    return any(req.requirement_type in _CHECKERS for req in requirements)
+
+
+def _check_requirement(vault_id: UUID, requirement: QuestRequirement, facts: VaultFacts | None) -> bool:
+    """Dispatch on requirement type against the snapshot; unknown types and errors fail closed."""
+    checker = _CHECKERS.get(requirement.requirement_type)
+    if checker is None:
         logger.warning(f"Unknown requirement type: {requirement.requirement_type}")
+        return False
+    if facts is None:
+        logger.warning(f"No vault facts for {requirement.requirement_type} requirement of vault {vault_id}")
         return False
 
     try:
-        return await validator(db_session, vault_id, requirement.requirement_data)
+        return checker(facts, requirement.requirement_data)
     except Exception:
         logger.exception(f"Error validating {requirement.requirement_type} requirement for vault {vault_id}")
         return False
 
 
-async def vault_missing_item_requirements(db_session: AsyncSession, vault_id: UUID, quest: Quest) -> list[str]:
+async def vault_missing_item_requirements(
+    db_session: AsyncSession,
+    vault_id: UUID,
+    quest: Quest,
+    *,
+    facts: VaultFacts | None = None,
+) -> list[str]:
     """Unmet mandatory ITEM gates, as human-readable reasons.
 
     ITEM is vault-scoped: counts when in storage or equipped by any vault dweller, matching the read path.
     Party-gating it made quests read available then refuse to start when the wearer stayed home.
     """
-    missing: list[str] = []
-    for req in quest.quest_requirements:
-        if not req.is_mandatory or req.requirement_type != RequirementType.ITEM:
-            continue
-        if not await _check_requirement(db_session, vault_id, req):
-            missing.append(_describe_item(req.requirement_data))
-    return missing
+    item_requirements = [
+        req for req in quest.quest_requirements if req.is_mandatory and req.requirement_type == RequirementType.ITEM
+    ]
+    if not item_requirements:
+        return []
+
+    if facts is None:
+        facts = await load_vault_facts(db_session, vault_id)
+
+    return [
+        _describe_item(req.requirement_data)
+        for req in item_requirements
+        if not _check_requirement(vault_id, req, facts)
+    ]
 
 
 def party_missing_requirements(party_dwellers: Sequence[Dweller], quest: Quest) -> list[str]:

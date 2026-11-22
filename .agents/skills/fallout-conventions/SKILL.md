@@ -174,6 +174,18 @@ Inline SQL through `sh -c` breaks on quoting: write the SQL to a file and pipe i
   belong in `app/utils/` (e.g. `utils/broadcast_script.py`).
 - Never add entries to a guard's baseline — fix the code, and shrink baselines with each batch.
 
+## Events and transaction boundaries
+
+- **Never emit a game event while an uncommitted transaction has written the vault row.** Objective
+  evaluators handle the event on a second session and take `vault.lock_for_update(...)`, so the handler
+  waits for the emit's transaction while the emit waits for the handler — a deadlock that ends only when
+  `idle_in_transaction_session_timeout` (5 min) rolls the work back, with the player seeing a hang.
+- Pattern: call `deposit_caps(..., commit=False, emit_event=False)` inside the transaction, commit, then
+  `event_bus.emit(...)` with the credited amount (rush payout and demolition both do this). Pass
+  `emit_event=True` only when the caps update commits itself.
+- A hang that leaves `idle in transaction` holders on `vault` blocks worker ticks too, so it fails loudly
+  across the vault — check `pg_stat_activity` for `wait_event_type='Lock'` before blaming the request path.
+
 ## Alembic autogenerate drift
 
 - `alembic check` requires byte-match with model metadata: column types (`Text` vs `String`), nullability,

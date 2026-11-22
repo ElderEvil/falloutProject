@@ -314,10 +314,11 @@ describe('PreferencesView', () => {
 
     const switchButton = wrapper.find('button#map-group-colors')
     expect(wrapper.find('label[for="map-group-colors"]').text()).toContain('Colourful Map Markers')
-    expect(switchButton.attributes('aria-checked')).toBe('false')
+    // Site-family tint is on by default; the toggle exists to go back to mono.
+    expect(switchButton.attributes('aria-checked')).toBe('true')
 
     await switchButton.trigger('click')
 
-    expect(switchButton.attributes('aria-checked')).toBe('true')
+    expect(switchButton.attributes('aria-checked')).toBe('false')
   })
 })

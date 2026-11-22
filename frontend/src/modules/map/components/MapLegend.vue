@@ -1,15 +1,14 @@
 <script setup lang="ts">
 import { Icon } from '@iconify/vue'
-import type { PlaceGroup } from '../models/map'
 import { MARKER_TYPES } from '../models/markerTypeMeta'
 import { DANGER_RAMP } from '../utils/dangerStyle'
-import { groupColor } from '../models/groupColors'
-import MapMarker from './MapMarker.vue'
+import { FAMILY_LABELS, FAMILY_MEANING, GROUP_FAMILIES, type GroupFamily } from '../models/groupColors'
 
-withDefaults(defineProps<{ placeGroups?: PlaceGroup[]; groupColors?: boolean }>(), {
-  placeGroups: () => [],
-  groupColors: false,
+withDefaults(defineProps<{ groupColors?: boolean }>(), {
+  groupColors: true,
 })
+
+const familyKeys = Object.keys(GROUP_FAMILIES) as GroupFamily[]
 
 const commonSymbols = [
   { type: 'explorer', icon: 'mdi:walk', label: 'Explorers / parties' },
@@ -69,26 +68,26 @@ const states = [
           Ready to clear: clearable now, with no party already dispatched.
         </p>
       </section>
-      <section v-if="placeGroups.length">
-        <h3 class="mb-2 font-semibold">Place types</h3>
-        <div class="grid grid-cols-2 gap-x-3 gap-y-2">
-          <span v-for="group in placeGroups" :key="group.key" class="flex items-center gap-1.5">
-            <svg viewBox="-5 -5 10 10" class="size-5 shrink-0" aria-hidden="true">
-              <MapMarker
-                :x="0"
-                :y="0"
-                :name="group.label"
-                type="discovery"
-                :icon="group.icon"
-                :color="groupColors ? groupColor(group.key) : null"
-                :interactive="false"
-              />
+      <section v-if="groupColors">
+        <h3 class="mb-2 font-semibold">Site families</h3>
+        <div class="space-y-1.5">
+          <span
+            v-for="family in familyKeys"
+            :key="family"
+            class="legend-item flex items-baseline gap-1.5"
+          >
+            <svg viewBox="0 0 10 10" class="size-3 shrink-0 self-center" aria-hidden="true">
+              <circle cx="5" cy="5" r="4.5" :style="{ fill: GROUP_FAMILIES[family] }" />
             </svg>
-            {{ group.label }}
+            <span class="font-medium">{{ FAMILY_LABELS[family] }}</span>
+            <span class="text-theme-primary/65">{{
+              FAMILY_MEANING[family]
+            }}</span>
           </span>
         </div>
         <p class="mt-2 leading-relaxed text-theme-primary/65">
-          Optional colors identify place type. Symbols show status.
+          Colour shows the site family; the glyph shows the exact type. Unscouted
+          places keep their family colour, dimmed and ringed.
         </p>
       </section>
       <section>
@@ -96,7 +95,8 @@ const states = [
           Risk: {{ DANGER_RAMP.map((entry) => entry.label).join(' · ') }}.
         </p>
         <p class="mt-2 leading-relaxed text-theme-primary/65">
-          Fog marks unexplored terrain. Locked places hide their identity.
+          Fog marks unexplored terrain. Unscouted places wear a neutral pin and a
+          dashed ring, though their colour still hints at the family.
         </p>
       </section>
     </div>

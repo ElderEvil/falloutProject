@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 3.15.0 (2026-11-22)
+
+### Features
+
+* **map:** give clearable places material identity and a clear XP reward ([#1487](https://github.com/ElderEvil/falloutProject/issues/1487)) 01d57bb
+
 ## 3.14.3 (2026-11-22)
 
 ### Bug Fixes

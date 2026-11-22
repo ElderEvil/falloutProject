@@ -98,6 +98,33 @@ class RadioService:
         return rate
 
     @staticmethod
+    async def calculate_happiness_bonus(
+        db_session: AsyncSession,
+        vault: Vault,
+        radio_rooms: list[Room] | None = None,
+    ) -> float:
+        """Happiness per tick from broadcasting in happiness mode.
+
+        Only rooms with a dweller actively working the broadcast count: an unstaffed studio is silent, so
+        building one is not a passive happiness source.
+        """
+        if vault.radio_mode != "happiness":
+            return 0.0
+
+        if radio_rooms is None:
+            radio_rooms = await RadioService.get_radio_rooms(db_session, vault.id)
+
+        if not radio_rooms:
+            return 0.0
+
+        room_dwellers = await crud.dweller.get_by_room_ids(db_session, vault.id, [room.id for room in radio_rooms])
+        staffed_rooms = {
+            dweller.room_id for dweller in room_dwellers if dweller.room_id is not None and dweller.status == "working"
+        }
+
+        return float(game_config.radio.happiness_bonus * len(staffed_rooms))
+
+    @staticmethod
     async def check_for_recruitment(
         db_session: AsyncSession,
         vault_id: UUID,
@@ -351,9 +378,7 @@ class RadioService:
         rate_per_hour = rate_per_minute * 60
         hours_per_recruit = 1.0 / rate_per_hour if rate_per_hour > 0 else 0.0
 
-        radio_happiness_bonus = (
-            game_config.radio.happiness_bonus * len(radio_rooms) if vault.radio_mode == "happiness" else 0.0
-        )
+        radio_happiness_bonus = await RadioService.calculate_happiness_bonus(db_session, vault, radio_rooms)
 
         return {
             "has_radio": True,

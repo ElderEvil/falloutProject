@@ -68,7 +68,6 @@ class TestHappinessService:
             (DwellerStatusEnum.EXPLORING, False),
             (DwellerStatusEnum.QUESTING, False),
             (DwellerStatusEnum.WORKING, True),
-            (DwellerStatusEnum.TRAINING, True),
         ],
     )
     async def test_radio_happiness_only_reaches_dwellers_in_vault(
@@ -83,6 +82,8 @@ class TestHappinessService:
         """Radio affects residents' tick and breakdown, never explorers or quest parties."""
         test_room.name = "Radio studio"
         working_dweller.status = status
+        # The studio only broadcasts while someone works it; DwellerCreate does not carry room_id.
+        working_dweller.room_id = test_room.id if status == DwellerStatusEnum.WORKING else None
         assert working_dweller.is_in_vault is receives_radio
         working_dweller.partner_id = None
         working_dweller.happiness = 50
@@ -109,6 +110,45 @@ class TestHappinessService:
         assert bool(radio_modifiers) is receives_radio
         if receives_radio:
             assert radio_modifiers[0]["value"] == pytest.approx(game_config.radio.happiness_bonus)
+
+    async def test_radio_broadcast_requires_a_working_dweller(
+        self,
+        async_session: AsyncSession,
+        vault: Vault,
+        working_dweller: Dweller,
+        test_room: Room,
+    ):
+        """An unstaffed studio is silent; only a dweller working the broadcast makes it pay."""
+        from app.services.radio_service import RadioService
+
+        test_room.name = "Radio studio"
+        working_dweller.room_id = None
+        working_dweller.status = DwellerStatusEnum.IDLE
+        vault.radio_mode = "happiness"
+        async_session.add_all([test_room, working_dweller, vault])
+        await async_session.commit()
+
+        rooms = await RadioService.get_radio_rooms(async_session, vault.id)
+        assert rooms
+        assert await RadioService.calculate_happiness_bonus(async_session, vault, rooms) == pytest.approx(0.0)
+
+        working_dweller.room_id = test_room.id
+        working_dweller.status = DwellerStatusEnum.WORKING
+        async_session.add(working_dweller)
+        await async_session.commit()
+        assert await RadioService.calculate_happiness_bonus(async_session, vault, rooms) == pytest.approx(
+            game_config.radio.happiness_bonus
+        )
+
+        working_dweller.status = DwellerStatusEnum.TRAINING
+        async_session.add(working_dweller)
+        await async_session.commit()
+        assert await RadioService.calculate_happiness_bonus(async_session, vault, rooms) == pytest.approx(0.0)
+
+        vault.radio_mode = "recruitment"
+        async_session.add(vault)
+        await async_session.commit()
+        assert await RadioService.calculate_happiness_bonus(async_session, vault, rooms) == pytest.approx(0.0)
 
     async def test_update_vault_happiness_batches_room_and_partner_lookups(
         self,

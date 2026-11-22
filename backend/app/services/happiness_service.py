@@ -52,7 +52,9 @@ class HappinessService:
         radio_rooms = await RadioService.get_radio_rooms(db_session, vault_id)
 
         # Calculate vault-wide factors
-        vault_factors = await HappinessService._calculate_vault_factors(vault, active_incidents, radio_rooms)
+        vault_factors = await HappinessService._calculate_vault_factors(
+            db_session, vault, active_incidents, radio_rooms
+        )
 
         room_ids = {dweller.room_id for dweller in dwellers if dweller.room_id is not None}
         rooms_by_id = (
@@ -139,7 +141,9 @@ class HappinessService:
         return stats
 
     @staticmethod
-    async def _calculate_vault_factors(vault: Vault, active_incidents: list[Incident], radio_rooms: list[Room]) -> dict:
+    async def _calculate_vault_factors(
+        db_session: AsyncSession, vault: Vault, active_incidents: list[Incident], radio_rooms: list[Room]
+    ) -> dict:
         """Calculate vault-wide factors affecting happiness."""
         # Resource status
         power_ratio = vault.power / vault.power_max if vault.power_max > 0 else 0
@@ -158,10 +162,8 @@ class HappinessService:
             or water_ratio < game_config.happiness.critical_resource_threshold
         )
 
-        # Calculate radio happiness bonus
-        radio_happiness_bonus = 0.0
-        if vault.radio_mode == "happiness" and radio_rooms:
-            radio_happiness_bonus = game_config.radio.happiness_bonus * len(radio_rooms)
+        # A studio only broadcasts while a dweller works it; an unstaffed room adds nothing.
+        radio_happiness_bonus = await RadioService.calculate_happiness_bonus(db_session, vault, radio_rooms)
 
         return {
             "has_low_resources": has_low_resources,
@@ -338,7 +340,9 @@ class HappinessService:
         # Get radio rooms
         radio_rooms = await RadioService.get_radio_rooms(db_session, dweller.vault_id)
 
-        vault_factors = await HappinessService._calculate_vault_factors(vault, active_incidents, radio_rooms)
+        vault_factors = await HappinessService._calculate_vault_factors(
+            db_session, vault, active_incidents, radio_rooms
+        )
 
         modifiers = {
             "current_happiness": dweller.happiness,

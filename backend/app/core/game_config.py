@@ -689,7 +689,11 @@ class RadioConfig(BaseSettings):
     tier_2_multiplier: float = Field(default=1.5, ge=0.0)
     tier_3_multiplier: float = Field(default=2.0, ge=0.0)
 
-    happiness_bonus: int = Field(default=1, description="+1 happiness per dweller per tick", ge=0)
+    happiness_bonus: int = Field(
+        default=1,
+        description="Happiness per tick per staffed Radio Studio in happiness mode; an unstaffed room broadcasts nothing",
+        ge=0,
+    )
 
     recycle_enabled: bool = Field(default=True, description="Prefer soft-deleted dwellers when radio recruits")
     recycle_probability: float = Field(

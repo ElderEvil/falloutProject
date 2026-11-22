@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## 3.14.3 (2026-11-22)
+
+### Bug Fixes
+
+* **dwellers:** make the away equipment lock visible ([#1484](https://github.com/ElderEvil/falloutProject/issues/1484)) cf5d3a4
+* **exploration:** keep the dweller link icon on the wrapped name line ([#1485](https://github.com/ElderEvil/falloutProject/issues/1485)) 5b29da4
+
 ## 3.14.2 (2026-11-22)
 
 ### Bug Fixes

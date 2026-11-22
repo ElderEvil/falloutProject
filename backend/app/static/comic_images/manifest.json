@@ -1,0 +1,23 @@
+{
+ "description": "3 style-matched pre-war comic covers used by the collectible loot.",
+ "method": "OpenAI Images API /v1/images/generations with gpt-image-2.5-flare, quality high, transparent background, PNG output; post-processed with Pillow to a padded 256x256 RGBA PNG.",
+ "reference": "Original compositions in the Fallout Shelter item-art style; no game cover was traced or copied.",
+ "rights": "Fallout artwork belongs to its original rights holders. These are style-matched original pieces and carry no independent license.",
+ "assets": [
+  {
+   "file": "grognak.png",
+   "name": "Grognak",
+   "kind": "comic"
+  },
+  {
+   "file": "astoundingly_awesome_tales.png",
+   "name": "Astoundingly Awesome Tales",
+   "kind": "comic"
+  },
+  {
+   "file": "silver_shroud.png",
+   "name": "Silver Shroud",
+   "kind": "comic"
+  }
+ ]
+}

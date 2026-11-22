@@ -21,6 +21,7 @@ from app.schemas.outfit import OutfitCreate
 from app.schemas.weapon import WeaponCreate
 from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException, ValidationException
 from app.utils.item_factory import build_junk, build_outfit, build_weapon
+from app.utils.objective_constants import WASTELAND_LOOT_SOURCE
 from app.utils.static_data import game_data_store
 
 logger = logging.getLogger(__name__)
@@ -214,10 +215,31 @@ class LootOverflowService:
 
     @staticmethod
     def collect_event_payload(loot_item: dict) -> dict | None:
-        """The ITEM_COLLECTED payload a taken entry should emit, or None for junk."""
-        if loot_item.get("item_type") not in {"weapon", "outfit"}:
+        """The ITEM_COLLECTED payload a taken entry emits; junk carries its catalog material."""
+        item_type = loot_item.get("item_type")
+        quantity = LootOverflowService.quantity_of(loot_item)
+        if item_type in {"weapon", "outfit"}:
+            return {"item_type": item_type, "amount": quantity}
+        if item_type in MEDICAL_ITEM_TYPES:
             return None
-        return {"item_type": loot_item["item_type"], "amount": LootOverflowService.quantity_of(loot_item)}
+        payload = {"item_type": "junk", "amount": quantity, "source": WASTELAND_LOOT_SOURCE}
+        junk_type = LootOverflowService.resolved_junk_type(loot_item)
+        if junk_type:
+            payload["junk_type"] = junk_type
+        return payload
+
+    @staticmethod
+    def resolved_junk_type(loot_item: dict) -> str | None:
+        """Catalog material for a loot name, or None when the name is not shipped junk.
+
+        The stored row's ``junk_type`` is not authoritative here: the builder defaults it to
+        VALUABLES, so credit resolves from the catalog by name instead.
+        """
+        name = LootOverflowService.item_name(loot_item).strip().lower()
+        for entry in game_data_store.junk_items:
+            if entry.name.strip().lower() == name:
+                return str(entry.junk_type).lower()
+        return None
 
     async def settle_sell_decision(
         self,

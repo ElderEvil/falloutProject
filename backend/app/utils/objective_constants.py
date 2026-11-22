@@ -1,5 +1,7 @@
 """Constants and validation for objective target_entity values against actual game data."""
 
+from app.core.enums import JunkTypeEnum
+
 # Valid room types for build objectives (snake_case, matching room names)
 VALID_ROOM_TYPES = frozenset(
     {
@@ -54,6 +56,13 @@ VALID_ITEM_TYPES = frozenset(
         "junk",
     }
 )
+
+# Junk materials a collect objective may name. The catalog is the authority.
+VALID_JUNK_TYPES = frozenset(member.value for member in JunkTypeEnum)
+
+# Collect source a template may require. Only wasteland loot is stamped with a source today.
+WASTELAND_LOOT_SOURCE = "wasteland"
+VALID_COLLECT_SOURCES = frozenset({WASTELAND_LOOT_SOURCE})
 
 VALID_REACH_TYPES = frozenset({"dweller_count", "population", "level"})
 
@@ -200,6 +209,26 @@ def _validate_item_type(item_type: str | None) -> list[str]:
     return []
 
 
+def _validate_junk_type(junk_type: str | None, item_type: str | None) -> list[str]:
+    """Validate an optional junk material filter on a collect objective."""
+    if not junk_type:
+        return []
+    if normalize_item_type(item_type or "") != "junk":
+        return ["junk_type requires item_type 'junk'"]
+    if str(junk_type).lower() not in VALID_JUNK_TYPES:
+        return [f"Invalid junk_type '{junk_type}'. Must be one of: {', '.join(sorted(VALID_JUNK_TYPES))}"]
+    return []
+
+
+def _validate_collect_source(source: str | None) -> list[str]:
+    """Validate an optional collect source restriction."""
+    if not source:
+        return []
+    if str(source).lower() not in VALID_COLLECT_SOURCES:
+        return [f"Invalid source '{source}'. Must be one of: {', '.join(sorted(VALID_COLLECT_SOURCES))}"]
+    return []
+
+
 def _validate_reach_type(reach_type: str | None) -> list[str]:
     """Validate a reach type value."""
     if not reach_type or reach_type in VALID_REACH_TYPES:
@@ -229,6 +258,8 @@ def validate_target_entity(
         "collect": lambda: (
             _validate_resource_type(target_entity.get("resource_type"))
             + _validate_item_type(target_entity.get("item_type"))
+            + _validate_junk_type(target_entity.get("junk_type"), target_entity.get("item_type"))
+            + _validate_collect_source(target_entity.get("source"))
         ),
         "reach": lambda: _validate_reach_type(target_entity.get("reach_type")),
         "equip": lambda: (

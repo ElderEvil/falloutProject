@@ -7,6 +7,7 @@ Red-phase targets (all fail before the contract lands):
 - a single format_reward_summary() helper renders every variant.
 """
 
+from unittest.mock import AsyncMock, patch
 from uuid import UUID, uuid4
 
 import pytest
@@ -15,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
 from app import crud
+from app.core.event_bus import GameEvent
 from app.models.item import Item
 from app.models.junk import Junk
 from app.models.storage import Storage
@@ -26,6 +28,7 @@ from app.services.reward_service import reward_service
 from app.tests.factory.users import create_fake_user
 from app.tests.factory.vaults import create_fake_vault
 from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException
+from app.utils.reward_delivery import defer_reward_delivery
 
 _contract = granted_reward_adapter
 
@@ -207,3 +210,23 @@ async def test_rarity_junk_placeholders_settle_into_catalog_valuables(async_sess
     assert fan is not None
     assert fan.junk_type.value == "steel"
     assert fan.value == 2
+
+
+@pytest.mark.asyncio
+async def test_deferred_junk_grant_emits_no_collection_event(async_session: AsyncSession) -> None:
+    """Junk granted by an objective or quest reward must never credit a collection objective."""
+    vault = await _vault_with_storage(async_session)
+    junk = {"item_type": "junk", "name": "Duct tape", "rarity": "common", "quantity": 2}
+
+    with patch("app.core.event_bus.event_bus.emit", new_callable=AsyncMock) as emit:
+        async with defer_reward_delivery(async_session):
+            await reward_service.grant_item(async_session, vault.id, junk)
+        assert [call for call in emit.await_args_list if call.args and call.args[0] == GameEvent.ITEM_COLLECTED] == []
+
+    with patch("app.core.event_bus.event_bus.emit", new_callable=AsyncMock) as emit:
+        await reward_service.grant_item(async_session, vault.id, junk)
+
+    collected = [
+        call.args[2] for call in emit.await_args_list if call.args and call.args[0] == GameEvent.ITEM_COLLECTED
+    ]
+    assert collected == [{"item_type": "junk", "amount": 2}]

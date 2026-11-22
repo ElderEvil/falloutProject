@@ -413,13 +413,13 @@ async def test_take_weapon_emits_item_collected_after_commit(
 
 
 @pytest.mark.asyncio
-async def test_take_junk_does_not_emit_item_collected(
+async def test_take_junk_emits_its_catalog_material(
     async_session: AsyncSession,
     vault: Vault,
     dweller: Dweller,
     make_vault_storage,
 ):
-    """Junk takes stay out of the gear-collection objective feed."""
+    """A taken junk entry credits collection with its catalog material and wasteland source."""
     storage = await make_vault_storage(0)
     exploration, _ = await _completed_with_overflow(
         async_session,
@@ -443,4 +443,4 @@ async def test_take_junk_does_not_emit_item_collected(
     finally:
         event_bus.unsubscribe(GameEvent.ITEM_COLLECTED, item_event)
 
-    assert observed == []
+    assert observed == [{"item_type": "junk", "amount": 1, "source": "wasteland", "junk_type": "adhesive"}]

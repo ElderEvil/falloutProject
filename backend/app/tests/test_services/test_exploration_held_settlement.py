@@ -14,7 +14,7 @@ from uuid import uuid4
 
 import pytest
 import pytest_asyncio
-from sqlalchemy import orm
+from sqlalchemy import event, orm
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -31,6 +31,7 @@ from app.models.vault import Vault
 from app.models.weapon import Weapon
 from app.services.exploration.coordinator import exploration_coordinator
 from app.services.exploration.rewards_calculator import rewards_calculator
+from app.services.exploration.rewards_service import rewards_service
 from app.services.exploration_service import exploration_service
 from app.services.leveling_service import LevelingService
 from app.tests.factory.items import create_fake_outfit, create_fake_weapon
@@ -419,3 +420,112 @@ async def test_no_storage_holds_everything_including_held_rows(
     assert all("held_row_id" not in entry for entry in exploration.unclaimed_loot)
     assert await crud.weapon.get_or_none(async_session, held.id) is None
     await _assert_no_orphan_rows(async_session)
+
+
+def _junk_payloads(emit: AsyncMock) -> list[dict]:
+    """ITEM_COLLECTED payloads for junk from a patched emit."""
+    return [
+        call.args[2]
+        for call in emit.await_args_list
+        if call.args and call.args[0] == GameEvent.ITEM_COLLECTED and call.args[2].get("item_type") == "junk"
+    ]
+
+
+@pytest.mark.asyncio
+async def test_junk_settlement_credits_each_material_once(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller, make_vault_storage
+):
+    """One ITEM_COLLECTED per material present, carrying the catalog junk type and wasteland source."""
+    await make_vault_storage(10)
+    exploration = await _returning_exploration(async_session, vault, dweller)
+    for name, rarity in (
+        ("Duct tape", "Common"),
+        ("Wonderglue", "Rare"),
+        ("Alarm clock", "Common"),
+        ("Mystery scrap", "Common"),
+    ):
+        exploration.add_loot(item_name=name, rarity=rarity, item_type="junk")
+    async_session.add(exploration)
+    await async_session.commit()
+
+    with patch("app.core.event_bus.event_bus.emit", new_callable=AsyncMock) as emit:
+        await exploration_coordinator.finalize_return(async_session, exploration.id)
+
+    by_material = {payload.get("junk_type"): payload for payload in _junk_payloads(emit)}
+    assert by_material["adhesive"]["amount"] == 2  # Duct tape + Wonderglue share the catalog type
+    assert by_material["circuitry"]["amount"] == 1
+    assert by_material[None]["amount"] == 1  # unknown legacy name keeps generic junk credit
+    assert all(payload["source"] == "wasteland" for payload in by_material.values())
+
+
+@pytest.mark.asyncio
+async def test_failed_settlement_discards_queued_junk_credit(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller, make_vault_storage
+):
+    """A failure after the junk credit is queued emits nothing and stores nothing; the retry credits once."""
+    storage = await make_vault_storage(10)
+    exploration = await _returning_exploration(async_session, vault, dweller)
+    exploration.add_loot(item_name="Duct tape", rarity="Common", item_type="junk")
+    async_session.add(exploration)
+    await async_session.commit()
+
+    def fail_commit(_session):
+        raise IntegrityError("COMMIT", {}, RuntimeError("storage write failed"))
+
+    event.listen(async_session.sync_session, "before_commit", fail_commit)
+    try:
+        with (
+            patch("app.core.event_bus.event_bus.emit", new_callable=AsyncMock) as emit,
+            pytest.raises(IntegrityError),
+        ):
+            await exploration_coordinator.finalize_return(async_session, exploration.id)
+    finally:
+        event.remove(async_session.sync_session, "before_commit", fail_commit)
+
+    assert _junk_payloads(emit) == []
+    await async_session.refresh(exploration)
+    await async_session.refresh(storage)
+    assert exploration.status == ExplorationStatus.RETURNING
+    assert storage.used_space == 0
+
+    with patch("app.core.event_bus.event_bus.emit", new_callable=AsyncMock) as emit:
+        await exploration_coordinator.finalize_return(async_session, exploration.id)
+
+    credit = _junk_payloads(emit)
+    assert len(credit) == 1
+    assert credit[0]["junk_type"] == "adhesive"
+    assert credit[0]["amount"] == 1
+    assert credit[0]["source"] == "wasteland"
+
+
+@pytest.mark.asyncio
+async def test_overflow_junk_credits_its_material_when_taken(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller, make_vault_storage
+):
+    """Storage-full overflow earns nothing on settlement, then credits the material when taken."""
+    storage = await make_vault_storage(1)
+    exploration = await _returning_exploration(async_session, vault, dweller)
+    exploration.add_loot(item_name="Duct tape", rarity="Common", item_type="junk")
+    exploration.add_loot(item_name="Wonderglue", rarity="Rare", item_type="junk")
+    async_session.add(exploration)
+    await async_session.commit()
+
+    with patch("app.core.event_bus.event_bus.emit", new_callable=AsyncMock) as emit:
+        await exploration_coordinator.finalize_return(async_session, exploration.id)
+    first_credits = _junk_payloads(emit)
+
+    await async_session.refresh(exploration)
+    assert len(exploration.unclaimed_loot) == 1
+
+    storage.max_space = 5
+    async_session.add(storage)
+    await async_session.commit()
+    with patch("app.core.event_bus.event_bus.emit", new_callable=AsyncMock) as emit:
+        await rewards_service.take_unclaimed_item(async_session, exploration.id, 0)
+    taken_credits = _junk_payloads(emit)
+
+    assert len(first_credits) == 1
+    assert len(taken_credits) == 1
+    assert taken_credits[0]["junk_type"] == "adhesive"
+    assert taken_credits[0]["amount"] == 1
+    assert first_credits[0]["amount"] + taken_credits[0]["amount"] == 2  # each stored unit credits once

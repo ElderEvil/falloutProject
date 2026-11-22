@@ -27,6 +27,7 @@ from app.services.loot_overflow_service import loot_overflow_service
 from app.services.resource_manager_service import compute_medical_capacity
 from app.services.vault_service import vault_service
 from app.utils.exceptions import ValidationException
+from app.utils.objective_constants import WASTELAND_LOOT_SOURCE
 
 logger = logging.getLogger(__name__)
 
@@ -122,6 +123,7 @@ class RewardsService:
 
         transferred: list[dict] = []
         materialization_failures: list[dict] = []
+        junk_collected: dict[str, int] = {}
 
         for loot_item in granted:
             if "held_row_id" in loot_item:
@@ -136,6 +138,9 @@ class RewardsService:
             item_type = loot_item.get("item_type", "junk")
             rarity_str = loot_item.get("rarity", "Common")
             stored_quantity = 0
+            # Resolve the material from the catalog by name: the built row's junk_type defaults to
+            # VALUABLES and is not authoritative for credit.
+            material = loot_overflow_service.resolved_junk_type(loot_item) if item_type == "junk" else None
 
             for _ in range(loot_item["quantity"]):
                 item = loot_overflow_service.build_storage_row(
@@ -152,6 +157,10 @@ class RewardsService:
                         db_session, GameEvent.ITEM_COLLECTED, vault.id, {"item_type": item_type, "amount": 1}
                     )
 
+                if item_type not in {"weapon", "outfit"}:
+                    key = material or ""
+                    junk_collected[key] = junk_collected.get(key, 0) + 1
+
                 stored_quantity += 1
 
             if stored_quantity:
@@ -165,6 +174,12 @@ class RewardsService:
                         "rarity": rarity_str,
                     },
                 )
+
+        for material, amount in junk_collected.items():
+            payload = {"item_type": "junk", "amount": amount, "source": WASTELAND_LOOT_SOURCE}
+            if material:
+                payload["junk_type"] = material
+            self._queue_event(db_session, GameEvent.ITEM_COLLECTED, vault.id, payload)
 
         overflow_specs: list[dict] = list(materialization_failures)
         for loot_item in overflow:
@@ -385,7 +400,11 @@ class RewardsService:
             )
 
         if commit:
-            await db_session.commit()
+            try:
+                await db_session.commit()
+            except Exception:
+                self.discard_pending_rewards(db_session)
+                raise
             await self.deliver_pending_reward_events(db_session)
 
         return RewardsSchema(

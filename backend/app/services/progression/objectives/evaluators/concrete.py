@@ -29,6 +29,11 @@ class CollectEvaluator(ObjectiveEvaluator):
     def _matches(self, objective: Objective, event_type: str, data: dict[str, Any]) -> bool:
         target = objective.target_entity or {}
 
+        # A template may restrict credit to one source (wasteland loot vs production etc.).
+        target_source = target.get("source")
+        if target_source and str(data.get("source", "")).lower() != str(target_source).lower():
+            return False
+
         if event_type == GameEvent.RESOURCE_COLLECTED:
             if target.get("production_only") and data.get("source") != "production":
                 return False
@@ -48,13 +53,17 @@ class CollectEvaluator(ObjectiveEvaluator):
             if target.get("resource_type") and not target.get("item_type"):
                 return False
             target_item = target.get("item_type")
-            # Wildcard matches any item ("*", "any", or null)
-            if not target_item or target_item in ("*", "any"):
+            if target_item and target_item not in ("*", "any"):
+                event_item = normalize_item_type(data.get("item_type", ""))
+                if event_item != normalize_item_type(target_item):
+                    return False
+            elif not target.get("junk_type"):
                 return True
-            # Use normalize_item_type to handle aliases (e.g., "Weapons" -> "weapon")
-            event_item = normalize_item_type(data.get("item_type", ""))
-            target_normalized = normalize_item_type(target_item)
-            return event_item == target_normalized
+            # A material filter is the narrowest match: the catalog type must be named on the event.
+            target_junk = target.get("junk_type")
+            if target_junk:
+                return str(data.get("junk_type", "")).lower() == str(target_junk).lower()
+            return True
 
         return False
 

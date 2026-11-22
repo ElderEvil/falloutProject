@@ -140,6 +140,33 @@ async def test_site_award_is_inert_while_the_feature_flag_is_off(
 
 
 @pytest.mark.asyncio
+async def test_a_lost_claim_race_returns_false_without_touching_the_bonus(
+    async_session: AsyncSession, vault: Vault, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The unique constraint, not the pre-check, decides a claim: a stale read must not raise.
+
+    The pre-check can read an empty table while a concurrent award is committing. Losing that
+    race has to cost the award, never the caller's transaction — the dispatch would roll back.
+    """
+
+    async def _stale_read(*args: object, **kwargs: object) -> None:
+        return None
+
+    dweller = await _finder(async_session, vault)
+    await _award_strength(async_session, vault, dweller)
+    await async_session.commit()
+
+    monkeypatch.setattr(collectible_crud, "get_by_vault_and_key", _stale_read)
+
+    assert (
+        await collectible_service.award(async_session, vault_id=vault.id, dweller=dweller, collectible_key="strength")
+        is False
+    )
+    await async_session.refresh(dweller)
+    assert dweller.collectible_bonus == {"strength": 1}
+
+
+@pytest.mark.asyncio
 async def test_rolled_back_award_leaves_no_claim_or_bonus(async_session: AsyncSession, vault: Vault) -> None:
     """A failed transaction owner leaves neither the claim nor the derived bonus behind."""
     dweller = await _finder(async_session, vault)

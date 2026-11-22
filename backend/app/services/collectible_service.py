@@ -11,6 +11,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from uuid import UUID
 
+from sqlalchemy.exc import IntegrityError
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
@@ -59,19 +60,30 @@ class CollectibleService:
         if await collectible_crud.get_by_vault_and_key(db_session, vault_id, collectible_key) is not None:
             return False
 
+        # The pre-check is a courtesy, not the rule: UNIQUE(vault_id, collectible_key) is what
+        # makes a claim once-per-vault. Insert inside a savepoint so a concurrent award landing
+        # between check and insert costs a lost race, never a rolled-back dispatch.
+        try:
+            async with db_session.begin_nested():
+                db_session.add(
+                    VaultCollectible(
+                        vault_id=vault_id,
+                        collectible_key=entry["key"],
+                        finder_dweller_id=dweller.id,
+                        location_id=location_id,
+                        found_at=utcnow(),
+                    )
+                )
+                await db_session.flush()
+        except IntegrityError:
+            logger.info("Vault %s already claimed %r; another award won the race", vault_id, entry["key"])
+            return False
+
+        # Mutated only after the claim lands, so a lost race leaves the finder's bonus untouched.
         bonus = dict(dweller.collectible_bonus or {})
         bonus[entry["stat"]] = bonus.get(entry["stat"], 0) + entry["amount"]
         dweller.collectible_bonus = bonus
         db_session.add(dweller)
-        db_session.add(
-            VaultCollectible(
-                vault_id=vault_id,
-                collectible_key=entry["key"],
-                finder_dweller_id=dweller.id,
-                location_id=location_id,
-                found_at=utcnow(),
-            )
-        )
         await db_session.flush()
         return True
 

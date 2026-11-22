@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 3.14.0 (2026-11-22)
+
+### Features
+
+* **collectibles:** site-bound bobbleheads with permanent SPECIAL bonuses ([#1478](https://github.com/ElderEvil/falloutProject/issues/1478)) de18720
+
 ## 3.13.0 (2026-11-21)
 
 ### Features

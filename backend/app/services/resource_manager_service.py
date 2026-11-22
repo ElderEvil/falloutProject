@@ -24,6 +24,7 @@ from app.schemas.vault import (
     ResourceTickEvents,
     VaultUpdate,
 )
+from app.services.game_tick.deprivation import output_multiplier
 from app.services.vault.scenario_service import vault_scenario_service
 from app.utils.resource_warnings import get_resource_warnings
 
@@ -154,6 +155,10 @@ class ResourceManager:
             used = self._calculate_consumption(rooms, dweller_count, step)
             made = self._calculate_production(rooms_with_dwellers, step, stocks["power"], rival_pairs=rival_pairs)
             self.apply_food_water_multiplier(made, food_water_multiplier)
+            deprivation_multiplier = output_multiplier(state)
+            if deprivation_multiplier != 1.0:
+                for key in stocks:
+                    made[key] *= deprivation_multiplier
             offline = (
                 state is not None
                 and (state.last_tick_time + timedelta(seconds=elapsed) - state.last_activity_time).total_seconds() > 600
@@ -304,7 +309,11 @@ class ResourceManager:
         return production_totals
 
     def _calculate_room_production(self, room: Room, dwellers: list[Dweller], seconds_passed: int) -> float:
-        """Calculate production from the room's workers.
+        """Calculate a room's rate-free production from its workers.
+
+        The per-resource rate is applied in ``_apply_room_production`` so a room whose
+        output splits across resources (ENDURANCE) prices each share with its own rate
+        instead of borrowing the cheapest one.
 
         Youth posted to a production room are junior workers: they assist at the
         ``junior_worker_output_multiplier`` rate while their apprenticeship trains the
@@ -328,15 +337,13 @@ class ResourceManager:
 
         ability_sum = sum(contribution(dweller) for dweller in dwellers)
         tier_mult = game_config.resource.get_tier_multiplier(room.tier)
-        rate = game_config.resource.base_production_rate
-        if MEDICAL_ROOM_PRODUCTION.get(room.name.lower()):
-            rate = game_config.resource.medical_production_rate
-        production = output * ability_sum * rate * tier_mult * seconds_passed
+        production = output * ability_sum * tier_mult * seconds_passed
 
         juniors = sum(1 for dweller in dwellers if dweller.apprentice_stat is not None)
         self.logger.debug(
             f"Room {room.name} producing: output={room.output}, ability_sum={ability_sum}, "
-            f"production={production:.2f} (tier={room.tier}, adults={len(dwellers) - juniors}, juniors={juniors})"
+            f"rate-free production={production:.2f} (tier={room.tier}, adults={len(dwellers) - juniors}, "
+            f"juniors={juniors})"
         )
 
         return production
@@ -368,26 +375,39 @@ class ResourceManager:
         return max(DISCOMFORT_PRODUCTION_FLOOR, multiplier)
 
     @staticmethod
+    def _production_rate_for(resource: str) -> float:
+        """Production rate for one resource key, so power is tunable apart from food and water."""
+        if resource == "power":
+            return game_config.resource.power_production_rate
+        if resource in ("stimpack", "radaway"):
+            return game_config.resource.medical_production_rate
+        return game_config.resource.base_production_rate
+
+    @classmethod
     def _apply_room_production(
-        room_name: str, ability: SPECIALEnum, production: float, totals: dict[str, float]
+        cls, room_name: str, ability: SPECIALEnum, production: float, totals: dict[str, float]
     ) -> None:
-        """Apply production to the appropriate resource type based on room ability."""
+        """Apply rate-free production to each produced resource at that resource's own rate."""
+
+        def add(resource: str, amount: float) -> None:
+            totals[resource] += amount * cls._production_rate_for(resource)
+
         match ability:
             case SPECIALEnum.STRENGTH:  # Power plants
-                totals["power"] += production
+                add("power", production)
             case SPECIALEnum.AGILITY:  # Gardens/Diners
-                totals["food"] += production
+                add("food", production)
             case SPECIALEnum.PERCEPTION:  # Water treatment
-                totals["water"] += production
+                add("water", production)
             case SPECIALEnum.INTELLIGENCE:  # Medbay and Science Lab
                 product = MEDICAL_ROOM_PRODUCTION.get(room_name.lower())
                 if product:
-                    totals[product] += production
+                    add(product, production)
             case SPECIALEnum.ENDURANCE:
                 base_resources = ["power", "food", "water"]
                 per_share = production / len(base_resources)
                 for resource in base_resources:
-                    totals[resource] += per_share
+                    add(resource, per_share)
 
     def _log_resource_changes(self, vault: Vault, new_resources: dict[str, float]) -> None:
         """Log resource changes for debugging."""

@@ -277,20 +277,21 @@ class TestProcessDwellers:
 
 
 class TestDehydrationRadiation:
-    async def _prepare(self, async_session, vault, dweller):
-        vault.water = 0
+    """Deprivation radiation is driven by persisted counters and stops at the quarter-health floor."""
+
+    async def _prepare(self, async_session, vault, dweller, water, *, water_deprived_minutes=0, radiation=0):
+        vault.water = water
+        vault.food = max(vault.food_max, 100)
         dweller.max_health = 100
         dweller.health = 100
-        dweller.radiation = 0
-        async_session.add_all([vault, dweller])
-        await async_session.commit()
-
-    async def _drain_since(self, async_session, vault, since):
-        async_session.add(GameState(vault_id=vault.id, water_empty_since=since))
+        dweller.radiation = radiation
+        async_session.add_all(
+            [vault, dweller, GameState(vault_id=vault.id, water_deprived_ms=water_deprived_minutes * 60_000)]
+        )
         await async_session.commit()
 
     async def test_away_dwellers_are_exempt(self, async_session, vault, dweller):
-        await self._prepare(async_session, vault, dweller)
+        await self._prepare(async_session, vault, dweller, water=0, water_deprived_minutes=40)
         dweller.status = DwellerStatusEnum.EXPLORING
         async_session.add(dweller)
         await async_session.commit()
@@ -301,41 +302,40 @@ class TestDehydrationRadiation:
         assert dweller.radiation == 0
 
     @pytest.mark.parametrize(
-        ("max_health", "radiation_start", "empty_ago", "seconds", "irradiated", "radiation", "saturates"),
+        ("max_health", "radiation_start", "deprived_minutes", "seconds", "irradiated", "radiation", "floor"),
         [
-            (200, 0, timedelta(minutes=10), 120, 1, 4, False),
-            (100, 0, timedelta(0), 120, 0, 0, False),
-            (100, 99, timedelta(minutes=10), 600, 1, 100, True),
+            (100, 0, 0, 120, 0, 0, None),
+            (200, 0, 40, 600, 1, 3, None),
+            (100, 74, 499, 600, 1, 75, 25),
         ],
-        ids=["one_percent_per_tick", "grace_period", "saturates_at_max_health"],
+        ids=["grace_period", "rate_follows_deprived_minutes", "stops_at_the_deprivation_floor"],
     )
-    async def test_rate_grace_and_saturation(
+    async def test_rate_grace_and_floor(
         self,
         async_session,
         vault,
         dweller,
         max_health,
         radiation_start,
-        empty_ago,
+        deprived_minutes,
         seconds,
         irradiated,
         radiation,
-        saturates,
+        floor,
     ):
-        await self._prepare(async_session, vault, dweller)
+        await self._prepare(
+            async_session, vault, dweller, water=0, water_deprived_minutes=deprived_minutes, radiation=radiation_start
+        )
         dweller.max_health = max_health
-        dweller.radiation = radiation_start
         async_session.add(dweller)
-        await self._drain_since(async_session, vault, utcnow() - empty_ago)
+        await async_session.commit()
 
         result = await game_loop_service._process_dwellers(async_session, vault.id, seconds_passed=seconds)
         assert result["irradiated"] == irradiated
         await async_session.refresh(dweller)
-        if saturates:
-            assert dweller.radiation == dweller.max_health
-            assert dweller.effective_max_health == 1
-        else:
-            assert dweller.radiation == radiation  # 1% of max_health per post-grace tick
+        assert dweller.radiation == radiation
+        if floor is not None:
+            assert dweller.effective_max_health == floor
 
     @pytest.mark.parametrize(
         ("name", "rarity", "outfit_type"),
@@ -348,15 +348,14 @@ class TestDehydrationRadiation:
     async def test_outfits_do_not_block_ingested_water_radiation(
         self, async_session, vault, dweller, name, rarity, outfit_type
     ):
-        await self._prepare(async_session, vault, dweller)
-        async_session.add(GameState(vault_id=vault.id, water_empty_since=utcnow() - timedelta(minutes=10)))
+        await self._prepare(async_session, vault, dweller, water=0, water_deprived_minutes=40)
         async_session.add(Outfit(name=name, rarity=rarity, outfit_type=outfit_type, dweller_id=dweller.id))
         await async_session.commit()
 
         result = await game_loop_service._process_dwellers(async_session, vault.id, seconds_passed=600)
         assert result["irradiated"] == 1
         await async_session.refresh(dweller)
-        assert dweller.radiation == 5  # 5 post-grace ticks x 1% of 100, armor ignored
+        assert dweller.radiation == 2  # 10 post-grace minutes at 0.15% of max health, armor ignored
 
 
 class TestProcessTraining:

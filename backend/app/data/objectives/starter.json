@@ -64,7 +64,7 @@
   },
   {
     "template_key": "starter:produce 50 power#v3",
-    "challenge": "Collect 50 Power",
+    "challenge": "Collect 25 Power",
     "reward": "dweller:Tessa Ward",
     "category": "starter",
     "objective_type": "collect",
@@ -72,13 +72,13 @@
       "resource_type": "power",
       "production_only": true
     },
-    "target_amount": 50,
+    "target_amount": 25,
     "description": "Staff the Power Generator. Production counts even at full storage; gifts and objective rewards do not. A new resident joins when you claim.",
     "sequence": 5
   },
   {
     "template_key": "starter:produce 50 food#v3",
-    "challenge": "Collect 50 Food",
+    "challenge": "Collect 25 Food",
     "reward": "dweller:Owen Hale",
     "category": "starter",
     "objective_type": "collect",
@@ -86,13 +86,13 @@
       "resource_type": "food",
       "production_only": true
     },
-    "target_amount": 50,
+    "target_amount": 25,
     "description": "Staff the Diner. Production counts even at full storage; gifts and objective rewards do not. A new resident joins when you claim.",
     "sequence": 6
   },
   {
     "template_key": "starter:produce 50 water#v3",
-    "challenge": "Collect 50 Water",
+    "challenge": "Collect 25 Water",
     "reward": "dweller:Rhea Cole",
     "category": "starter",
     "objective_type": "collect",
@@ -100,7 +100,7 @@
       "resource_type": "water",
       "production_only": true
     },
-    "target_amount": 50,
+    "target_amount": 25,
     "description": "Staff the Water Treatment. Production counts even at full storage; gifts and objective rewards do not. A new resident joins when you claim.",
     "sequence": 7
   },
@@ -147,7 +147,7 @@
   },
   {
     "template_key": "starter:produce 100 food#v3",
-    "challenge": "Produce 100 Food",
+    "challenge": "Produce 50 Food",
     "reward": "dweller:Theo Mercer",
     "category": "starter",
     "objective_type": "collect",
@@ -155,13 +155,13 @@
       "resource_type": "food",
       "production_only": true
     },
-    "target_amount": 100,
+    "target_amount": 50,
     "description": "Keep food production running while your explorer travels. Actual production counts even at full storage. Claim another resident toward the Office population goal; no expedition return or family wait is required.",
     "sequence": 11
   },
   {
     "template_key": "starter:produce 100 water#v3",
-    "challenge": "Produce 100 Water",
+    "challenge": "Produce 50 Water",
     "reward": "dweller:Nadia Quinn",
     "category": "starter",
     "objective_type": "collect",
@@ -169,7 +169,7 @@
       "resource_type": "water",
       "production_only": true
     },
-    "target_amount": 100,
+    "target_amount": 50,
     "description": "Keep water production running while your explorer travels. Actual production counts even at full storage. Claim another resident toward the Office population goal; no expedition return or family wait is required.",
     "sequence": 12
   },

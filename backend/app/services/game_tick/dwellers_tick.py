@@ -7,17 +7,19 @@ from uuid import UUID
 from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.core.enums import RoomTypeEnum
+from app.core.enums import NotificationType, RoomTypeEnum
 from app.core.game_config import game_config
 from app.crud import dweller as crud_dweller
 from app.crud import expedition_run as crud_expedition_run
 from app.crud import exploration as crud_exploration
 from app.crud import room as crud_room
+from app.crud.game_state import game_state_crud
 from app.crud.vault import vault as vault_crud
 from app.services.exploration.dispatch_resolution import resolve_dispatch_arrival
 from app.services.exploration.expedition import expedition_service
 from app.services.exploration.locking import lock_exploration_with_vault_claim
 from app.services.exploration_service import exploration_service
+from app.services.game_tick.deprivation import DeprivationResult, apply_deprivation
 from app.services.game_tick.guard import guard_phase, recover_session, refresh_after_recovery
 from app.services.game_tick.tick_results import (
     ApprenticeStats,
@@ -27,22 +29,46 @@ from app.services.game_tick.tick_results import (
     WorkXpStats,
 )
 from app.services.happiness_service import happiness_service
+from app.services.notification_service import notification_service
 from app.utils.exceptions import ResourceNotFoundException, VaultOperationException
-from app.utils.radiation import apply_radiation_gain, dehydration_rads
 from app.utils.time import utcnow
 
 logger = logging.getLogger(__name__)
 
 
-async def _drought_ticks(db_session: AsyncSession, vault_id: UUID) -> int:
-    """Whole ticks since vault water hit zero; 0 when the clock is missing (fresh drought)."""
-    from app.crud.game_state import game_state_crud
+async def _announce_deprivation(db_session: AsyncSession, vault_id: UUID, result: DeprivationResult) -> None:
+    """Warn once per transition; the row is staged and delivered by the phase commit."""
 
-    state = await game_state_crud.get_by_vault_id(db_session, vault_id)
-    if state is None or state.water_empty_since is None:
-        return 0
-    elapsed = (utcnow() - state.water_empty_since).total_seconds()
-    return max(0, int(elapsed) // game_config.game_loop.tick_interval)
+    async def send(user_id: UUID, *, notification_type: NotificationType, title: str, message: str) -> None:
+        await notification_service.create_and_send(
+            db_session, user_id, notification_type, title, message, vault_id=vault_id, commit=False
+        )
+
+    if result.entered_hunger or result.entered_thirst:
+        missing = "food" if result.entered_hunger else "water"
+        await notification_service.notify_owner(
+            db_session,
+            vault_id,
+            sender=partial(
+                send,
+                notification_type=NotificationType.RESOURCE_LOW,
+                title="Rations running out",
+                message=f"The vault has no {missing}: crews are working at reduced output.",
+            ),
+            context="deprivation warning",
+        )
+    if result.critical:
+        await notification_service.notify_owner(
+            db_session,
+            vault_id,
+            sender=partial(
+                send,
+                notification_type=NotificationType.RESOURCE_CRITICAL,
+                title="Deprivation is critical",
+                message="Dwellers cannot recover further without supplies.",
+            ),
+            context="deprivation critical",
+        )
 
 
 async def process_explorations(db_session: AsyncSession, vault_id: UUID) -> ExplorationStats:
@@ -235,27 +261,12 @@ async def process_dwellers(
         dwellers = await crud_dweller.get_all_in_vault(db_session, vault_id)
 
         vault = await vault_crud.get(db_session, vault_id)
-        if vault is not None and vault.water <= 0 and game_config.health.dehydration_radiation_per_tick > 0:
-            drought_ticks = await _drought_ticks(db_session, vault_id)
-            elapsed_ticks = max(1, seconds_passed // game_config.game_loop.tick_interval) if seconds_passed else 1
-            grace_ticks = game_config.health.dehydration_grace_ticks
-            interval_start_ticks = max(0, drought_ticks - elapsed_ticks)
-            radiation_ticks = max(0, drought_ticks - grace_ticks) - max(0, interval_start_ticks - grace_ticks)
-            if radiation_ticks > 0:
-                for dweller in dwellers:
-                    # TODO: unify busy-dweller exclusion with responder eligibility; shared policy outside services.
-                    if dweller.status in (DwellerStatusEnum.EXPLORING, DwellerStatusEnum.QUESTING):
-                        continue
-                    if apply_radiation_gain(
-                        dweller, dehydration_rads(dweller.max_health, radiation_ticks), resisted_by_outfit=False
-                    ):
-                        db_session.add(dweller)
-                        stats["irradiated"] += 1
-            if stats["irradiated"]:
-                await db_session.commit()
-                logger.warning(
-                    f"Vault {vault_id} has no water: applied irradiated-water radiation to {stats['irradiated']} dwellers"
-                )
+        state = await game_state_crud.get_by_vault_id(db_session, vault_id)
+        if vault is not None and state is not None:
+            window_ms = (seconds_passed or game_config.game_loop.tick_interval) * 1000
+            deprivation = await apply_deprivation(db_session, vault, state, dwellers, window_ms)
+            stats["irradiated"] += deprivation.affected
+            await _announce_deprivation(db_session, vault_id, deprivation)
 
         # Get all unique room IDs from working dwellers
         working_room_ids = {d.room_id for d in dwellers if d.status == DwellerStatusEnum.WORKING and d.room_id}
@@ -285,6 +296,7 @@ async def process_dwellers(
                     stats["leveled_up"] += dweller_stats["leveled_up"]
 
         stats["exit_requests_raised"] = len(await exit_request_service.sync_despair_requests(db_session, vault_id))
+        await db_session.commit()
 
     except SQLAlchemyError as e:
         logger.error(f"Database error processing dwellers for vault {vault_id}: {e}", exc_info=True)

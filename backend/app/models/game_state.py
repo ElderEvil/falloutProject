@@ -35,6 +35,8 @@ class GameStateBase(SQLModel):
     water_empty_since: datetime | None = Field(
         sa_type=UTCDateTime, default=None, description="When vault water last hit zero; None while water is available"
     )
+    food_deprived_ms: int = Field(default=0, ge=0, description="Active milliseconds accumulated at zero food")
+    water_deprived_ms: int = Field(default=0, ge=0, description="Active milliseconds accumulated at zero water")
     paused_at: datetime | None = Field(sa_type=UTCDateTime, default=None, description="When the vault was last paused")
     resumed_at: datetime | None = Field(
         sa_type=UTCDateTime, default=None, description="When the vault was last resumed"

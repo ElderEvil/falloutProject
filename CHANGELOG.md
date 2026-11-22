@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## 3.16.0 (2026-11-22)
+
+### Features
+
+* **objectives:** credit wasteland junk materials to collection objectives 4ee339b
+* **objectives:** credit wasteland junk materials to collection objectives ([#1489](https://github.com/ElderEvil/falloutProject/issues/1489)) bc562c6
+
+### Bug Fixes
+
+* **objectives:** close the review's four gaps in material credit 789ea34
+
 ## 3.15.1 (2026-11-22)
 
 ### Bug Fixes

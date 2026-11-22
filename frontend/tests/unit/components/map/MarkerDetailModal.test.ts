@@ -399,11 +399,14 @@ describe('MarkerDetailModal', () => {
       loot_table: 'raider_camp_loot',
     }
 
-    function mountWithClearState(clearState: unknown) {
+    function mountWithClearState(
+      clearState: unknown,
+      overrides: Partial<WastelandLocationWithDwellers> = {}
+    ) {
       return mount(MarkerDetailModal, {
         props: {
           modelValue: true,
-          location: createLocation({ clear_state: clearState }),
+          location: createLocation({ clear_state: clearState, ...overrides }),
           vaultMarker: null,
         },
         global: { stubs: { Teleport: { template: '<div><slot /></div>' } } },
@@ -462,6 +465,14 @@ describe('MarkerDetailModal', () => {
       expect(text).toContain('Signature roll: Adhesive')
       expect(text).toContain('Also rolls: Steel / Leather, Outfit')
       expect(text).toContain('Base XP per survivor: 34')
+    })
+
+    it('hides dispatch and explains while a party is en route', () => {
+      const wrapper = mountWithClearState(clearableState, { dispatch_in_progress: true })
+
+      const dispatchButtons = wrapper.findAll('button').filter((b) => b.text().includes('Dispatch'))
+      expect(dispatchButtons).toHaveLength(0)
+      expect(wrapper.text()).toContain('Party en route')
     })
 
     it('offers Search with a one-dweller party for a salvage point', () => {

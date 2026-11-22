@@ -12647,6 +12647,11 @@ export interface components {
              * @default false
              */
             is_unlocked: boolean;
+            /**
+             * Dispatch In Progress
+             * @default false
+             */
+            dispatch_in_progress: boolean;
         };
         /** WeaponCreate */
         WeaponCreate: {

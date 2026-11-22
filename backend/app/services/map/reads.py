@@ -101,16 +101,18 @@ def _loot_preview(loot_key: str | None) -> list[LocationLootEntryRead]:
 
 
 def _action_for(
-    state: VaultLocationState, location: WorldLocation, *, unlocked: bool
+    state: VaultLocationState, location: WorldLocation, *, unlocked: bool, busy: bool = False
 ) -> Literal["clear", "salvage", "none"]:
     """What the map offers at this point: clear, a one-time salvage, or nothing.
 
-    A place the vault has not unlocked offers nothing: the dispatch service refuses it, so
-    advertising an action here would only produce a dead-end button. Salvage implies the place is
-    not clearable and the catalog binds a bobblehead to its name; the collectible feature flag
-    keeps inert places inert while the content is switched off.
+    A place the vault has not unlocked, or one with a party already en route, offers nothing:
+    the dispatch service refuses both, so advertising an action here would only produce a dead-end
+    button. Salvage implies the place is not clearable and the catalog binds a bobblehead to its
+    name; the collectible feature flag keeps inert places inert while the content is switched off.
     """
     if not unlocked:
+        return "none"
+    if busy:
         return "none"
     group = effective_place_group(location.group_key, location.kind)
     if group is not None and group.get("clearable"):
@@ -159,6 +161,7 @@ async def get_location_detail(
         for r in refs
     ]
     location_unlocked = any(r.is_unlocked for r in dweller_refs)
+    busy = await exploration_crud.has_active_dispatch_to(db_session, vault_id=vault.id, location_id=state.location_id)
 
     return WastelandLocationWithDwellers(
         id=state.location_id,
@@ -174,8 +177,9 @@ async def get_location_detail(
         created_at=state.created_at,
         dwellers=dweller_refs,
         is_unlocked=location_unlocked,
+        dispatch_in_progress=busy,
         clear_state=_clear_state_for(state, location),
-        action=_action_for(state, location, unlocked=location_unlocked),
+        action=_action_for(state, location, unlocked=location_unlocked, busy=busy),
     )
 
 
@@ -191,6 +195,7 @@ async def get_vault_map(db_session: AsyncSession, vault: Vault, *, unlocked_only
     pairs = await wl_crud.get_states_by_vault(db_session, vault.id)
     location_ids = [state.location_id for _, state in pairs]
     dweller_refs_map = await wl_crud.get_dweller_refs(db_session, vault.id, location_ids)
+    dispatch_targets = await exploration_crud.get_active_dispatch_location_ids(db_session, vault_id=vault.id)
 
     locations: list[WastelandLocationWithDwellers] = []
     for location, state in pairs:
@@ -206,6 +211,7 @@ async def get_vault_map(db_session: AsyncSession, vault: Vault, *, unlocked_only
             for r in refs
         ]
         location_unlocked = any(r.is_unlocked for r in dweller_refs)
+        busy = state.location_id in dispatch_targets
 
         # When filtering, keep HOME_VAULT and unlocked locations; drop locked ones
         if unlocked_only and state.type != LocationTypeEnum.HOME_VAULT and not location_unlocked:
@@ -226,8 +232,9 @@ async def get_vault_map(db_session: AsyncSession, vault: Vault, *, unlocked_only
                 created_at=state.created_at,
                 dwellers=dweller_refs,
                 is_unlocked=location_unlocked,
+                dispatch_in_progress=busy,
                 clear_state=_clear_state_for(state, location),
-                action=_action_for(state, location, unlocked=location_unlocked),
+                action=_action_for(state, location, unlocked=location_unlocked, busy=busy),
             )
         )
 

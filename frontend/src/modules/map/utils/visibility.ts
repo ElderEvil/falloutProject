@@ -29,6 +29,7 @@ export function isReadyToClear(loc: WastelandLocationWithDwellers): boolean {
   return (
     loc.type !== 'home_vault' &&
     isKnownLocation(loc) &&
+    !loc.dispatch_in_progress &&
     !!state?.clearable &&
     (!state.cleared || state.time_remaining_seconds <= 0)
   )

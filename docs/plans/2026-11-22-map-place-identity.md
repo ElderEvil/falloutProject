@@ -208,9 +208,12 @@ the loot/XP change.
    failure after the clear notice is staged, a tick commit, then a retry.
 2. **Dispatch party double-booking.** `exploration_service.dispatch` checks
    `get_in_progress_for_dwellers` without the vault claim, and the later storage lock re-verifies
-   supplies only. Two concurrent departures can carry the same squad to two destinations and both
-   earn clear XP. Fix by taking the shared vault claim before the availability recheck; needs a
-   PostgreSQL concurrency test (the SQLite default cannot prove it).
+   supplies only. Two concurrent departures can carry the same squad to two *different*
+   destinations and both earn clear XP. Fix by taking the shared vault claim before the availability
+   recheck; needs a PostgreSQL concurrency test (the SQLite default cannot prove it).
+   Site occupancy is a separate, now-covered case: the partial unique index
+   `uq_exploration_active_target` guarantees one ACTIVE dispatch per vault and map point, and
+   dispatch refuses a second party before travel.
 
 ## Non-goals
 

@@ -21,6 +21,7 @@ from app.core.enums import (
 )
 from app.core.game_config import game_config
 from app.crud.collectible import collectible_crud
+from app.crud.exploration import exploration as exploration_crud
 from app.models.dweller import Dweller
 from app.models.exploration import Exploration
 from app.models.notification import Notification
@@ -403,6 +404,71 @@ async def test_complete_exploration_settles_spatial_movement_before_resolving(
     assert len(completed.trail) > 1
     assert state.cleared_at is not None
     assert completed.location_xp == get_place_group(location.group_key)["xp_reward"]
+
+
+@pytest.mark.usefixtures("default_world_snapshot")
+@pytest.mark.asyncio
+async def test_dispatch_rejects_a_second_party_for_the_same_site(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller, dweller_data: dict
+) -> None:
+    """One party en route owns the site; a second departure is refused before it costs the trip."""
+    location, _ = await _register_clearable(async_session, vault, dweller)
+    await _boost_dweller(async_session, dweller, **STRONG_STATS)
+    other = await _make_dweller(async_session, vault, dweller_data, **STRONG_STATS)
+    await exploration_service.dispatch(async_session, vault.id, [dweller.id], location.id)
+
+    with pytest.raises(ValidationException, match="already on its way"):
+        await exploration_service.dispatch(async_session, vault.id, [other.id], location.id)
+
+
+@pytest.mark.usefixtures("default_world_snapshot")
+@pytest.mark.asyncio
+async def test_dispatch_race_is_caught_by_the_database_guarantee(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller, dweller_data: dict, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """If two departures pass the pre-check, the partial unique index rejects the loser cleanly."""
+    location, _ = await _register_clearable(async_session, vault, dweller)
+    await _boost_dweller(async_session, dweller, **STRONG_STATS)
+    other = await _make_dweller(async_session, vault, dweller_data, **STRONG_STATS)
+    await exploration_service.dispatch(async_session, vault.id, [dweller.id], location.id)
+    monkeypatch.setattr(exploration_crud, "has_active_dispatch_to", AsyncMock(return_value=False))
+
+    with pytest.raises(ValidationException, match="already on its way"):
+        await exploration_service.dispatch(async_session, vault.id, [other.id], location.id)
+
+
+@pytest.mark.usefixtures("default_world_snapshot")
+@pytest.mark.asyncio
+async def test_active_roam_does_not_occupy_a_site(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller, dweller_data: dict
+) -> None:
+    """A roam has no target, so it must not block a dispatch."""
+    location, _ = await _register_clearable(async_session, vault, dweller)
+    await _boost_dweller(async_session, dweller, **STRONG_STATS)
+    other = await _make_dweller(async_session, vault, dweller_data, **STRONG_STATS)
+    await exploration_service.depart(async_session, vault.id, [dweller.id], duration=4)
+
+    exploration = await exploration_service.dispatch(async_session, vault.id, [other.id], location.id)
+
+    assert exploration.target_location_id == location.id
+
+
+@pytest.mark.usefixtures("default_world_snapshot")
+@pytest.mark.asyncio
+async def test_map_marks_a_site_with_a_party_en_route(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller
+) -> None:
+    """The pin stops offering the action while a party is out, and says why."""
+    location, _ = await _register_clearable(async_session, vault, dweller)
+    await _boost_dweller(async_session, dweller, **STRONG_STATS)
+    await exploration_service.dispatch(async_session, vault.id, [dweller.id], location.id)
+
+    map_data = await map_service.get_vault_map(async_session, vault)
+    pin = next(loc for loc in map_data.locations if loc.id == location.id)
+
+    assert pin.is_unlocked is True
+    assert pin.dispatch_in_progress is True
+    assert pin.action == "none"
 
 
 @pytest.mark.usefixtures("default_world_snapshot")

@@ -146,6 +146,7 @@ const isLocked = computed(() => props.location !== null && isHintLocation(props.
 
 // Clear-state projection for clearable map points (issue 772).
 const clearState = computed(() => props.location?.clear_state ?? null)
+const dispatchInProgress = computed(() => props.location?.dispatch_in_progress ?? false)
 const isClearable = computed(() => clearState.value?.clearable ?? false)
 const isCleared = computed(() => clearState.value?.cleared ?? false)
 // Local countdown seeded from the backend snapshot: the polled locations array
@@ -214,6 +215,7 @@ const partyCap = computed(() => (isSalvage.value ? 1 : props.maxPartySize))
 const actionable = computed(
   () =>
     !isLocked.value &&
+    !dispatchInProgress.value &&
     ((isClearable.value && (!isCleared.value || reclearReady.value)) || isSalvage.value)
 )
 
@@ -475,6 +477,10 @@ function dwellerDisplayName(first: string, last: string | null) {
               Base XP per survivor: {{ xpPerSurvivor }}
             </p>
           </div>
+          <p v-if="dispatchInProgress" class="mt-2 flex items-center gap-1.5 text-xs text-warning">
+            <Icon icon="mdi:walk" class="h-3.5 w-3.5" />
+            Party en route — dispatch again when they return
+          </p>
           <p
             v-if="isCleared && reclearCountdown"
             class="mt-2 flex items-center gap-1.5 text-xs text-theme-primary/70"

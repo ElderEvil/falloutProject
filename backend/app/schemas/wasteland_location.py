@@ -90,6 +90,7 @@ class WastelandLocationWithDwellers(WastelandLocationRead):
 
     dwellers: list[DwellerRef]
     is_unlocked: bool = False
+    dispatch_in_progress: bool = False
 
 
 class VaultMarkerRead(SQLModel):

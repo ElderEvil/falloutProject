@@ -107,6 +107,8 @@ class LootCalculator:
             return WeaponSchema(**random.choice(eligible))
         catalog = data_loader.load_weapons()
         if not catalog:
+            if weapon_types is not None:
+                raise ValidationException(f"No weapon matching {weapon_types!r} in the catalog")
             return WeaponSchema(
                 name="Rusty Pipe",
                 rarity="Common",
@@ -172,6 +174,8 @@ class LootCalculator:
             return JunkSchema(**random.choice(eligible))
         catalog = data_loader.load_junk_items()
         if not catalog:
+            if junk_types is not None:
+                raise ValidationException(f"No junk matching {junk_types!r} in the catalog")
             return JunkSchema(name="Bottle Cap", value=1, rarity="Common")
 
         junk_items = _filter_categories(catalog, junk_types=junk_types)

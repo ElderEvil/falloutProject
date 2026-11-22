@@ -364,13 +364,16 @@ async def test_dispatch_rejects_a_table_that_cannot_roll(
 
 @pytest.mark.usefixtures("default_world_snapshot")
 @pytest.mark.asyncio
-async def test_complete_exploration_resolves_an_expired_dispatch(
+async def test_complete_exploration_resolves_an_expired_legacy_dispatch(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
 ) -> None:
-    """The API completion path resolves an expired dispatch instead of sending the party home unresolved."""
+    """A legacy timed dispatch (no heading) still resolves through the API completion path."""
     location, state = await _register_clearable(async_session, vault, dweller)
     await _boost_dweller(async_session, dweller, **STRONG_STATS)
     exploration = await _expired_dispatch(async_session, vault, dweller, location.id)
+    exploration.heading_degrees = None
+    async_session.add(exploration)
+    await async_session.commit()
 
     completed, rewards = await exploration_service.complete_exploration_with_data(async_session, exploration.id)
 
@@ -378,6 +381,26 @@ async def test_complete_exploration_resolves_an_expired_dispatch(
     await async_session.refresh(state)
     assert completed.status == ExplorationStatus.RETURNING
     assert rewards is None
+    assert state.cleared_at is not None
+    assert completed.location_xp == get_place_group(location.group_key)["xp_reward"]
+
+
+@pytest.mark.usefixtures("default_world_snapshot")
+@pytest.mark.asyncio
+async def test_complete_exploration_settles_spatial_movement_before_resolving(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller
+) -> None:
+    """The API path advances the traveller before it can claim an arrival, exactly as the tick does."""
+    location, state = await _register_clearable(async_session, vault, dweller)
+    await _boost_dweller(async_session, dweller, **STRONG_STATS)
+    exploration = await _expired_dispatch(async_session, vault, dweller, location.id)
+    assert len(exploration.trail) == 1  # departure only: movement has not been settled yet
+
+    completed, _ = await exploration_service.complete_exploration_with_data(async_session, exploration.id)
+
+    await async_session.refresh(state)
+    await async_session.refresh(completed)
+    assert len(completed.trail) > 1
     assert state.cleared_at is not None
     assert completed.location_xp == get_place_group(location.group_key)["xp_reward"]
 

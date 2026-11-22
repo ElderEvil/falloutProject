@@ -15,6 +15,7 @@ from uuid import uuid4
 import pytest
 import pytest_asyncio
 from sqlalchemy import orm
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -320,7 +321,7 @@ async def test_failed_settlement_discards_level_up_and_retry_delivers_once(
     async def flaky(db_session, storage_id):
         calls["count"] += 1
         if calls["count"] == 1:
-            raise RuntimeError("storage update exploded")
+            raise IntegrityError("UPDATE storage", {}, RuntimeError("storage write failed"))
         return await original(db_session, storage_id)
 
     monkeypatch.setattr(crud_storage, "update_used_space", flaky)
@@ -331,7 +332,7 @@ async def test_failed_settlement_discards_level_up_and_retry_delivers_once(
             "app.services.notification_service.NotificationService.notify_level_up",
             new_callable=AsyncMock,
         ) as notify,
-        pytest.raises(RuntimeError, match="storage update exploded"),
+        pytest.raises(IntegrityError),
     ):
         await exploration_coordinator.finalize_return(async_session, exploration_id)
 

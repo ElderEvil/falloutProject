@@ -51,3 +51,18 @@ def test_filter_with_no_catalog_match_raises(monkeypatch: pytest.MonkeyPatch) ->
     )
     with pytest.raises(ValidationException, match="No junk matching"):
         loot_calculator.roll_item(5, "junk", junk_types=["steel"])
+
+
+def test_filtered_roll_with_an_empty_catalog_raises(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A category filter must never fall back to a wrong-family item, even with no catalog at all."""
+    monkeypatch.setattr("app.services.catalog_service.load_weapons", list)
+
+    with pytest.raises(ValidationException, match="No weapon matching"):
+        loot_calculator.roll_item(5, "weapon", weapon_types=["energy"])
+
+
+def test_unfiltered_roll_keeps_the_empty_catalog_fallback(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The legacy placeholder still serves an unconfigured install when no filter is requested."""
+    monkeypatch.setattr("app.services.catalog_service.load_junk_items", list)
+
+    assert loot_calculator.roll_item(5, "junk").name == "Bottle Cap"

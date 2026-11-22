@@ -897,10 +897,8 @@ class ExplorationService:
 
         if exploration.is_active():
             if exploration.is_dispatch_run() and exploration.time_remaining_seconds() <= 0:
-                from app.services.exploration.dispatch_resolution import resolve_dispatch_arrival
-
-                await resolve_dispatch_arrival(db_session, exploration_id)
-                return await crud_exploration.get(db_session, exploration_id), None
+                exploration = await self._resolve_expired_dispatch(db_session, exploration)
+                return exploration, None
             return await exploration_coordinator.start_return(db_session, exploration_id), None
 
         if exploration.is_returning():
@@ -917,6 +915,24 @@ class ExplorationService:
         """Recall dweller early: the run enters its return leg, rewards wait for arrival."""
         exploration = await exploration_coordinator.start_return(db_session, exploration_id, recalled=True)
         return exploration, None
+
+    async def _resolve_expired_dispatch(self, db_session: AsyncSession, exploration: Exploration) -> Exploration:
+        """Resolve an expired dispatch the way the tick would: settle movement before any arrival claim.
+
+        Spatial runs move through the world, so the timer alone is not proof of arrival; ``advance`` owns
+        the movement clock and the forward-to-return transition. Legacy timed runs (heading NULL) are
+        untouched by ``advance`` and resolve directly.
+        """
+        from app.services.exploration.dispatch_resolution import resolve_dispatch_arrival
+
+        if exploration.heading_degrees is None:
+            await resolve_dispatch_arrival(db_session, exploration.id)
+            return await crud_exploration.get(db_session, exploration.id)
+
+        exploration = await self.advance(db_session, exploration.id, exploration=exploration)
+        if exploration.is_active() and await self.has_arrived(db_session, exploration):
+            await resolve_dispatch_arrival(db_session, exploration.id, arrived=True)
+        return await crud_exploration.get(db_session, exploration.id)
 
     async def process_event_for_exploration(self, db_session: AsyncSession, exploration_id: UUID) -> Exploration:
         """Generate and process an event for an exploration."""

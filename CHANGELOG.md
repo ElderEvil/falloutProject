@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 3.14.1 (2026-11-22)
+
+### Bug Fixes
+
+* **rooms:** emit the destroy refund event after commit ([#1479](https://github.com/ElderEvil/falloutProject/issues/1479)) af153c4
+
 ## 3.14.0 (2026-11-22)
 
 ### Features

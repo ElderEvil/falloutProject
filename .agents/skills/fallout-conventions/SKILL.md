@@ -98,6 +98,11 @@ Concurrency/lock tests need a reachable PostgreSQL
 skip and prove nothing. `format:check` and the boundary script are separate gates from lint — CI runs
 both and they fail independently.
 
+- **Workflow lint needs shellcheck on PATH.** `prek run actionlint` reports `SC####` findings only when
+  `shellcheck` is installed; without it a workflow passes locally and fails the `repository-checks` gate
+  (e.g. `SC2129` on consecutive `>> "$GITHUB_OUTPUT"` appends — group them in `{ ...; } >> ...`). Verify
+  with shellcheck present, or read the failed job log rather than trusting a clean local run.
+
 ## Deploy
 
 Dispatch `deploy-hetzner.yml` with a versioned tag whose backend and frontend images the release workflow

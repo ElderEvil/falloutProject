@@ -475,6 +475,17 @@ describe('MarkerDetailModal', () => {
       expect(wrapper.text()).toContain('Party en route')
     })
 
+    it('explains an en-route party at a salvage site, where clear_state is null', () => {
+      const wrapper = mountWithClearState(null, {
+        dispatch_in_progress: true,
+        action: 'salvage',
+      })
+
+      expect(wrapper.text()).toContain('Party en route')
+      const sendButtons = wrapper.findAll('button').filter((b) => /Dispatch|Search/.test(b.text()))
+      expect(sendButtons).toHaveLength(0)
+    })
+
     it('offers Search with a one-dweller party for a salvage point', () => {
       const wrapper = mount(MarkerDetailModal, {
         props: {

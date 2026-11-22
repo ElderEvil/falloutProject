@@ -12,7 +12,8 @@ Index-only DDL, so it is created concurrently on PostgreSQL and needs no mainten
 
 Existing data is expected to satisfy it. If two ACTIVE runs already target the same point for one
 vault, CREATE UNIQUE INDEX fails and the migration Job aborts the rollout rather than guessing which
-run owns the site.
+run owns the site. A failed concurrent build leaves an invalid index behind and PostgreSQL will not
+reuse the name, so the upgrade reclaims the name first and re-fails while the duplicate rows remain.
 """
 
 from collections.abc import Sequence
@@ -35,6 +36,9 @@ ACTIVE_TARGET = sa.text("status = 'ACTIVE' AND target_location_id IS NOT NULL")
 def upgrade() -> None:
     if op.get_bind().dialect.name == "postgresql":
         with op.get_context().autocommit_block():
+            # A failed concurrent build leaves an invalid index that blocks its own name; dropping it
+            # first makes a retry possible, while the create below still fails on duplicate rows.
+            op.execute(f"DROP INDEX CONCURRENTLY IF EXISTS {INDEX_NAME}")
             op.create_index(
                 INDEX_NAME,
                 "exploration",
@@ -44,6 +48,7 @@ def upgrade() -> None:
                 postgresql_concurrently=True,
             )
         return
+    op.execute(f"DROP INDEX IF EXISTS {INDEX_NAME}")
     op.create_index(INDEX_NAME, "exploration", INDEX_COLUMNS, unique=True, sqlite_where=ACTIVE_TARGET)
 
 

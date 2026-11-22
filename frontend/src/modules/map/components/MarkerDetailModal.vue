@@ -477,10 +477,6 @@ function dwellerDisplayName(first: string, last: string | null) {
               Base XP per survivor: {{ xpPerSurvivor }}
             </p>
           </div>
-          <p v-if="dispatchInProgress" class="mt-2 flex items-center gap-1.5 text-xs text-warning">
-            <Icon icon="mdi:walk" class="h-3.5 w-3.5" />
-            Party en route — dispatch again when they return
-          </p>
           <p
             v-if="isCleared && reclearCountdown"
             class="mt-2 flex items-center gap-1.5 text-xs text-theme-primary/70"
@@ -489,6 +485,14 @@ function dwellerDisplayName(first: string, last: string | null) {
             Re-clear available: {{ reclearCountdown }}
           </p>
         </section>
+
+        <p
+          v-if="dispatchInProgress"
+          class="flex items-center gap-1.5 border-t border-theme-primary/20 pt-4 text-xs text-warning"
+        >
+          <Icon icon="mdi:walk" class="h-3.5 w-3.5" />
+          Party en route — dispatch again when they return
+        </p>
 
         <section v-if="actionable" class="space-y-4 border-t border-theme-primary/20 pt-4">
           <p class="text-xs font-bold tracking-[0.12em] text-theme-primary/60">

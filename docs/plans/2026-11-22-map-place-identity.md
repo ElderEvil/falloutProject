@@ -213,7 +213,8 @@ the loot/XP change.
    recheck; needs a PostgreSQL concurrency test (the SQLite default cannot prove it).
    Site occupancy is a separate, now-covered case: the partial unique index
    `uq_exploration_active_target` guarantees one ACTIVE dispatch per vault and map point, and
-   dispatch refuses a second party before travel.
+   dispatch refuses a second party before travel. Its true-concurrency proof is still owed on
+   PostgreSQL; SQLite proves the constraint and the error mapping, not the interleaving.
 
 ## Non-goals
 

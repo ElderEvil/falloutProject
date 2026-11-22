@@ -9,30 +9,62 @@ from app.services import catalog_service as data_loader
 from app.utils.exceptions import ValidationException
 
 
+def _filter_categories(
+    items: list[dict],
+    *,
+    junk_types: list[str] | None = None,
+    weapon_types: list[str] | None = None,
+) -> list[dict]:
+    """Narrow a catalog pool to the requested material and weapon families (case-insensitive)."""
+    if junk_types is not None:
+        wanted = {value.lower() for value in junk_types}
+        items = [item for item in items if str(item.get("junk_type", "")).lower() in wanted]
+    if weapon_types is not None:
+        wanted = {value.lower() for value in weapon_types}
+        items = [item for item in items if str(item.get("weapon_type", "")).lower() in wanted]
+    return items
+
+
 class LootCalculator:
     """Handles loot selection and caps rewards."""
 
-    def roll_item(self, luck: int, item_type: str, min_rarity: str | None = None) -> LootItemSchema:
-        """One item of the given type, honoring an optional rarity floor.
+    def roll_item(
+        self,
+        luck: int,
+        item_type: str,
+        min_rarity: str | None = None,
+        *,
+        junk_types: list[str] | None = None,
+        weapon_types: list[str] | None = None,
+    ) -> LootItemSchema:
+        """One item of the given type, honoring an optional rarity floor and category filter.
 
         The single entry point for "roll one item by type" so the site engine and
         targeted dispatch share one selection implementation.
         """
         if item_type == "weapon":
-            return self.select_random_weapon(luck, min_rarity=min_rarity)
+            return self.select_random_weapon(luck, min_rarity=min_rarity, weapon_types=weapon_types)
         if item_type == "outfit":
             return self.select_random_outfit(luck, min_rarity=min_rarity)
-        return self.select_random_junk(luck, min_rarity=min_rarity)
+        return self.select_random_junk(luck, min_rarity=min_rarity, junk_types=junk_types)
 
-    def _eligible_items(self, item_type: str, min_rarity: str) -> list[dict]:
-        """Return catalog entries of this type at or above the rarity floor."""
+    def _eligible_items(
+        self,
+        item_type: str,
+        min_rarity: str,
+        *,
+        junk_types: list[str] | None = None,
+        weapon_types: list[str] | None = None,
+    ) -> list[dict]:
+        """Return catalog entries of this type at or above the rarity floor and within the category."""
         if item_type == "weapon":
             items = data_loader.load_weapons()
         elif item_type == "outfit":
             items = data_loader.load_outfits()
         else:
             items = data_loader.load_junk_items()
-        return [item for item in items if rarity_meets_floor(item.get("rarity", "common"), min_rarity)]
+        eligible = [item for item in items if rarity_meets_floor(item.get("rarity", "common"), min_rarity)]
+        return _filter_categories(eligible, junk_types=junk_types, weapon_types=weapon_types)
 
     def has_eligible(self, item_type: str, min_rarity: str) -> bool:
         """Return whether the catalog has any item of this type at or above the rarity floor."""
@@ -55,15 +87,19 @@ class LootCalculator:
             }
         return {"Common": 80.0, "Rare": 18.0, "Legendary": 2.0}
 
-    def select_random_weapon(self, luck: int, min_rarity: str | None = None) -> WeaponSchema:
+    def select_random_weapon(
+        self, luck: int, min_rarity: str | None = None, *, weapon_types: list[str] | None = None
+    ) -> WeaponSchema:
         """Select a random weapon based on luck-adjusted rarity, or at/above a rarity floor."""
         if min_rarity is not None:
-            eligible = self._eligible_items("weapon", min_rarity)
+            eligible = self._eligible_items("weapon", min_rarity, weapon_types=weapon_types)
             if not eligible:
-                raise ValidationException(f"No weapon at or above rarity {min_rarity!r} in the catalog")
+                raise ValidationException(
+                    f"No weapon at or above rarity {min_rarity!r} matching {weapon_types!r} in the catalog"
+                )
             return WeaponSchema(**random.choice(eligible))
-        weapons = data_loader.load_weapons()
-        if not weapons:
+        catalog = data_loader.load_weapons()
+        if not catalog:
             return WeaponSchema(
                 name="Rusty Pipe",
                 rarity="Common",
@@ -74,6 +110,10 @@ class LootCalculator:
                 damage_min=1,
                 damage_max=3,
             )
+
+        weapons = _filter_categories(catalog, weapon_types=weapon_types)
+        if not weapons:
+            raise ValidationException(f"No weapon matching {weapon_types!r} in the catalog")
 
         rarity_weights = self.get_rarity_weights(luck)
         rarity = random.choices(
@@ -112,16 +152,24 @@ class LootCalculator:
 
         return OutfitSchema(**random.choice(outfits_of_rarity))
 
-    def select_random_junk(self, luck: int, min_rarity: str | None = None) -> JunkSchema:
+    def select_random_junk(
+        self, luck: int, min_rarity: str | None = None, *, junk_types: list[str] | None = None
+    ) -> JunkSchema:
         """Select a random junk item based on luck-adjusted rarity, or at/above a rarity floor."""
         if min_rarity is not None:
-            eligible = self._eligible_items("junk", min_rarity)
+            eligible = self._eligible_items("junk", min_rarity, junk_types=junk_types)
             if not eligible:
-                raise ValidationException(f"No junk at or above rarity {min_rarity!r} in the catalog")
+                raise ValidationException(
+                    f"No junk at or above rarity {min_rarity!r} matching {junk_types!r} in the catalog"
+                )
             return JunkSchema(**random.choice(eligible))
-        junk_items = data_loader.load_junk_items()
-        if not junk_items:
+        catalog = data_loader.load_junk_items()
+        if not catalog:
             return JunkSchema(name="Bottle Cap", value=1, rarity="Common")
+
+        junk_items = _filter_categories(catalog, junk_types=junk_types)
+        if not junk_items:
+            raise ValidationException(f"No junk matching {junk_types!r} in the catalog")
 
         rarity_weights = self.get_rarity_weights(luck)
         rarity = random.choices(

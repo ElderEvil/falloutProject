@@ -29,9 +29,20 @@ from app.models.storage import Storage
 from app.models.vault import Vault
 from app.models.weapon import Weapon
 from app.services.exploration.coordinator import exploration_coordinator
+from app.services.exploration.rewards_calculator import rewards_calculator
 from app.services.exploration_service import exploration_service
+from app.services.leveling_service import LevelingService
 from app.tests.factory.items import create_fake_outfit, create_fake_weapon
 from app.utils.time import utcnow
+
+
+def _level_up_events(emit: AsyncMock, vault_id) -> list:
+    """Emitted DWELLER_LEVEL_UP calls for one vault."""
+    return [
+        call
+        for call in emit.await_args_list
+        if call.args and call.args[0] == GameEvent.DWELLER_LEVEL_UP and call.args[1] == vault_id
+    ]
 
 
 async def _ensure_vault_storage(async_session: AsyncSession, vault_id) -> Storage:
@@ -234,6 +245,13 @@ async def test_failed_settlement_keeps_run_returning_and_held_rows_intact(
     """A failure after the held move rolls back; a retry then settles exactly once."""
     storage = await make_vault_storage(10)
     exploration = await _returning_exploration(async_session, vault, dweller)
+    exploration.location_xp = 120
+    async_session.add(exploration)
+    await async_session.commit()
+    await async_session.refresh(dweller)
+    experience_before = dweller.experience
+    level_before = dweller.level
+    xp_award = rewards_calculator.calculate_exploration_xp(exploration, dweller)
     held = await _create_held_weapon(async_session, dweller, exploration.id)
 
     calls = {"count": 0}
@@ -252,7 +270,11 @@ async def test_failed_settlement_keeps_run_returning_and_held_rows_intact(
 
     await async_session.refresh(exploration)
     await async_session.refresh(held)
+    await async_session.refresh(dweller)
     assert exploration.status == ExplorationStatus.RETURNING
+    assert exploration.location_xp == 120
+    assert dweller.experience == experience_before
+    assert dweller.level == level_before
     assert held.exploration_id == exploration.id
     assert held.storage_id is None
     assert held.dweller_id is None
@@ -261,10 +283,74 @@ async def test_failed_settlement_keeps_run_returning_and_held_rows_intact(
 
     await async_session.refresh(exploration)
     await async_session.refresh(held)
+    await async_session.refresh(dweller)
     assert exploration.status == ExplorationStatus.COMPLETED
+    assert dweller.experience == experience_before + xp_award
     assert held.storage_id == storage.id
     assert held.exploration_id is None
     await _assert_no_orphan_rows(async_session)
+
+
+@pytest.mark.asyncio
+async def test_failed_settlement_discards_level_up_and_retry_delivers_once(
+    async_session: AsyncSession,
+    vault: Vault,
+    dweller: Dweller,
+    make_vault_storage,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """A level-up queued by settlement is discarded on failure and delivered exactly once on retry."""
+    vault_id = vault.id
+    await make_vault_storage(10)
+    exploration = await _returning_exploration(async_session, vault, dweller)
+    exploration_id = exploration.id
+    exploration.location_xp = 500
+    async_session.add(exploration)
+    await async_session.refresh(dweller)
+    dweller.experience = LevelingService.calculate_xp_required(dweller.level + 1) - 1
+    async_session.add(dweller)
+    await async_session.commit()
+    await async_session.refresh(dweller)
+    level_before = dweller.level
+    await _create_held_weapon(async_session, dweller, exploration.id)
+
+    calls = {"count": 0}
+    original = crud_storage.update_used_space
+
+    async def flaky(db_session, storage_id):
+        calls["count"] += 1
+        if calls["count"] == 1:
+            raise RuntimeError("storage update exploded")
+        return await original(db_session, storage_id)
+
+    monkeypatch.setattr(crud_storage, "update_used_space", flaky)
+
+    with (
+        patch("app.core.event_bus.event_bus.emit", new_callable=AsyncMock) as emit,
+        patch(
+            "app.services.notification_service.NotificationService.notify_level_up",
+            new_callable=AsyncMock,
+        ) as notify,
+        pytest.raises(RuntimeError, match="storage update exploded"),
+    ):
+        await exploration_coordinator.finalize_return(async_session, exploration_id)
+
+    assert _level_up_events(emit, vault_id) == []
+    notify.assert_not_awaited()
+    await async_session.refresh(dweller)
+    assert dweller.level == level_before
+
+    with (
+        patch("app.core.event_bus.event_bus.emit", new_callable=AsyncMock) as emit,
+        patch(
+            "app.services.notification_service.NotificationService.notify_level_up",
+            new_callable=AsyncMock,
+        ) as notify,
+    ):
+        await exploration_coordinator.finalize_return(async_session, exploration_id)
+
+    assert len(_level_up_events(emit, vault_id)) == 1
+    notify.assert_awaited_once()
 
 
 @pytest.mark.asyncio

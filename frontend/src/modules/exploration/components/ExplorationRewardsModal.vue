@@ -187,7 +187,7 @@ const tryClose = () => emit('close', requiresResolution.value)
       >
         <RewardCard
           icon="mdi:star"
-          label="Experience Gained"
+          label="Total party XP"
           :value="`+${safeRewards.experience} XP`"
           variant="experience"
           span

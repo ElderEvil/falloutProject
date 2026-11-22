@@ -111,19 +111,26 @@ def test_non_clearable_groups_carry_no_clear_fields() -> None:
     for key in NON_CLEARABLE_GROUPS:
         group = groups[key]
         assert group["clearable"] is False
-        assert group["reclear_hours"] is None
-        assert group["base_difficulty"] is None
-        assert group["loot_table"] is None
+        assert group.get("reclear_hours") is None
+        assert group.get("base_difficulty") is None
+        assert group.get("loot_table") is None
+        assert group.get("xp_reward") is None
 
 
-def test_reclear_hours_and_difficulty_follow_risk_bands() -> None:
-    """Every clearable group cools down 168h; difficulty still follows risk bands."""
-    for group in load_place_groups():
-        if not group["clearable"]:
-            continue
-        assert group["reclear_hours"] == 168
+def test_clearable_groups_carry_xp_and_an_xp_per_hour_ordering() -> None:
+    """Every clearable group pays XP, and the per-hour rate rises with the risk band."""
+    groups = {group["key"]: group for group in load_place_groups() if group["clearable"]}
+    for group in groups.values():
+        assert isinstance(group["xp_reward"], int)
+        assert group["xp_reward"] >= 0
+        assert group["reclear_hours"] >= 48
         assert group["base_difficulty"] == {"low": 2, "medium": 3, "high": 4}[group["risk"]]
-        assert group["loot_table"] == group["risk"]
+
+    def per_hour(key: str) -> float:
+        return groups[key]["xp_reward"] / groups[key]["reclear_hours"]
+
+    assert per_hour("wasteland_site") < per_hour("gas_station") < per_hour("military")
+    assert per_hour("research") > per_hour("factory")
 
 
 def _write_groups(tmp_path, groups: list[dict]) -> pytest.MonkeyPatch:
@@ -160,6 +167,34 @@ def test_clearable_group_with_unknown_loot_table_is_rejected(tmp_path) -> None:
     monkeypatch = _write_groups(tmp_path, groups)
     try:
         with pytest.raises(ValueError, match="unknown loot table"):
+            load_place_groups()
+    finally:
+        monkeypatch.undo()
+        load_place_groups.cache_clear()
+
+
+def test_clearable_group_missing_xp_reward_is_rejected(tmp_path) -> None:
+    groups = json.loads(GROUPS_FILE.read_text(encoding="utf-8"))
+    for group in groups:
+        if group["key"] == "gas_station":
+            group.pop("xp_reward")
+    monkeypatch = _write_groups(tmp_path, groups)
+    try:
+        with pytest.raises(ValueError, match="xp_reward"):
+            load_place_groups()
+    finally:
+        monkeypatch.undo()
+        load_place_groups.cache_clear()
+
+
+def test_non_clearable_group_carrying_xp_reward_is_rejected(tmp_path) -> None:
+    groups = json.loads(GROUPS_FILE.read_text(encoding="utf-8"))
+    for group in groups:
+        if group["key"] == "settlement":
+            group["xp_reward"] = 10
+    monkeypatch = _write_groups(tmp_path, groups)
+    try:
+        with pytest.raises(ValueError, match="must not carry xp_reward"):
             load_place_groups()
     finally:
         monkeypatch.undo()

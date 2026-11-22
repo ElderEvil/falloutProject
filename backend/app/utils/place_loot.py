@@ -1,7 +1,8 @@
 """Loot-table catalog for clearable place groups.
 
-Layer-safe (no DB, no services); tables reference item type + rarity floor only — item
-catalogs live in app/data/items/ and resolve at roll time (one source of truth per item).
+Layer-safe (no DB, no services); tables reference item type, rarity floor and optional item
+categories — item catalogs live in app/data/items/ and resolve at roll time (one source of truth
+per item).
 """
 
 from __future__ import annotations
@@ -11,10 +12,14 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
+from app.core.enums import JunkTypeEnum, WeaponTypeEnum
+
 LOOT_FILE = Path(__file__).parent.parent / "data" / "places" / "place_loot.json"
 
 ITEM_TYPES = {"weapon", "outfit", "junk"}
 RARITIES = {"common", "rare", "legendary"}
+JUNK_TYPES = {member.value for member in JunkTypeEnum}
+WEAPON_TYPES = {member.value for member in WeaponTypeEnum}
 
 
 def _is_int(value: Any) -> bool:
@@ -54,7 +59,24 @@ def load_place_loot() -> dict[str, Any]:
                 raise ValueError(f"Loot table {key!r} has an item with unknown type")
             if item.get("rarity") not in RARITIES:
                 raise ValueError(f"Loot table {key!r} has an item with unknown rarity")
+            _validate_category_filter(key, item, "junk_types", "junk", JUNK_TYPES)
+            _validate_category_filter(key, item, "weapon_types", "weapon", WEAPON_TYPES)
     return data
+
+
+def _validate_category_filter(
+    table_key: str, item: dict[str, Any], field: str, item_type: str, allowed: set[str]
+) -> None:
+    """Reject a filter on the wrong item type or naming a category the catalog cannot produce."""
+    values = item.get(field)
+    if values is None:
+        return
+    if item.get("type") != item_type:
+        raise ValueError(f"Loot table {table_key!r} item {field} only applies to {item_type} entries")
+    if not isinstance(values, list) or not values or any(not isinstance(value, str) for value in values):
+        raise ValueError(f"Loot table {table_key!r} item {field} must be a non-empty list of strings")
+    if unknown := {value.lower() for value in values} - allowed:
+        raise ValueError(f"Loot table {table_key!r} item {field} has unknown values {sorted(unknown)}")
 
 
 @lru_cache(maxsize=1)

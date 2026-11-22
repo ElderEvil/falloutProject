@@ -85,3 +85,20 @@ def test_no_pet_xp_unchanged():
 
     # base 1020 + survival 204 + luck 102 (5 luck * 2%) — no pet term.
     assert rewards_calculator.calculate_exploration_xp(exploration, _dweller()) == 1326
+
+
+def test_location_xp_is_additive_and_bonus_scaled():
+    """A cleared location adds base XP before the survival and luck bonuses."""
+    exploration = _exploration(events=[])
+    exploration.location_xp = 100
+
+    # base 100 + survival 20 + luck 10 (5 luck * 2%) — no pet term.
+    assert rewards_calculator.calculate_exploration_xp(exploration, _dweller()) == 130
+
+
+def test_missing_location_xp_adds_nothing():
+    """An uncleared run carries NULL and earns no location XP."""
+    exploration = _exploration(events=[])
+    exploration.location_xp = None
+
+    assert rewards_calculator.calculate_exploration_xp(exploration, _dweller()) == 0

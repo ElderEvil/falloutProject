@@ -22,6 +22,7 @@ from app.crud.team import team_crud
 from app.crud.vault import vault as vault_crud
 from app.models.exploration import Exploration
 from app.models.world_location import VaultLocationState, WorldLocation
+from app.schemas.exploration_event import LootItemSchema
 from app.services.collectible_service import CollectibleAward, collectible_service
 from app.services.exploration.coordinator import exploration_coordinator
 from app.services.exploration.event_service import apply_exploration_damage, apply_loot_find
@@ -88,6 +89,7 @@ async def resolve_dispatch_arrival(db_session: AsyncSession, exploration_id: UUI
     party_size = len(members)
 
     victory, total_damage = resolve_party_combat(members, difficulty)
+    caps, loot_rolls = _roll_dispatch_loot(members, exploration, group, tier) if victory else (0, [])
     shares = distribute_damage(total_damage, party_size)
     lethal = tier >= game_config.exploration.dispatch.lethal_tier
     delete_held = party_size == 1
@@ -112,23 +114,17 @@ async def resolve_dispatch_arrival(db_session: AsyncSession, exploration_id: UUI
 
     collectible_payload = None
     if victory:
-        table = loot_table(group["loot_table"])
-        if table is not None:
-            caps = random.randint(table["caps"]["min"], table["caps"]["max"])
-            caps = int(caps * (1 + game_config.exploration.dispatch.reward_per_tier * tier)) * party_size
-            exploration.total_caps_found += caps
-            best_luck = max([member.luck for member in members] + [exploration.dweller_luck])
-            for entry in table["items"]:
-                item = loot_calculator.roll_item(best_luck, entry["type"], entry["rarity"])
-                apply_loot_find(
-                    exploration,
-                    item_name=item.name,
-                    rarity=item.rarity,
-                    item_type=entry["type"],
-                    caps=0,
-                )
-            if deaths:
-                apply_party_haul_loss(exploration, party_size, deaths)
+        exploration.total_caps_found += caps
+        for item, item_type in loot_rolls:
+            apply_loot_find(
+                exploration,
+                item_name=item.name,
+                rarity=item.rarity,
+                item_type=item_type,
+                caps=0,
+            )
+        if deaths:
+            apply_party_haul_loss(exploration, party_size, deaths)
         # Aggregate power can clear the victory threshold while the lethal tier
         # still wipes the party, so a wipe means nobody is left to hold the
         # clear: the point stays uncleared and the loot rolls are dropped below.
@@ -137,6 +133,8 @@ async def resolve_dispatch_arrival(db_session: AsyncSession, exploration_id: UUI
             state.reclear_available_at = now + timedelta(hours=group["reclear_hours"])
             state.clear_count += 1
             db_session.add(state)
+            # 0 is a real outcome (a clear with no XP reward); NULL stays reserved for "no clear".
+            exploration.location_xp = _location_xp(group, tier)
 
             vault = await vault_crud.get_or_none(db_session, exploration.vault_id)
             if vault is not None:
@@ -172,6 +170,38 @@ async def resolve_dispatch_arrival(db_session: AsyncSession, exploration_id: UUI
         await event_bus.emit(
             GameEvent.COLLECTIBLE_FOUND, exploration.vault_id, _collectible_payload(collectible_payload)
         )
+
+
+def _roll_dispatch_loot(
+    members: list, exploration: Exploration, group: dict, tier: int
+) -> tuple[int, list[tuple[LootItemSchema, str]]]:
+    """Roll the whole haul before combat writes stage, so a bad entry cannot leave a half-resolution."""
+    table = loot_table(group["loot_table"])
+    if table is None:
+        return 0, []
+    caps = random.randint(table["caps"]["min"], table["caps"]["max"])
+    caps = int(caps * (1 + game_config.exploration.dispatch.reward_per_tier * tier)) * len(members)
+    best_luck = max([member.luck for member in members] + [exploration.dweller_luck])
+    rolls = [
+        (
+            loot_calculator.roll_item(
+                best_luck,
+                entry["type"],
+                entry["rarity"],
+                junk_types=entry.get("junk_types"),
+                weapon_types=entry.get("weapon_types"),
+            ),
+            entry["type"],
+        )
+        for entry in table["items"]
+    ]
+    return caps, rolls
+
+
+def _location_xp(group: dict, tier: int) -> int:
+    """Location XP for a held clear, escalated with the tier like the caps payout."""
+    base = group.get("xp_reward") or 0
+    return int(base * (1 + game_config.exploration.dispatch.reward_per_tier * tier)) if base else 0
 
 
 def _collectible_payload(award: CollectibleAward) -> dict:

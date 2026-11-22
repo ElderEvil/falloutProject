@@ -28,8 +28,9 @@
     "risk": "low",
     "description": "A roadside fuel stop, picked over a hundred times but never quite empty.",
     "clearable": true,
-    "reclear_hours": 168,
-    "loot_table": "low",
+    "reclear_hours": 48,
+    "loot_table": "automotive",
+    "xp_reward": 20,
     "base_difficulty": 2
   },
   {
@@ -39,8 +40,9 @@
     "risk": "low",
     "description": "A pre-war grocery with aisles of salvage and a stockroom nobody has fully cleared.",
     "clearable": true,
-    "reclear_hours": 168,
-    "loot_table": "low",
+    "reclear_hours": 48,
+    "loot_table": "household",
+    "xp_reward": 25,
     "base_difficulty": 2
   },
   {
@@ -50,8 +52,9 @@
     "risk": "medium",
     "description": "Industrial machinery and raw scrap, guarded by whatever moved in after the bombs.",
     "clearable": true,
-    "reclear_hours": 168,
-    "loot_table": "medium",
+    "reclear_hours": 72,
+    "loot_table": "tech",
+    "xp_reward": 60,
     "base_difficulty": 3
   },
   {
@@ -61,8 +64,9 @@
     "risk": "medium",
     "description": "Collapsed transit tunnels: a shortcut for the bold and a den for everything else.",
     "clearable": true,
-    "reclear_hours": 168,
-    "loot_table": "medium",
+    "reclear_hours": 72,
+    "loot_table": "household",
+    "xp_reward": 55,
     "base_difficulty": 3
   },
   {
@@ -72,8 +76,9 @@
     "risk": "high",
     "description": "Armored remnants of the old world, still holding ordnance worth dying for.",
     "clearable": true,
-    "reclear_hours": 168,
-    "loot_table": "high",
+    "reclear_hours": 120,
+    "loot_table": "military",
+    "xp_reward": 165,
     "base_difficulty": 4
   },
   {
@@ -84,7 +89,8 @@
     "description": "A steel-and-lasers chapter holding, jealous of its technology and its borders.",
     "clearable": true,
     "reclear_hours": 168,
-    "loot_table": "high",
+    "loot_table": "military",
+    "xp_reward": 200,
     "base_difficulty": 4
   },
   {
@@ -94,8 +100,9 @@
     "risk": "high",
     "description": "Labs and think tanks where the pre-war world experimented on things it could not control.",
     "clearable": true,
-    "reclear_hours": 168,
-    "loot_table": "high",
+    "reclear_hours": 120,
+    "loot_table": "medical",
+    "xp_reward": 150,
     "base_difficulty": 4
   },
   {
@@ -105,8 +112,9 @@
     "risk": "medium",
     "description": "Reactors and substations humming with a current that never learned to stop.",
     "clearable": true,
-    "reclear_hours": 168,
-    "loot_table": "medium",
+    "reclear_hours": 72,
+    "loot_table": "tech",
+    "xp_reward": 65,
     "base_difficulty": 3
   },
   {
@@ -116,8 +124,9 @@
     "risk": "low",
     "description": "Theatres, parks, and drive-ins \u2014 the old world's amusements, now quieter.",
     "clearable": true,
-    "reclear_hours": 168,
-    "loot_table": "low",
+    "reclear_hours": 48,
+    "loot_table": "household",
+    "xp_reward": 30,
     "base_difficulty": 2
   },
   {
@@ -138,8 +147,9 @@
     "risk": "medium",
     "description": "Vault-Tec property. The door is the only honest part of it.",
     "clearable": true,
-    "reclear_hours": 168,
-    "loot_table": "medium",
+    "reclear_hours": 96,
+    "loot_table": "tech",
+    "xp_reward": 85,
     "base_difficulty": 3
   },
   {
@@ -149,8 +159,9 @@
     "risk": "medium",
     "description": "A settlement that did not make it \u2014 bones of a town, loot for whoever braves them.",
     "clearable": true,
-    "reclear_hours": 168,
-    "loot_table": "medium",
+    "reclear_hours": 72,
+    "loot_table": "household",
+    "xp_reward": 45,
     "base_difficulty": 3
   },
   {
@@ -172,7 +183,8 @@
     "description": "A chain of rusted fences around an abandoned industrial complex. Scavengers insist the air bends after radstorms and that shiny things appear where nobody left them. Engineers insist the scavengers drink too much.",
     "clearable": true,
     "reclear_hours": 168,
-    "loot_table": "high",
+    "loot_table": "military",
+    "xp_reward": 220,
     "base_difficulty": 4
   },
   {
@@ -184,6 +196,7 @@
     "clearable": true,
     "reclear_hours": 168,
     "loot_table": "low",
+    "xp_reward": 15,
     "base_difficulty": 2
   },
   {
@@ -193,8 +206,9 @@
     "risk": "medium",
     "description": "A sealed observation post whose exterior camera records disagree. The Department of Exterior Continuity calls every discrepancy scheduled maintenance.",
     "clearable": true,
-    "reclear_hours": 168,
-    "loot_table": "medium",
+    "reclear_hours": 96,
+    "loot_table": "tech",
+    "xp_reward": 75,
     "base_difficulty": 3
   },
   {
@@ -204,8 +218,9 @@
     "risk": "medium",
     "description": "A deep shelter arranged by rank: administrators above, residents between, and machinery workers beneath the resident rolls.",
     "clearable": true,
-    "reclear_hours": 168,
-    "loot_table": "medium",
+    "reclear_hours": 96,
+    "loot_table": "household",
+    "xp_reward": 70,
     "base_difficulty": 3
   }
 ]

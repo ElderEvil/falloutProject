@@ -25,6 +25,50 @@
         {"type": "junk", "rarity": "rare"},
         {"type": "weapon", "rarity": "legendary"}
       ]
+    },
+    "automotive": {
+      "caps": {"min": 20, "max": 55},
+      "items": [
+        {"type": "junk", "rarity": "common", "junk_types": ["adhesive"]},
+        {"type": "junk", "rarity": "common", "junk_types": ["steel", "leather"]},
+        {"type": "outfit", "rarity": "common"}
+      ]
+    },
+    "household": {
+      "caps": {"min": 30, "max": 75},
+      "items": [
+        {"type": "junk", "rarity": "common", "junk_types": ["cloth"]},
+        {"type": "junk", "rarity": "common", "junk_types": ["valuables", "leather"]},
+        {"type": "outfit", "rarity": "common"},
+        {"type": "junk", "rarity": "rare", "junk_types": ["cloth", "valuables"]}
+      ]
+    },
+    "tech": {
+      "caps": {"min": 45, "max": 95},
+      "items": [
+        {"type": "junk", "rarity": "common", "junk_types": ["circuitry"]},
+        {"type": "junk", "rarity": "common", "junk_types": ["science"]},
+        {"type": "junk", "rarity": "rare", "junk_types": ["circuitry"]},
+        {"type": "outfit", "rarity": "common"}
+      ]
+    },
+    "medical": {
+      "caps": {"min": 100, "max": 190},
+      "items": [
+        {"type": "junk", "rarity": "common", "junk_types": ["science"]},
+        {"type": "junk", "rarity": "common", "junk_types": ["cloth"]},
+        {"type": "junk", "rarity": "rare", "junk_types": ["science"]},
+        {"type": "outfit", "rarity": "rare"}
+      ]
+    },
+    "military": {
+      "caps": {"min": 110, "max": 210},
+      "items": [
+        {"type": "weapon", "rarity": "rare", "weapon_types": ["gun", "heavy"]},
+        {"type": "junk", "rarity": "rare", "junk_types": ["steel"]},
+        {"type": "outfit", "rarity": "rare"},
+        {"type": "weapon", "rarity": "legendary", "weapon_types": ["gun", "heavy"]}
+      ]
     }
   }
 }

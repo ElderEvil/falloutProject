@@ -11,8 +11,8 @@ class RewardsCalculator:
     def calculate_exploration_xp(self, exploration: Exploration, dweller) -> int:
         """Calculate total XP from exploration with all bonuses.
 
-        Base XP from distance/enemies/events plus survival bonus (>70% health on return), luck-scaled bonus, and
-        additive pet XP percentage capped by MAX_PCT_BONUS.
+        Base XP from distance/enemies/events and the snapshotted location clear, plus survival bonus
+        (>70% health on return), luck-scaled bonus, and additive pet XP percentage capped by MAX_PCT_BONUS.
         """
         cfg = game_config.leveling
 
@@ -21,8 +21,9 @@ class RewardsCalculator:
         combat_xp = exploration.enemies_encountered * cfg.exploration_xp_per_enemy
         # Site events are journey-log noise (one per resolution); site XP comes from enemies_encountered.
         event_xp = sum(1 for e in exploration.events if e.get("type") != "site") * cfg.exploration_xp_per_event
+        location_xp = exploration.location_xp or 0
 
-        base_xp = distance_xp + combat_xp + event_xp
+        base_xp = distance_xp + combat_xp + event_xp + location_xp
 
         # Survival bonus (returned with >70% health)
         survival_bonus = 0

@@ -429,6 +429,41 @@ describe('MarkerDetailModal', () => {
       expect(wrapper.text()).not.toContain('CLEARED')
     })
 
+    it('shows the signature roll, incidental drops and base XP per survivor', () => {
+      const wrapper = mountWithClearState({
+        ...clearableState,
+        xp_per_survivor: 34,
+        loot_preview: [
+          {
+            item_type: 'junk',
+            rarity: 'common',
+            junk_types: ['adhesive'],
+            weapon_types: [],
+            guaranteed: true,
+          },
+          {
+            item_type: 'junk',
+            rarity: 'common',
+            junk_types: ['steel', 'leather'],
+            weapon_types: [],
+            guaranteed: false,
+          },
+          {
+            item_type: 'outfit',
+            rarity: 'common',
+            junk_types: [],
+            weapon_types: [],
+            guaranteed: false,
+          },
+        ],
+      })
+
+      const text = wrapper.text()
+      expect(text).toContain('Guaranteed roll: Adhesive')
+      expect(text).toContain('Also possible: Steel / Leather, Outfit')
+      expect(text).toContain('Base XP per survivor: 34')
+    })
+
     it('offers Search with a one-dweller party for a salvage point', () => {
       const wrapper = mount(MarkerDetailModal, {
         props: {

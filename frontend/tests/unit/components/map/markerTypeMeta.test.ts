@@ -50,9 +50,16 @@ describe('markerTypeMeta', () => {
     expect(locationMarkerIcon('discovery', 'gas_station', icons)).toBe('mdi:gas-station')
   })
 
-  it('falls back to the generic type icon without an archetype', () => {
+  it('falls back to the neutral place glyph without an archetype', () => {
     const icons = new Map([['gas_station', 'mdi:gas-station']])
-    expect(locationMarkerIcon('discovery', null, icons)).toBe('mdi:map-marker-question')
-    expect(locationMarkerIcon('discovery', 'unknown_group', icons)).toBe('mdi:map-marker-question')
+    expect(locationMarkerIcon('discovery', null, icons)).toBe('mdi:map-marker-outline')
+    expect(locationMarkerIcon('origin', 'unknown_group', icons)).toBe('mdi:map-marker-outline')
+    expect(locationMarkerIcon('visited', null, icons)).toBe('mdi:map-marker-outline')
+  })
+
+  it('keeps the semantic icon for vaults and home vaults', () => {
+    const icons = new Map<string, string>()
+    expect(locationMarkerIcon('home_vault', null, icons)).toBe('mdi:home-city')
+    expect(locationMarkerIcon('vault', null, icons)).toBe('mdi:radioactive')
   })
 })

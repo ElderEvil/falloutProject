@@ -190,7 +190,7 @@
   {
     "key": "wasteland_site",
     "label": "Wasteland Site",
-    "icon": "mdi:map-marker-alert",
+    "icon": "mdi:sign-direction",
     "risk": "low",
     "description": "An unmapped ruin of the old world. Nobody wrote down what it was, and nobody who went in came back with a straight answer.",
     "clearable": true,

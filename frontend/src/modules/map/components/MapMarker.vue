@@ -65,7 +65,10 @@ const isDiscovery = computed(() => props.type === 'discovery')
 const isVault = computed(() => props.type === 'vault')
 
 const isLocked = computed(() => isHintLocation(props))
-const displayIcon = computed(() => (isLocked.value ? 'mdi:lock-question' : icon.value))
+// Identity is the place's archetype, never its discovery state: an unscouted
+// pin shows the same glyph dimmed inside a dashed ring, so the map never spends
+// a marker on a "?" glyph that says nothing about the place.
+const displayIcon = computed(() => icon.value)
 const displayLabel = computed(() => (isLocked.value ? 'Unknown Location' : props.name))
 const shouldPulse = computed(() => isDiscovery.value && !isLocked.value && props.unseen)
 
@@ -201,6 +204,13 @@ const tooltipText = computed(() => {
 .map-marker:focus-visible .marker-backing {
   stroke: var(--color-theme-primary);
   stroke-width: 0.35;
+}
+
+/* Unscouted places keep their archetype glyph but wear a dashed ring, so the
+   state still reads at a glance without spending the marker on a "?" glyph. */
+.marker-locked .marker-backing {
+  stroke-dasharray: 0.9 0.7;
+  opacity: 0.75;
 }
 
 .map-marker:focus,

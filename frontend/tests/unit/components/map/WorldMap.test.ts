@@ -4,7 +4,7 @@ import { mount, type VueWrapper } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import WorldMap from '@/modules/map/components/WorldMap.vue'
 import { MAX_ZOOM } from '@/modules/map/composables/useMapZoomPan'
-import { PLACE_MARKER_GLYPH_SCALE, markerTypeMeta } from '@/modules/map/models/markerTypeMeta'
+import { PLACE_MARKER_GLYPH_SCALE } from '@/modules/map/models/markerTypeMeta'
 import { bearingDegrees } from '@/modules/map/utils/bearing'
 import { isExploredTile } from '@/modules/map/utils/fog'
 import { ATLAS_TILES, registryToTile } from '@/modules/map/utils/atlasProjection'
@@ -278,7 +278,7 @@ describe('WorldMap', () => {
       expect(marker.props('artSrc')).toBeNull()
     })
 
-    it('falls back to the generic type icon without an archetype', async () => {
+    it('falls back to the neutral place glyph without an archetype', async () => {
       const store = useMapStore()
       store.placeGroups = []
       const [location] = createLocations(1)
@@ -291,7 +291,9 @@ describe('WorldMap', () => {
       await zoomPastDeclutterThreshold(wrapper)
 
       const marker = wrapper.findAllComponents(MapMarkerStub)[0]
-      expect(marker.props('icon')).toBe(markerTypeMeta('visited').icon)
+      // Discovery state is not identity: an archetype-less place gets a pin,
+      // not the "eye" glyph that used to stand in for "visited".
+      expect(marker.props('icon')).toBe('mdi:map-marker-outline')
     })
 
     it('forwards the place-group risk and difficulty to its location marker', async () => {

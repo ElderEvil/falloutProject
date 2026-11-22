@@ -38,6 +38,11 @@ jobs:
     name: Build hotfix images
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    # Builds serialize on their own group so two dispatches cannot race the publish tags. Production
+    # concurrency stays in the deploy workflow: a reusable workflow must not share its caller's group.
+    concurrency:
+      group: hotfix-build
+      cancel-in-progress: false
     outputs:
       tag: ${{ steps.tag.outputs.tag }}
     steps:

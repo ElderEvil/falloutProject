@@ -671,6 +671,9 @@ gh workflow run hotfix.yml --ref master \
   suffix; plain releases keep their strict `vX.Y.Z` tags.
 - The untouched image is retagged from `v<version>` with `buildx imagetools create`, so a
   backend-only hotfix costs one cached build, not two.
+- Hotfix builds serialize on their own `hotfix-build` group, while production concurrency
+  (`fallout-production-deployment`) belongs to the deploy workflow alone — a reusable workflow that
+  shares its caller's group deadlocks until it times out.
 - Migrations still run in their own Job and `maintenance_mode` still triggers the verified
   backup. A failed migration aborts the rollout exactly as in a release.
 - Roll back by dispatching `deploy-hetzner.yml` with the previous release tag — **only while the schema is

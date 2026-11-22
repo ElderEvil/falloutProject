@@ -29,6 +29,7 @@ from app.models.vault import Vault
 from app.models.world_location import DwellerLocation, VaultLocationState, WorldLocation
 from app.schemas.dweller import DwellerCreate
 from app.schemas.exploration_event import CombatOutcomeSchema
+from app.services import catalog_service
 from app.services.exploration.dispatch_resolution import resolve_dispatch_arrival
 from app.services.exploration.party_resolution import distribute_damage, resolve_party_combat
 from app.services.exploration_service import dispatch_travel_hours, exploration_service
@@ -38,6 +39,8 @@ from app.services.notification_service import NotificationService
 from app.services.world_snapshot_service import world_snapshot_service
 from app.tests.factory.dwellers import create_fake_dweller
 from app.utils.exceptions import ResourceNotFoundException, ValidationException
+from app.utils.place_groups import get_place_group
+from app.utils.place_loot import loot_table
 from app.utils.time import utcnow
 
 STRONG_STATS = {
@@ -294,10 +297,133 @@ async def test_dispatch_arrival_win_clears_state_and_loot(
     assert state.cleared_at is not None
     assert state.clear_count == 1
     assert state.reclear_available_at is not None
-    expected_reclear = state.cleared_at + timedelta(hours=168)  # all clearable groups share the 168h window
+    group = get_place_group(location.group_key)
+    expected_reclear = state.cleared_at + timedelta(hours=group["reclear_hours"])
     assert abs((state.reclear_available_at - expected_reclear).total_seconds()) < 1
-    assert len(exploration.loot_collected) == 3  # low table has 3 items
+    assert len(exploration.loot_collected) == len(loot_table(group["loot_table"])["items"])
     assert exploration.total_caps_found > 0
+    assert exploration.location_xp == group["xp_reward"]
+
+
+@pytest.mark.usefixtures("default_world_snapshot")
+@pytest.mark.asyncio
+async def test_dispatch_arrival_path_snapshots_the_same_location_xp(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller
+) -> None:
+    """Positional arrival clears and snapshots XP the same as an elapsed timer (tick parity)."""
+    location, state = await _register_clearable(async_session, vault, dweller)
+    await _boost_dweller(async_session, dweller, **STRONG_STATS)
+    exploration = await exploration_service.dispatch(async_session, vault.id, [dweller.id], location.id)
+
+    await resolve_dispatch_arrival(async_session, exploration.id, arrived=True)
+
+    await async_session.refresh(exploration)
+    await async_session.refresh(state)
+    assert state.cleared_at is not None
+    assert exploration.location_xp == get_place_group(location.group_key)["xp_reward"]
+
+
+@pytest.mark.usefixtures("default_world_snapshot")
+@pytest.mark.asyncio
+async def test_dispatch_zero_reward_clear_stores_zero_not_null(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A held clear with no XP reward stores 0; NULL keeps meaning 'cleared nothing'."""
+    location, _ = await _register_clearable(async_session, vault, dweller)
+    await _boost_dweller(async_session, dweller, **STRONG_STATS)
+    zero_reward_group = {**get_place_group("gas_station"), "xp_reward": 0}
+    monkeypatch.setattr(
+        "app.services.exploration.dispatch_resolution.effective_place_group",
+        lambda group_key, kind: zero_reward_group,
+    )
+    exploration = await _expired_dispatch(async_session, vault, dweller, location.id)
+
+    await resolve_dispatch_arrival(async_session, exploration.id)
+
+    await async_session.refresh(exploration)
+    assert exploration.location_xp == 0
+
+
+@pytest.mark.usefixtures("default_world_snapshot")
+@pytest.mark.asyncio
+async def test_dispatch_rejects_a_table_that_cannot_roll(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A destination whose table cannot satisfy a declared roll is refused before travel, not on arrival."""
+    location, _ = await _register_clearable(async_session, vault, dweller)
+    empty_table = {
+        "caps": {"min": 1, "max": 2},
+        "items": [{"type": "junk", "rarity": "common", "junk_types": ["steel"]}],
+    }
+    monkeypatch.setattr("app.services.exploration_service.loot_table", lambda key: empty_table)
+    monkeypatch.setattr("app.services.catalog_service.load_junk_items", list)
+
+    with pytest.raises(ValidationException, match="nothing to loot"):
+        await exploration_service.dispatch(async_session, vault.id, [dweller.id], location.id)
+
+
+@pytest.mark.usefixtures("default_world_snapshot")
+@pytest.mark.asyncio
+async def test_complete_exploration_resolves_an_expired_legacy_dispatch(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller
+) -> None:
+    """A legacy timed dispatch (no heading) still resolves through the API completion path."""
+    location, state = await _register_clearable(async_session, vault, dweller)
+    await _boost_dweller(async_session, dweller, **STRONG_STATS)
+    exploration = await _expired_dispatch(async_session, vault, dweller, location.id)
+    exploration.heading_degrees = None
+    async_session.add(exploration)
+    await async_session.commit()
+
+    completed, rewards = await exploration_service.complete_exploration_with_data(async_session, exploration.id)
+
+    await async_session.refresh(completed)
+    await async_session.refresh(state)
+    assert completed.status == ExplorationStatus.RETURNING
+    assert rewards is None
+    assert state.cleared_at is not None
+    assert completed.location_xp == get_place_group(location.group_key)["xp_reward"]
+
+
+@pytest.mark.usefixtures("default_world_snapshot")
+@pytest.mark.asyncio
+async def test_complete_exploration_settles_spatial_movement_before_resolving(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller
+) -> None:
+    """The API path advances the traveller before it can claim an arrival, exactly as the tick does."""
+    location, state = await _register_clearable(async_session, vault, dweller)
+    await _boost_dweller(async_session, dweller, **STRONG_STATS)
+    exploration = await _expired_dispatch(async_session, vault, dweller, location.id)
+    assert len(exploration.trail) == 1  # departure only: movement has not been settled yet
+
+    completed, _ = await exploration_service.complete_exploration_with_data(async_session, exploration.id)
+
+    await async_session.refresh(state)
+    await async_session.refresh(completed)
+    assert len(completed.trail) > 1
+    assert state.cleared_at is not None
+    assert completed.location_xp == get_place_group(location.group_key)["xp_reward"]
+
+
+@pytest.mark.usefixtures("default_world_snapshot")
+@pytest.mark.asyncio
+async def test_early_recall_pays_no_location_xp(async_session: AsyncSession, vault: Vault, dweller: Dweller) -> None:
+    """Recalling before arrival forfeits the clear, so the run settles with zero XP."""
+    location, state = await _register_clearable(async_session, vault, dweller)
+    await _boost_dweller(async_session, dweller, **STRONG_STATS)
+    exploration = await exploration_service.dispatch(async_session, vault.id, [dweller.id], location.id)
+    experience_before = (await crud.dweller.get(async_session, dweller.id)).experience
+
+    await exploration_service.recall_exploration_with_data(async_session, exploration.id)
+    recalled = await crud.exploration.get(async_session, exploration.id)
+    recalled.return_completes_at = utcnow() - timedelta(seconds=1)
+    async_session.add(recalled)
+    await async_session.commit()
+    await exploration_service.complete_exploration_with_data(async_session, exploration.id)
+
+    await async_session.refresh(state)
+    assert state.cleared_at is None
+    assert (await crud.dweller.get(async_session, dweller.id)).experience == experience_before
 
 
 @pytest.mark.usefixtures("default_world_snapshot")
@@ -383,6 +509,7 @@ async def test_dispatch_salvage_awards_the_bobblehead_without_combat(
     assert exploration.status == ExplorationStatus.RETURNING
     assert exploration.loot_collected == []
     assert exploration.total_caps_found >= 5
+    assert exploration.location_xp is None
     assert dweller.health == health_before
 
 
@@ -448,6 +575,7 @@ async def test_dispatch_arrival_loss_no_clear_no_loot(
     assert state.clear_count == 5
     assert exploration.loot_collected == []
     assert exploration.total_caps_found == 0
+    assert exploration.location_xp is None
     difficulty = min(5, 2 + game_config.exploration.dispatch.escalation_cap)
     members = await crud.team_crud.get_exploration_team_dwellers(async_session, exploration.id)
     _, expected_damage = resolve_party_combat(members, difficulty)
@@ -821,6 +949,12 @@ async def test_dispatch_arrival_death_trims_haul(
     assert fragile.is_dead
     assert exploration.total_caps_found == 170  # 100 * 1.7 tier * 2 members, minus the dead half
     assert len(exploration.loot_collected) == 1  # 3 entries trimmed to the survivor's share
+    group = get_place_group(location.group_key)
+    assert exploration.location_xp == int(
+        group["xp_reward"] * (1 + game_config.exploration.dispatch.reward_per_tier * 2)
+    )
+    junk_types = {item["name"]: str(item["junk_type"]).lower() for item in catalog_service.load_junk_items()}
+    assert junk_types[exploration.loot_collected[0]["item_name"]] == "adhesive"  # the signature roll survives
 
 
 @pytest.mark.usefixtures("default_world_snapshot")
@@ -884,6 +1018,7 @@ async def test_dispatch_arrival_winning_party_wiped_leaves_point_uncleared(
     assert state.clear_count == 2
     assert exploration.loot_collected == []
     assert exploration.total_caps_found == 0
+    assert exploration.location_xp is None
     notifications = (
         (
             await async_session.execute(

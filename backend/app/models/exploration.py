@@ -97,6 +97,9 @@ class Exploration(BaseUUIDModel, ExplorationBase, TimeStampMixin, table=True):
     )
     # Escalation tier this run faced, snapshotted for deterministic rewards/display.
     clear_tier: int | None = Field(default=None, ge=0)
+    # Base XP per survivor promised by a successful clear, snapshotted at resolution (tier-scaled, before
+    # survival/luck/pet bonuses). NULL means the run cleared nothing (wipe, retreat, salvage).
+    location_xp: int | None = Field(default=None, ge=0)
     # Party dispatch (issue 772): set when this run was sent as a team; null keeps today's solo free-roam behaviour.
     # SET NULL so deleting the team at finalize never orphans the run's history.
     team_id: UUID | None = Field(default=None, foreign_key="team.id", nullable=True, ondelete="SET NULL", index=True)

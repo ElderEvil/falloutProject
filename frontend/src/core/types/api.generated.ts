@@ -9324,6 +9324,44 @@ export interface components {
             time_remaining_seconds: number;
             /** Loot Table */
             loot_table?: string | null;
+            /**
+             * Xp Per Survivor
+             * @default 0
+             */
+            xp_per_survivor: number;
+            /**
+             * Loot Preview
+             * @default []
+             */
+            loot_preview: components["schemas"]["LocationLootEntryRead"][];
+        };
+        /**
+         * LocationLootEntryRead
+         * @description One declared loot roll for the pre-dispatch preview.
+         *
+         *     ``guaranteed`` marks the table's signature entry: it always rolls, though a party that
+         *     loses members to the lethal tier can still lose it to proportional haul loss.
+         */
+        LocationLootEntryRead: {
+            /** Item Type */
+            item_type: string;
+            /** Rarity */
+            rarity: string;
+            /**
+             * Junk Types
+             * @default []
+             */
+            junk_types: string[];
+            /**
+             * Weapon Types
+             * @default []
+             */
+            weapon_types: string[];
+            /**
+             * Guaranteed
+             * @default false
+             */
+            guaranteed: boolean;
         };
         /**
          * LocationTypeEnum
@@ -10210,6 +10248,8 @@ export interface components {
             loot_table?: string | null;
             /** Base Difficulty */
             base_difficulty?: number | null;
+            /** Xp Reward */
+            xp_reward?: number | null;
         };
         /**
          * PlayerVaultMarkerRead

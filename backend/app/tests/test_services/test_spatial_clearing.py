@@ -1,4 +1,4 @@
-"""Travel-backed clearing (slice 3a): dispatches move, arrive positionally, cool down 168h."""
+"""Travel-backed clearing (slice 3a): dispatches move, arrive positionally, then cool down."""
 
 import math
 from datetime import datetime, timedelta
@@ -18,6 +18,7 @@ from app.services.game_tick.dwellers_tick import process_explorations
 from app.services.map_service import map_service
 from app.services.world_snapshot_service import world_snapshot_service
 from app.utils import world_terrain
+from app.utils.place_groups import get_place_group
 from app.utils.time import utcnow
 from app.utils.vault_slots import slot_coords
 
@@ -119,10 +120,10 @@ async def test_arrival_resolves_positionally_before_timer_expiry(
 
 @pytest.mark.usefixtures("default_world_snapshot")
 @pytest.mark.asyncio
-async def test_fresh_clear_cools_down_168h_while_inflight_expiry_survives(
+async def test_fresh_clear_uses_the_archetype_cooldown_while_inflight_expiry_survives(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
 ) -> None:
-    """New clears wait a week; a pre-existing expiry is never recalculated."""
+    """A new clear takes its archetype window; a pre-existing expiry is never recalculated."""
     location, state = (await _nearby_clearable(async_session, vault, dweller))[:2]
     other, other_state = (await _nearby_clearable(async_session, vault, dweller, dx=12.0, name="Slice3a Hold"))[:2]
     await _boost_dweller(async_session, dweller)
@@ -137,8 +138,10 @@ async def test_fresh_clear_cools_down_168h_while_inflight_expiry_survives(
     await async_session.refresh(state)
     await async_session.refresh(other_state)
     assert state.reclear_available_at is not None
+    group = get_place_group(location.group_key)
+    expected_hours = group["reclear_hours"]
     wait_hours = (state.reclear_available_at - utcnow()).total_seconds() / 3600
-    assert 167 < wait_hours <= 168
+    assert expected_hours - 1 < wait_hours <= expected_hours
     assert other_state.reclear_available_at == frozen_expiry
 
 

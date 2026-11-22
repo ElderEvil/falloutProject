@@ -11,6 +11,20 @@ from app.core.enums import DwellerLocationRelationEnum, LocationTypeEnum
 from app.utils.serialize_types import OptionalUTCDateTimeJSON
 
 
+class LocationLootEntryRead(SQLModel):
+    """One declared loot roll for the pre-dispatch preview.
+
+    ``guaranteed`` marks the table's signature entry: it always rolls, though a party that
+    loses members to the lethal tier can still lose it to proportional haul loss.
+    """
+
+    item_type: str
+    rarity: str
+    junk_types: list[str] = []
+    weapon_types: list[str] = []
+    guaranteed: bool = False
+
+
 class LocationClearStateRead(SQLModel):
     """Read-only projection of VaultLocationState clear fields; availability is
     derived from now at read time, never persisted.
@@ -22,6 +36,8 @@ class LocationClearStateRead(SQLModel):
     tier: int
     time_remaining_seconds: int
     loot_table: str | None = None
+    xp_per_survivor: int = 0
+    loot_preview: list[LocationLootEntryRead] = []
 
 
 class WastelandLocationRead(SQLModel):
@@ -55,6 +71,7 @@ class PlaceGroupRead(SQLModel):
     reclear_hours: int | None = None
     loot_table: str | None = None
     base_difficulty: int | None = None
+    xp_reward: int | None = None
 
 
 class DwellerRef(SQLModel):

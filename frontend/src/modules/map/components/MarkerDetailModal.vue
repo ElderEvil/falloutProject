@@ -160,6 +160,24 @@ const reclearCountdown = computed(() =>
   reclearSeconds.value > 0 ? formatRemaining(reclearSeconds.value) : ''
 )
 const lootTableLabel = computed(() => clearState.value?.loot_table ?? '')
+const lootPreview = computed(() => clearState.value?.loot_preview ?? [])
+const signatureEntry = computed(() => lootPreview.value.find((entry) => entry.guaranteed) ?? null)
+const incidentalEntries = computed(() => lootPreview.value.filter((entry) => !entry.guaranteed))
+const xpPerSurvivor = computed(() => clearState.value?.xp_per_survivor ?? 0)
+
+function lootEntryLabel(entry: {
+  item_type: string
+  rarity: string
+  junk_types: string[]
+  weapon_types: string[]
+}): string {
+  const families = entry.junk_types.length ? entry.junk_types : entry.weapon_types
+  const material = (families.length ? families.join(' / ') : entry.item_type).replace(
+    /\b\w/g,
+    (char) => char.toUpperCase()
+  )
+  return entry.rarity === 'common' ? material : `${entry.rarity.toUpperCase()} ${material}`
+}
 
 // Send-team state for the in-modal dispatch section. Dispatch mode passes the
 // already-filtered candidates straight in (no eligibility fetch) and opens from
@@ -442,6 +460,20 @@ function dwellerDisplayName(first: string, last: string | null) {
                 </span>
               </div>
             </div>
+          </div>
+          <div class="mt-3 space-y-1 text-xs text-theme-primary/75">
+            <p v-if="signatureEntry" class="flex items-center gap-1.5">
+              <Icon icon="mdi:package-variant-closed-check" class="h-3.5 w-3.5" />
+              Guaranteed roll: {{ lootEntryLabel(signatureEntry) }}
+            </p>
+            <p v-if="incidentalEntries.length" class="flex items-center gap-1.5">
+              <Icon icon="mdi:package-variant" class="h-3.5 w-3.5" />
+              Also possible: {{ incidentalEntries.map(lootEntryLabel).join(', ') }}
+            </p>
+            <p v-if="xpPerSurvivor > 0" class="flex items-center gap-1.5">
+              <Icon icon="mdi:star-four-points" class="h-3.5 w-3.5" />
+              Base XP per survivor: {{ xpPerSurvivor }}
+            </p>
           </div>
           <p
             v-if="isCleared && reclearCountdown"

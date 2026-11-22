@@ -367,7 +367,12 @@ async def test_get_vault_map_clear_state_never_cleared(
     assert red_rocket.clear_state.clear_count == 0
     assert red_rocket.clear_state.tier == 0
     assert red_rocket.clear_state.time_remaining_seconds == 0
-    assert red_rocket.clear_state.loot_table == "low"
+    assert red_rocket.clear_state.loot_table == "automotive"
+    assert red_rocket.clear_state.xp_per_survivor == 20
+    preview = red_rocket.clear_state.loot_preview
+    assert preview[0].guaranteed is True
+    assert preview[0].junk_types == ["adhesive"]
+    assert any(not entry.guaranteed for entry in preview)
 
 
 @pytest.mark.asyncio
@@ -396,6 +401,10 @@ async def test_get_vault_map_clear_state_cleared_pending_reclear(
     assert red_rocket.clear_state.clear_count == 5
     assert red_rocket.clear_state.tier == game_config.exploration.dispatch.escalation_cap
     assert red_rocket.clear_state.time_remaining_seconds > 0
+    reward_per_tier = game_config.exploration.dispatch.reward_per_tier
+    assert red_rocket.clear_state.xp_per_survivor == int(
+        20 * (1 + reward_per_tier * game_config.exploration.dispatch.escalation_cap)
+    )
 
 
 @pytest.mark.asyncio
@@ -464,7 +473,7 @@ async def test_get_location_detail_includes_clear_state(
     assert detail.clear_state.cleared is False
     assert detail.clear_state.clear_count == 0
     assert detail.clear_state.tier == 0
-    assert detail.clear_state.loot_table == "low"
+    assert detail.clear_state.loot_table == "automotive"
 
 
 @pytest.mark.asyncio

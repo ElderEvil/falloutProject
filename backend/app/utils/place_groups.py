@@ -27,8 +27,8 @@ def load_place_groups() -> list[dict[str, Any]]:
     """Load and validate the group catalog (cached).
 
     Groups need unique key, label, description; seed-roster references must exist. Clearable
-    groups additionally need a reclear window, base difficulty and a loot table present in
-    place_loot.json; non-clearable groups must carry none of those.
+    groups additionally need a reclear window, base difficulty, an XP reward and a loot table
+    present in place_loot.json; non-clearable groups must carry none of those.
     """
     with GROUPS_FILE.open(encoding="utf-8") as f:
         groups: list[dict[str, Any]] = json.load(f)
@@ -51,14 +51,17 @@ def load_place_groups() -> list[dict[str, Any]]:
             reclear_hours = group.get("reclear_hours")
             base_difficulty = group.get("base_difficulty")
             loot_key = group.get("loot_table")
+            xp_reward = group.get("xp_reward")
             if not isinstance(reclear_hours, int) or isinstance(reclear_hours, bool) or reclear_hours < 1:
                 raise ValueError(f"Clearable place group {key!r} needs reclear_hours >= 1")
             if not isinstance(base_difficulty, int) or isinstance(base_difficulty, bool) or base_difficulty < 1:
                 raise ValueError(f"Clearable place group {key!r} needs base_difficulty >= 1")
             if not isinstance(loot_key, str) or loot_table(loot_key) is None:
                 raise ValueError(f"Clearable place group {key!r} references unknown loot table {loot_key!r}")
+            if not isinstance(xp_reward, int) or isinstance(xp_reward, bool) or xp_reward < 0:
+                raise ValueError(f"Clearable place group {key!r} needs xp_reward >= 0")
         else:
-            for field in ("reclear_hours", "base_difficulty", "loot_table"):
+            for field in ("reclear_hours", "base_difficulty", "loot_table", "xp_reward"):
                 if group.get(field) is not None:
                     raise ValueError(f"Non-clearable place group {key!r} must not carry {field}")
 
@@ -102,6 +105,12 @@ def group_for_place_name(name: str) -> str | None:
 def get_place_group(key: str | None) -> dict[str, Any] | None:
     """Catalog entry for a group key, or None."""
     return place_groups_by_key().get(key) if key else None
+
+
+def location_xp_for(group: dict[str, Any] | None, tier: int) -> int:
+    """Base XP per survivor for clearing this archetype at a tier, before the return bonuses."""
+    base = (group or {}).get("xp_reward") or 0
+    return int(base * (1 + game_config.exploration.dispatch.reward_per_tier * tier)) if base else 0
 
 
 def effective_place_group(group_key: str | None, kind: PlaceKindEnum | None) -> dict[str, Any] | None:

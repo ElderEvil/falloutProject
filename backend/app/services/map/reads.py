@@ -20,6 +20,7 @@ from app.schemas.wasteland_location import (
     DwellerRef,
     ExpeditionSiteMarkerRead,
     LocationClearStateRead,
+    LocationLootEntryRead,
     PlaceGroupRead,
     PlayerVaultMarkerRead,
     VaultMapResponse,
@@ -36,7 +37,8 @@ from app.services.exploration.site_offers import (
 )
 from app.services.map import bio_registration, discovery
 from app.utils.collectibles import bobblehead_for_location
-from app.utils.place_groups import effective_place_group, load_place_groups
+from app.utils.place_groups import effective_place_group, load_place_groups, location_xp_for
+from app.utils.place_loot import loot_table
 from app.utils.places import WORLD_SCALE
 from app.utils.time import utcnow
 from app.utils.vault_slots import slot_coords
@@ -68,14 +70,34 @@ def _clear_state_for(state: VaultLocationState, location: WorldLocation) -> Loca
     if group is None or not group.get("clearable"):
         return None
     now = utcnow()
+    tier = min(state.clear_count, game_config.exploration.dispatch.escalation_cap)
     return LocationClearStateRead(
         clearable=True,
         cleared=state.is_cleared(now),
         clear_count=state.clear_count,
-        tier=min(state.clear_count, game_config.exploration.dispatch.escalation_cap),
+        tier=tier,
         time_remaining_seconds=state.time_remaining_seconds(now),
         loot_table=group.get("loot_table"),
+        xp_per_survivor=location_xp_for(group, tier),
+        loot_preview=_loot_preview(group.get("loot_table")),
     )
+
+
+def _loot_preview(loot_key: str | None) -> list[LocationLootEntryRead]:
+    """Declared rolls for the map preview, with the first entry marked as the signature."""
+    table = loot_table(loot_key) if loot_key else None
+    if table is None:
+        return []
+    return [
+        LocationLootEntryRead(
+            item_type=entry["type"],
+            rarity=entry["rarity"],
+            junk_types=entry.get("junk_types") or [],
+            weapon_types=entry.get("weapon_types") or [],
+            guaranteed=index == 0,
+        )
+        for index, entry in enumerate(table["items"])
+    ]
 
 
 def _action_for(state: VaultLocationState, location: WorldLocation) -> Literal["clear", "salvage", "none"]:

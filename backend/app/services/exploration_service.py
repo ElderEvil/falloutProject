@@ -37,6 +37,7 @@ from app.schemas.exploration_event import ExplorationEvent, RewardsSchema
 from app.services.exploration.coordinator import ERROR_NOT_ACTIVE, exploration_coordinator
 from app.services.exploration.event_generator import event_generator
 from app.services.exploration.event_service import event_service
+from app.services.exploration.loot_calculator import loot_calculator
 from app.services.map.world_generation import WORLD_ID
 from app.services.user_service import user_service
 from app.services.world_snapshot_service import world_snapshot_service
@@ -45,6 +46,7 @@ from app.utils.collectibles import bobblehead_for_location
 from app.utils.dweller_availability import DwellerAction, availability_error
 from app.utils.exceptions import ResourceNotFoundException, ValidationException, ensure_found
 from app.utils.place_groups import effective_place_group
+from app.utils.place_loot import loot_table
 from app.utils.serialize import serialize_naive_utc_datetime, serialize_optional_utc_datetime
 from app.utils.time import utcnow
 from app.utils.vault_slots import slot_coords
@@ -401,6 +403,7 @@ class ExplorationService:
         if group is not None and group.get("clearable"):
             if not state.is_dispatchable(utcnow()):
                 raise ValidationException("This location is currently cleared")
+            self._require_rollable_loot(group)
         else:
             salvage = bobblehead_for_location(location.name)
             if (
@@ -485,6 +488,19 @@ class ExplorationService:
         if radaways > available_radaways:
             return f"Total available radaways: {available_radaways}"
         return None
+
+    @staticmethod
+    def _require_rollable_loot(group: dict) -> None:
+        """Reject a destination whose table cannot produce a declared roll, before travel starts."""
+        table = loot_table(group["loot_table"])
+        for entry in (table or {}).get("items", []):
+            if not loot_calculator.has_eligible(
+                entry["type"],
+                entry["rarity"],
+                junk_types=entry.get("junk_types"),
+                weapon_types=entry.get("weapon_types"),
+            ):
+                raise ValidationException("This location has nothing to loot right now")
 
     @classmethod
     def _require_supplies(cls, storage: Storage | None, stimpaks: int, radaways: int) -> None:
@@ -880,6 +896,9 @@ class ExplorationService:
         exploration = await crud_exploration.get(db_session, exploration_id)
 
         if exploration.is_active():
+            if exploration.is_dispatch_run() and exploration.time_remaining_seconds() <= 0:
+                exploration = await self._resolve_expired_dispatch(db_session, exploration)
+                return exploration, None
             return await exploration_coordinator.start_return(db_session, exploration_id), None
 
         if exploration.is_returning():
@@ -896,6 +915,24 @@ class ExplorationService:
         """Recall dweller early: the run enters its return leg, rewards wait for arrival."""
         exploration = await exploration_coordinator.start_return(db_session, exploration_id, recalled=True)
         return exploration, None
+
+    async def _resolve_expired_dispatch(self, db_session: AsyncSession, exploration: Exploration) -> Exploration:
+        """Resolve an expired dispatch the way the tick would: settle movement before any arrival claim.
+
+        Spatial runs move through the world, so the timer alone is not proof of arrival; ``advance`` owns
+        the movement clock and the forward-to-return transition. Legacy timed runs (heading NULL) are
+        untouched by ``advance`` and resolve directly.
+        """
+        from app.services.exploration.dispatch_resolution import resolve_dispatch_arrival
+
+        if exploration.heading_degrees is None:
+            await resolve_dispatch_arrival(db_session, exploration.id)
+            return await crud_exploration.get(db_session, exploration.id)
+
+        exploration = await self.advance(db_session, exploration.id, exploration=exploration)
+        if exploration.is_active() and await self.has_arrived(db_session, exploration):
+            await resolve_dispatch_arrival(db_session, exploration.id, arrived=True)
+        return await crud_exploration.get(db_session, exploration.id)
 
     async def process_event_for_exploration(self, db_session: AsyncSession, exploration_id: UUID) -> Exploration:
         """Generate and process an event for an exploration."""

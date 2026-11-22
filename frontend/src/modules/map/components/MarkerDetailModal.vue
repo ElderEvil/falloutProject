@@ -194,7 +194,9 @@ const {
 const isSalvage = computed(() => props.location?.action === 'salvage')
 const partyCap = computed(() => (isSalvage.value ? 1 : props.maxPartySize))
 const actionable = computed(
-  () => (isClearable.value && (!isCleared.value || reclearReady.value)) || isSalvage.value
+  () =>
+    !isLocked.value &&
+    ((isClearable.value && (!isCleared.value || reclearReady.value)) || isSalvage.value)
 )
 
 watch(

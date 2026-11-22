@@ -109,7 +109,7 @@ async def test_site_award_goes_to_the_luckiest_survivor_once(
     )
 
     assert payload is not None
-    assert payload["dweller_id"] == str(lucky.id)
+    assert payload.dweller_id == lucky.id
     claim = await collectible_crud.get_by_vault_and_key(async_session, vault.id, "strength")
     assert claim is not None
     assert claim.finder_dweller_id == lucky.id

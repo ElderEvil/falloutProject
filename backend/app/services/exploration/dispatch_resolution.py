@@ -22,7 +22,7 @@ from app.crud.team import team_crud
 from app.crud.vault import vault as vault_crud
 from app.models.exploration import Exploration
 from app.models.world_location import VaultLocationState, WorldLocation
-from app.services.collectible_service import collectible_service
+from app.services.collectible_service import CollectibleAward, collectible_service
 from app.services.exploration.coordinator import exploration_coordinator
 from app.services.exploration.event_service import apply_exploration_damage, apply_loot_find
 from app.services.exploration.locking import lock_exploration_with_vault_claim
@@ -110,7 +110,7 @@ async def resolve_dispatch_arrival(db_session: AsyncSession, exploration_id: UUI
         else:
             survivors.append(fresh)
 
-    collectible_payload: dict | None = None
+    collectible_payload = None
     if victory:
         table = loot_table(group["loot_table"])
         if table is not None:
@@ -169,7 +169,21 @@ async def resolve_dispatch_arrival(db_session: AsyncSession, exploration_id: UUI
     # the collectible event only after that commit.
     await notification_service.deliver_deferred_notifications(db_session)
     if collectible_payload is not None:
-        await event_bus.emit(GameEvent.COLLECTIBLE_FOUND, exploration.vault_id, collectible_payload)
+        await event_bus.emit(
+            GameEvent.COLLECTIBLE_FOUND, exploration.vault_id, _collectible_payload(collectible_payload)
+        )
+
+
+def _collectible_payload(award: CollectibleAward) -> dict:
+    """Transport shape for the collectible event; the service keeps the domain object."""
+    return {
+        "collectible_key": award.collectible_key,
+        "name": award.name,
+        "stat": award.stat,
+        "amount": award.amount,
+        "dweller_id": str(award.dweller_id),
+        "location_name": award.location_name,
+    }
 
 
 async def _resolve_salvage(
@@ -208,4 +222,4 @@ async def _resolve_salvage(
     await exploration_coordinator.start_return(db_session, exploration.id, arrived=arrived)
     await notification_service.deliver_deferred_notifications(db_session)
     if payload is not None:
-        await event_bus.emit(GameEvent.COLLECTIBLE_FOUND, exploration.vault_id, payload)
+        await event_bus.emit(GameEvent.COLLECTIBLE_FOUND, exploration.vault_id, _collectible_payload(payload))

@@ -6,7 +6,9 @@ existing vault claim and are published from ``start_return``, never from here.
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Sequence
+from dataclasses import dataclass
 from uuid import UUID
 
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -23,6 +25,20 @@ from app.schemas.collectible import DwellerCollectibleRead
 from app.services.notification_service import notification_service
 from app.utils.collectibles import bobblehead_for_key, bobblehead_for_location
 from app.utils.time import utcnow
+
+logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class CollectibleAward:
+    """One bobblehead awarded to a finder; the boundary builds its event payload."""
+
+    collectible_key: str
+    name: str
+    stat: str
+    amount: int
+    dweller_id: UUID
+    location_name: str
 
 
 class CollectibleService:
@@ -69,6 +85,11 @@ class CollectibleService:
             try:
                 entry = bobblehead_for_key(claim.collectible_key)
             except ValueError:
+                logger.warning(
+                    "Collectible claim %s for vault %s has no catalog entry; omitting it",
+                    claim.collectible_key,
+                    vault_id,
+                )
                 continue
             reads.append(
                 DwellerCollectibleRead(
@@ -91,7 +112,7 @@ class CollectibleService:
         location: WorldLocation,
         members: Sequence[Dweller],
         action: str = "clear",
-    ) -> dict | None:
+    ) -> CollectibleAward | None:
         """Award a cleared site's bobblehead to its luckiest survivor.
 
         Staged only: the dispatch transaction owner commits the claim and the bonus, and the
@@ -132,14 +153,14 @@ class CollectibleService:
                 meta_data={"collectible_key": entry["key"], "dweller_id": str(finder.id)},
                 commit=False,
             )
-        return {
-            "collectible_key": entry["key"],
-            "name": entry["name"],
-            "stat": entry["stat"],
-            "amount": entry["amount"],
-            "dweller_id": str(finder.id),
-            "location_name": location.name,
-        }
+        return CollectibleAward(
+            collectible_key=entry["key"],
+            name=entry["name"],
+            stat=entry["stat"],
+            amount=entry["amount"],
+            dweller_id=finder.id,
+            location_name=location.name,
+        )
 
 
 collectible_service = CollectibleService()

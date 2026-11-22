@@ -95,9 +95,9 @@ async def test_timestamp_inventory_matches_migrated_schema(utc_connection: Async
     }
     # Pinned totals: chat continuity (+5) and quest rotation (+2) are in the base; the world-event
     # tables add eight more across two tables (worldevent 5, worldeventparticipation 3), pvpduel
-    # adds three columns on one table, and the collectible claim adds found_at, the salvage marker
-    # adds searched_at, and vaultcollectible adds one table.
-    assert len(expected) == 142
+    # adds three columns on one table, and collectibles add four on two tables (vaultcollectible's
+    # created_at, updated_at and found_at plus vaultlocationstate.searched_at).
+    assert len(expected) == 144
     assert len({table for table, _ in expected}) == 45
     rows = await utc_connection.execute(
         text(

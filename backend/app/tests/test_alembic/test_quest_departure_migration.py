@@ -5,10 +5,9 @@ from datetime import datetime, timedelta
 from uuid import UUID, uuid4
 
 import pytest
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
-from app.core.enums import DwellerStatusEnum, GenderEnum, RarityEnum
-from app.models.dweller import Dweller
 from app.models.quest import Quest
 from app.models.team import Team, TeamMember
 from app.models.vault_quest import VaultQuestCompletionLink
@@ -20,6 +19,20 @@ from app.utils.types import UTCDateTime
 harness = legacy.harness
 REVISION = "d9e2f4a6b801"
 PARENT = "b6d8f0a2c913"
+
+#: Every dweller column without a server default at this revision. Explicit columns keep the
+#: legacy seed independent of columns added to the current ORM model after PARENT.
+_INSERT_QUEST_DWELLER = (
+    "INSERT INTO dweller ("
+    "id, vault_id, first_name, age_group, gender, rarity, level, experience, max_health, health, "
+    "radiation, happiness, stimpack, radaway, status, is_deleted, is_dead, is_permanently_dead, "
+    "room_id, strength, perception, endurance, charisma, intelligence, agility, luck, "
+    "bio_entries, is_traded, apprentice_stat_gains"
+    ") VALUES ("
+    ":id, :vault_id, :first_name, 'ADULT', 'MALE', 'COMMON', 1, 0, 100, 100, 0, 50, 0, 0, :status, "
+    "false, false, false, :room_id, 1, 1, 1, 1, 1, 1, 1, '[]', false, '{}'"
+    ")"
+)
 
 
 @pytest.mark.integration
@@ -67,17 +80,18 @@ def test_recovers_orphaned_questing_dwellers_and_preserves_active_parties(harnes
                     "completed",
                     "exploring",
                 ):
-                    dweller = Dweller(
-                        first_name=state,
-                        vault_id=vault_id,
-                        gender=GenderEnum.MALE,
-                        rarity=RarityEnum.COMMON,
-                        status=DwellerStatusEnum.EXPLORING if state == "exploring" else DwellerStatusEnum.QUESTING,
-                        room_id=UUID(room_id) if state in ("orphan", "outbound") else None,
+                    dweller_id = str(uuid4())
+                    await db.execute(
+                        text(_INSERT_QUEST_DWELLER),
+                        {
+                            "id": dweller_id,
+                            "vault_id": str(vault_id),
+                            "first_name": state,
+                            "status": "EXPLORING" if state == "exploring" else "QUESTING",
+                            "room_id": room_id if state in ("orphan", "outbound") else None,
+                        },
                     )
-                    db.add(dweller)
-                    await db.flush()
-                    ids[state] = str(dweller.id)
+                    ids[state] = dweller_id
                     if state in ("orphan", "exploring"):
                         continue
                     quest = Quest(
@@ -93,7 +107,7 @@ def test_recovers_orphaned_questing_dwellers_and_preserves_active_parties(harnes
                     team = Team(vault_id=vault_id, quest_id=quest.id)
                     db.add(team)
                     await db.flush()
-                    db.add(TeamMember(team_id=team.id, dweller_id=dweller.id, slot_number=1, status="assigned"))
+                    db.add(TeamMember(team_id=team.id, dweller_id=UUID(dweller_id), slot_number=1, status="assigned"))
                     if state != "unlinked":
                         db.add(
                             VaultQuestCompletionLink(

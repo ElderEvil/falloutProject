@@ -17,7 +17,13 @@ let request = 0
 
 async function load() {
   const dwellerId = ctx.dweller.value?.id
-  if (!dwellerId || !authStore.token) return
+  if (!dwellerId || !authStore.token) {
+    ++request
+    items.value = []
+    loading.value = false
+    error.value = null
+    return
+  }
   const seq = ++request
   loading.value = true
   error.value = null
@@ -31,7 +37,11 @@ async function load() {
   }
 }
 
-watch([() => ctx.dweller.value?.id, () => authStore.sessionGeneration], load, { immediate: true })
+watch(
+  [() => ctx.dweller.value?.id, () => ctx.vaultId.value, () => authStore.sessionGeneration],
+  load,
+  { immediate: true }
+)
 onBeforeUnmount(() => {
   ++request
 })

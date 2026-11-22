@@ -439,28 +439,28 @@ describe('MarkerDetailModal', () => {
             rarity: 'common',
             junk_types: ['adhesive'],
             weapon_types: [],
-            guaranteed: true,
+            signature: true,
           },
           {
             item_type: 'junk',
             rarity: 'common',
             junk_types: ['steel', 'leather'],
             weapon_types: [],
-            guaranteed: false,
+            signature: false,
           },
           {
             item_type: 'outfit',
             rarity: 'common',
             junk_types: [],
             weapon_types: [],
-            guaranteed: false,
+            signature: false,
           },
         ],
       })
 
       const text = wrapper.text()
-      expect(text).toContain('Guaranteed roll: Adhesive')
-      expect(text).toContain('Also possible: Steel / Leather, Outfit')
+      expect(text).toContain('Signature roll: Adhesive')
+      expect(text).toContain('Also rolls: Steel / Leather, Outfit')
       expect(text).toContain('Base XP per survivor: 34')
     })
 

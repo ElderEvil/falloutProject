@@ -9339,8 +9339,9 @@ export interface components {
          * LocationLootEntryRead
          * @description One declared loot roll for the pre-dispatch preview.
          *
-         *     ``guaranteed`` marks the table's signature entry: it always rolls, though a party that
-         *     loses members to the lethal tier can still lose it to proportional haul loss.
+         *     Every entry rolls on a win, so the preview promises no odds. ``signature`` marks the table's
+         *     identity entry — the material the archetype stands for. Proportional haul loss trims from the
+         *     tail, so the signature survives a partial loss and the last entries do not.
          */
         LocationLootEntryRead: {
             /** Item Type */
@@ -9358,10 +9359,10 @@ export interface components {
              */
             weapon_types: string[];
             /**
-             * Guaranteed
+             * Signature
              * @default false
              */
-            guaranteed: boolean;
+            signature: boolean;
         };
         /**
          * LocationTypeEnum

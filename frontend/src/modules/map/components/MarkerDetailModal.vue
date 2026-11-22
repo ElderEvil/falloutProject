@@ -161,8 +161,8 @@ const reclearCountdown = computed(() =>
 )
 const lootTableLabel = computed(() => clearState.value?.loot_table ?? '')
 const lootPreview = computed(() => clearState.value?.loot_preview ?? [])
-const signatureEntry = computed(() => lootPreview.value.find((entry) => entry.guaranteed) ?? null)
-const incidentalEntries = computed(() => lootPreview.value.filter((entry) => !entry.guaranteed))
+const signatureEntry = computed(() => lootPreview.value.find((entry) => entry.signature) ?? null)
+const incidentalEntries = computed(() => lootPreview.value.filter((entry) => !entry.signature))
 const xpPerSurvivor = computed(() => clearState.value?.xp_per_survivor ?? 0)
 
 function lootEntryLabel(entry: {
@@ -464,11 +464,11 @@ function dwellerDisplayName(first: string, last: string | null) {
           <div class="mt-3 space-y-1 text-xs text-theme-primary/75">
             <p v-if="signatureEntry" class="flex items-center gap-1.5">
               <Icon icon="mdi:package-variant-closed-check" class="h-3.5 w-3.5" />
-              Guaranteed roll: {{ lootEntryLabel(signatureEntry) }}
+              Signature roll: {{ lootEntryLabel(signatureEntry) }}
             </p>
             <p v-if="incidentalEntries.length" class="flex items-center gap-1.5">
               <Icon icon="mdi:package-variant" class="h-3.5 w-3.5" />
-              Also possible: {{ incidentalEntries.map(lootEntryLabel).join(', ') }}
+              Also rolls: {{ incidentalEntries.map(lootEntryLabel).join(', ') }}
             </p>
             <p v-if="xpPerSurvivor > 0" class="flex items-center gap-1.5">
               <Icon icon="mdi:star-four-points" class="h-3.5 w-3.5" />

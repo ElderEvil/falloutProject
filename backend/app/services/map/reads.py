@@ -84,7 +84,7 @@ def _clear_state_for(state: VaultLocationState, location: WorldLocation) -> Loca
 
 
 def _loot_preview(loot_key: str | None) -> list[LocationLootEntryRead]:
-    """Declared rolls for the map preview, with the first entry marked as the signature."""
+    """Declared rolls for the map preview; ``signature`` marks the table's identity entry."""
     table = loot_table(loot_key) if loot_key else None
     if table is None:
         return []
@@ -94,18 +94,24 @@ def _loot_preview(loot_key: str | None) -> list[LocationLootEntryRead]:
             rarity=entry["rarity"],
             junk_types=entry.get("junk_types") or [],
             weapon_types=entry.get("weapon_types") or [],
-            guaranteed=index == 0,
+            signature=index == 0,
         )
         for index, entry in enumerate(table["items"])
     ]
 
 
-def _action_for(state: VaultLocationState, location: WorldLocation) -> Literal["clear", "salvage", "none"]:
+def _action_for(
+    state: VaultLocationState, location: WorldLocation, *, unlocked: bool
+) -> Literal["clear", "salvage", "none"]:
     """What the map offers at this point: clear, a one-time salvage, or nothing.
 
-    Salvage implies the place is not clearable and the catalog binds a bobblehead to its name;
-    the collectible feature flag keeps inert places inert while the content is switched off.
+    A place the vault has not unlocked offers nothing: the dispatch service refuses it, so
+    advertising an action here would only produce a dead-end button. Salvage implies the place is
+    not clearable and the catalog binds a bobblehead to its name; the collectible feature flag
+    keeps inert places inert while the content is switched off.
     """
+    if not unlocked:
+        return "none"
     group = effective_place_group(location.group_key, location.kind)
     if group is not None and group.get("clearable"):
         return "clear"
@@ -152,6 +158,7 @@ async def get_location_detail(
         )
         for r in refs
     ]
+    location_unlocked = any(r.is_unlocked for r in dweller_refs)
 
     return WastelandLocationWithDwellers(
         id=state.location_id,
@@ -166,9 +173,9 @@ async def get_location_detail(
         exploration_id=state.exploration_id,
         created_at=state.created_at,
         dwellers=dweller_refs,
-        is_unlocked=any(r.is_unlocked for r in dweller_refs),
+        is_unlocked=location_unlocked,
         clear_state=_clear_state_for(state, location),
-        action=_action_for(state, location),
+        action=_action_for(state, location, unlocked=location_unlocked),
     )
 
 
@@ -220,7 +227,7 @@ async def get_vault_map(db_session: AsyncSession, vault: Vault, *, unlocked_only
                 dwellers=dweller_refs,
                 is_unlocked=location_unlocked,
                 clear_state=_clear_state_for(state, location),
-                action=_action_for(state, location),
+                action=_action_for(state, location, unlocked=location_unlocked),
             )
         )
 

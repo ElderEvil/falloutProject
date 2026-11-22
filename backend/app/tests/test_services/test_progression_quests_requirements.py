@@ -274,13 +274,12 @@ async def test_vault_missing_requirements_validator_error_fails_closed(
 
 
 @pytest.mark.asyncio
-async def test_vault_missing_requirements_checker_error_fails_closed(
-    async_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """A snapshot checker exception is logged and the gate fails closed (reported missing).
+async def test_vault_missing_requirements_checker_error_fails_closed(async_session: AsyncSession) -> None:
+    """A real checker exception is logged and the gate fails closed (reported missing).
 
-    The batch path evaluates requirement checkers over a ``VaultFacts`` snapshot rather than the old
-    per-requirement async validators, so the fail-closed guarantee is pinned on the dispatch table itself.
+    The failure is provoked through the real dispatch path rather than by stubbing ``_CHECKERS``: a
+    non-numeric LEVEL threshold raises ``TypeError`` inside ``count_at_level`` while comparing against a
+    persisted dweller, which is what the fail-closed wrapper exists to absorb.
     """
     user_data = create_fake_user()
     user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))
@@ -299,24 +298,24 @@ async def test_vault_missing_requirements_checker_error_fails_closed(
     await async_session.commit()
     await async_session.refresh(quest)
 
-    async_session.add(
-        QuestRequirement(
-            quest_id=quest.id,
-            requirement_type=RequirementType.LEVEL,
-            requirement_data={"level": 100, "count": 1},
-            is_mandatory=True,
-        )
+    # A living dweller makes count_at_level actually compare, so the bad threshold raises.
+    async_session.add(Dweller(first_name="Comparand", gender="male", rarity="common", level=1, vault_id=vault.id))
+    await async_session.commit()
+
+    bad_data = {"level": "invalid", "count": 1}
+    requirement = QuestRequirement(
+        quest_id=quest.id,
+        requirement_type=RequirementType.LEVEL,
+        requirement_data=bad_data,
+        is_mandatory=True,
     )
+    async_session.add(requirement)
     await async_session.commit()
     await async_session.refresh(quest, ["quest_requirements"])
 
-    def _boom(_facts: object, _requirement_data: dict) -> bool:
-        raise RuntimeError("checker exploded")
-
-    monkeypatch.setitem(requirements._CHECKERS, RequirementType.LEVEL, _boom)
-
     missing = await vault_missing_requirements(async_session, vault.id, quest)
-    assert missing == ["Need a dweller at level 100 or higher"]
+    assert missing == [requirements._describe_level(bad_data)]
+    assert missing == ["Need a dweller at level invalid or higher"]
 
 
 def test_individual_meets_requirement_ignores_count() -> None:

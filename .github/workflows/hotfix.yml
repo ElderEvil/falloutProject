@@ -66,8 +66,10 @@ jobs:
           PY
           )
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "python_version=$(cat backend/.python-version)" >> "$GITHUB_OUTPUT"
-          echo "tag=v$VERSION-hotfix.${{ github.run_number }}" >> "$GITHUB_OUTPUT"
+          {
+            echo "python_version=$(cat backend/.python-version)"
+            echo "tag=v$VERSION-hotfix.${{ github.run_number }}"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4

@@ -3,7 +3,7 @@
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import JSON, Boolean, Column, false
+from sqlalchemy import JSON, BigInteger, Boolean, Column, false
 from sqlmodel import Field, SQLModel
 
 from app.models.base import BaseUUIDModel, TimeStampMixin
@@ -35,8 +35,16 @@ class GameStateBase(SQLModel):
     water_empty_since: datetime | None = Field(
         sa_type=UTCDateTime, default=None, description="When vault water last hit zero; None while water is available"
     )
-    food_deprived_ms: int = Field(default=0, ge=0, description="Active milliseconds accumulated at zero food")
-    water_deprived_ms: int = Field(default=0, ge=0, description="Active milliseconds accumulated at zero water")
+    food_deprived_ms: int = Field(
+        default=0,
+        sa_column=Column(BigInteger, nullable=False, server_default="0"),
+        description="Active milliseconds accumulated at zero food",
+    )
+    water_deprived_ms: int = Field(
+        default=0,
+        sa_column=Column(BigInteger, nullable=False, server_default="0"),
+        description="Active milliseconds accumulated at zero water",
+    )
     paused_at: datetime | None = Field(sa_type=UTCDateTime, default=None, description="When the vault was last paused")
     resumed_at: datetime | None = Field(
         sa_type=UTCDateTime, default=None, description="When the vault was last resumed"

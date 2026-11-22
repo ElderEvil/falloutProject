@@ -429,6 +429,24 @@ describe('MarkerDetailModal', () => {
       expect(wrapper.text()).not.toContain('CLEARED')
     })
 
+    it('offers Search with a one-dweller party for a salvage point', () => {
+      const wrapper = mount(MarkerDetailModal, {
+        props: {
+          modelValue: true,
+          location: createLocation({ action: 'salvage' }),
+          vaultMarker: null,
+          dwellers: [],
+          maxPartySize: 3,
+        },
+        global: { stubs: { Teleport: { template: '<div><slot /></div>' } } },
+      })
+
+      expect(wrapper.text()).toContain('SEND A SCAVENGER')
+      const searchButtons = wrapper.findAll('button').filter((b) => b.text().includes('Search'))
+      expect(searchButtons).toHaveLength(1)
+      expect(wrapper.text()).not.toContain('Dispatch')
+    })
+
     it('keeps the dispatch footer on one row like the pre-wrapper layout', () => {
       const wrapper = mountWithClearState(clearableState)
       const footer = wrapper.find('[data-slot="dialog-footer"]')

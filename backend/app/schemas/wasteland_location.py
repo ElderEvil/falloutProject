@@ -39,6 +39,8 @@ class WastelandLocationRead(SQLModel):
     exploration_id: UUID | None
     created_at: OptionalUTCDateTimeJSON
     clear_state: LocationClearStateRead | None = None
+    # What the map offers here: a clearable site, a one-time salvage point, or nothing.
+    action: Literal["clear", "salvage", "none"] = "none"
 
 
 class PlaceGroupRead(SQLModel):

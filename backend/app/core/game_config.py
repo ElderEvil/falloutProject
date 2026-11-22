@@ -1159,6 +1159,13 @@ class FeatureConfig(BaseSettings):
             "journal. Ships dark until play-tested; duels never touch dweller rows."
         ),
     )
+    collectibles: bool = Field(
+        default=False,
+        description=(
+            "Bobblehead collectibles: site-bound SPECIAL finds that give the finder a permanent bonus. "
+            "Off keeps the catalog and claims inert until the playtest; existing rows are unaffected."
+        ),
+    )
     emergent_sites: bool = Field(
         default=True,
         description=(

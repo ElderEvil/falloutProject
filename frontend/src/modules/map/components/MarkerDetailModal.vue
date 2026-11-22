@@ -182,15 +182,22 @@ const {
   suppliesPayload,
 } = usePartySelection({
   dwellers: () => props.dwellers,
-  maxPartySize: () => props.maxPartySize,
+  maxPartySize: () => partyCap.value,
   maxStimpaks: () => props.maxStimpaks,
   maxRadaways: () => props.maxRadaways,
-  supplySuggestion: () => DISPATCH_SUPPLY_SUGGESTION,
+  supplySuggestion: () =>
+    isSalvage.value ? { stimpaks: 0, radaways: 0 } : DISPATCH_SUPPLY_SUGGESTION,
 })
 
 // The section and its footer confirm appear exactly where the old Dispatch
 // button did: a clearable point that is uncleared or re-clearable.
-const actionable = computed(() => isClearable.value && (!isCleared.value || reclearReady.value))
+const isSalvage = computed(() => props.location?.action === 'salvage')
+const partyCap = computed(() => (isSalvage.value ? 1 : props.maxPartySize))
+const actionable = computed(
+  () =>
+    !isLocked.value &&
+    ((isClearable.value && (!isCleared.value || reclearReady.value)) || isSalvage.value)
+)
 
 watch(
   () => props.modelValue,
@@ -446,11 +453,13 @@ function dwellerDisplayName(first: string, last: string | null) {
         </section>
 
         <section v-if="actionable" class="space-y-4 border-t border-theme-primary/20 pt-4">
-          <p class="text-xs font-bold tracking-[0.12em] text-theme-primary/60">SEND TEAM</p>
+          <p class="text-xs font-bold tracking-[0.12em] text-theme-primary/60">
+            {{ isSalvage ? 'SEND A SCAVENGER' : 'SEND TEAM' }}
+          </p>
           <PartySlots
             :selected-dwellers="selectedDwellers"
             :selected-count="selectedDwellerIds.length"
-            :max-party-size="maxPartySize"
+            :max-party-size="partyCap"
             @remove="toggleDweller"
           />
           <AvailableDwellers
@@ -462,6 +471,7 @@ function dwellerDisplayName(first: string, last: string | null) {
             @toggle="toggleDweller"
           />
           <SupplySliders
+            v-if="!isSalvage"
             :selected-stimpaks="selectedStimpaks"
             :selected-radaways="selectedRadaways"
             :max-stimpaks="maxStimpaks"
@@ -501,8 +511,8 @@ function dwellerDisplayName(first: string, last: string | null) {
         :disabled="!canSubmit || suppliesLoading"
         @click="confirmDispatch"
       >
-        <Icon icon="mdi:send" class="h-4 w-4" />
-        Dispatch
+        <Icon :icon="isSalvage ? 'mdi:magnify' : 'mdi:send'" class="h-4 w-4" />
+        {{ isSalvage ? 'Search' : 'Dispatch' }}
       </Button>
     </template>
   </TerminalModal>

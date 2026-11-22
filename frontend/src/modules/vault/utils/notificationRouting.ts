@@ -41,6 +41,7 @@ const NOTIFICATION_SOUNDS = {
   objective_completed: 'objectiveReady',
   objectives_refreshed: 'objectivesRefreshed',
   achievement_unlocked: 'success',
+  collectible_found: 'success',
   room_unlocked: 'success',
   radio_new_dweller: 'radioRecruit',
   radio_auto_switched_to_happiness: 'tabSwitch',
@@ -64,6 +65,7 @@ const NOTIFICATION_ANIMATIONS: Record<string, VaultBoyAnimationId> = {
   objective_completed: 'ok',
   quest_complete: 'ok',
   combat_victory: 'ok',
+  collectible_found: 'ok',
 }
 
 export function getNotificationAnimation(notificationType: string): VaultBoyAnimationId | null {

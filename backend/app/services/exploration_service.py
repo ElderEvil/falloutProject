@@ -41,6 +41,7 @@ from app.services.map.world_generation import WORLD_ID
 from app.services.user_service import user_service
 from app.services.world_snapshot_service import world_snapshot_service
 from app.utils import world_terrain
+from app.utils.collectibles import bobblehead_for_location
 from app.utils.dweller_availability import DwellerAction, availability_error
 from app.utils.exceptions import ResourceNotFoundException, ValidationException, ensure_found
 from app.utils.place_groups import effective_place_group
@@ -397,14 +398,24 @@ class ExplorationService:
         location, state = pair
 
         group = effective_place_group(location.group_key, location.kind)
-        if group is None or not group.get("clearable"):
-            raise ValidationException("This location cannot be cleared")
+        if group is not None and group.get("clearable"):
+            if not state.is_dispatchable(utcnow()):
+                raise ValidationException("This location is currently cleared")
+        else:
+            salvage = bobblehead_for_location(location.name)
+            if (
+                group is None
+                or not game_config.features.collectibles
+                or salvage is None
+                or salvage["action"] != "salvage"
+                or state.searched_at is not None
+            ):
+                raise ValidationException("This location cannot be cleared")
+            if len(dweller_ids) != 1:
+                raise ValidationException("Salvage needs exactly one dweller")
 
         if not await crud_world_location.is_location_unlocked(db_session, vault_id, location_id):
             raise ValidationException("This location is not known to the vault")
-
-        if not state.is_dispatchable(utcnow()):
-            raise ValidationException("This location is currently cleared")
 
         origin = await self._vault_origin(db_session, vault_id)
         if origin is None:

@@ -19,6 +19,7 @@ from app.api.deps import (
 from app.core.game_config import game_config
 from app.core.game_data import get_static_game_data
 from app.models.dweller import Dweller
+from app.schemas.collectible import DwellerCollectibleRead
 from app.schemas.dweller import (
     BioAddendumRequest,
     DwellerAppearanceOptions,
@@ -45,6 +46,7 @@ from app.schemas.happiness import HappinessModifiersResponse
 from app.services import medical_service
 from app.services.barbershop_service import barbershop_service
 from app.services.bio_service import bio_service
+from app.services.collectible_service import collectible_service
 from app.services.dweller_ai_service import dweller_ai
 from app.services.dweller_service import dweller_service
 from app.services.exit_request_service import exit_request_service
@@ -112,6 +114,23 @@ async def read_dweller(
     # The access check already loaded this dweller with its equipment graph; re-reading it here bought nothing but six
     # statements.
     return await verify_dweller_access(dweller_id, user, db_session)
+
+
+@router.get("/{dweller_id}/collectibles", response_model=list[DwellerCollectibleRead])
+async def read_dweller_collectibles(
+    dweller_id: UUID,
+    user: CurrentActiveUser,
+    db_session: DBSession,
+) -> list[DwellerCollectibleRead]:
+    """Bobbleheads this dweller found in its current vault.
+
+    Scoped to both the dweller and its current vault: recycling keeps the dweller UUID, so an
+    ownership check alone would expose a previous vault's claims.
+    """
+    dweller = await verify_dweller_access(dweller_id, user, db_session)
+    if dweller.vault_id is None:
+        return []
+    return await collectible_service.list_for_dweller(db_session, vault_id=dweller.vault_id, dweller_id=dweller.id)
 
 
 @router.get("/{dweller_id}/lineage", response_model=LineageResponse)

@@ -12,14 +12,21 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
-from app.core.enums import DwellerLocationRelationEnum, ExplorationStatus, NotificationType
+from app.core.enums import (
+    AgeGroupEnum,
+    DwellerLocationRelationEnum,
+    DwellerStatusEnum,
+    ExplorationStatus,
+    NotificationType,
+)
 from app.core.game_config import game_config
+from app.crud.collectible import collectible_crud
 from app.models.dweller import Dweller
 from app.models.exploration import Exploration
 from app.models.notification import Notification
 from app.models.storage import Storage
 from app.models.vault import Vault
-from app.models.world_location import VaultLocationState, WorldLocation
+from app.models.world_location import DwellerLocation, VaultLocationState, WorldLocation
 from app.schemas.dweller import DwellerCreate
 from app.schemas.exploration_event import CombatOutcomeSchema
 from app.services.exploration.dispatch_resolution import resolve_dispatch_arrival
@@ -29,6 +36,7 @@ from app.services.game_tick.dwellers_tick import process_explorations
 from app.services.map_service import map_service
 from app.services.notification_service import NotificationService
 from app.services.world_snapshot_service import world_snapshot_service
+from app.tests.factory.dwellers import create_fake_dweller
 from app.utils.exceptions import ResourceNotFoundException, ValidationException
 from app.utils.time import utcnow
 
@@ -290,6 +298,131 @@ async def test_dispatch_arrival_win_clears_state_and_loot(
     assert abs((state.reclear_available_at - expected_reclear).total_seconds()) < 1
     assert len(exploration.loot_collected) == 3  # low table has 3 items
     assert exploration.total_caps_found > 0
+
+
+@pytest.mark.usefixtures("default_world_snapshot")
+@pytest.mark.asyncio
+async def test_dispatch_rejects_a_party_for_salvage(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A salvage site takes exactly one dweller, even though dispatch builds a Team either way."""
+    monkeypatch.setattr(game_config.features, "collectibles", True)
+    location, _ = await _register_clearable(async_session, vault, dweller, name="Museum of Freedom")
+    second_data = create_fake_dweller()
+    second_data.update(
+        {
+            "first_name": "Second",
+            "last_name": "Salvager",
+            "age_group": AgeGroupEnum.ADULT,
+            "status": DwellerStatusEnum.IDLE,
+            "is_dead": False,
+            "health": 100,
+            "max_health": 100,
+        }
+    )
+    second = await crud.dweller.create(async_session, obj_in=DwellerCreate(**second_data, vault_id=vault.id))
+
+    with pytest.raises(ValidationException, match="exactly one dweller"):
+        await exploration_service.dispatch(async_session, vault.id, [dweller.id, second.id], location.id)
+
+
+@pytest.mark.usefixtures("default_world_snapshot")
+@pytest.mark.asyncio
+async def test_dispatch_rejects_an_already_searched_salvage_site(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A spent salvage site cannot be dispatched to again."""
+    monkeypatch.setattr(game_config.features, "collectibles", True)
+    location, state = await _register_clearable(async_session, vault, dweller, name="Museum of Freedom")
+    state.searched_at = utcnow()
+    async_session.add(state)
+    await async_session.commit()
+
+    with pytest.raises(ValidationException, match="cannot be cleared"):
+        await exploration_service.dispatch(async_session, vault.id, [dweller.id], location.id)
+
+
+@pytest.mark.usefixtures("default_world_snapshot")
+@pytest.mark.asyncio
+async def test_dispatch_rejects_a_locked_salvage_site(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Salvage keeps the normal dispatch visibility rule: an unknown place is refused."""
+    monkeypatch.setattr(game_config.features, "collectibles", True)
+    location, _ = await _register_clearable(async_session, vault, dweller, name="Museum of Freedom")
+    await async_session.execute(
+        update(DwellerLocation).where(DwellerLocation.location_id == location.id).values(is_unlocked=False)
+    )
+    await async_session.commit()
+
+    with pytest.raises(ValidationException, match="not known to the vault"):
+        await exploration_service.dispatch(async_session, vault.id, [dweller.id], location.id)
+
+
+@pytest.mark.usefixtures("default_world_snapshot")
+@pytest.mark.asyncio
+async def test_dispatch_salvage_awards_the_bobblehead_without_combat(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A solo salvage grants the site's bobblehead, a small caps find, and no combat damage."""
+    monkeypatch.setattr(game_config.features, "collectibles", True)
+    location, state = await _register_clearable(async_session, vault, dweller, name="Museum of Freedom")
+    health_before = dweller.health
+    exploration = await _expired_dispatch(async_session, vault, dweller, location.id)
+
+    await resolve_dispatch_arrival(async_session, exploration.id)
+
+    await async_session.refresh(exploration)
+    await async_session.refresh(state)
+    await async_session.refresh(dweller)
+    claim = await collectible_crud.get_by_vault_and_key(async_session, vault.id, "perception")
+    assert claim is not None
+    assert claim.finder_dweller_id == dweller.id
+    assert dweller.collectible_bonus == {"perception": 1}
+    assert state.searched_at is not None
+    assert exploration.status == ExplorationStatus.RETURNING
+    assert exploration.loot_collected == []
+    assert exploration.total_caps_found >= 5
+    assert dweller.health == health_before
+
+
+@pytest.mark.usefixtures("default_world_snapshot")
+@pytest.mark.asyncio
+async def test_dispatch_arrival_awards_the_site_bobblehead(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A winning arrival gives the finder the site's bobblehead and its permanent bonus."""
+    monkeypatch.setattr(game_config.features, "collectibles", True)
+    location, state = await _register_clearable(async_session, vault, dweller, name="Poseidon Energy")
+    await _boost_dweller(async_session, dweller, **STRONG_STATS)
+    exploration = await _expired_dispatch(async_session, vault, dweller, location.id)
+
+    await resolve_dispatch_arrival(async_session, exploration.id)
+
+    await async_session.refresh(dweller)
+    claim = await collectible_crud.get_by_vault_and_key(async_session, vault.id, "strength")
+    assert claim is not None
+    assert claim.finder_dweller_id == dweller.id
+    assert dweller.collectible_bonus == {"strength": 1}
+
+
+@pytest.mark.usefixtures("default_world_snapshot")
+@pytest.mark.asyncio
+async def test_dispatch_arrival_loss_awards_no_bobblehead(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A losing arrival leaves the site's bobblehead unclaimed."""
+    monkeypatch.setattr(game_config.features, "collectibles", True)
+    location, state = await _register_clearable(async_session, vault, dweller, name="Poseidon Energy")
+    await _boost_dweller(async_session, dweller, **WEAK_STATS)
+    state.clear_count = 5
+    async_session.add(state)
+    await async_session.commit()
+    exploration = await _expired_dispatch(async_session, vault, dweller, location.id)
+
+    await resolve_dispatch_arrival(async_session, exploration.id)
+
+    assert await collectible_crud.get_by_vault_and_key(async_session, vault.id, "strength") is None
 
 
 @pytest.mark.usefixtures("default_world_snapshot")

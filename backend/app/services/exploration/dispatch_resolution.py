@@ -14,11 +14,15 @@ from uuid import UUID
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.enums import NotificationPriority, NotificationType
+from app.core.event_bus import GameEvent, event_bus
 from app.core.game_config import game_config
 from app.crud import dweller as dweller_crud
 from app.crud import world_location as crud_world_location
 from app.crud.team import team_crud
 from app.crud.vault import vault as vault_crud
+from app.models.exploration import Exploration
+from app.models.world_location import VaultLocationState, WorldLocation
+from app.services.collectible_service import CollectibleAward, collectible_service
 from app.services.exploration.coordinator import exploration_coordinator
 from app.services.exploration.event_service import apply_exploration_damage, apply_loot_find
 from app.services.exploration.locking import lock_exploration_with_vault_claim
@@ -54,8 +58,11 @@ async def resolve_dispatch_arrival(db_session: AsyncSession, exploration_id: UUI
         return
     location, state = pair
     group = effective_place_group(location.group_key, location.kind)
-    if group is None or not group.get("clearable"):
+    if group is None:
         await exploration_coordinator.start_return(db_session, exploration_id, arrived=arrived)
+        return
+    if not group.get("clearable"):
+        await _resolve_salvage(db_session, exploration, location, state, arrived)
         return
     now = utcnow()
     if not state.is_dispatchable(now):
@@ -95,11 +102,15 @@ async def resolve_dispatch_arrival(db_session: AsyncSession, exploration_id: UUI
         )
 
     deaths = 0
+    survivors: list = []
     for member in members:
         fresh = await dweller_crud.get(db_session, member.id)
         if fresh is None or fresh.is_dead:
             deaths += 1
+        else:
+            survivors.append(fresh)
 
+    collectible_payload = None
     if victory:
         table = loot_table(group["loot_table"])
         if table is not None:
@@ -143,6 +154,9 @@ async def resolve_dispatch_arrival(db_session: AsyncSession, exploration_id: UUI
                     },
                     commit=False,
                 )
+            collectible_payload = await collectible_service.award_site_collectible(
+                db_session, exploration=exploration, location=location, members=survivors
+            )
 
     db_session.add(exploration)
     # Flush the loot/clear-state work before the return leg re-locks the run:
@@ -151,5 +165,61 @@ async def resolve_dispatch_arrival(db_session: AsyncSession, exploration_id: UUI
     await db_session.flush()
     await exploration_coordinator.start_return(db_session, exploration_id, arrived=arrived)
     # start_return commits (persisting the LOCATION_CLEARED row and any parked
-    # death notice); drain the deferred queue so they also go out live.
+    # death notice); drain the deferred queue so they also go out live, then publish
+    # the collectible event only after that commit.
     await notification_service.deliver_deferred_notifications(db_session)
+    if collectible_payload is not None:
+        await event_bus.emit(
+            GameEvent.COLLECTIBLE_FOUND, exploration.vault_id, _collectible_payload(collectible_payload)
+        )
+
+
+def _collectible_payload(award: CollectibleAward) -> dict:
+    """Transport shape for the collectible event; the service keeps the domain object."""
+    return {
+        "collectible_key": award.collectible_key,
+        "name": award.name,
+        "stat": award.stat,
+        "amount": award.amount,
+        "dweller_id": str(award.dweller_id),
+        "location_name": award.location_name,
+    }
+
+
+async def _resolve_salvage(
+    db_session: AsyncSession,
+    exploration: Exploration,
+    location: WorldLocation,
+    state: VaultLocationState,
+    arrived: bool,
+) -> None:
+    """Resolve a one-dweller salvage at an inert site: the bobblehead, a small find, a spent site.
+
+    Runs under the vault lock acquired by the caller; the claim and ``searched_at`` are staged and
+    ``start_return`` remains the transaction owner. No combat: salvaging never damages the dweller.
+    """
+    if not game_config.features.collectibles or state.searched_at is not None:
+        await exploration_coordinator.start_return(db_session, exploration.id, arrived=arrived)
+        return
+    if exploration.team_id is not None:
+        members = list(await team_crud.get_exploration_team_dwellers(db_session, exploration.id))
+    else:
+        anchor = await dweller_crud.get_with_equipment(db_session, exploration.dweller_id)
+        members = [anchor] if anchor is not None else []
+    if len(members) != 1 or members[0].is_dead:
+        await exploration_coordinator.start_return(db_session, exploration.id, arrived=arrived)
+        return
+
+    state.searched_at = utcnow()
+    db_session.add(state)
+    payload = await collectible_service.award_site_collectible(
+        db_session, exploration=exploration, location=location, members=members, action="salvage"
+    )
+    if payload is not None:
+        exploration.total_caps_found += random.randint(5, 20)
+    db_session.add(exploration)
+    await db_session.flush()
+    await exploration_coordinator.start_return(db_session, exploration.id, arrived=arrived)
+    await notification_service.deliver_deferred_notifications(db_session)
+    if payload is not None:
+        await event_bus.emit(GameEvent.COLLECTIBLE_FOUND, exploration.vault_id, _collectible_payload(payload))

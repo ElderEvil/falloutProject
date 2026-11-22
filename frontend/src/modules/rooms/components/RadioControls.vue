@@ -65,7 +65,7 @@ const emit = defineEmits<{
       class="mb-3 border-warning bg-warning/10 text-warning"
     >
       <Icon icon="mdi:alert" class="h-4 w-4" />
-      Assign at least one dweller to operate the radio room before recruiting.
+      Assign at least one dweller to operate the radio room before recruiting or broadcasting.
     </Alert>
 
     <!-- Recruit Dweller Button -->

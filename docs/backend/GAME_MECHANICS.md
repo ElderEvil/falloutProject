@@ -275,6 +275,28 @@ are not rotated; seasonal scheduling is future work.
   takes precedence over an older return. A new incident in the temporary room defers the old return
   without forgetting its destination. Returns do not heal dwellers or restart cancelled training.
 
+## Radio broadcasts: recruitment vs happiness
+
+A Radio Studio does one job at a time, chosen by `vault.radio_mode`. In recruitment mode the room works
+even unstaffed, at its base rate; in happiness mode it is silent without someone working the booth.
+
+- **Recruitment** — one roll per minute: `base_rate (1/360) × tier_multiplier + base_rate ×
+  (charisma × 0.05)` per assigned dweller, then `× (1 + happiness × 0.01)`. A full vault is switched to
+  happiness mode automatically and its overseer is notified.
+- **Happiness** — the studio pays `radio.happiness_bonus` per tick per studio that has at least one
+  **working** dweller, to every dweller inside the vault (explorers and quest parties get nothing). The
+  count is per staffed room, not per dweller dressed in the room: an empty studio is silent, and a dweller
+  training or idling there does not staff it.
+- **Working the booth** — a dweller **working** in a radio room also earns the personal
+  `happiness.radio_room_bonus` on top of the vault-wide broadcast; that personal bonus is unchanged by
+  mode.
+- Capacity is `(size // 3) * 2`, so a size-3 studio seats two.
+
+Known balance debt: a single staffed tier-1 studio pays exactly the base decay (`happiness.base_decay`),
+which makes happiness easy to pin at 100. The redesign replaces the flat per-room bonus with a
+charisma-scaled, saturating top-up toward a contentment floor; until then the staffing gate is the
+honest floor of the mechanic.
+
 ## Notification preferences
 
 Players may explicitly opt out of routine notification categories. The preference is persisted at

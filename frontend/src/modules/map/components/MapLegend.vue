@@ -17,7 +17,7 @@ const commonSymbols = [
 ]
 
 const states = [
-  { label: 'Locked', icon: 'mdi:lock-question' },
+  { label: 'Unscouted', icon: 'mdi:map-marker-outline' },
   { label: 'Cleared', icon: 'mdi:check' },
   { label: 'Cooldown', icon: 'mdi:clock-outline' },
   { label: 'Exploring', icon: 'mdi:circle-double' },

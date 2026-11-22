@@ -537,7 +537,10 @@ describe('MapMarker', () => {
       })
 
       expect(wrapper.find('g.map-marker image').exists()).toBe(false)
-      expect(wrapper.findComponent(Icon).props('icon')).toBe('mdi:lock-question')
+      // Identity survives being unscouted: the archetype glyph stays, dimmed
+      // inside a dashed ring, instead of being replaced by a "?" marker.
+      expect(wrapper.findComponent(Icon).props('icon')).toBe('mdi:map-marker-question')
+      expect(wrapper.classes()).toContain('marker-locked')
     })
 
     it('swaps to the marker icon fallback when art fails to load', async () => {

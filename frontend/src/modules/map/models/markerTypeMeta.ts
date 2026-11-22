@@ -37,6 +37,9 @@ export function markerTypeMeta(type: string): MarkerTypeMeta {
   return BY_TYPE.get(type) ?? { type: type as MarkerType, icon: 'mdi:map-marker', label: type }
 }
 
+/** Glyph for a place the catalog has no archetype for: a map pin, no punctuation. */
+export const NEUTRAL_PLACE_ICON = 'mdi:map-marker-outline'
+
 /**
  * Marker icon for a wasteland location: its site-type archetype icon when the
  * catalog has one, else the generic type icon. Keeps map markers consistent with
@@ -50,6 +53,11 @@ export function locationMarkerIcon(
   if (groupKey) {
     const groupIcon = groupIconByKey.get(groupKey)
     if (groupIcon) return groupIcon
+  }
+  // `origin`/`visited`/`discovery` are discovery states, not identities: a place
+  // without an archetype must not borrow a flag, an eye or a question mark.
+  if (type === 'origin' || type === 'visited' || type === 'discovery') {
+    return NEUTRAL_PLACE_ICON
   }
   return markerTypeMeta(type).icon
 }

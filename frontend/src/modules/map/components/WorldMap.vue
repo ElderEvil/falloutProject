@@ -620,7 +620,7 @@ function handleTouchEnd(event: TouchEvent) {
           :y="hint.coord_y"
           name="Unknown vault"
           type="vault"
-          icon="mdi:help-circle-outline"
+          icon="mdi:radioactive"
           label="Unexplored signal"
           :interactive="false"
         />

@@ -633,8 +633,16 @@ class RoomService:
 
         refund = room_rules.room_refund(db_obj)
 
-        await vault_service.deposit_caps(
-            db_session=db_session, vault_obj=vault, amount=refund, track_earnings=False, commit=False
+        # The refund is written inside this transaction, but its RESOURCE_COLLECTED listeners open their own
+        # session and lock the vault row for update. Emitting here would deadlock them against our own
+        # uncommitted caps UPDATE, so the event waits until the transaction closes (the rush payout does the same).
+        credited = await vault_service.deposit_caps(
+            db_session=db_session,
+            vault_obj=vault,
+            amount=refund,
+            track_earnings=False,
+            commit=False,
+            emit_event=False,
         )
 
         if crud.room.requires_recalculation(db_obj):
@@ -643,6 +651,13 @@ class RoomService:
             )
 
         await db_session.commit()
+
+        if credited > 0:
+            await event_bus.emit(
+                GameEvent.RESOURCE_COLLECTED,
+                vault.id,
+                {"resource_type": "caps", "amount": credited},
+            )
 
         return db_obj
 

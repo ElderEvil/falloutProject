@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from contextlib import asynccontextmanager
 from datetime import datetime
+from typing import Any
 from unittest.mock import AsyncMock, patch
 from uuid import UUID
 
@@ -14,6 +15,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
 from app.core.enums import AgeGroupEnum, GenderEnum, RarityEnum, RoomTypeEnum, SPECIALEnum
+from app.core.event_bus import GameEvent, event_bus
 from app.models.dweller import Dweller
 from app.models.room import Room
 from app.models.training import Training
@@ -1133,6 +1135,40 @@ async def test_destroy_requires_outermost_room(async_session: AsyncSession, rich
     assert await crud.room.get(async_session, inner.id)
     await room_service.destroy_room(async_session, outer.id)
     await room_service.destroy_room(async_session, inner.id)
+
+
+@pytest.mark.asyncio
+async def test_destroy_defers_refund_event_until_after_commit(
+    async_session: AsyncSession, rich_vault: Vault, monkeypatch: pytest.MonkeyPatch
+):
+    """The refund event must leave the destroy transaction before it is emitted.
+
+    RESOURCE_COLLECTED listeners open their own session and lock the vault row for update, so an emit
+    inside the still-open destroy transaction deadlocks them against its uncommitted caps update.
+    """
+    from app.services.vault_service import vault_service
+
+    outer = await _create_existing_room(async_session, rich_vault.id, coordinate_x=7)
+    deposit_calls: list[dict[str, Any]] = []
+    emitted: list[tuple[str, dict[str, Any]]] = []
+
+    async def fake_deposit_caps(**kwargs: Any) -> int:
+        deposit_calls.append(kwargs)
+        return 17
+
+    async def handler(event_type: str, vault_id: UUID, data: dict[str, Any]) -> None:
+        emitted.append((event_type, data))
+
+    monkeypatch.setattr(vault_service, "deposit_caps", fake_deposit_caps)
+    event_bus.subscribe(GameEvent.RESOURCE_COLLECTED, handler)
+    try:
+        await room_service.destroy_room(async_session, outer.id)
+    finally:
+        event_bus.unsubscribe(GameEvent.RESOURCE_COLLECTED, handler)
+
+    assert deposit_calls
+    assert deposit_calls[0]["emit_event"] is False
+    assert emitted == [(GameEvent.RESOURCE_COLLECTED, {"resource_type": "caps", "amount": 17})]
 
 
 @pytest.mark.asyncio

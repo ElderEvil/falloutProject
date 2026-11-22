@@ -14,15 +14,16 @@ from app.utils.serialize_types import OptionalUTCDateTimeJSON
 class LocationLootEntryRead(SQLModel):
     """One declared loot roll for the pre-dispatch preview.
 
-    ``guaranteed`` marks the table's signature entry: it always rolls, though a party that
-    loses members to the lethal tier can still lose it to proportional haul loss.
+    Every entry rolls on a win, so the preview promises no odds. ``signature`` marks the table's
+    identity entry — the material the archetype stands for. Proportional haul loss trims from the
+    tail, so the signature survives a partial loss and the last entries do not.
     """
 
     item_type: str
     rarity: str
     junk_types: list[str] = []
     weapon_types: list[str] = []
-    guaranteed: bool = False
+    signature: bool = False
 
 
 class LocationClearStateRead(SQLModel):
@@ -89,6 +90,7 @@ class WastelandLocationWithDwellers(WastelandLocationRead):
 
     dwellers: list[DwellerRef]
     is_unlocked: bool = False
+    dispatch_in_progress: bool = False
 
 
 class VaultMarkerRead(SQLModel):

@@ -44,11 +44,10 @@ they are *generic*, not that they are inert.
 - **D1 — Identity is a category filter, not item names.** Junk carries `junk_type` (Circuitry,
   Leather, Adhesive, Cloth, Science, Steel, Valuables) and crafting already consumes `junk_types`;
   weapons carry `weapon_type`. Loot entries gain optional `junk_types` / `weapon_types`.
-- **D2 — Each themed table dedicates its signature slot.** The **first entry** of a themed table is
-  filtered to one material and always rolls, so "gas stations roll Adhesive" is a promise rather
-  than a probability. Proportional haul loss can still drop it when a party loses members, so the
-  map preview calls it a **guaranteed roll**, never a guaranteed drop. Remaining entries are
-  incidental and may overlap neighbours; the preview labels the two differently.
+- **D2 — Every declared entry rolls; the first is the signature.** A themed table's first entry is
+  filtered to one material, so the archetype's identity is that material. Remaining entries roll on
+  the same clear — the preview says so plainly rather than implying odds — and proportional haul
+  loss trims from the tail, so the signature is the roll a partial party keeps.
 - **D3 — XP is one nullable integer, `Exploration.location_xp`.** It stores **base XP per survivor**
   for this clear, tier-scaled, *before* survival, luck and pet bonuses. Settlement adds those
   bonuses and scales by recall progress through the existing path. A single int replaces the
@@ -78,7 +77,7 @@ they are *generic*, not that they are inert.
 ## Player loop (target)
 
 1. Open a known place. The preview states:
-   - **Signature material** (guaranteed) and incidental salvage,
+   - the **signature material** and the other rolls the haul includes,
    - **Base XP per survivor** — tier raises it; survival, luck and pets add on top at settlement,
    - when it re-clears.
 2. Dispatch a party; tier and difficulty behave exactly as today.
@@ -166,8 +165,8 @@ cannot disagree.
 
 - Every declared table entry resolves to a real catalog item in CI, so a valid category that
   matches an empty pool fails before play, not mid-resolution.
-- A themed table's signature entry yields the signature material on every clear; incidental entries
-  stay within their declared families.
+- A themed table's signature entry yields the signature material on every clear; the other entries
+  stay within their declared families and roll on the same clear.
 - An unknown `junk_types` / `weapon_types` value fails catalog validation at import; a filter on the
   wrong item type fails too.
 - The haul rolls **before** combat damage is staged, so a bad entry cannot persist damage without its
@@ -209,9 +208,13 @@ the loot/XP change.
    failure after the clear notice is staged, a tick commit, then a retry.
 2. **Dispatch party double-booking.** `exploration_service.dispatch` checks
    `get_in_progress_for_dwellers` without the vault claim, and the later storage lock re-verifies
-   supplies only. Two concurrent departures can carry the same squad to two destinations and both
-   earn clear XP. Fix by taking the shared vault claim before the availability recheck; needs a
-   PostgreSQL concurrency test (the SQLite default cannot prove it).
+   supplies only. Two concurrent departures can carry the same squad to two *different*
+   destinations and both earn clear XP. Fix by taking the shared vault claim before the availability
+   recheck; needs a PostgreSQL concurrency test (the SQLite default cannot prove it).
+   Site occupancy is a separate, now-covered case: the partial unique index
+   `uq_exploration_active_target` guarantees one ACTIVE dispatch per vault and map point, and
+   dispatch refuses a second party before travel. Its true-concurrency proof is still owed on
+   PostgreSQL; SQLite proves the constraint and the error mapping, not the interleaving.
 
 ## Non-goals
 

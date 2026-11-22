@@ -88,6 +88,19 @@ class ExplorationBase(SQLModel):
 class Exploration(BaseUUIDModel, ExplorationBase, TimeStampMixin, table=True):
     """Exploration model with relationships."""
 
+    # One party may be en route to a map point at a time: the index is the backstop, the service
+    # pre-check is the friendly error. Roams (target NULL) and returning runs are excluded.
+    __table_args__ = (
+        sa.Index(
+            "uq_exploration_active_target",
+            "vault_id",
+            "target_location_id",
+            unique=True,
+            postgresql_where=sa.text("status = 'ACTIVE' AND target_location_id IS NOT NULL"),
+            sqlite_where=sa.text("status = 'ACTIVE' AND target_location_id IS NOT NULL"),
+        ),
+    )
+
     vault_id: UUID = Field(foreign_key="vault.id", index=True, ondelete="CASCADE")
     dweller_id: UUID = Field(foreign_key="dweller.id", index=True, ondelete="CASCADE")
     # Targeted dispatch (issue 772): set only on a run sent to clear a known map point; null keeps today's free-roam

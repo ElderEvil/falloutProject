@@ -5,6 +5,7 @@ from uuid import UUID
 from sqlalchemy import func, or_, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.enums import ExplorationStatus
 from app.crud.base import CRUDBase
 from app.models.exploration import IN_PROGRESS_STATUSES, Exploration
 from app.models.team import TeamMember
@@ -84,6 +85,30 @@ class CRUDExploration(CRUDBase[Exploration, ExplorationCreate, ExplorationUpdate
             .where(Exploration.status.in_(IN_PROGRESS_STATUSES))
         )
         return list(result.scalars().all())
+
+    async def has_active_dispatch_to(self, db_session: AsyncSession, *, vault_id: UUID, location_id: UUID) -> bool:
+        """True when a party from this vault is still en route to the location."""
+        result = await db_session.execute(
+            select(Exploration.id)
+            .where(
+                Exploration.vault_id == vault_id,
+                Exploration.target_location_id == location_id,
+                Exploration.status == ExplorationStatus.ACTIVE,
+            )
+            .limit(1)
+        )
+        return result.first() is not None
+
+    async def get_active_dispatch_location_ids(self, db_session: AsyncSession, *, vault_id: UUID) -> set[UUID]:
+        """Map points this vault currently has a party en route to."""
+        result = await db_session.execute(
+            select(Exploration.target_location_id).where(
+                Exploration.vault_id == vault_id,
+                Exploration.status == ExplorationStatus.ACTIVE,
+                Exploration.target_location_id.is_not(None),
+            )
+        )
+        return {target for target in result.scalars() if target is not None}
 
     async def get_all_active(
         self,

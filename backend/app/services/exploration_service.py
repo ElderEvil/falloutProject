@@ -12,6 +12,7 @@ from datetime import datetime, timedelta
 from uuid import UUID, uuid7
 
 from sqlalchemy import orm
+from sqlalchemy.exc import IntegrityError
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.enums import DwellerStatusEnum, ExplorationStatus, TrainingStatus
@@ -403,6 +404,8 @@ class ExplorationService:
         if group is not None and group.get("clearable"):
             if not state.is_dispatchable(utcnow()):
                 raise ValidationException("This location is currently cleared")
+            if await crud_exploration.has_active_dispatch_to(db_session, vault_id=vault_id, location_id=location_id):
+                raise ValidationException("A party is already on its way to this location")
             self._require_rollable_loot(group)
         else:
             salvage = bobblehead_for_location(location.name)
@@ -463,7 +466,12 @@ class ExplorationService:
             exploration.start_time,
         )
         db_session.add(exploration)
-        await db_session.flush()
+        try:
+            await db_session.flush()
+        except IntegrityError:
+            # The partial unique index catches a race the pre-check above cannot see.
+            await db_session.rollback()
+            raise ValidationException("A party is already on its way to this location") from None
 
         team = Team(vault_id=vault_id, exploration_id=exploration.id)
         team.members = []
@@ -472,9 +480,14 @@ class ExplorationService:
         for slot, dweller in enumerate(dwellers, start=1):
             db_session.add(TeamMember(team_id=team.id, dweller_id=dweller.id, slot_number=slot, status="assigned"))
         exploration.team_id = team.id
-        return await self._persist_departure_transaction(
-            db_session, vault_id=vault_id, dwellers=dwellers, exploration=exploration
-        )
+        try:
+            return await self._persist_departure_transaction(
+                db_session, vault_id=vault_id, dwellers=dwellers, exploration=exploration
+            )
+        except IntegrityError:
+            # The partial unique index catches a race the pre-check above cannot see.
+            await db_session.rollback()
+            raise ValidationException("A party is already on its way to this location") from None
 
     @staticmethod
     def _supply_shortfall(available_stimpaks: int, available_radaways: int, stimpaks: int, radaways: int) -> str | None:

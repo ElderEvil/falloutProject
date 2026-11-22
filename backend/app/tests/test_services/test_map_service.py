@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, patch
 from uuid import uuid4
 
 import pytest
+from sqlalchemy import update
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -370,9 +371,30 @@ async def test_get_vault_map_clear_state_never_cleared(
     assert red_rocket.clear_state.loot_table == "automotive"
     assert red_rocket.clear_state.xp_per_survivor == 20
     preview = red_rocket.clear_state.loot_preview
-    assert preview[0].guaranteed is True
+    assert preview[0].signature is True
     assert preview[0].junk_types == ["adhesive"]
-    assert any(not entry.guaranteed for entry in preview)
+    assert any(not entry.signature for entry in preview)
+
+
+@pytest.mark.asyncio
+async def test_action_requires_an_unlocked_place(async_session: AsyncSession, vault: Vault, dweller: Dweller) -> None:
+    """A clearable place the vault has not unlocked offers no action; unlocking turns it on."""
+    await map_service.register_bio_places(async_session, dweller, origin_place="Red Rocket", visited_places=[])
+
+    map_data = await map_service.get_vault_map(async_session, vault)
+    red_rocket = next(loc for loc in map_data.locations if loc.normalized_name == "red rocket")
+    assert red_rocket.is_unlocked is False
+    assert red_rocket.action == "none"
+
+    await async_session.execute(
+        update(DwellerLocation).where(DwellerLocation.location_id == red_rocket.id).values(is_unlocked=True)
+    )
+    await async_session.commit()
+
+    map_data = await map_service.get_vault_map(async_session, vault)
+    red_rocket = next(loc for loc in map_data.locations if loc.normalized_name == "red rocket")
+    assert red_rocket.is_unlocked is True
+    assert red_rocket.action == "clear"
 
 
 @pytest.mark.asyncio

@@ -399,11 +399,14 @@ describe('MarkerDetailModal', () => {
       loot_table: 'raider_camp_loot',
     }
 
-    function mountWithClearState(clearState: unknown) {
+    function mountWithClearState(
+      clearState: unknown,
+      overrides: Partial<WastelandLocationWithDwellers> = {}
+    ) {
       return mount(MarkerDetailModal, {
         props: {
           modelValue: true,
-          location: createLocation({ clear_state: clearState }),
+          location: createLocation({ clear_state: clearState, ...overrides }),
           vaultMarker: null,
         },
         global: { stubs: { Teleport: { template: '<div><slot /></div>' } } },
@@ -439,29 +442,48 @@ describe('MarkerDetailModal', () => {
             rarity: 'common',
             junk_types: ['adhesive'],
             weapon_types: [],
-            guaranteed: true,
+            signature: true,
           },
           {
             item_type: 'junk',
             rarity: 'common',
             junk_types: ['steel', 'leather'],
             weapon_types: [],
-            guaranteed: false,
+            signature: false,
           },
           {
             item_type: 'outfit',
             rarity: 'common',
             junk_types: [],
             weapon_types: [],
-            guaranteed: false,
+            signature: false,
           },
         ],
       })
 
       const text = wrapper.text()
-      expect(text).toContain('Guaranteed roll: Adhesive')
-      expect(text).toContain('Also possible: Steel / Leather, Outfit')
+      expect(text).toContain('Signature roll: Adhesive')
+      expect(text).toContain('Also rolls: Steel / Leather, Outfit')
       expect(text).toContain('Base XP per survivor: 34')
+    })
+
+    it('hides dispatch and explains while a party is en route', () => {
+      const wrapper = mountWithClearState(clearableState, { dispatch_in_progress: true })
+
+      const dispatchButtons = wrapper.findAll('button').filter((b) => b.text().includes('Dispatch'))
+      expect(dispatchButtons).toHaveLength(0)
+      expect(wrapper.text()).toContain('Party en route')
+    })
+
+    it('explains an en-route party at a salvage site, where clear_state is null', () => {
+      const wrapper = mountWithClearState(null, {
+        dispatch_in_progress: true,
+        action: 'salvage',
+      })
+
+      expect(wrapper.text()).toContain('Party en route')
+      const sendButtons = wrapper.findAll('button').filter((b) => /Dispatch|Search/.test(b.text()))
+      expect(sendButtons).toHaveLength(0)
     })
 
     it('offers Search with a one-dweller party for a salvage point', () => {

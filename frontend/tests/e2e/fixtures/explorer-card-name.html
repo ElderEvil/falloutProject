@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Explorer card long-name fixture</title>
+    <style>
+      /* Force the wrap regardless of font metrics: the icon must follow the last
+         line, so the name has to span at least two. */
+      .dweller-name-link {
+        max-width: 110px;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- A 300px preview forces the long name to wrap; the spec measures icon placement. -->
+    <div id="app"></div>
+    <script type="module">
+      import '../../../src/assets/tailwind.css'
+      import { createApp, h } from 'vue'
+      import { createPinia } from 'pinia'
+      import { createRouter, createMemoryHistory } from 'vue-router'
+      import ExplorerCard from '../../../src/modules/exploration/components/ExplorerCard.vue'
+
+      const exploration = {
+        id: 'exploration-1',
+        dweller_id: 'dweller-1',
+        duration: 4,
+        start_time: new Date(Date.now() - 60 * 60 * 1000).toISOString(),
+        end_time: null,
+        status: 'active',
+        paused_at: null,
+        return_started_at: null,
+        return_completes_at: null,
+        target_location_id: null,
+        events: [],
+        loot_collected: [],
+        unclaimed_loot: [],
+      }
+
+      const dweller = {
+        id: 'dweller-1',
+        first_name: 'Christopher',
+        last_name: 'Schwartz',
+        age_group: 'adult',
+        gender: 'male',
+        rarity: 'common',
+        image_url: '/static/dweller_images/base/FOS_Dw_Default_Human_Male.webp',
+        thumbnail_url: '/static/dweller_thumbnails/base/FOS_Dw_Default_Human_Male.webp',
+        health: 100,
+        max_health: 100,
+        radiation: 0,
+        level: 12,
+        visual_attributes: null,
+        weapon: null,
+        outfit: null,
+        pet: null,
+      }
+
+      const router = createRouter({
+        history: createMemoryHistory(),
+        routes: [{ path: '/vault/:id/exploration', component: { render: () => null } }],
+      })
+      router.push('/vault/vault-1/exploration')
+
+      const Preview = {
+        render: () =>
+          h('div', { class: 'p-6 bg-surface-sunken', style: 'width: 300px' }, [
+            h(ExplorerCard, { exploration, dweller }),
+          ]),
+      }
+
+      router.isReady().then(() => createApp(Preview).use(router).use(createPinia()).mount('#app'))
+    </script>
+  </body>
+</html>

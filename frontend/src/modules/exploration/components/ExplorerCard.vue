@@ -337,9 +337,7 @@ const party = computed<(DwellerShort | Dweller)[]>(() => {
 }
 
 .dweller-name-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
+  display: block;
   width: fit-content;
   text-align: left;
   text-decoration: none;
@@ -360,6 +358,9 @@ const party = computed<(DwellerShort | Dweller)[]>(() => {
 }
 
 .dweller-link-icon {
+  display: inline-block;
+  margin-left: 0.25rem;
+  vertical-align: -0.125em;
   opacity: 0.5;
 }
 

@@ -222,6 +222,7 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
       detailedDwellers.value[id] = {
         ...detail,
         ...fields,
+        room_id,
         room:
           room_id === null
             ? null
@@ -247,6 +248,7 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
       detailedDwellers.value[row.id] = {
         ...detail,
         status: row.status,
+        room_id: roomId,
         room:
           roomId === null
             ? null

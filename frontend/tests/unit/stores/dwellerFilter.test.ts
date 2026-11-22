@@ -170,6 +170,7 @@ describe('DwellerFilter Store', () => {
 
       expect(store.detailedDwellers['d1']?.status).toBe('exploring')
       expect(store.detailedDwellers['d1']?.room).toBeNull()
+      expect(store.detailedDwellers['d1']?.room_id).toBeNull()
     })
 
     it('should pass filter parameters as query string', async () => {

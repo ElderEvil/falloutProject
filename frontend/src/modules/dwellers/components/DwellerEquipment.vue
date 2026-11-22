@@ -158,15 +158,22 @@ const modalIcon = computed(() => {
     <p v-if="!mature" class="text-sm text-theme-accent mb-4" role="status">
       Equipment unlocks at adulthood.
     </p>
-    <p v-else-if="isAway" class="text-sm text-theme-accent mb-4" role="status">
+    <p
+      v-else-if="isAway"
+      id="equipment-away-notice"
+      class="flex items-center gap-2 text-sm text-theme-accent mb-4"
+      role="status"
+    >
+      <Icon icon="mdi:lock" class="shrink-0" />
       Return to the vault to change equipment.
     </p>
-    <div class="equipment-grid">
+    <div class="equipment-grid" :aria-describedby="isAway ? 'equipment-away-notice' : undefined">
       <!-- Weapon Slot -->
       <div class="equipment-slot">
         <div class="slot-header">
           <Icon :icon="getItemIcon('weapon', equippedWeapon ?? {})" class="slot-icon" />
           <h4 class="slot-title" v-bind="{ 'data-onboarding': 'dweller-weapon' }">Weapon</h4>
+          <Icon v-if="isAway" icon="mdi:lock" class="slot-lock" />
         </div>
 
         <EquippableItemCard
@@ -186,12 +193,14 @@ const modalIcon = computed(() => {
           :disabled="!canEquip || inventoryLoading"
           @click="openEquipmentInventory('weapon')"
         >
-          <Icon icon="mdi:plus-circle" class="empty-icon" />
+          <Icon :icon="isAway ? 'mdi:lock' : 'mdi:plus-circle'" class="empty-icon" />
           <p class="empty-text">
             {{
-              inventoryLoading && inventoryMode === 'weapon'
-                ? 'Loading weapons…'
-                : 'Click to equip weapon'
+              isAway
+                ? 'Locked while away'
+                : inventoryLoading && inventoryMode === 'weapon'
+                  ? 'Loading weapons…'
+                  : 'Click to equip weapon'
             }}
           </p>
         </button>
@@ -202,6 +211,7 @@ const modalIcon = computed(() => {
         <div class="slot-header">
           <Icon :icon="getItemIcon('outfit', equippedOutfit ?? {})" class="slot-icon" />
           <h4 class="slot-title" v-bind="{ 'data-onboarding': 'dweller-outfit' }">Outfit</h4>
+          <Icon v-if="isAway" icon="mdi:lock" class="slot-lock" />
         </div>
 
         <EquippableItemCard
@@ -221,12 +231,14 @@ const modalIcon = computed(() => {
           :disabled="!canEquip || inventoryLoading"
           @click="openEquipmentInventory('outfit')"
         >
-          <Icon icon="mdi:plus-circle" class="empty-icon" />
+          <Icon :icon="isAway ? 'mdi:lock' : 'mdi:plus-circle'" class="empty-icon" />
           <p class="empty-text">
             {{
-              inventoryLoading && inventoryMode === 'outfit'
-                ? 'Loading outfits…'
-                : 'Click to equip outfit'
+              isAway
+                ? 'Locked while away'
+                : inventoryLoading && inventoryMode === 'outfit'
+                  ? 'Loading outfits…'
+                  : 'Click to equip outfit'
             }}
           </p>
         </button>
@@ -237,6 +249,7 @@ const modalIcon = computed(() => {
         <div class="slot-header">
           <Icon :icon="getItemIcon('pet', equippedPet ?? {})" class="slot-icon" />
           <h4 class="slot-title">Pet</h4>
+          <Icon v-if="isAway" icon="mdi:lock" class="slot-lock" />
         </div>
 
         <EquippableItemCard
@@ -257,8 +270,8 @@ const modalIcon = computed(() => {
           :disabled="!canEquip || inventoryLoading"
           @click="openPetInventory"
         >
-          <Icon icon="mdi:plus-circle" class="empty-icon" />
-          <p class="empty-text">Click to equip pet</p>
+          <Icon :icon="isAway ? 'mdi:lock' : 'mdi:plus-circle'" class="empty-icon" />
+          <p class="empty-text">{{ isAway ? 'Locked while away' : 'Click to equip pet' }}</p>
         </button>
       </div>
     </div>
@@ -357,6 +370,13 @@ const modalIcon = computed(() => {
   gap: 0.5rem;
 }
 
+.slot-lock {
+  margin-left: auto;
+  color: var(--color-theme-accent, var(--color-theme-primary));
+  opacity: 0.7;
+  flex-shrink: 0;
+}
+
 .slot-icon {
   width: 1.5rem;
   height: 1.5rem;
@@ -384,11 +404,21 @@ const modalIcon = computed(() => {
   transition: all 0.2s ease;
 }
 
-.empty-slot:hover {
+.empty-slot:hover:not(:disabled) {
   border-color: var(--color-theme-primary);
   opacity: 0.8;
   background: rgba(var(--color-theme-primary-rgb, 0, 255, 0), 0.1);
   transform: translateY(-2px);
+}
+
+.empty-slot:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.empty-slot:disabled .empty-icon,
+.empty-slot:disabled .empty-text {
+  opacity: 0.5;
 }
 
 .empty-icon {

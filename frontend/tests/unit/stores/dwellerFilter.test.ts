@@ -154,6 +154,24 @@ describe('DwellerFilter Store', () => {
       expect(store.isLoading).toBe(false)
     })
 
+    it('keeps a cached detail in step with a roster refresh', async () => {
+      vi.mocked(axios.get).mockResolvedValueOnce({
+        data: [{ id: 'd1', status: 'exploring', room_id: null }],
+      })
+      const store = useDwellerFilterStore()
+      store.detailedDwellers['d1'] = {
+        id: 'd1',
+        status: 'idle',
+        room_id: 'room-1',
+        room: { id: 'room-1', name: 'Lobby' },
+      } as never
+
+      await store.fetchDwellersByVault('vault-1')
+
+      expect(store.detailedDwellers['d1']?.status).toBe('exploring')
+      expect(store.detailedDwellers['d1']?.room).toBeNull()
+    })
+
     it('should pass filter parameters as query string', async () => {
       vi.mocked(axios.get).mockResolvedValueOnce({ data: [] })
 
@@ -1524,9 +1542,7 @@ describe('DwellerFilter Store', () => {
         'token'
       )
       const rosterCalls = () =>
-        vi
-          .mocked(axios.get)
-          .mock.calls.filter(([url]) => String(url).includes('limit=1000'))
+        vi.mocked(axios.get).mock.calls.filter(([url]) => String(url).includes('limit=1000'))
       await vi.waitFor(() => expect(rosterCalls()).toHaveLength(1))
 
       store.applyDwellerTick(
@@ -1537,9 +1553,7 @@ describe('DwellerFilter Store', () => {
       expect(rosterCalls()).toHaveLength(1)
 
       resolveRoster({ data: [{ id: 'd1' }, { id: 'new' }] })
-      await vi.waitFor(() =>
-        expect(store.allDwellers.map((d) => d.id)).toEqual(['d1', 'new'])
-      )
+      await vi.waitFor(() => expect(store.allDwellers.map((d) => d.id)).toEqual(['d1', 'new']))
     })
 
     it('reapplies a tick that lands during an ordinary filtered fetch', async () => {

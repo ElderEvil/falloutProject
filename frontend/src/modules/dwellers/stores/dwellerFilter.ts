@@ -230,6 +230,31 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
     }
   }
 
+  /** Keep cached detail objects in step with a roster refresh.
+   *
+   * Dispatch and recall refresh the roster but not the cached detail, so an open
+   * dweller page kept the old status and its Equipment tab stayed unlocked until
+   * the next tick. The roster row is authoritative for status and room; other
+   * detail fields (equipment, bio) are untouched.
+   */
+  function patchDetailedFromRoster(rows: DwellerShort[]): void {
+    const roomStore = useRoomStore()
+    for (const row of rows) {
+      const detail = detailedDwellers.value[row.id]
+      if (!detail) continue
+      const roomId = row.room_id ?? null
+      if (detail.status === row.status && (detail.room?.id ?? null) === roomId) continue
+      detailedDwellers.value[row.id] = {
+        ...detail,
+        status: row.status,
+        room:
+          roomId === null
+            ? null
+            : (roomStore.rooms.find((room) => room.id === roomId) ?? detail.room),
+      } as Dweller
+    }
+  }
+
   function reapplyLatestTick(
     vaultId: string,
     target: 'dwellers' | 'allDwellers',
@@ -311,6 +336,7 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
         (!activeVaultId || activeVaultId === vaultId)
       ) {
         dwellers.value = data
+        patchDetailedFromRoster(data)
         if (tickEpoch !== tickEpochAtStart) reapplyLatestTick(vaultId, 'dwellers', knownIds)
       }
     },
@@ -598,6 +624,7 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
     const activeVaultId = useVaultStore().activeVaultId
     if (activeVaultId && activeVaultId !== vaultId) return false
     allDwellers.value = collected
+    patchDetailedFromRoster(collected)
     allDwellersLoadedVaultId.value = vaultId
     if (tickEpoch !== tickEpochAtStart) reapplyLatestTick(vaultId, 'allDwellers', knownIds)
     return true

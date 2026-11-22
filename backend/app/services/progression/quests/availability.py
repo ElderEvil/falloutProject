@@ -15,7 +15,12 @@ from app import crud
 from app.core.enums import RequirementType
 from app.models.quest import Quest
 from app.schemas.quest import QuestRead
-from app.services.progression.quests.requirements import vault_missing_requirements, vault_requirement_states
+from app.services.progression.quests.requirements import (
+    VaultFacts,
+    load_vault_facts,
+    vault_missing_requirements,
+    vault_requirement_states,
+)
 
 OFFICE_ROOM_TYPE = "overseers_office"
 OFFICE_LOCK_REASON = "Requires Overseer's Office"
@@ -74,12 +79,15 @@ async def quest_availability(
     has_office: bool | None = None,
     completed_quest_ids: set[UUID] | None = None,
     resolve_quest: Callable[[UUID], Quest | None] | None = None,
+    facts: VaultFacts | None = None,
 ) -> QuestAvailability:
     """Whether a vault can start a quest: Office rule, chain predecessor, then mandatory requirements.
 
     This is the single source of truth for quest availability; both the vault quest
     read and the start path consume it so they can never disagree. The vault-level
-    lookups can be passed in so a batch caller resolves them once instead of per quest.
+    lookups can be passed in so a batch caller resolves them once instead of per quest;
+    ``facts`` is the requirement snapshot, so a quest list evaluates every quest against
+    one set of aggregate queries.
     """
     if has_office is None:
         has_office = await crud.room.has_room_type(db_session, vault_id, OFFICE_ROOM_TYPE)
@@ -87,7 +95,11 @@ async def quest_availability(
         return QuestAvailability(available=False, lock_reason=OFFICE_LOCK_REASON)
 
     if completed_quest_ids is None:
-        completed_quest_ids = await crud.quest_crud.get_completed_quest_ids(db_session, vault_id)
+        completed_quest_ids = (
+            set(facts.completed_quest_ids)
+            if facts is not None
+            else await crud.quest_crud.get_completed_quest_ids(db_session, vault_id)
+        )
     if quest.previous_quest_id is not None and quest.previous_quest_id not in completed_quest_ids:
         lock_reason = await _chain_lock_reason(db_session, quest.previous_quest_id, resolve_quest)
         return QuestAvailability(available=False, lock_reason=lock_reason)
@@ -95,7 +107,9 @@ async def quest_availability(
     state = inspect(quest)
     if state is not None and "quest_requirements" in state.unloaded:
         await db_session.refresh(quest, ["quest_requirements"])
-    missing = await vault_missing_requirements(db_session, vault_id, quest)
+    if facts is None:
+        facts = await load_vault_facts(db_session, vault_id)
+    missing = await vault_missing_requirements(db_session, vault_id, quest, facts=facts)
     if missing:
         return QuestAvailability(available=False, missing=missing, lock_reason="; ".join(missing))
 
@@ -125,9 +139,11 @@ async def get_quests_for_vault(
     )
     quests = await crud.quest_crud.get_multi_by_ids(db_session, [quest_read.id for quest_read in quest_reads])
     quest_by_id = {quest.id: quest for quest in quests}
-    completed_quest_ids = await crud.quest_crud.get_completed_quest_ids(db_session, vault_id)
-    max_dweller_level = await crud.dweller.get_max_level(db_session, vault_id) or 0
-    reveal_threshold = max_dweller_level + REVEAL_MARGIN
+    # One requirement snapshot for the whole list: every quest below is evaluated in Python
+    # against these aggregate queries instead of re-querying per requirement per quest.
+    facts = await load_vault_facts(db_session, vault_id)
+    completed_quest_ids = set(facts.completed_quest_ids)
+    reveal_threshold = facts.max_dweller_level + REVEAL_MARGIN
 
     available_reads = []
     visible_reads = []
@@ -157,6 +173,7 @@ async def get_quests_for_vault(
                 has_office=has_office,
                 completed_quest_ids=completed_quest_ids,
                 resolve_quest=quest_by_id.get,
+                facts=facts,
             )
             # Offer visibility (link state) is distinct from start eligibility:
             # offered quests the player cannot start yet stay listed with their
@@ -167,7 +184,7 @@ async def get_quests_for_vault(
             )
         # Per-row gate verdicts for the UI, from the same dispatch the gate used.
         if quest.quest_requirements:
-            states = await vault_requirement_states(db_session, vault_id, quest)
+            states = await vault_requirement_states(db_session, vault_id, quest, facts=facts)
             for requirement in quest_read.quest_requirements or []:
                 if requirement.id in states:
                     requirement.is_met = states[requirement.id]

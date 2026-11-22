@@ -273,6 +273,51 @@ async def test_vault_missing_requirements_validator_error_fails_closed(
     assert missing == ["Need a dweller at level 100 or higher"]
 
 
+@pytest.mark.asyncio
+async def test_vault_missing_requirements_checker_error_fails_closed(async_session: AsyncSession) -> None:
+    """A real checker exception is logged and the gate fails closed (reported missing).
+
+    The failure is provoked through the real dispatch path rather than by stubbing ``_CHECKERS``: a
+    non-numeric LEVEL threshold raises ``TypeError`` inside ``count_at_level`` while comparing against a
+    persisted dweller, which is what the fail-closed wrapper exists to absorb.
+    """
+    user_data = create_fake_user()
+    user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))
+    vault_data = create_fake_vault()
+    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**vault_data, user_id=user.id))
+
+    quest = Quest(
+        title="Snapshot Boom Quest",
+        short_description="Test",
+        long_description="Test quest",
+        requirements="None",
+        rewards="100 caps",
+        quest_type="side",
+    )
+    async_session.add(quest)
+    await async_session.commit()
+    await async_session.refresh(quest)
+
+    # A living dweller makes count_at_level actually compare, so the bad threshold raises.
+    async_session.add(Dweller(first_name="Comparand", gender="male", rarity="common", level=1, vault_id=vault.id))
+    await async_session.commit()
+
+    bad_data = {"level": "invalid", "count": 1}
+    requirement = QuestRequirement(
+        quest_id=quest.id,
+        requirement_type=RequirementType.LEVEL,
+        requirement_data=bad_data,
+        is_mandatory=True,
+    )
+    async_session.add(requirement)
+    await async_session.commit()
+    await async_session.refresh(quest, ["quest_requirements"])
+
+    missing = await vault_missing_requirements(async_session, vault.id, quest)
+    assert missing == [requirements._describe_level(bad_data)]
+    assert missing == ["Need a dweller at level invalid or higher"]
+
+
 def test_individual_meets_requirement_ignores_count() -> None:
     """A candidate meeting a gate's threshold qualifies regardless of the aggregate count."""
     dweller = _party_dweller(level=5)

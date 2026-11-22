@@ -14,7 +14,7 @@ from uuid import uuid4
 
 import pytest
 import pytest_asyncio
-from sqlalchemy import orm
+from sqlalchemy import event, orm
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -460,7 +460,7 @@ async def test_junk_settlement_credits_each_material_once(
 
 @pytest.mark.asyncio
 async def test_failed_settlement_discards_queued_junk_credit(
-    async_session: AsyncSession, vault: Vault, dweller: Dweller, make_vault_storage, monkeypatch: pytest.MonkeyPatch
+    async_session: AsyncSession, vault: Vault, dweller: Dweller, make_vault_storage
 ):
     """A failure after the junk credit is queued emits nothing and stores nothing; the retry credits once."""
     storage = await make_vault_storage(10)
@@ -469,22 +469,18 @@ async def test_failed_settlement_discards_queued_junk_credit(
     async_session.add(exploration)
     await async_session.commit()
 
-    calls = {"count": 0}
-    original = crud_storage.update_used_space
+    def fail_commit(_session):
+        raise IntegrityError("COMMIT", {}, RuntimeError("storage write failed"))
 
-    async def flaky(db_session, storage_id):
-        calls["count"] += 1
-        if calls["count"] == 1:
-            raise IntegrityError("UPDATE storage", {}, RuntimeError("storage write failed"))
-        return await original(db_session, storage_id)
-
-    monkeypatch.setattr(crud_storage, "update_used_space", flaky)
-
-    with (
-        patch("app.core.event_bus.event_bus.emit", new_callable=AsyncMock) as emit,
-        pytest.raises(IntegrityError),
-    ):
-        await exploration_coordinator.finalize_return(async_session, exploration.id)
+    event.listen(async_session.sync_session, "before_commit", fail_commit)
+    try:
+        with (
+            patch("app.core.event_bus.event_bus.emit", new_callable=AsyncMock) as emit,
+            pytest.raises(IntegrityError),
+        ):
+            await exploration_coordinator.finalize_return(async_session, exploration.id)
+    finally:
+        event.remove(async_session.sync_session, "before_commit", fail_commit)
 
     assert _junk_payloads(emit) == []
     await async_session.refresh(exploration)

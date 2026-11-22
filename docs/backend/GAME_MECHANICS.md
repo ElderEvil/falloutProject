@@ -109,7 +109,9 @@ The archived design record is `docs/archive/features/DWELLER_TEMPLATES.md`.
 - Wasteland junk credits a collection objective only when it enters storage: on the settlement
   transfer, or when the player later takes it from overflow. The event carries `junk_type` resolved
   from the junk catalog by name and `source: "wasteland"`. Selling or abandoning overflow earns
-  nothing, and junk granted as an objective/quest reward is deferred and emits no collection event.
+  nothing. Junk granted by an **objective** reward settles with events suppressed and credits
+  nothing; junk granted by a **quest** reward is announced after settlement with only its item type,
+  so it feeds generic junk objectives but never material-specific ones.
 
 ### Objective renewal
 

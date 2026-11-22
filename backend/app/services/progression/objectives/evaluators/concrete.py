@@ -30,7 +30,8 @@ class CollectEvaluator(ObjectiveEvaluator):
         target = objective.target_entity or {}
 
         # A template may restrict credit to one source (wasteland loot vs production etc.).
-        if target.get("source") and data.get("source") != target["source"]:
+        target_source = target.get("source")
+        if target_source and str(data.get("source", "")).lower() != str(target_source).lower():
             return False
 
         if event_type == GameEvent.RESOURCE_COLLECTED:

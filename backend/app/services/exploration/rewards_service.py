@@ -400,7 +400,11 @@ class RewardsService:
             )
 
         if commit:
-            await db_session.commit()
+            try:
+                await db_session.commit()
+            except Exception:
+                self.discard_pending_rewards(db_session)
+                raise
             await self.deliver_pending_reward_events(db_session)
 
         return RewardsSchema(

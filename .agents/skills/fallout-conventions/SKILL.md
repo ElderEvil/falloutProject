@@ -98,6 +98,11 @@ Concurrency/lock tests need a reachable PostgreSQL
 skip and prove nothing. `format:check` and the boundary script are separate gates from lint — CI runs
 both and they fail independently.
 
+- **Workflow lint needs shellcheck on PATH.** `prek run actionlint` reports `SC####` findings only when
+  `shellcheck` is installed; without it a workflow passes locally and fails the `repository-checks` gate
+  (e.g. `SC2129` on consecutive `>> "$GITHUB_OUTPUT"` appends — group them in `{ ...; } >> ...`). Verify
+  with shellcheck present, or read the failed job log rather than trusting a clean local run.
+
 ## Deploy
 
 Dispatch `deploy-hetzner.yml` with a versioned tag whose backend and frontend images the release workflow
@@ -173,6 +178,18 @@ Inline SQL through `sh -c` breaks on quoting: write the SQL to a file and pipe i
 - A `*_service.py` module must own persistence, orchestration or an external boundary; pure functions
   belong in `app/utils/` (e.g. `utils/broadcast_script.py`).
 - Never add entries to a guard's baseline — fix the code, and shrink baselines with each batch.
+
+## Events and transaction boundaries
+
+- **Never emit a game event while an uncommitted transaction has written the vault row.** Objective
+  evaluators handle the event on a second session and take `vault.lock_for_update(...)`, so the handler
+  waits for the emit's transaction while the emit waits for the handler — a deadlock that ends only when
+  `idle_in_transaction_session_timeout` (5 min) rolls the work back, with the player seeing a hang.
+- Pattern: call `deposit_caps(..., commit=False, emit_event=False)` inside the transaction, commit, then
+  `event_bus.emit(...)` with the credited amount (rush payout and demolition both do this). Pass
+  `emit_event=True` only when the caps update commits itself.
+- A hang that leaves `idle in transaction` holders on `vault` blocks worker ticks too, so it fails loudly
+  across the vault — check `pg_stat_activity` for `wait_event_type='Lock'` before blaming the request path.
 
 ## Alembic autogenerate drift
 

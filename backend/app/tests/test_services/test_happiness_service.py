@@ -68,6 +68,7 @@ class TestHappinessService:
             (DwellerStatusEnum.EXPLORING, False),
             (DwellerStatusEnum.QUESTING, False),
             (DwellerStatusEnum.WORKING, True),
+            (DwellerStatusEnum.TRAINING, True),
         ],
     )
     async def test_radio_happiness_only_reaches_dwellers_in_vault(
@@ -81,31 +82,44 @@ class TestHappinessService:
     ):
         """Radio affects residents' tick and breakdown, never explorers or quest parties."""
         test_room.name = "Radio studio"
-        working_dweller.status = status
-        # The studio only broadcasts while someone works it; DwellerCreate does not carry room_id.
-        working_dweller.room_id = test_room.id if status == DwellerStatusEnum.WORKING else None
-        assert working_dweller.is_in_vault is receives_radio
-        working_dweller.partner_id = None
-        working_dweller.happiness = 50
+        # The fixture's dweller staffs the booth; the recipient's status must not decide whether
+        # the broadcast exists, or removing the in-vault guard would still pass every case.
+        working_dweller.status = DwellerStatusEnum.WORKING
+        working_dweller.room_id = test_room.id
+        recipient_data = create_fake_dweller()
+        recipient_data.update(
+            {
+                "first_name": "Radio",
+                "last_name": "Recipient",
+                "status": status.value,
+                "happiness": 50,
+                "health": 100,
+                "max_health": 100,
+                "radiation": 0,
+                "partner_id": None,
+            }
+        )
+        recipient = await crud.dweller.create(async_session, obj_in=DwellerCreate(**recipient_data, vault_id=vault.id))
+        assert recipient.is_in_vault is receives_radio
         vault.radio_mode = "recruitment"
         async_session.add_all([test_room, working_dweller, vault])
         await async_session.commit()
 
         await happiness_service.update_vault_happiness(async_session, vault.id, seconds_passed=120)
-        await async_session.refresh(working_dweller)
-        without_radio = working_dweller.happiness
+        await async_session.refresh(recipient)
+        without_radio = recipient.happiness
 
-        working_dweller.happiness = 50
+        recipient.happiness = 50
         vault.radio_mode = "happiness"
-        async_session.add_all([working_dweller, vault])
+        async_session.add_all([recipient, vault])
         await async_session.commit()
 
         await happiness_service.update_vault_happiness(async_session, vault.id, seconds_passed=120)
-        await async_session.refresh(working_dweller)
+        await async_session.refresh(recipient)
         expected_bonus = game_config.radio.happiness_bonus * 2 if receives_radio else 0
-        assert working_dweller.happiness - without_radio == pytest.approx(expected_bonus)
+        assert recipient.happiness - without_radio == pytest.approx(expected_bonus)
 
-        modifiers = await happiness_service.get_happiness_modifiers(async_session, working_dweller.id)
+        modifiers = await happiness_service.get_happiness_modifiers(async_session, recipient.id)
         radio_modifiers = [entry for entry in modifiers["positive"] if entry["name"] == "Radio (Happiness Mode)"]
         assert bool(radio_modifiers) is receives_radio
         if receives_radio:

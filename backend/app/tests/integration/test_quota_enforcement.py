@@ -123,8 +123,6 @@ async def quota_dweller_fixture(async_session: AsyncSession, quota_user: User) -
 
 @pytest.mark.asyncio
 class TestDwellerAIQuotaEnforcement:
-    """Tests for DwellerAI service quota enforcement."""
-
     async def test_backstory_quota_block(
         self,
         async_client: AsyncClient,
@@ -132,7 +130,6 @@ class TestDwellerAIQuotaEnforcement:
         user_at_quota_limit: User,
         quota_dweller: "Dweller",
     ):
-        """Test that backstory generation is blocked at 100% quota."""
         token_headers = await authentication_token_from_email(
             client=async_client,
             email=user_at_quota_limit.email,
@@ -163,7 +160,6 @@ class TestDwellerAIQuotaEnforcement:
         user_at_quota_limit: User,
         quota_dweller: "Dweller",
     ):
-        """Test that visual attributes generation is blocked at 100% quota."""
         token_headers = await authentication_token_from_email(
             client=async_client,
             email=user_at_quota_limit.email,
@@ -200,7 +196,6 @@ class TestDwellerAIQuotaEnforcement:
         user_at_quota_limit: User,
         quota_dweller: "Dweller",
     ):
-        """Test that TTS (audio generation) is blocked at 100% quota."""
         token_headers = await authentication_token_from_email(
             client=async_client,
             email=user_at_quota_limit.email,
@@ -237,8 +232,6 @@ class TestDwellerAIQuotaEnforcement:
 
 @pytest.mark.asyncio
 class TestVoiceChatQuotaEnforcement:
-    """Tests for voice chat quota enforcement."""
-
     async def test_voice_chat_quota_block(
         self,
         async_client: AsyncClient,
@@ -246,7 +239,6 @@ class TestVoiceChatQuotaEnforcement:
         user_at_quota_limit: User,
         quota_dweller: "Dweller",
     ):
-        """Test that voice chat is blocked at 100% quota."""
         token_headers = await authentication_token_from_email(
             client=async_client,
             email=user_at_quota_limit.email,

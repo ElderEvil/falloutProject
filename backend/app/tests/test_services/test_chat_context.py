@@ -1,5 +1,3 @@
-"""Chat context: persist, restore and trim pydantic-ai conversation state."""
-
 import json
 
 from pydantic_ai.conversation import Conversation
@@ -144,7 +142,6 @@ def test_plan_prune_preserves_identity_usage_and_deferred_requests() -> None:
 
 
 def test_plan_prune_keeps_whole_turns_when_keep_is_below_two() -> None:
-    """A window that opened on a reply without its request would be half a turn."""
     conversation = _conversation(3)
 
     dropped, trimmed = plan_prune(conversation, keep=0, budget=10_000)

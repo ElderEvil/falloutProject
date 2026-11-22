@@ -1,5 +1,3 @@
-"""Pet carrier endpoint tests."""
-
 from uuid import uuid4
 
 import pytest
@@ -19,7 +17,6 @@ async def test_open_pet_carrier_returns_the_rolled_pet(
     superuser_token_headers: dict[str, str],
     vault,
 ) -> None:
-    """The endpoint consumes the carrier and returns the pet with its effect."""
     storage = await vault_crud.create_storage(db_session=async_session, vault_id=vault.id)
     storage.max_space = 10
     async_session.add(storage)
@@ -46,7 +43,6 @@ async def test_open_pet_carrier_unknown_item_is_404(
     superuser_token_headers: dict[str, str],
     vault,
 ) -> None:
-    """An unknown carrier id is a 404, not a 500."""
     storage = await vault_crud.create_storage(db_session=async_session, vault_id=vault.id)
     storage.max_space = 10
     async_session.add(storage)

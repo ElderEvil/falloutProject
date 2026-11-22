@@ -1,5 +1,3 @@
-"""Awareness digest: what measurably changed in the vault since the last conversation."""
-
 from datetime import timedelta
 
 import pytest

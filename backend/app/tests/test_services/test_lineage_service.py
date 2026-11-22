@@ -1,5 +1,3 @@
-"""Tests for the LineageService (family relations & generation computation)."""
-
 from uuid import UUID
 
 import pytest
@@ -68,7 +66,6 @@ async def test_lineage_siblings(
     async_session: AsyncSession,
     vault: Vault,
 ) -> None:
-    """Siblings share at least one parent."""
     parent_a = await _make_dweller(async_session, vault, first_name="ParentA")
     parent_b = await _make_dweller(async_session, vault, first_name="ParentB")
     sib_1 = await _make_dweller(
@@ -97,7 +94,6 @@ async def test_lineage_partner_context_reports_stage_and_affinity(
     async_session: AsyncSession,
     vault: Vault,
 ) -> None:
-    """A MARRIED partner reports relationship_type, affinity, and live state."""
     from app.core.enums import RelationshipTypeEnum
     from app.models.relationship import Relationship
 

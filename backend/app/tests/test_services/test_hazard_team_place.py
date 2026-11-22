@@ -1,5 +1,3 @@
-"""Manual Active/Reserve moves on the earned hazard roster."""
-
 import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -32,7 +30,6 @@ async def _dwellers_for_team(
 async def test_activate_reserve_member_takes_lowest_free_slot(
     async_session: AsyncSession, room_with_dwellers: dict, dweller_data: dict
 ):
-    """A benched member activated by hand fills the lowest free slot and the roster reflects it."""
     room = room_with_dwellers["room"]
     dwellers = await _dwellers_for_team(async_session, room_with_dwellers, dweller_data, TEAM_SIZE + 1)
     await ensure_station(async_session, room.vault_id)
@@ -63,7 +60,6 @@ async def test_activate_reserve_member_takes_lowest_free_slot(
 async def test_activate_when_team_full_raises_conflict(
     async_session: AsyncSession, room_with_dwellers: dict, dweller_data: dict
 ):
-    """Activating a fourth member while three hold active places is refused."""
     room = room_with_dwellers["room"]
     dwellers = await _dwellers_for_team(async_session, room_with_dwellers, dweller_data, TEAM_SIZE + 1)
     await ensure_station(async_session, room.vault_id)
@@ -81,7 +77,6 @@ async def test_activate_when_team_full_raises_conflict(
 async def test_bench_active_member_leaves_slot_open(
     async_session: AsyncSession, room_with_dwellers: dict, dweller_data: dict
 ):
-    """A voluntary stand-down drops to reserve with no slot and no auto-promotion."""
     room = room_with_dwellers["room"]
     dwellers = await _dwellers_for_team(async_session, room_with_dwellers, dweller_data, TEAM_SIZE + 1)
     for dweller in dwellers[:TEAM_SIZE]:
@@ -104,7 +99,6 @@ async def test_bench_active_member_leaves_slot_open(
 
 @pytest.mark.asyncio
 async def test_activate_already_active_is_idempotent(async_session: AsyncSession, room_with_dwellers: dict):
-    """Activating an already-active member changes nothing and raises nothing."""
     room = room_with_dwellers["room"]
     dweller = room_with_dwellers["dwellers"][0]
     await make_member(async_session, room.vault_id, dweller.id, HazardTeam.FIRE, ACTIVE_STATUS)
@@ -119,7 +113,6 @@ async def test_activate_already_active_is_idempotent(async_session: AsyncSession
 
 @pytest.mark.asyncio
 async def test_bench_already_reserve_is_idempotent(async_session: AsyncSession, room_with_dwellers: dict):
-    """Benching an already-reserve member changes nothing and raises nothing."""
     room = room_with_dwellers["room"]
     dweller = room_with_dwellers["dwellers"][0]
     await make_member(async_session, room.vault_id, dweller.id, HazardTeam.FIRE, RESERVE_STATUS)
@@ -137,7 +130,6 @@ async def test_bench_already_reserve_is_idempotent(async_session: AsyncSession, 
 
 @pytest.mark.asyncio
 async def test_set_place_without_a_place_raises_not_found(async_session: AsyncSession, room_with_dwellers: dict):
-    """A dweller holding no place on the team cannot be moved."""
     room = room_with_dwellers["room"]
     dweller = room_with_dwellers["dwellers"][0]
 

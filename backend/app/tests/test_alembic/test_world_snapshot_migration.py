@@ -65,8 +65,6 @@ def harness(monkeypatch: pytest.MonkeyPatch) -> Iterator[MigrationHarness]:
 
 @pytest.mark.integration
 class TestWorldSnapshotMigrationFragment:
-    """The migration declares the right chain and table without touching a database."""
-
     def test_revision_chain(self) -> None:
         assert MIGRATION.revision == REVISION
         assert MIGRATION.down_revision == PARENT
@@ -74,8 +72,6 @@ class TestWorldSnapshotMigrationFragment:
 
 @pytest.mark.integration
 class TestWorldSnapshotMigrationRoundTrip:
-    """Upgrade creates the table; downgrade removes it; both are clean."""
-
     def test_upgrade_creates_table_and_downgrade_drops_it(self, harness: MigrationHarness) -> None:
         harness.upgrade(REVISION)
 

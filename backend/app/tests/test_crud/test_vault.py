@@ -37,7 +37,6 @@ async def _add_elevator_on_level(async_session, vault_id, y):
 
 @pytest.mark.asyncio
 async def test_building_storage_room_updates_storage_capacity(async_session: AsyncSession) -> None:
-    """Test that building a storage room updates vault storage."""
     from sqlmodel import select
 
     from app.models.storage import Storage
@@ -87,7 +86,6 @@ async def test_building_storage_room_updates_storage_capacity(async_session: Asy
 
 @pytest.mark.asyncio
 async def test_building_living_room_without_capacity_formula_computes_capacity(async_session: AsyncSession) -> None:
-    """Test that building a living room without capacity_formula still computes correct capacity."""
     user_data = create_fake_user()
     user_in = UserCreate(**user_data)
     user = await crud.user.create(async_session, obj_in=user_in)
@@ -132,7 +130,6 @@ async def test_building_living_room_without_capacity_formula_computes_capacity(a
 
 @pytest.mark.asyncio
 async def test_create_rejects_seeded_vault_number(async_session: AsyncSession) -> None:
-    """Vault numbers claimed by seeded NPC signals are reserved."""
     from app.utils.exceptions import ValidationException
     from app.utils.place_seed import get_seeded_vault_numbers
 
@@ -176,7 +173,6 @@ async def test_create_rejects_seeded_vault_number(async_session: AsyncSession) -
 async def test_storage_capacity_matches_room_width_and_tier(
     async_session: AsyncSession, segments: int, target_tier: int, expected_capacity: int
 ) -> None:
-    """Storage follows Fallout Shelter's 5 * width * (tier + 1) formula."""
     from sqlmodel import select
 
     from app.models.room import Room
@@ -213,7 +209,6 @@ async def test_storage_capacity_matches_room_width_and_tier(
 
 @pytest.mark.asyncio
 async def test_upgrading_living_room_grows_population_capacity(async_session: AsyncSession) -> None:
-    """A capacity upgrade replaces the room's contribution for population too."""
     from sqlmodel import select
 
     from app.models.room import Room

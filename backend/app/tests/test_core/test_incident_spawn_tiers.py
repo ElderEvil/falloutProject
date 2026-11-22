@@ -1,5 +1,3 @@
-"""Incident spawn-rate tier validation (game balance config)."""
-
 import pytest
 from pydantic import ValidationError
 
@@ -8,7 +6,6 @@ from app.core.game_config import IncidentConfig
 
 
 def test_default_tiers_cover_a_starter_vault() -> None:
-    """Shipped tiers: starter vaults spawn hourly, developed ones every quarter."""
     rate = IncidentConfig().get_spawn_rate
 
     assert rate(0) == 1.0

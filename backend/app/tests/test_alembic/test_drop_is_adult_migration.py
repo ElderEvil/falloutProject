@@ -18,7 +18,6 @@ def load_backfill():
 
 
 def test_downgrade_backfill_preserves_youth():
-    """A bare server_default would mark every CHILD/TEEN row as an adult."""
     engine = sa.create_engine("sqlite://")
     with engine.begin() as connection:
         connection.execute(sa.text("CREATE TABLE dweller (id INTEGER PRIMARY KEY, age_group TEXT, is_adult BOOLEAN)"))

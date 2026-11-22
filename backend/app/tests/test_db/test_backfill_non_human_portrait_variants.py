@@ -1,5 +1,3 @@
-"""Non-human portrait alternates are selected by stable dweller ID."""
-
 import importlib.util
 from pathlib import Path
 from uuid import UUID

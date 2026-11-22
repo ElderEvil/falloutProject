@@ -1,5 +1,3 @@
-"""Tests for the liveness and readiness endpoints."""
-
 from unittest.mock import AsyncMock, patch
 
 import pytest

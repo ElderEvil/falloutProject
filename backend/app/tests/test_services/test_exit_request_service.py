@@ -1,5 +1,3 @@
-"""Exit-request lifecycle: ask, refuse, withdraw, and the one-way grant."""
-
 from datetime import datetime, timedelta
 from uuid import uuid4
 
@@ -85,7 +83,6 @@ async def test_request_exit_records_the_ask(async_session: AsyncSession, vault: 
 
 @pytest.mark.asyncio
 async def test_request_exit_is_refused_below_the_population_floor(async_session: AsyncSession, vault: Vault) -> None:
-    """The vault cannot be emptied one despair at a time."""
     dwellers = await _populate(async_session, vault, game_config.exit_request.min_population)
 
     with pytest.raises(VaultOperationException, match="minimum population"):
@@ -128,7 +125,6 @@ async def test_request_exit_unknown_dweller(async_session: AsyncSession, vault: 
 
 @pytest.mark.asyncio
 async def test_request_exit_respects_the_daily_cap(async_session: AsyncSession, vault: Vault) -> None:
-    """A chat-driven ask cannot slip past the vault's one-per-day limit."""
     dwellers = await _with_room_for_one_exit(async_session, vault)
     await exit_request_service.request_exit(async_session, dwellers[0].id)
     await exit_request_service.refuse_exit(async_session, vault, dwellers[0].id)
@@ -167,7 +163,6 @@ async def test_refuse_exit_without_a_request_is_rejected(async_session: AsyncSes
 
 @pytest.mark.asyncio
 async def test_refuse_exit_from_another_vault_is_rejected(async_session: AsyncSession, vault: Vault) -> None:
-    """A vault cannot answer a request that belongs to a different vault."""
     dwellers = await _with_room_for_one_exit(async_session, vault)
     await exit_request_service.request_exit(async_session, dwellers[0].id)
     other_vault = Vault(id=uuid4(), number=999)
@@ -178,7 +173,6 @@ async def test_refuse_exit_from_another_vault_is_rejected(async_session: AsyncSe
 
 @pytest.mark.asyncio
 async def test_refuse_exit_happiness_is_clamped_at_ten(async_session: AsyncSession, vault: Vault) -> None:
-    """A refusal cannot push happiness below the floor of 10."""
     dwellers = await _with_room_for_one_exit(async_session, vault)
     await exit_request_service.request_exit(async_session, dwellers[0].id)
     await crud.dweller.update(async_session, dwellers[0].id, {"happiness": 10})
@@ -190,7 +184,6 @@ async def test_refuse_exit_happiness_is_clamped_at_ten(async_session: AsyncSessi
 
 @pytest.mark.asyncio
 async def test_grant_exit_records_a_living_departure(async_session: AsyncSession, vault: Vault) -> None:
-    """A grant is a living departure: no death fields, no vault membership, request resolved."""
     dwellers = await _with_room_for_one_exit(async_session, vault)
     await exit_request_service.request_exit(async_session, dwellers[0].id)
 
@@ -324,7 +317,6 @@ async def test_grant_exit_cancels_active_training(async_session: AsyncSession, v
 
 @pytest.mark.asyncio
 async def test_grant_exit_respects_the_population_floor(async_session: AsyncSession, vault: Vault) -> None:
-    """A request raised when the vault was full is still held back once the vault is too small."""
     dwellers = await _with_room_for_one_exit(async_session, vault)
     await exit_request_service.request_exit(async_session, dwellers[0].id)
     for dweller in dwellers[1:]:
@@ -393,7 +385,6 @@ async def test_despair_needs_the_grace_period_before_asking(async_session: Async
 
 @pytest.mark.asyncio
 async def test_the_vault_asks_at_most_once_a_day(async_session: AsyncSession, vault: Vault) -> None:
-    """The daily cap holds even with several dwellers ready to ask."""
     dwellers = await _with_room_for_one_exit(async_session, vault)
     overdue = utcnow() - timedelta(hours=game_config.exit_request.despair_grace_hours)
     for dweller in dwellers:
@@ -412,7 +403,6 @@ async def test_the_vault_asks_at_most_once_a_day(async_session: AsyncSession, va
 
 @pytest.mark.asyncio
 async def test_answering_an_ask_consumes_the_day(async_session: AsyncSession, vault: Vault) -> None:
-    """A refused dweller still in despair cannot immediately ask again — the answer uses the day."""
     dwellers = await _with_room_for_one_exit(async_session, vault)
     overdue = utcnow() - timedelta(hours=game_config.exit_request.despair_grace_hours)
     await crud.dweller.update(async_session, dwellers[0].id, {"despair_since": overdue})
@@ -429,7 +419,6 @@ async def test_answering_an_ask_consumes_the_day(async_session: AsyncSession, va
 
 @pytest.mark.asyncio
 async def test_despair_tracking_survives_a_blocked_ask(async_session: AsyncSession, vault: Vault) -> None:
-    """A dweller who falls into despair while the daily cap is spent still starts their clock."""
     await _with_room_for_one_exit(async_session, vault)
     vault.last_exit_request_at = utcnow()
     async_session.add(vault)
@@ -444,7 +433,6 @@ async def test_despair_tracking_survives_a_blocked_ask(async_session: AsyncSessi
 
 @pytest.mark.asyncio
 async def test_despair_raises_no_ask_below_the_population_floor(async_session: AsyncSession, vault: Vault) -> None:
-    """An ask the vault could not grant would only dangle, so it is not raised."""
     dwellers = await _populate(async_session, vault, game_config.exit_request.min_population)
     for dweller in dwellers:
         await crud.dweller.update(async_session, dweller.id, {"happiness": game_config.exit_request.despair_happiness})
@@ -459,7 +447,6 @@ async def test_despair_raises_no_ask_below_the_population_floor(async_session: A
 
 @pytest.mark.asyncio
 async def test_recovery_withdraws_a_standing_request(async_session: AsyncSession, vault: Vault) -> None:
-    """A dweller who feels better stops asking, without the player doing anything."""
     dwellers = await _with_room_for_one_exit(async_session, vault)
     sad = await _create(async_session, vault, first_name="Clara", happiness=game_config.exit_request.despair_happiness)
     await exit_request_service.request_exit(async_session, sad.id)
@@ -476,7 +463,6 @@ async def test_recovery_withdraws_a_standing_request(async_session: AsyncSession
 async def test_recovery_withdrawal_requires_strictly_above_despair_threshold(
     async_session: AsyncSession, vault: Vault
 ) -> None:
-    """A dweller at exactly the despair threshold is still despairing — the ask stands."""
     dwellers = await _with_room_for_one_exit(async_session, vault)
     sad = await _create(async_session, vault, first_name="Clara", happiness=game_config.exit_request.despair_happiness)
     await exit_request_service.request_exit(async_session, sad.id)
@@ -489,7 +475,6 @@ async def test_recovery_withdrawal_requires_strictly_above_despair_threshold(
 
 @pytest.mark.asyncio
 async def test_recovery_does_not_withdraw_a_dead_dwellers_request(async_session: AsyncSession, vault: Vault) -> None:
-    """The withdraw selector mirrors the pending selector: dead dwellers are left alone."""
     dwellers = await _with_room_for_one_exit(async_session, vault)
     sad = await _create(async_session, vault, first_name="Clara", happiness=game_config.exit_request.despair_happiness)
     await exit_request_service.request_exit(async_session, sad.id)

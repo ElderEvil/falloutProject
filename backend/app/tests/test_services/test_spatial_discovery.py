@@ -1,5 +1,3 @@
-"""Spatial discoveries (slice 2): corridor routes + discoveries local to the path."""
-
 from datetime import datetime, timedelta
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -55,9 +53,7 @@ def _place_at(name: str, x: float, y: float) -> WorldLocation:
     )
 
 
-# ---------------------------------------------------------------------------
 # step 3: the route follows movement, so the fog corridor follows it
-# ---------------------------------------------------------------------------
 
 
 @pytest.mark.usefixtures("default_world_snapshot")
@@ -65,7 +61,6 @@ def _place_at(name: str, x: float, y: float) -> WorldLocation:
 async def test_spatial_route_follows_the_movement_trail(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
 ) -> None:
-    """A spatial run's route is its movement trail, not discovery events."""
     exploration, origin, _snapshot = await _depart(async_session, vault, dweller, heading=90)
     await exploration_service.advance(async_session, exploration.id, now=exploration.start_time + timedelta(hours=1))
 
@@ -82,7 +77,6 @@ async def test_spatial_route_follows_the_movement_trail(
 async def test_route_is_active_only_while_the_run_is_in_progress(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
 ) -> None:
-    """The route keeps its points after the run ends, but only an in-progress run is active."""
     exploration, _origin, _snapshot = await _depart(async_session, vault, dweller, heading=90)
     await exploration_service.advance(async_session, exploration.id, now=exploration.start_time + timedelta(hours=1))
 
@@ -137,9 +131,7 @@ async def test_legacy_route_still_uses_discovery_events(
     assert route.points[0].location_id == location.id
 
 
-# ---------------------------------------------------------------------------
 # step 4: discoveries are local to the traveled path
-# ---------------------------------------------------------------------------
 
 
 @pytest.mark.usefixtures("default_world_snapshot")
@@ -147,7 +139,6 @@ async def test_legacy_route_still_uses_discovery_events(
 async def test_spatial_discovery_reuses_a_nearby_place(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
 ) -> None:
-    """A place within the site radius is claimed in place, coordinates unchanged."""
     exploration, origin, snapshot = await _depart(async_session, vault, dweller)
     radius = world_terrain.reveal_radius_registry(snapshot, world_terrain.SITE_REVEAL_TILES)
     nearby = _place_at("Ruined Farm", origin[0] + radius / 2, origin[1])
@@ -168,7 +159,6 @@ async def test_spatial_discovery_reuses_a_nearby_place(
 async def test_spatial_discovery_places_a_new_place_near_the_position_on_land(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
 ) -> None:
-    """With nothing nearby, a new place is created near the position, on land."""
     exploration, origin, snapshot = await _depart(async_session, vault, dweller)
 
     result = await _discover(async_session, exploration, "Lonely Water Tower")
@@ -187,7 +177,6 @@ async def test_spatial_discovery_places_a_new_place_near_the_position_on_land(
 async def test_spatial_discovery_is_not_name_derived(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
 ) -> None:
-    """The placed discovery does not sit at the name hash's schematic coordinates."""
     from app.utils.places import normalize_place_name, schematic_coords
 
     exploration, _origin, _snapshot = await _depart(async_session, vault, dweller)
@@ -203,7 +192,6 @@ async def test_spatial_discovery_is_not_name_derived(
 async def test_spatial_discovery_ignores_a_distant_same_name_twin(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
 ) -> None:
-    """A same-name row outside the site radius is not this discovery: a journey-keyed row lands near the explorer."""
     exploration, origin, snapshot = await _depart(async_session, vault, dweller)
     radius = world_terrain.reveal_radius_registry(snapshot, world_terrain.SITE_REVEAL_TILES)
     twin_spot = max(
@@ -233,7 +221,6 @@ async def test_spatial_discovery_ignores_a_distant_same_name_twin(
 async def test_same_name_twice_in_one_journey_makes_two_rows(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
 ) -> None:
-    """Journey identity is per discovery: a repeated name at a new position gets its own row."""
     exploration, _origin, snapshot = await _depart(async_session, vault, dweller)
 
     first = await map_service.register_spatial_discovery(
@@ -256,7 +243,6 @@ async def test_same_name_twice_in_one_journey_makes_two_rows(
 async def test_same_position_twice_merges_into_one_row(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
 ) -> None:
-    """Position-derived identity is stable: concurrent discoveries at one spot share the row."""
     exploration, _origin, snapshot = await _depart(async_session, vault, dweller)
 
     first = await map_service.register_spatial_discovery(
@@ -294,7 +280,6 @@ async def test_spatial_discovery_record_names_the_resolved_place(
 
 @pytest.mark.asyncio
 async def test_nearest_land_escapes_water() -> None:
-    """nearest_land returns a non-water point for a water registry position."""
     snap = SimpleNamespace(config={"width": 4, "height": 1}, terrain=["water", "water", "wasteland", "water"])
 
     x, y = world_terrain.nearest_land(snap, 10.0, 50.0)  # tile 0, water

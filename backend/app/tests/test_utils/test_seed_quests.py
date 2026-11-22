@@ -1,5 +1,3 @@
-"""Tests for quest seeding utility."""
-
 import json
 import re
 from pathlib import Path
@@ -187,7 +185,6 @@ def test_quest_item_reward_rejects_unknown_item_type() -> None:
 
 
 def test_quest_item_reward_fills_catalog_art_at_parse() -> None:
-    """Weapon/outfit rewards gain the item factory's own art when parsed for seeding."""
     weapon = QuestRewardJSON.model_validate(
         {"reward_type": "ITEM", "reward_data": {"item_name": "Assault rifle", "quantity": 1}}
     )
@@ -202,7 +199,6 @@ def test_quest_item_reward_fills_catalog_art_at_parse() -> None:
 
 
 def test_quest_item_reward_fills_pet_and_junk_art() -> None:
-    """Pet and mapped-junk rewards resolve art just like the item factory does."""
     pet = QuestRewardJSON.model_validate({"reward_type": "ITEM", "reward_data": {"item_name": "CX404", "quantity": 1}})
     junk = QuestRewardJSON.model_validate(
         {"reward_type": "ITEM", "reward_data": {"item_name": "Teddy bear", "quantity": 1}}
@@ -231,7 +227,6 @@ def test_quest_item_reward_preserves_author_provided_image_url() -> None:
 
 
 def test_quest_item_reward_leaves_photo_less_types_photo_less() -> None:
-    """Dweller, consumable and lunchbox rewards keep the themed icon fallback."""
     for payload in (
         {"reward_type": "ITEM", "reward_data": {"item_name": "Nuka-Cola Quantum", "quantity": 1}},
         {"reward_type": "ITEM", "reward_data": {"item_name": "Lunchbox", "quantity": 1}},
@@ -276,7 +271,6 @@ async def test_seed_quests_backfills_reward_art_on_reseed(async_session: AsyncSe
 
 @pytest.mark.asyncio
 async def test_seed_quests_rejects_duplicate_names(async_session: AsyncSession, tmp_path: Path) -> None:
-    """A duplicate title cannot silently acquire another chain's metadata."""
     quest_dir = tmp_path / "quests"
     quest_dir.mkdir()
     for chain_id in ("first", "second"):
@@ -295,7 +289,6 @@ async def test_seed_quests_rejects_duplicate_names(async_session: AsyncSession, 
 
 @pytest.mark.asyncio
 async def test_seed_quests_updates_existing_reward_payload(async_session: AsyncSession, tmp_path: Path) -> None:
-    """Re-seeding adds typed item data to an existing quest reward."""
     quest_dir = tmp_path / "quests"
     quest_dir.mkdir()
     quest_data = [
@@ -345,7 +338,6 @@ async def test_seed_quests_updates_existing_reward_payload(async_session: AsyncS
 
 @pytest.mark.asyncio
 async def test_seed_quests_updates_changed_reward_data(async_session: AsyncSession, tmp_path: Path) -> None:
-    """Re-seeding matches a changed reward to its existing reward slot."""
     quest_dir = tmp_path / "quests"
     quest_dir.mkdir()
     quest_file = quest_dir / "rewards.json"
@@ -375,7 +367,6 @@ async def test_seed_quests_updates_changed_reward_data(async_session: AsyncSessi
 
 @pytest.mark.asyncio
 async def test_seed_quests_adds_new_rewards_to_existing_quest(async_session: AsyncSession, tmp_path: Path) -> None:
-    """Re-seeding creates a reward appended to an already-seeded quest."""
     quest_dir = tmp_path / "quests"
     quest_dir.mkdir()
     quest_file = quest_dir / "rewards.json"
@@ -419,7 +410,6 @@ def test_dweller_quest_rewards_reference_canonical_templates() -> None:
 
 @pytest.mark.asyncio
 async def test_seed_quests_records_completed_quest_predecessor(async_session: AsyncSession, tmp_path: Path) -> None:
-    """Seeded quest-completion requirements also populate the chain predecessor."""
     quest_dir = tmp_path / "quests"
     quest_dir.mkdir()
     quest_data = {
@@ -497,7 +487,6 @@ async def test_seed_quests_skips_requirement_with_invalid_predecessor_id(
 
 @pytest.mark.asyncio
 async def test_seed_quests_with_list_requirements(async_session: AsyncSession, tmp_path: Path) -> None:
-    """Test seeding quests with list-based requirements."""
     quest_dir = tmp_path / "quests"
     quest_dir.mkdir()
 
@@ -571,7 +560,6 @@ async def test_seed_quests_handles_errors_gracefully(async_session: AsyncSession
 
 @pytest.mark.asyncio
 async def test_seed_quests_nonexistent_directory(async_session: AsyncSession, tmp_path: Path) -> None:
-    """Test seeding with nonexistent quest directory."""
     quest_dir = tmp_path / "nonexistent"
 
     # Should handle gracefully and return 0
@@ -581,7 +569,6 @@ async def test_seed_quests_nonexistent_directory(async_session: AsyncSession, tm
 
 @pytest.mark.asyncio
 async def test_seed_quests_rollback_on_error(async_session: AsyncSession, tmp_path: Path) -> None:
-    """Test that seeding rolls back on critical errors."""
     quest_dir = tmp_path / "quests"
     quest_dir.mkdir()
 
@@ -732,7 +719,6 @@ async def test_seed_quests_reconciles_existing_predecessor(async_session: AsyncS
 
 @pytest.mark.asyncio
 async def test_seed_quests_requirement_sync_is_idempotent(async_session: AsyncSession, tmp_path: Path) -> None:
-    """Re-seeding with no JSON change leaves requirement rows untouched."""
     quest_dir = tmp_path / "quests"
     quest_dir.mkdir()
     quest_data = [
@@ -795,7 +781,6 @@ def test_quest_gear_rewards_are_catalog_backed() -> None:
                     # Settle the reward the way settlement.py will: the typed loader's
                     # normalized payload merged as reward_data | item_data; every quest
                     # junk reward must resolve to a priced row, never a valueless orphan.
-                    from app.schemas.quest import QuestRewardJSON
                     from app.services.rewards.items import _resolve_junk
 
                     parsed = QuestRewardJSON.model_validate(node)
@@ -828,7 +813,6 @@ def test_quest_gear_rewards_are_catalog_backed() -> None:
 async def test_wasteland_chains_seed_unlock_and_grant_rewards(
     async_session: AsyncSession, vault, dweller, chain_id: str, quest_count: int, final_template: str
 ) -> None:
-    """Exercise authored chains through real seeding, availability and reward settlement."""
     from sqlalchemy.orm import selectinload
 
     from app import crud

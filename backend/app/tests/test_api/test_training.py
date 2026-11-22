@@ -1,5 +1,3 @@
-"""Tests for training API endpoints."""
-
 from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import UUID, uuid4
@@ -99,7 +97,6 @@ async def test_complete_training_already_completed(
     vault: Vault,
     dweller: Dweller,
 ) -> None:
-    """Test completing an already completed training returns 400."""
     # Create a training room
     room_data = {
         "name": "Weight Room",
@@ -148,9 +145,7 @@ async def test_complete_training_already_completed(
     assert "cannot complete" in response.json()["detail"].lower()
 
 
-# ---------------------------------------------------------------------------
 # Mock-based tests for uncovered endpoint paths
-# ---------------------------------------------------------------------------
 
 
 def _make_mock_training(**overrides):
@@ -202,7 +197,6 @@ async def test_start_training_resource_not_found(
     async_client: AsyncClient,
     superuser_token_headers: dict[str, str],
 ) -> None:
-    """POST /training/start returns 404 when ResourceNotFoundException raised."""
     mock_dweller = _make_mock_dweller()
     training_model = MagicMock()
     training_model.__name__ = "Training"
@@ -235,7 +229,6 @@ async def test_start_training_conflict(
     async_client: AsyncClient,
     superuser_token_headers: dict[str, str],
 ) -> None:
-    """POST /training/start returns 409 when dweller is already training."""
     mock_dweller = _make_mock_dweller()
 
     with (
@@ -265,7 +258,6 @@ async def test_start_training_vault_operation_error(
     async_client: AsyncClient,
     superuser_token_headers: dict[str, str],
 ) -> None:
-    """POST /training/start returns 400 when VaultOperationException raised."""
     mock_dweller = _make_mock_dweller()
 
     with (
@@ -298,7 +290,6 @@ async def test_get_dweller_training_success(
     async_client: AsyncClient,
     superuser_token_headers: dict[str, str],
 ) -> None:
-    """GET /training/dweller/{id} returns active training when found."""
     mock_training = _make_mock_training()
 
     with (
@@ -329,7 +320,6 @@ async def test_list_vault_training_success(
     async_client: AsyncClient,
     superuser_token_headers: dict[str, str],
 ) -> None:
-    """GET /training/vault/{id} returns list of active trainings."""
     vault_id = uuid4()
     t1 = _make_mock_training(vault_id=vault_id)
     t2 = _make_mock_training(vault_id=vault_id)
@@ -361,7 +351,6 @@ async def test_get_training_success(
     async_client: AsyncClient,
     superuser_token_headers: dict[str, str],
 ) -> None:
-    """GET /training/{id} returns training with progress details."""
     mock_training = _make_mock_training(progress=0.75)
 
     with (
@@ -395,7 +384,6 @@ async def test_get_training_not_found(
     async_client: AsyncClient,
     superuser_token_headers: dict[str, str],
 ) -> None:
-    """GET /training/{id} returns 404 when training not found."""
     with patch(
         "app.api.v1.endpoints.training.crud_training.training.get",
         AsyncMock(return_value=None),
@@ -416,7 +404,6 @@ async def test_complete_training_service_error(
     async_client: AsyncClient,
     superuser_token_headers: dict[str, str],
 ) -> None:
-    """POST /training/{id}/complete returns 400 when VaultOperationException raised."""
     mock_training = _make_mock_training()
 
     with (
@@ -445,7 +432,6 @@ async def test_complete_training_not_found_from_service(
     async_client: AsyncClient,
     superuser_token_headers: dict[str, str],
 ) -> None:
-    """POST /training/{id}/complete returns 404 from service ResourceNotFoundException."""
     mock_training = _make_mock_training()
     training_model = MagicMock()
     training_model.__name__ = "Training"
@@ -479,7 +465,6 @@ async def test_cancel_training_not_found(
     async_client: AsyncClient,
     superuser_token_headers: dict[str, str],
 ) -> None:
-    """POST /training/{id}/cancel returns 404 when training not found."""
     with patch(
         "app.api.v1.endpoints.training.crud_training.training.get",
         AsyncMock(return_value=None),
@@ -497,7 +482,6 @@ async def test_cancel_training_not_found_from_service(
     async_client: AsyncClient,
     superuser_token_headers: dict[str, str],
 ) -> None:
-    """POST /training/{id}/cancel returns 404 from service ResourceNotFoundException."""
     mock_training = _make_mock_training()
     training_model = MagicMock()
     training_model.__name__ = "Training"
@@ -528,7 +512,6 @@ async def test_cancel_training_vault_operation_error(
     async_client: AsyncClient,
     superuser_token_headers: dict[str, str],
 ) -> None:
-    """POST /training/{id}/cancel returns 400 when VaultOperationException raised."""
     mock_training = _make_mock_training()
 
     with (
@@ -560,7 +543,6 @@ async def test_list_room_training_success(
     async_client: AsyncClient,
     superuser_token_headers: dict[str, str],
 ) -> None:
-    """GET /training/room/{id} returns list of active trainings in the room."""
     room_id = uuid4()
     t1 = _make_mock_training(room_id=room_id)
     t2 = _make_mock_training(room_id=room_id)

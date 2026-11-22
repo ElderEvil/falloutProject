@@ -637,7 +637,6 @@ async def test_quote_blocks_when_resources_are_full(async_session: AsyncSession,
 async def test_quote_still_quotes_when_headroom_remains(
     async_session: AsyncSession, rush_setup: dict[str, Any]
 ) -> None:
-    """Partial headroom keeps quoting the clamped payout instead of blocking."""
     vault, room = rush_setup["vault"], rush_setup["room"]
     vault.power = vault.power_max - 1
     async_session.add(vault)
@@ -652,7 +651,6 @@ async def test_quote_still_quotes_when_headroom_remains(
 
 @pytest.mark.asyncio
 async def test_quote_blocks_when_medical_storage_is_full(async_session: AsyncSession, user_with_vault: tuple) -> None:
-    """Storage-backed resources (stimpacks) block the quote when their capacity is reached."""
     _, vault = user_with_vault
     vault.power = 50
     vault.power_max = 100
@@ -695,7 +693,6 @@ def test_blocked_exception_maps_no_yield() -> None:
 async def test_quote_reports_no_yield_when_payout_rounds_to_zero(
     async_session: AsyncSession, user_with_vault: tuple
 ) -> None:
-    """Raw output below 0.5 rounds to zero with headroom left: no_yield, not resources_full."""
     _, vault = user_with_vault
     vault.power = 50
     vault.power_max = 100
@@ -721,7 +718,6 @@ async def test_quote_reports_no_yield_when_payout_rounds_to_zero(
 async def test_quote_reports_no_yield_when_medical_storage_row_missing(
     async_session: AsyncSession, user_with_vault: tuple
 ) -> None:
-    """Medical production with no storage row lands nowhere: no_yield, not resources_full."""
     _, vault = user_with_vault
     vault.power = 50
     vault.power_max = 100
@@ -795,7 +791,6 @@ async def test_rush_rejects_payout_that_rounds_to_zero(async_session: AsyncSessi
 async def test_rush_with_headroom_succeeds_and_increments_stacks(
     async_session: AsyncSession, rush_setup: dict[str, Any]
 ) -> None:
-    """An ordinary rush with headroom still quotes, succeeds, and burns one stack."""
     vault, room = rush_setup["vault"], rush_setup["room"]
     quote = await room_rush_service.quote(async_session, room, vault)
     assert quote.can_rush is True

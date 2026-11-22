@@ -1,5 +1,3 @@
-"""Tests for game loop exploration integration."""
-
 from datetime import datetime, timedelta
 from unittest.mock import AsyncMock, patch
 
@@ -72,7 +70,6 @@ async def test_vault_tick_processes_explorations(
     vault: Vault,
     dweller: Dweller,
 ):
-    """Test that vault tick drives the return leg and then finalizes it."""
     exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=1)
 
     # Set to expire
@@ -105,7 +102,6 @@ async def test_process_explorations_caps_accumulate(
     vault: Vault,
     dweller: Dweller,
 ):
-    """Test that caps from multiple completed explorations accumulate."""
     # Create two explorations
     dweller2_data = create_fake_dweller()
     dweller2_data = create_fake_adult_dweller()
@@ -164,7 +160,6 @@ async def test_process_explorations_danger_event_updates_enemies(
     vault: Vault,
     dweller: Dweller,
 ):
-    """Test that danger events increment enemy counter."""
     exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
 
     exploration.start_time = utcnow() - timedelta(minutes=10)

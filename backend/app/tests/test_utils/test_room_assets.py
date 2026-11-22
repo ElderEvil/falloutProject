@@ -1,5 +1,3 @@
-"""Room style artwork lookup."""
-
 from app.utils.room_assets import ROOM_STYLE_IMAGES, get_room_image_url
 
 

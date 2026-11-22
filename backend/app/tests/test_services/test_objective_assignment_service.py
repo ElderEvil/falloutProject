@@ -1,5 +1,3 @@
-"""Tests for ObjectiveAssignmentService — unit tests with mocked DB."""
-
 import uuid
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -12,9 +10,7 @@ from app.models.objective import Objective
 from app.models.vault_objective import VaultObjectiveProgressLink
 from app.services.progression.objectives.assignment import ObjectiveAssignmentService
 
-# ---------------------------------------------------------------------------
 # Stable UUIDs for deterministic test IDs
-# ---------------------------------------------------------------------------
 
 _VAULT_ID = uuid.UUID("11111111-1111-4111-8111-111111111111")
 
@@ -43,9 +39,7 @@ _SEQUENTIAL_O_IDS = [
 ]
 
 
-# ---------------------------------------------------------------------------
 # Helpers
-# ---------------------------------------------------------------------------
 
 
 def _make_exec_result(items: list) -> MagicMock:
@@ -102,9 +96,7 @@ def _make_objective(
     return obj
 
 
-# ---------------------------------------------------------------------------
 # Fixtures
-# ---------------------------------------------------------------------------
 
 
 @pytest.fixture
@@ -119,29 +111,19 @@ def mock_db() -> AsyncMock:
     return AsyncMock(spec=AsyncSession)
 
 
-# ===================================================================
 # assign_daily_objectives
-# ===================================================================
 
 
-# ===================================================================
 # assign_weekly_objectives
-# ===================================================================
 
 
-# ===================================================================
 # assign_achievement_objectives
-# ===================================================================
 
 
-# ===================================================================
 # assign_all_objectives
-# ===================================================================
 
 
 class TestAssignAllObjectives:
-    """Tests for assign_all_objectives."""
-
     @pytest.mark.asyncio
     async def test_aggregates_all_three_categories(self, async_session, vault) -> None:
         objectives = [
@@ -168,17 +150,12 @@ class TestAssignAllObjectives:
         }
 
 
-# ===================================================================
 # clear_daily_objectives
-# ===================================================================
 
 
 class TestClearDailyObjectives:
-    """Tests for clear_daily_objectives."""
-
     @pytest.mark.asyncio
     async def test_no_links_returns_zero(self, service: ObjectiveAssignmentService, mock_db: AsyncMock) -> None:
-        """No daily links → returns 0, no delete/commit."""
         mock_db.execute = AsyncMock(return_value=_make_exec_result([]))
 
         result = await service.clear_daily_objectives(_VAULT_ID)
@@ -188,17 +165,12 @@ class TestClearDailyObjectives:
         assert mock_db.commit.await_count == 0
 
 
-# ===================================================================
 # clear_weekly_objectives
-# ===================================================================
 
 
 class TestClearWeeklyObjectives:
-    """Tests for clear_weekly_objectives."""
-
     @pytest.mark.asyncio
     async def test_clears_existing_links(self, service: ObjectiveAssignmentService, mock_db: AsyncMock) -> None:
-        """Clears weekly objective links."""
         link = MagicMock(spec=VaultObjectiveProgressLink)
         link.objective_id = _O1
         with (
@@ -213,19 +185,14 @@ class TestClearWeeklyObjectives:
         assert mock_db.commit.await_count == 1
 
 
-# ===================================================================
 # refresh_daily_objectives
-# ===================================================================
 
 
 class TestRefreshDailyObjectives:
-    """Tests for refresh_daily_objectives — atomic clear + assign."""
-
     @pytest.mark.asyncio
     async def test_no_objectives_available_returns_empty(
         self, service: ObjectiveAssignmentService, mock_db: AsyncMock
     ) -> None:
-        """No daily objectives at all → clear existing, assign nothing, commit once."""
         old_link = MagicMock(spec=VaultObjectiveProgressLink)
         with (
             patch.object(objective_crud, "get_by_category", new_callable=AsyncMock, return_value=[]),
@@ -239,17 +206,12 @@ class TestRefreshDailyObjectives:
         assert mock_db.commit.await_count == 1
 
 
-# ===================================================================
 # refresh_weekly_objectives
-# ===================================================================
 
 
 class TestRefreshWeeklyObjectives:
-    """Tests for refresh_weekly_objectives — atomic clear + assign."""
-
     @pytest.mark.asyncio
     async def test_no_weekly_still_commits(self, service: ObjectiveAssignmentService, mock_db: AsyncMock) -> None:
-        """Empty clearing + empty assigning still commits."""
         with (
             patch.object(objective_crud, "get_by_category", new_callable=AsyncMock, return_value=[]),
             patch.object(objective_crud, "get_links_for_vault", new_callable=AsyncMock, return_value=[]),
@@ -260,17 +222,12 @@ class TestRefreshWeeklyObjectives:
         assert mock_db.commit.await_count == 1
 
 
-# ===================================================================
 # assign_random_objectives
-# ===================================================================
 
 
 class TestAssignRandomObjectives:
-    """Tests for assign_random_objectives."""
-
     @pytest.mark.asyncio
     async def test_skips_already_assigned(self, service: ObjectiveAssignmentService, mock_db: AsyncMock) -> None:
-        """Doesn't reassign already assigned objectives."""
         objs = [_make_objective(_id=_SEQUENTIAL_O_IDS[i], category=ObjectiveCategoryEnum.DAILY) for i in range(5)]
         responses = [
             _make_exec_all([_O1]),  # O1 already assigned
@@ -285,32 +242,22 @@ class TestAssignRandomObjectives:
         assert _O1 not in {r.id for r in result}
 
 
-# ===================================================================
 # Edge case: mixed categories don't interfere
-# ===================================================================
 
 
 # The mock can't verify the SQL subquery constraint, but we trust it
 
 
-# ===================================================================
 # VaultObjectiveProgressLink creation
-# ===================================================================
 
 
-# ===================================================================
 # auto_commit=False behavior
-# ===================================================================
 
 
-# ===================================================================
 # Constants
-# ===================================================================
 
 
 class TestConstants:
-    """Verify service-level constants."""
-
     def test_daily_count_is_3(self) -> None:
         assert ObjectiveAssignmentService.DAILY_COUNT == 3
 
@@ -319,7 +266,6 @@ class TestConstants:
 
 
 async def test_daily_reset_preserves_earned_unclaimed_rewards() -> None:
-    """A midnight refresh cannot erase a reward that the player has earned."""
     session = AsyncMock()
     earned = VaultObjectiveProgressLink(vault_id=_VAULT_ID, objective_id=_O1, progress=5, total=5)
     unfinished = VaultObjectiveProgressLink(vault_id=_VAULT_ID, objective_id=_O2, progress=1, total=5)

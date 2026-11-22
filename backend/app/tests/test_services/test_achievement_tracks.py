@@ -1,5 +1,3 @@
-"""Staged achievements exercise real services and database state."""
-
 from contextlib import asynccontextmanager
 
 import pytest

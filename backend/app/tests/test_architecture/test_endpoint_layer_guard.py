@@ -92,7 +92,6 @@ def _endpoint_files() -> list[tuple[Path, str]]:
 
 
 def test_endpoints_do_not_query_directly() -> None:
-    """Queries live in CRUD; endpoints orchestrate through services. No baseline."""
     offenders = []
     for path, name in _endpoint_files():
         for line, description in _raw_query_lines(path.read_text(encoding="utf-8")):
@@ -117,7 +116,6 @@ def test_endpoints_do_not_import_crud() -> None:
 
 
 def test_guard_detects_crud_imports() -> None:
-    """Self-test: package-attribute, submodule, and plain imports are all caught."""
     source = (
         "from app import crud\n"
         "from app.crud.notification import notification\n"
@@ -129,7 +127,6 @@ def test_guard_detects_crud_imports() -> None:
 
 
 def test_guard_detects_raw_queries() -> None:
-    """Self-test: select(), execute(), and session loads are flagged; plain attribute calls are not."""
     source = (
         "x = select(Room).where(Room.id == 1)\n"
         "y = await db_session.execute(query)\n"
@@ -147,6 +144,5 @@ def test_guard_detects_raw_queries() -> None:
 
 
 def test_guard_leaves_other_attribute_calls_alone() -> None:
-    """Self-test: a non-session receiver's .get()/refresh() is not a session load."""
     source = "a = cache.get('k')\nb = obj.refresh()\nc = settings.get('x')\n"
     assert _raw_query_lines(source) == []

@@ -185,9 +185,7 @@ async def _occupants(ctx: dict) -> int:
         return await crud.dweller.count_in_room(reader, ctx["station_id"])
 
 
-# ---------------------------------------------------------------------------
 # Occupancy lock: the literal the tests contend on matches the production helper
-# ---------------------------------------------------------------------------
 
 
 @pytest.mark.asyncio
@@ -198,14 +196,11 @@ async def test_lock_key_format_matches_production_helper(station_ctx: dict) -> N
     assert room_occupancy_lock_key(station_ctx["station_id"]) == _station_lock_key(station_ctx["station_id"])
 
 
-# ---------------------------------------------------------------------------
 # Manual assignment: the last free slot goes to exactly one request
-# ---------------------------------------------------------------------------
 
 
 @pytest.mark.asyncio
 async def test_concurrent_assignment_to_last_slot_admits_only_one(station_ctx: dict) -> None:
-    """Two assignments racing for the last slot: the lock admits one and refuses the other."""
     station_id = station_ctx["station_id"]
     dweller_ids = station_ctx["dweller_ids"]
 
@@ -255,9 +250,7 @@ async def test_two_concurrent_assignments_overfill_nothing(station_ctx: dict) ->
     assert occupants == station_size // 3 * 2 == 2
 
 
-# ---------------------------------------------------------------------------
 # Automatic return pass: same lock, same guarantee
-# ---------------------------------------------------------------------------
 
 
 @pytest.mark.asyncio

@@ -45,7 +45,6 @@ async def test_regular_user_cannot_create_notification(
     async_session: AsyncSession,
     normal_user_token_headers: dict[str, str],
 ) -> None:
-    """A regular authenticated user can no longer POST a notification."""
     user = await _normal_user(async_session)
 
     response = await async_client.post(
@@ -64,7 +63,6 @@ async def test_cannot_create_notification_for_another_user(
     async_session: AsyncSession,
     normal_user_token_headers: dict[str, str],
 ) -> None:
-    """Selecting another user as the recipient is impossible: the route is gone."""
     target = await crud.user.create(
         async_session,
         obj_in=UserCreate(username="target_user", email="target@example.com", password="testpass123"),
@@ -86,7 +84,6 @@ async def test_get_notifications_still_works(
     async_session: AsyncSession,
     normal_user_token_headers: dict[str, str],
 ) -> None:
-    """GET /notifications/ remains the permitted read path for the current user."""
     user = await _normal_user(async_session)
     await notification_crud.create(
         async_session,
@@ -111,7 +108,6 @@ async def test_unread_count_still_works(
     async_session: AsyncSession,
     normal_user_token_headers: dict[str, str],
 ) -> None:
-    """GET /notifications/unread-count remains permitted."""
     user = await _normal_user(async_session)
     await notification_crud.create(
         async_session,
@@ -134,7 +130,6 @@ async def test_mark_as_read_still_works(
     async_session: AsyncSession,
     normal_user_token_headers: dict[str, str],
 ) -> None:
-    """PATCH /notifications/{id}/read remains permitted for the owner."""
     user = await _normal_user(async_session)
     notification = await notification_crud.create(
         async_session,
@@ -156,7 +151,6 @@ async def test_mark_as_read_still_works(
 
 
 async def test_create_and_send_is_the_permitted_path(async_session: AsyncSession) -> None:
-    """Server-side callers keep working: create_and_send persists for the target user."""
     user = await crud.user.create(
         async_session,
         obj_in=UserCreate(username="service_target", email="service_target@example.com", password="testpass123"),
@@ -185,7 +179,6 @@ async def test_create_and_send_is_the_permitted_path(async_session: AsyncSession
 async def test_live_notification_payload_includes_routing_context(
     async_session: AsyncSession, user_with_vault: tuple, dweller_in_vault
 ) -> None:
-    """SSE clients receive routing context and a UTC ``Z`` timestamp."""
     user, vault = user_with_vault
 
     with (
@@ -211,10 +204,8 @@ async def test_live_notification_payload_includes_routing_context(
         assert payload["notification"]["created_at"].endswith("Z")
 
 
-# =============================================================================
 # Read-state behavior (AUDIT.md P3): dismissed rows must not be counted or
 # marked read, and the reads must not be row-oriented.
-# =============================================================================
 
 
 async def _create_notification(async_session: AsyncSession, user_id, title: str):
@@ -260,7 +251,6 @@ async def test_unread_count_excludes_dismissed(
     async_session: AsyncSession,
     normal_user_token_headers: dict[str, str],
 ) -> None:
-    """The unread badge counts only visible unread notifications."""
     user = await _normal_user(async_session)
     await _create_notification(async_session, user.id, "Visible")
     dismissed = await _create_notification(async_session, user.id, "Dismissed")

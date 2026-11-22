@@ -1,5 +1,3 @@
-"""Tests for death service logic."""
-
 import logging
 from datetime import datetime, timedelta
 
@@ -96,14 +94,11 @@ async def permanently_dead_dweller_fixture(
 
 @pytest.mark.asyncio
 class TestDeathService:
-    """Test death service functionality."""
-
     async def test_mark_as_dead_already_dead_raises(
         self,
         async_session: AsyncSession,
         dead_dweller: Dweller,
     ):
-        """Test that marking already dead dweller raises exception."""
         from app.utils.exceptions import ContentNoChangeException
 
         with pytest.raises(ContentNoChangeException):
@@ -118,7 +113,6 @@ class TestDeathService:
         async_session: AsyncSession,
         alive_dweller: Dweller,
     ):
-        """Death is a durable life event, and a corpse has no remaining happiness."""
         updated = await death_service.mark_as_dead(async_session, alive_dweller, DeathCauseEnum.COMBAT)
 
         assert updated.status == DwellerStatusEnum.DEAD
@@ -159,7 +153,6 @@ class TestDeathService:
         vault: Vault,
         dead_dweller: Dweller,
     ):
-        """Test successful dweller revival."""
         # Give vault enough caps
         vault.bottle_caps = 10000
         async_session.add(vault)
@@ -230,7 +223,6 @@ class TestDeathService:
         vault: Vault,
         dead_dweller: Dweller,
     ):
-        """A repeated revival fails without touching the balance a second time."""
         from app.utils.exceptions import ContentNoChangeException
 
         vault.bottle_caps = 10000
@@ -253,7 +245,6 @@ class TestDeathService:
         vault: Vault,
         dead_dweller: Dweller,
     ):
-        """Reviving two different dwellers charges each revival exactly once."""
         vault.bottle_caps = 10000
         async_session.add(vault)
         await async_session.commit()
@@ -292,7 +283,6 @@ class TestDeathService:
         vault: Vault,
         dead_dweller: Dweller,
     ):
-        """Radiation does not survive revival — the dweller comes back clean."""
         vault.bottle_caps = 10000
         async_session.add(vault)
         await crud.dweller.update(async_session, dead_dweller.id, {"radiation": 40})
@@ -309,7 +299,6 @@ class TestDeathService:
         vault: Vault,
         dead_dweller: Dweller,
     ):
-        """A user who does not own the vault cannot revive, and nothing changes."""
         from app.schemas.user import UserCreate
         from app.utils.exceptions import AccessDeniedException
 
@@ -353,7 +342,6 @@ class TestDeathService:
         vault: Vault,
         alive_dweller: Dweller,
     ):
-        """A living dweller has no revival quote."""
         from app.utils.exceptions import ContentNoChangeException
 
         owner = await crud.user.get(async_session, vault.user_id)
@@ -367,7 +355,6 @@ class TestDeathService:
         vault: Vault,
         dead_dweller: Dweller,
     ):
-        """The quote is not readable by a user who does not own the vault."""
         from app.schemas.user import UserCreate
         from app.utils.exceptions import AccessDeniedException
 
@@ -385,7 +372,6 @@ class TestDeathService:
         vault: Vault,
         dead_dweller: Dweller,
     ):
-        """Test revival fails with insufficient caps."""
         from app.utils.exceptions import InsufficientResourcesException
 
         # Set low caps
@@ -407,7 +393,6 @@ class TestDeathService:
         vault: Vault,
         permanently_dead_dweller: Dweller,
     ):
-        """Test revival of permanently dead dweller raises exception."""
         from app.utils.exceptions import ContentNoChangeException
 
         vault.bottle_caps = 10000
@@ -430,7 +415,6 @@ class TestDeathService:
         vault: Vault,
         alive_dweller: Dweller,
     ):
-        """Test revival of living dweller raises exception."""
         from app.utils.exceptions import ContentNoChangeException
 
         vault.bottle_caps = 10000
@@ -467,7 +451,6 @@ class TestDeathService:
         self,
         alive_dweller: Dweller,
     ):
-        """Test days calculation for alive dweller returns None."""
         result = death_service.get_days_until_permanent(alive_dweller)
         assert result is None
 
@@ -476,7 +459,6 @@ class TestDeathService:
         async_session: AsyncSession,
         vault: Vault,
     ):
-        """Test days calculation for recently dead dweller."""
         dweller_data = create_fake_dweller()
         dweller_data.update(
             {
@@ -502,7 +484,6 @@ class TestDeathService:
         async_session: AsyncSession,
         vault: Vault,
     ):
-        """Test batch processing of expired deaths."""
         # Create dweller that died 10 days ago (past threshold)
         expired_data = create_fake_dweller()
         expired_data.update(
@@ -560,7 +541,6 @@ class TestDeathService:
         dead_dweller: Dweller,
         permanently_dead_dweller: Dweller,
     ):
-        """Test getting death statistics for a user."""
         # First create profile for user if not exists
         from app.crud.user_profile import profile_crud
 
@@ -587,8 +567,6 @@ class TestDeathService:
 
 @pytest.mark.asyncio
 class TestDeathCRUD:
-    """Test death-related CRUD operations."""
-
     async def test_get_dead_dwellers(
         self,
         async_session: AsyncSession,
@@ -597,7 +575,6 @@ class TestDeathCRUD:
         permanently_dead_dweller: Dweller,
         alive_dweller: Dweller,
     ):
-        """Test fetching dead (revivable) dwellers."""
         result = await crud.dweller.get_dead_dwellers(async_session, vault.id)
 
         # Should only include dead but not permanently dead
@@ -611,7 +588,6 @@ class TestDeathCRUD:
         dead_dweller: Dweller,
         permanently_dead_dweller: Dweller,
     ):
-        """Test fetching graveyard (permanently dead) dwellers."""
         result = await crud.dweller.get_graveyard(async_session, vault.id)
 
         # Should only include permanently dead

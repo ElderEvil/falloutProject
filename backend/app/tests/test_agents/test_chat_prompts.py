@@ -1,5 +1,3 @@
-"""Prompt-content tests for the dweller chat personality rules."""
-
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
@@ -87,7 +85,6 @@ def test_identity_line_reveals_visibly_artificial_synth_models(state: str) -> No
 
 
 def test_synth_race_alone_does_not_leak_into_chat_instructions() -> None:
-    """A passing synth's prompt reads as an ordinary dweller profile."""
     instructions = build_chat_instructions(_dweller(visual_attributes={"race": "synth", "state_of_being": "gen_3"}))
     assert "synth" not in instructions.lower()
 
@@ -172,7 +169,6 @@ def test_dweller_trait_lines_combine_identity_age_mood_and_family() -> None:
 
 
 def test_chat_instructions_carry_identity_age_mood_and_family() -> None:
-    """The structured agent prompt gains every personality axis."""
     instructions = build_chat_instructions(
         _dweller(age_group=AgeGroupEnum.CHILD, happiness=12),
         family=[{"name": "Ana Reyes", "relation": "partner"}],
@@ -185,7 +181,6 @@ def test_chat_instructions_carry_identity_age_mood_and_family() -> None:
 
 
 def test_chat_instructions_default_to_no_family_registered() -> None:
-    """Existing callers keep working without a family lookup."""
     assert "Family in the vault" not in build_chat_instructions(_dweller())
 
 
@@ -210,7 +205,6 @@ def test_fallback_prompt_for_audio_keeps_the_audio_length_rule() -> None:
 
 @pytest.mark.asyncio
 async def test_load_family_members_reports_partner_and_children() -> None:
-    """The shared resolver feeds the prompt from partner/parent links in one query."""
     dweller_id, partner_id, child_id = uuid4(), uuid4(), uuid4()
     record = SimpleNamespace(id=dweller_id, partner_id=partner_id, parent_1_id=None, parent_2_id=None)
     partner = SimpleNamespace(id=partner_id, first_name="Ana", last_name="Reyes", parent_1_id=None, parent_2_id=None)

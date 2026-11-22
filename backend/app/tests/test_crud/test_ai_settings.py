@@ -1,5 +1,3 @@
-"""Tests for AISettings CRUD (single-row get_single/upsert)."""
-
 import pytest
 
 from app.crud.ai_settings import ai_settings as ai_settings_crud

@@ -1,5 +1,3 @@
-"""Tests for quest CRUD operations."""
-
 import os
 import time
 from datetime import datetime, timedelta
@@ -31,7 +29,6 @@ async def _add_office(async_session: AsyncSession, vault_id: UUID) -> None:
 
 @pytest.mark.asyncio
 async def test_assign_quest_twice_updates_visibility(async_session: AsyncSession) -> None:
-    """Test that assigning the same quest twice updates the visibility."""
     # Create user and vault
     user_data = create_fake_user()
     user_in = UserCreate(**user_data)
@@ -68,7 +65,6 @@ async def test_assign_quest_twice_updates_visibility(async_session: AsyncSession
 
 @pytest.mark.asyncio
 async def test_get_multi_for_vault(async_session: AsyncSession) -> None:
-    """Test vault quests reveal only chain starters until their requirement completes."""
     from app.core.enums import RequirementType
     from app.models.quest_requirement import QuestRequirement
     from app.models.room import Room
@@ -172,7 +168,6 @@ async def test_get_multi_for_vault(async_session: AsyncSession) -> None:
 
 @pytest.mark.asyncio
 async def test_get_multi_for_vault_with_requirements_and_rewards(async_session: AsyncSession) -> None:
-    """Test getting quests with their requirements and rewards."""
     from app.core.enums import RewardType
     from app.models.quest_requirement import QuestRequirement
     from app.models.quest_reward import QuestReward
@@ -229,9 +224,6 @@ async def test_get_multi_for_vault_with_requirements_and_rewards(async_session: 
 
 @pytest.mark.asyncio
 async def test_get_multi_for_vault_serializes_completion_details(async_session: AsyncSession) -> None:
-    """QuestRead carries completed_at + granted_rewards; fresh links default to None."""
-    from app.models.vault_quest import VaultQuestCompletionLink
-
     user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
     vault = await crud.vault.create(
         async_session,
@@ -282,7 +274,6 @@ async def test_get_multi_for_vault_serializes_completion_details(async_session: 
 
 @pytest.mark.asyncio
 async def test_assign_party_rejects_ineligible_dwellers(async_session: AsyncSession) -> None:
-    """Quest parties reject children, explorers, and deleted dwellers without changing the current party."""
     from app.models.dweller import Dweller
     from app.services.team_service import team_service
     from app.tests.factory.dwellers import create_fake_dweller
@@ -337,12 +328,10 @@ async def test_assign_party_rejects_ineligible_dwellers(async_session: AsyncSess
 
 @pytest.mark.asyncio
 async def test_start_quest(async_session: AsyncSession) -> None:
-    """Test starting a quest (setting the timer)."""
     from app.models.dweller import Dweller
     from app.services.progression.quests.service import quest_service
     from app.services.team_service import team_service
     from app.tests.factory.dwellers import create_fake_dweller
-    from app.utils.exceptions import ResourceConflictException
 
     user_data = create_fake_user()
     user_in = UserCreate(**user_data)
@@ -385,9 +374,7 @@ async def test_start_quest(async_session: AsyncSession) -> None:
 
 @pytest.mark.asyncio
 async def test_start_quest_requires_an_assigned_party(async_session: AsyncSession) -> None:
-    """A quest cannot run without a party to send into the wasteland."""
     from app.services.progression.quests.service import quest_service
-    from app.utils.exceptions import ValidationException
 
     user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
     vault = await crud.vault.create(
@@ -414,7 +401,6 @@ async def test_start_quest_requires_an_assigned_party(async_session: AsyncSessio
 @pytest.mark.asyncio
 @pytest.mark.parametrize("quest_category", ["building", "population", "training"])
 async def test_start_state_quest_is_ready_without_a_party(async_session: AsyncSession, quest_category: str) -> None:
-    """State quests settle from their prerequisite state, not a dispatched party."""
     from app.services.progression.quests.service import quest_service
 
     user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
@@ -442,7 +428,6 @@ async def test_start_state_quest_is_ready_without_a_party(async_session: AsyncSe
 async def test_start_quest_requires_a_positive_template_duration(async_session: AsyncSession) -> None:
     """Quest timers must come from a positive server-side template duration."""
     from app.services.progression.quests.service import quest_service
-    from app.utils.exceptions import ValidationException
 
     user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
     vault = await crud.vault.create(
@@ -473,7 +458,6 @@ async def test_quest_cannot_complete_before_its_duration(async_session: AsyncSes
     from app.services.progression.quests.service import quest_service
     from app.services.team_service import team_service
     from app.tests.factory.dwellers import create_fake_dweller
-    from app.utils.exceptions import ValidationException
 
     user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
     vault = await crud.vault.create(
@@ -507,11 +491,8 @@ async def test_quest_cannot_complete_before_its_duration(async_session: AsyncSes
 
 @pytest.mark.asyncio
 async def test_check_and_complete_quests_for_vault(async_session: AsyncSession) -> None:
-    """Refreshing a vault makes its elapsed quest claimable without granting rewards."""
-
     from app.core.enums import RewardType
     from app.models.quest_reward import QuestReward
-    from app.models.vault_quest import VaultQuestCompletionLink
     from app.services.progression.quests.service import quest_service
 
     user_data = create_fake_user()
@@ -576,8 +557,6 @@ async def test_check_and_complete_quests_for_vault(async_session: AsyncSession) 
 
 @pytest.mark.asyncio
 async def test_timed_quest_completion_simulation(async_session: AsyncSession) -> None:
-    """Simulate a party return followed by an atomic reward claim."""
-
     from app.core.enums import AgeGroupEnum, RewardType
     from app.core.event_bus import GameEvent, event_bus
     from app.models.dweller import Dweller
@@ -672,7 +651,6 @@ async def test_timed_quest_completion_simulation(async_session: AsyncSession) ->
 
 @pytest.mark.asyncio
 async def test_get_multi_for_vault_auto_assigns_quests(async_session: AsyncSession) -> None:
-    """Auto-assign backfills links: plain quests visible, scheduler-owned quests hidden."""
     from app.models.quest import Quest
 
     user_data = create_fake_user()
@@ -713,12 +691,10 @@ async def test_get_multi_for_vault_auto_assigns_quests(async_session: AsyncSessi
 
 @pytest.mark.asyncio
 async def test_assign_party_replaces_existing(async_session: AsyncSession) -> None:
-    """Test that assign_party replaces existing party members."""
     from app.models.dweller import Dweller
     from app.services.progression.quests.service import quest_service
     from app.services.team_service import team_service
     from app.tests.factory.dwellers import create_fake_dweller
-    from app.utils.exceptions import ResourceConflictException
 
     user_data = create_fake_user()
     user_in = UserCreate(**user_data)
@@ -770,9 +746,7 @@ async def test_assign_party_replaces_existing(async_session: AsyncSession) -> No
 async def test_assign_party_rejects_reward_ready_or_completed_quest(
     async_session: AsyncSession, link_state: dict[str, bool]
 ) -> None:
-    """Reward-ready and completed quests cannot acquire a party."""
     from app.models.dweller import Dweller
-    from app.models.vault_quest import VaultQuestCompletionLink
     from app.services.team_service import team_service
     from app.tests.factory.dwellers import create_fake_dweller
 
@@ -799,10 +773,7 @@ async def test_assign_party_rejects_reward_ready_or_completed_quest(
 
 
 def test_link_return_leg_helpers() -> None:
-    """Return-leg helpers derive travelling state from return_completes_at."""
     from uuid import uuid4
-
-    from app.models.vault_quest import VaultQuestCompletionLink
 
     link = VaultQuestCompletionLink(vault_id=uuid4(), quest_id=uuid4())
     assert link.is_returning() is False
@@ -821,11 +792,9 @@ def test_link_return_leg_helpers() -> None:
 
 @pytest.mark.asyncio
 async def test_get_expired_party_links_excludes_returning(async_session: AsyncSession) -> None:
-    """A party already on its return leg is not picked up as newly expired."""
     from sqlalchemy import func
 
     from app.models.quest import Quest
-    from app.models.vault_quest import VaultQuestCompletionLink
 
     user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
     vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id))
@@ -866,9 +835,6 @@ async def test_get_expired_party_links_excludes_returning(async_session: AsyncSe
 
 @pytest.mark.asyncio
 async def test_get_arrived_party_links(async_session: AsyncSession) -> None:
-    """Arrived, unclaimed parties are returned; travelling/claimed ones are not."""
-    from app.models.vault_quest import VaultQuestCompletionLink
-
     user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
     vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id))
 
@@ -917,7 +883,6 @@ async def test_get_arrived_party_links(async_session: AsyncSession) -> None:
 
 @pytest.mark.asyncio
 async def test_get_link_for_update_returns_committed_state(async_session: AsyncSession) -> None:
-    """The locked read returns the link and reflects committed state."""
     from uuid import uuid4
 
     user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
@@ -956,7 +921,6 @@ async def _user_and_vault(async_session: AsyncSession):
 
 @pytest.mark.asyncio
 async def test_get_quests_for_vault_paginates_beyond_the_first_page(async_session: AsyncSession) -> None:
-    """The catalog outgrew the default page: offers, parties and rewards past row 100 stay reachable."""
     from app.models.quest import Quest
     from app.services.progression.quests.service import quest_service
 

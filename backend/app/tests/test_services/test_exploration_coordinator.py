@@ -1,5 +1,3 @@
-"""Tests for exploration coordinator storage validation logic."""
-
 from collections.abc import Awaitable, Callable
 from datetime import datetime, timedelta
 from unittest.mock import AsyncMock, patch
@@ -51,7 +49,6 @@ async def test_transfer_skips_medical_loot_entries(
     dweller: Dweller,
     make_vault_storage,
 ):
-    """Stimpak/radaway loot entries create no junk; medical rewards flow through the counters."""
     await make_vault_storage(5)
 
     exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
@@ -79,7 +76,6 @@ async def test_transfer_missing_weapon_data_holds_item_as_overflow(
     dweller: Dweller,
     make_vault_storage,
 ):
-    """A catalog-miss weapon is held as overflow instead of vanishing."""
     storage = await make_vault_storage()
 
     # Create exploration
@@ -115,7 +111,6 @@ async def test_transfer_invalid_rarity_defaults_to_common(
     dweller: Dweller,
     make_vault_storage,
 ):
-    """Test that invalid rarity strings default to COMMON."""
     storage = await make_vault_storage()
     await async_session.flush()
 
@@ -232,7 +227,6 @@ async def test_catalog_miss_weapon_stays_ordinary_loot_and_run_completes(
     dweller: Dweller,
     make_vault_storage,
 ):
-    """A find with no catalog row is not equipped: ordinary loot, no held row, run completes."""
     await make_vault_storage()
     await _equip_weapon(async_session, dweller, name=".32 pistol", rarity=RarityEnum.COMMON, damage_min=1, damage_max=2)
 
@@ -268,7 +262,6 @@ async def test_medicine_loot_adds_single_log_entry(
     vault: Vault,
     dweller: Dweller,
 ):
-    """A stimpak find logs exactly one event; the count lives in the stimpaks counter."""
     dweller.health = 100
     dweller.max_health = 100
     dweller.radiation = 0
@@ -353,7 +346,6 @@ async def test_process_event_publishes_followup_events(
     dweller: Dweller,
     make_vault_storage,
 ):
-    """Equip and auto-heal records created during an event are all streamed via SSE."""
     await make_vault_storage()
     await _equip_weapon(async_session, dweller, name=".32 pistol", rarity=RarityEnum.COMMON, damage_min=1, damage_max=2)
 
@@ -394,7 +386,6 @@ async def test_auto_radaway_fires_at_quarter_max_health_radiation(
     vault: Vault,
     dweller: Dweller,
 ):
-    """Radiation at/above 25% of max health consumes one RadAway and raises the ceiling."""
     dweller.health = 100
     dweller.max_health = 100
     dweller.radiation = 25
@@ -420,7 +411,6 @@ async def test_auto_radaway_skips_below_quarter_max_health_radiation(
     vault: Vault,
     dweller: Dweller,
 ):
-    """Radiation below 25% of max health does not consume a RadAway."""
     dweller.health = 100
     dweller.max_health = 100
     dweller.radiation = 24

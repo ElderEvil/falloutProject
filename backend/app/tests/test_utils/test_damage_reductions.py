@@ -1,5 +1,3 @@
-"""Unit tests for the pure damage-reduction resolver."""
-
 from types import SimpleNamespace
 
 import pytest
@@ -146,7 +144,6 @@ class TestCombinedShareMath:
         assert reductions.apply(10) == 10
 
     def test_apply_truncates_once_not_per_share(self) -> None:
-        """Sequential truncation would give int(int(3*0.85)*0.8) = 1; one combined truncation gives 2."""
         reductions = DamageReductions(shares=(0.15, 0.2))
         assert reductions.apply(3) == 2
 

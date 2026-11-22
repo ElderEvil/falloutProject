@@ -1,5 +1,3 @@
-"""Tests for the crafting API — recipes and the workshop order queue."""
-
 from datetime import datetime, timedelta
 
 import pytest

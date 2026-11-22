@@ -1,15 +1,10 @@
-"""Tests for system endpoints."""
-
 import pytest
 from httpx import AsyncClient
 
 
 @pytest.mark.asyncio
 class TestChangelogEndpoint:
-    """Test changelog endpoints."""
-
     async def test_get_changelog_success(self, async_client: AsyncClient) -> None:
-        """Test successful changelog retrieval."""
         response = await async_client.get("/system/changelog")
 
         assert response.status_code == 200
@@ -19,7 +14,6 @@ class TestChangelogEndpoint:
         assert isinstance(data, list)
 
     async def test_get_latest_changelog_success(self, async_client: AsyncClient) -> None:
-        """Test successful latest changelog retrieval."""
         from app.utils.version import get_app_version
 
         response = await async_client.get("/system/changelog/latest")
@@ -38,7 +32,6 @@ class TestChangelogEndpoint:
         assert isinstance(data["changes"], list), "changes must be a list"
 
     async def test_get_latest_changelog_empty(self, async_client: AsyncClient, monkeypatch) -> None:
-        """Test latest changelog returns 404 when no entries available."""
         from app.services.changelog_service import changelog_service
 
         def mock_empty():
@@ -55,10 +48,7 @@ class TestChangelogEndpoint:
 
 @pytest.mark.asyncio
 class TestFeaturesEndpoint:
-    """Test the feature-switch endpoint."""
-
     async def test_get_features_reports_current_switches(self, async_client: AsyncClient) -> None:
-        """Clients learn both switches; faction ships dark by default."""
         response = await async_client.get("/system/features")
 
         assert response.status_code == 200
@@ -72,7 +62,6 @@ class TestFeaturesEndpoint:
     async def test_get_features_follows_switch_changes(
         self, async_client: AsyncClient, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """Flipping a switch is visible without a restart."""
         from app.core.game_config import game_config
 
         monkeypatch.setattr(game_config.features, "faction_mechanics", True)

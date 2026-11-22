@@ -1,5 +1,3 @@
-"""Tests for dweller status changes during exploration lifecycle."""
-
 from datetime import datetime, timedelta
 
 import pytest
@@ -61,8 +59,6 @@ async def test_exploring_dweller_cannot_be_assigned_to_room(async_session: Async
 
 @pytest.mark.asyncio
 async def test_dweller_status_training_on_exploration_complete_with_training_room(async_session: AsyncSession):
-    """Test that dweller status becomes TRAINING when exploration completes and dweller has training room."""
-    # Setup
     user_data = create_fake_user()
     user_in = UserCreate(**user_data)
     user = await crud.user.create(async_session, obj_in=user_in)

@@ -184,7 +184,6 @@ async def test_record_visit_dedupes_place(async_session: AsyncSession) -> None:
 
 @pytest.mark.asyncio
 async def test_template_entry_seeded_at_creation(async_session: AsyncSession) -> None:
-    """Dwellers persisted through the service carry their creation bio as a template entry."""
     from app.services.dweller_service import dweller_service
 
     user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
@@ -201,7 +200,6 @@ async def test_template_entry_seeded_at_creation(async_session: AsyncSession) ->
 
 @pytest.mark.asyncio
 async def test_append_entry_rejects_blank_text(async_session: AsyncSession) -> None:
-    """Whitespace passes a raw length check but records nothing."""
     dweller = await _make_dweller(async_session, TEMPLATE)
 
     with pytest.raises(ValidationException):

@@ -1,5 +1,3 @@
-"""Conversation model: one durable thread per (user, dweller) pair."""
-
 from uuid import uuid7
 
 import pytest

@@ -1,5 +1,3 @@
-"""Tests for notification integrations in game services."""
-
 from datetime import datetime, timedelta
 from unittest.mock import AsyncMock, patch
 
@@ -48,8 +46,6 @@ class TestObjectiveProgressNotifications:
 
 
 class TestIncidentNotifications:
-    """Test incident spawn notifications."""
-
     @pytest.mark.asyncio
     async def test_incident_notification_includes_correct_type(
         self,
@@ -58,7 +54,6 @@ class TestIncidentNotifications:
         dweller_in_vault,
         room_in_vault,
     ):
-        """Test that different incident types have correct names in notifications."""
         _, vault = user_with_vault
 
         dweller_in_vault.room_id = room_in_vault.id
@@ -97,7 +92,6 @@ class TestIncidentNotifications:
         dweller_in_vault,
         room_in_vault,
     ):
-        """Resolving an incident successfully fires a COMBAT_VICTORY notification."""
         _, vault = user_with_vault
 
         dweller_in_vault.room_id = room_in_vault.id
@@ -175,7 +169,6 @@ class TestIncidentNotifications:
         user_with_vault: tuple,
         room_in_vault,
     ):
-        """An incident that cannot be contained fires a COMBAT_DEFEAT notification."""
         _, vault = user_with_vault
 
         incident = await crud.incident_crud.create(
@@ -206,8 +199,6 @@ class TestIncidentNotifications:
 
 
 class TestNotificationService:
-    """Tests for the notification service helper."""
-
     @pytest.mark.asyncio
     async def test_notify_owner_survives_lookup_failure(self, async_session: AsyncSession, user_with_vault: tuple):
         """A failed vault-owner lookup does not propagate out of notify_owner."""
@@ -227,7 +218,6 @@ class TestDeliveryDeferral:
 
     @pytest.mark.asyncio
     async def test_deferred_parks_until_drained(self, async_session: AsyncSession, user_with_vault: tuple):
-        """commit=False sends nothing inline; deliver_deferred sends once and empties the queue."""
         user, vault = user_with_vault
         with (
             patch("app.services.notification_service.manager") as mock_ws,
@@ -277,7 +267,6 @@ class TestDeliveryDeferral:
 
     @pytest.mark.asyncio
     async def test_ws_failure_does_not_block_sse(self, async_session: AsyncSession, user_with_vault: tuple):
-        """WS and SSE are independent best-effort channels."""
         user, vault = user_with_vault
         with (
             patch(
@@ -300,7 +289,6 @@ class TestDeliveryDeferral:
 
     @pytest.mark.asyncio
     async def test_drain_of_empty_queue_is_noop(self, async_session: AsyncSession):
-        """deliver_deferred on a session with no pendings does nothing."""
         with (
             patch("app.services.notification_service.manager") as mock_ws,
             patch("app.services.notification_service.sse_manager") as mock_sse,

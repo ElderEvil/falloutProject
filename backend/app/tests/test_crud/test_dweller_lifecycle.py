@@ -75,7 +75,6 @@ async def test_graveyard_includes_a_canonical_permanent_death(async_session: Asy
 async def test_graveyard_includes_an_unclassified_legacy_permanent_death(
     async_session: AsyncSession, vault: Vault
 ) -> None:
-    """A death written before the writers cut over stays visible through the fallback."""
     memorial = await _dweller(
         async_session,
         vault,
@@ -114,7 +113,6 @@ async def test_compatibility_readers_derive_from_canonical_state(async_session: 
 
 
 async def test_public_market_listing_excludes_departures(async_session: AsyncSession, vault: Vault) -> None:
-    """A departure is not a public market listing even while soft-deleted."""
     departed = await _dweller(
         async_session,
         vault,
@@ -160,7 +158,6 @@ async def test_classified_resident_permanent_death_lands_in_the_graveyard(
 
 
 async def test_classified_resident_temporary_death_stays_revivable(async_session: AsyncSession, vault: Vault) -> None:
-    """A non-permanent death of a classified resident is revivable and not a memorial."""
     resident = await _dweller(
         async_session,
         vault,
@@ -179,7 +176,6 @@ async def test_classified_resident_temporary_death_stays_revivable(async_session
 async def test_permanent_death_expiry_updates_canonical_state_and_graveyard(
     async_session: AsyncSession, vault: Vault
 ) -> None:
-    """The expiry sweep promotes a revivable death to canonical ``dead_permanent``/``archive``."""
     expired = await _dweller(
         async_session,
         vault,
@@ -201,7 +197,6 @@ async def test_permanent_death_expiry_updates_canonical_state_and_graveyard(
 
 
 async def test_revival_restores_canonical_lifecycle(async_session: AsyncSession, vault: Vault) -> None:
-    """Reviving a classified dead resident returns them to canonical ``alive``/``vault``."""
     dead = await _dweller(
         async_session,
         vault,

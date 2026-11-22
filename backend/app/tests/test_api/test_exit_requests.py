@@ -1,5 +1,3 @@
-"""Tests for the exit-request endpoints: list, refuse, and the one-way grant."""
-
 from datetime import datetime
 
 import pytest

@@ -1,5 +1,3 @@
-"""Tests for chat service error handling, especially AI provider failures."""
-
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, PropertyMock, patch
 from uuid import uuid4
@@ -95,15 +93,12 @@ async def chat_dweller_fixture(async_session: AsyncSession, vault: Vault) -> Dwe
 
 @pytest_asyncio.fixture(name="test_user")
 async def test_user_fixture(async_session: AsyncSession, vault: Vault) -> User:
-    """Get the user who owns the vault."""
     await async_session.refresh(vault, ["user"])
     return vault.user
 
 
 @pytest.mark.asyncio
 class TestChatServiceErrorHandling:
-    """Tests for chat service resilience when AI provider fails."""
-
     @pytest.mark.parametrize("usage_kind", ["valid", "missing"])
     def test_extract_usage_reads_provider_metadata(self, usage_kind: str) -> None:
         usage = RunUsage(input_tokens=12, output_tokens=8) if usage_kind == "valid" else None
@@ -115,7 +110,6 @@ class TestChatServiceErrorHandling:
         async_session: AsyncSession,
         chat_dweller: DwellerReadFull,
     ) -> None:
-        """The active chat prompt is passed to the PydanticAI run."""
         from app.agents.dweller_chat_agent import DwellerChatOutput
 
         active_instructions = "Use this active chat prompt."
@@ -146,7 +140,6 @@ class TestChatServiceErrorHandling:
         assert (result.prompt_tokens, result.completion_tokens, result.total_tokens) == (1, 1, 2)
 
     async def test_process_text_message_raises_not_found_for_missing_dweller(self, async_session: AsyncSession) -> None:
-        """A missing chat dweller is reported as the project's 404 exception."""
         dweller_id = uuid4()
 
         with pytest.raises(ResourceNotFoundException) as exc_info:
@@ -165,7 +158,6 @@ class TestChatServiceErrorHandling:
         chat_dweller: DwellerReadFull,
         test_user: User,
     ) -> None:
-        """Dead dwellers cannot be chatted with — revive them first."""
         from app.core.enums import DwellerStatusEnum
         from app.services.chat.guardrail import GuardrailVerdict
 
@@ -200,7 +192,6 @@ class TestChatServiceErrorHandling:
         chat_dweller: DwellerReadFull,
         test_user: User,
     ) -> None:
-        """The websocket/streaming path surfaces the dead-dweller block as a stream error."""
         from app.core.enums import DwellerStatusEnum
 
         orm_dweller = await crud.dweller.get(async_session, chat_dweller.id)
@@ -421,7 +412,6 @@ class TestChatServiceErrorHandling:
         self,
         chat_dweller: DwellerReadFull,
     ) -> None:
-        """Fallback after a provider error rolls back only the agent savepoint before delegation."""
         from pydantic_ai.exceptions import ModelHTTPError
 
         provider_error = ModelHTTPError(status_code=500, model_name="gpt-4o-mini", body={"message": "provider down"})
@@ -448,7 +438,6 @@ class TestChatServiceErrorHandling:
         self,
         chat_dweller: DwellerReadFull,
     ) -> None:
-        """Fallback after an unexpected error rolls back only the agent savepoint before delegation."""
         savepoint = MagicMock(__aenter__=AsyncMock(), __aexit__=AsyncMock(return_value=False))
         db_session = MagicMock(begin_nested=MagicMock(return_value=savepoint))
         fallback = AsyncMock(return_value=MagicMock(spec=AgentChatResult))
@@ -475,7 +464,6 @@ class TestChatServiceErrorHandling:
         chat_dweller: DwellerReadFull,
         missing: bool,
     ) -> None:
-        """Test that stream_response yields error when dweller's vault belongs to a different user."""
         from app.schemas.user import UserCreate
 
         other_user = await crud.user.create(
@@ -516,7 +504,6 @@ class TestChatServiceErrorHandling:
         superuser: User,
         as_admin: bool,
     ) -> None:
-        """stream_response streams response_text deltas from a structured-output agent."""
         from app.agents.dweller_chat_agent import DwellerChatOutput
 
         output = DwellerChatOutput(
@@ -732,10 +719,8 @@ class TestChatServiceErrorHandling:
         chat_dweller: DwellerReadFull,
         test_user: User,
     ) -> None:
-        """stream_response re-runs via run() (retry-capable) when structured streaming output fails validation."""
         from pydantic_ai.exceptions import UnexpectedModelBehavior
 
-        from app.schemas.chat import NoAction
         from app.schemas.happiness import HappinessImpact, HappinessReasonCode
 
         class FakeFailStreamResult:
@@ -806,9 +791,7 @@ class TestChatServiceErrorHandling:
 async def test_closing_stream_releases_provider_and_savepoint(
     async_session: AsyncSession, chat_dweller: DwellerReadFull
 ) -> None:
-    """A disconnected client immediately closes the provider stream and its savepoint."""
     from contextlib import asynccontextmanager
-    from types import SimpleNamespace
 
     from app.agents.dweller_chat_agent import DwellerChatDeps
     from app.services.chat.streaming import stream_with_fallback
@@ -842,15 +825,12 @@ async def test_closing_stream_releases_provider_and_savepoint(
 
 @pytest.mark.asyncio
 class TestMaybeUnlockPlaces:
-    """Tests for the _maybe_unlock_places side-effect."""
-
     async def test_unlocks_after_three_messages(
         self,
         async_session: AsyncSession,
         vault: Vault,
         chat_dweller: DwellerReadFull,
     ) -> None:
-        """After 3 user messages to a dweller, their linked places get unlocked."""
         from app.core.enums import DwellerLocationRelationEnum, LocationTypeEnum, PlaceKindEnum
         from app.crud.chat_message import chat_message as chat_crud
         from app.crud.world_location import world_location as wl_crud
@@ -926,7 +906,6 @@ class TestMaybeUnlockPlaces:
         vault: Vault,
         chat_dweller: DwellerReadFull,
     ) -> None:
-        """_maybe_unlock_places does not raise when the dweller has no linked places."""
         from app.crud.chat_message import chat_message as chat_crud
         from app.models.chat_message import ChatMessageCreate
 

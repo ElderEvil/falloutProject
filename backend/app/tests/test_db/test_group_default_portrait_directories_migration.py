@@ -1,5 +1,3 @@
-"""Grouped portrait migration rewrites only curated default URLs."""
-
 import importlib.util
 from pathlib import Path
 

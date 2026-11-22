@@ -63,8 +63,6 @@ async def test_fractional_changes_survive_repeated_ticks():
 
 
 async def test_fractional_carry_survives_database_reload(async_session, vault):
-    from app.models.game_state import GameState
-
     vault.food = vault.water = 50
     vault.food_max = vault.water_max = 1000
     async_session.add(vault)

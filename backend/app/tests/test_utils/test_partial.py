@@ -1,5 +1,3 @@
-"""Tests for the @optional() partial-update decorator."""
-
 from typing import Any
 
 import sqlalchemy as sa
@@ -39,7 +37,6 @@ def test_optional_keeps_explicit_values() -> None:
 
 
 def test_optional_patch_semantics_and_without_fields() -> None:
-    """Absent fields stay out, explicit None stays in, and without_fields drops the field entirely."""
     assert _WidgetUpdate().model_dump(exclude_unset=True) == {}
     assert _WidgetUpdate(name=None).model_dump(exclude_unset=True) == {"name": None}
     assert "tags" not in _WidgetCreate.model_fields

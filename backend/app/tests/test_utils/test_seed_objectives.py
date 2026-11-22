@@ -1,5 +1,3 @@
-"""Tests for objective seeding utility."""
-
 import json
 from pathlib import Path
 from unittest.mock import patch
@@ -14,7 +12,6 @@ from app.utils.seed_objectives import seed_objectives_from_json
 
 @pytest.mark.asyncio
 async def test_seed_objectives_prevents_duplicates(async_session: AsyncSession, tmp_path: Path) -> None:
-    """Test that seeding doesn't create duplicates."""
     objectives_dir = tmp_path / "objectives"
     objectives_dir.mkdir()
 
@@ -43,7 +40,6 @@ async def test_seed_objectives_prevents_duplicates(async_session: AsyncSession, 
 
 @pytest.mark.asyncio
 async def test_seed_objectives_single_object(async_session: AsyncSession, tmp_path: Path) -> None:
-    """Test seeding with single objective (not array) in JSON."""
     objectives_dir = tmp_path / "objectives"
     objectives_dir.mkdir()
 
@@ -95,7 +91,6 @@ async def test_seed_objectives_handles_errors_gracefully(async_session: AsyncSes
 
 @pytest.mark.asyncio
 async def test_seed_objectives_nonexistent_directory(async_session: AsyncSession, tmp_path: Path) -> None:
-    """Test seeding with nonexistent objectives directory."""
     objectives_dir = tmp_path / "nonexistent"
 
     # Should handle gracefully and return 0
@@ -105,7 +100,6 @@ async def test_seed_objectives_nonexistent_directory(async_session: AsyncSession
 
 @pytest.mark.asyncio
 async def test_seed_objectives_validates_schema(async_session: AsyncSession, tmp_path: Path) -> None:
-    """A file is validated as a whole: one invalid entry rejects every entry in it."""
     objectives_dir = tmp_path / "objectives"
     objectives_dir.mkdir()
 
@@ -125,7 +119,6 @@ async def test_seed_objectives_validates_schema(async_session: AsyncSession, tmp
 
 @pytest.mark.asyncio
 async def test_seed_objectives_rollback_on_error(async_session: AsyncSession, tmp_path: Path) -> None:
-    """Test that seeding rolls back on critical errors."""
     objectives_dir = tmp_path / "objectives"
     objectives_dir.mkdir()
 

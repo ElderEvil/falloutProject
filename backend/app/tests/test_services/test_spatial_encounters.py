@@ -1,5 +1,3 @@
-"""One-time journey encounters (slice 3b): consumption, travel-clock pause, deferred arrival."""
-
 import math
 from datetime import datetime, timedelta
 
@@ -62,7 +60,6 @@ async def _spatial_run_at_site(async_session: AsyncSession, vault: Vault, dwelle
 async def test_retreat_allows_reentry_and_resumes_progress(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
 ) -> None:
-    """Retreat does not consume: re-entry resumes the saved room cursor, and the site stays offered."""
     exploration = await _spatial_run_at_site(async_session, vault, dweller)
     await expedition_module.expedition_service.enter_run(async_session, exploration.id, SITE_ID)
     run = await crud.expedition_run.get_open_for_exploration(async_session, exploration.id)
@@ -86,7 +83,6 @@ async def test_retreat_allows_reentry_and_resumes_progress(
 async def test_cleared_site_rejects_reentry_in_same_journey(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
 ) -> None:
-    """Only completion consumes the encounter: a CLEARED run refuses re-entry as spent."""
     exploration = await _spatial_run_at_site(async_session, vault, dweller)
     run = await crud.expedition_run.create_run(
         async_session,
@@ -111,7 +107,6 @@ async def test_cleared_site_rejects_reentry_in_same_journey(
 async def test_open_encounter_freezes_position_but_burns_clock(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
 ) -> None:
-    """While inside, advance() holds position and consumes the interval."""
     exploration = await _spatial_run_at_site(async_session, vault, dweller)
     await expedition_module.expedition_service.enter_run(async_session, exploration.id, SITE_ID)
     before = (exploration.pos_x, exploration.pos_y)
@@ -130,7 +125,6 @@ async def test_open_encounter_freezes_position_but_burns_clock(
 async def test_tick_defers_finalize_while_encounter_open(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
 ) -> None:
-    """A returning run with an expired timer stays unfinalized while the dweller is inside."""
     exploration = await _spatial_run_at_site(async_session, vault, dweller)
     await expedition_module.expedition_service.enter_run(async_session, exploration.id, SITE_ID)
     exploration.status = ExplorationStatus.RETURNING
@@ -196,7 +190,6 @@ async def test_pause_resume_discounts_paused_interval(
 async def test_enter_retreat_without_tick_does_not_move(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
 ) -> None:
-    """Enter + immediate retreat with no inside tick leaves the position untouched."""
     exploration = await _spatial_run_at_site(async_session, vault, dweller)
     await expedition_module.expedition_service.enter_run(async_session, exploration.id, SITE_ID)
     await async_session.refresh(exploration)
@@ -215,7 +208,6 @@ async def test_enter_retreat_without_tick_does_not_move(
 async def test_return_clock_shifts_on_encounter_exit(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
 ) -> None:
-    """Return timing extends by the paused interval at the exit boundary."""
     exploration = await _spatial_run_at_site(async_session, vault, dweller)
     await expedition_module.expedition_service.enter_run(async_session, exploration.id, SITE_ID)
     exploration.status = ExplorationStatus.RETURNING
@@ -237,7 +229,6 @@ async def test_return_clock_shifts_on_encounter_exit(
 @pytest.mark.usefixtures("default_world_snapshot")
 @pytest.mark.asyncio
 async def test_return_leg_entry_pauses_the_return(async_session: AsyncSession, vault: Vault, dweller: Dweller) -> None:
-    """An in-progress return leg may enter a site, which pauses the return clock."""
     exploration = await _spatial_run_at_site(async_session, vault, dweller)
     exploration.status = ExplorationStatus.RETURNING
     exploration.return_started_at = utcnow() - timedelta(hours=1)
@@ -280,7 +271,6 @@ async def test_spatial_offers_only_sites_near_the_trail(
 
 
 def test_offer_weight_widens_the_tollbooth_reveal_radius():
-    """A weighted site is offered from farther off the trail than the base radius allows."""
     tollbooth = data_loader.get_expedition_site("raider_tollbooth")
     assert tollbooth is not None
     assert tollbooth.offer_weight > 1
@@ -299,7 +289,6 @@ def test_offer_weight_widens_the_tollbooth_reveal_radius():
 async def test_spatial_reentry_ignores_vault_cooldown(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
 ) -> None:
-    """A finished journey does not lock the site vault-wide for the next journey."""
     first = await _spatial_run_at_site(async_session, vault, dweller)
     await expedition_module.expedition_service.enter_run(async_session, first.id, SITE_ID)
     await expedition_module.expedition_service.retreat_run(async_session, first.id)

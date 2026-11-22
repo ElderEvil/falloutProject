@@ -40,8 +40,6 @@ from app.utils.time import utcnow
 
 
 class TestPauseResume:
-    """Tests for pause_vault, resume_vault, and get_vault_status."""
-
     @pytest.mark.asyncio
     async def test_resume_vault_sets_is_paused_false(self, async_session: AsyncSession, vault: Vault):
         await game_loop_service.pause_vault(async_session, vault.id)
@@ -79,8 +77,6 @@ def _fake_session_maker():
 
 
 class TestProcessGameTick:
-    """Tests for the main game tick processing loop."""
-
     @pytest.mark.asyncio
     async def test_paused_vaults_excluded(self, async_session: AsyncSession, session_factory, vault: Vault):
         await game_loop_service.pause_vault(async_session, vault.id)
@@ -195,8 +191,6 @@ class TestProcessGameTick:
 
 
 class TestProcessVaultTick:
-    """Tests for individual vault tick processing."""
-
     async def _patched_tick(self, async_session, vault):
         """Run process_vault_tick with all internal methods mocked."""
         mock_update = MagicMock()
@@ -226,8 +220,6 @@ class TestProcessVaultTick:
     @pytest.mark.asyncio
     async def test_resource_error_does_not_propagate(self, async_session: AsyncSession, vault: Vault):
         # resource phase except catches (SQLAlchemyError, ResourceNotFoundException, VaultOperationException)
-        from app.utils.exceptions import VaultOperationException
-
         with (
             patch.object(game_loop_service.resource_manager, "process_vault_resources", new_callable=AsyncMock) as mr,
             patch.object(game_loop_service, "_process_dwellers", new_callable=AsyncMock, return_value={}),
@@ -248,10 +240,8 @@ class TestProcessVaultTick:
 # ═════════════════════════════════════════════════════════════════════
 # _process_incidents
 # ═════════════════════════════════════════════════════════════════════
-#
 # incident_service is imported LOCALLY inside _process_incidents:
 # So we patch app.services.combat.incident_service.incident_service
-#
 # incident_crud is imported at MODULE level:
 # So we patch app.services.game_loop_service.incident_crud
 # ═════════════════════════════════════════════════════════════════════
@@ -260,14 +250,11 @@ class TestProcessVaultTick:
 # ═════════════════════════════════════════════════════════════════════
 # _process_dwellers
 # ═════════════════════════════════════════════════════════════════════
-#
 # local imports: death_service
 # ═════════════════════════════════════════════════════════════════════
 
 
 class TestProcessDwellers:
-    """Tests for dweller processing within the game loop."""
-
     @pytest.mark.asyncio
     async def test_skips_dead_dwellers(self, async_session: AsyncSession, vault: Vault, dweller: Dweller):
         from app.core.enums import DwellerStatusEnum
@@ -349,8 +336,6 @@ class TestProcessDwellers:
 
 
 class TestDehydrationRadiation:
-    """Tests for radiation applied while the vault has no water."""
-
     @pytest.mark.asyncio
     async def _prepare(self, async_session: AsyncSession, vault: Vault, dweller: Dweller, water: int) -> None:
         vault.water = water
@@ -463,7 +448,6 @@ class TestDehydrationRadiation:
 # ═════════════════════════════════════════════════════════════════════
 # _process_training
 # ═════════════════════════════════════════════════════════════════════
-#
 # local imports: training_crud (from app.crud import training as training_crud)
 #                training_service (from app.services.training_service import)
 #          app.services.training_service.training_service
@@ -471,8 +455,6 @@ class TestDehydrationRadiation:
 
 
 class TestProcessTraining:
-    """Tests for training processing within the game loop."""
-
     @pytest.mark.asyncio
     async def test_detects_completion(self, async_session: AsyncSession, vault: Vault):
         mt = MagicMock()
@@ -632,7 +614,6 @@ class TestProcessTraining:
 # ═════════════════════════════════════════════════════════════════════
 # _process_happiness
 # ═════════════════════════════════════════════════════════════════════
-#
 # happiness_service is imported at module level
 # ═════════════════════════════════════════════════════════════════════
 
@@ -648,8 +629,6 @@ class TestProcessTraining:
 
 
 class TestUpdateRoomRelationships:
-    """Tests for relationship updates within the game loop."""
-
     @pytest.mark.asyncio
     async def test_single_dweller_skips(self, async_session: AsyncSession, vault: Vault):
         md = MagicMock()
@@ -838,7 +817,6 @@ class TestUpdateRoomRelationships:
 
         from app import crud
         from app.core.enums import AgeGroupEnum
-        from app.models.dweller import Dweller
         from app.schemas.dweller import DwellerCreate
         from app.services.relationship_service import relationship_service
         from app.tests.factory.dwellers import create_fake_dweller
@@ -883,7 +861,6 @@ class TestUpdateRoomRelationships:
 
     @pytest.mark.asyncio
     async def test_roomless_pair_decays(self, async_session: AsyncSession, vault: Vault):
-        """Exploring/questing dwellers have no room: they drift apart like any apart pair."""
         from app import crud
         from app.core.enums import AgeGroupEnum
         from app.schemas.dweller import DwellerCreate
@@ -919,8 +896,6 @@ class TestUpdateRoomRelationships:
         _, relationship = await self._apart_pair_setup(async_session, vault)
         # Kill dweller 1 (the LQ member): the apart pass must freeze the pair.
         from sqlalchemy import select
-
-        from app.models.dweller import Dweller
 
         dweller1 = (
             await async_session.execute(
@@ -980,7 +955,6 @@ class TestUpdateRoomRelationships:
 
         from app import crud
         from app.core.enums import AgeGroupEnum
-        from app.models.dweller import Dweller
         from app.models.room import Room
         from app.schemas.dweller import DwellerCreate
         from app.services.relationship_service import relationship_service
@@ -1050,8 +1024,6 @@ class TestUpdateRoomRelationships:
 
     @pytest.mark.asyncio
     async def test_apart_decay_disabled_leaves_affinity_untouched(self, async_session: AsyncSession, vault: Vault):
-        from app.core.game_config import game_config
-
         _, relationship = await self._apart_pair_setup(async_session, vault)
         previous = game_config.relationship.apart_affinity_decay_per_tick
         game_config.relationship.apart_affinity_decay_per_tick = 0
@@ -1068,15 +1040,12 @@ class TestUpdateRoomRelationships:
 # ═════════════════════════════════════════════════════════════════════
 # Relationship helper methods
 # ═════════════════════════════════════════════════════════════════════
-#
 # _update_pair_affinity:   local import relationship_service
 # _create_new_relationships: local import relationship_service
 # ═════════════════════════════════════════════════════════════════════
 
 
 class TestRelationshipHelpers:
-    """Tests for relationship helper methods."""
-
     def test_build_relationships_map_bidirectional(self):
         r1 = MagicMock()
         r1.dweller_1_id = "d1"
@@ -1242,14 +1211,11 @@ class TestRelationshipHelpers:
 # ═════════════════════════════════════════════════════════════════════
 # _process_pregnancies_and_births
 # ═════════════════════════════════════════════════════════════════════
-#
 # local import: breeding_service
 # ═════════════════════════════════════════════════════════════════════
 
 
 class TestProcessPregnancies:
-    """Tests for pregnancy and birth processing."""
-
     @pytest.mark.asyncio
     async def test_detects_conceptions(self, async_session: AsyncSession, vault: Vault):
         with patch("app.services.family.breeding_service.breeding_service") as mbs:
@@ -1287,7 +1253,6 @@ class TestProcessPregnancies:
     async def test_capacity_deferral_logs_info_not_error(
         self, async_session: AsyncSession, vault: Vault, caplog: pytest.LogCaptureFixture
     ):
-        """A full vault is an expected deferral, not a delivery error."""
         with (
             patch(
                 "app.services.family.breeding_service.breeding_service.deliver_baby",
@@ -1336,14 +1301,11 @@ class TestProcessPregnancies:
 # ═════════════════════════════════════════════════════════════════════
 # _age_children
 # ═════════════════════════════════════════════════════════════════════
-#
 # local import: breeding_service
 # ═════════════════════════════════════════════════════════════════════
 
 
 class TestAgeChildren:
-    """Tests for aging children to adults."""
-
     @pytest.mark.asyncio
     async def test_success(self, async_session: AsyncSession, vault: Vault):
         with patch("app.services.family.breeding_service.breeding_service") as mbs:
@@ -1484,7 +1446,6 @@ async def test_resume_preserves_incident_response_time_and_does_not_shift_twice(
 
 @pytest.mark.parametrize("tick_offset", [-20, 120])
 async def test_resume_excludes_paused_time_without_counting_it_twice(async_session, vault, tick_offset):
-    """Resume preserves only the unprocessed active time, even if a paused tick ran."""
     state = await game_loop_service.pause_vault(async_session, vault.id)
     paused_at = utcnow() - timedelta(minutes=10)
     state.paused_at = paused_at

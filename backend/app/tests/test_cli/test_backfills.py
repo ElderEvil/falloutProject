@@ -1,5 +1,3 @@
-"""Tests for backfill CLI commands."""
-
 from __future__ import annotations
 
 import re
@@ -91,7 +89,6 @@ def test_merge_rooms_apply(mock_backfill):
 
 
 def test_merge_rooms_rejects_missing_or_deleted_vault(mock_backfill):
-    """A vault that is missing or soft-deleted is rejected instead of silently processed."""
     vault_id = uuid4()
     patcher = _patch_session(_mock_session_lookup(None))
 

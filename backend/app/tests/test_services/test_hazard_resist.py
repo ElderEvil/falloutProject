@@ -13,8 +13,6 @@ from app.utils.hazard_resist import outfit_fire_resist, outfit_radiation_resist
 
 
 class _StubOutfit:
-    """A bare object standing in for an equipped outfit."""
-
     def __init__(self, **fields):
         self.__dict__.update(fields)
 
@@ -26,7 +24,6 @@ def test_fire_resist_reads_the_declared_column():
 
 
 def test_radiation_resist_column_overrides_the_type_table():
-    """A declared share wins; outfits without one keep the type-based fallback."""
     declared = _StubOutfit(name="Hazmat suit", outfit_type="rare_outfit", radiation_resist=1.0)
     assert outfit_radiation_resist(declared) == 1.0
 
@@ -51,7 +48,6 @@ async def _equip_fire_suit(async_session: AsyncSession, dweller_id, fire_resist:
 
 @pytest.mark.asyncio
 async def test_fire_suit_reduces_fire_damage(async_session: AsyncSession, room_with_dwellers: dict):
-    """A fire-rated outfit halves what its wearer takes; the others take it in full."""
     room = room_with_dwellers["room"]
     dwellers = room_with_dwellers["dwellers"]
     for dweller in dwellers:
@@ -95,7 +91,6 @@ async def test_equip_refreshes_the_wearers_cached_outfit(async_session: AsyncSes
 
 @pytest.mark.asyncio
 async def test_hazmat_suit_blocks_radiation_once_equipped(async_session: AsyncSession, room_with_dwellers: dict):
-    """The declared radiation column reaches an incident through the equipped outfit."""
     room = room_with_dwellers["room"]
     dweller = room_with_dwellers["dwellers"][0]
     suit = await crud.outfit.create(
@@ -119,7 +114,6 @@ async def test_hazmat_suit_blocks_radiation_once_equipped(async_session: AsyncSe
 async def test_both_hazard_outfit_protects_against_fire_and_radiation(
     async_session: AsyncSession, room_with_dwellers: dict
 ):
-    """The firefighter suit with a rad helmet is the only kit rated for both hazards."""
     roles = {row["name"]: row for row in _legendary_catalog()}
     entry = roles["Firefighter suit, rad helmet"]
     assert entry["fire_resist"] > 0
@@ -171,7 +165,6 @@ def _legendary_catalog() -> list[dict]:
 
 @pytest.mark.asyncio
 async def test_fire_suit_does_not_help_against_intruders(async_session: AsyncSession, room_with_dwellers: dict):
-    """Fire protection is fire-only; a fight is a fight."""
     room = room_with_dwellers["room"]
     dwellers = room_with_dwellers["dwellers"]
     for dweller in dwellers:

@@ -127,7 +127,6 @@ async def _fight_for_place(maker: async_sessionmaker, vault_id, incident_id, dwe
 
 @pytest.mark.asyncio
 async def test_contended_roster_defers_the_place_instead_of_colliding(roster: dict) -> None:
-    """A round that cannot take the roster lock defers the place; the roster stays consistent."""
     maker, vault_id = roster["maker"], roster["vault_id"]
     dweller_id = roster["dweller_id"]
     incidents = roster["incident_ids"]

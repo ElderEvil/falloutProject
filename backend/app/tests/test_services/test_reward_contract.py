@@ -159,7 +159,6 @@ async def test_open_lunchbox_full_storage_409(async_session: AsyncSession) -> No
 
 @pytest.mark.asyncio
 async def test_open_lunchbox_twice_second_404(async_session: AsyncSession) -> None:
-    """A consumed box cannot be opened again — sequential double-open is single-winner."""
     vault = await _vault_with_storage(async_session)
     minted = await reward_service.grant_lunchbox(async_session, vault.id)
 
@@ -172,7 +171,6 @@ async def test_open_lunchbox_twice_second_404(async_session: AsyncSession) -> No
 
 @pytest.mark.asyncio
 async def test_open_lunchbox_needs_only_net_two_slots(async_session: AsyncSession) -> None:
-    """The consumed box frees its slot, so two free slots fit the three rolled items."""
     user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
     vault = await crud.vault.create(
         async_session,
@@ -189,7 +187,6 @@ async def test_open_lunchbox_needs_only_net_two_slots(async_session: AsyncSessio
 
 @pytest.mark.asyncio
 async def test_rarity_junk_placeholders_settle_into_catalog_valuables(async_session: AsyncSession) -> None:
-    """'<Rarity> junk' rewards settle as real catalog junk, not valueless orphan rows."""
     vault = await _vault_with_storage(async_session)
     for name, rarity, canonical in (("Rare junk", "rare", "Globe"), ("Legendary junk", "legendary", "Gold watch")):
         granted = await reward_service.grant_item(

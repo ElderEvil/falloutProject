@@ -28,10 +28,7 @@ def ws_client() -> TestClient:
 
 
 class TestChatWebSocketAuth:
-    """Auth ordering for the chat WebSocket endpoint."""
-
     def test_valid_token_connects(self, ws_client: TestClient) -> None:
-        """A valid token matching the user_id allows the WebSocket to connect."""
         user_id = uuid4()
         token = create_access_token(subject=str(user_id))
 
@@ -40,7 +37,6 @@ class TestChatWebSocketAuth:
             assert ws.receive_json()["type"] == "pong"
 
     def test_invalid_token_rejected_before_connect(self, ws_client: TestClient) -> None:
-        """Garbage token → handshake rejected."""
         user_id = uuid4()
         with (
             pytest.raises(WebSocketDisconnect) as exc,
@@ -50,7 +46,6 @@ class TestChatWebSocketAuth:
         assert exc.value.code == 4008
 
     def test_no_token_rejected_before_connect(self, ws_client: TestClient) -> None:
-        """Missing token → handshake rejected before the socket is registered."""
         user_id = uuid4()
         with (
             pytest.raises(WebSocketDisconnect) as exc,
@@ -60,7 +55,6 @@ class TestChatWebSocketAuth:
         assert exc.value.code == 4008
 
     def test_mismatched_subject_rejected_before_connect(self, ws_client: TestClient) -> None:
-        """A token whose subject differs from the path user_id → handshake rejected."""
         path_user_id = uuid4()
         other_user_id = uuid4()
         token = create_access_token(subject=str(other_user_id))
@@ -88,8 +82,6 @@ class TestChatWebSocketAuth:
 
 
 class TestLegacyPersonalWebSocketRetired:
-    """The unauthenticated personal notification socket is retired."""
-
     def test_legacy_personal_websocket_route_removed(self, ws_client: TestClient) -> None:
         """Connecting to /api/v1/ws/{user_id} must fail — the route no longer exists."""
         user_id = uuid4()
@@ -101,22 +93,16 @@ class TestLegacyPersonalWebSocketRetired:
 
 
 class TestNotificationSseAuth:
-    """The authenticated SSE stream replaces the retired personal socket."""
-
     def test_sse_notifications_rejects_unauthenticated(self, ws_client: TestClient) -> None:
-        """An unauthenticated SSE subscription is rejected."""
         response = ws_client.get("/api/v1/stream/notifications")
         assert response.status_code == 401
 
     def test_sse_notifications_route_is_registered(self, ws_client: TestClient) -> None:
-        """The replacement stream is registered (subscription itself streams forever)."""
         spec = ws_client.get("/api/v1/openapi.json").json()
         assert "/api/v1/stream/notifications" in spec["paths"]
 
 
 class _FakeSessionCM:
-    """Async context manager yielding a fake DB session for stream patching."""
-
     async def __aenter__(self) -> object:
         return object()
 
@@ -125,10 +111,7 @@ class _FakeSessionCM:
 
 
 class TestChatWebSocketStreaming:
-    """Text messages stream token/done chunks over the chat WebSocket."""
-
     def test_empty_content_returns_error(self, ws_client: TestClient) -> None:
-        """Empty/whitespace-only content is rejected before streaming."""
         user_id = uuid4()
         dweller_id = uuid4()
         token = create_access_token(subject=str(user_id))
@@ -141,7 +124,6 @@ class TestChatWebSocketStreaming:
             }
 
     def test_user_not_found_returns_error(self, ws_client: TestClient) -> None:
-        """A missing user yields an error chunk instead of streaming."""
         user_id = uuid4()
         dweller_id = uuid4()
         token = create_access_token(subject=str(user_id))
@@ -161,7 +143,6 @@ class TestChatWebSocketStreaming:
             assert ws.receive_json() == {"type": "error", "detail": "User not found"}
 
     def test_stream_error_chunk_forwarded(self, ws_client: TestClient) -> None:
-        """Error chunks produced by stream_response are forwarded verbatim."""
         user_id = uuid4()
         dweller_id = uuid4()
         token = create_access_token(subject=str(user_id))
@@ -224,10 +205,7 @@ class TestChatWebSocketStreaming:
 
 
 class TestChatWebSocketRoundTrip:
-    """Full round-trip coverage: typing, malformed payloads, unknown types."""
-
     def test_typing_indicator_round_trips_to_sender(self, ws_client: TestClient) -> None:
-        """A typing event is delivered back to the connected chat socket."""
         user_id = uuid4()
         dweller_id = uuid4()
         token = create_access_token(subject=str(user_id))
@@ -241,7 +219,6 @@ class TestChatWebSocketRoundTrip:
             }
 
     def test_non_object_payload_returns_error(self, ws_client: TestClient) -> None:
-        """A JSON array payload is rejected with a clear error."""
         user_id = uuid4()
         dweller_id = uuid4()
         token = create_access_token(subject=str(user_id))
@@ -251,7 +228,6 @@ class TestChatWebSocketRoundTrip:
             assert ws.receive_json() == {"type": "error", "message": "Message must be a JSON object"}
 
     def test_invalid_json_returns_error(self, ws_client: TestClient) -> None:
-        """Malformed JSON is rejected with an invalid-format error."""
         user_id = uuid4()
         dweller_id = uuid4()
         token = create_access_token(subject=str(user_id))
@@ -261,7 +237,6 @@ class TestChatWebSocketRoundTrip:
             assert ws.receive_json() == {"type": "error", "message": "Invalid JSON format"}
 
     def test_unknown_message_type_returns_error(self, ws_client: TestClient) -> None:
-        """An unsupported message type is reported to the client."""
         user_id = uuid4()
         dweller_id = uuid4()
         token = create_access_token(subject=str(user_id))

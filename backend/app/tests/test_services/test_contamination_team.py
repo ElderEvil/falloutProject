@@ -1,5 +1,3 @@
-"""Tests for earned hazard teams: participation, qualification, and the bench."""
-
 from unittest.mock import patch
 
 import pytest
@@ -30,7 +28,6 @@ from app.utils.item_factory import build_outfit
 
 @pytest.mark.asyncio
 async def test_participation_is_recorded_once_per_incident(async_session: AsyncSession, room_with_dwellers: dict):
-    """A long incident credits a defender once, however many rounds they fight."""
     room = room_with_dwellers["room"]
     dwellers = room_with_dwellers["dwellers"]
     incident = await raise_incident(async_session, room, IncidentType.FIRE)
@@ -50,7 +47,6 @@ async def test_participation_is_recorded_once_per_incident(async_session: AsyncS
 async def test_third_callout_earns_an_active_place_and_a_bio_entry(
     async_session: AsyncSession, room_with_dwellers: dict
 ):
-    """Qualification lands on the third contamination incident, and is written into the bio."""
     room = room_with_dwellers["room"]
     dweller = room_with_dwellers["dwellers"][0]
 
@@ -76,7 +72,6 @@ async def test_third_callout_earns_an_active_place_and_a_bio_entry(
 async def test_fourth_qualifier_waits_on_the_bench(
     async_session: AsyncSession, room_with_dwellers: dict, dweller_data: dict
 ):
-    """The team holds three places; anyone who qualifies after that is benched."""
     room = room_with_dwellers["room"]
     dwellers = list(room_with_dwellers["dwellers"])
     while len(dwellers) <= TEAM_SIZE:
@@ -100,7 +95,6 @@ async def test_fourth_qualifier_waits_on_the_bench(
 async def test_fallen_member_frees_a_place_for_the_bench(
     async_session: AsyncSession, room_with_dwellers: dict, dweller_data: dict
 ):
-    """A dead member stops holding a place, and the most senior bench member steps up."""
     room = room_with_dwellers["room"]
     dwellers = list(room_with_dwellers["dwellers"])
     while len(dwellers) <= TEAM_SIZE:
@@ -136,7 +130,6 @@ async def test_fallen_member_frees_a_place_for_the_bench(
 
 @pytest.mark.asyncio
 async def test_intruder_incidents_earn_no_team_place(async_session: AsyncSession, room_with_dwellers: dict):
-    """Participation is always recorded, but only contamination hazards build a team."""
     room = room_with_dwellers["room"]
     dweller = room_with_dwellers["dwellers"][0]
 
@@ -153,7 +146,6 @@ async def test_intruder_incidents_earn_no_team_place(async_session: AsyncSession
 
 @pytest.mark.asyncio
 async def test_hazard_teams_are_tracked_separately(async_session: AsyncSession, room_with_dwellers: dict):
-    """Fire and radiation callouts are counted apart, so a dweller can hold both places."""
     room = room_with_dwellers["room"]
     dweller = room_with_dwellers["dwellers"][0]
 
@@ -170,7 +162,6 @@ async def test_hazard_teams_are_tracked_separately(async_session: AsyncSession, 
 
 @pytest.mark.asyncio
 async def test_incident_round_credits_its_defenders(async_session: AsyncSession, room_with_dwellers: dict):
-    """A real combat round writes the participation that the rule reads."""
     room = room_with_dwellers["room"]
     dwellers = room_with_dwellers["dwellers"]
     incident = await raise_incident(async_session, room, IncidentType.FIRE)
@@ -207,7 +198,6 @@ async def test_qualifying_round_still_commits_exactly_once(async_session: AsyncS
 
 @pytest.mark.asyncio
 async def test_roster_reports_both_teams(async_session: AsyncSession, room_with_dwellers: dict):
-    """The roster reads every team, even the ones nobody has qualified for yet."""
     room = room_with_dwellers["room"]
 
     roster = await hazard_team_service.get_roster(async_session, room.vault_id)
@@ -258,7 +248,6 @@ async def _equip_catalog_outfit(async_session: AsyncSession, dweller_id, name: s
 async def test_roster_reflects_current_equipment_not_a_cached_flag(
     async_session: AsyncSession, room_with_dwellers: dict
 ):
-    """Gear reads the outfit worn NOW: a non-suit that still resists is not 'zero protection'."""
     room = room_with_dwellers["room"]
     dweller = room_with_dwellers["dwellers"][0]
     await make_member(async_session, room.vault_id, dweller.id, HazardTeam.FIRE, ACTIVE_STATUS)
@@ -299,7 +288,6 @@ async def _hazard_notifications(session: AsyncSession) -> list[Notification]:
 
 @pytest.mark.asyncio
 async def test_join_emits_hazard_team_joined_notification(async_session: AsyncSession, room_with_dwellers: dict):
-    """Earning an active place surfaces as a bell notification with the join meta."""
     room = room_with_dwellers["room"]
     dweller = room_with_dwellers["dwellers"][0]
 
@@ -357,7 +345,6 @@ async def test_qualification_loop_through_real_rounds_places_equips_and_notifies
 async def test_bench_join_emits_bench_notification(
     async_session: AsyncSession, room_with_dwellers: dict, dweller_data: dict
 ):
-    """A bench place surfaces with the bench message and reserve status."""
     room = room_with_dwellers["room"]
     dwellers = list(room_with_dwellers["dwellers"])
     while len(dwellers) <= TEAM_SIZE:
@@ -381,7 +368,6 @@ async def test_bench_join_emits_bench_notification(
 async def test_promotion_emits_notification_without_new_qualifier(
     async_session: AsyncSession, room_with_dwellers: dict, dweller_data: dict
 ):
-    """A bench member stepping up is notified even when nobody newly qualifies."""
     room = room_with_dwellers["room"]
     dwellers = list(room_with_dwellers["dwellers"])
     while len(dwellers) <= TEAM_SIZE:

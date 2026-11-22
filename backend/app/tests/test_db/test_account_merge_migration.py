@@ -1,5 +1,3 @@
-"""Migration fragment coverage for the account_merge audit table."""
-
 import importlib.util
 import inspect
 from pathlib import Path

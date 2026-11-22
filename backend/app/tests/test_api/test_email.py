@@ -1,5 +1,3 @@
-"""Tests for the superuser-only test-email endpoint (POST /email/test)."""
-
 from unittest.mock import AsyncMock, patch
 
 import aiosmtplib

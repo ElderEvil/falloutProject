@@ -1,5 +1,3 @@
-"""Unit tests for expedition site definitions and loading."""
-
 import pytest
 from pydantic import ValidationError
 

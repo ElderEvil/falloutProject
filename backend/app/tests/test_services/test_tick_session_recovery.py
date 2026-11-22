@@ -49,7 +49,6 @@ async def test_raw_tick_session_recovers_after_a_failed_write() -> None:
 
 
 async def test_recover_session_restores_a_usable_session(async_session: AsyncSession) -> None:
-    """After recovery the same session serves later statements again."""
     with pytest.raises(SQLAlchemyError):
         await async_session.execute(text("SELECT * FROM table_that_does_not_exist"))
 
@@ -59,7 +58,6 @@ async def test_recover_session_restores_a_usable_session(async_session: AsyncSes
 
 
 async def test_recover_session_discards_deferred_side_effects(async_session: AsyncSession) -> None:
-    """Work queued for after the next commit dies with the rolled-back transaction."""
     async_session.info["deferred_notification_deliveries"] = ["stale"]
     async_session.info["deferred_level_up_deliveries"] = ["stale"]
 
@@ -102,7 +100,6 @@ async def test_refresh_after_recovery_unexpires_entities(async_session: AsyncSes
 
 
 async def test_refresh_after_recovery_skips_non_mapped_entities(async_session: AsyncSession) -> None:
-    """Test doubles and other non-ORM objects are skipped, not refreshed."""
     await refresh_after_recovery(async_session, [object(), "not-an-entity"])
 
 

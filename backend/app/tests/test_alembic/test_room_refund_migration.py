@@ -1,5 +1,3 @@
-"""Untouched rooms retain formula-based refunds; zero is a real allocated refund."""
-
 import importlib.util
 from pathlib import Path
 

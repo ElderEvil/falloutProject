@@ -1,15 +1,10 @@
-"""Tests for system info endpoint."""
-
 import pytest
 from httpx import AsyncClient
 
 
 @pytest.mark.asyncio
 class TestInfoEndpoint:
-    """Test system info endpoint."""
-
     async def test_get_info_success(self, async_client: AsyncClient) -> None:
-        """Test successful info retrieval."""
         response = await async_client.get("/system/info")
 
         assert response.status_code == 200

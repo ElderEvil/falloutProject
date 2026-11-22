@@ -1,5 +1,3 @@
-"""Tests for DwellerAIService visual attribute generation logic."""
-
 import uuid
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -14,7 +12,6 @@ from app.utils.exceptions import AIProviderException
 
 
 def test_substantial_with_height() -> None:
-    """A physical attribute like height should make it substantial."""
     assert (
         dweller_ai._has_substantial_visual_attributes({"race": "human", "faction": "vault_dweller", "height": "tall"})
         is True
@@ -54,9 +51,6 @@ async def test_avatar_race_change_normalizes_age_and_medical_inventory(async_ses
 async def test_generate_replaces_substantial_attrs(
     mock_quota: MagicMock, mock_crud: MagicMock, mock_agent: MagicMock, mock_llm: MagicMock
 ) -> None:
-    """Regeneration replaces existing AI appearance while retaining identity fields."""
-    from app.schemas.dweller import DwellerVisualAttributes
-
     mock_quota.check_quota = AsyncMock(return_value=MagicMock(allowed=True))
     mock_crud.update = AsyncMock(return_value=MagicMock())
     mock_llm.create = AsyncMock()
@@ -145,7 +139,6 @@ async def test_generate_visual_attributes_maps_invalid_ai_output_to_safe_error(
 
 
 def test_restrict_equipment_fields_removes_non_owned() -> None:
-    """accessory/object_held not among equipped items are dropped."""
     attrs = {"accessory": "Fancy Hat", "object_held": "Laser Rifle", "hair_color": "brown"}
     restrict_equipment_fields(attrs, ["Leather Armor", "Pistol"])
     assert "accessory" not in attrs
@@ -185,7 +178,6 @@ def test_appearance_options_per_race() -> None:
 
 
 def test_presets_exist() -> None:
-    """Archetype presets should be importable with core archetypes."""
     from app.options.presets import archetypes
 
     assert len(archetypes) >= 5
@@ -194,7 +186,6 @@ def test_presets_exist() -> None:
 
 
 def test_scene_options_are_part_of_the_appearance_catalogue() -> None:
-    """Pose and background options live in the canonical appearance module."""
     from app.options.appearance import background_options, pose_options
 
     assert len(pose_options) >= 5

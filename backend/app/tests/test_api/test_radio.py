@@ -1,5 +1,3 @@
-"""Tests for radio recruitment API endpoints."""
-
 import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -18,7 +16,6 @@ async def test_get_radio_stats_with_radio(
     async_session: AsyncSession,
     superuser_token_headers: dict[str, str],
 ):
-    """Test getting radio stats when vault has a radio room."""
     # Create vault
     user = await crud.user.get_by_email(async_session, email=settings.FIRST_SUPERUSER_EMAIL)
     vault = await crud.vault.create_with_user_id(
@@ -69,7 +66,6 @@ async def test_manual_recruit_success(
     async_session: AsyncSession,
     superuser_token_headers: dict[str, str],
 ):
-    """Test successful manual recruitment."""
     from app.core.enums import AgeGroupEnum, GenderEnum, RarityEnum
     from app.schemas.dweller import DwellerCreate
 
@@ -135,7 +131,6 @@ async def test_set_radio_mode(
     async_session: AsyncSession,
     superuser_token_headers: dict[str, str],
 ):
-    """Test setting radio mode."""
     user = await crud.user.get_by_email(async_session, email=settings.FIRST_SUPERUSER_EMAIL)
     vault = await crud.vault.create_with_user_id(
         db_session=async_session,

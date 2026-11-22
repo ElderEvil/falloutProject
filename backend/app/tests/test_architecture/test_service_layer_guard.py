@@ -209,7 +209,6 @@ def _fastapi_import_lines(source: str) -> list[int]:
 
 
 def test_services_and_crud_do_not_reference_http_exception() -> None:
-    """No transport exceptions below the API layer."""
     violations = []
     for dirname in GUARDED_DIRS:
         for path in sorted((APP_DIR / dirname).rglob("*.py")):
@@ -338,7 +337,6 @@ def test_services_do_not_query_directly() -> None:
 
 
 def test_services_do_not_load_rows_directly() -> None:
-    """Session .get() PK loads stay in CRUD; services orchestrate. No baseline: this class stays empty."""
     offenders = []
     for path in sorted((APP_DIR / "services").rglob("*.py")):
         lines = _session_get_call_lines(path.read_text(encoding="utf-8"))
@@ -436,7 +434,6 @@ def test_services_have_no_passthrough_contract_modules() -> None:
 
 
 def test_guard_detects_pydantic_model_forms() -> None:
-    """Self-test: direct, generic, aliased, and module-qualified bases are all reported."""
     source = (
         "from pydantic import BaseModel\n"
         "from pydantic import BaseModel as Model\n"
@@ -456,7 +453,6 @@ def test_guard_detects_pydantic_model_forms() -> None:
 
 
 def test_guard_ignores_non_pydantic_base_model() -> None:
-    """Self-test: a BaseModel name from another library, or shadowed locally, is not pydantic's."""
     source = (
         "from some_lib import BaseModel\n"
         "class FromElsewhere(BaseModel):\n"
@@ -506,7 +502,6 @@ def test_guard_keeps_nested_imports_in_their_scope() -> None:
 
 
 def test_guard_detects_api_import_forms() -> None:
-    """Self-test: absolute, package-attribute, and relative app.api imports are all caught."""
     source = (
         "from app.api.deps import x\n"
         "from app import api\n"
@@ -542,7 +537,6 @@ def test_committing_helpers_are_named_transactions() -> None:
 
 
 def test_guard_detects_commit_ownership_forms() -> None:
-    """Self-test: entry-point commits, helper commits, and transaction-named helpers are told apart."""
     source = (
         "async def entry(db):\n"
         "    await db.commit()\n"
@@ -557,7 +551,6 @@ def test_guard_detects_commit_ownership_forms() -> None:
 
 
 def test_commit_ownership_does_not_attribute_nested_transactions_to_outer_helpers() -> None:
-    """A nested transaction owns its commit; its staging caller does not."""
     source = (
         "async def _staged(db):\n"
         "    async def _save_transaction():\n"
@@ -600,7 +593,6 @@ def test_service_modules_own_a_boundary_or_are_baselined() -> None:
 
 
 def test_guard_detects_pure_service_module() -> None:
-    """Self-test: boundary signals come from syntax, not comments or docstrings."""
     assert _service_boundary_signals('"""Mentions db_session, crud and event_bus.emit."""\n') == set()
     assert _service_boundary_signals("def f() -> int:\n    return 1\n") == set()
     assert "crud" in _service_boundary_signals("from app import crud\n")
@@ -620,7 +612,6 @@ def test_guard_detects_pure_service_module() -> None:
 
 
 def test_crud_stays_flat_and_lowercase() -> None:
-    """CRUD modules stay flat lowercase files; no subpackages, no new naming styles."""
     problems = []
     for path in sorted((APP_DIR / "crud").rglob("*")):
         if any(part.startswith((".", "__")) for part in path.relative_to(APP_DIR / "crud").parts):
@@ -633,7 +624,6 @@ def test_crud_stays_flat_and_lowercase() -> None:
 
 
 def test_guard_detects_http_exception_violation() -> None:
-    """Self-test: the violation finder catches aliased imports, names, and attribute access."""
     source = (
         "from fastapi import HTTPException as HE\n"
         "import fastapi\n"
@@ -648,7 +638,6 @@ def test_guard_detects_http_exception_violation() -> None:
 
 
 def test_guard_detects_nested_service_import() -> None:
-    """Self-test: service imports are found even inside functions, with exact module names."""
     source = (
         "from app.crud.base import CRUDBase\n"
         "def f() -> None:\n"
@@ -659,7 +648,6 @@ def test_guard_detects_nested_service_import() -> None:
 
 
 def test_guard_detects_relative_service_import() -> None:
-    """Self-test: level-two relative imports normalize to app.services paths."""
     source = (
         "from ..services import vault_service\n"
         "from ..services.room_assignment_policy import validate\n"
@@ -669,7 +657,6 @@ def test_guard_detects_relative_service_import() -> None:
 
 
 def test_guard_detects_select_calls() -> None:
-    """Self-test: bare/attribute select(), exec(), text(), and execute() calls are reported with line numbers."""
     source = (
         "x = select(Model).where(Model.id == 1)\n"
         "y = session.execute(select(Model))\n"
@@ -681,7 +668,6 @@ def test_guard_detects_select_calls() -> None:
 
 
 def test_guard_detects_session_get_calls() -> None:
-    """Self-test: only session-receiver .get() loads are flagged; CRUD/redis/queue gets are ignored."""
     source = (
         "a = await db_session.get(Model, 1)\n"
         "b = await session.get(Model, 2)\n"
@@ -695,7 +681,6 @@ def test_guard_detects_session_get_calls() -> None:
 
 
 def test_service_name_pattern() -> None:
-    """Self-test: the naming pattern accepts services and rejects helpers."""
     assert SERVICE_NAME_PATTERN.match("vault_service.py")
     assert SERVICE_NAME_PATTERN.match("__init__.py")
     assert not SERVICE_NAME_PATTERN.match("vault_seed.py")

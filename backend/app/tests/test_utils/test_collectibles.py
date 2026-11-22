@@ -1,5 +1,3 @@
-"""Catalog validation for the bobblehead placements."""
-
 from __future__ import annotations
 
 import pytest

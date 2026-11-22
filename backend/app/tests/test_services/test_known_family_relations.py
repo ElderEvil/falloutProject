@@ -1,5 +1,3 @@
-"""Curated template family links are reconciled regardless of creation order."""
-
 import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
 

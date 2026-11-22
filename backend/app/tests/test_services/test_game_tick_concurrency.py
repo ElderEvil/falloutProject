@@ -88,8 +88,6 @@ def _make_thread_safe_session_maker(shared_conn: AsyncConnection) -> Any:
 
 
 class _CollectLikeEvaluator(ObjectiveEvaluator):
-    """Minimal evaluator that uses the production objective query path."""
-
     objective_type = "collect"
     subscribed_events = (GameEvent.RESOURCE_COLLECTED,)
 
@@ -145,7 +143,6 @@ def test_cross_thread_ticks_do_not_collide_on_shared_objective_connection(
     and deterministically collide. Post-fix each thread sets its own
     loop-local session maker, so no connection is shared.
     """
-    import threading
     from unittest.mock import patch
 
     _ThreadSafeGuardedSession.reset()

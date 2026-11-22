@@ -1,5 +1,3 @@
-"""Tests for scheduled background tasks."""
-
 import asyncio
 import time
 from types import SimpleNamespace
@@ -33,17 +31,14 @@ from app.utils.exceptions import ResourceNotFoundException
 
 
 def test_quest_completion_is_scheduled_every_minute() -> None:
-    """Finished quest timers are settled without a player request."""
     assert "periodic" in check_quest_completion.options
 
 
 def test_current_message_middleware_is_enabled() -> None:
-    """The dispatcher needs the current Dramatiq message id for idempotency."""
     assert any(isinstance(middleware, CurrentMessage) for middleware in broker.middleware)
 
 
 def test_tick_profile_records_named_phases() -> None:
-    """Profiling is opt-in and accumulates repeated phase measurements."""
     profile = TickProfile(vault_key="vault-key", dispatch_key="dispatch-key", enqueued_at=time.time() - 0.01)
     token = set_current_profile(profile)
     try:
@@ -68,8 +63,6 @@ def test_tick_profile_records_named_phases() -> None:
 
 
 class _FakeTaskSession:
-    """Async context manager standing in for ``task_session``."""
-
     def __init__(self) -> None:
         self.session = AsyncMock()
 
@@ -82,7 +75,6 @@ class _FakeTaskSession:
 
 @pytest.mark.asyncio
 async def test_check_quest_completion_drives_both_passes() -> None:
-    """The cron settles expired quests and finalizes arrived parties in one run."""
     with (
         patch("app.api.tasks.task_session", new=lambda: _FakeTaskSession()),
         patch(
@@ -98,7 +90,6 @@ async def test_check_quest_completion_drives_both_passes() -> None:
 
 @pytest.mark.asyncio
 async def test_dispatch_game_tick_enqueues_every_active_vault_with_one_tick_id() -> None:
-    """The dispatcher fans out one actor message per active vault."""
     vault_ids = [uuid4(), uuid4()]
     tick_id = "dispatch-1"
 
@@ -131,7 +122,6 @@ def test_game_tick_uses_the_current_dramatiq_message_id() -> None:
 
 @pytest.mark.asyncio
 async def test_vault_tick_lock_is_exclusive_and_releasable() -> None:
-    """Only one worker can hold a vault's tick lease, and release frees it."""
     redis = fakeredis.aioredis.FakeRedis(decode_responses=True)
     try:
         token = await _acquire_vault_tick_lock(redis, "vault-1")
@@ -232,7 +222,6 @@ async def test_process_vault_tick_releases_lease_on_failure_for_retry() -> None:
 
 @pytest.mark.asyncio
 async def test_process_vault_tick_treats_deleted_vault_as_missing() -> None:
-    """A vault deleted after dispatch is skipped without a retry loop."""
     vault_id = str(uuid4())
     redis = fakeredis.aioredis.FakeRedis(decode_responses=True)
     try:
@@ -332,8 +321,6 @@ def test_world_event_advance_is_scheduled_every_five_minutes() -> None:
 
 
 class _HeldLock:
-    """Async context manager standing in for ``hold_advisory_lock``."""
-
     def __init__(self, *, acquired: bool) -> None:
         self.acquired = acquired
 

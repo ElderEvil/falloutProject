@@ -1,5 +1,3 @@
-"""World event read and claim endpoints: ownership, empty state, and claim failures."""
-
 from collections.abc import AsyncGenerator
 from datetime import UTC, datetime, timedelta
 

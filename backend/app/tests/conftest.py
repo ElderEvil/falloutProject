@@ -290,7 +290,6 @@ async def vault_fixture(async_session: AsyncSession) -> "Vault":
 
     from faker import Faker
 
-    from app.schemas.user import UserCreate
     from app.schemas.vault import VaultCreateWithUserID
 
     fake = Faker()
@@ -389,7 +388,6 @@ async def radio_dweller_fixture(async_session: AsyncSession, vault: "Vault", rad
 @pytest_asyncio.fixture
 async def user_with_vault(async_session: AsyncSession) -> tuple["User", "Vault"]:
     """Create a user with a vault for notification testing."""
-    from app.schemas.user import UserCreate
     from app.schemas.vault import VaultCreate
 
     # Create user

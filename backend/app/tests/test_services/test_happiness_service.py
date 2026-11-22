@@ -1,5 +1,3 @@
-"""Tests for happiness service."""
-
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 from uuid import UUID, uuid4
@@ -28,7 +26,6 @@ from app.tests.factory.rooms import create_fake_room
 
 @pytest_asyncio.fixture(name="test_room")
 async def test_room_fixture(async_session: AsyncSession, vault: Vault) -> Room:
-    """Create a test room for dwellers."""
     room_data = create_fake_room()
     room_data["name"] = "Power Generator"
     room_in = RoomCreate(**room_data, vault_id=vault.id)
@@ -60,8 +57,6 @@ async def working_dweller_fixture(
 
 @pytest.mark.asyncio
 class TestHappinessService:
-    """Test happiness service functionality."""
-
     @pytest.mark.parametrize(
         ("status", "receives_radio"),
         [
@@ -132,7 +127,6 @@ class TestHappinessService:
         working_dweller: Dweller,
         test_room: Room,
     ):
-        """An unstaffed studio is silent; only a dweller working the broadcast makes it pay."""
         from app.services.radio_service import RadioService
 
         test_room.name = "Radio studio"
@@ -206,7 +200,6 @@ class TestHappinessService:
         vault: Vault,
         working_dweller: Dweller,
     ):
-        """Test that low resources reduce happiness."""
         # Set low resources
         vault.power = 15
         vault.power_max = 100
@@ -237,7 +230,6 @@ class TestHappinessService:
         working_dweller: Dweller,
         test_room: Room,
     ):
-        """Test that active incidents reduce happiness."""
         # Ensure dweller is in the room (refresh to get latest state)
         await async_session.refresh(working_dweller)
 
@@ -284,7 +276,6 @@ class TestHappinessService:
         vault: Vault,
         test_room: Room,
     ):
-        """Test that dwellers with partners get happiness bonus."""
         # Create two dwellers
         dweller1_data = create_fake_dweller()
         dweller1_data.update(
@@ -384,7 +375,6 @@ class TestHappinessService:
         self,
         async_session: AsyncSession,
     ):
-        """Test happiness update with invalid vault ID."""
         fake_vault_id = UUID("00000000-0000-0000-0000-000000000000")
 
         result = await happiness_service.update_vault_happiness(
@@ -457,7 +447,6 @@ class TestHappinessService:
         self,
         async_session: AsyncSession,
     ):
-        """Test getting modifiers for non-existent dweller."""
         fake_dweller_id = UUID("00000000-0000-0000-0000-000000000000")
 
         modifiers = await happiness_service.get_happiness_modifiers(
@@ -473,7 +462,6 @@ class TestHappinessService:
         async_session: AsyncSession,
         vault: Vault,
     ):
-        """Test that training dwellers have stable happiness (training bonus offsets decay)."""
         dweller_data = create_fake_dweller()
         dweller_data.update(
             {
@@ -515,7 +503,6 @@ class TestHappinessService:
         async_session: AsyncSession,
         vault: Vault,
     ):
-        """Test modifier breakdown for training dweller."""
         # Create training dweller
         dweller_data = create_fake_dweller()
         dweller_data.update(
@@ -555,7 +542,6 @@ class TestHappinessService:
         async_session: AsyncSession,
         vault: Vault,
     ):
-        """Test modifier breakdown for dweller with low health."""
         # Create low health dweller
         dweller_data = create_fake_dweller()
         dweller_data.update(
@@ -596,7 +582,6 @@ class TestHappinessService:
         async_session: AsyncSession,
         vault: Vault,
     ):
-        """Test modifier breakdown for idle dweller."""
         # Create idle dweller
         dweller_data = create_fake_dweller()
         dweller_data.update(
@@ -637,7 +622,6 @@ class TestHappinessService:
         vault: Vault,
         test_room: Room,
     ):
-        """Test modifier breakdown with active incident."""
         # Create working dweller
         dweller_data = create_fake_dweller()
         dweller_data.update(
@@ -689,7 +673,6 @@ class TestHappinessService:
         async_session: AsyncSession,
         vault: Vault,
     ):
-        """An equipped happiness pet adds its capped fraction to the per-tick delta."""
         dweller_data = create_fake_dweller()
         dweller_data.update(
             {
@@ -739,7 +722,6 @@ class TestHappinessService:
         async_session: AsyncSession,
         vault: Vault,
     ):
-        """A dweller with an equipped happiness pet gains more happiness per tick."""
         dweller_data = create_fake_dweller()
         dweller_data.update(
             {
@@ -903,7 +885,6 @@ async def _create_resting_dweller(
 async def test_resting_living_quarters_bonus_is_net_positive(
     async_session: AsyncSession, vault: Vault, test_room: Room
 ) -> None:
-    """#1454: resting occupants of living quarters gain happiness; other rooms still decay."""
     living_data = create_fake_room()
     living_data["name"] = "Living Quarters"
     living_room = await crud.room.create(db_session=async_session, obj_in=RoomCreate(**living_data, vault_id=vault.id))
@@ -942,7 +923,6 @@ async def test_resting_living_quarters_bonus_is_net_positive(
 async def test_resting_living_room_dweller_gains_happiness_in_tick(
     async_session: AsyncSession, vault: Vault, test_room: Room
 ) -> None:
-    """End-to-end tick: the seeded resting living-room occupant climbs instead of floor-decaying."""
     living_data = create_fake_room()
     living_data["name"] = "Living Quarters"
     living_room = await crud.room.create(db_session=async_session, obj_in=RoomCreate(**living_data, vault_id=vault.id))
@@ -997,7 +977,6 @@ async def test_working_gain_stays_exclusive_to_working(async_session: AsyncSessi
 async def test_modifiers_show_living_quarters_for_resting_dweller(
     async_session: AsyncSession, vault: Vault, test_room: Room
 ) -> None:
-    """The UI breakdown mirrors the tick math for resting living-room occupants (#1454)."""
     living_data = create_fake_room()
     living_data["name"] = "Living Quarters"
     living_room = await crud.room.create(db_session=async_session, obj_in=RoomCreate(**living_data, vault_id=vault.id))

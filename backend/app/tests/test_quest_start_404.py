@@ -11,7 +11,6 @@ from app.tests.factory.vaults import create_fake_vault
 
 @pytest.mark.asyncio
 async def test_start_quest_assigns_and_starts(async_client, async_session):
-    """Test that starting a quest assigns it to vault and returns success."""
     from app.models.room import Room
     from app.services.team_service import team_service
     from app.tests.factory.rooms import create_overseers_office

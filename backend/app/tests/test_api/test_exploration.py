@@ -1,5 +1,3 @@
-"""Tests for exploration API endpoints."""
-
 from datetime import datetime, timedelta
 from uuid import uuid4
 
@@ -43,7 +41,6 @@ async def test_send_dweller_to_wasteland_success(
     dweller: Dweller,
     room: Room,
 ) -> None:
-    """Test successfully sending a dweller to the wasteland."""
     dweller.room_id = room.id
     async_session.add(dweller)
     await async_session.commit()
@@ -87,7 +84,6 @@ async def test_send_routes_to_clear_when_target_given(
     vault: Vault,
     dweller: Dweller,
 ) -> None:
-    """The unified send boundary travels+clears when a target is provided."""
     await _claim_slot(async_session, vault)
     await map_service.register_bio_places(async_session, dweller, origin_place="Red Rocket", visited_places=[])
     state = (
@@ -123,7 +119,6 @@ async def test_send_rejects_multi_dweller_roam(
     vault: Vault,
     dweller: Dweller,
 ) -> None:
-    """A roam (no target) sending more than one dweller is rejected."""
     response = await async_client.post(
         f"/explorations/send?vault_id={vault.id}",
         json={"dweller_ids": [str(dweller.id), str(dweller.id)]},
@@ -138,7 +133,6 @@ async def test_send_requires_a_roster(
     superuser_token_headers: dict[str, str],
     vault: Vault,
 ) -> None:
-    """Neither dweller_id nor dweller_ids is rejected."""
     response = await async_client.post(
         f"/explorations/send?vault_id={vault.id}",
         json={"duration": 4},
@@ -155,7 +149,6 @@ async def test_send_rejects_locked_target(
     vault: Vault,
     dweller: Dweller,
 ) -> None:
-    """A clearable place the vault has not unlocked cannot be sent to."""
     await map_service.register_bio_places(async_session, dweller, origin_place="Red Rocket", visited_places=[])
     state = (
         await async_session.execute(
@@ -180,7 +173,6 @@ async def test_send_rejects_conflicting_roster_fields(
     vault: Vault,
     dweller: Dweller,
 ) -> None:
-    """Providing both dweller_id and dweller_ids is rejected, not silently resolved."""
     response = await async_client.post(
         f"/explorations/send?vault_id={vault.id}",
         json={"dweller_id": str(dweller.id), "dweller_ids": [str(dweller.id)]},
@@ -195,7 +187,6 @@ async def test_list_explorations_empty(
     superuser_token_headers: dict[str, str],
     vault: Vault,
 ) -> None:
-    """Test listing explorations when none exist."""
     response = await async_client.get(
         f"/explorations/vault/{vault.id}?active_only=true",
         headers=superuser_token_headers,
@@ -212,7 +203,6 @@ async def test_dispatch_dweller_success(
     vault: Vault,
     dweller: Dweller,
 ) -> None:
-    """The dispatch endpoint accepts a clearable location and creates a targeted run."""
     await _claim_slot(async_session, vault)
     await map_service.register_bio_places(async_session, dweller, origin_place="Red Rocket", visited_places=[])
     result = await async_session.execute(
@@ -253,7 +243,6 @@ async def test_list_explorations_includes_target_location_id(
     vault: Vault,
     dweller: Dweller,
 ) -> None:
-    """The short list payload exposes target_location_id for dispatched runs."""
     await _claim_slot(async_session, vault)
     await map_service.register_bio_places(async_session, dweller, origin_place="Red Rocket", visited_places=[])
     state = (
@@ -315,7 +304,6 @@ async def test_get_exploration_details(
     vault: Vault,
     dweller: Dweller,
 ) -> None:
-    """Test getting detailed exploration information."""
     exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
 
     # Add some events and loot
@@ -348,7 +336,6 @@ async def test_get_exploration_progress(
     vault: Vault,
     dweller: Dweller,
 ) -> None:
-    """Test getting exploration progress."""
     exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
 
     response = await async_client.get(
@@ -376,7 +363,6 @@ async def test_recall_dweller_success(
     vault: Vault,
     dweller: Dweller,
 ) -> None:
-    """Test successfully recalling a dweller from exploration."""
     exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
 
     # Add some loot
@@ -452,7 +438,6 @@ async def test_complete_exploration_success(
     vault: Vault,
     dweller: Dweller,
 ) -> None:
-    """Test successfully completing an exploration."""
     exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
 
     # Add some loot and stats
@@ -533,7 +518,6 @@ async def test_generate_event_success(
     vault: Vault,
     dweller: Dweller,
 ) -> None:
-    """Test manually generating an event for testing."""
     exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
 
     response = await async_client.post(
@@ -592,7 +576,6 @@ async def test_get_exploration_party_returns_slot_ordered_members(
     vault: Vault,
     dweller: Dweller,
 ) -> None:
-    """A party dispatch surfaces every member in slot order, anchor first."""
     party = [
         dweller,
         Dweller(**create_fake_dweller(), vault_id=vault.id),
@@ -626,7 +609,6 @@ async def test_get_exploration_party_empty_for_free_roam_run(
     vault: Vault,
     dweller: Dweller,
 ) -> None:
-    """A run with no team (free-roam) has an empty party, not an error."""
     exploration = await _make_exploration(async_session, vault, dweller)
 
     response = await async_client.get(
@@ -644,7 +626,6 @@ async def test_get_exploration_party_missing_run_returns_404(
     superuser_token_headers: dict[str, str],
     vault: Vault,
 ) -> None:
-    """An unknown exploration id is a 404 in the caller's own vault."""
     response = await async_client.get(
         f"/explorations/vault/{vault.id}/{uuid4()}/party",
         headers=superuser_token_headers,
@@ -663,7 +644,6 @@ async def test_get_exploration_party_foreign_vault_returns_404(
     vault_data: dict,
     superuser: User,
 ) -> None:
-    """A run that belongs to another vault is not readable under this vault path."""
     exploration = await _make_exploration(async_session, vault, dweller)
     other_vault = await crud.vault.create(
         async_session,
@@ -686,7 +666,6 @@ async def test_get_exploration_party_foreign_user_returns_403(
     vault: Vault,
     dweller: Dweller,
 ) -> None:
-    """A user who does not own the vault cannot read its party."""
     exploration = await _make_exploration(async_session, vault, dweller)
 
     response = await async_client.get(
@@ -705,7 +684,6 @@ async def test_complete_before_duration_returns_400(
     vault: Vault,
     dweller: Dweller,
 ) -> None:
-    """Completing an active exploration before its outbound leg ends is a 400, not a 500."""
     exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
 
     response = await async_client.post(
@@ -728,7 +706,6 @@ async def test_complete_and_recall_finished_exploration_returns_400(
     vault: Vault,
     dweller: Dweller,
 ) -> None:
-    """Completing or recalling a run that already finished is a 400, not a 500."""
     exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
     await exploration_service.recall_exploration_with_data(async_session, exploration.id)
     await async_session.refresh(exploration)

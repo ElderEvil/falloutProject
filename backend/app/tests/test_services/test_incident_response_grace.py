@@ -21,7 +21,6 @@ from app.utils.time import utcnow
 
 @pytest.mark.asyncio
 async def test_undefended_incident_waits_out_the_grace(async_session: AsyncSession, vault: Vault) -> None:
-    """A fresh incident in an empty room stays active: the player gets time to respond."""
     room = await empty_room(async_session, vault.id)
     incident = await raise_incident(async_session, room, IncidentType.RAIDER_ATTACK)
 

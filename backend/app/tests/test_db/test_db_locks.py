@@ -124,7 +124,6 @@ async def test_lock_connection_is_handed_back_when_acquisition_fails(live_pg_eng
 @pytest.mark.integration
 @pytest.mark.asyncio
 async def test_caller_owned_connection_in_a_transaction_is_rejected(live_pg_engine: AsyncEngine) -> None:
-    """A caller-owned connection cannot be made autocommit, so mid-transaction use is refused."""
     async with live_pg_engine.connect() as conn:
         session = AsyncSession(bind=conn)
         await conn.execute(text("SELECT 1"))

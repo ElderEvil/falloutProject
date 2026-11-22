@@ -1,5 +1,3 @@
-"""Hazard auto-dispatch: standing teams respond to matching incidents and return to work."""
-
 from unittest.mock import patch
 from uuid import UUID
 
@@ -44,7 +42,6 @@ def _work_room(vault_id: UUID, name: str, ability, x: int, y: int) -> RoomCreate
 async def test_fire_spawn_dispatches_active_team(
     async_session: AsyncSession, room_with_dwellers: dict, dweller_data: dict
 ):
-    """A fire spawn moves the vault's active Fire team into the incident room, marked dispatched."""
     room = room_with_dwellers["room"]
     vault = room_with_dwellers["vault"]
     dwellers = room_with_dwellers["dwellers"]
@@ -95,7 +92,6 @@ async def test_fire_spawn_dispatches_active_team(
 
 @pytest.mark.asyncio
 async def test_non_hazard_incident_does_not_dispatch(async_session: AsyncSession, room_with_dwellers: dict):
-    """A raider attack leaves the Fire team untouched and nobody moves."""
     room = room_with_dwellers["room"]
     dwellers = room_with_dwellers["dwellers"]
     for dweller in dwellers:
@@ -120,7 +116,6 @@ async def test_non_hazard_incident_does_not_dispatch(async_session: AsyncSession
 
 @pytest.mark.asyncio
 async def test_no_active_team_is_a_noop(async_session: AsyncSession, room_with_dwellers: dict):
-    """No team, or a bench-only team, dispatches nobody and writes no roster."""
     room = room_with_dwellers["room"]
     dwellers = room_with_dwellers["dwellers"]
 
@@ -143,7 +138,6 @@ async def test_no_active_team_is_a_noop(async_session: AsyncSession, room_with_d
 async def test_dispatch_respects_responder_cap(
     async_session: AsyncSession, room_with_dwellers: dict, dweller_data: dict
 ):
-    """An incident roster already at the cap dispatches nothing."""
     room = room_with_dwellers["room"]
     vault = room_with_dwellers["vault"]
     dwellers = room_with_dwellers["dwellers"]
@@ -170,7 +164,6 @@ async def test_dispatch_respects_responder_cap(
 async def test_unavailable_member_skipped_others_dispatched(
     async_session: AsyncSession, room_with_dwellers: dict, dweller_data: dict, health: int, status: DwellerStatusEnum
 ):
-    """Wounded members and Arena fighters stay put; available members respond."""
     room = room_with_dwellers["room"]
     vault = room_with_dwellers["vault"]
     dwellers = room_with_dwellers["dwellers"]
@@ -199,7 +192,6 @@ async def test_unavailable_member_skipped_others_dispatched(
 async def test_dispatch_skips_responder_committed_to_another_incident(
     async_session: AsyncSession, room_with_dwellers: dict, dweller_data: dict
 ):
-    """A hazard-team member already rostered on another active incident is skipped and named in the event."""
     room = room_with_dwellers["room"]
     vault = room_with_dwellers["vault"]
     dwellers = room_with_dwellers["dwellers"]
@@ -428,7 +420,6 @@ async def test_demolished_origin_leaves_helpers_unassigned(async_session: AsyncS
 async def test_dispatch_and_return_after_station_rebuilt_targets_rebuilt_station(
     async_session: AsyncSession, room_with_dwellers: dict
 ):
-    """A rebuilt station is a normal posting again: the next dispatch returns to the new room."""
     vault = room_with_dwellers["vault"]
     dwellers = room_with_dwellers["dwellers"]
     station = await crud.room.create(async_session, _response_station(vault.id))
@@ -516,7 +507,6 @@ async def test_responder_posted_elsewhere_keeps_production_return(
 async def test_roomless_responder_returns_to_unassigned(
     async_session: AsyncSession, room_with_dwellers: dict, dweller_data: dict
 ):
-    """A responder with no posting returns idle, even when work rooms are available."""
     vault = room_with_dwellers["vault"]
     await crud.room.create(async_session, _response_station(vault.id))
     nomad = await crud.dweller.create(async_session, obj_in=DwellerCreate(**dweller_data, vault_id=vault.id))
@@ -572,7 +562,6 @@ async def test_resident_responders_keep_their_original_room_after_resolution(
 
 @pytest.mark.asyncio
 async def test_return_dispatched_responders_is_idempotent(async_session: AsyncSession, room_with_dwellers: dict):
-    """A second return pass finds nobody left to return."""
     vault = room_with_dwellers["vault"]
     dwellers = room_with_dwellers["dwellers"]
     for index, dweller in enumerate(dwellers):
@@ -646,7 +635,6 @@ async def test_return_marks_dead_dispatched_completed_without_returning(
 async def test_tick_retries_returns_for_finished_incident(
     async_session: AsyncSession, room_with_dwellers: dict, dweller_data: dict, success: bool
 ):
-    """Real full-room conflicts retry on later ticks after capacity becomes available."""
     from app.models.game_state import GameState
 
     vault = room_with_dwellers["vault"]

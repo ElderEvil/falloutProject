@@ -40,7 +40,6 @@ def test_every_stat_is_within_the_common_range() -> None:
 
 
 def test_profiles_share_one_stat_budget() -> None:
-    """Equal totals keep the rewards fair; the shape is what differs."""
     for name, profile in _profiles().items():
         total = sum(profile[key] for key in SPECIAL_KEYS)
         assert total == STAT_BUDGET, f"{name} totals {total}, expected {STAT_BUDGET}"
@@ -54,7 +53,6 @@ def test_no_profile_is_a_flat_block() -> None:
 
 
 def test_every_dweller_reward_names_a_curated_resident() -> None:
-    """A starter objective that grants an unknown name would fall back to a roll."""
     objectives = json.loads((DATA_DIR / "objectives/starter.json").read_text(encoding="utf-8"))
     steps = objectives if isinstance(objectives, list) else next(iter(objectives.values()))
     known = _profiles()

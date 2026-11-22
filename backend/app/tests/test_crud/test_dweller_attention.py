@@ -1,5 +1,3 @@
-"""Attention queries filter the complete living roster before pagination."""
-
 import pytest
 
 from app import crud

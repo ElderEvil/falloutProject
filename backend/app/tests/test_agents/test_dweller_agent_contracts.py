@@ -98,7 +98,6 @@ def _family_free_session() -> MagicMock:
 
 
 def test_stateless_agents_use_instructions_not_system_prompts() -> None:
-    """Instructions avoid retaining obsolete context when no message history is passed."""
     for agent in (dweller_chat_agent, backstory_agent, bio_extension_agent, visual_attributes_agent):
         assert agent._instructions
         assert agent._system_prompts == ()
@@ -106,7 +105,6 @@ def test_stateless_agents_use_instructions_not_system_prompts() -> None:
 
 
 def test_instructions_name_irradiated_water_as_radiation_cause() -> None:
-    """Dwellers attribute drought sickness to drinking irradiated water, which no armor blocks."""
     from app.agents.chat_prompts import build_chat_instructions
 
     instructions = build_chat_instructions(_make_dweller())
@@ -115,7 +113,6 @@ def test_instructions_name_irradiated_water_as_radiation_cause() -> None:
 
 
 def test_assignment_requires_complete_room_data() -> None:
-    """An assignment cannot reach gameplay handling without an ID and display name."""
     output = _output(action_type="assign_to_room", action_room_id=uuid4())
 
     with pytest.raises(ModelRetry, match="action_room_name"):
@@ -123,7 +120,6 @@ def test_assignment_requires_complete_room_data() -> None:
 
 
 def test_no_action_rejects_gameplay_payload() -> None:
-    """No-action output may explain itself but cannot carry an executable action field."""
     output = _output(action_room_id=uuid4())
 
     with pytest.raises(ModelRetry, match="no_action must not include: action_room_id"):
@@ -131,7 +127,6 @@ def test_no_action_rejects_gameplay_payload() -> None:
 
 
 def test_bio_addendum_requires_text() -> None:
-    """A bio addendum without text has nothing to record."""
     output = _output(action_type="bio_addendum")
 
     with pytest.raises(ModelRetry, match="action_bio_text"):
@@ -139,7 +134,6 @@ def test_bio_addendum_requires_text() -> None:
 
 
 def test_bio_addendum_rejects_foreign_payload() -> None:
-    """A bio addendum is a narrative action and carries no gameplay fields."""
     output = _output(
         action_type="bio_addendum",
         action_bio_text="I keep a lucky wrench under my bunk.",
@@ -152,7 +146,6 @@ def test_bio_addendum_rejects_foreign_payload() -> None:
 
 @pytest.mark.asyncio
 async def test_bio_addendum_is_suggested_for_new_detail() -> None:
-    """A durable, previously unrecorded detail becomes an actionable card."""
     output = _output(action_type="bio_addendum", action_bio_text="I keep a lucky wrench under my bunk.")
 
     result = await parse_action_suggestion(output, _medical_session(), _make_dweller())
@@ -200,7 +193,6 @@ async def test_request_exit_records_the_ask_without_committing() -> None:
 
 @pytest.mark.asyncio
 async def test_request_exit_is_downgraded_when_the_dweller_cannot_leave() -> None:
-    """An ineligible ask becomes a plain refusal, not an action card."""
     dweller = _make_dweller()
     dweller.id = uuid4()
     dweller.vault_id = uuid4()
@@ -218,7 +210,6 @@ async def test_request_exit_is_downgraded_when_the_dweller_cannot_leave() -> Non
 
 @pytest.mark.asyncio
 async def test_test_model_invokes_selected_room_recommendation_tool() -> None:
-    """A deterministic model can exercise the chat agent's registered decision tools."""
     deps = DwellerChatDeps(db_session=_family_free_session(), dweller=_make_dweller(), vault_id=uuid4())
     model = TestModel(
         call_tools=["get_best_room_recommendation"],
@@ -239,7 +230,6 @@ async def test_test_model_invokes_selected_room_recommendation_tool() -> None:
 
 @pytest.mark.asyncio
 async def test_test_model_invokes_activity_briefing_before_activity_suggestion() -> None:
-    """The model can query grounded training/exploration state without a provider or database."""
     deps = DwellerChatDeps(db_session=_family_free_session(), dweller=_make_dweller(), vault_id=uuid4())
     model = TestModel(
         call_tools=["get_dweller_activity_briefing"],
@@ -276,7 +266,6 @@ async def test_test_model_invokes_activity_briefing_before_activity_suggestion()
 
 @pytest.mark.asyncio
 async def test_medical_status_tool_reports_thresholds_and_supplies() -> None:
-    """The AI medical tool exposes live percentages and vault inventory."""
     dweller = _make_dweller()
     dweller.health = 40
     dweller.radiation = 35  # effective max becomes 65
@@ -312,7 +301,6 @@ async def test_medical_status_tool_reports_thresholds_and_supplies() -> None:
 
 @pytest.mark.asyncio
 async def test_medical_action_requires_live_threshold_and_supply() -> None:
-    """Medical action cards are rejected when the live state no longer qualifies."""
     dweller = _make_dweller()
     dweller.id = uuid4()
     dweller.vault_id = uuid4()
@@ -381,7 +369,6 @@ async def test_gen_3_synth_can_get_radaway_action_from_model_output() -> None:
 
 @pytest.mark.asyncio
 async def test_test_model_invokes_social_context_for_family_questions() -> None:
-    """The chat agent can ground status and family answers in current vault data."""
     deps = DwellerChatDeps(db_session=_family_free_session(), dweller=_make_dweller(), vault_id=uuid4())
     context = {
         "status": "Socializing",
@@ -420,7 +407,6 @@ async def test_test_model_invokes_social_context_for_family_questions() -> None:
 
 @pytest.mark.asyncio
 async def test_chat_agent_caps_runaway_tool_calls() -> None:
-    """A model that loops on one tool is capped instead of running away with the turn."""
     from pydantic_ai.exceptions import UsageLimitExceeded
 
     from app.agents.dweller_chat_agent import CHAT_USAGE_LIMITS
@@ -488,7 +474,6 @@ async def test_social_context_reports_live_status_family_and_affinity() -> None:
 
 @pytest.mark.asyncio
 async def test_activity_suggestion_is_rejected_when_fresh_state_conflicts() -> None:
-    """A stale model suggestion cannot emit a start-exploration card after exploration begins."""
     dweller = _make_dweller()
     dweller.id = uuid4()
     dweller.vault_id = uuid4()
@@ -513,7 +498,6 @@ async def test_activity_suggestion_is_rejected_when_fresh_state_conflicts() -> N
 
 @pytest.mark.asyncio
 async def test_training_suggestion_requires_a_fresh_matching_training_option() -> None:
-    """The server rejects a model-selected stat when no matching room remains available."""
     dweller = _make_dweller()
     dweller.id = uuid4()
     dweller.vault_id = uuid4()
@@ -561,7 +545,6 @@ def test_usage_limits_without_a_thread_are_the_exchange_caps() -> None:
 
 @pytest.mark.asyncio
 async def test_a_thread_at_the_request_cap_can_still_talk() -> None:
-    """Carried usage counts toward the cap; the offset keeps the next exchange inside it."""
     from app.agents.dweller_chat_agent import CHAT_REQUEST_LIMIT
 
     conversation = Conversation()

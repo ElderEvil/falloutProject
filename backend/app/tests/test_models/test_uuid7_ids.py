@@ -19,12 +19,10 @@ from app.schemas.vault import VaultRead
 
 
 def test_base_uuid_model_generates_v7() -> None:
-    """The central id factory produces a UUIDv7."""
     assert BaseUUIDModel().id.version == 7
 
 
 def test_custom_id_models_generate_v7() -> None:
-    """Models that declare their own id column also default to UUIDv7."""
     quest_reward = QuestReward(quest_id=uuid7())
     quest_requirement = QuestRequirement(quest_id=uuid7())
     incident_event = IncidentEvent(incident_id=uuid7(), kind="test", message="test")
@@ -58,7 +56,6 @@ async def test_v4_and_v7_ids_round_trip_through_database(async_session: AsyncSes
 
 
 def test_read_schema_accepts_v4_and_v7_ids() -> None:
-    """A real read schema with a UUID field accepts both id versions."""
     now = datetime(2026, 1, 1, 12, 0, 0)
     payload = {"number": 42, "created_at": now, "updated_at": now}
 
@@ -70,7 +67,6 @@ def test_read_schema_accepts_v4_and_v7_ids() -> None:
 
 
 def test_uuid7_burst_has_monotonic_timestamps() -> None:
-    """A burst of v7 ids keeps non-decreasing 48-bit timestamps and version 7."""
     ids: list[UUID] = [uuid7() for _ in range(1_000)]
 
     timestamps = [value.int >> 80 for value in ids]

@@ -1,5 +1,3 @@
-"""Unit tests for the exploration rewards calculator."""
-
 from types import SimpleNamespace
 from unittest.mock import patch
 from uuid import uuid4
@@ -36,7 +34,6 @@ def _pet(name: str) -> Pet:
 
 
 def test_site_events_excluded_from_event_xp():
-    """Site events are journey-log noise; only non-site events earn event XP."""
     dweller = SimpleNamespace(health=100, effective_max_health=100)
     base = _exploration(events=[{"type": "random", "description": "Found a cache"}])
     with_site = _exploration(
@@ -52,7 +49,6 @@ def test_site_events_excluded_from_event_xp():
 
 
 def test_pet_xp_bonus_included():
-    """A pet with xp_pct adds an additive percentage of base XP."""
     exploration = _exploration(events=[{"type": "random", "description": "Found a cache"}])
     exploration.total_distance = 100
 
@@ -64,7 +60,6 @@ def test_pet_xp_bonus_included():
 
 
 def test_pet_xp_bonus_capped_at_max_pct():
-    """xp_pct above MAX_PCT_BONUS is clamped to the cap."""
     exploration = _exploration(events=[{"type": "random", "description": "Found a cache"}])
     exploration.total_distance = 100
 
@@ -79,7 +74,6 @@ def test_pet_xp_bonus_capped_at_max_pct():
 
 
 def test_no_pet_xp_unchanged():
-    """A dweller without an equipped pet earns the same XP as before pets."""
     exploration = _exploration(events=[{"type": "random", "description": "Found a cache"}])
     exploration.total_distance = 100
 
@@ -88,7 +82,6 @@ def test_no_pet_xp_unchanged():
 
 
 def test_location_xp_is_additive_and_bonus_scaled():
-    """A cleared location adds base XP before the survival and luck bonuses."""
     exploration = _exploration(events=[])
     exploration.location_xp = 100
 
@@ -97,7 +90,6 @@ def test_location_xp_is_additive_and_bonus_scaled():
 
 
 def test_missing_location_xp_adds_nothing():
-    """An uncleared run carries NULL and earns no location XP."""
     exploration = _exploration(events=[])
     exploration.location_xp = None
 

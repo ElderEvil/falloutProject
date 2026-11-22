@@ -39,9 +39,7 @@ from app.services.room_assignment_policy import calculate_room_capacity
 from app.tests.factory.vaults import random_vault_number
 from app.utils.exceptions import ResourceConflictException, ValidationException
 
-# ---------------------------------------------------------------------------
 # Helpers
-# ---------------------------------------------------------------------------
 
 
 def _production_room_create(
@@ -112,14 +110,11 @@ async def _occupants(session: AsyncSession, room: Room) -> int:
     return await crud.dweller.count_in_room(session, room.id)
 
 
-# ---------------------------------------------------------------------------
 # The gap: manual moves ignore worker capacity
-# ---------------------------------------------------------------------------
 
 
 @pytest.mark.asyncio
 async def test_full_production_room_rejects_manual_move(async_session: AsyncSession, vault: Vault) -> None:
-    """A size-3 production room holds 2 workers; the 3rd manual move is rejected."""
     room = await _create_room(async_session, vault.id, name="Power Generator", x=10)
     assert calculate_room_capacity(room.size) == 2
 
@@ -139,7 +134,6 @@ async def test_full_production_room_rejects_manual_move(async_session: AsyncSess
 
 @pytest.mark.asyncio
 async def test_moving_between_rooms_frees_and_uses_slots(async_session: AsyncSession, vault: Vault) -> None:
-    """A dweller leaving a full room frees its slot; the freed slot admits a newcomer."""
     full_room = await _create_room(async_session, vault.id, name="Power Generator", x=10)
     spare_room = await _create_room(async_session, vault.id, name="Water Treatment", x=13)
 
@@ -158,7 +152,6 @@ async def test_moving_between_rooms_frees_and_uses_slots(async_session: AsyncSes
 
 @pytest.mark.asyncio
 async def test_manual_assignment_rejects_feral_ghoul_worker(async_session: AsyncSession, vault: Vault) -> None:
-    """Feral ghouls may defend but cannot take a production-room posting."""
     room = await _create_room(async_session, vault.id, name="Power Generator", x=11)
     feral = await _create_adult(async_session, vault.id, "Feral")
     feral.visual_attributes = {"race": "ghoul", "state_of_being": "feral"}
@@ -175,7 +168,6 @@ async def test_manual_assignment_rejects_feral_ghoul_worker(async_session: Async
 
 @pytest.mark.asyncio
 async def test_junior_slot_sits_outside_full_worker_capacity(async_session: AsyncSession, vault: Vault) -> None:
-    """A youth joins a worker-full production room as apprentice; a second youth is refused."""
     room = await _create_room(async_session, vault.id, name="Power Generator", x=10)
 
     first = await _create_adult(async_session, vault.id, "First")
@@ -245,9 +237,7 @@ async def test_bulk_retries_candidate_in_next_room_when_first_is_busy(
     assert assignments[0]["room_id"] == str(rooms[1].id)
 
 
-# ---------------------------------------------------------------------------
 # Live-PostgreSQL race: the last free worker slot goes to exactly one request
-# ---------------------------------------------------------------------------
 
 
 @pytest_asyncio.fixture(scope="module")
@@ -347,7 +337,6 @@ async def test_two_concurrent_production_moves_admit_only_one(production_ctx: di
 @pytest.mark.integration
 @pytest.mark.asyncio
 async def test_bulk_and_manual_race_for_last_slot(production_ctx: dict) -> None:
-    """Bulk auto-assign racing a manual move for the last worker slot: exactly one wins."""
     maker = production_ctx["maker"]
     vault_id = production_ctx["vault_id"]
     room_id = production_ctx["room_id"]

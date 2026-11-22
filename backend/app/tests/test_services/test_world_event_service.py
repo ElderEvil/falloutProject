@@ -1,5 +1,3 @@
-"""World event service: contributions, lifecycle, reads and claims."""
-
 from datetime import timedelta
 
 import pytest

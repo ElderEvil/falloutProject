@@ -1,5 +1,3 @@
-"""Tests for overflow take/sell/abandon resolution."""
-
 from collections.abc import Awaitable, Callable
 from datetime import datetime, timedelta
 
@@ -76,7 +74,6 @@ async def test_pending_overflow_is_available_after_returning_to_exploration(
     dweller: Dweller,
     make_vault_storage,
 ):
-    """Pending overflow remains discoverable after the completion modal is closed."""
     await make_vault_storage(1)
     exploration, _ = await _completed_with_overflow(
         async_session,
@@ -102,7 +99,6 @@ async def test_take_unclaimed_item_preserves_every_stacked_unit(
     dweller: Dweller,
     make_vault_storage,
 ):
-    """Taking stacked overflow creates one storage row for every unit."""
     storage = await make_vault_storage(1)
     exploration, _ = await _completed_with_overflow(
         async_session,
@@ -131,7 +127,6 @@ async def test_take_unclaimed_item_conflicts_when_full(
     dweller: Dweller,
     make_vault_storage,
 ):
-    """Taking with no space raises 409 and keeps the list intact."""
     await make_vault_storage(1)
     exploration, _ = await _completed_with_overflow(
         async_session,
@@ -157,7 +152,6 @@ async def test_sell_unclaimed_item_grants_caps_without_space(
     dweller: Dweller,
     make_vault_storage,
 ):
-    """Selling overflow junk grants quantity-aware caps even when storage is full."""
     await make_vault_storage(1)
     await async_session.refresh(vault)
     caps_before = vault.bottle_caps
@@ -186,7 +180,6 @@ async def test_unclaimed_rejects_bad_index_and_active_exploration(
     dweller: Dweller,
     make_vault_storage,
 ):
-    """Out-of-range index 404s; active explorations cannot be resolved."""
     await make_vault_storage(1)
     exploration, _ = await _completed_with_overflow(
         async_session,
@@ -338,7 +331,6 @@ async def test_settlement_holds_catalog_miss_loot_instead_of_dropping(
     dweller: Dweller,
     make_vault_storage,
 ):
-    """A granted weapon with no catalog row falls back to overflow instead of vanishing."""
     await make_vault_storage(10)
     exploration, rewards = await _completed_with_overflow(
         async_session,
@@ -359,7 +351,6 @@ async def test_sell_catalog_miss_loot_clears_the_entry(
     dweller: Dweller,
     make_vault_storage,
 ):
-    """A catalog-miss overflow entry can be salvaged at its rarity value and cleared."""
     await make_vault_storage(0)
     exploration, _ = await _completed_with_overflow(
         async_session,
@@ -385,7 +376,6 @@ async def test_take_weapon_emits_item_collected_after_commit(
     dweller: Dweller,
     make_vault_storage,
 ):
-    """Taking a held weapon credits collect objectives once the take is committed."""
     storage = await make_vault_storage(0)
     exploration, _ = await _completed_with_overflow(
         async_session,
@@ -419,7 +409,6 @@ async def test_take_junk_emits_its_catalog_material(
     dweller: Dweller,
     make_vault_storage,
 ):
-    """A taken junk entry credits collection with its catalog material and wasteland source."""
     storage = await make_vault_storage(0)
     exploration, _ = await _completed_with_overflow(
         async_session,

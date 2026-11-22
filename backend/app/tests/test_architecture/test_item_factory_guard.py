@@ -65,7 +65,6 @@ def _found_constructions() -> dict[tuple[str, str], int]:
 
 
 def test_catalog_backed_items_are_built_through_the_shared_factory() -> None:
-    """Only app/utils/item_factory.py may construct catalog-backed item models."""
     found = _found_constructions()
 
     messages = []

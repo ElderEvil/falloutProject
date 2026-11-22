@@ -29,7 +29,6 @@ async def _join_attempt(async_session: AsyncSession, room, dweller) -> None:
 
 @pytest.mark.asyncio
 async def test_join_is_refused_without_a_response_station(async_session: AsyncSession, room_with_dwellers: dict):
-    """A fully-qualified defender earns no place while the vault has no station."""
     room = room_with_dwellers["room"]
     dweller = room_with_dwellers["dwellers"][0]
 
@@ -41,7 +40,6 @@ async def test_join_is_refused_without_a_response_station(async_session: AsyncSe
 
 @pytest.mark.asyncio
 async def test_join_succeeds_once_a_response_station_exists(async_session: AsyncSession, room_with_dwellers: dict):
-    """With a station standing, the same qualifying callouts earn the active place."""
     room = room_with_dwellers["room"]
     dweller = room_with_dwellers["dwellers"][0]
     await ensure_station(async_session, room.vault_id)
@@ -55,7 +53,6 @@ async def test_join_succeeds_once_a_response_station_exists(async_session: Async
 
 @pytest.mark.asyncio
 async def test_promotion_is_refused_without_a_response_station(async_session: AsyncSession, room_with_dwellers: dict):
-    """A bench member cannot be promoted to an active place while no station exists."""
     room = room_with_dwellers["room"]
     dweller = room_with_dwellers["dwellers"][0]
     await make_member(async_session, room.vault_id, dweller.id, HazardTeam.FIRE, RESERVE_STATUS)
@@ -69,7 +66,6 @@ async def test_promotion_is_refused_without_a_response_station(async_session: As
 
 @pytest.mark.asyncio
 async def test_promotion_succeeds_once_a_response_station_exists(async_session: AsyncSession, room_with_dwellers: dict):
-    """With a station standing, the bench member steps up to an active place."""
     room = room_with_dwellers["room"]
     dweller = room_with_dwellers["dwellers"][0]
     await make_member(async_session, room.vault_id, dweller.id, HazardTeam.FIRE, RESERVE_STATUS)
@@ -114,7 +110,6 @@ async def test_round_does_not_promote_a_bench_member_without_a_station(
 async def test_demolition_keeps_places_but_blocks_further_promotion(
     async_session: AsyncSession, room_with_dwellers: dict
 ):
-    """Demolishing the station leaves earned places standing yet refuses new promotions."""
     room = room_with_dwellers["room"]
     veteran = room_with_dwellers["dwellers"][0]
     benched = room_with_dwellers["dwellers"][1]

@@ -1,5 +1,3 @@
-"""Exercise the installed pre-push hook against disposable local Git remotes."""
-
 import shutil
 import subprocess
 from pathlib import Path

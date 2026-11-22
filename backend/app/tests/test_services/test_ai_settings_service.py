@@ -1,5 +1,3 @@
-"""Tests for AISettingsService — effective resolution, update_profile, apply, reconfigure."""
-
 from unittest.mock import MagicMock, patch
 
 import pytest

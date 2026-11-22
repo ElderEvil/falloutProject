@@ -1,5 +1,3 @@
-"""Cadence gating for the wall-clock crafting checker."""
-
 from unittest.mock import AsyncMock, patch
 from uuid import uuid4
 

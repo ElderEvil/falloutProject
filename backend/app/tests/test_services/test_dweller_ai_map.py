@@ -1,5 +1,3 @@
-"""Tests for DwellerAIService world-map place extraction (bio → markers)."""
-
 import uuid
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -46,7 +44,6 @@ async def test_generate_backstory_map_service_raising_is_swallowed(
     mock_map: MagicMock,
     mock_llm: MagicMock,
 ) -> None:
-    """When map_service raises, the bio generation still succeeds (best-effort)."""
     mock_quota.check_quota = AsyncMock(return_value=MagicMock(allowed=True))
     mock_llm.create = AsyncMock()
     mock_crud.update = AsyncMock()
@@ -96,7 +93,6 @@ async def test_extend_bio_length_guard_truncates_at_the_bio_cap(
     mock_map: MagicMock,
     mock_llm: MagicMock,
 ) -> None:
-    """A bio already near the cap plus an extension is truncated with an ellipsis."""
     mock_quota.check_quota = AsyncMock(return_value=MagicMock(allowed=True))
     mock_llm.create = AsyncMock()
     mock_map.register_bio_places = AsyncMock()
@@ -145,7 +141,6 @@ async def test_extend_bio_rewrites_the_origin_entry(
     mock_map: MagicMock,
     mock_llm: MagicMock,
 ) -> None:
-    """Extension grows the origin story so the stored bio stays its compiled form."""
     mock_quota.check_quota = AsyncMock(return_value=MagicMock(allowed=True))
     mock_llm.create = AsyncMock()
     mock_map.register_bio_places = AsyncMock()
@@ -237,7 +232,6 @@ async def test_generate_backstory_replaces_origin_entry(
     mock_map: MagicMock,
     mock_llm: MagicMock,
 ) -> None:
-    """A regenerated backstory replaces the stored origin entry instead of stacking."""
     mock_quota.check_quota = AsyncMock(return_value=MagicMock(allowed=True))
     mock_llm.create = AsyncMock()
     mock_map.register_bio_places = AsyncMock()

@@ -1,5 +1,3 @@
-"""Tests for dweller content provenance classification."""
-
 from __future__ import annotations
 
 from uuid import UUID
@@ -144,7 +142,6 @@ async def test_grant_dweller_rolls_each_special_independently(async_session: Asy
 
 
 async def test_grant_dweller_prefers_curated_stats_over_the_roll(async_session: AsyncSession, vault: Vault) -> None:
-    """A template that supplies a stat keeps it; the roll only fills the gaps."""
     from unittest.mock import patch
 
     with patch("app.services.rewards.items.random.randint", side_effect=[2, 2, 2, 2, 2, 2]):

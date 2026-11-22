@@ -1,5 +1,3 @@
-"""Tests for health check service."""
-
 from __future__ import annotations
 
 import logging
@@ -30,14 +28,11 @@ def _unhealthy_result(service: str) -> HealthCheckResult:
     return HealthCheckResult(service=service, status=ServiceStatus.UNHEALTHY, message="fail")
 
 
-# =============================================================================
 # check_postgres
-# =============================================================================
 
 
 @pytest.mark.asyncio
 async def test_check_postgres_healthy() -> None:
-    """Database returns SELECT 1 successfully."""
     mock_conn = MagicMock()
     mock_conn.__aenter__ = AsyncMock(return_value=mock_conn)
     mock_conn.__aexit__ = AsyncMock(return_value=None)
@@ -56,7 +51,6 @@ async def test_check_postgres_healthy() -> None:
 
 @pytest.mark.asyncio
 async def test_check_postgres_unhealthy() -> None:
-    """Database connection fails with ConnectionError."""
     mock_engine = MagicMock(spec=AsyncEngine)
     mock_engine.connect.side_effect = ConnectionError("connection refused")
 
@@ -67,14 +61,11 @@ async def test_check_postgres_unhealthy() -> None:
     assert "failed" in result.message
 
 
-# =============================================================================
 # check_redis
-# =============================================================================
 
 
 @pytest.mark.asyncio
 async def test_check_redis_healthy() -> None:
-    """Redis ping succeeds."""
     mock_redis = MagicMock()
     mock_redis.ping = AsyncMock()
     mock_redis.close = AsyncMock()
@@ -89,7 +80,6 @@ async def test_check_redis_healthy() -> None:
 
 @pytest.mark.asyncio
 async def test_check_redis_unhealthy_redis_error() -> None:
-    """Redis ping raises RedisError."""
     mock_redis = MagicMock()
     mock_redis.ping = AsyncMock(side_effect=RedisError("connection refused"))
     mock_redis.close = AsyncMock()
@@ -104,7 +94,6 @@ async def test_check_redis_unhealthy_redis_error() -> None:
 
 @pytest.mark.asyncio
 async def test_check_redis_unhealthy_invalid_port() -> None:
-    """A non-numeric REDIS_PORT returns an unhealthy result instead of escaping the probe."""
     with patch.object(settings, "REDIS_PORT", "not-a-port"):
         result = await HealthCheckService.check_redis()
 
@@ -113,13 +102,10 @@ async def test_check_redis_unhealthy_invalid_port() -> None:
     assert "failed" in result.message
 
 
-# =============================================================================
 # check_dramatiq
-# =============================================================================
 
 
 def test_check_dramatiq_not_configured() -> None:
-    """Dramatiq broker is None (not imported)."""
     with patch("app.core.health_check.broker", None):
         result = HealthCheckService.check_dramatiq()
 
@@ -131,8 +117,6 @@ def test_check_dramatiq_not_configured() -> None:
 
 
 def test_check_dramatiq_unhealthy() -> None:
-    """Dramatiq broker.actors access raises a RedisError."""
-
     class BadBroker:
         @property
         def actors(self) -> dict:
@@ -147,7 +131,6 @@ def test_check_dramatiq_unhealthy() -> None:
 
 
 def test_check_dramatiq_healthy_empty_actors() -> None:
-    """Broker has zero actors but is healthy."""
     mock_broker = MagicMock()
     mock_broker.actors = {}
     with patch("app.core.health_check.broker", mock_broker):
@@ -158,9 +141,7 @@ def test_check_dramatiq_healthy_empty_actors() -> None:
     assert result.details["actors"] == 0
 
 
-# =============================================================================
 # check_rustfs
-# =============================================================================
 
 
 def _inject_fake_boto3(
@@ -191,7 +172,6 @@ def _patch_boto3_in_sys_modules(
 
 
 def test_check_rustfs_not_configured_missing_key() -> None:
-    """RustFS has access key but no secret key."""
     with (
         patch.object(settings, "RUSTFS_ACCESS_KEY", "fake-key"),
         patch.object(settings, "RUSTFS_SECRET_KEY", None),
@@ -202,7 +182,6 @@ def test_check_rustfs_not_configured_missing_key() -> None:
 
 
 def test_check_rustfs_healthy_default_hostname() -> None:
-    """Endpoint built with default hostname and HTTPS."""
     fake_modules = _patch_boto3_in_sys_modules(return_buckets=[])
     with (
         patch.dict(sys.modules, fake_modules),
@@ -221,7 +200,6 @@ def test_check_rustfs_healthy_default_hostname() -> None:
 
 
 def test_check_rustfs_os_error() -> None:
-    """RustFS raises OSError when connecting."""
     with (
         patch.dict(sys.modules, _patch_boto3_in_sys_modules(side_effect=OSError("network unreachable"))),
         patch.object(settings, "RUSTFS_ACCESS_KEY", "fake-key"),
@@ -236,9 +214,7 @@ def test_check_rustfs_os_error() -> None:
     assert "failed" in result.message
 
 
-# =============================================================================
 # check_local_ai
-# =============================================================================
 
 
 def _local_ai_response(status_code: int, models: list[str] | None = None) -> MagicMock:
@@ -264,7 +240,6 @@ def _local_ai_client(get_effect: MagicMock | Exception) -> MagicMock:
 @pytest.mark.parametrize("provider", [pytest.param("ollama", id="ollama"), pytest.param("lmstudio", id="lmstudio")])
 @pytest.mark.asyncio
 async def test_check_local_ai_not_configured(provider: Literal["ollama", "lmstudio"]) -> None:
-    """AI_PROVIDER is not the checked local provider."""
     with patch.object(settings, "AI_PROVIDER", "openai"):
         result = await HealthCheckService.check_local_ai(provider)
 
@@ -349,7 +324,6 @@ async def test_check_local_ai_provider_responses(
     expected_status: ServiceStatus,
     message_fragment: str,
 ) -> None:
-    """check_local_ai maps local provider HTTP outcomes onto component health."""
     with patch("app.core.health_check.httpx.AsyncClient", return_value=_local_ai_client(get_effect)):
         result = await HealthCheckService.check_local_ai(local_ai_provider)
 
@@ -371,9 +345,7 @@ async def test_check_local_ai_unexpected_error_propagates(
         await HealthCheckService.check_local_ai(local_ai_provider)
 
 
-# =============================================================================
 # check_smtp
-# =============================================================================
 
 
 @pytest.mark.parametrize(
@@ -387,7 +359,6 @@ async def test_check_local_ai_unexpected_error_propagates(
 async def test_check_smtp_healthy(
     smtp_user: str | None, smtp_password: str | None, expected_auth: bool, login_args: tuple[str, str] | None
 ) -> None:
-    """SMTP connects (and authenticates when credentials are set)."""
     mock_smtp = MagicMock()
     mock_smtp.connect = AsyncMock()
     mock_smtp.login = AsyncMock()
@@ -421,7 +392,6 @@ async def test_check_smtp_healthy(
 )
 @pytest.mark.asyncio
 async def test_check_smtp_connect_failures(connect_error: Exception, message_fragment: str) -> None:
-    """check_smtp maps connect failures onto UNHEALTHY."""
     mock_smtp = MagicMock()
     mock_smtp.connect = AsyncMock(side_effect=connect_error)
 
@@ -443,7 +413,6 @@ async def test_check_smtp_connect_failures(connect_error: Exception, message_fra
 async def test_check_smtp_tls_mapping(
     tls: bool, ssl: bool, port: int, expected_tls_key: str, forbidden_tls_key: str
 ) -> None:
-    """SMTP_TLS/SMTP_SSL map to aiosmtplib use_tls vs start_tls."""
     with patch("app.core.health_check.aiosmtplib.SMTP") as mock_smtp_class:
         mock_smtp_class.return_value.connect = AsyncMock()
         mock_smtp_class.return_value.quit = AsyncMock()
@@ -462,14 +431,11 @@ async def test_check_smtp_tls_mapping(
     assert kwargs["port"] == port
 
 
-# =============================================================================
 # check_all_services
-# =============================================================================
 
 
 @pytest.mark.asyncio
 async def test_check_all_services_with_local_ai() -> None:
-    """With include_local_ai=True and a local provider configured."""
     service = HealthCheckService()
 
     async def fake_local_ai(provider: Literal["ollama", "lmstudio"]) -> HealthCheckResult:
@@ -499,13 +465,10 @@ async def test_check_all_services_with_local_ai() -> None:
     assert results["ollama"].status == ServiceStatus.HEALTHY
 
 
-# =============================================================================
 # log_health_check_results
-# =============================================================================
 
 
 def test_log_health_check_some_unhealthy() -> None:
-    """Mixed results returns False; unhealthy service logged via logger.log(level, ...)."""
     results = {
         "postgresql": _ok_result("postgresql"),
         "redis": _unhealthy_result("redis"),
@@ -524,26 +487,21 @@ def test_log_health_check_some_unhealthy() -> None:
 
 
 def test_log_health_check_results_empty() -> None:
-    """Empty results dict returns True (no unhealthy services)."""
     results: dict[str, HealthCheckResult] = {}
     overall = HealthCheckService.log_health_check_results(results)
     assert overall is True
 
 
-# =============================================================================
 # Helper classes and enums
-# =============================================================================
 
 
 def test_service_status_enum() -> None:
-    """Verify ServiceStatus enum values."""
     assert ServiceStatus.HEALTHY == "healthy"
     assert ServiceStatus.UNHEALTHY == "unhealthy"
     assert ServiceStatus.DEGRADED == "degraded"
 
 
 def test_health_check_result_creation() -> None:
-    """HealthCheckResult dataclass creation with optional fields."""
     result = HealthCheckResult(
         service="test",
         status=ServiceStatus.HEALTHY,

@@ -1,5 +1,3 @@
-"""Tests for the expedition-scenario dev/QA provisioning service."""
-
 from datetime import datetime, timedelta
 from uuid import uuid4
 
@@ -319,7 +317,6 @@ async def test_setup_unknown_vault_raises_not_found(async_session: AsyncSession)
 async def test_setup_default_dweller_special_keeps_checks_differentiated(
     async_session: AsyncSession, vault: Vault
 ) -> None:
-    """Default SPECIAL 5 gives varied check odds (95/85/75), not the 95% cap a high stat pins."""
     result = await expedition_scenario_service.setup(async_session, vault_id=vault.id, dweller_level=5)
 
     dweller = result.dweller
@@ -340,8 +337,6 @@ async def test_setup_special_override_and_clamp(async_session: AsyncSession, vau
 @pytest.mark.asyncio
 async def test_setup_discovered_site_is_playable_on_return_with_real_notification(async_session, vault):
     from app.crud.notification import notification as notification_crud
-    from app.services.exploration.expedition import expedition_service
-    from app.services.exploration_service import exploration_service
 
     result = await expedition_scenario_service.setup(
         async_session, vault_id=vault.id, dweller_level=10, discovered_site_id="super_duper_mart"

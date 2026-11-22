@@ -1,5 +1,3 @@
-"""Quest endpoint tests — error mapping for reward claims."""
-
 from datetime import datetime, timedelta
 from unittest.mock import AsyncMock, patch
 from uuid import uuid4
@@ -26,7 +24,6 @@ from app.utils.time import utcnow
 
 @pytest.mark.asyncio
 async def test_start_accepts_and_departs_selected_party(async_client, async_session: AsyncSession) -> None:
-    """An owner's single start request saves the party and departs it."""
     user_data = create_fake_user()
     user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))
     vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id))
@@ -68,7 +65,6 @@ async def test_claim_quest_rewards_storage_full_returns_409(
     async_client,
     superuser_token_headers: dict[str, str],
 ) -> None:
-    """POST /quests/{vault_id}/{quest_id}/claim-rewards returns 409 when storage is full."""
     vault_id = uuid4()
     quest_id = uuid4()
 
@@ -122,7 +118,6 @@ async def test_claim_quest_rewards_before_ready_returns_400(
     async_client,
     superuser_token_headers: dict[str, str],
 ) -> None:
-    """Claiming a quest whose rewards are not ready is a client error, not a 404."""
     vault_id = uuid4()
     quest_id = uuid4()
 
@@ -149,7 +144,6 @@ async def test_claim_quest_rewards_while_travelling_returns_400(
     async_client,
     superuser_token_headers: dict[str, str],
 ) -> None:
-    """Claiming a quest whose party is still travelling home is a client error."""
     vault_id = uuid4()
     quest_id = uuid4()
 
@@ -176,7 +170,6 @@ async def test_vault_quest_list_serializes_return_leg_fields(
     async_client,
     async_session: AsyncSession,
 ) -> None:
-    """The vault quest list exposes the return-leg ETA fields."""
     user_data = create_fake_user()
     user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))
     vault = await crud.vault.create(
@@ -221,7 +214,6 @@ async def test_vault_quest_list_serializes_completion_details(
     async_client,
     async_session: AsyncSession,
 ) -> None:
-    """The vault quest list exposes completed_at and granted_rewards."""
     user_data = create_fake_user()
     user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))
     vault = await crud.vault.create(

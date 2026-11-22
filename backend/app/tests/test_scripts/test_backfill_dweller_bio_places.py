@@ -1,5 +1,3 @@
-"""Tests for the retro-active bio place backfill CLI command."""
-
 from __future__ import annotations
 
 from unittest.mock import AsyncMock, patch
@@ -15,13 +13,10 @@ from app.utils.exceptions import ResourceNotFoundException
 
 runner = CliRunner()
 
-# ---------------------------------------------------------------------------
 # backfill-bio-places command tests (with mocks)
-# ---------------------------------------------------------------------------
 
 
 def test_command_requires_vault_or_all_active() -> None:
-    """When no vault is supplied and --all-active is not set, the command exits non-zero."""
     result = runner.invoke(cli, ["backfill", "backfill-bio-places"])
     assert result.exit_code != 0
     assert "Either --vault or --all-active" in result.output
@@ -81,7 +76,6 @@ def test_command_all_active_delegates_to_service() -> None:
 
 
 def test_backfills_app_has_command() -> None:
-    """The backfill Typer app exposes the renamed command."""
     result = runner.invoke(backfills_app, ["--help"])
     assert result.exit_code == 0
     assert "backfill-bio-places" in result.output

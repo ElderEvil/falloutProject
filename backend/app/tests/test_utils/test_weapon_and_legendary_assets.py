@@ -49,7 +49,6 @@ def test_static_weapons_have_image_urls() -> None:
 
 
 def test_every_catalog_weapon_has_its_own_image() -> None:
-    """No catalog weapon may use the generic fallback — except 10mm variants, whose family icon IS the fallback."""
     from app.utils.weapon_naming import family_key
 
     fallback = "/static/weapon_images/10mm pistol FOS.png"
@@ -59,13 +58,11 @@ def test_every_catalog_weapon_has_its_own_image() -> None:
 
 
 def test_rare_variant_resolves_to_family_icon() -> None:
-    """A variant title resolves to its family icon (uniformity over stat cards)."""
     assert get_weapon_image_url("Hardened Gauss pistol") == "/static/weapon_images/Gauss Pistol FOS.png"
     assert get_weapon_image_url("hardened gauss PISTOL") == "/static/weapon_images/Gauss Pistol FOS.png"
 
 
 def test_variant_without_a_card_shares_the_family_look() -> None:
-    """Pipe/institute/junk variants with no wiki card use the family icon."""
     assert get_weapon_image_url("Auto pipe pistol") == "/static/weapon_images/Pipe Pistol FOS.png"
     assert get_weapon_image_url("Tactical Junk Jet") == "/static/weapon_images/Junk Jet FOS.png"
 
@@ -98,14 +95,12 @@ def test_every_mapped_legendary_file_exists_on_disk() -> None:
 
 
 def test_cx404_is_a_pet_not_a_dweller_portrait() -> None:
-    """CX404 moved to pets; a dweller portrait for it is a miscategorized leftover."""
     assert "cx404" not in LEGENDARY_DWELLER_IMAGE_FILES
     assert not (LEGENDARY_IMAGE_DIR / "FOS_Dw_CX404.png").exists()
     assert (LEGENDARY_IMAGE_DIR.parent / "pet_images" / "FOS CX404.png").exists()
 
 
 def test_legendary_aliases_resolve_to_the_same_portrait() -> None:
-    """Catalog names that differ from the FOS character name share that character's portrait."""
     assert get_legendary_dweller_image_url("Colonel Autumn") == get_legendary_dweller_image_url("Augustus Autumn")
     assert get_legendary_dweller_image_url("Dr. Li") == get_legendary_dweller_image_url("Madison Li")
     assert get_legendary_dweller_image_url("Elder Lyons") == get_legendary_dweller_image_url("Owyn Lyons")

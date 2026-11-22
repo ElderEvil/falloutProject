@@ -1,5 +1,3 @@
-"""Run the backend CI hook command against committed changes in a disposable repo."""
-
 import os
 import shutil
 import subprocess

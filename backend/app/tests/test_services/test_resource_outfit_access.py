@@ -34,8 +34,6 @@ P95_UPPER_BOUND_SECONDS = 10.0
 
 
 class _QueryCounter:
-    """Counts executed statements for one engine connection."""
-
     def __init__(self, engine) -> None:
         self.statements: list[str] = []
         self._engine = engine
@@ -133,7 +131,6 @@ async def test_resource_data_loads_equipped_outfits(async_session: AsyncSession,
 
 @pytest.mark.asyncio
 async def test_resource_data_outfit_load_does_not_scale_per_dweller(async_session: AsyncSession, vault) -> None:
-    """The outfit load is one batched query, so its count is flat in dweller count."""
     _room, dwellers = await _seed_producing_room(async_session, vault.id, 4)
     for dweller in dwellers:
         await _equip(async_session, dweller.id)

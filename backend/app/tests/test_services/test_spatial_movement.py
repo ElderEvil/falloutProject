@@ -1,5 +1,3 @@
-"""Spatial movement (slice 1): slot-authoritative origin + persisted directional movement."""
-
 import math
 from datetime import datetime, timedelta
 from uuid import uuid4
@@ -46,14 +44,11 @@ async def _spatial_depart(
     )
 
 
-# ---------------------------------------------------------------------------
 # step 1: slot-authoritative origin
-# ---------------------------------------------------------------------------
 
 
 @pytest.mark.asyncio
 async def test_vault_origin_matches_slot_coords(async_session: AsyncSession, vault: Vault) -> None:
-    """A vault with a slot departs from its slot placement."""
     slot_index = await _claim_slot(async_session, vault)
 
     origin = await exploration_service._vault_origin(async_session, vault.id)
@@ -63,7 +58,6 @@ async def test_vault_origin_matches_slot_coords(async_session: AsyncSession, vau
 
 @pytest.mark.asyncio
 async def test_vault_origin_is_none_without_slot(async_session: AsyncSession, vault: Vault) -> None:
-    """A vault without a slot has no origin: no production fallback to the map centre."""
     origin = await exploration_service._vault_origin(async_session, vault.id)
 
     assert origin is None
@@ -71,14 +65,12 @@ async def test_vault_origin_is_none_without_slot(async_session: AsyncSession, va
 
 @pytest.mark.asyncio
 async def test_spatial_depart_requires_a_slot(async_session: AsyncSession, vault: Vault, dweller: Dweller) -> None:
-    """A slotless vault cannot start a spatial run (grandfathered, not map-centre)."""
     with pytest.raises(ValidationException, match="no map placement"):
         await exploration_service.depart(async_session, vault.id, [dweller.id], duration=4, heading_degrees=90)
 
 
 @pytest.mark.asyncio
 async def test_home_marker_agrees_with_the_slot(async_session: AsyncSession, vault: Vault) -> None:
-    """The home marker sits at the same slot coordinates as the departure origin."""
     from app.services.map_service import map_service
 
     slot_index = await _claim_slot(async_session, vault)
@@ -88,9 +80,7 @@ async def test_home_marker_agrees_with_the_slot(async_session: AsyncSession, vau
     assert await exploration_service._vault_origin(async_session, vault.id) == (home.coord_x, home.coord_y)
 
 
-# ---------------------------------------------------------------------------
 # step 2: directional movement
-# ---------------------------------------------------------------------------
 
 
 @pytest.mark.usefixtures("default_world_snapshot")
@@ -98,7 +88,6 @@ async def test_home_marker_agrees_with_the_slot(async_session: AsyncSession, vau
 async def test_heading_depart_persists_movement_fields(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
 ) -> None:
-    """A heading departure records world version, origin, heading, position, trail, position_as_of."""
     slot_index = await _claim_slot(async_session, vault)
     snapshot = await _ensure_snapshot(async_session)
     origin = slot_coords(slot_index)
@@ -140,7 +129,6 @@ async def test_position_advances_along_heading_by_elapsed_time(
 @pytest.mark.usefixtures("default_world_snapshot")
 @pytest.mark.asyncio
 async def test_blocked_heading_returns_early(async_session: AsyncSession, vault: Vault, dweller: Dweller) -> None:
-    """A heading that hits water stops forward movement and starts the return."""
     slot_index = await _claim_slot(async_session, vault, slot_index=4)
     await _ensure_snapshot(async_session)
     origin = slot_coords(slot_index)
@@ -160,7 +148,6 @@ async def test_blocked_heading_returns_early(async_session: AsyncSession, vault:
 @pytest.mark.usefixtures("default_world_snapshot")
 @pytest.mark.asyncio
 async def test_double_processing_is_noop(async_session: AsyncSession, vault: Vault, dweller: Dweller) -> None:
-    """Reprocessing an already-processed interval changes nothing."""
     slot_index = await _claim_slot(async_session, vault)
     await _ensure_snapshot(async_session)
 
@@ -179,7 +166,6 @@ async def test_double_processing_is_noop(async_session: AsyncSession, vault: Vau
 @pytest.mark.usefixtures("default_world_snapshot")
 @pytest.mark.asyncio
 async def test_auto_heading_depart_is_spatial(async_session: AsyncSession, vault: Vault, dweller: Dweller) -> None:
-    """A heading-less send with a placement auto-picks a heading and moves on the map."""
     slot_index = await _claim_slot(async_session, vault)
     await _ensure_snapshot(async_session)
     origin = slot_coords(slot_index)
@@ -197,7 +183,6 @@ async def test_auto_heading_depart_is_spatial(async_session: AsyncSession, vault
 @pytest.mark.usefixtures("default_world_snapshot")
 @pytest.mark.asyncio
 async def test_choose_heading_is_deterministic(async_session: AsyncSession, vault: Vault) -> None:
-    """The same seed always yields the same heading."""
     slot_index = await _claim_slot(async_session, vault)
     snapshot = await _ensure_snapshot(async_session)
     origin = slot_coords(slot_index)
@@ -212,7 +197,6 @@ async def test_choose_heading_is_deterministic(async_session: AsyncSession, vaul
 @pytest.mark.usefixtures("default_world_snapshot")
 @pytest.mark.asyncio
 async def test_choose_heading_prefers_clear_ground(async_session: AsyncSession, vault: Vault) -> None:
-    """The chosen heading is one of the candidates with the greatest clear distance."""
     slot_index = await _claim_slot(async_session, vault)
     snapshot = await _ensure_snapshot(async_session)
     origin = slot_coords(slot_index)
@@ -230,7 +214,6 @@ async def test_choose_heading_prefers_clear_ground(async_session: AsyncSession, 
 @pytest.mark.usefixtures("default_world_snapshot")
 @pytest.mark.asyncio
 async def test_suggest_heading_returns_heading_with_slot(async_session: AsyncSession, vault: Vault) -> None:
-    """The preview endpoint's service returns a valid heading for a placed vault."""
     await _claim_slot(async_session, vault)
     await _ensure_snapshot(async_session)
 
@@ -242,7 +225,6 @@ async def test_suggest_heading_returns_heading_with_slot(async_session: AsyncSes
 
 @pytest.mark.asyncio
 async def test_suggest_heading_is_none_without_slot(async_session: AsyncSession, vault: Vault) -> None:
-    """A vault without a placement has no suggested heading."""
     heading = await exploration_service.suggest_heading(async_session, vault.id, duration=4, seed="nonce-1")
 
     assert heading is None
@@ -265,7 +247,6 @@ async def test_no_slot_send_stays_legacy(async_session: AsyncSession, vault: Vau
 @pytest.mark.usefixtures("default_world_snapshot")
 @pytest.mark.asyncio
 async def test_tick_advances_spatial_run(async_session: AsyncSession, vault: Vault, dweller: Dweller) -> None:
-    """The game tick drives a spatial run's position through advance()."""
     from app.services.game_tick.dwellers_tick import process_explorations
 
     slot_index = await _claim_slot(async_session, vault)

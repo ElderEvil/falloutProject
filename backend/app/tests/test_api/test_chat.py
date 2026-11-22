@@ -43,9 +43,7 @@ from app.utils.exceptions import ResourceNotFoundException, ValidationException
 pytestmark = pytest.mark.asyncio(scope="module")
 
 
-# ============================================================================
 # Fixtures
-# ============================================================================
 
 
 @pytest_asyncio.fixture(name="chat_dweller")
@@ -80,9 +78,7 @@ async def chat_dweller_fixture(
     return await crud.dweller.get(db_session=async_session, id=dweller.id)
 
 
-# ============================================================================
 # Text Chat Tests
-# ============================================================================
 
 
 def create_mock_agent_output(
@@ -105,8 +101,6 @@ def create_mock_agent_output(
 
 @pytest.mark.asyncio
 class TestTextChat:
-    """Tests for text-based chat endpoint."""
-
     @pytest.mark.parametrize("mode", ["text", "voice", "history"])
     @pytest.mark.parametrize("missing", [False, True])
     async def test_chat_rejects_inaccessible_dweller_before_work(
@@ -148,7 +142,6 @@ class TestTextChat:
         assert response.status_code == (404 if missing else 403)
 
     async def test_missing_dweller_exception_propagates_to_api_boundary(self) -> None:
-        """The shared API handler receives the original not-found domain error."""
         dweller_id = uuid4()
         user = MagicMock(id=uuid4())
 
@@ -170,7 +163,6 @@ class TestTextChat:
         assert exc_info.value.status_code == 404
 
     async def test_text_chat_value_error_is_not_mapped_to_404(self) -> None:
-        """Unexpected validation failures keep their original error semantics."""
         with (
             patch(
                 "app.api.v1.endpoints.chat.chat_service.process_text_message",
@@ -197,7 +189,6 @@ class TestTextChat:
         superuser_token_headers: dict[str, str],
         as_admin: bool,
     ):
-        """Test that chat returns properly structured response with happiness and suggestions."""
         # Mock agent with negative sentiment
         mock_output = create_mock_agent_output(
             response_text="I'm not feeling great today.",
@@ -276,7 +267,6 @@ class TestTextChat:
         normal_user_token_headers: dict[str, str],
         chat_dweller: Dweller,
     ):
-        """Test that chat falls back to basic AI service when agent fails."""
         # Mock agent to raise an exception
         mock_agent.run = AsyncMock(side_effect=Exception("Agent failed"))
 
@@ -323,7 +313,6 @@ class TestTextChat:
         normal_user_token_headers: dict[str, str],
         chat_dweller: Dweller,
     ) -> None:
-        """Return an actionable response when OpenAI reports exhausted credits."""
         provider_error = ModelHTTPError(
             status_code=429,
             model_name="gpt-4o-mini",
@@ -345,17 +334,12 @@ class TestTextChat:
         mock_ai.chat_completion_with_usage.assert_not_awaited()
 
 
-# ============================================================================
 # Audio Chat Tests
-# ============================================================================
 
 
 @pytest.mark.asyncio
 class TestAudioChat:
-    """Tests for audio-based chat endpoint."""
-
     async def test_audio_chat_empty_file_returns_validation_error(self) -> None:
-        """Empty audio is a client validation error, not an internal server error."""
         audio_file = MagicMock()
         audio_file.read = AsyncMock(return_value=b"")
 
@@ -395,15 +379,11 @@ class TestAudioChat:
         assert response.json() == {"detail": error.detail}
 
 
-# ============================================================================
 # Exploration Action Tests
-# ============================================================================
 
 
 @pytest.mark.asyncio
 class TestExplorationActions:
-    """Tests for exploration action suggestions (start_exploration, recall_exploration)."""
-
     @pytest_asyncio.fixture(name="exploring_dweller")
     async def exploring_dweller_fixture(self, async_session: AsyncSession, vault: Vault) -> Dweller:
         """Create a test dweller with supplies for exploration."""
@@ -431,7 +411,6 @@ class TestExplorationActions:
         async_session: AsyncSession,
         vault: Vault,
     ):
-        """Test start_exploration enrichment with dweller having low supplies."""
         # Create dweller with minimal supplies
         dweller_data = create_fake_dweller()
         dweller_data.update(
@@ -474,7 +453,6 @@ class TestExplorationActions:
         exploring_dweller: Dweller,
         vault: Vault,
     ):
-        """Test parse_action_suggestion for recall_exploration with active exploration."""
         dweller_full = await crud.dweller.get_full_info(async_session, exploring_dweller.id)
 
         # Create an active exploration for the dweller
@@ -520,7 +498,6 @@ class TestExplorationActions:
         async_session: AsyncSession,
         exploring_dweller: Dweller,
     ):
-        """Test parse_action_suggestion for recall_exploration returns NoAction when no active exploration."""
         dweller_full = await crud.dweller.get_full_info(async_session, exploring_dweller.id)
 
         output = DwellerChatOutput(
@@ -541,14 +518,10 @@ class TestExplorationActions:
         assert result.action_type == "no_action"
         assert result.reason == "Dweller is not currently exploring the wasteland"
 
-    # ============================================================================
     # Action Suggestion Policy Tests
-    # ============================================================================
 
 
-# ============================================================================
 # Message ID Tests (for WS action_suggestion correlation)
-# ============================================================================
 
 
 @pytest.mark.asyncio
@@ -592,7 +565,6 @@ class TestMessageIdCorrelation:
         encoded_transcription: str,
         encoded_reply: str,
     ) -> None:
-        """Both response modes retain message correlation and progression metadata."""
         from app.schemas.chat_models import AgentChatResult
         from app.schemas.happiness import HappinessImpact, HappinessReasonCode
         from app.services.conversation_service import conversation_service

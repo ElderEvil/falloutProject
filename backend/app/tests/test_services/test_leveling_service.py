@@ -1,5 +1,3 @@
-"""Tests for leveling service logic."""
-
 import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -23,7 +21,6 @@ async def test_level_up_at_max_level(
     dweller: Dweller,
     leveling_service: LevelingService,
 ):
-    """Test no level-up when already at max level."""
     # Set dweller to max level
     dweller.level = game_config.leveling.max_level
     dweller.experience = 999999
@@ -36,7 +33,6 @@ async def test_level_up_at_max_level(
 
 
 def test_xp_for_level_range_normal() -> None:
-    """Test XP needed from level 1 to 5."""
     xp_needed = LevelingService.calculate_xp_for_level_range(1, 5)
     expected = LevelingService.calculate_xp_required(5) - LevelingService.calculate_xp_required(1)
     assert xp_needed == expected
@@ -44,7 +40,6 @@ def test_xp_for_level_range_normal() -> None:
 
 
 def test_xp_for_level_range_target_equals_current() -> None:
-    """Test XP needed when target equals current level is 0."""
     xp_needed = LevelingService.calculate_xp_for_level_range(5, 5)
     assert xp_needed == 0
 
@@ -55,7 +50,6 @@ async def test_level_up_dweller_at_max_level_direct(
     dweller: Dweller,
     leveling_service: LevelingService,
 ):
-    """Test direct level_up_dweller call when already at max level."""
     dweller.level = game_config.leveling.max_level
     dweller.max_health = 100
     dweller.health = 50  # Not full, but shouldn't matter
@@ -69,7 +63,6 @@ async def test_level_up_dweller_at_max_level_direct(
 
 @pytest.mark.parametrize(("amount", "expected_level"), [(1, 2), (236, 2), (237, 3), (1000, 5)])
 async def test_reward_xp_uses_cumulative_thresholds(async_session, dweller, amount, expected_level):
-    """A seeded level-2 dweller needs 519 total XP for level 3, and keeps all earned XP."""
     dweller.level = 2
     dweller.experience = 282
     dweller.max_health = 105

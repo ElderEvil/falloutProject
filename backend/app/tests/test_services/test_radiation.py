@@ -1,5 +1,3 @@
-"""Unit tests for the radiation and health-restoration helpers: outfit resist scope, saturation cap, and stimpack healing."""
-
 from unittest.mock import MagicMock
 
 import pytest

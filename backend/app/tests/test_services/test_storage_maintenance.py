@@ -1,5 +1,3 @@
-"""Hourly trials exercise real CRUD, clocks and catalog swaps."""
-
 from datetime import datetime, timedelta
 from unittest.mock import Mock
 

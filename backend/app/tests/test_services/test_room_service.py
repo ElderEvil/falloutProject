@@ -1,5 +1,3 @@
-"""Tests for RoomService merge behavior and the adjacent-room backfill."""
-
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
@@ -33,9 +31,7 @@ from app.utils.exceptions import (
 )
 from app.utils.time import utcnow
 
-# ---------------------------------------------------------------------------
 # Helpers
-# ---------------------------------------------------------------------------
 
 
 def _make_room_create(
@@ -189,14 +185,11 @@ def _stub_room_template():
         yield
 
 
-# ---------------------------------------------------------------------------
 # _build merge scenarios
-# ---------------------------------------------------------------------------
 
 
 @pytest.mark.asyncio
 async def test_build_merges_adjacent_room_on_right(async_session: AsyncSession, rich_vault: Vault):
-    """Building at x=3 next to an existing x=0 room merges into the leftmost room."""
     await _create_elevator(async_session, rich_vault.id, coordinate_y=1)
     existing = await _create_existing_room(
         async_session,
@@ -230,7 +223,6 @@ async def test_build_merges_adjacent_room_on_right(async_session: AsyncSession, 
 
 @pytest.mark.asyncio
 async def test_build_merges_adjacent_room_on_left(async_session: AsyncSession, rich_vault: Vault):
-    """Building at x=0 next to an existing x=3 room keeps the merged room at x=0."""
     await _create_elevator(async_session, rich_vault.id, coordinate_y=1)
     existing = await _create_existing_room(
         async_session,
@@ -264,7 +256,6 @@ async def test_build_merges_adjacent_room_on_left(async_session: AsyncSession, r
 
 @pytest.mark.asyncio
 async def test_build_three_way_merge_to_size_max(async_session: AsyncSession, rich_vault: Vault):
-    """Building between two identical neighbours merges all three when the sum fits size_max."""
     await _create_elevator(async_session, rich_vault.id, coordinate_y=1)
     left = await _create_existing_room(async_session, rich_vault.id, name="Power Generator", coordinate_x=0, size=3)
     right = await _create_existing_room(async_session, rich_vault.id, name="Power Generator", coordinate_x=6, size=3)
@@ -337,7 +328,6 @@ async def test_build_no_merge_different_name(async_session: AsyncSession, rich_v
 
 @pytest.mark.asyncio
 async def test_build_no_merge_exceeds_size_max(async_session: AsyncSession, rich_vault: Vault):
-    """When the combined footprint exceeds size_max a second room is created."""
     await _create_elevator(async_session, rich_vault.id, coordinate_y=1)
     existing = await _create_existing_room(
         async_session, rich_vault.id, name="Power Generator", coordinate_x=0, size=3, size_max=3
@@ -362,7 +352,6 @@ async def test_build_no_merge_exceeds_size_max(async_session: AsyncSession, rich
 
 @pytest.mark.asyncio
 async def test_build_same_coordinate_same_name_expands(async_session: AsyncSession, rich_vault: Vault):
-    """Building at the same coordinate as an identical room still expands it."""
     await _create_elevator(async_session, rich_vault.id, coordinate_y=1)
     existing = await _create_existing_room(async_session, rich_vault.id, name="Power Generator", coordinate_x=0, size=3)
 
@@ -384,7 +373,6 @@ async def test_build_same_coordinate_same_name_expands(async_session: AsyncSessi
 
 @pytest.mark.asyncio
 async def test_build_merge_reassigns_dwellers(async_session: AsyncSession, rich_vault: Vault):
-    """Dwellers in absorbed rooms are reassigned to the surviving room."""
     await _create_elevator(async_session, rich_vault.id, coordinate_y=1)
     existing = await _create_existing_room(async_session, rich_vault.id, name="Power Generator", coordinate_x=0)
     await _create_dweller_in_room(async_session, rich_vault.id, existing)
@@ -410,7 +398,6 @@ async def test_build_merge_reassigns_dwellers(async_session: AsyncSession, rich_
 async def test_build_merge_charges_price(
     async_session: AsyncSession, rich_vault: Vault, size: int, expected_price: int
 ):
-    """Charge for existing segments, excluding the segment about to merge into them."""
     await _create_elevator(async_session, rich_vault.id, coordinate_y=1, coordinate_x=9)
     await _create_existing_room(async_session, rich_vault.id, name="Power Generator", coordinate_x=0, size=size)
     caps_before = rich_vault.bottle_caps
@@ -427,7 +414,6 @@ async def test_build_merge_charges_price(
 
 @pytest.mark.asyncio
 async def test_build_merge_recomputes_image_url(async_session: AsyncSession, rich_vault: Vault):
-    """The survivor image_url is recomputed for the new size."""
     await _create_elevator(async_session, rich_vault.id, coordinate_y=1)
     existing = await _create_existing_room(
         async_session, rich_vault.id, name="Power Generator", coordinate_x=0, image_url=None
@@ -450,14 +436,11 @@ async def test_build_merge_recomputes_image_url(async_session: AsyncSession, ric
     assert result.image_url != "/static/old.png"
 
 
-# ---------------------------------------------------------------------------
 # Backfill merge-rooms
-# ---------------------------------------------------------------------------
 
 
 @pytest.mark.asyncio
 async def test_backfill_merge_rooms_dry_run_reports_without_writing(async_session: AsyncSession, rich_vault: Vault):
-    """Dry run reports merges but leaves the database unchanged."""
     await _create_elevator(async_session, rich_vault.id, coordinate_y=1)
     await _create_existing_room(async_session, rich_vault.id, name="Power Generator", coordinate_x=0)
     await _create_existing_room(async_session, rich_vault.id, name="Power Generator", coordinate_x=3)
@@ -472,7 +455,6 @@ async def test_backfill_merge_rooms_dry_run_reports_without_writing(async_sessio
 
 @pytest.mark.asyncio
 async def test_backfill_merge_rooms_apply_merges(async_session: AsyncSession, rich_vault: Vault):
-    """Apply mode actually merges adjacent duplicate rooms."""
     await _create_elevator(async_session, rich_vault.id, coordinate_y=1)
     left = await _create_existing_room(async_session, rich_vault.id, name="Power Generator", coordinate_x=0)
     right = await _create_existing_room(async_session, rich_vault.id, name="Power Generator", coordinate_x=3)
@@ -488,7 +470,6 @@ async def test_backfill_merge_rooms_apply_merges(async_session: AsyncSession, ri
 
 @pytest.mark.asyncio
 async def test_backfill_merge_rooms_idempotent(async_session: AsyncSession, rich_vault: Vault):
-    """A second apply pass makes no further changes."""
     await _create_elevator(async_session, rich_vault.id, coordinate_y=1)
     await _create_existing_room(async_session, rich_vault.id, name="Power Generator", coordinate_x=0)
     await _create_existing_room(async_session, rich_vault.id, name="Power Generator", coordinate_x=3)
@@ -515,7 +496,6 @@ async def test_backfill_skips_unplaced_rooms_without_sort_crash(async_session: A
 
 @pytest.mark.asyncio
 async def test_backfill_dry_run_matches_apply_for_chain(async_session: AsyncSession, rich_vault: Vault):
-    """Dry-run reports the same merge count as apply for a three-room chain."""
     await _create_elevator(async_session, rich_vault.id, coordinate_y=1)
     for coordinate_x in (0, 3, 6):
         await _create_existing_room(async_session, rich_vault.id, name="Power Generator", coordinate_x=coordinate_x)
@@ -528,7 +508,6 @@ async def test_backfill_dry_run_matches_apply_for_chain(async_session: AsyncSess
 
 @pytest.mark.asyncio
 async def test_build_merge_reassigns_training(async_session: AsyncSession, rich_vault: Vault):
-    """Training sessions of absorbed rooms move to the surviving room before deletion."""
     await _create_elevator(async_session, rich_vault.id, coordinate_y=1)
     absorbed = await _create_existing_room(async_session, rich_vault.id, name="Power Generator", coordinate_x=3)
     dweller = await _create_dweller_in_room(async_session, rich_vault.id, absorbed)
@@ -558,7 +537,6 @@ async def test_build_merge_reassigns_training(async_session: AsyncSession, rich_
 
 @pytest.mark.asyncio
 async def test_build_merge_moves_absorbed_dwellers_to_survivor(async_session: AsyncSession, rich_vault: Vault):
-    """Dwellers of the absorbed room are moved into the surviving merged room."""
     await _create_elevator(async_session, rich_vault.id, coordinate_y=1)
     absorbed = await _create_existing_room(async_session, rich_vault.id, name="Power Generator", coordinate_x=3)
     dweller = await _create_dweller_in_room(async_session, rich_vault.id, absorbed)
@@ -575,7 +553,6 @@ async def test_build_merge_moves_absorbed_dwellers_to_survivor(async_session: As
 
 @pytest.mark.asyncio
 async def test_backfill_merge_moves_dwellers_into_survivor(async_session: AsyncSession, rich_vault: Vault):
-    """Backfill merges keep dwellers of both rooms in the surviving merged room."""
     await _create_elevator(async_session, rich_vault.id, coordinate_y=1)
     left = await _create_existing_room(async_session, rich_vault.id, name="Power Generator", coordinate_x=0)
     right = await _create_existing_room(async_session, rich_vault.id, name="Power Generator", coordinate_x=3)
@@ -592,14 +569,11 @@ async def test_backfill_merge_moves_dwellers_into_survivor(async_session: AsyncS
     assert right_dweller.room_id == survivor.id
 
 
-# ---------------------------------------------------------------------------
 # _upgrade merge scenarios
-# ---------------------------------------------------------------------------
 
 
 @pytest.mark.asyncio
 async def test_upgrade_merges_adjacent_same_tier_room(async_session: AsyncSession, rich_vault: Vault):
-    """Upgrading a room to its neighbour's tier fuses them into one survivor."""
     await _create_elevator(async_session, rich_vault.id, coordinate_y=1)
     survivor = await _create_existing_room(
         async_session,
@@ -635,7 +609,6 @@ async def test_upgrade_merges_adjacent_same_tier_room(async_session: AsyncSessio
 
 @pytest.mark.asyncio
 async def test_upgrade_no_merge_different_tier(async_session: AsyncSession, rich_vault: Vault):
-    """Upgrading past the neighbour's tier still leaves two separate rooms."""
     await _create_elevator(async_session, rich_vault.id, coordinate_y=1)
     await _create_existing_room(
         async_session,
@@ -664,9 +637,7 @@ async def test_upgrade_no_merge_different_tier(async_session: AsyncSession, rich
     assert result.size == 3
 
 
-# ---------------------------------------------------------------------------
 # Response Station — unique room growth via an adjacent segment (issue #997)
-# ---------------------------------------------------------------------------
 
 
 def _make_response_room_create(
@@ -707,7 +678,6 @@ async def _create_response_station(
 
 @pytest.mark.asyncio
 async def test_adjacent_station_segment_merges_into_one_row(async_session: AsyncSession, rich_vault: Vault):
-    """An adjacent segment joins the station (same row id) and grows it 3 -> 6 -> 9."""
     station = await _create_response_station(async_session, rich_vault.id, coordinate_x=1)
     assert calculate_room_capacity(station.size) == 2
 
@@ -759,7 +729,6 @@ async def test_adjacent_station_segment_charges_one_build_price_per_segment(
 
 @pytest.mark.asyncio
 async def test_adjacent_station_segment_preserves_dwellers(async_session: AsyncSession, rich_vault: Vault):
-    """A merge keeps the station row and its occupants; no second station row appears."""
     station = await _create_response_station(async_session, rich_vault.id, coordinate_x=1)
     dweller = await _create_dweller_in_room(async_session, rich_vault.id, station)
 
@@ -778,7 +747,6 @@ async def test_adjacent_station_segment_preserves_dwellers(async_session: AsyncS
 
 @pytest.mark.asyncio
 async def test_disconnected_second_station_rejected_without_charge(async_session: AsyncSession, rich_vault: Vault):
-    """A second station that cannot merge is rejected before any caps move or row is created."""
     await _create_response_station(async_session, rich_vault.id, coordinate_x=1)
     await _create_elevator(async_session, rich_vault.id, coordinate_y=1, coordinate_x=0)
     starting_caps = rich_vault.bottle_caps
@@ -799,7 +767,6 @@ async def test_disconnected_second_station_rejected_without_charge(async_session
 async def test_adjacent_station_segment_at_size_max_rejected_without_charge(
     async_session: AsyncSession, rich_vault: Vault
 ):
-    """A station already at size_max rejects another adjacent segment and charges nothing."""
     station = await _create_response_station(async_session, rich_vault.id, coordinate_x=1, size=9)
     starting_caps = rich_vault.bottle_caps
 
@@ -817,9 +784,7 @@ async def test_adjacent_station_segment_at_size_max_rejected_without_charge(
     assert names.count("Response Station") == 1
 
 
-# ---------------------------------------------------------------------------
 # Radio studio — one per vault, still growable through adjacent segments
-# ---------------------------------------------------------------------------
 
 
 def _make_radio_create(
@@ -867,7 +832,6 @@ async def _create_radio_studio(
 
 @pytest.mark.asyncio
 async def test_adjacent_radio_segment_merges_into_one_studio(async_session: AsyncSession, rich_vault: Vault):
-    """An adjacent segment joins the studio (same row id), grows it 3 -> 6 -> 9, and charges per segment."""
     studio = await _create_radio_studio(async_session, rich_vault.id, coordinate_x=1)
     starting_caps = rich_vault.bottle_caps
 
@@ -899,7 +863,6 @@ async def test_adjacent_radio_segment_merges_into_one_studio(async_session: Asyn
 
 @pytest.mark.asyncio
 async def test_disconnected_second_radio_studio_rejected_without_charge(async_session: AsyncSession, rich_vault: Vault):
-    """A second studio that cannot merge is rejected before any caps move or row is created."""
     await _create_radio_studio(async_session, rich_vault.id, coordinate_x=1)
     await _create_elevator(async_session, rich_vault.id, coordinate_y=1, coordinate_x=0)
     starting_caps = rich_vault.bottle_caps
@@ -921,7 +884,6 @@ async def test_disconnected_second_radio_studio_rejected_without_charge(async_se
 
 @pytest.mark.asyncio
 async def test_adjacent_tier_resolution_extends_the_touching_studio(async_session: AsyncSession, rich_vault: Vault):
-    """The adopted tier comes from the studio the placement touches, not the first studio found."""
     upgraded = await _create_radio_studio(async_session, rich_vault.id, coordinate_x=1)
     await room_service.upgrade_room(async_session, upgraded.id)
     await _create_radio_studio(async_session, rich_vault.id, coordinate_x=1, coordinate_y=1)
@@ -938,7 +900,6 @@ async def test_adjacent_tier_resolution_extends_the_touching_studio(async_sessio
 
 @pytest.mark.asyncio
 async def test_maxed_adjacent_studio_does_not_block_a_growable_one(async_session: AsyncSession, rich_vault: Vault):
-    """A placement touching a maxed tier-3 studio and a growable tier-2 studio extends the tier-2 one."""
     growable = await _create_radio_studio(async_session, rich_vault.id, coordinate_x=1)
     await room_service.upgrade_room(async_session, growable.id)
     await _create_radio_studio(async_session, rich_vault.id, coordinate_x=7, size=9, tier=3)
@@ -958,7 +919,6 @@ async def test_maxed_adjacent_studio_does_not_block_a_growable_one(async_session
 
 @pytest.mark.asyncio
 async def test_higher_touching_tier_wins_over_a_mergeable_lower_tier(async_session: AsyncSession, rich_vault: Vault):
-    """A placement touching tier-2 and tier-1 studios adopts the higher tier even though tier 1 merges."""
     upgraded = await _create_radio_studio(async_session, rich_vault.id, coordinate_x=1, tier=2)
     await _create_radio_studio(async_session, rich_vault.id, coordinate_x=7)
     starting_caps = rich_vault.bottle_caps
@@ -977,7 +937,6 @@ async def test_higher_touching_tier_wins_over_a_mergeable_lower_tier(async_sessi
 
 @pytest.mark.asyncio
 async def test_split_radio_studio_rejected_by_remodel_service(async_session: AsyncSession, rich_vault: Vault):
-    """Splitting a Radio studio would create a second one, so the vault keeps it whole."""
     from app.services.room_remodel_service import remodel_room
 
     studio = await _create_radio_studio(async_session, rich_vault.id, coordinate_x=1, size=6)
@@ -1015,7 +974,6 @@ async def _placement_lock_held(*_args, **_kwargs):
 
 @pytest.mark.asyncio
 async def test_build_refused_when_vault_placement_lock_is_held(async_session: AsyncSession, rich_vault: Vault):
-    """A concurrent build cannot run while another holds the vault placement lock."""
     starting_caps = rich_vault.bottle_caps
 
     with (
@@ -1033,7 +991,6 @@ async def test_build_refused_when_vault_placement_lock_is_held(async_session: As
 
 @pytest.mark.asyncio
 async def test_upgrade_refused_when_vault_placement_lock_is_held(async_session: AsyncSession, rich_vault: Vault):
-    """An upgrade merges under the vault placement lock; a concurrent build's lock refuses it."""
     room = await _create_existing_room(async_session, rich_vault.id, coordinate_x=0, tier=1)
 
     with (
@@ -1045,7 +1002,6 @@ async def test_upgrade_refused_when_vault_placement_lock_is_held(async_session: 
 
 @pytest.mark.asyncio
 async def test_backfill_apply_refused_when_vault_placement_lock_is_held(async_session: AsyncSession, rich_vault: Vault):
-    """Apply-mode backfill merges under the vault placement lock; a held lock refuses it."""
     await _create_existing_room(async_session, rich_vault.id, name="Power Generator", coordinate_x=0)
     await _create_existing_room(async_session, rich_vault.id, name="Power Generator", coordinate_x=3)
 
@@ -1058,7 +1014,6 @@ async def test_backfill_apply_refused_when_vault_placement_lock_is_held(async_se
 
 @pytest.mark.asyncio
 async def test_backfill_dry_run_ignores_vault_placement_lock(async_session: AsyncSession, rich_vault: Vault):
-    """Dry run is lock-free, so it still reports merges while another holder owns the lock."""
     await _create_elevator(async_session, rich_vault.id, coordinate_y=1)
     await _create_existing_room(async_session, rich_vault.id, name="Power Generator", coordinate_x=0)
     await _create_existing_room(async_session, rich_vault.id, name="Power Generator", coordinate_x=3)
@@ -1117,8 +1072,6 @@ async def test_boosted_seeded_station_grows_to_nine(async_session: AsyncSession,
 @pytest.mark.asyncio
 @pytest.mark.parametrize(("inner_x", "outer_x", "size"), [(7, 10, 3), (3, 0, 3), (7, 16, 9)])
 async def test_destroy_requires_outermost_room(async_session: AsyncSession, rich_vault: Vault, inner_x, outer_x, size):
-    from app.utils.exceptions import VaultOperationException
-
     await _create_elevator(async_session, rich_vault.id, 1)
     inner = await _create_existing_room(async_session, rich_vault.id, coordinate_x=inner_x, size=size)
     outer = await _create_existing_room(async_session, rich_vault.id, coordinate_x=outer_x)
@@ -1223,7 +1176,6 @@ async def test_destroy_refused_when_vault_placement_lock_is_held(async_session: 
 
 @pytest.mark.asyncio
 async def test_style_refused_when_vault_placement_lock_is_held(async_session: AsyncSession, rich_vault: Vault):
-    """Applying a style is a placement mutation; a concurrent build's lock refuses it."""
     room = await _create_existing_room(async_session, rich_vault.id, coordinate_x=6)
 
     with (
@@ -1278,7 +1230,6 @@ async def test_split_merge_preserves_room_totals_and_dwellers(async_session, ric
 )
 async def test_manual_merge_rejects_incompatible_neighbors(async_session, rich_vault, change):
     from app.services.room_remodel_service import remodel_room
-    from app.utils.exceptions import VaultOperationException
 
     left = await _create_existing_room(async_session, rich_vault.id, coordinate_x=7)
     right = await _create_existing_room(async_session, rich_vault.id, coordinate_x=10)
@@ -1290,7 +1241,6 @@ async def test_manual_merge_rejects_incompatible_neighbors(async_session, rich_v
 
 async def test_split_requires_multiple_base_segments_and_free_placement_lock(async_session, rich_vault):
     from app.services.room_remodel_service import remodel_room
-    from app.utils.exceptions import VaultOperationException
 
     source = await _create_existing_room(async_session, rich_vault.id, coordinate_x=7)
     with pytest.raises(VaultOperationException, match="one base segment"):
@@ -1306,7 +1256,6 @@ async def test_remodel_training_and_incident_references_follow_survivor(async_se
     from app.core.enums import IncidentStatus, IncidentType
     from app.models.incident import Incident
     from app.services.room_remodel_service import remodel_room
-    from app.utils.exceptions import VaultOperationException
 
     source = await _create_existing_room(async_session, rich_vault.id, coordinate_x=7, size=6)
     dwellers = [await _create_dweller_in_room(async_session, rich_vault.id, source) for _ in range(4)]
@@ -1380,7 +1329,6 @@ async def test_split_preserves_dispatched_return_postings(async_session, rich_va
 
 
 async def test_split_failure_rolls_back_the_entire_layout(async_session, rich_vault):
-    from sqlalchemy import event
     from sqlalchemy.exc import OperationalError
 
     from app.services.room_remodel_service import remodel_room
@@ -1438,7 +1386,6 @@ async def test_buildable_rooms_are_sorted_by_population_requirement():
 
 @pytest.mark.asyncio
 async def test_unaffordable_build_does_not_expand_adjacent_room(async_session: AsyncSession, vault: Vault):
-    """The affordability check runs before any merge write, so a rejected build changes nothing."""
     vault.bottle_caps = 0
     async_session.add(vault)
     await async_session.commit()
@@ -1556,7 +1503,6 @@ async def test_destroy_failure_preserves_room_and_caps(
 async def test_build_commits_once_on_create_and_merge_paths(
     async_session: AsyncSession, rich_vault: Vault, monkeypatch: pytest.MonkeyPatch
 ):
-    """Construction owns exactly one transaction, whether it inserts or fuses."""
     await _create_elevator(async_session, rich_vault.id, coordinate_y=1)
     commits = 0
     original_commit = async_session.commit

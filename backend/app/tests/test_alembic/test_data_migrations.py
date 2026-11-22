@@ -73,8 +73,6 @@ async def _run_sql(url: str, sql: str) -> None:
 
 
 class MigrationHarness:
-    """Apply real migrations against a scratch database and read the result."""
-
     def __init__(self, url: str) -> None:
         self.url = url
 
@@ -261,8 +259,6 @@ def _set_partner(harness: MigrationHarness, *, dweller_id: str, partner_id: str 
 
 
 class TestHazardConsolidationMigration:
-    """The earned rosters move onto team/team_member without breaking the roster invariant."""
-
     def test_backfills_without_exceeding_the_roster_or_stranding_a_slot(self, harness: MigrationHarness) -> None:
         harness.upgrade(HAZARD_PARENT)
         vault_id = _seed_vault(harness, number=901)
@@ -350,8 +346,6 @@ class TestHazardConsolidationMigration:
 
 
 class TestOutfitSpecialBackfillMigration:
-    """The SPECIAL backfill fills only rows still at the all-zero default."""
-
     def test_fills_defaulted_rows_and_leaves_populated_ones_alone(self, harness: MigrationHarness) -> None:
         harness.upgrade(OUTFIT_PARENT)
         empty_id = str(uuid.uuid4())
@@ -381,8 +375,6 @@ class TestOutfitSpecialBackfillMigration:
 
 
 class TestOutfitHazardResistBackfillMigration:
-    """The hazard-resistance backfill fills only rows at each column's own default."""
-
     def test_fills_defaulted_rows_and_leaves_populated_ones_alone(self, harness: MigrationHarness) -> None:
         harness.upgrade(OUTFIT_RESIST_PARENT)
         # Mixed case and padding prove the LOWER(TRIM(name)) match.
@@ -440,8 +432,6 @@ class TestOutfitHazardResistBackfillMigration:
 
 
 class TestRepairDuplicateCommittedRelationshipsMigration:
-    """The repair keeps one committed link per dweller and syncs partner_id."""
-
     def test_keeps_healthy_pair_demotes_duplicates_and_clears_stale_partner(self, harness: MigrationHarness) -> None:
         harness.upgrade(RELATIONSHIP_REPAIR_PARENT)
         vault_id = _seed_vault(harness, number=903)

@@ -38,7 +38,6 @@ async def test_change_email_resets_verification_and_issues_new_token(
     async_client: AsyncClient,
     async_session: AsyncSession,
 ) -> None:
-    """A changed address becomes unverified and carries a new verification token."""
     token_headers, user_data = await create_isolated_user_with_token(async_client, async_session)
     user = await _stored_user(async_session, user_data["email"])
     user.email_verified = True
@@ -69,7 +68,6 @@ async def test_change_email_sends_verification_to_new_address(
     async_client: AsyncClient,
     async_session: AsyncSession,
 ) -> None:
-    """The verification mail goes to the new address and carries the stored token."""
     token_headers, user_data = await create_isolated_user_with_token(async_client, async_session)
     user = await _stored_user(async_session, user_data["email"])
     new_email = _new_email()
@@ -96,7 +94,6 @@ async def test_change_email_to_existing_email_conflicts(
     async_client: AsyncClient,
     async_session: AsyncSession,
 ) -> None:
-    """An address owned by another row is a 409, including when that owner is soft-deleted."""
     token_headers, user_data = await create_isolated_user_with_token(async_client, async_session)
 
     active_data = create_fake_user()
@@ -133,7 +130,6 @@ async def test_change_email_old_token_cannot_verify_new_address(
     async_client: AsyncClient,
     async_session: AsyncSession,
 ) -> None:
-    """The pre-change token is rejected even when both mints land in the same second."""
     token_headers, user_data = await create_isolated_user_with_token(async_client, async_session)
     user = await _stored_user(async_session, user_data["email"])
     old_token = security.create_email_verification_token(str(user.id))
@@ -164,7 +160,6 @@ async def test_change_email_to_same_address_keeps_verification(
     async_client: AsyncClient,
     async_session: AsyncSession,
 ) -> None:
-    """Re-submitting the current address is a no-op that keeps verification and sends no mail."""
     token_headers, user_data = await create_isolated_user_with_token(async_client, async_session)
     user = await _stored_user(async_session, user_data["email"])
     user.email_verified = True
@@ -190,7 +185,6 @@ async def test_verified_user_change_email_becomes_unverified(
     async_client: AsyncClient,
     async_session: AsyncSession,
 ) -> None:
-    """The headline behavior: a verified account loses verification when its email changes."""
     token_headers, user_data = await create_isolated_user_with_token(async_client, async_session)
     user = await _stored_user(async_session, user_data["email"])
     user.email_verified = True
@@ -214,7 +208,6 @@ async def test_change_email_send_failure_returns_502_and_resend_recovers(
     async_client: AsyncClient,
     async_session: AsyncSession,
 ) -> None:
-    """A failed delivery surfaces as 502 while the stored state stays recoverable via resend."""
     token_headers, user_data = await create_isolated_user_with_token(async_client, async_session)
     user = await _stored_user(async_session, user_data["email"])
     mock_send = AsyncMock(side_effect=[RuntimeError("smtp down"), None])
@@ -320,7 +313,6 @@ async def test_email_conflict_from_lost_race_returns_409(
     async_client: AsyncClient,
     async_session: AsyncSession,
 ) -> None:
-    """A competing writer that wins after the pre-check is mapped to 409, not a server error."""
     token_headers, _ = await create_isolated_user_with_token(async_client, async_session)
     other = await crud.user.create(db_session=async_session, obj_in=UserCreate(**create_fake_user()))
 

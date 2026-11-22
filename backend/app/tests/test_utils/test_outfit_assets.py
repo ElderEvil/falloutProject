@@ -1,5 +1,3 @@
-"""Tests for outfit image asset resolution."""
-
 from pathlib import Path
 
 from app.utils.outfit_assets import OUTFIT_NAME_TO_IMAGE_FILE, get_outfit_image_url

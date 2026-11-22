@@ -1,5 +1,3 @@
-"""Guided objective content and migration preserve existing player progress."""
-
 import importlib.util
 import json
 from pathlib import Path

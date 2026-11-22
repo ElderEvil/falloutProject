@@ -1,5 +1,3 @@
-"""Tests for the quest requirement policy (``progression.quests.requirements``)."""
-
 from types import SimpleNamespace
 from uuid import uuid4
 
@@ -62,7 +60,6 @@ def _party_dweller(**attrs: object) -> object:
 async def test_validate_room_requirement_accepts_living_quarters_alias(
     async_session: AsyncSession, room_name: str
 ) -> None:
-    """Both Living Quarters labels satisfy the seeded living_quarter requirement."""
     user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
     vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id))
     async_session.add(
@@ -83,7 +80,6 @@ async def test_validate_room_requirement_accepts_living_quarters_alias(
 
 @pytest.mark.asyncio
 async def test_validate_dweller_count_requirement_not_met(async_session: AsyncSession) -> None:
-    """Test dweller count requirement with not enough dwellers."""
     user_data = create_fake_user()
     user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))
     vault_data = create_fake_vault()
@@ -101,7 +97,6 @@ async def test_validate_dweller_count_requirement_not_met(async_session: AsyncSe
 
 @pytest.mark.asyncio
 async def test_validate_quest_completed_requirement_not_met(async_session: AsyncSession) -> None:
-    """Test quest completed requirement when quest not done."""
     user_data = create_fake_user()
     user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))
     vault_data = create_fake_vault()
@@ -128,7 +123,6 @@ async def test_validate_quest_completed_requirement_not_met(async_session: Async
 
 @pytest.mark.asyncio
 async def test_vault_missing_requirements(async_session: AsyncSession) -> None:
-    """Test vault_missing_requirements returns human-readable descriptions."""
     user_data = create_fake_user()
     user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))
     vault_data = create_fake_vault()
@@ -767,7 +761,6 @@ async def test_get_eligible_dwellers_for_outfit_bonus_stat_requirement(
 
 @pytest.mark.asyncio
 async def test_get_available_quests_excludes_locked(async_client: AsyncClient, async_session: AsyncSession) -> None:
-    """Test that available quests endpoint excludes locked chain quests."""
     from app.tests.factory.rooms import create_overseers_office
     from app.tests.utils.user import user_authentication_headers
 

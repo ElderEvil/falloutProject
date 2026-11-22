@@ -162,7 +162,6 @@ async def test_concurrent_creation_serializes_on_vault_row_lock(
 
         # A fills one slot uncommitted, keeping the vault row locked.
         await dweller_service.create_random_dweller(session_a, vault.id)
-        from app.schemas.dweller import DwellerCreate
 
         pending = await dweller_service.create_dweller(
             session_a,

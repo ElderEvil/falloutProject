@@ -1,5 +1,3 @@
-"""Pure incident combat kernel: split_damage, formula parity, golden incidents, and roster snapshots."""
-
 from dataclasses import replace
 
 import pytest
@@ -50,7 +48,6 @@ def _profiled(
 
 
 def test_team_response_bonus_shortens_containment():
-    """Active members of the matching hazard team add +20% response power each."""
     plain = resolve_incident(IncidentType.FIRE, 2, [_profiled(12), _profiled(12)], dt=2)
     team = resolve_incident(
         IncidentType.FIRE,
@@ -66,7 +63,6 @@ def test_team_response_bonus_shortens_containment():
 
 
 def test_team_hazard_resist_reduces_damage():
-    """Active members take 20% less on the incident's channel; non-members take full."""
     plain = resolve_incident(IncidentType.FIRE, 4, [_profiled(1000), _profiled(1000)], dt=2)
     team = resolve_incident(
         IncidentType.FIRE,
@@ -85,8 +81,6 @@ def test_team_hazard_resist_reduces_damage():
 
 
 def test_team_membership_ignored_for_incidents_without_a_team():
-    """Raider (and other) incidents train no team, so team places change nothing."""
-
     def _run(teams: list[frozenset[HazardTeam]]) -> IncidentOutcome:
         responders = [_profiled(12, teams=team) for team in teams]
         return resolve_incident(IncidentType.RAIDER_ATTACK, 2, responders, dt=2)
@@ -97,7 +91,6 @@ def test_team_membership_ignored_for_incidents_without_a_team():
 
 
 def test_radscorpion_accumulates_radiation():
-    """An irradiating incident adds RAD after physical reduction (production apply_damage)."""
     outcome = resolve_incident(IncidentType.RADSCORPION_ATTACK, 3, [_profiled(1000, health=1000)], dt=2)
     assert outcome.resolved
     assert outcome.ticks == 1
@@ -112,7 +105,6 @@ def test_fire_never_adds_radiation():
 
 
 def test_radiation_resist_blocks_radiation_gain():
-    """A hazmat-equivalent (RAD share 1.0) + active team member gains no RAD."""
     hazmat = DamageReductions(shares=(1.0,))
     outcome = resolve_incident(
         IncidentType.RADSCORPION_ATTACK,
@@ -124,7 +116,6 @@ def test_radiation_resist_blocks_radiation_gain():
 
 
 def test_radiation_accumulates_per_tick_until_victory():
-    """RAD is added at min(taken-1, taken//2) per sub-tick, including the winning round."""
     outcome = resolve_incident(IncidentType.RADSCORPION_ATTACK, 2, [_profiled(100, health=1000)], dt=2)
     assert outcome.resolved
     assert outcome.ticks == 2
@@ -133,7 +124,6 @@ def test_radiation_accumulates_per_tick_until_victory():
 
 
 def test_radiation_ceiling_clamps_health():
-    """A carried RAD pool lowers the health ceiling: health clamps to max(1, max_health - radiation)."""
     responder = _profiled(1000, health=100, radiation=80)
     outcome = resolve_incident(IncidentType.RADSCORPION_ATTACK, 3, [responder], dt=2)
     assert outcome.resolved
@@ -222,7 +212,6 @@ def test_containment_floor_keeps_a_strong_crew_to_ten_rounds():
 
 
 def test_incident_math_reads_configured_pacing_divisors(monkeypatch):
-    """The pacing divisors are config-driven, so the balance knobs are the single tuning surface."""
     from app.core.game_config import game_config
 
     monkeypatch.setattr(game_config.combat, "incident_threat_damage_divisor", 5)
@@ -233,7 +222,6 @@ def test_incident_math_reads_configured_pacing_divisors(monkeypatch):
 
 
 def test_containment_damage_is_half_of_combat_damage():
-    """A contained hazard harms half as fast as an armed attack on the same threat."""
     assert incident_math.containment_damage(40, 2) == pytest.approx(incident_math.damage_to_dwellers(40, 2) / 2)
 
 
@@ -331,7 +319,6 @@ def test_no_defenders_consumes_full_duration_only_while_spread_may_occur():
 
 
 def test_outcome_depends_on_responder_power_not_population():
-    """Same group power → same win condition, regardless of group size or vault population."""
     six = [_defender(10.0, health=100) for _ in range(6)]
     three = [_defender(20.0, health=100) for _ in range(3)]
     a = resolve_incident(IncidentType.RAIDER_ATTACK, 2, six, dt=2)

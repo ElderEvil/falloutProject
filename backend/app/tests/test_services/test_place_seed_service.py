@@ -1,5 +1,3 @@
-"""Tests for the canonical place seed loader."""
-
 import pytest
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -16,7 +14,6 @@ from app.utils.place_seed import load_seed_entries
 
 @pytest.mark.asyncio
 async def test_seed_inserts_roster_and_is_idempotent(async_session: AsyncSession) -> None:
-    """First run inserts every entry; a second run inserts nothing."""
     first = await seed_places_from_json(async_session, commit=False)
     assert first == len(load_seed_entries())
     second = await seed_places_from_json(async_session, commit=False)
@@ -25,7 +22,6 @@ async def test_seed_inserts_roster_and_is_idempotent(async_session: AsyncSession
 
 @pytest.mark.asyncio
 async def test_seeded_vault_rows_match_roster(async_session: AsyncSession) -> None:
-    """Seeded VAULT rows reproduce the roster exactly (name, number, coords)."""
     await seed_places_from_json(async_session, commit=False)
     rows = (
         (
@@ -46,7 +42,6 @@ async def test_seeded_vault_rows_match_roster(async_session: AsyncSession) -> No
 
 
 def test_seed_covers_known_bio_places() -> None:
-    """Core bio names resolve through the seed-driven lists."""
     assert "Megaton" in get_origin_places()
     assert "Megaton" in get_visited_places()
     assert "Nuka-Cola Plant" in get_visited_places()
@@ -85,7 +80,6 @@ async def test_seed_conflict_rolls_back_only_that_entry(async_session: AsyncSess
 
 @pytest.mark.asyncio
 async def test_seeded_places_carry_their_group(async_session: AsyncSession) -> None:
-    """Seeded rows get their group key, and instances of a chain share it."""
     await seed_places_from_json(async_session, commit=False)
     rows = (
         (await async_session.execute(select(WorldLocation).where(WorldLocation.kind == PlaceKindEnum.PLACE)))
@@ -100,7 +94,6 @@ async def test_seeded_places_carry_their_group(async_session: AsyncSession) -> N
 
 @pytest.mark.asyncio
 async def test_emergent_place_resolves_seeded_group(async_session: AsyncSession) -> None:
-    """A known name registered emergently still inherits its group."""
     from app.crud.world_location import world_location as wl_crud
 
     location = await wl_crud.get_or_create_location(async_session, "Red Rocket")
@@ -109,7 +102,6 @@ async def test_emergent_place_resolves_seeded_group(async_session: AsyncSession)
 
 @pytest.mark.asyncio
 async def test_reseed_backfills_group_on_existing_rows(async_session: AsyncSession) -> None:
-    """A row that predates the taxonomy gets its group on the next seed run, whatever its source."""
     from app.crud.world_location import world_location as wl_crud
 
     await seed_places_from_json(async_session, commit=False)
@@ -129,7 +121,6 @@ async def test_reseed_backfills_group_on_existing_rows(async_session: AsyncSessi
 
 @pytest.mark.asyncio
 async def test_seed_rejects_unknown_group(async_session: AsyncSession, monkeypatch) -> None:
-    """A seed entry whose group is not in the catalog fails before any write."""
     from app.crud.world_location import world_location as wl_crud
     from app.services import place_seed_service
 
@@ -144,7 +135,6 @@ async def test_seed_rejects_unknown_group(async_session: AsyncSession, monkeypat
 
 def test_seed_descriptions_fit_the_registry_column() -> None:
     """Every seed description must fit the registry column: Postgres rejects overflow (SQLite does not)."""
-    from app.models.world_location import WorldLocation
 
     limit = WorldLocation.__table__.c.description.type.length
     for entry in load_seed_entries():

@@ -1,5 +1,3 @@
-"""Tests for LLMInteraction CRUD token estimation for usage-less providers."""
-
 from datetime import datetime
 from uuid import uuid4
 

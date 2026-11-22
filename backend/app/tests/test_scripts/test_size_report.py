@@ -39,7 +39,6 @@ def report() -> ModuleType:
 
 
 def test_categories_keep_schema_history_out_of_production(report: ModuleType) -> None:
-    """Migrations and tests are their own categories; catalog data is not production."""
     grouped = report.category_paths(
         [
             "backend/app/services/room_service.py",
@@ -67,7 +66,6 @@ def test_ratio_survives_an_empty_denominator(report: ModuleType) -> None:
 
 
 def test_delta_sign_and_zero(report: ModuleType) -> None:
-    """Zero stays unsigned; growth carries an explicit plus."""
     assert report.format_delta(0) == "0"
     assert report.format_delta(1388) == "+1,388"
     assert report.format_delta(-6) == "-6"
@@ -83,7 +81,6 @@ def _git(repo: Path, *args: str) -> None:
 
 
 def test_renamed_file_credits_its_new_path(report: ModuleType, tmp_path: Path) -> None:
-    """A rename is attributed to the new path, not silently dropped."""
     repo = tmp_path / "repo"
     service = repo / "backend" / "app" / "services"
     service.mkdir(parents=True)
@@ -114,7 +111,6 @@ def test_renamed_file_credits_its_new_path(report: ModuleType, tmp_path: Path) -
 
 
 def test_report_prints_per_side_rows_beside_the_targets(report: ModuleType, capsys: pytest.CaptureFixture[str]) -> None:
-    """Backend and frontend production print as separate rows, not only as a sum."""
     snapshot = report.Snapshot(
         ref="HEAD",
         lines=dict.fromkeys(report.CATEGORY_ORDER, 0),

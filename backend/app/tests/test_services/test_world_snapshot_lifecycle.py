@@ -21,7 +21,6 @@ pytestmark = pytest.mark.asyncio
 
 
 async def test_read_selects_explicit_version_not_newest(async_session: AsyncSession) -> None:
-    """Generating v2 leaves reads for v1 unchanged: no implicit activation."""
     v1 = WorldRecipe(seed="activation-v1", generator_version=1, config=WorldConfig())
     v2 = WorldRecipe(seed="activation-v2", generator_version=2, config=WorldConfig())
 
@@ -39,7 +38,6 @@ async def test_read_selects_explicit_version_not_newest(async_session: AsyncSess
 
 
 async def test_generate_is_idempotent_per_version(async_session: AsyncSession) -> None:
-    """A second generate for the same version returns the same row (no duplicate write)."""
     recipe = WorldRecipe(seed="idempotent", generator_version=1, config=WorldConfig())
     first = await world_snapshot_service.get_or_generate(async_session, recipe)
     second = await world_snapshot_service.get_or_generate(async_session, recipe)
@@ -48,7 +46,6 @@ async def test_generate_is_idempotent_per_version(async_session: AsyncSession) -
 
 
 async def test_duplicate_version_insert_is_rejected(async_session: AsyncSession) -> None:
-    """The (world_id, generator_version) uniqueness holds at the database level."""
     recipe = WorldRecipe(seed="dup", generator_version=1, config=WorldConfig())
     await world_snapshot_service.get_or_generate(async_session, recipe)
     with pytest.raises(IntegrityError):
@@ -84,7 +81,6 @@ async def test_creation_race_returns_existing_row(async_session: AsyncSession, m
 
 
 async def test_persisted_config_matches_generation_input(async_session: AsyncSession) -> None:
-    """The stored config is the full generation input, not a subset."""
     recipe = WorldRecipe(seed="cfg", generator_version=1, config=WorldConfig())
     snapshot = await world_snapshot_service.get_or_generate(async_session, recipe)
     assert snapshot.config == asdict(recipe.config)

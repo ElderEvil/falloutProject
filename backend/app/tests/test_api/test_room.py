@@ -49,7 +49,6 @@ async def test_read_room_list(
 
 @pytest.mark.asyncio
 async def test_get_buildable_rooms_awaits_static_game_data() -> None:
-    """The room service awaits the async static-data provider."""
     game_data = MagicMock()
     game_data.get_buildable_rooms.return_value = ["power generator"]
 
@@ -74,8 +73,6 @@ async def test_build_room_uses_backend_template(
     vault: Vault,
     async_session: AsyncSession,
 ):
-    """The build endpoint derives every room attribute from its template."""
-    from app.schemas.room import RoomCreate
     from app.utils.static_data import game_data_store
 
     # Seed the elevator infrastructure the real game creates at vault init
@@ -191,7 +188,6 @@ async def test_apply_room_style_endpoint(
     async_session: AsyncSession,
     vault: Vault,
 ) -> None:
-    """A crafted theme on a tier-3 room updates the style and sprite URL."""
     room = await _styled_room(async_session, vault)
     await crud.vault_theme.mark_crafted(async_session, vault_id=vault.id, style="party")
     await async_session.commit()
@@ -278,7 +274,6 @@ async def test_upgrade_room_tier_1_to_2(
     vault_with_caps: Vault,
     room_data: dict,
 ):
-    """Test upgrading a room from tier 1 to tier 2."""
     room_data.update(
         {
             "tier": 1,
@@ -327,7 +322,6 @@ async def test_upgrade_room_tier_2_to_3(
     vault_with_caps: Vault,
     room_data: dict,
 ):
-    """Test upgrading a room from tier 2 to tier 3."""
     room_data.update(
         {
             "tier": 1,
@@ -399,7 +393,6 @@ async def test_upgrade_room_capacity_calculation(
     vault,
     room_data: dict,
 ):
-    """Test that capacity is calculated correctly after upgrade."""
     room_data.update(
         {
             "tier": 1,
@@ -440,7 +433,6 @@ async def test_get_buildable_rooms_offers_unique_until_max_footprint(
     async_session: AsyncSession,
     vault: Vault,
 ):
-    """A unique room stays buildable while it can still merge, and disappears at size_max."""
     response = await async_client.get(f"/rooms/buildable/{vault.id}/", headers=superuser_token_headers)
     assert response.status_code == 200
     initial_buildable = response.json()
@@ -491,7 +483,6 @@ class TestVaultDoorProtection:
         async_session: AsyncSession,
         vault: Vault,
     ):
-        """Test that vault door cannot be destroyed."""
         # Create a vault door
         vault_door = RoomCreate(
             name="Vault Door",
@@ -541,7 +532,6 @@ async def test_grid_config_is_served_from_backend_constants(
     async_client: AsyncClient,
     superuser_token_headers: dict[str, str],
 ) -> None:
-    """The vault grid geometry is owned by the backend and served to the UI."""
     response = await async_client.get("/rooms/grid-config/", headers=superuser_token_headers)
 
     assert response.status_code == 200
@@ -577,7 +567,6 @@ async def test_build_endpoint_extends_upgraded_radio_studio(
     async_session: AsyncSession,
     vault: Vault,
 ) -> None:
-    """An adjacent segment beside a tier-2 studio adopts that tier, merges, and pays the tier upgrade."""
     from app.schemas.dweller import DwellerCreate
     from app.tests.factory.dwellers import create_random_common_dweller
     from app.tests.test_services.test_room_service import _create_elevator, _create_radio_studio

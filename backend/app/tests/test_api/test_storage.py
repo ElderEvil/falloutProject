@@ -1,5 +1,3 @@
-"""Tests for storage API endpoints."""
-
 import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -28,7 +26,6 @@ async def test_get_storage_space_with_items(
     async_session: AsyncSession,
     superuser_token_headers: dict[str, str],
 ):
-    """Test storage space info correctly reflects items in storage."""
     # Create vault
     user = await crud.user.get_by_email(async_session, email=settings.FIRST_SUPERUSER_EMAIL)
     vault_data = create_fake_vault()
@@ -76,7 +73,6 @@ async def test_get_storage_items_success(
     async_session: AsyncSession,
     superuser_token_headers: dict[str, str],
 ) -> None:
-    """Test GET /storage/vault/{vault_id}/items returns all item types."""
     # Create vault for superuser
     user = await crud.user.get_by_email(async_session, email=settings.FIRST_SUPERUSER_EMAIL)
     vault_data = create_fake_vault()
@@ -134,7 +130,6 @@ async def test_storage_items_describe_recipe_status(
     async_session: AsyncSession,
     superuser_token_headers: dict[str, str],
 ) -> None:
-    """Weapon and outfit cards report craftability and whether this vault knows the recipe."""
     user = await crud.user.get_by_email(async_session, email=settings.FIRST_SUPERUSER_EMAIL)
     vault_data = create_fake_vault()
     vault_data["user_id"] = str(user.id)
@@ -182,7 +177,6 @@ async def test_get_storage_items_backfills_junk_art(
     superuser_token_headers: dict[str, str],
 ) -> None:
     """Legacy junk rows stored without image_url still render art in storage."""
-    from app.core.enums import JunkTypeEnum
 
     user = await crud.user.get_by_email(async_session, email=settings.FIRST_SUPERUSER_EMAIL)
     vault_data = create_fake_vault()
@@ -218,7 +212,6 @@ async def test_open_lunchbox_success(
     async_session: AsyncSession,
     superuser_token_headers: dict[str, str],
 ) -> None:
-    """Test POST /storage/vault/{vault_id}/lunchbox/open consumes the box and reveals contents."""
     from uuid import UUID
 
     from app.services.reward_service import reward_service
@@ -268,7 +261,6 @@ async def test_open_lunchbox_unknown_item_404(
     async_session: AsyncSession,
     superuser_token_headers: dict[str, str],
 ) -> None:
-    """Test opening an unknown lunchbox returns 404 without distinguishing the cause."""
     from uuid import uuid4
 
     user = await crud.user.get_by_email(async_session, email=settings.FIRST_SUPERUSER_EMAIL)
@@ -384,7 +376,6 @@ async def test_distribute_recovery_supplies_endpoint(
     async_session: AsyncSession,
     superuser_token_headers: dict[str, str],
 ) -> None:
-    """The one-shot action treats irradiated dwellers and reports the supplies used."""
     from app.schemas.dweller import DwellerCreate
     from app.tests.factory.dwellers import create_fake_dweller
 

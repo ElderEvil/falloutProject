@@ -1,5 +1,3 @@
-"""Tests for objective persistence and settlement."""
-
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -15,7 +13,6 @@ from app.tests.factory.vaults import create_fake_vault
 
 @pytest.mark.asyncio
 async def test_count_claimable_for_vault(async_session: AsyncSession) -> None:
-    """Count rewards-ready-but-unclaimed links, excluding locked and claimed ones."""
     user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
     vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id))
 
@@ -49,7 +46,6 @@ async def test_count_claimable_for_vault(async_session: AsyncSession) -> None:
 
 @pytest.mark.asyncio
 async def test_update_objective_progress(async_session: AsyncSession) -> None:
-    """Test updating progress for an objective."""
     # Create user and vault
     user_data = create_fake_user()
     user_in = UserCreate(**user_data)
@@ -82,7 +78,6 @@ async def test_update_objective_progress(async_session: AsyncSession) -> None:
 
 @pytest.mark.asyncio
 async def test_complete_objective(async_session: AsyncSession) -> None:
-    """Test marking an objective as completed."""
     # Create user and vault
     user_data = create_fake_user()
     user_in = UserCreate(**user_data)
@@ -121,7 +116,6 @@ async def test_complete_objective(async_session: AsyncSession) -> None:
 
 @pytest.mark.asyncio
 async def test_complete_nonexistent_objective_creates_link(async_session: AsyncSession) -> None:
-    """Test that completing an objective that wasn't assigned creates a new link."""
     # Create user and vault
     user_data = create_fake_user()
     user_in = UserCreate(**user_data)
@@ -156,7 +150,6 @@ async def test_complete_nonexistent_objective_creates_link(async_session: AsyncS
 
 @pytest.mark.asyncio
 async def test_update_progress_creates_link_if_not_exists(async_session: AsyncSession) -> None:
-    """Test that updating progress for an objective creates link if it doesn't exist."""
     # Create user and vault
     user_data = create_fake_user()
     user_in = UserCreate(**user_data)
@@ -188,7 +181,6 @@ async def test_update_progress_creates_link_if_not_exists(async_session: AsyncSe
 
 @pytest.mark.asyncio
 async def test_assign_initial_objectives(async_session: AsyncSession) -> None:
-    """Starter objectives are selected and linked in the CRUD layer."""
     user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
     vault = await crud.vault.create(
         async_session,
@@ -218,7 +210,6 @@ async def test_assign_initial_objectives(async_session: AsyncSession) -> None:
 
 @pytest.mark.asyncio
 async def test_vault_read_exposes_template_key(async_session: AsyncSession) -> None:
-    """The vault read carries template_key, the identity onboarding keys on."""
     user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
     vault = await crud.vault.create(
         async_session,
@@ -247,7 +238,6 @@ async def test_vault_read_exposes_template_key(async_session: AsyncSession) -> N
 
 @pytest.mark.asyncio
 async def test_assign_initial_seeds_starter_arc_for_standard_vault(async_session: AsyncSession) -> None:
-    """A standard vault gets the full starter arc, ordered by sequence."""
     user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
     vault = await crud.vault.create(
         async_session,
@@ -280,7 +270,6 @@ async def test_assign_initial_seeds_starter_arc_for_standard_vault(async_session
 
 @pytest.mark.asyncio
 async def test_assign_initial_skips_starter_arc_for_boosted_vault(async_session: AsyncSession) -> None:
-    """A boosted vault skips the starter arc (the Office is already seeded)."""
     user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
     vault = await crud.vault.create(
         async_session,
@@ -309,7 +298,6 @@ async def test_assign_initial_skips_starter_arc_for_boosted_vault(async_session:
 
 @pytest.mark.asyncio
 async def test_assign_initial_rolls_back_on_db_error() -> None:
-    """A DB failure assigns nothing but leaves the session usable."""
     from unittest.mock import AsyncMock
     from uuid import uuid4
 
@@ -326,7 +314,6 @@ async def test_assign_initial_rolls_back_on_db_error() -> None:
 
 @pytest.mark.asyncio
 async def test_completed_link_progress_not_mutated(async_session: AsyncSession) -> None:
-    """Settling progress on a completed link returns it untouched (no progress rewrite)."""
     user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
     vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id))
     objective = await crud.objective_crud.create(

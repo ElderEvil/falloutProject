@@ -36,7 +36,6 @@ def test_reresolves_every_item_table_and_legendary_dwellers() -> None:
 
 
 def test_item_updates_are_idempotent() -> None:
-    """Each item table only writes when the stored URL differs from the canonical one."""
     source = inspect.getsource(MIGRATION.upgrade)
     assert source.count("image_url IS NULL OR image_url <> :url") == 3
 

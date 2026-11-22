@@ -1,5 +1,3 @@
-"""Tests for the map-scenario CLI (per-group icon population)."""
-
 from __future__ import annotations
 
 import json

@@ -1,5 +1,3 @@
-"""Tests for the shared item-roll helper (loot_calculator.roll_item)."""
-
 import pytest
 
 from app.schemas.exploration_event import JunkSchema, OutfitSchema, WeaponSchema

@@ -141,7 +141,6 @@ async def test_vault_facts_load_is_bounded(async_session: AsyncSession) -> None:
 
 @pytest.mark.asyncio
 async def test_vault_missing_requirements_reports_the_same_descriptions(async_session: AsyncSession) -> None:
-    """Every requirement type keeps its message, and the report keeps requirement order."""
     vault = await _vault_with_office_and_dwellers(async_session, dweller_count=0)
     prerequisite_id = uuid4()
     quest = Quest(

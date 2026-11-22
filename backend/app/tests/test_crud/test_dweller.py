@@ -173,7 +173,6 @@ async def test_move_adult_to_arena_sets_idle_status(async_session: AsyncSession)
 
 @pytest.mark.asyncio
 async def test_get_max_level(async_session: AsyncSession):
-    """get_max_level returns the highest dweller level in a vault, or None when empty."""
     from app.models.dweller import Dweller
     from app.tests.factory.dwellers import create_fake_dweller
 
@@ -206,7 +205,6 @@ async def test_get_max_level(async_session: AsyncSession):
 
 @pytest.mark.asyncio
 async def test_count_alive_in_vault_excludes_dead(async_session: AsyncSession):
-    """count_alive_in_vault counts living dwellers only, with an optional level floor."""
     from app.models.dweller import Dweller
     from app.tests.factory.dwellers import create_fake_dweller
 
@@ -235,7 +233,6 @@ async def test_count_alive_in_vault_excludes_dead(async_session: AsyncSession):
 
 @pytest.mark.asyncio
 async def test_get_dwellers_by_status(async_session: AsyncSession):
-    """Test getting dwellers filtered by status."""
     from app.core.enums import DwellerStatusEnum
     from app.schemas.dweller import DwellerUpdate
 

@@ -1,5 +1,3 @@
-"""Phase 0 account merge service coverage."""
-
 import fakeredis.aioredis
 import pytest
 from sqlmodel import func, select

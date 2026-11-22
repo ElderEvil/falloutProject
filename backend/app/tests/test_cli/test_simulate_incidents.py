@@ -25,7 +25,6 @@ def _profile(label: str, power: float) -> DefenderProfile:
 
 
 def test_regen_respects_radiation_ceiling():
-    """Healing clamps to max(1, max_health - radiation), like the combat kernel."""
     cfg = IncidentConfig(heal_per_tick=5)
     sim = IncidentSimulator(cfg)
     defender = SimDefender(profile=_profile("rad", 10.0), health=30, radiation=70)
@@ -66,7 +65,6 @@ def test_spawn_preserves_active_wave_below_deathclaw_gate(resolved: bool):
 
 
 def test_defenders_per_incident_caps_responders():
-    """A bigger vault is not invincible: only defenders_per_incident responders fight."""
     cfg = IncidentConfig(spawn_chance_per_hour=1.0, defenders_per_incident=6)
     sim = IncidentSimulator(cfg)
     roster = [SimDefender(profile=_profile(f"d{i}", 10.0), health=100) for i in range(100)]
@@ -131,7 +129,6 @@ def test_matchup_cli_rejects_unknown_type():
 
 
 def test_matchup_zero_responders_reports_unopposed_instead_of_crashing():
-    """defenders_per_incident=0 resolves every run as an unopposed (failed, bloodless) incident."""
     run = sim_cli.run_matchup(IncidentConfig(defenders_per_incident=0), IncidentType.RAIDER_ATTACK, 2, 10, seed=3)
     assert len(run) == 10
     assert all(outcome.failed and not outcome.resolved for outcome in run)
@@ -174,7 +171,6 @@ def test_resolve_incidents_passes_configured_grace():
 
 
 def test_matchup_cli_rejects_vault_id_combination():
-    """--matchup runs a synthetic roster, so combining it with --vault-id is a loud error."""
     from click import unstyle
 
     result = CliRunner().invoke(
@@ -194,7 +190,6 @@ def test_matchup_cli_rejects_vault_id_combination():
 
 
 def test_simulate_cli_rejects_zero_runs():
-    """--runs 0 would divide by zero in the report; fail fast with a clear error."""
     from click import unstyle
 
     result = CliRunner().invoke(cli, ["simulate-incidents", "--runs", "0"])
@@ -260,7 +255,6 @@ def test_four_defender_conditions_isolate_team_place_from_matching_gear():
 
 
 def test_benched_team_and_mismatched_team_earn_no_matching_bonus():
-    """A team with nobody active and a team facing the wrong hazard both get no bonus."""
     seed = 20261012
 
     plain_fire = sim_cli.run_matchup(IncidentConfig(), IncidentType.FIRE, 4, 200, seed=seed)

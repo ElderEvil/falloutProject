@@ -1,13 +1,9 @@
-"""Tests for broadcast script renderer — pure function, no I/O."""
-
 from datetime import date, datetime, timedelta
 
 from app.utils.broadcast_script import build_daily_script
 
 
 class TestScriptWordCount:
-    """Ensure the script stays in the 120-180 word target range."""
-
     def _baseline_data(self):
         return {
             "population": 25,
@@ -70,8 +66,6 @@ class TestWordCountYearSweep:
 
 
 class TestGenderSplit:
-    """Gender split renders from the stored population counts."""
-
     def test_gender_split_from_counts(self):
         data = {
             "population": 10,
@@ -91,8 +85,6 @@ class TestGenderSplit:
 
 
 class TestResourceReporting:
-    """Resource percentages appear in the correct format."""
-
     def test_resource_percentages(self):
         data = {
             "population": 5,
@@ -115,8 +107,6 @@ class TestResourceReporting:
 
 
 class TestNotificationBatching:
-    """Level-up and other notifications are batched into one line."""
-
     def test_level_up_notification(self):
         data = {
             "population": 10,
@@ -257,8 +247,6 @@ class TestNotificationBatching:
 
 
 class TestPhraseVariety:
-    """Deterministic phrase pools: stable per day, varied across days/seeds."""
-
     def _data(self):
         return {
             "population": 23,
@@ -310,8 +298,6 @@ class TestPhraseVariety:
 
 
 class TestRotatingSegments:
-    """One rotating segment per broadcast; different seeds, different segments."""
-
     def _data(self):
         return {
             "population": 23,
@@ -388,8 +374,6 @@ class TestRotatingSegments:
 
 
 class TestHeadlineTones:
-    """Headlines get tone-tinted wrappers by notification type."""
-
     def _data(self, notifications):
         return {
             "population": 10,
@@ -452,8 +436,6 @@ class TestHeadlineTones:
 
 
 class TestSignOff:
-    """Every script ends with a 1950s-style sign-off."""
-
     def test_signoff_present(self):
         data = {
             "population": 5,

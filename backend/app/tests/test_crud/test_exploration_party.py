@@ -1,5 +1,3 @@
-"""Tests for exploration party-team CRUD (issue 772, phase 3)."""
-
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -61,7 +59,6 @@ async def _dispatch_team(async_session: AsyncSession, vault, exploration: Explor
 
 @pytest.mark.asyncio
 async def test_get_exploration_team_returns_team_with_members(async_session: AsyncSession) -> None:
-    """The dispatch team is found by exploration id with its roster eager-loaded."""
     vault, dwellers = await _vault_with_dwellers(async_session, 2)
     exploration = await _create_exploration(async_session, vault, dwellers[0])
     team = await _dispatch_team(async_session, vault, exploration, dwellers)
@@ -83,7 +80,6 @@ async def test_get_exploration_team_returns_none_for_unknown_run(async_session: 
 
 @pytest.mark.asyncio
 async def test_get_exploration_team_dwellers_returns_slot_ordered_dwellers(async_session: AsyncSession) -> None:
-    """The party's Dweller rows come back in slot order with equipment eager-loaded."""
     vault, dwellers = await _vault_with_dwellers(async_session, 3)
     exploration = await _create_exploration(async_session, vault, dwellers[0])
     await _dispatch_team(async_session, vault, exploration, dwellers)
@@ -102,7 +98,6 @@ async def test_get_exploration_team_dwellers_empty_without_team(async_session: A
 
 @pytest.mark.asyncio
 async def test_get_in_progress_for_dwellers_returns_only_open_runs(async_session: AsyncSession) -> None:
-    """Any exploring/returning run for any of the ids is returned; finished runs are not."""
     vault, dwellers = await _vault_with_dwellers(async_session, 2)
     active = await _create_exploration(async_session, vault, dwellers[0])
     finished = await _create_exploration(async_session, vault, dwellers[1])
@@ -125,7 +120,6 @@ async def test_get_in_progress_for_dwellers_empty_for_unknown_ids(async_session:
 
 @pytest.mark.asyncio
 async def test_get_in_progress_for_dwellers_finds_run_for_non_anchor_member(async_session: AsyncSession) -> None:
-    """A party member stored only in the team roster still resolves their open run."""
     vault, dwellers = await _vault_with_dwellers(async_session, 3)
     exploration = await _create_exploration(async_session, vault, dwellers[0])
     team = await _dispatch_team(async_session, vault, exploration, dwellers)
@@ -141,7 +135,6 @@ async def test_get_in_progress_for_dwellers_finds_run_for_non_anchor_member(asyn
 
 @pytest.mark.asyncio
 async def test_get_in_progress_for_dwellers_skips_finished_party_run(async_session: AsyncSession) -> None:
-    """Party membership does not resurrect a run that already left the open statuses."""
     vault, dwellers = await _vault_with_dwellers(async_session, 2)
     exploration = await _create_exploration(async_session, vault, dwellers[0])
     team = await _dispatch_team(async_session, vault, exploration, dwellers)

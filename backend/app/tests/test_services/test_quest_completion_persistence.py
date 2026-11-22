@@ -1,5 +1,3 @@
-"""Tests for persisted quest completion details (completed_at + granted_rewards)."""
-
 from datetime import datetime, timedelta
 
 import pytest
@@ -77,7 +75,6 @@ async def _ready_to_claim(async_session: AsyncSession, quest: Quest, link: Vault
 
 @pytest.mark.asyncio
 async def test_claim_persists_completed_at_and_granted_rewards(async_session: AsyncSession, vault: Vault) -> None:
-    """Claiming stamps completed_at and records the settled caps reward on the link."""
     quest, link, dweller = await _expired_quest(async_session, vault)
     await _ready_to_claim(async_session, quest, link)
 
@@ -90,7 +87,6 @@ async def test_claim_persists_completed_at_and_granted_rewards(async_session: As
 
 @pytest.mark.asyncio
 async def test_completed_at_none_before_claim(async_session: AsyncSession, vault: Vault) -> None:
-    """A quest that is ready to claim is not completed until the claim commits."""
     quest, link, dweller = await _expired_quest(async_session, vault)
     await _ready_to_claim(async_session, quest, link)
 
@@ -102,7 +98,6 @@ async def test_completed_at_none_before_claim(async_session: AsyncSession, vault
 
 @pytest.mark.asyncio
 async def test_claim_without_rewards_persists_xp_only(async_session: AsyncSession, vault: Vault) -> None:
-    """A reward-less quest still records its XP-only settlement on the link."""
     quest, link, dweller = await _expired_quest(async_session, vault, reward_amount=None)
     await _ready_to_claim(async_session, quest, link)
 

@@ -1,5 +1,3 @@
-"""Tests for quest availability unification (read/start agreement + Office rule)."""
-
 from datetime import timedelta
 
 import pytest
@@ -99,7 +97,6 @@ async def test_requirement_gated_quest_reads_as_locked_and_start_rejects(
 
 @pytest.mark.asyncio
 async def test_quest_is_locked_without_overseers_office(async_session: AsyncSession) -> None:
-    """All quests are locked until the vault builds the Overseer's Office."""
     user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
     vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id))
     quest = await _create_quest(async_session, title="Office Gate")
@@ -136,7 +133,6 @@ async def test_requirement_gated_quest_lock_reason(async_session: AsyncSession) 
 
 @pytest.mark.asyncio
 async def test_chain_locked_quest(async_session: AsyncSession) -> None:
-    """A quest whose chain predecessor is incomplete is locked until it completes."""
     vault = await _vault_with_office(async_session)
     quest_a = await _create_quest(async_session, title="Chain Starter")
     quest_b = await _create_quest(async_session, title="Chain Follow-up", previous_quest_id=quest_a.id)
@@ -173,7 +169,6 @@ async def test_chain_lock_reason_names_the_predecessor_on_the_read_path(async_se
 
 @pytest.mark.asyncio
 async def test_fully_available_quest(async_session: AsyncSession) -> None:
-    """A quest with the office, no chain, and no requirements is available."""
     vault = await _vault_with_office(async_session)
     quest = await _create_quest(async_session, title="Open Quest")
 
@@ -285,7 +280,6 @@ async def test_level_gated_quest_visible_within_reveal_margin(async_session: Asy
 
 @pytest.mark.asyncio
 async def test_level_gated_quest_available_with_qualifying_dweller(async_session: AsyncSession) -> None:
-    """A vault with a dweller at the required level sees the quest available."""
     vault = await _vault_with_level_dweller(async_session, level=46)
     quest = await _create_quest(async_session, title="Level 46 Available")
     async_session.add(
@@ -308,7 +302,6 @@ async def test_level_gated_quest_available_with_qualifying_dweller(async_session
 
 @pytest.mark.asyncio
 async def test_available_only_respects_level_reveal(async_session: AsyncSession) -> None:
-    """available_only also hides quests beyond the reveal margin."""
     vault = await _vault_with_level_dweller(async_session, level=20)
     hidden = await _create_quest(async_session, title="Hidden Level 46")
     async_session.add(
@@ -365,7 +358,6 @@ async def test_level_gated_quest_shown_locked_without_office(async_session: Asyn
 
 @pytest.mark.asyncio
 async def test_normal_read_fills_page_past_hidden_quests(async_session: AsyncSession) -> None:
-    """The normal quest read paginates after reveal/availability filtering, so a page is full of visible quests."""
     vault = await _vault_with_level_dweller(async_session, level=20)
     hidden = await _create_quest(async_session, title="Hidden Level 46")
     async_session.add(
@@ -390,7 +382,6 @@ async def test_normal_read_fills_page_past_hidden_quests(async_session: AsyncSes
 
 @pytest.mark.asyncio
 async def test_item_requirement_met_by_equipped_item(async_session: AsyncSession) -> None:
-    """The read-path ITEM check counts items equipped by vault dwellers, not only storage."""
     from app.models.dweller import Dweller
     from app.tests.factory.dwellers import create_fake_adult_dweller
     from app.tests.factory.items import create_fake_weapon
@@ -427,11 +418,9 @@ async def test_item_requirement_met_by_equipped_item(async_session: AsyncSession
 
 @pytest.mark.asyncio
 async def test_start_quest_rejects_party_below_level_requirement(async_session: AsyncSession) -> None:
-    """A party of level-40 dwellers cannot start a quest requiring level 46."""
     from app.models.dweller import Dweller
     from app.services.team_service import team_service
     from app.tests.factory.dwellers import create_fake_adult_dweller
-    from app.utils.exceptions import ValidationException
 
     vault = await _vault_with_office(async_session)
     quest = await _create_quest(async_session, title="Level 46 Party Gate")
@@ -459,7 +448,6 @@ async def test_start_quest_rejects_party_below_level_requirement(async_session: 
 
 @pytest.mark.asyncio
 async def test_start_quest_with_level_qualifying_party(async_session: AsyncSession) -> None:
-    """Adding a level-46 member lets the party start the level-46 quest."""
     from app.models.dweller import Dweller
     from app.services.team_service import team_service
     from app.tests.factory.dwellers import create_fake_adult_dweller
@@ -494,11 +482,9 @@ async def test_start_quest_with_level_qualifying_party(async_session: AsyncSessi
 
 @pytest.mark.asyncio
 async def test_start_quest_rejects_missing_required_item(async_session: AsyncSession) -> None:
-    """A quest whose required item exists nowhere in the vault cannot start."""
     from app.models.dweller import Dweller
     from app.services.team_service import team_service
     from app.tests.factory.dwellers import create_fake_adult_dweller
-    from app.utils.exceptions import ValidationException
 
     vault = await _vault_with_office(async_session)
     quest = await _create_quest(async_session, title="Item Party Gate")
@@ -525,7 +511,6 @@ async def test_start_quest_rejects_missing_required_item(async_session: AsyncSes
 
 @pytest.mark.asyncio
 async def test_start_quest_with_required_item_equipped_in_vault(async_session: AsyncSession) -> None:
-    """An item equipped by a vault dweller lets the quest start."""
     from app.models.dweller import Dweller
     from app.services.team_service import team_service
     from app.tests.factory.dwellers import create_fake_adult_dweller
@@ -609,12 +594,10 @@ async def test_start_quest_accepts_required_outfit_equipped_by_a_vault_dweller(a
 
 @pytest.mark.asyncio
 async def test_start_quest_rejects_party_below_attack(async_session: AsyncSession) -> None:
-    """A party whose weapons deal below the required attack cannot start the quest."""
     from app.models.dweller import Dweller
     from app.services.team_service import team_service
     from app.tests.factory.dwellers import create_fake_adult_dweller
     from app.tests.factory.items import create_fake_weapon
-    from app.utils.exceptions import ValidationException
 
     vault = await _vault_with_office(async_session)
     quest = await _create_quest(async_session, title="Attack Party Gate")
@@ -648,7 +631,6 @@ async def test_start_quest_rejects_party_below_attack(async_session: AsyncSessio
 
 @pytest.mark.asyncio
 async def test_start_quest_with_attack_qualifying_party(async_session: AsyncSession) -> None:
-    """A party member with a weapon meeting the attack threshold lets the quest start."""
     from app.models.dweller import Dweller
     from app.services.team_service import team_service
     from app.tests.factory.dwellers import create_fake_adult_dweller
@@ -687,7 +669,6 @@ async def test_start_quest_with_attack_qualifying_party(async_session: AsyncSess
 
 @pytest.mark.asyncio
 async def test_attack_requirement_met_by_equipped_weapon(async_session: AsyncSession) -> None:
-    """The read-path ATTACK check counts dwellers with a qualifying equipped weapon."""
     from app.models.dweller import Dweller
     from app.tests.factory.dwellers import create_fake_adult_dweller
     from app.tests.factory.items import create_fake_weapon
@@ -777,11 +758,9 @@ async def test_dead_dweller_does_not_unlock_read_path_requirements(async_session
 
 @pytest.mark.asyncio
 async def test_start_quest_rejects_party_below_stat(async_session: AsyncSession) -> None:
-    """A party whose members lack the required SPECIAL stat cannot start the quest."""
     from app.models.dweller import Dweller
     from app.services.team_service import team_service
     from app.tests.factory.dwellers import create_fake_adult_dweller
-    from app.utils.exceptions import ValidationException
 
     vault = await _vault_with_office(async_session)
     quest = await _create_quest(async_session, title="Stat Party Gate")
@@ -809,7 +788,6 @@ async def test_start_quest_rejects_party_below_stat(async_session: AsyncSession)
 
 @pytest.mark.asyncio
 async def test_start_quest_with_stat_qualifying_party(async_session: AsyncSession) -> None:
-    """A party member with the required SPECIAL stat lets the quest start."""
     from app.models.dweller import Dweller
     from app.services.team_service import team_service
     from app.tests.factory.dwellers import create_fake_adult_dweller
@@ -841,7 +819,6 @@ async def test_start_quest_with_stat_qualifying_party(async_session: AsyncSessio
 
 @pytest.mark.asyncio
 async def test_stat_requirement_met_by_qualifying_dweller(async_session: AsyncSession) -> None:
-    """The read-path STAT check counts living dwellers with the effective stat."""
     from app.models.dweller import Dweller
     from app.tests.factory.dwellers import create_fake_adult_dweller
 
@@ -871,7 +848,6 @@ async def test_stat_requirement_met_by_qualifying_dweller(async_session: AsyncSe
 
 
 def test_quest_service_facade_reexports_canonical_surface() -> None:
-    """The top-level facade forwards the canonical module's public names by identity."""
     from app.services import quest_service as facade
     from app.services.progression.quests import availability
     from app.services.progression.quests import service as canonical
@@ -950,7 +926,6 @@ async def test_start_quest_rejects_item_equipped_only_by_dead_dweller(async_sess
     from app.services.team_service import team_service
     from app.tests.factory.dwellers import create_fake_adult_dweller
     from app.tests.factory.items import create_fake_outfit
-    from app.utils.exceptions import ValidationException
 
     vault = await _vault_with_office(async_session)
     quest = await _create_quest(async_session, title="Dead Wearer Item Gate")
@@ -1031,7 +1006,6 @@ async def test_timed_quest_limit_counts_outbound_and_returning_only(async_sessio
     from datetime import datetime, timedelta
 
     from app.models.dweller import Dweller
-    from app.models.vault_quest import VaultQuestCompletionLink
     from app.services.team_service import team_service
     from app.tests.factory.dwellers import create_fake_adult_dweller
     from app.utils.exceptions import ResourceConflictException
@@ -1103,7 +1077,6 @@ async def test_timed_quest_limit_counts_outbound_and_returning_only(async_sessio
 @pytest.mark.asyncio
 @pytest.mark.parametrize("office_tier", [1, 2, 3])
 async def test_quest_slots_follow_office_tier(async_session: AsyncSession, office_tier: int) -> None:
-    """A tier-N office allows N simultaneous timed quests and shortens their duration."""
     from app.models.dweller import Dweller
     from app.services.team_service import team_service
     from app.tests.factory.dwellers import create_fake_adult_dweller
@@ -1192,7 +1165,6 @@ async def test_unsettled_quest_stays_listed_after_its_prerequisite_is_lost(
 
 @pytest.mark.asyncio
 async def test_assign_rejects_scheduler_owned_quest_types(async_session: AsyncSession) -> None:
-    """Rotation and the future seasonal scheduler own daily/weekly/event visibility."""
     vault = await _vault(async_session)
     for quest_type in ("daily", "repeatable", "event"):
         quest = await crud.quest_crud.create(

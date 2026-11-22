@@ -1,5 +1,3 @@
-"""Tests for the unified DwellerVisualAttributes schema."""
-
 import pytest
 from pydantic import ValidationError
 
@@ -16,7 +14,6 @@ def _faction_mechanics_enabled(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_unified_schema_has_all_fields() -> None:
-    """Unified schema should contain both input and AI-generated fields."""
     fields = DwellerVisualAttributes.model_fields
 
     assert "race" in fields
@@ -53,14 +50,12 @@ def test_unified_schema_has_all_fields() -> None:
 
 
 def test_canonical_field_names() -> None:
-    """Old names (haircut, body_type) should NOT be in the schema."""
     fields = DwellerVisualAttributes.model_fields
     assert "haircut" not in fields, "haircut should be renamed to hair_style"
     assert "body_type" not in fields, "body_type should be renamed to build"
 
 
 def test_identity_options_match_the_canonical_faction_restrictions() -> None:
-    """Clients receive only the combinations the API accepts for identity editing."""
     options = dweller_service.get_identity_options()
 
     assert options.races == ["human", "ghoul", "super_mutant", "synth"]
@@ -70,7 +65,6 @@ def test_identity_options_match_the_canonical_faction_restrictions() -> None:
 
 
 def test_appearance_options_match_the_canonical_module() -> None:
-    """The editor catalogue is served from app/options/appearance.py, not mirrored."""
     from app.options.appearance import (
         background_options,
         body_type_options,
@@ -101,7 +95,6 @@ def test_appearance_options_match_the_canonical_module() -> None:
 
 
 def test_normalizes_single_item_provider_lists_for_scalar_attributes() -> None:
-    """Local models sometimes wrap every structured scalar in a one-item list."""
     attributes = DwellerVisualAttributes.model_validate(
         {
             "race": ["human"],
@@ -133,12 +126,10 @@ def test_normalizes_single_item_provider_lists_for_scalar_attributes() -> None:
 
 
 def test_backward_compatibility_alias() -> None:
-    """DwellerVisualAttributesInput should be an alias of DwellerVisualAttributes."""
     assert DwellerVisualAttributesInput is DwellerVisualAttributes
 
 
 def test_none_faction_accepted_while_switch_off(monkeypatch: pytest.MonkeyPatch) -> None:
-    """System-assigned 'none' still passes while the switch is off."""
     from app.core.game_config import game_config
 
     monkeypatch.setattr(game_config.features, "faction_mechanics", False)

@@ -1,5 +1,3 @@
-"""Tests for arena service logic — experimental dweller-vs-dweller fighting."""
-
 from itertools import pairwise
 from uuid import uuid4
 
@@ -34,9 +32,7 @@ from app.utils.exceptions import ValidationException
 from app.utils.serialize import serialize_utc_datetime
 from app.utils.time import utcnow
 
-# ---------------------------------------------------------------------------
 # Fixtures
-# ---------------------------------------------------------------------------
 
 
 @pytest.mark.parametrize("image_url", [None, "/static/pet_images/custom-dog.png"])
@@ -388,8 +384,6 @@ async def test_team_result_names_every_winner(
 
 
 async def crud_create_room(db_session: AsyncSession, room_in: RoomCreate) -> Room:
-    from app import crud
-
     return await crud.room.create(db_session=db_session, obj_in=room_in)
 
 
@@ -404,7 +398,6 @@ async def configure_arena(db_session: AsyncSession, room: Room, **fields: object
 @pytest_asyncio.fixture(name="fighter_a")
 async def fighter_a_fixture(async_session: AsyncSession, vault: Vault) -> Dweller:
     """Strong fighter."""
-    from app import crud
 
     return await crud.dweller.create(
         db_session=async_session,
@@ -432,7 +425,6 @@ async def fighter_a_fixture(async_session: AsyncSession, vault: Vault) -> Dwelle
 @pytest_asyncio.fixture(name="fighter_b")
 async def fighter_b_fixture(async_session: AsyncSession, vault: Vault) -> Dweller:
     """Weak fighter."""
-    from app import crud
 
     return await crud.dweller.create(
         db_session=async_session,
@@ -501,9 +493,7 @@ async def fighter_d_fixture(async_session: AsyncSession, vault: Vault) -> Dwelle
     )
 
 
-# ---------------------------------------------------------------------------
 # Service tests
-# ---------------------------------------------------------------------------
 
 
 class TestArenaService:
@@ -737,8 +727,6 @@ class TestArenaService:
 
     @pytest.mark.asyncio
     async def test_clear_journal_deletes_events(self, async_session, arena_room, fighter_a, fighter_b):
-        from app.models.arena_match_event import ArenaMatchEvent
-
         fighter_a.room_id = arena_room.id
         fighter_b.room_id = arena_room.id
         fighter_b.health = 1
@@ -1147,7 +1135,6 @@ class TestArenaService:
 
     @pytest.mark.asyncio
     async def test_set_fighters_accepts_behemoth(self, async_session, arena_room, fighter_a, fighter_b):
-        """Behemoths are barred from work but remain eligible to fight."""
         fighter_a.visual_attributes = {"race": "super_mutant", "state_of_being": "behemoth"}
         fighter_a.room_id = arena_room.id
         fighter_b.room_id = arena_room.id
@@ -1464,13 +1451,10 @@ async def _morale_bystander(session: AsyncSession, vault_id, surname: str, happi
 
 
 class TestArenaMoraleBonus:
-    """Vault-wide +1 morale on match completion (issue #999), through the real finish path."""
-
     @pytest.mark.asyncio
     async def test_finished_match_grants_morale_to_every_living_dweller(
         self, async_session, arena_room, fighter_a, fighter_b, vault
     ):
-        """Winner/loser keep their ±10 swing and everyone — fighters included — gains +1."""
         for fighter in (fighter_a, fighter_b):
             fighter.room_id = arena_room.id
             fighter.happiness = 50
@@ -1496,7 +1480,6 @@ class TestArenaMoraleBonus:
     async def test_second_match_inside_cooldown_grants_nothing(
         self, async_session, arena_room, fighter_a, fighter_b, vault
     ):
-        """A completion inside the vault-wide window keeps the ±10 swing but skips the +1."""
         from datetime import UTC, datetime
 
         vault.arena_morale_awarded_at = datetime.now(UTC)
@@ -1524,7 +1507,6 @@ class TestArenaMoraleBonus:
 
     @pytest.mark.asyncio
     async def test_morale_grant_clamps_at_100(self, async_session, arena_room, fighter_a, fighter_b, vault):
-        """Nobody exceeds the dweller happiness cap when the swing and the bonus stack."""
         for fighter in (fighter_a, fighter_b):
             fighter.room_id = arena_room.id
         fighter_a.happiness = 95
@@ -1550,7 +1532,6 @@ class TestArenaMoraleBonus:
     async def test_arena_tick_delivers_morale_toast_after_commit(
         self, async_session, arena_room, fighter_a, fighter_b, vault
     ):
-        """The actual tick drains deferred notifications: the bell row gets its live toast."""
         from datetime import datetime, timedelta
         from unittest.mock import AsyncMock, patch
 
@@ -2669,7 +2650,6 @@ async def test_arena_candidates_load_once_and_preserve_room_eligibility(
 
 
 def test_damage_carry_isolated_by_room_and_reset_only_clears_its_room():
-
     service = ArenaService()
     attacker = ArenaParticipant(key="attacker", name="A", short_name="A", power=1, health=100, max_health=100)
     defender = ArenaParticipant(key="shared-fighter", name="B", short_name="B", power=1, health=100, max_health=100)

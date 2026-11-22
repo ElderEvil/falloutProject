@@ -1,5 +1,3 @@
-"""Tests for WAV wrapping in OpenRouter TTS service."""
-
 import io
 import struct
 import wave
@@ -8,8 +6,6 @@ from app.services.openrouter_tts_service import _pcm_to_wav
 
 
 class TestPcmToWav:
-    """Verify that _pcm_to_wav produces valid WAV with correct headers."""
-
     def _make_fake_pcm(self, duration_seconds=1, sample_rate=44100):
         """Generate silent 16-bit mono PCM for testing."""
         n_samples = sample_rate * duration_seconds
@@ -57,7 +53,6 @@ class TestPcmToWav:
         assert data_chunk == pcm, "PCM data should be preserved in WAV"
 
     def test_wav_larger_than_pcm(self):
-        """WAV file should be slightly larger than raw PCM due to headers."""
         pcm = self._make_fake_pcm()
         wav_bytes = _pcm_to_wav(pcm)
         assert len(wav_bytes) > len(pcm), "WAV should be larger than raw PCM"

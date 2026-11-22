@@ -215,7 +215,6 @@ async def test_after_exchange_summarises_budget_trimmed_turns_too(
 async def test_after_exchange_gives_memory_extraction_both_halves(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
 ) -> None:
-    """Extraction can only record what the Overseer said if it sees his message."""
     thread, _rows = await _thread_with_rows(async_session, vault, dweller, exchanges=2, carried=4)
     seen: list[ChatMessage] = []
     await _run_after_exchange(async_session, thread, dweller, seen=seen)

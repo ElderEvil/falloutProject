@@ -1,5 +1,3 @@
-"""Tests for newborn dweller → home-vault origin link on world map."""
-
 from datetime import datetime, timedelta
 from unittest.mock import AsyncMock, patch
 from uuid import UUID

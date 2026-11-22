@@ -215,7 +215,6 @@ async def test_auto_assign_separates_eligible_pool_from_slot_cap(
     superuser_token_headers: dict[str, str],
     auto_assign_vault: Vault,
 ):
-    """The payload keeps the candidate pool apart from what free room slots allowed."""
     vault = auto_assign_vault
     await create_auto_assign_room(
         async_session,
@@ -248,7 +247,6 @@ async def test_auto_assign_training_room_sets_training_status(
     superuser_token_headers: dict[str, str],
     auto_assign_vault: Vault,
 ):
-    """Test that assigning dwellers to training rooms sets status to 'training'."""
     vault = auto_assign_vault
 
     # Create a training room
@@ -297,7 +295,6 @@ async def test_auto_assign_crafting_rooms_endpoint(
     superuser_token_headers: dict[str, str],
     auto_assign_vault: Vault,
 ):
-    """Crafting auto-assign endpoint fills workshops with highest-total-SPECIAL adults."""
     vault = auto_assign_vault
     workshop = await create_auto_assign_room(
         async_session,
@@ -332,7 +329,6 @@ async def test_auto_assign_crafting_rejects_foreign_vault(
     normal_user_token_headers: dict[str, str],
     vault,
 ):
-    """An authenticated user cannot auto-assign crafting in another user's vault."""
     response = await async_client.post(
         f"/vaults/{vault.id}/dwellers/auto-assign-crafting",
         headers=normal_user_token_headers,
@@ -348,9 +344,6 @@ async def test_vault_initiate_does_not_boost_superusers_by_default(
     async_session: AsyncSession,
     superuser_token_headers: dict[str, str],
 ):
-    """A superuser is only boosted when the request asks for it, like any other user."""
-    from uuid import UUID
-
     response = await async_client.post("/vaults/initiate", headers=superuser_token_headers, json={"number": 202})
     assert response.status_code == 201
     vault_id = UUID(response.json()["id"])
@@ -373,9 +366,6 @@ async def test_vault_initiate_boosted_seeds_crafting_and_capacity(
     async_session: AsyncSession,
     superuser_token_headers: dict[str, str],
 ):
-    """Boosted vaults seed staffed workshops, merged living space, and capacity to match."""
-    from uuid import UUID
-
     response = await async_client.post(
         "/vaults/initiate", headers=superuser_token_headers, json={"number": 203, "boosted": True}
     )
@@ -429,7 +419,6 @@ async def test_vault_initiate_survival_mode(
     async_client: AsyncClient,
     superuser_token_headers: dict[str, str],
 ):
-    """A survival vault is created and reports its mode back through the vault API."""
     response = await async_client.post(
         "/vaults/initiate",
         headers=superuser_token_headers,
@@ -471,7 +460,6 @@ async def test_vault_initiate_rejects_boosted_survival(
     async_client: AsyncClient,
     superuser_token_headers: dict[str, str],
 ):
-    """Boosted Start is incompatible with survival mode and is rejected at creation (issue 1031)."""
     response = await async_client.post(
         "/vaults/initiate",
         headers=superuser_token_headers,
@@ -642,7 +630,6 @@ async def test_vault_mode_is_immutable_via_api(
     async_client: AsyncClient,
     superuser_token_headers: dict[str, str],
 ):
-    """Attempting to change the mode through the update endpoint is rejected and takes no effect."""
     created = await async_client.post(
         "/vaults/initiate",
         headers=superuser_token_headers,

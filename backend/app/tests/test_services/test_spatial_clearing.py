@@ -1,5 +1,3 @@
-"""Travel-backed clearing (slice 3a): dispatches move, arrive positionally, then cool down."""
-
 import math
 from datetime import datetime, timedelta
 from types import SimpleNamespace
@@ -81,7 +79,6 @@ async def _nearby_clearable(
 async def test_dispatch_persists_movement_toward_its_target(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
 ) -> None:
-    """A dispatch departs with a heading aimed at its target, from the slot origin."""
     location, _state, origin = await _nearby_clearable(async_session, vault, dweller)
 
     exploration = await exploration_service.dispatch(async_session, vault.id, [dweller.id], location.id)
@@ -100,7 +97,6 @@ async def test_dispatch_persists_movement_toward_its_target(
 async def test_arrival_resolves_positionally_before_timer_expiry(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
 ) -> None:
-    """Reaching the target resolves combat even with most of the travel time left."""
     location, state, origin = await _nearby_clearable(async_session, vault, dweller)
     await _boost_dweller(async_session, dweller)
     exploration = await exploration_service.dispatch(async_session, vault.id, [dweller.id], location.id)
@@ -150,7 +146,6 @@ async def test_fresh_clear_uses_the_archetype_cooldown_while_inflight_expiry_sur
 async def test_missing_target_returns_without_resolving(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
 ) -> None:
-    """A dispatch whose target row vanished comes home; nothing resolves, nothing clears."""
     from app.models.world_location import VaultLocationState, WorldLocation
 
     location, state = (await _nearby_clearable(async_session, vault, dweller))[:2]
@@ -169,7 +164,6 @@ async def test_missing_target_returns_without_resolving(
 
 
 def test_obstruction_time_reflects_distance_traveled() -> None:
-    """A blocked return is dated when the party reached the obstruction, not the interval start."""
     base = datetime(2026, 1, 1)
     speed = 1 / game_config.exploration.dispatch.travel_hours_per_unit
 
@@ -180,7 +174,6 @@ def test_obstruction_time_reflects_distance_traveled() -> None:
 
 
 def test_path_clear_detects_water_walls() -> None:
-    """A target across water is not reachable even when it sits within the arrival radius."""
     snap = SimpleNamespace(
         config={"width": 5, "height": 1},
         terrain=["wasteland", "wasteland", "water", "wasteland", "wasteland"],
@@ -195,7 +188,6 @@ def test_path_clear_detects_water_walls() -> None:
 async def test_arrival_with_vanished_target_returns_instead_of_raising(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
 ) -> None:
-    """Arriving before expiry at a vanished target starts the return, not an exception."""
     from app.models.world_location import VaultLocationState, WorldLocation
 
     location, state = (await _nearby_clearable(async_session, vault, dweller))[:2]

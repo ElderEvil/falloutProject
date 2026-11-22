@@ -1,5 +1,3 @@
-"""Jev decision-service tests (no live API needed)."""
-
 from typing import Annotated, Literal
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
@@ -14,8 +12,6 @@ from app.utils.exceptions import FeatureDisabledException
 
 
 class Triage(BaseModel):
-    """Should the dweller keep exploring?"""
-
     model_config = ConfigDict(use_attribute_docstrings=True)
 
     continue_run: Annotated[

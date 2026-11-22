@@ -47,7 +47,6 @@ async def test_cache_hit_skips_all_tts_calls(
     mock_crud: MagicMock,
     mock_llm: MagicMock,
 ) -> None:
-    """Second call with same text+voice finds cache → no ElevenLabs, no OpenAI calls."""
     from app.services.dweller_ai_service import dweller_ai
 
     mock_crud.get_full_info = AsyncMock(
@@ -164,7 +163,6 @@ async def test_elevenlabs_failure_falls_through_to_openai(
     mock_crud: MagicMock,
     mock_llm: MagicMock,
 ) -> None:
-    """When ElevenLabs raises, the code falls through to OpenAI (which IS quota-checked)."""
     from app.services.dweller_ai_service import dweller_ai
     from app.utils.exceptions import ElevenLabsProviderException
 

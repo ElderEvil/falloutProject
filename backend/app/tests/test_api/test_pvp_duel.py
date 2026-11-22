@@ -1,5 +1,3 @@
-"""PvP duel HTTP surface: dark flag, board shape, post, accept and replay."""
-
 from collections.abc import AsyncGenerator
 from uuid import uuid4
 

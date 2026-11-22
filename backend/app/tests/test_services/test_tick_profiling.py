@@ -1,5 +1,3 @@
-"""Timing instrumentation helpers for the opt-in tick profiler."""
-
 import pytest
 from sqlalchemy import text
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -14,7 +12,6 @@ from app.core.tick_profiling import (
 
 @pytest.mark.asyncio
 async def test_tick_sql_phase_records_cursor_execution(async_session: AsyncSession) -> None:
-    """Cursor events record SQL execution, not ORM result consumption."""
     profile = TickProfile(vault_key="vault-key", dispatch_key="dispatch-key")
     token = set_current_profile(profile)
     try:

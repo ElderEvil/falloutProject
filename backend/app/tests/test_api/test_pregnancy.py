@@ -1,5 +1,3 @@
-"""Tests for pregnancy API endpoints."""
-
 from datetime import UTC, datetime, timedelta
 from unittest.mock import patch
 from uuid import UUID
@@ -41,7 +39,6 @@ async def test_get_vault_pregnancies_with_active(
     async_session: AsyncSession,
     superuser_token_headers: dict[str, str],
 ):
-    """Test getting active pregnancies."""
     user = await crud.user.get_by_email(async_session, email=settings.FIRST_SUPERUSER_EMAIL)
     vault = await crud.vault.create_with_user_id(
         db_session=async_session,
@@ -83,7 +80,6 @@ async def test_deliver_baby_success(
     superuser_token_headers: dict[str, str],
     monkeypatch: pytest.MonkeyPatch,
 ):
-    """Test successful baby delivery."""
     user = await crud.user.get_by_email(async_session, email=settings.FIRST_SUPERUSER_EMAIL)
     vault = await crud.vault.create_with_user_id(
         db_session=async_session,
@@ -144,7 +140,6 @@ async def test_deliver_baby_at_capacity_returns_400(
     superuser_token_headers: dict[str, str],
     monkeypatch: pytest.MonkeyPatch,
 ):
-    """A full vault returns the domain 400 instead of an unhandled 500."""
     user = await crud.user.get_by_email(async_session, email=settings.FIRST_SUPERUSER_EMAIL)
     vault = await crud.vault.create_with_user_id(
         db_session=async_session,
@@ -170,9 +165,7 @@ async def test_deliver_baby_at_capacity_returns_400(
     assert response.json()["detail"] == "No living space available for a newborn"
 
 
-# =============================================================================
 # Debug Endpoint Tests (Superuser-only)
-# =============================================================================
 
 
 @pytest.mark.asyncio
@@ -181,7 +174,6 @@ async def test_force_conception_success(
     async_session: AsyncSession,
     superuser_token_headers: dict[str, str],
 ):
-    """Test force-conception creates pregnancy for superuser."""
     user = await crud.user.get_by_email(async_session, email=settings.FIRST_SUPERUSER_EMAIL)
     vault = await crud.vault.create_with_user_id(
         db_session=async_session,
@@ -238,7 +230,6 @@ async def test_accelerate_pregnancy_success(
     superuser_token_headers: dict[str, str],
     caplog,
 ):
-    """Test accelerate-pregnancy sets due_at to past for superuser."""
     user = await crud.user.get_by_email(async_session, email=settings.FIRST_SUPERUSER_EMAIL)
     vault = await crud.vault.create_with_user_id(
         db_session=async_session,
@@ -289,7 +280,6 @@ async def test_get_pregnancy_foreign_vault_returns_404(
     async_session: AsyncSession,
     normal_user_token_headers: dict[str, str],
 ):
-    """Another user's pregnancy reads as 404, so the endpoint is not an existence oracle."""
     pregnancy = await _pregnancy_in_new_vault(async_session, 781)
 
     response = await async_client.get(f"/pregnancies/{pregnancy.id}", headers=normal_user_token_headers)
@@ -303,7 +293,6 @@ async def test_deliver_foreign_vault_pregnancy_returns_404(
     async_session: AsyncSession,
     normal_user_token_headers: dict[str, str],
 ):
-    """Delivering another user's pregnancy is 404 too, not a distinguishable 403."""
     pregnancy = await _pregnancy_in_new_vault(async_session, 782)
 
     response = await async_client.post(f"/pregnancies/{pregnancy.id}/deliver", headers=normal_user_token_headers)

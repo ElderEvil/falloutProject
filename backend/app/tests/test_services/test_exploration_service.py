@@ -1,5 +1,3 @@
-"""Tests for wasteland service logic."""
-
 from collections.abc import AsyncGenerator
 from contextlib import suppress
 from datetime import datetime, timedelta
@@ -150,7 +148,6 @@ async def test_send_dweller_deducts_vault_supplies_only_once(
 async def test_send_dweller_rejects_dweller_already_exploring(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
 ) -> None:
-    """A dweller already on a run cannot start a second free roam."""
     await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
 
     with pytest.raises(ValueError, match="already on an exploration"):
@@ -159,7 +156,6 @@ async def test_send_dweller_rejects_dweller_already_exploring(
 
 @pytest.mark.asyncio
 async def test_send_dweller_rejects_dead_dweller(async_session: AsyncSession, vault: Vault, dweller: Dweller) -> None:
-    """A dead dweller fails the shared require-healthy availability check."""
     dweller.is_dead = True
     async_session.add(dweller)
     await async_session.commit()
@@ -184,7 +180,6 @@ async def test_send_dweller_rejects_negative_supplies(
     radaways: int,
     message: str,
 ) -> None:
-    """A roam pay cannot request negative supplies."""
     with pytest.raises(ValueError, match=message):
         await exploration_service.send_dweller(
             async_session, vault.id, dweller.id, duration=4, stimpaks=stimpaks, radaways=radaways
@@ -195,7 +190,6 @@ async def test_send_dweller_rejects_negative_supplies(
 async def test_send_dweller_snapshots_dweller_stats(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
 ) -> None:
-    """A roam departure stages the dweller's SPECIAL values onto the run."""
     dweller.strength = 9
     dweller.perception = 8
     dweller.endurance = 7
@@ -234,9 +228,6 @@ async def test_send_dweller_rejects_a_dweller_from_another_vault(
     async_session: AsyncSession,
     dweller: Dweller,
 ) -> None:
-    """The requested vault cannot send a dweller it does not own."""
-    from uuid import uuid4
-
     with pytest.raises(ValueError, match="does not belong to this vault"):
         await exploration_service.send_dweller(async_session, uuid4(), dweller.id, duration=4)
 
@@ -247,7 +238,6 @@ async def test_generate_event_not_active(
     vault: Vault,
     dweller: Dweller,
 ):
-    """Test that no event is generated for inactive exploration."""
     exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
     await crud.exploration.start_return(async_session, exploration_id=exploration.id)
     await async_session.refresh(exploration)
@@ -280,7 +270,6 @@ async def test_generate_event_with_loot(
     vault: Vault,
     dweller: Dweller,
 ):
-    """Test event generation can produce loot."""
     exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
 
     # Manipulate start time to allow event generation
@@ -324,7 +313,6 @@ async def test_complete_exploration_transfers_caps(
     vault: Vault,
     dweller: Dweller,
 ):
-    """Test completing exploration transfers caps to vault."""
     exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
 
     # Add some loot and stats
@@ -391,7 +379,6 @@ async def test_complete_exploration_reports_stimpaks_actually_stored(
     vault: Vault,
     dweller: Dweller,
 ) -> None:
-    """Returned Stimpaks that fit in medical storage are reported as stored."""
     await _add_medbay(async_session, vault)
     storage = Storage(vault_id=vault.id, stimpack=5, radaway=0)
     async_session.add(storage)
@@ -413,7 +400,6 @@ async def test_return_reports_partially_stored_stimpaks(
     vault: Vault,
     dweller: Dweller,
 ) -> None:
-    """Only the Stimpaks that fit in medical storage are reported and credited."""
     await _add_medbay(async_session, vault, capacity=4)
     storage = Storage(vault_id=vault.id, stimpack=5, radaway=0)
     async_session.add(storage)
@@ -457,7 +443,6 @@ async def test_complete_exploration_reports_zero_stored_when_medical_capacity_is
     vault: Vault,
     dweller: Dweller,
 ) -> None:
-    """Returned supplies that overflow a zero-capacity vault are carried but not stored."""
     storage = Storage(vault_id=vault.id, stimpack=5, radaway=0)
     async_session.add(storage)
     await async_session.commit()
@@ -498,7 +483,6 @@ async def test_return_credits_stored_stimpaks_to_collect_objectives(
     vault: Vault,
     dweller: Dweller,
 ) -> None:
-    """The collect event reports the supplies that were actually banked."""
     await _add_medbay(async_session, vault)
     storage = Storage(vault_id=vault.id, stimpack=5, radaway=0)
     async_session.add(storage)
@@ -519,7 +503,6 @@ async def test_complete_exploration_not_active_raises_error(
     vault: Vault,
     dweller: Dweller,
 ):
-    """Test completing non-active exploration raises error."""
     exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
     await _complete_exploration(async_session, exploration)
 
@@ -533,7 +516,6 @@ async def test_complete_exploration_before_duration_raises_error(
     vault: Vault,
     dweller: Dweller,
 ) -> None:
-    """Full completion is unavailable until the expedition duration has elapsed."""
     exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
 
     with pytest.raises(ValueError, match="has not finished yet"):
@@ -546,7 +528,6 @@ async def test_recall_exploration_reduced_rewards(
     vault: Vault,
     dweller: Dweller,
 ):
-    """Test recalling exploration gives reduced experience based on progress."""
     exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
 
     # Add some stats
@@ -595,7 +576,6 @@ async def test_recall_exploration_not_active_raises_error(
     vault: Vault,
     dweller: Dweller,
 ):
-    """Test recalling non-active exploration raises error."""
     exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
     await _complete_exploration(async_session, exploration)
 
@@ -611,7 +591,6 @@ async def test_process_danger_radiation_applies_to_dweller(
     vault: Vault,
     dweller: Dweller,
 ):
-    """A radiation danger event raises dweller.radiation and logs it on the journey."""
     exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
 
     exploration.start_time = utcnow() - timedelta(minutes=10)
@@ -800,7 +779,6 @@ async def test_send_dweller_cancels_active_training(
 async def test_auto_supplies_does_not_lower_health_above_radiation_ceiling(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
 ) -> None:
-    """A Stimpak cannot damage an explorer whose current health exceeds the ceiling."""
     from app.services.exploration.event_service import auto_use_supplies
 
     exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
@@ -871,7 +849,6 @@ async def _seed_vault_with_dweller(session: RawAsyncSession) -> tuple[Vault, Dwe
 
 @pytest.mark.asyncio
 async def test_departure_stages_the_special_snapshot_through_a_raw_session(raw_session: RawAsyncSession) -> None:
-    """The shared snapshot writer records every SPECIAL stat when the session is raw."""
     assert not hasattr(raw_session, "exec"), "fixture must yield the raw SQLAlchemy session type"
     vault, dweller = await _seed_vault_with_dweller(raw_session)
     dweller.strength, dweller.perception, dweller.endurance = 9, 8, 7
@@ -898,7 +875,6 @@ async def test_departure_stages_the_special_snapshot_through_a_raw_session(raw_s
 
 @pytest.mark.asyncio
 async def test_departure_reports_the_supply_shortfall_through_a_raw_session(raw_session: RawAsyncSession) -> None:
-    """The shared shortfall message survives the raw session type and charges nothing."""
     vault, dweller = await _seed_vault_with_dweller(raw_session)
     dweller.stimpack = 0
     dweller.radaway = 0

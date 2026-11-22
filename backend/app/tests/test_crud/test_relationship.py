@@ -1,5 +1,3 @@
-"""CRUD tests for unordered relationship pair lookups."""
-
 import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
 

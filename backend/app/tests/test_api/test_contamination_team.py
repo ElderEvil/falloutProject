@@ -1,5 +1,3 @@
-"""Tests for the contamination team roster endpoint."""
-
 import pytest
 from httpx import AsyncClient
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -19,7 +17,6 @@ from app.utils.item_factory import build_outfit
 async def test_roster_reports_every_team(
     async_client: AsyncClient, superuser_token_headers: dict[str, str], vault: Vault
 ):
-    """A vault where nobody has qualified still reports both teams, both empty."""
     response = await async_client.get(
         f"/contamination-team/vault/{vault.id}/roster",
         headers=superuser_token_headers,
@@ -40,7 +37,6 @@ async def test_set_place_activates_a_reserve_member(
     vault: Vault,
     dweller_data: dict,
 ):
-    """PUT moves a reserve member to active and returns the updated roster."""
     dweller = await crud.dweller.create(async_session, obj_in=DwellerCreate(**dweller_data, vault_id=vault.id))
     await ensure_station(async_session, vault.id)
     await make_member(async_session, vault.id, dweller.id, HazardTeam.FIRE, RESERVE_STATUS)
@@ -69,7 +65,6 @@ async def test_set_place_refused_without_a_response_station(
     vault: Vault,
     dweller_data: dict,
 ):
-    """Promoting a bench member without a station returns the mapped 400 and grants no place."""
     dweller = await crud.dweller.create(async_session, obj_in=DwellerCreate(**dweller_data, vault_id=vault.id))
     await make_member(async_session, vault.id, dweller.id, HazardTeam.FIRE, RESERVE_STATUS)
 
@@ -93,7 +88,6 @@ async def test_set_place_full_team_returns_409(
     vault: Vault,
     dweller_data: dict,
 ):
-    """Activating a fourth member while three hold active places is refused."""
     dwellers = []
     while len(dwellers) <= TEAM_SIZE:
         dwellers.append(
@@ -121,7 +115,6 @@ async def test_set_place_without_a_place_returns_404(
     vault: Vault,
     dweller_data: dict,
 ):
-    """A dweller holding no place on the team cannot be moved."""
     dweller = await crud.dweller.create(async_session, obj_in=DwellerCreate(**dweller_data, vault_id=vault.id))
 
     response = await async_client.put(
@@ -141,7 +134,6 @@ async def test_set_place_requires_vault_ownership(
     vault: Vault,
     dweller_data: dict,
 ):
-    """A user who does not own the vault cannot move its team members."""
     dweller = await crud.dweller.create(async_session, obj_in=DwellerCreate(**dweller_data, vault_id=vault.id))
     await make_member(async_session, vault.id, dweller.id, HazardTeam.FIRE, RESERVE_STATUS)
 
@@ -170,7 +162,6 @@ async def test_roster_enrichment_is_identical_across_get_and_put(
     async_session: AsyncSession,
     room_with_dwellers: dict,
 ):
-    """GET and a place-changing PUT return the same service counts and current-gear values."""
     room = room_with_dwellers["room"]
     vault_id = room.vault_id
     dweller = room_with_dwellers["dwellers"][0]

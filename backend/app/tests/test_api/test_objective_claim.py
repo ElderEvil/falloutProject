@@ -72,7 +72,6 @@ async def test_objective_claim_rejects_foreign_vault_and_unassigned_objective(
 async def test_earned_starter_state_is_claimable_in_any_order(
     async_client: AsyncClient, async_session: AsyncSession, user: User, vault: Vault, dweller
 ) -> None:
-    """Already-met population milestones count on read, and any earned starter step claims."""
     objectives = [
         Objective(
             challenge=f"Population step {sequence}",
@@ -108,7 +107,6 @@ async def test_earned_starter_state_is_claimable_in_any_order(
 async def test_retired_starter_reward_stays_claimable(
     async_client: AsyncClient, async_session: AsyncSession, user: User, vault: Vault
 ) -> None:
-    """A withdrawn step keeps its earned reward claimable; ordering covers active guide steps only."""
     active = Objective(
         challenge="Active step",
         reward="50 caps",

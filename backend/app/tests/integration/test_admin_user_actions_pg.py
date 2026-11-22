@@ -1,5 +1,3 @@
-"""Concurrent secondary administrators cannot remove each other or the first account."""
-
 import asyncio
 import os
 from uuid import uuid4

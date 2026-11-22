@@ -1,5 +1,3 @@
-"""Existing vaults retain single-round training after the migration."""
-
 import importlib.util
 from pathlib import Path
 
@@ -41,7 +39,6 @@ def test_continuous_training_upgrade_preserves_existing_behavior():
 @pytest.mark.integration
 @pytest.mark.parametrize("other_operation", ["complete", "goal"])
 def test_concurrent_completions_create_only_one_successor(harness, monkeypatch, other_operation):
-    """A tick and a manual completion cannot award twice or fork a repeat chain."""
     import asyncio
     from unittest.mock import AsyncMock
     from uuid import UUID

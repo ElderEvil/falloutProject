@@ -1,5 +1,3 @@
-"""Tests for the vault layout backfill service summary and dry-run behavior."""
-
 from __future__ import annotations
 
 from uuid import UUID, uuid4
@@ -50,7 +48,6 @@ def _room_payload(
 
 @pytest.mark.asyncio
 async def test_relayout_empty_vault_reports_floor_width(async_session: AsyncSession):
-    """An empty vault still returns the full summary shape the CLI reads."""
     summary = await vault_layout_backfill_service.relayout(async_session, uuid4(), dry_run=True)
 
     assert summary == {
@@ -65,7 +62,6 @@ async def test_relayout_empty_vault_reports_floor_width(async_session: AsyncSess
 
 @pytest.mark.asyncio
 async def test_relayout_does_not_flag_a_lone_elevator_as_floating(async_session: AsyncSession, vault: Vault):
-    """A level holding only the shaft elevator is anchored vertically, not floating."""
     await crud.room.create(
         async_session,
         obj_in=_room_payload(vault.id, name="Vault Door", coordinate_x=0, coordinate_y=0, size=6),
@@ -86,7 +82,6 @@ async def test_relayout_does_not_flag_a_lone_elevator_as_floating(async_session:
 
 @pytest.mark.asyncio
 async def test_relayout_dry_run_does_not_move_the_door(async_session: AsyncSession, vault: Vault):
-    """A dry run leaves the vault door where it is while still reporting it as moved."""
     door = await crud.room.create(
         async_session,
         obj_in=_room_payload(vault.id, name="Vault Door", coordinate_x=3, coordinate_y=2, size=6),
@@ -101,7 +96,6 @@ async def test_relayout_dry_run_does_not_move_the_door(async_session: AsyncSessi
 
 @pytest.mark.asyncio
 async def test_relayout_apply_creates_the_elevator_through_the_room_schema(async_session: AsyncSession, vault: Vault):
-    """An apply run builds the missing shaft elevator from the catalog template."""
     for name, x, y, size in (("Vault Door", 0, 0, 6), ("Elevator", 6, 0, 1), ("Diner", 0, 1, 3)):
         await crud.room.create(
             async_session, obj_in=_room_payload(vault.id, name=name, coordinate_x=x, coordinate_y=y, size=size)

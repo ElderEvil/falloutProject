@@ -1,5 +1,3 @@
-"""Tests for relationship API endpoints."""
-
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
@@ -57,7 +55,6 @@ async def test_get_vault_relationships_empty(
     async_session: AsyncSession,
     superuser_token_headers: dict[str, str],
 ):
-    """Test getting relationships for vault with no relationships."""
     user = await crud.user.get_by_email(async_session, email=settings.FIRST_SUPERUSER_EMAIL)
     vault = await crud.vault.create_with_user_id(
         db_session=async_session,
@@ -81,7 +78,6 @@ async def test_initiate_romance(
     async_session: AsyncSession,
     superuser_token_headers: dict[str, str],
 ):
-    """Test initiating romance from acquaintance relationship."""
     user = await crud.user.get_by_email(async_session, email=settings.FIRST_SUPERUSER_EMAIL)
     vault = await crud.vault.create_with_user_id(
         db_session=async_session,
@@ -132,9 +128,7 @@ async def test_initiate_romance(
     assert data["relationship_type"] == "romantic"
 
 
-# ---------------------------------------------------------------------------
 # Mock-based tests for uncovered endpoint paths
-# ---------------------------------------------------------------------------
 
 
 def _make_mock_relationship(**overrides: object) -> MagicMock:
@@ -165,7 +159,6 @@ async def test_get_vault_relationships_includes_bond_progress(
     async_client: AsyncClient,
     superuser_token_headers: dict[str, str],
 ):
-    """The vault list exposes the current bond pace without changing other relationship responses."""
     vault_id = uuid4()
     relationship = VaultRelationshipRead.model_validate(
         _make_mock_relationship(),
@@ -208,7 +201,6 @@ async def test_get_relationship_access_denied(
     async_client: AsyncClient,
     superuser_token_headers: dict[str, str],
 ) -> None:
-    """GET /relationships/{id} returns 403 when dweller access check fails."""
     mock_rel = _make_mock_relationship()
 
     with (
@@ -239,7 +231,6 @@ async def test_initiate_romance_not_found(
     async_client: AsyncClient,
     superuser_token_headers: dict[str, str],
 ) -> None:
-    """PUT /relationships/{id}/romance returns 404 when relationship not found."""
     fake_id = uuid4()
 
     with patch(
@@ -285,7 +276,6 @@ async def test_make_partners_not_found(
     async_client: AsyncClient,
     superuser_token_headers: dict[str, str],
 ) -> None:
-    """PUT /relationships/{id}/partner returns 404 when relationship not found."""
     fake_id = uuid4()
 
     with patch(
@@ -332,7 +322,6 @@ async def test_break_up_not_found(
     async_client: AsyncClient,
     superuser_token_headers: dict[str, str],
 ) -> None:
-    """DELETE /relationships/{id} returns 404 when relationship not found."""
     fake_id = uuid4()
 
     with patch(
@@ -390,7 +379,6 @@ async def test_marry(
     async_session: AsyncSession,
     superuser_token_headers: dict[str, str],
 ):
-    """Test marrying partners from a partner relationship."""
     user = await crud.user.get_by_email(async_session, email=settings.FIRST_SUPERUSER_EMAIL)
     vault = await crud.vault.create_with_user_id(
         db_session=async_session,
@@ -437,7 +425,6 @@ async def test_marry_not_found(
     async_client: AsyncClient,
     superuser_token_headers: dict[str, str],
 ) -> None:
-    """PUT /relationships/{id}/marry returns 404 when relationship not found."""
     fake_id = uuid4()
 
     with patch(
@@ -494,7 +481,6 @@ async def test_compatibility_access_denied_dweller_1(
     async_client: AsyncClient,
     superuser_token_headers: dict[str, str],
 ) -> None:
-    """GET /relationships/compatibility returns 403 when cannot access dweller 1."""
     d1_id = uuid4()
     d2_id = uuid4()
 
@@ -519,7 +505,6 @@ async def test_process_vault_breeding_success(
     async_client: AsyncClient,
     superuser_token_headers: dict[str, str],
 ) -> None:
-    """POST /relationships/vault/{id}/process returns 200 with breeding stats."""
     vault_id = uuid4()
     mock_stats = {
         "conceptions": 1,

@@ -21,7 +21,6 @@ from app.utils.time import utcnow
 async def test_backfill_retires_legacy_state_objective_party(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
 ) -> None:
-    """A formerly timed building objective becomes party-free and claimable."""
     quest = Quest(
         title="Build a Room",
         short_description="Build your first room.",

@@ -75,7 +75,6 @@ def test_pet_modifiers_for_resolves_equipped_pet_by_name() -> None:
     ],
 )
 def test_twins_chance_pets_resolve_to_their_canonical_bonus(name: str, expected: float) -> None:
-    """The canonical Twins-chance pets carry their Fallout Shelter bonus; others stay neutral."""
     assert pet_effect_for_name(name).twin_chance_pct == pytest.approx(expected)
 
 

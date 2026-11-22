@@ -26,7 +26,6 @@ async def test_update_own_username(
     async_client: AsyncClient,
     async_session: AsyncSession,
 ) -> None:
-    """A user can change their own username and the change persists."""
     token_headers, user_data = await create_isolated_user_with_token(async_client, async_session)
 
     new_username = f"nyx_{uuid4().hex[:8]}"
@@ -47,7 +46,6 @@ async def test_update_username_to_taken_name_conflicts(
     async_client: AsyncClient,
     async_session: AsyncSession,
 ) -> None:
-    """Changing to a username another active user holds maps to 409, not a 500."""
     token_headers, _ = await create_isolated_user_with_token(async_client, async_session)
     other_data = create_fake_user()
     await crud.user.create(db_session=async_session, obj_in=UserCreate(**other_data))
@@ -64,7 +62,6 @@ async def test_update_username_rejects_short_value(
     async_client: AsyncClient,
     async_session: AsyncSession,
 ) -> None:
-    """The 3-character minimum from the model applies to username edits."""
     token_headers, _ = await create_isolated_user_with_token(async_client, async_session)
 
     response = await async_client.put(
@@ -80,7 +77,6 @@ async def test_update_username_rejects_overlong_value(
     async_client: AsyncClient,
     async_session: AsyncSession,
 ) -> None:
-    """The 32-character maximum from the model applies to username edits."""
     token_headers, _ = await create_isolated_user_with_token(async_client, async_session)
 
     response = await async_client.put(
@@ -150,7 +146,6 @@ async def test_username_conflict_from_lost_race_returns_409(
     async_client: AsyncClient,
     async_session: AsyncSession,
 ) -> None:
-    """A competing writer that wins after the pre-check is mapped to 409, not a server error."""
     token_headers, _ = await create_isolated_user_with_token(async_client, async_session)
     other = await crud.user.create(db_session=async_session, obj_in=UserCreate(**create_fake_user()))
 

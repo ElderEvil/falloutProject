@@ -279,9 +279,6 @@ def test_dev_backend_starts_only_after_successful_migration(tmp_path: Path, migr
 def test_manifest_apply_pins_images_and_keeps_maintenance_writers_stopped(
     tmp_path: Path, maintenance: bool, fail_apply: bool
 ) -> None:
-    """Capture actual apply payloads, including a late failure before image updates."""
-    import yaml
-
     workflow = yaml.safe_load(WORKFLOW.read_text())
     step = next(step for step in workflow["jobs"]["deploy"]["steps"] if step["name"] == "Apply deployment manifests")
     script = step["run"]

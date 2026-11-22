@@ -1,5 +1,3 @@
-"""Tests for RewardService."""
-
 from unittest.mock import AsyncMock, patch
 from uuid import UUID, uuid4
 
@@ -23,7 +21,6 @@ from app.tests.factory.vaults import create_fake_vault
 
 @pytest.mark.asyncio
 async def test_grant_caps_zero_amount(async_session: AsyncSession) -> None:
-    """Test granting zero caps."""
     user_data = create_fake_user()
     user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))
     vault_data = create_fake_vault()
@@ -39,7 +36,6 @@ async def test_grant_caps_zero_amount(async_session: AsyncSession) -> None:
 
 @pytest.mark.asyncio
 async def test_process_quest_rewards_with_chance_failure(async_session: AsyncSession) -> None:
-    """Test reward with low chance not being granted."""
     quest = Quest(
         title="Test Quest",
         short_description="Test",
@@ -74,7 +70,6 @@ async def test_process_quest_rewards_with_chance_failure(async_session: AsyncSes
 
 @pytest.mark.asyncio
 async def test_process_quest_dweller_template_reward_uses_canonical_stats(async_session: AsyncSession) -> None:
-    """A dweller reward materializes the named canonical template, not a random dweller."""
     user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
     vault = await crud.vault.create(
         async_session,
@@ -110,7 +105,6 @@ async def test_process_quest_dweller_template_reward_uses_canonical_stats(async_
 
 @pytest.mark.asyncio
 async def test_grant_resource_invalid_type(async_session: AsyncSession) -> None:
-    """Test granting invalid resource type raises error."""
     user_data = create_fake_user()
     user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))
     vault_data = create_fake_vault()

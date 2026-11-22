@@ -60,7 +60,6 @@ def _previously_open_routes() -> list[tuple[str, str]]:
 async def test_previously_open_routes_reject_anonymous_callers(
     async_client: AsyncClient, method: str, url: str
 ) -> None:
-    """No bearer token means no access — regardless of the route's own checks."""
     response = await async_client.request(method, url)
 
     assert response.status_code in AUTHENTICATED_BUT_FOREIGN, (
@@ -73,7 +72,6 @@ async def test_item_routes_reject_a_foreign_vault(
     normal_user_token_headers: dict[str, str],
     vault: Vault,
 ) -> None:
-    """An authenticated user cannot read another vault's item listing or objectives."""
     foreign_vault_id = vault.id
 
     for url in (
@@ -90,7 +88,6 @@ async def test_catalog_writes_require_superuser(
     async_client: AsyncClient,
     normal_user_token_headers: dict[str, str],
 ) -> None:
-    """Catalog mutation is an admin action, not something any account can do."""
     response = await async_client.delete(f"/weapons/{ITEM}", headers=normal_user_token_headers)
 
     # Insufficient privileges is an authorization failure, not a bad request.

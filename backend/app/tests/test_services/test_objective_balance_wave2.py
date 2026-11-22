@@ -1,5 +1,3 @@
-"""Wave 2 objectives pay for distinct achievements and truthful actions."""
-
 import json
 from uuid import uuid4
 
@@ -139,7 +137,6 @@ def test_produce_objectives_reject_resource_gifts():
 
 
 async def test_gross_production_at_capacity_advances_an_objective(async_session, vault):
-    from app.core.enums import RoomTypeEnum, SPECIALEnum
     from app.models import Dweller, Room
     from app.models.game_state import GameState
     from app.services.progression.objectives.evaluators import CollectEvaluator

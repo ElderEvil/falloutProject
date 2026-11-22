@@ -1,5 +1,3 @@
-"""API tests for expedition site endpoints."""
-
 import random
 from datetime import datetime
 from uuid import uuid4
@@ -51,7 +49,6 @@ async def test_site_enter_and_current(
     vault: Vault,
     dweller: Dweller,
 ) -> None:
-    """Enter Red Rocket, then fetch the open run via the reconnect endpoint."""
     await crud.dweller.update(async_session, dweller.id, {"level": 10}, commit=True)
     exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
 
@@ -84,7 +81,6 @@ async def test_site_enter_unknown_site_rejected(
     vault: Vault,
     dweller: Dweller,
 ) -> None:
-    """Unknown site ids fail with 400."""
     await crud.dweller.update(async_session, dweller.id, {"level": 10}, commit=True)
     exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
 
@@ -104,7 +100,6 @@ async def test_site_resolve_and_retreat(
     vault: Vault,
     dweller: Dweller,
 ) -> None:
-    """Resolve the forecourt choice, then retreat from the garage."""
     random.seed(11)
     await crud.dweller.update(async_session, dweller.id, {"level": 10}, commit=True)
     exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
@@ -147,7 +142,6 @@ async def test_site_resolve_without_choice_rejected(
     vault: Vault,
     dweller: Dweller,
 ) -> None:
-    """Resolving a choice node without choice_id fails with 400."""
     await crud.dweller.update(async_session, dweller.id, {"level": 10}, commit=True)
     exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
     await async_client.post(
@@ -210,7 +204,6 @@ async def test_site_available_level_gate_excludes_sites(
     vault: Vault,
     dweller: Dweller,
 ) -> None:
-    """A level-4 dweller keeps red_rocket (min 3) but loses super_duper_mart (min 5)."""
     await crud.dweller.update(async_session, dweller.id, {"level": 4}, commit=True)
     exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
 
@@ -243,7 +236,6 @@ async def test_site_available_anti_farm_excludes_recent_clear(
     vault: Vault,
     dweller: Dweller,
 ) -> None:
-    """A recently cleared site is hidden from the available list."""
     await crud.dweller.update(async_session, dweller.id, {"level": 10}, commit=True)
     exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
     run = await crud.expedition_run.create_run(
@@ -283,7 +275,6 @@ async def test_site_available_missing_exploration_404(
     async_client: AsyncClient,
     superuser_token_headers: dict[str, str],
 ) -> None:
-    """Unknown exploration ids fail with 404."""
     response = await async_client.get(
         f"/explorations/{uuid4()}/site/available",
         headers=superuser_token_headers,
@@ -299,7 +290,6 @@ async def test_site_trivia_enter_hides_answer_key(
     vault: Vault,
     dweller: Dweller,
 ) -> None:
-    """Entering the raider tollbooth serves the question and options without the answer key."""
     _, _, entered = await _enter_raider_tollbooth(async_client, superuser_token_headers, async_session, vault, dweller)
     body = entered.json()
     assert body["node"]["kind"] == "trivia"
@@ -321,7 +311,6 @@ async def test_site_trivia_correct_answer_pays_once(
     vault: Vault,
     dweller: Dweller,
 ) -> None:
-    """A correct answer clears the site and pays once; resubmitting it fails without paying again."""
     exploration, question, entered = await _enter_raider_tollbooth(
         async_client, superuser_token_headers, async_session, vault, dweller
     )
@@ -398,7 +387,6 @@ async def test_site_trivia_wrong_answer_starts_combat(
     vault: Vault,
     dweller: Dweller,
 ) -> None:
-    """A wrong answer arms a playable fight; the fight rejects another answer id."""
     random.seed(11)
     exploration, question, _ = await _enter_raider_tollbooth(
         async_client, superuser_token_headers, async_session, vault, dweller

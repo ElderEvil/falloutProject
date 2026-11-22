@@ -1,5 +1,3 @@
-"""Tests for the deterministic resource-economy simulator."""
-
 import pytest
 
 from app.cli.simulate_resources import ResourceEconomyConfig, simulate

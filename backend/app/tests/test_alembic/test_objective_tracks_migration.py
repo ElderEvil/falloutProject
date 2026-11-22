@@ -1,5 +1,3 @@
-"""Adopt track metadata without rewriting earned progress."""
-
 import importlib.util
 from pathlib import Path
 

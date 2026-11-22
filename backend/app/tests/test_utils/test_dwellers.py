@@ -1,5 +1,3 @@
-"""Tests for dweller bio generation utilities."""
-
 import random
 from collections import Counter
 from datetime import UTC, datetime
@@ -55,7 +53,6 @@ def test_render_template_bio_single_visited() -> None:
     ],
 )
 def test_render_bio_non_human_voice(race: RaceOption, marker: str) -> None:
-    """Non-human bios frame the shared origin pool in a lore-safe way."""
     rng = random.Random(7)
     visited = render_bio("Megaton", ["Rivet City", "Diamond City"], race=race, rng=rng)
     assert marker in visited
@@ -67,14 +64,12 @@ def test_render_bio_non_human_voice(race: RaceOption, marker: str) -> None:
 
 
 def test_procedural_bio_places_scales_with_rarity() -> None:
-    """Visited counts stay tight: 0/1/2 for common/rare/legendary (origin always present)."""
     assert len(_procedural_bio_places(random.Random(3), RarityEnum.COMMON)[1]) == 0
     assert len(_procedural_bio_places(random.Random(3), RarityEnum.RARE)[1]) == 1
     assert len(_procedural_bio_places(random.Random(3), RarityEnum.LEGENDARY)[1]) == 2
 
 
 def test_starting_level_scales_with_rarity() -> None:
-    """Commons start at 1; rare/legendary arrive within their canon bands."""
     assert create_random_common_dweller(seed=1, rarity=RarityEnum.COMMON)["level"] == 1
     for seed in range(25):
         rare = create_random_common_dweller(seed=seed, rarity=RarityEnum.RARE)
@@ -85,7 +80,6 @@ def test_starting_level_scales_with_rarity() -> None:
 
 
 def test_starting_health_matches_starting_level() -> None:
-    """A pre-leveled dweller carries the health its levels earned (flat gain)."""
     cfg = game_config.leveling
     for seed in range(25):
         dweller = create_random_common_dweller(seed=seed, rarity=RarityEnum.LEGENDARY)
@@ -95,7 +89,6 @@ def test_starting_health_matches_starting_level() -> None:
 
 
 def test_starting_xp_matches_starting_level() -> None:
-    """A pre-leveled dweller starts with the cumulative XP for its level (no negative progress)."""
     cfg = game_config.leveling
     for seed in range(25):
         for rarity in (RarityEnum.RARE, RarityEnum.LEGENDARY):
@@ -107,7 +100,6 @@ def test_starting_xp_matches_starting_level() -> None:
 
 
 def test_legendary_template_starts_in_band_with_matching_health() -> None:
-    """Curated legendary templates also arrive experienced, with level-consistent health."""
     from app.utils.static_data import game_data_store
 
     template = game_data_store.get_dweller("abraham-washington")
@@ -120,7 +112,6 @@ def test_legendary_template_starts_in_band_with_matching_health() -> None:
 
 
 def test_create_random_common_dweller_state_of_being_for_non_humans() -> None:
-    """Non-humans carry a state_of_being from STATE_OF_BEING_OPTIONS; humans carry none."""
     for seed in range(300):
         attrs = create_random_common_dweller(seed=seed)["visual_attributes"]
         race = RaceOption(attrs["race"])
@@ -131,7 +122,6 @@ def test_create_random_common_dweller_state_of_being_for_non_humans() -> None:
 
 
 def test_create_random_common_dweller_marks_elders_from_birth_date() -> None:
-    """Only humans senesce: old humans generate as elders, old non-humans stay adult."""
     seeded_now = datetime(2000, 1, 1)
     threshold = _calendar_years_ago(seeded_now, game_config.dweller.elder_age_years)
     groups = set()
@@ -148,7 +138,6 @@ def test_create_random_common_dweller_marks_elders_from_birth_date() -> None:
 
 
 def test_spawn_birth_dates_lean_under_thirty() -> None:
-    """New arrivals skew young: most spawn under 30, elders stay rare."""
     now = datetime(2000, 1, 1)
     ages = []
     for seed in range(1000):
@@ -182,20 +171,17 @@ def test_dweller_config_race_weights_rejects_zero_total() -> None:
 
 
 def test_dweller_config_human_faction_weights_policy() -> None:
-    """human_faction_weights: vault_dweller dominant, keys within human faction_restrictions."""
     weights = game_config.dweller.human_faction_weights
     assert weights["vault_dweller"] == max(weights.values())
     assert set(weights) <= {faction.value for faction in faction_restrictions[RaceOption.HUMAN]}
 
 
 def test_vault_start_config_rare_chances() -> None:
-    """Standard seeding stays at 4% RARE; boosted vaults get the 12% P0 boost."""
     assert game_config.vault_start.standard_rare_chance == 0.04
     assert game_config.vault_start.boosted_rare_chance == 0.12
 
 
 def test_crafting_config_rejects_incomplete_junk_recipe() -> None:
-    """A recipe without every craftable rarity would KeyError on the common fallback."""
     from app.core.game_config import CraftingConfig
 
     with pytest.raises(ValidationError, match="missing rarities"):
@@ -216,7 +202,6 @@ def test_crafting_config_rejects_unknown_material_rarity() -> None:
 
 
 def test_crafting_config_rejects_negative_material_counts() -> None:
-    """A negative count would consume the wrong junk."""
     from app.core.game_config import CraftingConfig
 
     with pytest.raises(ValidationError) as exc:
@@ -293,17 +278,14 @@ def test_render_adopted_child_bio_links_and_escapes_parent_names() -> None:
 
 
 def test_maybe_zone_rumor_returns_none_on_a_miss() -> None:
-    """A zero chance (or a missed roll) yields no rumour."""
     assert maybe_zone_rumor(random.Random(1), 0.0) is None
 
 
 def test_maybe_zone_rumor_returns_a_known_line_on_a_hit() -> None:
-    """A certain chance yields one of the authored rumour lines."""
     assert maybe_zone_rumor(random.Random(1), 1.0) in ZONE_RUMORS
 
 
 def test_zone_rumor_chance_zero_never_reaches_a_generated_bio(monkeypatch: pytest.MonkeyPatch) -> None:
-    """With the chance at zero, no generated bio carries a rumour."""
     monkeypatch.setattr(game_config.bio, "zone_rumor_chance", 0.0)
     for seed in range(25):
         bio = create_random_common_dweller(seed=seed)["bio"]
@@ -311,7 +293,6 @@ def test_zone_rumor_chance_zero_never_reaches_a_generated_bio(monkeypatch: pytes
 
 
 def test_zone_rumor_chance_one_always_reaches_a_generated_bio(monkeypatch: pytest.MonkeyPatch) -> None:
-    """With the chance at one, every generated bio carries exactly one rumour."""
     monkeypatch.setattr(game_config.bio, "zone_rumor_chance", 1.0)
     for seed in range(25):
         bio = create_random_common_dweller(seed=seed)["bio"]
@@ -319,7 +300,6 @@ def test_zone_rumor_chance_one_always_reaches_a_generated_bio(monkeypatch: pytes
 
 
 def test_zone_rumor_generation_is_seed_reproducible(monkeypatch: pytest.MonkeyPatch) -> None:
-    """The same seed reproduces the same bio, rumour included."""
     monkeypatch.setattr(game_config.bio, "zone_rumor_chance", 1.0)
     assert create_random_common_dweller(seed=99)["bio"] == create_random_common_dweller(seed=99)["bio"]
 

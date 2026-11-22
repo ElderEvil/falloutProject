@@ -1,5 +1,3 @@
-"""Tests for breeding service logic."""
-
 from datetime import datetime, timedelta
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
@@ -187,7 +185,6 @@ async def test_create_pregnancy_mother_not_adult(
     vault: Vault,
     male_dweller: Dweller,
 ):
-    """create_pregnancy raises ValueError when mother is not an adult."""
     child_in = DwellerCreate(
         first_name="Kid",
         last_name="Test",
@@ -208,7 +205,6 @@ async def test_create_pregnancy_father_not_adult(
     vault: Vault,
     female_dweller: Dweller,
 ):
-    """create_pregnancy raises ValueError when father is not an adult."""
     child_in = DwellerCreate(
         first_name="Kid",
         last_name="Test",
@@ -228,7 +224,6 @@ async def test_create_pregnancy_mother_not_female(
     async_session: AsyncSession,
     male_dweller: Dweller,
 ):
-    """create_pregnancy raises ValueError when mother is not female."""
     with pytest.raises(ValueError, match="Mother must be female"):
         await BreedingService.create_pregnancy(async_session, male_dweller.id, male_dweller.id)
 
@@ -238,7 +233,6 @@ async def test_create_pregnancy_father_not_male(
     async_session: AsyncSession,
     female_dweller: Dweller,
 ):
-    """create_pregnancy raises ValueError when father is not male."""
     with pytest.raises(ValueError, match="Father must be male"):
         await BreedingService.create_pregnancy(async_session, female_dweller.id, female_dweller.id)
 
@@ -271,7 +265,6 @@ async def test_check_for_conception_no_partners(
     vault: Vault,
     living_quarters: Room,
 ):
-    """Test that no conception occurs when dwellers are not partners."""
     pregnancies = await BreedingService.check_for_conception(
         async_session,
         vault.id,
@@ -287,7 +280,6 @@ async def test_check_for_conception_not_in_living_quarters(
     male_dweller: Dweller,
     female_dweller: Dweller,
 ):
-    """Test that conception doesn't occur outside living quarters."""
     # Make them partners
     male_dweller.partner_id = female_dweller.id
     female_dweller.partner_id = male_dweller.id
@@ -311,7 +303,6 @@ async def test_check_for_conception_in_living_quarters(
     male_dweller: Dweller,
     female_dweller: Dweller,
 ):
-    """Test conception can occur in living quarters."""
     # Make them partners
     male_dweller.partner_id = female_dweller.id
     female_dweller.partner_id = male_dweller.id
@@ -469,7 +460,6 @@ async def test_check_for_conception_postpartum_cooldown(
     male_dweller: Dweller,
     female_dweller: Dweller,
 ):
-    """Test that mothers who recently delivered can't conceive again within cooldown."""
     # Make them partners in living quarters
     male_dweller.partner_id = female_dweller.id
     female_dweller.partner_id = male_dweller.id
@@ -505,7 +495,6 @@ async def test_check_for_conception_after_cooldown_expires(
     male_dweller: Dweller,
     female_dweller: Dweller,
 ):
-    """Test that mothers can conceive again once the postpartum cooldown expires."""
     # Make them partners in living quarters
     male_dweller.partner_id = female_dweller.id
     female_dweller.partner_id = male_dweller.id
@@ -606,7 +595,6 @@ async def test_check_for_conception_over_capacity(
     male_dweller: Dweller,
     female_dweller: Dweller,
 ):
-    """No new conception when the vault population is already over capacity."""
     # Make them partners in living quarters (eligible couple)
     male_dweller.partner_id = female_dweller.id
     female_dweller.partner_id = male_dweller.id
@@ -636,7 +624,6 @@ async def test_check_for_conception_one_slot_allows_single(
     male_dweller: Dweller,
     female_dweller: Dweller,
 ):
-    """Exactly one free population slot allows exactly one conception."""
     # Make them partners in living quarters (eligible couple)
     male_dweller.partner_id = female_dweller.id
     female_dweller.partner_id = male_dweller.id
@@ -715,7 +702,6 @@ async def test_check_for_conception_single_slot_limits_pairs(
     male_dweller_2: Dweller,
     female_dweller_2: Dweller,
 ):
-    """A single free slot allows at most one conception even with two couples."""
     # Two eligible couples in the same living quarters
     male_dweller.partner_id = female_dweller.id
     female_dweller.partner_id = male_dweller.id
@@ -749,7 +735,6 @@ async def test_deliver_baby_not_due_fails(
     male_dweller: Dweller,
     female_dweller: Dweller,
 ):
-    """Test that delivery fails if pregnancy not due."""
     pregnancy = await BreedingService.create_pregnancy(
         async_session,
         female_dweller.id,
@@ -769,7 +754,6 @@ async def test_deliver_baby_random_gender(
     male_dweller: Dweller,
     female_dweller: Dweller,
 ):
-    """Test that baby gender is random."""
     pregnancy = await BreedingService.create_pregnancy(
         async_session,
         female_dweller.id,
@@ -792,7 +776,6 @@ async def test_deliver_baby_twins_when_chance_hit(
     female_dweller: Dweller,
     monkeypatch: pytest.MonkeyPatch,
 ):
-    """A hit twin roll delivers two newborns, both parent-linked and birth-notified."""
     monkeypatch.setattr(game_config.breeding, "twin_chance", 1.0)
     monkeypatch.setattr(game_config.breeding, "triplet_chance", 0.0)
     pregnancy = await BreedingService.create_pregnancy(async_session, female_dweller.id, male_dweller.id)
@@ -832,7 +815,6 @@ async def test_deliver_baby_no_twins_when_chance_missed(
     female_dweller: Dweller,
     monkeypatch: pytest.MonkeyPatch,
 ):
-    """A missed twin roll delivers exactly one newborn."""
     monkeypatch.setattr(game_config.breeding, "twin_chance", 0.0)
     pregnancy = await BreedingService.create_pregnancy(async_session, female_dweller.id, male_dweller.id)
     pregnancy.due_at = utcnow() - timedelta(hours=1)
@@ -850,7 +832,6 @@ async def test_deliver_baby_triplets_when_chance_hit(
     female_dweller: Dweller,
     monkeypatch: pytest.MonkeyPatch,
 ):
-    """Twin chance escalating through triplet chance delivers three newborns."""
     monkeypatch.setattr(game_config.breeding, "twin_chance", 1.0)
     monkeypatch.setattr(game_config.breeding, "triplet_chance", 1.0)
     pregnancy = await BreedingService.create_pregnancy(async_session, female_dweller.id, male_dweller.id)
@@ -877,7 +858,6 @@ async def test_deliver_baby_triplets_require_twin_roll(
     female_dweller: Dweller,
     monkeypatch: pytest.MonkeyPatch,
 ):
-    """A missed twin roll cannot escalate to triplets, whatever triplet chance says."""
     monkeypatch.setattr(game_config.breeding, "twin_chance", 0.0)
     monkeypatch.setattr(game_config.breeding, "triplet_chance", 1.0)
     pregnancy = await BreedingService.create_pregnancy(async_session, female_dweller.id, male_dweller.id)
@@ -902,7 +882,6 @@ async def test_deliver_baby_mothers_twins_chance_pet_raises_the_roll(
     female_dweller: Dweller,
     monkeypatch: pytest.MonkeyPatch,
 ):
-    """With base 0%, the mother's +75% Twins-chance pet turns a 0.5 roll into twins."""
     monkeypatch.setattr(game_config.breeding, "twin_chance", 0.0)
     monkeypatch.setattr(game_config.breeding, "triplet_chance", 0.0)
     await _equip_pet(async_session, female_dweller, "Shakespeare")  # twin_chance_pct 0.75
@@ -923,7 +902,6 @@ async def test_deliver_baby_fathers_twins_chance_pet_is_ignored(
     female_dweller: Dweller,
     monkeypatch: pytest.MonkeyPatch,
 ):
-    """Only the mother's pet counts: the father's +75% pet leaves a 0.5 roll short of base 0%."""
     monkeypatch.setattr(game_config.breeding, "twin_chance", 0.0)
     monkeypatch.setattr(game_config.breeding, "triplet_chance", 0.0)
     await _equip_pet(async_session, male_dweller, "Shakespeare")  # twin_chance_pct 0.75
@@ -944,7 +922,6 @@ async def test_deliver_baby_twins_chance_sums_base_and_pet(
     female_dweller: Dweller,
     monkeypatch: pytest.MonkeyPatch,
 ):
-    """Base 50% + the mother's +75% pet (clamped to 100%) clears a 0.99 roll."""
     monkeypatch.setattr(game_config.breeding, "twin_chance", 0.5)
     monkeypatch.setattr(game_config.breeding, "triplet_chance", 0.0)
     await _equip_pet(async_session, female_dweller, "Shakespeare")  # twin_chance_pct 0.75
@@ -965,7 +942,6 @@ async def test_deliver_baby_twins_chance_is_clamped_to_one(
     female_dweller: Dweller,
     monkeypatch: pytest.MonkeyPatch,
 ):
-    """A roll at/above 1.0 misses even when base + pet would sum past 100%."""
     monkeypatch.setattr(game_config.breeding, "twin_chance", 0.5)
     monkeypatch.setattr(game_config.breeding, "triplet_chance", 0.0)
     await _equip_pet(async_session, female_dweller, "Shakespeare")  # 1.25 unclamped
@@ -987,7 +963,6 @@ async def test_deliver_baby_caps_twins_to_available_population_slots(
     female_dweller: Dweller,
     monkeypatch: pytest.MonkeyPatch,
 ):
-    """A twin roll is capped to the vault's single free living slot."""
     monkeypatch.setattr(game_config.breeding, "twin_chance", 1.0)
     monkeypatch.setattr(game_config.breeding, "triplet_chance", 0.0)
     pregnancy = await BreedingService.create_pregnancy(async_session, female_dweller.id, male_dweller.id)
@@ -1014,7 +989,6 @@ async def test_deliver_baby_defers_delivery_when_no_living_space(
     female_dweller: Dweller,
     monkeypatch: pytest.MonkeyPatch,
 ):
-    """A full vault raises without creating a newborn, leaving the pregnancy due."""
     monkeypatch.setattr(game_config.breeding, "twin_chance", 1.0)
     monkeypatch.setattr(game_config.breeding, "triplet_chance", 0.0)
     pregnancy = await BreedingService.create_pregnancy(async_session, female_dweller.id, male_dweller.id)
@@ -1051,7 +1025,6 @@ async def test_deliver_baby_rolls_back_partial_delivery(
     female_dweller: Dweller,
     monkeypatch: pytest.MonkeyPatch,
 ):
-    """A failure on the second newborn rolls back the first one's flush."""
     monkeypatch.setattr(game_config.breeding, "twin_chance", 1.0)
     monkeypatch.setattr(game_config.breeding, "triplet_chance", 0.0)
     pregnancy = await BreedingService.create_pregnancy(async_session, female_dweller.id, male_dweller.id)
@@ -1095,7 +1068,6 @@ async def test_age_children_progress_through_teen_to_adult(
     async_session: AsyncSession,
     vault: Vault,
 ):
-    """Test that children become teens halfway through the total maturity duration."""
     birth_date = utcnow() - timedelta(hours=game_config.breeding.child_growth_duration_hours // 2 + 1)
 
     child_data = {
@@ -1154,7 +1126,6 @@ async def test_age_children_promotes_only_old_adults_to_elders(
     async_session: AsyncSession,
     vault: Vault,
 ):
-    """Adults past the elder threshold become elders; younger adults keep working as adults."""
     base_stats = dict.fromkeys(SPECIAL_STATS, 3)
     elder_adult_data = {
         "first_name": "Old",
@@ -1240,7 +1211,6 @@ async def test_deliver_baby_records_family_entries(
     female_dweller: Dweller,
     monkeypatch: pytest.MonkeyPatch,
 ):
-    """Birth seeds the child's origin entry and narrates parenthood into both parents."""
     monkeypatch.setattr(game_config.breeding, "twin_chance", 0.0)
     pregnancy = await BreedingService.create_pregnancy(
         async_session,
@@ -1264,9 +1234,6 @@ async def test_deliver_baby_records_family_entries(
 
 
 def test_breeding_config_values():
-    """Test that breeding config has valid values."""
-    from app.core.game_config import game_config
-
     assert 0.0 <= game_config.breeding.conception_chance_per_tick <= 1.0
     assert game_config.breeding.pregnancy_duration_hours > 0
     assert game_config.breeding.child_growth_duration_hours == 60

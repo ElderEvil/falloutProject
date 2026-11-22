@@ -1,5 +1,3 @@
-"""Tests for RustFS storage adapter."""
-
 import sys
 from unittest.mock import MagicMock, patch
 

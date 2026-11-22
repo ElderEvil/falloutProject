@@ -229,7 +229,6 @@ async def test_change_appearance_rejects_non_human(async_session: AsyncSession, 
 async def test_change_appearance_allows_gen_3_synth(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
 ) -> None:
-    """Gen-3 synths pass as human and can use the human-only Barbershop."""
     room = await _make_barbershop(async_session, vault)
     await _staff(async_session, room, dweller)
     dweller.visual_attributes = {

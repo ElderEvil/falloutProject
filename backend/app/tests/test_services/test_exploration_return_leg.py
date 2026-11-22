@@ -1,5 +1,3 @@
-"""Tests for the exploration return leg (half the exploring time)."""
-
 from datetime import datetime, timedelta
 from unittest.mock import AsyncMock, patch
 
@@ -37,7 +35,6 @@ async def test_return_leg_lasts_half_the_exploring_time(
     vault: Vault,
     dweller: Dweller,
 ):
-    """A completed 4h run gets a 2h return leg."""
     exploration = await _expired_exploration(async_session, vault, dweller, duration=4)
 
     returned = await exploration_coordinator.start_return(async_session, exploration.id)
@@ -56,7 +53,6 @@ async def test_recall_return_leg_is_half_the_elapsed_time(
     vault: Vault,
     dweller: Dweller,
 ):
-    """An early recall returns in half the time actually spent exploring, not half the plan."""
     exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=10)
     exploration.start_time = utcnow() - timedelta(hours=2)
     async_session.add(exploration)
@@ -77,7 +73,6 @@ async def test_dweller_stays_busy_during_return_leg(
     vault: Vault,
     dweller: Dweller,
 ):
-    """A returning dweller cannot be sent on another run until they arrive."""
     exploration = await _expired_exploration(async_session, vault, dweller)
 
     await exploration_coordinator.start_return(async_session, exploration.id)
@@ -114,7 +109,6 @@ async def test_loot_not_collectable_until_arrival(
     vault: Vault,
     dweller: Dweller,
 ):
-    """Overflow loot stays locked while the dweller is still returning."""
     exploration = await _expired_exploration(async_session, vault, dweller)
     exploration.add_loot(item_name="Desk Fan", quantity=1, rarity="Common", item_type="junk")
     async_session.add(exploration)
@@ -133,7 +127,6 @@ async def test_finalize_return_restores_dweller_and_completes(
     vault: Vault,
     dweller: Dweller,
 ):
-    """Finalizing a return leg restores the dweller and marks the run completed."""
     exploration = await _expired_exploration(async_session, vault, dweller)
 
     await exploration_coordinator.start_return(async_session, exploration.id)
@@ -156,7 +149,6 @@ async def test_tick_sends_dweller_home_then_finalizes(
     vault: Vault,
     dweller: Dweller,
 ):
-    """The tick moves an expired run onto its return leg, then finalizes it on arrival."""
     exploration = await _expired_exploration(async_session, vault, dweller, duration=1)
 
     first = await process_explorations(async_session, vault.id)

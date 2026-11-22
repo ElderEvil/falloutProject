@@ -264,9 +264,7 @@ async def test_incident_toggle_all_scope_flips_every_vault(
     vault: Vault,
     async_session: AsyncSession,
 ) -> None:
-    from app.schemas.user import UserCreate
     from app.schemas.vault import VaultCreateWithUserID
-    from app.tests.factory.vaults import random_vault_number
 
     suffix = uuid4().hex[:8]
     user2 = await crud.user.create(
@@ -332,7 +330,6 @@ async def test_old_incident_action_urls_no_longer_mutate(
 
 
 def test_team_admin_views_are_read_only() -> None:
-    """Rosters are derived from gameplay; the admin view exists to inspect them."""
     for view in (TeamAdmin, TeamMemberAdmin):
         assert view.can_create is False
         assert view.can_edit is False
@@ -357,7 +354,6 @@ async def test_team_admin_lists_an_earned_roster(
     async_session: AsyncSession,
     room_with_dwellers: dict,
 ) -> None:
-    """An earned hazard place is visible in the admin roster, so the team can be tracked."""
     room = room_with_dwellers["room"]
     dweller = room_with_dwellers["dwellers"][0]
     team = await crud.team_crud.get_or_create_hazard_team(async_session, room.vault_id, HazardTeam.FIRE)
@@ -687,7 +683,6 @@ async def test_incident_controls_reject_empty_selection_and_skip_deleted_vaults(
 async def test_admin_promotes_user_only_after_post_confirmation(
     admin_client: AsyncClient, async_session: AsyncSession
 ) -> None:
-    from app.schemas.user import UserCreate
     from app.tests.factory.users import create_fake_user
 
     credentials = create_fake_user()
@@ -728,7 +723,6 @@ async def test_admin_soft_deletes_user_and_pauses_vault_without_deleting_data(
 ) -> None:
     from app.core.security import create_access_token
     from app.crud.game_state import game_state_crud
-    from app.schemas.user import UserCreate
     from app.tests.factory.users import create_fake_user
 
     if not first_admin_actor:
@@ -899,7 +893,6 @@ async def test_deactivate_and_reactivate_preserve_account_and_pause_vaults(
 ) -> None:
     from app.core.security import create_access_token
     from app.crud.game_state import game_state_crud
-    from app.schemas.user import UserCreate
     from app.tests.factory.users import create_fake_user
 
     if not first_admin_actor:
@@ -990,7 +983,6 @@ async def test_first_superuser_demotes_only_after_confirmation_and_revokes_admin
     admin_client: AsyncClient, async_session: AsyncSession, async_client: AsyncClient
 ) -> None:
     from app.core.security import create_access_token
-    from app.schemas.user import UserCreate
     from app.tests.factory.users import create_fake_user
 
     credentials = create_fake_user()
@@ -1030,7 +1022,6 @@ async def test_first_superuser_demotes_only_after_confirmation_and_revokes_admin
 async def test_other_admin_cannot_change_first_superuser_or_bypass_action_permissions(
     admin_client, async_session, superuser, operation
 ):
-    from app.schemas.user import UserCreate
     from app.tests.factory.users import create_fake_user
 
     credentials = create_fake_user()
@@ -1078,7 +1069,6 @@ async def test_first_superuser_cannot_demote_itself(admin_client, async_session,
 
 
 async def test_first_superuser_keeps_authority_after_changing_email(admin_client, async_session, superuser):
-    from app.schemas.user import UserCreate
     from app.tests.factory.users import create_fake_user
 
     superuser.email = create_fake_user()["email"]
@@ -1110,7 +1100,6 @@ def test_first_superuser_marker_is_not_client_writable():
 async def test_profile_edit_uses_same_administrator_account_permissions(
     admin_client, async_session, superuser, first_admin_actor, admin_target
 ):
-    from app.schemas.user import UserCreate
     from app.tests.factory.users import create_fake_user
 
     target = superuser if admin_target else await crud.user.create(async_session, UserCreate(**create_fake_user()))

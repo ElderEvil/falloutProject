@@ -134,7 +134,6 @@ async def test_finding_better_weapon_equips_immediately(
     dweller: Dweller,
     make_vault_storage,
 ):
-    """A better found weapon is equipped at once; the displaced one is held, not stored."""
     storage = await make_vault_storage()
     await _equip_weapon(async_session, dweller, name=".32 pistol", rarity=RarityEnum.COMMON, damage_min=1, damage_max=2)
 
@@ -160,7 +159,6 @@ async def test_worse_or_tied_weapon_does_not_equip(
     vault: Vault,
     dweller: Dweller,
 ):
-    """A worse or tied found weapon stays ordinary loot: no equip, no held row, no marker."""
     await _equip_weapon(
         async_session, dweller, name="Fire hydrant bat", rarity=RarityEnum.LEGENDARY, damage_min=19, damage_max=31
     )
@@ -187,7 +185,6 @@ async def test_better_outfit_equips_immediately(
     dweller: Dweller,
     make_vault_storage,
 ):
-    """A better found outfit is equipped at once and the displaced outfit is held."""
     await make_vault_storage()
     await _equip_outfit(
         async_session,
@@ -217,7 +214,6 @@ async def test_two_successive_upgrades_hold_both_displaced(
     vault: Vault,
     dweller: Dweller,
 ):
-    """Two upgrades in a row: the strongest stays equipped and both displaced weapons are held."""
     await _equip_weapon(async_session, dweller, name=".32 pistol", rarity=RarityEnum.COMMON, damage_min=1, damage_max=2)
 
     exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
@@ -240,7 +236,6 @@ async def test_loot_entry_marked_equipped_and_displaced_not_added(
     vault: Vault,
     dweller: Dweller,
 ):
-    """The equipped find's loot entry carries the equipped marker; the displaced item is not logged."""
     await _equip_weapon(async_session, dweller, name=".32 pistol", rarity=RarityEnum.COMMON, damage_min=1, damage_max=2)
 
     exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
@@ -261,7 +256,6 @@ async def test_combat_uses_live_equipped_weapon(
     vault: Vault,
     dweller: Dweller,
 ):
-    """Combat reads the live equipped weapon: the profile reflects it and changes the outcome."""
     dweller.strength = 5
     dweller.agility = 5
     dweller.endurance = 5
@@ -300,7 +294,6 @@ async def test_death_deletes_held_items(
     vault: Vault,
     dweller: Dweller,
 ):
-    """A fatal combat deletes the run's held items and leaves the equipped item on the corpse."""
     dweller.health = 10
     dweller.max_health = 100
     dweller.radiation = 0
@@ -336,7 +329,6 @@ async def test_mid_run_equip_fires_progression_bell_notification(
     vault: Vault,
     dweller: Dweller,
 ):
-    """An immediate equip creates a bell entry (progression-visibility red line), not just an SSE line."""
     await _equip_weapon(async_session, dweller, name=".32 pistol", rarity=RarityEnum.COMMON, damage_min=1, damage_max=2)
 
     exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)

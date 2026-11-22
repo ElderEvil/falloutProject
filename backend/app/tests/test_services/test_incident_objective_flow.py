@@ -1,5 +1,3 @@
-"""Objective-driven incident flow: containment vs combat selection in the round engine."""
-
 from unittest.mock import patch
 from uuid import UUID
 
@@ -91,7 +89,6 @@ async def test_incident_late_failure_rolls_back_actions_and_health(async_session
 
 @pytest.mark.asyncio
 async def test_containment_objective_uses_containment_flow(async_session: AsyncSession, room_with_dwellers: dict):
-    """A CONTAIN objective suppresses the hazard: containment formulas, no kill bookkeeping."""
     room = room_with_dwellers["room"]
     incident = await raise_incident(async_session, room, IncidentType.FIRE)
 
@@ -125,7 +122,6 @@ async def test_containment_objective_uses_containment_flow(async_session: AsyncS
 
 @pytest.mark.asyncio
 async def test_combat_objective_uses_combat_flow(async_session: AsyncSession, room_with_dwellers: dict):
-    """A DEFEAT objective fights enemies: combat formulas, kill bookkeeping, round events."""
     room = room_with_dwellers["room"]
     incident = await raise_incident(async_session, room, IncidentType.RAIDER_ATTACK)
 
@@ -163,7 +159,6 @@ async def test_combat_objective_uses_combat_flow(async_session: AsyncSession, ro
 async def test_non_fire_containment_definition_uses_containment_flow(
     async_session: AsyncSession, room_with_dwellers: dict, monkeypatch: pytest.MonkeyPatch
 ):
-    """A non-fire hazard declaring CONTAIN follows the containment path, not combat."""
     monkeypatch.setitem(INCIDENT_DEFINITIONS, IncidentType.RADROACH_INFESTATION, _containment_definition())
     room = room_with_dwellers["room"]
     incident = await raise_incident(async_session, room, IncidentType.RADROACH_INFESTATION)
@@ -196,7 +191,6 @@ async def test_non_fire_containment_definition_uses_containment_flow(
 async def test_non_fire_containment_resolves_on_full_progress(
     async_session: AsyncSession, room_with_dwellers: dict, monkeypatch: pytest.MonkeyPatch
 ):
-    """Containment resolution keys off combat_progress, whatever the incident type."""
     monkeypatch.setitem(INCIDENT_DEFINITIONS, IncidentType.RADROACH_INFESTATION, _containment_definition())
     room = room_with_dwellers["room"]
     incident = await raise_incident(async_session, room, IncidentType.RADROACH_INFESTATION)
@@ -218,7 +212,6 @@ async def test_non_fire_containment_resolves_on_full_progress(
 async def test_combat_objective_does_not_resolve_on_progress_alone(
     async_session: AsyncSession, room_with_dwellers: dict
 ):
-    """Combat resolution keys off kills, so full combat_progress alone is not a victory."""
     room = room_with_dwellers["room"]
     incident = await raise_incident(async_session, room, IncidentType.RAIDER_ATTACK)
     incident.combat_progress = 1.0
@@ -239,7 +232,6 @@ async def test_combat_objective_does_not_resolve_on_progress_alone(
 async def test_containment_message_is_specific_per_hazard(
     async_session: AsyncSession, room_with_dwellers: dict, monkeypatch: pytest.MonkeyPatch
 ):
-    """Containment copy follows the hazard: fire, radiation, or neutral for the rest."""
     room = room_with_dwellers["room"]
     fire_incident = await raise_incident(async_session, room, IncidentType.FIRE)
 

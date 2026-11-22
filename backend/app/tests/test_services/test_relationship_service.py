@@ -1,5 +1,3 @@
-"""Tests for relationship service logic."""
-
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 from uuid import uuid4
@@ -413,7 +411,6 @@ async def test_get_relationship_none_exists(
     dweller: Dweller,
     dweller_2: Dweller,
 ):
-    """Test getting relationship when none exists."""
     relationship = await RelationshipService.get_relationship(
         async_session,
         dweller.id,
@@ -428,7 +425,6 @@ async def test_create_or_get_relationship_returns_existing(
     dweller: Dweller,
     dweller_2: Dweller,
 ):
-    """Test that create_or_get_relationship returns existing relationship."""
     # Create first relationship
     rel1 = await RelationshipService.get_or_create_relationship(async_session, dweller.id, dweller_2.id)
 
@@ -443,9 +439,6 @@ async def test_calculate_compatibility_perfect_match(
     async_session: AsyncSession,
     vault: Vault,
 ):
-    """Test compatibility calculation for identical dwellers in same room."""
-    from uuid import uuid4
-
     # Create a shared room_id for both dwellers
     shared_room_id = uuid4()
 
@@ -502,7 +495,6 @@ async def test_initiate_romance_fails_low_affinity(
     dweller: Dweller,
     dweller_2: Dweller,
 ):
-    """Test that romance fails with low affinity."""
     # Create relationship but don't increase affinity
     await RelationshipService.get_or_create_relationship(async_session, dweller.id, dweller_2.id)
 
@@ -521,7 +513,6 @@ async def test_initiate_romance_fails_no_relationship(
     dweller: Dweller,
     dweller_2: Dweller,
 ):
-    """Test that romance fails when no relationship exists."""
     with pytest.raises(ValueError, match="Relationship not found between dwellers"):
         await RelationshipService.initiate_romance(
             async_session,
@@ -536,7 +527,6 @@ async def test_initiate_romance_rejects_feral_ghoul(
     dweller: Dweller,
     dweller_2: Dweller,
 ):
-    """Feral ghouls cannot initiate romance even at sufficient affinity."""
     relationship = await RelationshipService.get_or_create_relationship(async_session, dweller.id, dweller_2.id)
     await RelationshipService.increase_affinity(
         async_session,
@@ -558,7 +548,6 @@ async def test_make_partners_fails_low_affinity(
     dweller: Dweller,
     dweller_2: Dweller,
 ):
-    """Test that making partners fails if affinity is too low."""
     # Create relationship but don't increase affinity
     await RelationshipService.get_or_create_relationship(async_session, dweller.id, dweller_2.id)
 
@@ -576,7 +565,6 @@ async def test_make_partners_fails_no_relationship(
     dweller: Dweller,
     dweller_2: Dweller,
 ):
-    """Test that making partners fails when no relationship exists."""
     with pytest.raises(ValueError, match="Relationship not found between dwellers"):
         await RelationshipService.make_partners(
             async_session,
@@ -591,7 +579,6 @@ async def test_break_up_marks_as_ex(
     dweller: Dweller,
     dweller_2: Dweller,
 ):
-    """Test that breaking up marks relationship as EX."""
     # Create partners
     relationship = await RelationshipService.get_or_create_relationship(async_session, dweller.id, dweller_2.id)
 
@@ -634,9 +621,6 @@ async def test_break_up_marks_as_ex(
 async def test_break_up_fails_relationship_not_found(
     async_session: AsyncSession,
 ):
-    """Test that breaking up fails if relationship not found."""
-    from uuid import uuid4
-
     fake_id = uuid4()
 
     with pytest.raises(ValueError, match="Relationship not found"):
@@ -669,7 +653,6 @@ async def test_marry_rejects_feral_ghoul(
     dweller: Dweller,
     dweller_2: Dweller,
 ):
-    """A feral ghoul cannot complete a marriage even from a pre-existing partner link."""
     partner_rel = await _make_partners(async_session, dweller, dweller_2)
     partner_rel.affinity = game_config.relationship.marriage_threshold
     async_session.add(partner_rel)
@@ -687,7 +670,6 @@ async def test_marry_fails_low_affinity(
     dweller: Dweller,
     dweller_2: Dweller,
 ):
-    """Test that marrying fails when affinity is below the marriage threshold."""
     partner_rel = await _make_partners(async_session, dweller, dweller_2)
     partner_rel.affinity = game_config.relationship.marriage_threshold - 1
     await async_session.commit()
@@ -700,9 +682,6 @@ async def test_marry_fails_low_affinity(
 async def test_marry_fails_relationship_not_found(
     async_session: AsyncSession,
 ):
-    """Test that marrying fails if relationship not found."""
-    from uuid import uuid4
-
     with pytest.raises(ValidationException, match="Relationship not found"):
         await RelationshipService.marry(async_session, uuid4())
 
@@ -713,7 +692,6 @@ async def test_increase_affinity_auto_marries_partners(
     dweller: Dweller,
     dweller_2: Dweller,
 ):
-    """Test that affinity increase auto-upgrades partners to married at the threshold."""
     partner_rel = await _make_partners(async_session, dweller, dweller_2)
     partner_rel.affinity = game_config.relationship.marriage_threshold - 1
     await async_session.commit()
@@ -951,7 +929,6 @@ async def test_marry_records_family_entries(
     dweller: Dweller,
     dweller_2: Dweller,
 ):
-    """Marriage narrates into both partners' structured bios."""
     partner_rel = await _make_partners(async_session, dweller, dweller_2)
     partner_rel.affinity = game_config.relationship.marriage_threshold
     await async_session.commit()
@@ -973,7 +950,6 @@ async def test_make_partners_rejects_when_dweller_already_committed(
     dweller_2: Dweller,
     dweller_3: Dweller,
 ):
-    """make_partners raises when either dweller is already committed to a third."""
     await _make_partners(async_session, dweller, dweller_2)
 
     # dweller <-> dweller_3 is ROMANTIC at the romance threshold
@@ -999,7 +975,6 @@ async def test_marry_rejects_when_dweller_already_committed_to_third(
     dweller_2: Dweller,
     dweller_3: Dweller,
 ):
-    """marry rejects a PARTNER relationship when either dweller is already committed to a third."""
     # dweller MARRIED to dweller_2
     partner_rel = await _make_partners(async_session, dweller, dweller_2)
     partner_rel.affinity = game_config.relationship.marriage_threshold
@@ -1027,7 +1002,6 @@ async def test_increase_affinity_does_not_promote_already_committed_dweller(
     dweller_2: Dweller,
     dweller_3: Dweller,
 ):
-    """ROMANTIC->PARTNER promotion is skipped when either dweller is already committed."""
     await _make_partners(async_session, dweller, dweller_2)
 
     rel = await RelationshipService.get_or_create_relationship(async_session, dweller.id, dweller_3.id)
@@ -1051,7 +1025,6 @@ async def test_increase_affinity_does_not_auto_marry_already_committed_dweller(
     dweller_2: Dweller,
     dweller_3: Dweller,
 ):
-    """PARTNER->MARRIED auto-transition is skipped when either dweller is already committed to a third."""
     await _make_partners(async_session, dweller, dweller_2)
 
     # Craft a second committed row dweller <-> dweller_3 as PARTNER
@@ -1079,7 +1052,6 @@ async def test_break_up_commits_partner_links_and_ex_together(
     dweller_2: Dweller,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Clearing partner links and marking the pair EX land in one transaction."""
     partner_rel = await _make_partners(async_session, dweller, dweller_2)
     commits = 0
     original_commit = async_session.commit
@@ -1109,7 +1081,6 @@ async def test_break_up_failure_preserves_partner_links_and_relationship(
     dweller: Dweller,
     dweller_2: Dweller,
 ) -> None:
-    """A database failure writing EX cannot leave committed, cleared partner links."""
     partner_rel = await _make_partners(async_session, dweller, dweller_2)
     first_id, second_id, affinity = dweller.id, dweller_2.id, partner_rel.affinity
 

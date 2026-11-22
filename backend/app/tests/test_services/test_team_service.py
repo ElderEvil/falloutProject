@@ -1,5 +1,3 @@
-"""Tests for the reusable team roster assignment service."""
-
 from datetime import datetime, timedelta
 
 import pytest
@@ -141,7 +139,6 @@ async def test_party_requirement_failure_rolls_back_staged_roster(async_session:
 
 @pytest.mark.asyncio
 async def test_assign_quest_team_assigns_dwellers(async_session: AsyncSession) -> None:
-    """Assigning a team reserves members without departing them."""
     vault, quest = await _make_quest_vault(async_session)
     dweller1 = await _make_adult_dweller(async_session, vault)
     dweller2 = await _make_adult_dweller(async_session, vault)
@@ -165,7 +162,6 @@ async def test_assign_quest_team_assigns_dwellers(async_session: AsyncSession) -
 
 @pytest.mark.asyncio
 async def test_assign_quest_team_replaces_existing(async_session: AsyncSession) -> None:
-    """Reassigning a team frees the old dweller without departing either."""
     vault, quest = await _make_quest_vault(async_session)
     dweller1 = await _make_adult_dweller(async_session, vault)
     dweller2 = await _make_adult_dweller(async_session, vault)
@@ -189,7 +185,6 @@ async def test_assign_quest_team_replaces_existing(async_session: AsyncSession) 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("size", [0, 4])
 async def test_assign_quest_team_size_limits(async_session: AsyncSession, size: int) -> None:
-    """Teams hold 1-3 dwellers."""
     vault, quest = await _make_quest_vault(async_session)
     dwellers = [await _make_adult_dweller(async_session, vault) for _ in range(4)]
 
@@ -211,7 +206,6 @@ async def test_assign_quest_team_rejects_duplicate_dwellers(async_session: Async
 
 @pytest.mark.asyncio
 async def test_get_quest_team_orders_members_by_slot(async_session: AsyncSession) -> None:
-    """get_quest_team returns members slot-ordered, missing slots first."""
     vault, quest = await _make_quest_vault(async_session)
     dwellers = [await _make_adult_dweller(async_session, vault) for _ in range(3)]
     await team_service.assign_quest_team(async_session, quest.id, vault.id, [d.id for d in dwellers])
@@ -233,7 +227,6 @@ async def test_get_quest_team_orders_members_by_slot(async_session: AsyncSession
 
 @pytest.mark.asyncio
 async def test_assign_quest_team_slot_uniqueness(async_session: AsyncSession) -> None:
-    """Slots are numbered 1..n with no duplicates."""
     vault, quest = await _make_quest_vault(async_session)
     dwellers = [await _make_adult_dweller(async_session, vault) for _ in range(3)]
 
@@ -245,7 +238,6 @@ async def test_assign_quest_team_slot_uniqueness(async_session: AsyncSession) ->
 
 @pytest.mark.asyncio
 async def test_assign_quest_team_rejects_unavailable_dwellers(async_session: AsyncSession) -> None:
-    """Children, explorers, and deleted dwellers cannot join a team."""
     vault, quest = await _make_quest_vault(async_session)
     child_data = create_fake_dweller()
     child_data.update(age_group=AgeGroupEnum.CHILD)
@@ -269,7 +261,6 @@ async def test_assign_quest_team_rejects_unavailable_dwellers(async_session: Asy
 
 @pytest.mark.asyncio
 async def test_assign_quest_team_rejects_feral_ghoul(async_session: AsyncSession) -> None:
-    """Feral ghouls may defend the vault but cannot join an exploration quest."""
     vault, quest = await _make_quest_vault(async_session)
     feral = await _make_adult_dweller(async_session, vault)
     feral.visual_attributes = {"race": "ghoul", "state_of_being": "feral"}
@@ -282,7 +273,6 @@ async def test_assign_quest_team_rejects_feral_ghoul(async_session: AsyncSession
 
 @pytest.mark.asyncio
 async def test_assign_quest_team_rejects_foreign_dweller(async_session: AsyncSession) -> None:
-    """A dweller from another vault cannot join the team."""
     vault, quest = await _make_quest_vault(async_session)
     other_vault, _ = await _make_quest_vault(async_session, title="Other Vault Quest")
     foreign = await _make_adult_dweller(async_session, other_vault)
@@ -314,7 +304,6 @@ async def _make_room(
 @pytest.mark.asyncio
 @pytest.mark.parametrize("quest_category", ["building", "population", "training"])
 async def test_assign_quest_team_rejects_state_objectives(async_session: AsyncSession, quest_category: str) -> None:
-    """State objectives have no return path, so assigning a party would strand it QUESTING."""
     vault, quest = await _make_quest_vault(async_session, quest_category=quest_category)
     room = await _make_room(async_session, vault)
     dweller = await _make_adult_dweller(async_session, vault)
@@ -332,7 +321,6 @@ async def test_assign_quest_team_rejects_state_objectives(async_session: AsyncSe
 
 @pytest.mark.asyncio
 async def test_start_quest_clears_pre_departure_room(async_session: AsyncSession) -> None:
-    """Departure detaches dwellers from their old room so it stops counting them."""
     vault, quest = await _make_quest_vault(async_session)
     room = await _make_room(async_session, vault)
     dweller = await _make_adult_dweller(async_session, vault)
@@ -354,7 +342,6 @@ async def test_start_quest_clears_pre_departure_room(async_session: AsyncSession
 
 @pytest.mark.asyncio
 async def test_assign_quest_team_reassignment_keeps_dwellers_posted(async_session: AsyncSession) -> None:
-    """Replacing a roster leaves the freed and newly reserved dwellers in their rooms."""
     vault, quest = await _make_quest_vault(async_session)
     room = await _make_room(async_session, vault)
     dweller1 = await _make_adult_dweller(async_session, vault)
@@ -376,7 +363,6 @@ async def test_assign_quest_team_reassignment_keeps_dwellers_posted(async_sessio
 
 @pytest.mark.asyncio
 async def test_quest_return_restores_idle_without_room(async_session: AsyncSession) -> None:
-    """A returning party comes home IDLE and unposted, matching the exploration flow."""
     vault, quest = await _make_quest_vault(async_session)
     room = await _make_room(async_session, vault)
     dweller = await _make_adult_dweller(async_session, vault)
@@ -399,7 +385,6 @@ async def test_quest_return_restores_idle_without_room(async_session: AsyncSessi
 
 @pytest.mark.asyncio
 async def test_departed_dweller_cannot_join_another_quest(async_session: AsyncSession) -> None:
-    """A second deployment cannot reuse someone already travelling on a quest."""
     vault, quest = await _make_quest_vault(async_session)
     _, other_quest = await _make_quest_vault(async_session, title="Other Quest")
     dweller = await _make_adult_dweller(async_session, vault)
@@ -415,7 +400,6 @@ async def test_departed_dweller_cannot_join_another_quest(async_session: AsyncSe
 
 @pytest.mark.asyncio
 async def test_assign_quest_team_rejects_in_progress_quest(async_session: AsyncSession) -> None:
-    """A started quest cannot acquire a new team."""
     vault, quest = await _make_quest_vault(async_session)
     dweller = await _make_adult_dweller(async_session, vault)
     await team_service.assign_quest_team(async_session, quest.id, vault.id, [dweller.id])
@@ -427,7 +411,6 @@ async def test_assign_quest_team_rejects_in_progress_quest(async_session: AsyncS
 
 @pytest.mark.asyncio
 async def test_assign_quest_team_requires_existing_quest_and_vault(async_session: AsyncSession) -> None:
-    """Unknown quests and vaults are rejected before any mutation."""
     from uuid import uuid4
 
     vault, quest = await _make_quest_vault(async_session)
@@ -441,7 +424,6 @@ async def test_assign_quest_team_requires_existing_quest_and_vault(async_session
 
 @pytest.mark.asyncio
 async def test_quest_round_trip_assign_start_ready_claim(async_session: AsyncSession) -> None:
-    """A full quest lifecycle: assign -> start -> ready -> claim, with status transitions."""
     from app.core.enums import RewardType
     from app.models.quest_reward import QuestReward
 
@@ -511,7 +493,6 @@ async def test_quest_round_trip_assign_start_ready_claim(async_session: AsyncSes
 
 @pytest.mark.asyncio
 async def test_rejected_start_keeps_party_posted(async_session: AsyncSession) -> None:
-    """A start rejected by the slot cap leaves the selected party in its room."""
     vault, first_quest = await _make_quest_vault(async_session, title="First Quest")
     room = await _make_room(async_session, vault)
     first_dweller = await _make_adult_dweller(async_session, vault)
@@ -547,7 +528,6 @@ async def test_rejected_start_keeps_party_posted(async_session: AsyncSession) ->
 
 @pytest.mark.asyncio
 async def test_start_quest_rejects_party_member_sent_exploring(async_session: AsyncSession) -> None:
-    """A stale roster cannot overwrite someone who left on another assignment."""
     vault, quest = await _make_quest_vault(async_session)
     dweller = await _make_adult_dweller(async_session, vault)
     await team_service.assign_quest_team(async_session, quest.id, vault.id, [dweller.id])
@@ -571,7 +551,6 @@ async def test_start_quest_rejects_party_member_sent_exploring(async_session: As
 @pytest.mark.asyncio
 @pytest.mark.parametrize("flag", ["is_reward_ready", "is_completed"])
 async def test_finished_quest_history_does_not_block_another_departure(async_session: AsyncSession, flag: str) -> None:
-    """A returned party can depart again while its old roster stays as history."""
     vault, first_quest = await _make_quest_vault(async_session, title="First Quest")
     second_quest = await crud.quest_crud.create(
         async_session,

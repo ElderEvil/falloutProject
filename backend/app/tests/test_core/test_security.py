@@ -1,5 +1,3 @@
-"""JWT consumers accept only signed, expiring credentials of their own purpose."""
-
 from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 

@@ -1,5 +1,3 @@
-"""Daily and weekly quest rotation: offering, rollover, in-flight survival and atomicity."""
-
 from datetime import UTC, datetime
 
 import pytest
@@ -61,7 +59,6 @@ async def _seed_pools(db) -> list[Quest]:
 
 
 async def test_rotation_calendar_scenarios(async_session, vault):
-    """One calendar walk: first offer, same-period no-op, daily rollover, Monday rollover."""
     quests = await _seed_pools(async_session)
 
     offered = await ensure_current_quest_rotation(async_session, vault.id, now=MONDAY)
@@ -114,7 +111,6 @@ async def test_empty_pool_retries_after_the_catalog_is_seeded(async_session, vau
 
 
 async def test_populated_pool_records_its_period_even_with_zero_offers(async_session, vault):
-    """A populated but fully settled pool records the period: no mid-period re-roll later."""
     daily = await _seed_quests(async_session, QuestType.DAILY, DAILY_COUNT, "Daily")
     for quest in daily:
         _add_link(async_session, vault.id, quest, is_visible=True, started_at=MONDAY, duration_minutes=60)
@@ -332,11 +328,9 @@ async def test_tick_hook_recovers_from_failure_and_rotates_next_tick(async_sessi
 
 
 async def test_rotation_sweep_finishes_other_vaults_then_fails_retryably(async_session, vault, monkeypatch):
-    """The midnight actor keeps rotating the other vaults, then raises so Dramatiq retries."""
     from contextlib import asynccontextmanager
 
     from app.api import tasks
-    from app.crud.game_state import game_state_crud
     from app.schemas.user import UserCreate
     from app.schemas.vault import VaultCreateWithUserID
     from app.tests.factory.users import create_fake_user

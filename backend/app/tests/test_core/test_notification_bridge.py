@@ -1,5 +1,3 @@
-"""Redis notification fan-out across independent transport instances."""
-
 import asyncio
 import json
 from uuid import uuid4

@@ -1,5 +1,3 @@
-"""Material objectives: seeding idempotency and weekly-pool eligibility."""
-
 from unittest.mock import patch
 
 import pytest
@@ -16,7 +14,6 @@ MATERIAL_TEMPLATES = {"weekly:salvage 6 adhesive", "weekly:recover 4 circuitry"}
 
 @pytest.mark.asyncio
 async def test_seeding_material_weeklies_twice_creates_no_duplicates(async_session: AsyncSession) -> None:
-    """Re-running the seed upserts by template_key instead of adding a second row."""
     await seed_objectives_from_json(async_session)
     await seed_objectives_from_json(async_session)
 
@@ -28,7 +25,6 @@ async def test_seeding_material_weeklies_twice_creates_no_duplicates(async_sessi
 
 @pytest.mark.asyncio
 async def test_material_weeklies_are_selectable_on_the_next_reset(async_session: AsyncSession, vault: Vault) -> None:
-    """Both templates are in the weekly pool the reset samples from, and assignment accepts them."""
     await seed_objectives_from_json(async_session)
     pool = await objective_crud.get_by_category(async_session, ObjectiveCategoryEnum.WEEKLY)
     material_ids = {objective.id for objective in pool if objective.template_key in MATERIAL_TEMPLATES}

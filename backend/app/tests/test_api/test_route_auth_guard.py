@@ -57,13 +57,11 @@ def test_every_route_requires_authentication() -> None:
 
 
 def test_guard_actually_sees_the_api() -> None:
-    """A route-count floor so a silent schema/import change cannot make this vacuous."""
     documented = app.openapi()["paths"]
     assert len(documented) > 100, f"openapi only documents {len(documented)} paths; the guard would be vacuous"
 
 
 def test_public_route_allowlist_has_no_dead_entries() -> None:
-    """A stale entry would silently exempt an operation that no longer exists."""
     documented = _unsecured_operations()
     dead = sorted(operation for operation in PUBLIC_OPERATIONS if operation not in documented)
 

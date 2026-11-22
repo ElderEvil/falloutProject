@@ -1,5 +1,3 @@
-"""Pet model + CRUDItem equip/unequip + storage bucket tests (Phase A)."""
-
 from uuid import uuid4
 
 import pytest
@@ -159,7 +157,6 @@ async def test_get_items_by_vault_scopes_pets(async_session: AsyncSession, vault
 
 @pytest.mark.asyncio
 async def test_equip_does_not_delete_displaced_pet(async_session: AsyncSession, dweller, vault) -> None:
-    """The displaced pet survives re-equip (FK-only writes, no cascade delete)."""
     await crud.vault.create_storage(db_session=async_session, vault_id=vault.id)
     old = await crud.pet.create(async_session, obj_in=_pet_data(name="Old Pet"))
     new = await crud.pet.create(async_session, obj_in=_pet_data(name="New Pet"))

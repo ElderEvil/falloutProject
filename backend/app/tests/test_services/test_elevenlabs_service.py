@@ -1,5 +1,3 @@
-"""Tests for ElevenLabsTtsService — success, errors, is_enabled."""
-
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -10,8 +8,6 @@ pytestmark = pytest.mark.asyncio
 
 
 class TestIsEnabled:
-    """Verify is_enabled reflects the API key config."""
-
     def test_enabled_when_key_set(self, monkeypatch: pytest.MonkeyPatch) -> None:
         from app.services.elevenlabs_service import ElevenLabsTtsService
 
@@ -35,8 +31,6 @@ class TestIsEnabled:
 
 
 class TestGenerateSpeech:
-    """HTTP-level behaviour of generate_speech."""
-
     async def test_success_returns_bytes(self, monkeypatch: pytest.MonkeyPatch) -> None:
         from app.services.elevenlabs_service import ElevenLabsTtsService
 

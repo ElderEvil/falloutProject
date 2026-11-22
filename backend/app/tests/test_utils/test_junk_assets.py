@@ -7,7 +7,6 @@ JUNK_IMAGE_DIR = Path(__file__).parent.parent.parent / "static" / "junk_images"
 
 
 def test_every_catalog_junk_has_its_own_image() -> None:
-    """No catalog junk may go imageless (duct tape shares the military art)."""
     for junk in game_data_store.junk_items:
         assert junk.name.strip().casefold() in JUNK_NAME_TO_IMAGE_FILE, junk.name
         assert junk.image_url is not None, junk.name

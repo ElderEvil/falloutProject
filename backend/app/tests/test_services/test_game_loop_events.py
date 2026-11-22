@@ -1,5 +1,3 @@
-"""Tests for game loop vault events (Phase 5)."""
-
 from datetime import datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
@@ -54,7 +52,6 @@ async def test_process_events_spawn_chance_miss_returns_empty(async_session: Asy
 
 @pytest.mark.asyncio
 async def test_process_events_resource_cache_awards_caps_and_notifies(async_session: AsyncSession, vault: Vault):
-    """Resource cache events deposit caps and send a notification."""
     await _create_dwellers(async_session, vault, count=3)
     initial_caps = vault.bottle_caps
 
@@ -124,7 +121,6 @@ async def test_process_events_award_locks_vault_before_deposit(
 
 @pytest.mark.asyncio
 async def test_process_events_wanderer_awards_caps_and_notifies(async_session: AsyncSession, vault: Vault):
-    """Wanderer events deposit caps and send a notification."""
     await _create_dwellers(async_session, vault, count=3)
     initial_caps = vault.bottle_caps
 
@@ -148,7 +144,6 @@ async def test_process_events_wanderer_awards_caps_and_notifies(async_session: A
 
 @pytest.mark.asyncio
 async def test_process_events_raider_scout_spawns_incident(async_session: AsyncSession, vault: Vault):
-    """Raider scout events attempt to spawn a radscorpion incident."""
     await _create_dwellers(async_session, vault, count=3)
     incident_id = uuid4()
 

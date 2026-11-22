@@ -1,5 +1,3 @@
-"""Pet carrier grant, open, and rarity-roll behavior."""
-
 import operator
 from unittest.mock import patch
 from uuid import UUID, uuid4
@@ -35,7 +33,6 @@ async def _carrier(async_session: AsyncSession, vault: Vault) -> UUID:
 
 @pytest.mark.asyncio
 async def test_grant_pet_carrier_creates_a_carrier_item(async_session: AsyncSession, vault: Vault) -> None:
-    """The carrier is a generic Item with the dedicated type."""
     await _storage(async_session, vault)
 
     carrier_id = await _carrier(async_session, vault)
@@ -48,7 +45,6 @@ async def test_grant_pet_carrier_creates_a_carrier_item(async_session: AsyncSess
 
 @pytest.mark.asyncio
 async def test_open_pet_carrier_consumes_carrier_and_stores_one_pet(async_session: AsyncSession, vault: Vault) -> None:
-    """Opening swaps the carrier for exactly one stored pet."""
     storage = await _storage(async_session, vault)
     carrier_id = await _carrier(async_session, vault)
 
@@ -63,7 +59,6 @@ async def test_open_pet_carrier_consumes_carrier_and_stores_one_pet(async_sessio
 
 @pytest.mark.asyncio
 async def test_open_pet_carrier_works_when_storage_is_full(async_session: AsyncSession, vault: Vault) -> None:
-    """The carrier frees the slot the pet takes, so a full vault still opens."""
     storage = await _storage(async_session, vault)
     carrier_id = await _carrier(async_session, vault)
     storage.max_space = 1
@@ -78,7 +73,6 @@ async def test_open_pet_carrier_works_when_storage_is_full(async_session: AsyncS
 
 @pytest.mark.asyncio
 async def test_open_pet_carrier_rejects_unknown_item(async_session: AsyncSession, vault: Vault) -> None:
-    """Unknown, foreign-vault, and wrong-type rows all surface as not found."""
     await _storage(async_session, vault)
 
     with pytest.raises(ResourceNotFoundException):
@@ -104,7 +98,6 @@ async def test_open_pet_carrier_keeps_the_carrier_when_the_pool_is_empty(
 
 @pytest.mark.asyncio
 async def test_open_pet_carrier_rolls_back_when_commit_fails(async_session: AsyncSession, vault: Vault) -> None:
-    """A late failure leaves the carrier in place and adds no pet."""
     from sqlalchemy import event
 
     storage = await _storage(async_session, vault)
@@ -128,7 +121,6 @@ async def test_open_pet_carrier_rolls_back_when_commit_fails(async_session: Asyn
 
 
 def test_roll_pet_uses_the_rolled_rarity() -> None:
-    """The roll picks from the rarity bucket returned by the weighted choice."""
     with (
         patch("app.services.rewards.pet_carrier.random.choices", return_value=[RarityEnum.RARE]),
         patch(
@@ -140,7 +132,6 @@ def test_roll_pet_uses_the_rolled_rarity() -> None:
 
 
 def test_roll_pet_falls_back_when_the_rolled_rarity_is_empty() -> None:
-    """An empty legendary bucket falls back to the next populated rarity."""
     with (
         patch(
             "app.services.catalog_service.load_pets",
@@ -159,7 +150,6 @@ def test_container_weights_require_a_positive_total() -> None:
 
 
 def test_item_type_constraint_covers_every_enum_value() -> None:
-    """The DB CHECK cannot drift from ItemTypeEnum."""
     constraint = next(c for c in Item.__table__.constraints if c.name == "ck_item_item_type")
     sql = str(constraint.sqltext)
 

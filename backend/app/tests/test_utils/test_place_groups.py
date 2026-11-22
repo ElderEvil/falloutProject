@@ -1,5 +1,3 @@
-"""Tests for the place-group (archetype) catalog."""
-
 import json
 
 import pytest
@@ -39,7 +37,6 @@ NON_CLEARABLE_GROUPS = {"settlement", "city", "landmark", "region"}
 
 
 def test_catalog_is_valid_and_covers_seeded_groups() -> None:
-    """Every group is complete and every seeded group reference resolves."""
     groups = load_place_groups()
     keys = {group["key"] for group in groups}
     assert {"gas_station", "supermarket", "settlement", "vault_tec"} <= keys
@@ -51,7 +48,6 @@ def test_catalog_is_valid_and_covers_seeded_groups() -> None:
 
 
 def test_seeded_names_resolve_to_their_group() -> None:
-    """Group lookup normalizes names and leaves unknown (emergent) places ungrouped."""
     assert group_for_place_name("Red Rocket") == "gas_station"
     assert group_for_place_name("  RED ROCKET ") == "gas_station"
     assert group_for_place_name("Super Duper Mart") == "supermarket"
@@ -59,7 +55,6 @@ def test_seeded_names_resolve_to_their_group() -> None:
 
 
 def test_groups_can_have_multiple_instances() -> None:
-    """A group hosts several named instances, which is the point of the taxonomy."""
     by_group: dict[str, list[str]] = {}
     for name, key in seeded_place_groups().items():
         by_group.setdefault(key, []).append(name)
@@ -76,14 +71,12 @@ def test_get_place_group_returns_catalog_entry() -> None:
 
 
 def test_validate_group_key_accepts_known_and_rejects_unknown() -> None:
-    """Every write path validates the key against the catalog."""
     assert validate_group_key("gas_station") == "gas_station"
     with pytest.raises(ValueError, match="Unknown place group"):
         validate_group_key("not_a_group")
 
 
 def test_quiet_zone_resolves_to_the_exclusion_zone_group() -> None:
-    """The seeded Quiet Zone is grouped as a Restricted Exclusion Site."""
     assert group_for_place_name("The Quiet Zone") == "exclusion_zone"
     entry = get_place_group("exclusion_zone")
     assert entry is not None
@@ -91,7 +84,6 @@ def test_quiet_zone_resolves_to_the_exclusion_zone_group() -> None:
 
 
 def test_clearable_groups_carry_valid_clear_fields() -> None:
-    """Every clearable group has a reclear window, a difficulty, and a resolvable loot table."""
     groups = {group["key"]: group for group in load_place_groups()}
     assert set(groups) == CLEARABLE_GROUPS | NON_CLEARABLE_GROUPS
     for key in CLEARABLE_GROUPS:
@@ -118,7 +110,6 @@ def test_non_clearable_groups_carry_no_clear_fields() -> None:
 
 
 def test_clearable_groups_carry_xp_and_an_xp_per_hour_ordering() -> None:
-    """Every clearable group pays XP, and the per-hour rate rises with the risk band."""
     groups = {group["key"]: group for group in load_place_groups() if group["clearable"]}
     for group in groups.values():
         assert isinstance(group["xp_reward"], int)
@@ -216,7 +207,6 @@ def test_non_clearable_group_carrying_clear_fields_is_rejected(tmp_path) -> None
 
 
 def test_effective_group_defaults_for_ungrouped_place() -> None:
-    """An ungrouped PLACE resolves to the default clearable archetype."""
     group = effective_place_group(None, PlaceKindEnum.PLACE)
     assert group is not None
     assert group["key"] == DEFAULT_EMERGENT_GROUP
@@ -231,12 +221,10 @@ def test_effective_group_none_for_vault_and_when_disabled(monkeypatch: pytest.Mo
 
 
 def test_effective_group_unknown_explicit_key_is_not_defaulted() -> None:
-    """An unknown explicit group key stays None instead of falling back to the emergent default."""
     assert effective_place_group("not_a_group", PlaceKindEnum.PLACE) is None
 
 
 def test_effective_group_prefers_the_place_own_group() -> None:
-    """A grouped place keeps its own group regardless of kind."""
     group = effective_place_group("settlement", PlaceKindEnum.PLACE)
     assert group is not None
     assert group["key"] == "settlement"

@@ -13,7 +13,6 @@ from app.options.races import passes_as_human
 
 @pytest.mark.parametrize("state", ["gen_3", None, "unknown"])
 def test_passing_synth_models_present_as_human(state: str | None) -> None:
-    """An unknown synth model fails toward concealment rather than exposure."""
     assert passes_as_human(RaceEnum.SYNTH, state) is True
     assert passes_as_human("synth", state) is True
 
@@ -49,7 +48,6 @@ def test_passing_synths_are_presented_to_the_portrait_agent_as_human(state: str 
 
 
 def test_human_portrait_branch_offers_no_synthetic_options() -> None:
-    """Where a passing synth lands: the human branch."""
     instructions = _portrait_instructions("human")
     assert "natural skin tones" in instructions
     assert "metallic_silver" not in instructions

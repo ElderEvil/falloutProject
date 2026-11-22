@@ -1,5 +1,3 @@
-"""Map-action derivation for clearable sites and salvage points."""
-
 from __future__ import annotations
 
 from types import SimpleNamespace

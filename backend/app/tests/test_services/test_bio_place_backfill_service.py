@@ -1,5 +1,3 @@
-"""Tests for BioPlaceBackfillService."""
-
 from __future__ import annotations
 
 import pytest
@@ -13,26 +11,20 @@ from app.models.world_location import VaultLocationState
 from app.services.bio_place_backfill_service import bio_place_backfill_service, extract_places_from_bio
 from app.services.map_service import map_service
 
-# ---------------------------------------------------------------------------
 # extract_places_from_bio unit tests
-# ---------------------------------------------------------------------------
 
 
 def test_extract_no_bio_returns_none_empty() -> None:
-    """No bio -> no origin, no visited."""
     origin, visited = extract_places_from_bio(None)
     assert origin is None
     assert visited == []
 
 
-# ---------------------------------------------------------------------------
 # BioPlaceBackfillService integration tests
-# ---------------------------------------------------------------------------
 
 
 @pytest.mark.asyncio
 async def test_backfill_bio_places_for_vault_respects_max_dwellers(async_session: AsyncSession, vault: Vault) -> None:
-    """max_dwellers limits how many dwellers are processed."""
     from app.core.enums import GenderEnum, RarityEnum
     from app.schemas.dweller import DwellerCreate
 
@@ -54,7 +46,6 @@ async def test_backfill_bio_places_for_vault_respects_max_dwellers(async_session
 
 @pytest.mark.asyncio
 async def test_backfill_bio_places_for_active_vaults_skips_deleted(async_session: AsyncSession) -> None:
-    """Only non-deleted vaults are backfilled."""
     from faker import Faker
 
     from app.core.enums import GenderEnum, RarityEnum

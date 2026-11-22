@@ -1,5 +1,3 @@
-"""Console authorization, validation, audit and shared scenario integration."""
-
 import inspect
 import logging
 from uuid import uuid4
@@ -128,7 +126,6 @@ async def test_setup_invalid_site_changes_nothing(async_session, vault, dweller)
 
 
 async def test_setup_late_failure_preserves_only_committed_departure(async_session, vault, dweller):
-    """The reused CLI operation explicitly persists departure before fast-forwarding."""
     vault_id, dweller_id, actor_id = vault.id, dweller.id, vault.user_id
     engine = async_session.bind.sync_engine
 

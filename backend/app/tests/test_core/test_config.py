@@ -1,5 +1,3 @@
-"""Core settings validation."""
-
 import pytest
 from pydantic import ValidationError
 

@@ -182,7 +182,6 @@ async def test_enter_different_site_conflicts(async_session: AsyncSession):
 
 @pytest.mark.asyncio
 async def test_enter_after_recent_clear_conflicts(async_session: AsyncSession):
-
     vault, dweller, exploration = await _make_exploration(async_session)
     prior = await _second_exploration(async_session, vault)
     run = await crud.expedition_run.create_run(
@@ -226,8 +225,6 @@ async def test_second_exploration_same_site_blocked(async_session: AsyncSession)
 
 @pytest.mark.asyncio
 async def test_site_available_again_after_cooldown_window(async_session: AsyncSession):
-    from datetime import timedelta
-
     vault, dweller, exploration = await _make_exploration(async_session)
     prior = await _second_exploration(async_session, vault)
     run = await crud.expedition_run.create_run(
@@ -384,7 +381,6 @@ async def test_mart_trade_without_caps_falls_back(async_session: AsyncSession):
 
 @pytest.mark.asyncio
 async def test_resolve_after_exploration_completed_raises(async_session: AsyncSession):
-    """Resolving a room on a finished exploration is rejected under the lock (Gap 1)."""
     _, _, exploration = await _make_exploration(async_session)
     await expedition_service.enter_run(async_session, exploration.id, "red_rocket")
     exploration.status = ExplorationStatus.COMPLETED
@@ -396,7 +392,6 @@ async def test_resolve_after_exploration_completed_raises(async_session: AsyncSe
 
 @pytest.mark.asyncio
 async def test_return_leg_allows_listing_and_retreating(async_session: AsyncSession):
-    """A returning journey may still list and act on its open encounter (return-leg access)."""
     _, _, exploration = await _make_exploration(async_session)
     await expedition_service.enter_run(async_session, exploration.id, "red_rocket")
     exploration.status = ExplorationStatus.RETURNING
@@ -414,7 +409,6 @@ async def test_return_leg_allows_listing_and_retreating(async_session: AsyncSess
 
 @pytest.mark.asyncio
 async def test_retreat_after_exploration_completed_raises(async_session: AsyncSession):
-    """Retreating on a non-active exploration is rejected under the lock (Gap 1)."""
     _, _, exploration = await _make_exploration(async_session)
     await expedition_service.enter_run(async_session, exploration.id, "red_rocket")
     exploration.status = ExplorationStatus.COMPLETED
@@ -426,8 +420,6 @@ async def test_retreat_after_exploration_completed_raises(async_session: AsyncSe
 
 @pytest.mark.asyncio
 async def test_finale_payout_blocked_by_recent_terminal(async_session: AsyncSession):
-    """A site in cooldown cannot pay its finale, even for an already-open run."""
-
     random.seed(42)
     vault, dweller, exploration = await _make_exploration(async_session)
     await expedition_service.enter_run(async_session, exploration.id, "red_rocket")
@@ -451,7 +443,6 @@ async def test_finale_payout_blocked_by_recent_terminal(async_session: AsyncSess
 
 @pytest.mark.asyncio
 async def test_combat_defeat_stops_pack_and_does_not_advance(async_session: AsyncSession):
-    """A lost fight (survivor) stops the pack, keeps the cursor, and signals defeated."""
     random.seed(0)
     _, _, exploration = await _make_exploration(async_session, stats=WEAK_STATS)
     await expedition_service.enter_run(async_session, exploration.id, "red_rocket")
@@ -478,7 +469,6 @@ async def test_combat_defeat_stops_pack_and_does_not_advance(async_session: Asyn
 
 @pytest.mark.asyncio
 async def test_push_on_after_defeat_refights_same_pack_and_advances(async_session: AsyncSession):
-    """Push-on replays the recorded pack; a full win clears the room and advances."""
     random.seed(0)
     _, _, exploration = await _make_exploration(async_session, stats=WEAK_STATS)
     await expedition_service.enter_run(async_session, exploration.id, "red_rocket")
@@ -532,7 +522,6 @@ async def test_choice_failure_combat_retry_replays_branch_not_choice(async_sessi
 
 @pytest.mark.asyncio
 async def test_enemies_encountered_credited_once_across_defeat_and_push_on(async_session: AsyncSession):
-    """XP for a room's pack is credited once on clear, not per attempted fight."""
     random.seed(0)
     _, _, exploration = await _make_exploration(async_session, stats=WEAK_STATS)
     await expedition_service.enter_run(async_session, exploration.id, "red_rocket")
@@ -550,7 +539,6 @@ async def test_enemies_encountered_credited_once_across_defeat_and_push_on(async
 
 @pytest.mark.asyncio
 async def test_combat_reports_per_enemy_entries_and_live_dweller_hp(async_session: AsyncSession):
-    """A resolved combat room reports each engagement and the dweller's live HP."""
     random.seed(42)
     _, dweller, exploration = await _make_exploration(async_session)
     # The factory randomises radiation; zero it so effective max health is deterministic.
@@ -573,7 +561,6 @@ async def test_combat_reports_per_enemy_entries_and_live_dweller_hp(async_sessio
 
 @pytest.mark.asyncio
 async def test_site_damage_triggers_auto_use_supplies(async_session: AsyncSession):
-    """Resolving a damaging site room consumes carried stimpak/radaway via the shared auto-heal."""
     random.seed(42)
     _, dweller, exploration = await _make_exploration(async_session, stats=WEAK_STATS)
     dweller.health = 30
@@ -604,7 +591,6 @@ async def test_site_damage_triggers_auto_use_supplies(async_session: AsyncSessio
 
 @pytest.mark.asyncio
 async def test_site_event_logs_health_loss(async_session: AsyncSession):
-    """The logged site event carries the room's damage as health_loss."""
     random.seed(42)
     _, dweller, exploration = await _make_exploration(async_session, stats=WEAK_STATS)
     dweller.radiation = 0
@@ -625,7 +611,6 @@ async def test_site_event_logs_health_loss(async_session: AsyncSession):
 
 @pytest.mark.asyncio
 async def test_site_event_logs_no_health_loss_when_undamaged(async_session: AsyncSession):
-    """A room that deals no damage logs a site event with health_loss None."""
     random.seed(42)
     _, dweller, exploration = await _make_exploration(async_session, stats={"perception": 10})
     dweller.radiation = 0
@@ -851,7 +836,6 @@ async def test_scene_combat_damage_is_not_floored_to_one(async_session: AsyncSes
 
 
 def test_higher_level_sites_field_two_enemies():
-    """High-level sites should present a pack, not a lone enemy."""
     from app.services.exploration.site_combat_service import initial_combat
 
     for site_id in ("super_duper_mart", "gloomwater_bog_night"):
@@ -880,7 +864,6 @@ def test_trivia_options_are_not_left_in_authored_order():
 
 
 def test_trivia_difficulty_weights_toward_the_site_level():
-    """Hard questions should be rarer at easy sites and common at hard sites."""
     from app.services.exploration.trivia import question_weight
 
     assert question_weight(1, 1) > question_weight(5, 1)
@@ -889,7 +872,6 @@ def test_trivia_difficulty_weights_toward_the_site_level():
 
 @pytest.mark.asyncio
 async def test_trivia_encounter_can_ask_multiple_questions(async_session: AsyncSession):
-    """A trivia site can require several correct answers before it pays."""
     _, _, exploration = await _make_exploration(async_session, level=10)
     entry = await expedition_service.enter_run(async_session, exploration.id, "raider_tollbooth")
     assert entry.node.kind == "trivia"
@@ -924,7 +906,6 @@ async def test_trivia_encounter_can_ask_multiple_questions(async_session: AsyncS
 
 @pytest.mark.asyncio
 async def test_trivia_rejects_a_stale_question(async_session: AsyncSession):
-    """A second tab answering an earlier question cannot resolve the current one."""
     _, _, exploration = await _make_exploration(async_session, level=10)
     await expedition_service.enter_run(async_session, exploration.id, "rusted_midway")
     run = await crud.expedition_run.get_open_for_exploration(async_session, exploration.id)

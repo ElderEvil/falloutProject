@@ -1,5 +1,3 @@
-"""Tests for room placement rules — elevator stacking and level-access gating."""
-
 from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
@@ -142,7 +140,6 @@ class TestValidateElevatorDestroy:
 
 @pytest.mark.asyncio
 async def test_elevator_overlapping_existing_room_rejected(mock_session):
-    """An elevator stacked under another elevator still cannot overlap a room on its level."""
     vault_id = uuid4()
     occupied = _make_room(name="Diner", coordinate_x=6, coordinate_y=5, vault_id=vault_id)
     elevator_above = _make_mock_execute_result(
@@ -157,7 +154,6 @@ async def test_elevator_overlapping_existing_room_rejected(mock_session):
 
 @pytest.mark.asyncio
 async def test_same_name_different_tier_at_occupied_coordinate_rejected(mock_session):
-    """A same-name room of another tier does not bypass the overlap check."""
     vault_id = uuid4()
     occupied = _make_room(name="Diner", coordinate_x=0, coordinate_y=0, tier=2, vault_id=vault_id)
     rooms_on_level = _make_mock_execute_result(scalars_all=[occupied])

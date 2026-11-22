@@ -1,5 +1,3 @@
-"""Tests for training service logic."""
-
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -35,7 +33,6 @@ async def test_can_start_training_not_training_room(
     dweller: Dweller,
     training_service: TrainingService,
 ):
-    """Test cannot start training in non-training room."""
     # Create a production room
     room_data = {
         "name": "Power Generator",
@@ -66,7 +63,6 @@ async def test_can_start_training_stat_maxed(
     dweller: Dweller,
     training_service: TrainingService,
 ):
-    """Test cannot start training when stat is already maxed."""
     # Create a training room
     room_data = {
         "name": "Weight Room",
@@ -104,7 +100,6 @@ async def test_can_start_training_dweller_not_idle(
     dweller: Dweller,
     training_service: TrainingService,
 ):
-    """Test cannot start training when dweller is not idle."""
     # Create a training room
     room_data = {
         "name": "Weight Room",
@@ -141,7 +136,6 @@ async def test_can_start_training_rejects_feral_ghoul(
     dweller: Dweller,
     training_service: TrainingService,
 ):
-    """Feral ghouls may defend but cannot begin purposeful training."""
     room = await room_crud.create(
         async_session,
         RoomCreate(
@@ -178,7 +172,6 @@ async def test_start_training_rejects_room_from_another_vault(
     dweller: Dweller,
     training_service: TrainingService,
 ):
-    """A dweller may only train in a room that belongs to its own vault."""
     foreign_vault = await vault_crud.create_with_user_id(
         db_session=async_session,
         obj_in=VaultCreate(number=202, name="Foreign Vault"),
@@ -272,7 +265,6 @@ async def test_complete_training(
     dweller: Dweller,
     training_service: TrainingService,
 ):
-    """Test completing a training session increases stat."""
     # Create a training room
     room_data = {
         "name": "Weight Room",
@@ -320,7 +312,6 @@ async def test_cancel_training(
     dweller: Dweller,
     training_service: TrainingService,
 ):
-    """Test cancelling a training session does not increase stat."""
     # Create a training room
     room_data = {
         "name": "Weight Room",
@@ -360,9 +351,7 @@ async def test_cancel_training(
     assert dweller.status == DwellerStatusEnum.IDLE
 
 
-# =============================================================================
 # Single-transaction contract (AUDIT.md: one commit per state transition)
-# =============================================================================
 
 
 def _training_room(vault_id) -> RoomCreate:
@@ -468,7 +457,6 @@ async def test_continuous_training_can_be_stopped(
 ):
     training, _ = continuous_trainee
     if action == "disable":
-        from app.crud.vault import vault as vault_crud
         from app.schemas.vault import VaultUpdate
 
         await vault_crud.update(async_session, vault.id, VaultUpdate(continuous_training=False))
@@ -525,8 +513,6 @@ async def test_continuous_training_rolls_back_if_next_round_cannot_persist(
 ):
     from sqlalchemy import event
 
-    from app.models.training import Training
-
     training, _ = continuous_trainee
 
     def fail_successor(_mapper, _connection, target):
@@ -554,7 +540,6 @@ async def test_start_training_commits_once(
     dweller: Dweller,
     training_service: TrainingService,
 ):
-    """The training row and the dweller assignment land in ONE commit, not two."""
     room = await room_crud.create(async_session, _training_room(vault.id))
     await _idle_dweller(async_session, dweller)
 
@@ -611,7 +596,6 @@ async def test_start_training_duration_reduced_by_pet_training_speed_bonus(
     dweller: Dweller,
     training_service: TrainingService,
 ):
-    """An equipped training-speed pet shortens the snapshotted duration."""
     room = await room_crud.create(async_session, _training_room(vault.id))
     await _idle_dweller(async_session, dweller)
 
@@ -676,7 +660,6 @@ async def test_start_training_duration_unchanged_without_pet(
     dweller: Dweller,
     training_service: TrainingService,
 ):
-    """Without an equipped pet the duration is the plain calculated duration."""
     room = await room_crud.create(async_session, _training_room(vault.id))
     await _idle_dweller(async_session, dweller)
 
@@ -694,7 +677,6 @@ async def test_complete_training_persists_stat_and_release_in_the_first_commit(
     dweller: Dweller,
     training_service: TrainingService,
 ):
-    """The stat gain and the dweller release are both durable after the FIRST commit."""
     room = await room_crud.create(async_session, _training_room(vault.id))
     await _idle_dweller(async_session, dweller)
     training = await training_service.start_training(async_session, dweller.id, room.id)
@@ -726,7 +708,6 @@ async def test_cancel_training_persists_status_and_release_in_the_first_commit(
     dweller: Dweller,
     training_service: TrainingService,
 ):
-    """The cancelled session and the dweller release are both durable after the FIRST commit."""
     room = await room_crud.create(async_session, _training_room(vault.id))
     await _idle_dweller(async_session, dweller)
     training = await training_service.start_training(async_session, dweller.id, room.id)
@@ -755,7 +736,6 @@ async def test_cancel_training_persists_status_and_release_in_the_first_commit(
 @pytest.mark.parametrize("age_group", ["child", "teen"])
 async def test_youth_cannot_start_training(async_session, vault, dweller, training_service, age_group):
     from app.core.enums import AgeGroupEnum
-    from app.utils.exceptions import VaultOperationException
 
     dweller.age_group = AgeGroupEnum(age_group)
     async_session.add(dweller)
@@ -813,8 +793,6 @@ async def test_lowering_goal_to_next_gain_finishes_current_round(
 
 @pytest.mark.parametrize("goal", [0, 5, 11])
 async def test_invalid_goal_does_not_change_session(async_session, training_service, continuous_trainee, goal):
-    from app.utils.exceptions import VaultOperationException
-
     training, _ = continuous_trainee
     with pytest.raises(VaultOperationException, match="goal"):
         await training_service.set_training_goal(async_session, training.id, goal)
@@ -823,8 +801,6 @@ async def test_invalid_goal_does_not_change_session(async_session, training_serv
 
 
 async def test_finished_session_goal_cannot_be_changed(async_session, training_service, continuous_trainee):
-    from app.utils.exceptions import VaultOperationException
-
     training, _ = continuous_trainee
     await training_service.complete_training(async_session, training.id)
     with pytest.raises(VaultOperationException, match="cannot"):
@@ -834,7 +810,6 @@ async def test_finished_session_goal_cannot_be_changed(async_session, training_s
 async def test_roomless_training_cancels_without_stat_gain(
     async_session, dweller, training_service, continuous_trainee
 ):
-    """A room removed outside the service cannot leave a payable training round behind."""
     training, _ = continuous_trainee
     training.room_id = None
     dweller.room_id = None

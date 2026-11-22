@@ -1,5 +1,3 @@
-"""Tests for vault service - initialization, resources, medical transfers."""
-
 from itertools import pairwise
 from operator import itemgetter
 from types import SimpleNamespace
@@ -56,9 +54,7 @@ STORAGE_ID = UUID("72345678-1234-4abc-9def-7234567890ab")
 OTHER_DWELLER_ID = UUID("82345678-1234-4abc-9def-8234567890ab")
 
 
-# ---------------------------------------------------------------------------
 # Helpers
-# ---------------------------------------------------------------------------
 
 
 def _layout_issues(rooms: list[RoomCreate]) -> tuple[int, int, bool]:
@@ -156,27 +152,18 @@ def _make_storage(
     )
 
 
-# ---------------------------------------------------------------------------
 # Test _prepare_initial_rooms
-# ---------------------------------------------------------------------------
 
 
-# ---------------------------------------------------------------------------
 # Test _create_initial_rooms
-# ---------------------------------------------------------------------------
 
 
-# ---------------------------------------------------------------------------
 # Test _create_initial_dwellers
-# ---------------------------------------------------------------------------
 
 
 @pytest.mark.asyncio
 class TestCreateInitialDwellers:
-    """Tests for dweler creation during vault init."""
-
     async def test_boosted_dwellers_assigned(self) -> None:
-        """Boosted vault includes medbay, science lab, and training dwellers."""
         vault_id = VAULT_ID
 
         prod_rooms = [
@@ -254,7 +241,6 @@ class TestCreateInitialDwellers:
         assert call_count == 29
 
     async def test_boosted_vault_stations_a_fire_and_a_radiation_responder(self, async_session, vault) -> None:
-        """Boosted seeding stations one fire and one radiation responder in the Response Station."""
         station = await crud.room.create(
             async_session,
             RoomCreate(
@@ -287,7 +273,6 @@ class TestCreateInitialDwellers:
         assert {fire[0].dweller.room_id, radiation[0].dweller.room_id} == {station.id}
 
     async def test_dweller_creation_failure_logs_and_raises(self) -> None:
-        """Exception during dweller creation logs and re-raises."""
         vault_id = VAULT_ID
         prod_rooms = [
             _make_room(name="Power Gen", ability=SPECIALEnum.STRENGTH),
@@ -317,17 +302,12 @@ class TestCreateInitialDwellers:
                 )
 
 
-# ---------------------------------------------------------------------------
 # Test _start_training_sessions
-# ---------------------------------------------------------------------------
 
 
 @pytest.mark.asyncio
 class TestStartTrainingSessions:
-    """Tests for training session startup."""
-
     async def test_starts_training_for_boosted_vault(self) -> None:
-        """Boosted vault with training rooms starts training for assigned dwellers."""
         vault_id = VAULT_ID
         train_room = _make_room(
             name="Weight Room", category=RoomTypeEnum.TRAINING, ability=SPECIALEnum.STRENGTH, tier=1
@@ -378,7 +358,6 @@ class TestStartTrainingSessions:
         ids=["not-found", "state-rejected"],
     )
     async def test_training_failure_is_logged_not_raised(self, error: Exception) -> None:
-        """If training fails for one dweller, it is logged and other dwellers proceed."""
         vault_id = VAULT_ID
         train_room = _make_room(
             name="Weight Room", category=RoomTypeEnum.TRAINING, ability=SPECIALEnum.STRENGTH, tier=1
@@ -424,7 +403,6 @@ class TestStartTrainingSessions:
         # Should not raise; the warning is logged
 
     async def test_training_sessions_outer_exception_raises(self) -> None:
-        """A non-domain exception during batch fetch raises."""
         vault_id = VAULT_ID
         train_room = _make_room(
             name="Weight Room", category=RoomTypeEnum.TRAINING, ability=SPECIALEnum.STRENGTH, tier=1
@@ -445,17 +423,12 @@ class TestStartTrainingSessions:
             await seeding.start_training_sessions(db_session, vault_id, [train_room], is_boosted=True)
 
 
-# ---------------------------------------------------------------------------
 # Test _create_initial_items
-# ---------------------------------------------------------------------------
 
 
 @pytest.mark.asyncio
 class TestCreateInitialItems:
-    """Tests for initial item creation."""
-
     async def test_noop_when_no_storage(self) -> None:
-        """When storage does not exist, method returns without adding items."""
         vault_id = VAULT_ID
 
         db_session = AsyncMock()
@@ -468,7 +441,6 @@ class TestCreateInitialItems:
         db_session.add.assert_not_called()
 
     async def test_boosted_vault_seeds_hazard_outfits(self, async_session, vault) -> None:
-        """Boosted vaults start with spare firefighter and hazmat suits in storage."""
         from app.crud.item_base import get_items_by_vault
         from app.models.outfit import Outfit
 
@@ -496,7 +468,6 @@ class TestCreateInitialItems:
         assert not any(o.name in {"Firefighter suit", "Hazmat suit"} for o in outfits)
 
     async def test_boosted_vault_seeds_pets(self, async_session, vault) -> None:
-        """Boosted vaults start with unassigned pets in storage for quick testing."""
         from app.crud.item_base import get_items_by_vault
         from app.models.pet import Pet
         from app.services.vault.seed_types import BOOSTED_SEED_PETS
@@ -510,8 +481,6 @@ class TestCreateInitialItems:
         assert all(p.image_url for p in pets)
 
     async def test_boosted_vault_equips_some_pets_on_legendary_dwellers(self, async_session, vault) -> None:
-        """The legendary pair starts equipped; the remaining pet stays in storage."""
-        from app.core.enums import RarityEnum
         from app.crud.item_base import get_items_by_vault
         from app.models.pet import Pet
         from app.schemas.dweller import DwellerCreate
@@ -544,7 +513,6 @@ class TestCreateInitialItems:
             assert pets[name].dweller_id is None
 
     async def test_boosted_vault_seeds_crafting_junk_from_catalog(self, async_session, vault) -> None:
-        """Boosted-vault junk rows carry their catalog type/value/prose, assigned to storage."""
         from sqlmodel import select
 
         from app.models.junk import Junk
@@ -573,7 +541,6 @@ class TestCreateInitialItems:
         assert pets == []
 
     async def test_seeded_outfits_carry_special_bonuses(self, async_session, vault) -> None:
-        """Seed outfits declare SPECIAL bonuses that flow through build_outfit."""
         from app.crud.item_base import get_items_by_vault
         from app.models.outfit import Outfit
 
@@ -590,9 +557,7 @@ class TestCreateInitialItems:
         assert (jumpsuit.charisma, jumpsuit.luck) == (1, 1)
 
 
-# ---------------------------------------------------------------------------
 # Test _create_boosted_legendary_dwellers
-# ---------------------------------------------------------------------------
 
 
 def _boosted_legendary_templates():
@@ -610,10 +575,7 @@ def _boosted_legendary_templates():
 
 
 class TestCreateBoostedLegendaryDwellers:
-    """Tests for boosted-vault legendary dweller equipment."""
-
     async def test_random_legendary_roster_uses_catalog_equipment(self) -> None:
-        """Boosted vaults get a sampled roster with each template's real catalog gear."""
         templates = _boosted_legendary_templates()
         dwellers = [
             Dweller(
@@ -664,7 +626,6 @@ class TestCreateBoostedLegendaryDwellers:
         assert all(template.weapon in weapon_names and template.outfit in outfit_names for template in candidates)
 
     async def test_legendary_roster_persists_with_catalog_special(self, async_session, vault, dweller_data) -> None:
-        """Real insert path persists sampled legendary equipment and catalog SPECIAL."""
         from app.crud.item_base import get_items_by_vault
         from app.models.outfit import Outfit
         from app.models.weapon import Weapon
@@ -695,7 +656,6 @@ class TestCreateBoostedLegendaryDwellers:
         assert all(item.rarity == RarityEnum.LEGENDARY and item.dweller_id is not None for item in outfits + weapons)
 
     async def test_roster_excludes_templates_with_missing_catalog_equipment(self) -> None:
-        """Templates missing a weapon or outfit asset are not selected for the showcase roster."""
         from app.services.catalog_service import load_outfits
 
         templates = _boosted_legendary_templates()
@@ -732,22 +692,16 @@ class TestCreateBoostedLegendaryDwellers:
         assert all(item.name != "Vault 33 suit" for item in mock_outfits.call_args.args[1])
 
 
-# ---------------------------------------------------------------------------
 # Objective assignment is delegated to objective_crud.assign_initial (CRUD layer).
 # Behavior is covered by test_crud/test_objective.py::test_assign_initial_objectives
 # and the delegation assertion in TestInitiateVault below.
-# ---------------------------------------------------------------------------
 
 
-# ---------------------------------------------------------------------------
 # Test _create_initial_items noop edge
-# ---------------------------------------------------------------------------
 # (already tested above in TestCreateInitialItems)
 
 
-# ---------------------------------------------------------------------------
 # Test transfer_medical_supplies
-# ---------------------------------------------------------------------------
 
 
 @pytest.mark.asyncio
@@ -776,10 +730,7 @@ async def test_transfer_rejects_radaway_for_visible_synth(async_session, vault: 
 
 @pytest.mark.asyncio
 class TestTransferMedicalSupplies:
-    """Tests for medical supply transfer."""
-
     async def test_no_storage_raises(self) -> None:
-        """When no storage exists, ResourceNotFoundException is raised."""
         vault_id = VAULT_ID
         vault = Vault(id=vault_id, number=1)
 
@@ -793,7 +744,6 @@ class TestTransferMedicalSupplies:
             await service.transfer_medical_supplies(db_session, vault, DWELLER_ID, stimpaks=1, radaways=0)
 
     async def test_insufficient_radaways_raises(self) -> None:
-        """When vault has fewer radaways than requested."""
         vault_id = VAULT_ID
         vault = Vault(id=vault_id, number=1)
         storage = _make_storage(vault_id=str(vault_id), stimpack=10, radaway=2)
@@ -808,7 +758,6 @@ class TestTransferMedicalSupplies:
             await service.transfer_medical_supplies(db_session, vault, DWELLER_ID, stimpaks=0, radaways=5)
 
     async def test_dweller_vault_mismatch_raises(self) -> None:
-        """When dweller belongs to different vault, AccessDeniedException."""
         from app.utils.exceptions import AccessDeniedException
 
         vault_id_a = VAULT_ID
@@ -842,7 +791,6 @@ class TestTransferMedicalSupplies:
                 await service.transfer_medical_supplies(db_session, vault, dweller_id, stimpaks=1, radaways=0)
 
     async def test_dweller_stimpack_cap_raises(self) -> None:
-        """When transfer would exceed dweller's max 15 stimpaks."""
         vault_id = VAULT_ID
         vault = Vault(id=vault_id, number=1)
         storage = _make_storage(vault_id=str(vault_id), stimpack=20, radaway=10)
@@ -871,7 +819,6 @@ class TestTransferMedicalSupplies:
                 await service.transfer_medical_supplies(db_session, vault, dweller_id, stimpaks=2, radaways=0)
 
     async def test_dweller_radaway_cap_raises(self) -> None:
-        """When transfer would exceed dweller's max 15 radaways."""
         vault_id = VAULT_ID
         vault = Vault(id=vault_id, number=1)
         storage = _make_storage(vault_id=str(vault_id), stimpack=10, radaway=20)
@@ -900,7 +847,6 @@ class TestTransferMedicalSupplies:
                 await service.transfer_medical_supplies(db_session, vault, dweller_id, stimpaks=0, radaways=3)
 
     async def test_successful_transfer(self) -> None:
-        """Happy path: supplies move from vault to dweller, storage and dweller updated."""
         vault_id = VAULT_ID
         vault = Vault(id=vault_id, number=1)
         storage = _make_storage(vault_id=str(vault_id), stimpack=20, radaway=20)
@@ -939,7 +885,6 @@ class TestTransferMedicalSupplies:
         assert result.dweller_radaways == 5  # 3 + 2
 
     async def test_transfer_success_with_nulls(self) -> None:
-        """Transfer works when Storage stimpack/radaway are None (coerced to 0)."""
         vault_id = VAULT_ID
         vault = Vault(id=vault_id, number=1)
         storage = Storage(
@@ -980,7 +925,6 @@ class TestTransferMedicalSupplies:
                 await service.transfer_medical_supplies(db_session, vault, dweller_id, stimpaks=1, radaways=0)
 
     async def test_transfer_rollback_on_error(self) -> None:
-        """If commit fails, db_session.rollback() is called."""
         vault_id = VAULT_ID
         vault = Vault(id=vault_id, number=1)
         storage = _make_storage(vault_id=str(vault_id), stimpack=20, radaway=20)
@@ -1061,18 +1005,12 @@ class TestTransferMedicalSupplies:
         db_session.rollback.assert_awaited_once()
 
 
-# ---------------------------------------------------------------------------
 # Test update_vault_resources
-# ---------------------------------------------------------------------------
 
 
 @pytest.mark.asyncio
 class TestUpdateVaultResources:
-    """Tests for update_vault_resources."""
-
     async def test_updates_resources_and_emits_events(self) -> None:
-        """Resource manager processes vault and returns updated resources + events."""
-
         vault_id = VAULT_ID
 
         new_resources = VaultUpdate(power=80, food=60, water=50)
@@ -1112,11 +1050,6 @@ class TestUpdateVaultResources:
         assert result == returned_vault
 
 
-# ---------------------------------------------------------------------------
-# Test initiate_vault
-# ---------------------------------------------------------------------------
-
-
 @pytest.mark.asyncio
 class TestInitiateVault:
     @pytest.fixture
@@ -1151,7 +1084,6 @@ class TestInitiateVault:
     """Integration-style tests for the full initiate_vault orchestration."""
 
     async def test_prepared_initial_rooms_fit_the_unit_grid(self) -> None:
-        """Standard and boosted layouts sit on unit slots with no overlaps or floating rooms."""
         game_data = await get_static_game_data()
         vault_id = uuid4()
 
@@ -1195,7 +1127,6 @@ class TestInitiateVault:
             assert elevators == [(SHAFT_X, level) for level in range(5 if is_boosted else 4)]
 
     async def test_standard_seed_omits_the_radio_studio(self) -> None:
-        """A new player builds recruitment themselves; only the boosted dev vault seeds radio."""
         game_data = await get_static_game_data()
         standard = seeding.prepare_initial_rooms(game_data.rooms, uuid4(), is_boosted=False)
         boosted = seeding.prepare_initial_rooms(game_data.rooms, uuid4(), is_boosted=True)
@@ -1227,7 +1158,6 @@ class TestInitiateVault:
             assert left.coordinate_x + left.size == right.coordinate_x
 
     async def test_boosted_housing_has_no_internal_gap_after_seeding(self, boosted_seed: SimpleNamespace) -> None:
-        """Keep the three households and their capacity without a blank room between them."""
         rooms = await crud.room.get_all_by_vault(boosted_seed.session, boosted_seed.vault.id)
         housing_floor = sorted((room for room in rooms if room.coordinate_y == 3), key=lambda room: room.coordinate_x)
         for left, right in pairwise(housing_floor):
@@ -1237,7 +1167,6 @@ class TestInitiateVault:
         assert sorted(room.capacity for room in living_rooms) == [8, 8, 28]
 
     async def test_boosted_seed_builds_one_size_six_generator_directly(self, boosted_seed: SimpleNamespace) -> None:
-        """The boosted generator is seeded at its final size-6 footprint and takes the double crew."""
         seed = boosted_seed
 
         fused_capacity = 25 * 6 * (2 + 1)  # capacity_formula 25*S*(L+1) at size 6, tier 2
@@ -1265,7 +1194,6 @@ class TestInitiateVault:
     async def test_boosted_production_workers_wear_matching_common_three_outfits(
         self, boosted_seed: SimpleNamespace
     ) -> None:
-        """Every boosted production worker is equipped the Common +3 outfit for their room stat, built via the factory."""
         seed = boosted_seed
         created, dwellers = seed.created, seed.dwellers
 
@@ -1316,8 +1244,6 @@ class TestInitiateVault:
 
 
 class TestVaultStartConfig:
-    """VaultStartConfig defaults and validation bounds (VAULT_START_* env)."""
-
     def test_defaults_and_bounds(self) -> None:
         from app.core.game_config import VaultStartConfig
 
@@ -1333,7 +1259,6 @@ class TestVaultStartConfig:
             VaultStartConfig(initial_stimpaks=-1)
 
     def test_loads_vault_start_values_from_dotenv(self, monkeypatch, tmp_path) -> None:
-        """Vault-start settings read VAULT_START_* values from the project dotenv file."""
         (tmp_path / ".env").write_text("VAULT_START_INITIAL_RESOURCE_PCT=0.8\n")
         monkeypatch.chdir(tmp_path)
         monkeypatch.delenv("VAULT_START_INITIAL_RESOURCE_PCT", raising=False)
@@ -1373,13 +1298,10 @@ def _family_texts(dweller: Dweller) -> list[str]:
 
 @pytest.mark.asyncio
 class TestSeededFamilies:
-    """Seeded households: couples, children, and family apprentices."""
-
     @pytest.mark.parametrize(("mother_race", "family_event"), [("ghoul", "Adopted"), ("human", "was born")])
     async def test_seeded_family_story_matches_conception(
         self, async_session, vault, mother_race, family_event
     ) -> None:
-        """Seeded couples keep their household with an accurate birth or adoption story."""
         from app.schemas.dweller import DwellerVisualAttributes
         from app.services.dweller_service import dweller_service
 
@@ -1413,7 +1335,6 @@ class TestSeededFamilies:
             assert any(family_event in text for text in _family_texts(updated))
 
     async def test_standard_vault_seeds_one_committed_family(self, async_session, vault) -> None:
-        """Standard vaults seed a married couple, their teen apprentice, and family lore."""
         from app.crud.relationship import relationship_crud
         from app.services.family.lineage_service import lineage_service
 
@@ -1479,7 +1400,6 @@ class TestSeededFamilies:
         )
 
     async def test_boosted_vault_seeds_three_families_in_distinct_rooms(self, async_session, vault) -> None:
-        """Boosted vaults seed three households; teens apprentice in distinct rooms, the third child stays home."""
         from app.crud.relationship import relationship_crud
 
         prod_rooms = [
@@ -1532,7 +1452,6 @@ class TestSeededFamilies:
         assert vault_after.population_max >= len(dwellers)
 
     async def test_family_child_without_production_room_stays_child(self, async_session, vault) -> None:
-        """No working parent means no apprenticeship: the child seeds as an unassigned CHILD."""
         prod_rooms = [
             await crud.room.create(
                 async_session, _seeded_room(vault.id, f"Idle Room {i}", RoomTypeEnum.PRODUCTION, None, x, 1)
@@ -1556,7 +1475,6 @@ class TestSeededFamilies:
         assert children[0].room_id is None
 
     async def test_pair_seeded_couple_applies_marriage_bonus(self, async_session, vault) -> None:
-        """Seeded couples start at the normal married happiness state."""
         from app.crud.relationship import relationship_crud
         from app.services.dweller_service import dweller_service
 

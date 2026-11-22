@@ -1,5 +1,3 @@
-"""Tests for the shared dweller availability kernel."""
-
 import pytest
 
 from app.core.enums import AgeGroupEnum, DwellerStatusEnum, GenderEnum, RarityEnum
@@ -60,7 +58,6 @@ def test_wounded_dweller_rejected_only_when_require_healthy() -> None:
 
 
 def test_require_healthy_false_accepts_zero_health_dweller() -> None:
-    """Quest assignment historically allowed health-0 dwellers; the default keeps that."""
     assert availability_error(_make_dweller(health=0)) is None
     assert is_available(_make_dweller(health=0)) is True
 
@@ -121,7 +118,6 @@ def test_children_remain_age_blocked(action: DwellerAction) -> None:
 
 
 def test_available_dweller_conditions_counts() -> None:
-
     assert len(available_dweller_conditions()) == 4
     assert len(available_dweller_conditions(require_healthy=True)) == 5
 

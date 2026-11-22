@@ -1,5 +1,3 @@
-"""Claim uniqueness, the derived bonus, and the death/recycling clearing rules."""
-
 from __future__ import annotations
 
 from types import SimpleNamespace
@@ -168,7 +166,6 @@ async def test_a_lost_claim_race_returns_false_without_touching_the_bonus(
 
 @pytest.mark.asyncio
 async def test_rolled_back_award_leaves_no_claim_or_bonus(async_session: AsyncSession, vault: Vault) -> None:
-    """A failed transaction owner leaves neither the claim nor the derived bonus behind."""
     dweller = await _finder(async_session, vault)
     vault_id, dweller_id = vault.id, dweller.id
 

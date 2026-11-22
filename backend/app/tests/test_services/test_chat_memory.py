@@ -202,7 +202,6 @@ async def test_unique_violation_is_a_skip_not_an_error(
 async def test_no_configured_model_remembers_nothing(
     async_session: AsyncSession, vault: Vault, dweller: Dweller, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Without a provider the default extractor returns [] — no live call, no error."""
     import app.services.chat.memory as memory_module
 
     monkeypatch.setattr(memory_module, "get_model", lambda: None)

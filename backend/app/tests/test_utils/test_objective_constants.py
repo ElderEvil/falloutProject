@@ -1,5 +1,3 @@
-"""Tests for objective constants and validation."""
-
 import pytest
 
 from app.utils.objective_constants import (
@@ -14,8 +12,6 @@ from app.utils.objective_constants import (
 
 
 class TestNormalizeRoomType:
-    """Tests for normalize_room_type function."""
-
     def test_normalize_invalid(self):
         assert normalize_room_type("invalid_room") is None
         assert normalize_room_type("") is None
@@ -23,8 +19,6 @@ class TestNormalizeRoomType:
 
 
 class TestValidateTargetEntity:
-    """Tests for validate_target_entity function."""
-
     def test_validate_build_room_type_valid(self):
         errors = validate_target_entity("build", {"room_type": "living_room"})
         assert errors == []
@@ -86,8 +80,6 @@ class TestValidateTargetEntity:
 
 
 class TestValidConstants:
-    """Tests that constants are properly defined."""
-
     def test_valid_room_types_not_empty(self):
         assert len(VALID_ROOM_TYPES) > 0
 

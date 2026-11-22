@@ -124,7 +124,6 @@ async def test_reading_own_user_still_works(
     async_session: AsyncSession,
     normal_user_token_headers: dict[str, str],
 ) -> None:
-    """The self-read path is unaffected by the existence-hiding pre-check."""
     me = await crud.user.get_by_email(db_session=async_session, email=settings.EMAIL_TEST_USER)
 
     response = await async_client.get(f"/users/{me.id}", headers=normal_user_token_headers)
@@ -155,9 +154,7 @@ async def test_retrieve_users(
         assert "email" in item
 
 
-# =============================================================================
 # Profile Tests (migrated from test_profile.py)
-# =============================================================================
 
 
 @pytest.mark.asyncio
@@ -165,7 +162,6 @@ async def test_update_profile_partial(
     async_client: AsyncClient,
     async_session: AsyncSession,
 ) -> None:
-    """Test partially updating profile (only bio) with isolated user."""
     # Create isolated user to avoid shared state issues
     token_headers, _ = await create_isolated_user_with_token(async_client, async_session)
 
@@ -184,7 +180,6 @@ async def test_update_profile_preferences_nested_round_trip(
     async_client: AsyncClient,
     async_session: AsyncSession,
 ) -> None:
-    """Test nested preferences dict round-trips through PUT/GET profile."""
     token_headers, _ = await create_isolated_user_with_token(async_client, async_session)
 
     # First, get the profile to ensure it exists
@@ -218,7 +213,6 @@ async def test_update_profile_bio_only_preserves_preferences(
     async_client: AsyncClient,
     async_session: AsyncSession,
 ) -> None:
-    """Test a bio-only update leaves existing preferences untouched."""
     token_headers, _ = await create_isolated_user_with_token(async_client, async_session)
 
     # First, get the profile to ensure it exists
@@ -252,7 +246,6 @@ async def test_profile_rejects_unknown_notification_category(
     async_client: AsyncClient,
     async_session: AsyncSession,
 ) -> None:
-    """Notification preferences cannot be bypassed with an arbitrary category payload."""
     token_headers, _ = await create_isolated_user_with_token(async_client, async_session)
     await async_client.get("/users/me/profile", headers=token_headers)
 
@@ -267,7 +260,6 @@ async def test_profile_rejects_unknown_notification_category(
 
 @pytest.mark.asyncio
 async def test_profile_endpoints_require_authentication(async_client: AsyncClient) -> None:
-    """Test profile endpoints reject requests without auth headers."""
     response = await async_client.get("/users/me/profile")
     assert response.status_code == 401
 
@@ -275,9 +267,7 @@ async def test_profile_endpoints_require_authentication(async_client: AsyncClien
     assert response.status_code == 401
 
 
-# =============================================================================
 # Account secret exposure / mass-assignment tests
-# =============================================================================
 
 
 @pytest.mark.asyncio
@@ -311,7 +301,6 @@ async def test_admin_update_cannot_mass_assign_verification_state(
     async_session: AsyncSession,
     superuser_token_headers: dict[str, str],
 ) -> None:
-    """An admin payload cannot flip verification state through the generic update route."""
     _, user_data = await create_isolated_user_with_token(async_client, async_session)
 
     response = await async_client.put(
@@ -331,7 +320,6 @@ async def test_update_me_applies_username_and_email_together(
     async_client: AsyncClient,
     async_session: AsyncSession,
 ) -> None:
-    """Sending username and email in one request persists both, not just the username."""
     token_headers, _ = await create_isolated_user_with_token(async_client, async_session)
     new_username = f"nyx_{uuid4().hex[:8]}"
     new_email = f"{uuid4().hex[:8]}@example.com"
@@ -359,7 +347,6 @@ async def test_update_me_rejects_passwords_outside_policy(
     async_session: AsyncSession,
     password: str,
 ) -> None:
-    """The account-update path enforces the same 8-128 password bounds as registration."""
     token_headers, _ = await create_isolated_user_with_token(async_client, async_session)
 
     response = await async_client.put(

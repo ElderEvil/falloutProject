@@ -1,5 +1,3 @@
-"""Road geometry is reproducible, connected, and preserves the existing base world."""
-
 from collections import Counter
 from itertools import pairwise, starmap
 

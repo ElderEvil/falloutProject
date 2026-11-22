@@ -1,5 +1,3 @@
-"""Tests for medical supply field migration from Vault to Storage model."""
-
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -13,8 +11,6 @@ from app.tests.factory.vaults import create_fake_vault
 
 
 class TestStorageHasMedicalFields:
-    """Storage model now owns stimpack/radaway fields."""
-
     def _check_ge(self, field, expected: int) -> None:
         """Check Ge constraint from Pydantic metadata."""
         for m in field.metadata:
@@ -32,7 +28,6 @@ class TestStorageHasMedicalFields:
         pytest.fail(f"No Le constraint found in {field.metadata}")
 
     def test_storage_base_has_stimpack_field(self) -> None:
-        """StorageBase should have stimpack field."""
         assert "stimpack" in StorageBase.model_fields, "StorageBase must have stimpack field"
         field = StorageBase.model_fields["stimpack"]
         assert field.default == 0
@@ -40,7 +35,6 @@ class TestStorageHasMedicalFields:
         self._check_le(field, 10_000)
 
     def test_storage_base_has_radaway_field(self) -> None:
-        """StorageBase should have radaway field."""
         assert "radaway" in StorageBase.model_fields, "StorageBase must have radaway field"
         field = StorageBase.model_fields["radaway"]
         assert field.default == 0
@@ -49,8 +43,6 @@ class TestStorageHasMedicalFields:
 
 
 class TestVaultNoMedicalFields:
-    """Vault model no longer has stimpack/radaway fields."""
-
     def test_vault_base_does_not_have_stimpack(self) -> None:
         """VaultBase must NOT have stimpack field (moved to Storage)."""
         assert "stimpack" not in VaultBase.model_fields, "stimpack must be removed from VaultBase"
@@ -69,7 +61,6 @@ class TestVaultNoMedicalFields:
 
 
 def test_storage_instance_medical_fields() -> None:
-    """Creating a Storage instance should accept stimpack/radaway."""
     storage = StorageBase(stimpack=5, radaway=3)
     assert storage.stimpack == 5
     assert storage.radaway == 3

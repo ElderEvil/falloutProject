@@ -34,13 +34,11 @@ async def test_resolve_dweller_loads_by_id() -> None:
 
 @pytest.mark.asyncio
 async def test_resolve_dweller_without_an_identifier_fails_fast() -> None:
-    """Neither an id nor a dweller means the caller passed nothing usable."""
     with pytest.raises(ValidationException):
         await _resolve_dweller(MagicMock(), None, None)
 
 
 def test_require_image_bytes_rejects_a_url() -> None:
-    """A URL response cannot be uploaded as file data."""
     with pytest.raises(AIProviderException):
         _require_image_bytes("https://example.test/dweller.png")
 

@@ -1,5 +1,3 @@
-"""Dweller collectibles endpoint: vault scoping and ownership."""
-
 from __future__ import annotations
 
 from uuid import UUID

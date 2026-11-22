@@ -184,8 +184,6 @@ class TestAgelessRaces:
         assert is_ageless("reptilian") is False
 
     def test_visual_vs_real_age_keeps_ghoul_birth_date(self) -> None:
-        from datetime import datetime
-
         ancient = datetime(1800, 1, 1)
         ghoul = SimpleNamespace(
             visual_attributes={"race": "ghoul", "state_of_being": "sane"},
@@ -277,7 +275,6 @@ def test_synthetic_and_mutated_races_are_radiation_immune(race: str, state: str 
 
 
 def test_gen_3_synth_accumulates_radiation_and_can_use_radaway() -> None:
-    """Gen-3 synths are organic and pass as human, so they are not radiation-immune."""
     entity = _synth("gen_3")
     assert identity_modifiers_for(entity).radiation_immune is False
     assert can_use_radaway(entity) is True
@@ -348,8 +345,6 @@ class TestGhoulRadiationImmunity:
 
 
 class TestRaceModifiers:
-    """Racial deltas and perks come from one table, not branch-by-branch code."""
-
     def test_humans_are_the_neutral_baseline(self) -> None:
         assert RACE_MODIFIERS[RaceOption.HUMAN] == RaceModifiers()
 
@@ -407,7 +402,6 @@ class TestFactionPerks:
         assert weapon_damage_pct(dweller, "energy") == pytest.approx(1.0)
 
     def test_impossible_race_faction_pair_earns_no_perk(self) -> None:
-        """Stored JSONB can bypass the write-time validator, so the pair is re-checked on read."""
         assert perks_for_faction(_dweller("synth", faction="brotherhood_of_steel")) == FactionPerks()
         assert perks_for_faction(_dweller("ghoul", faction="caesars_legion")) == FactionPerks()
         assert perks_for_faction(_dweller("human", faction="brotherhood_of_steel")) != FactionPerks()

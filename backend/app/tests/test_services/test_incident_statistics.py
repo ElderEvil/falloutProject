@@ -1,5 +1,3 @@
-"""User-profile incident counters (incident balance batch): happened, won, lost."""
-
 from datetime import datetime, timedelta
 
 import pytest
@@ -26,7 +24,6 @@ async def _profile(session: AsyncSession, vault):
 
 @pytest.mark.asyncio
 async def test_spawn_counts_a_happened_incident(async_session: AsyncSession, room_with_dwellers: dict) -> None:
-    """Spawning an incident bumps the owner's lifetime happened counter once."""
     room = room_with_dwellers["room"]
     vault = room_with_dwellers["vault"]
     await _profile(async_session, vault)
@@ -45,7 +42,6 @@ async def test_spawn_counts_a_happened_incident(async_session: AsyncSession, roo
 
 @pytest.mark.asyncio
 async def test_victory_counts_a_won_incident(async_session: AsyncSession, room_with_dwellers: dict) -> None:
-    """Resolving an incident successfully bumps the won counter, not the lost one."""
     room = room_with_dwellers["room"]
     vault_id = room_with_dwellers["vault"].id
     dwellers = room_with_dwellers["dwellers"]
@@ -62,7 +58,6 @@ async def test_victory_counts_a_won_incident(async_session: AsyncSession, room_w
 
 @pytest.mark.asyncio
 async def test_undefended_failure_counts_a_lost_incident(async_session: AsyncSession, vault) -> None:
-    """An incident that fails with nobody responding bumps the lost counter."""
     room = await empty_room(async_session, vault.id)
     await _profile(async_session, vault)
     incident = await raise_incident(async_session, room, IncidentType.RAIDER_ATTACK)
@@ -80,7 +75,6 @@ async def test_undefended_failure_counts_a_lost_incident(async_session: AsyncSes
 async def test_spread_counts_a_happened_incident(
     async_session: AsyncSession, vault, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """A spread-created incident row counts toward happened, keeping won/lost consistent."""
     from app.core.game_config import game_config
 
     monkeypatch.setattr(game_config.incident, "max_spread_count", 1)

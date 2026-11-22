@@ -30,9 +30,7 @@ from app.services.room_service import room_service
 from app.tests.test_services._hazard_team_helpers import fight, make_member, outfit_data
 from app.utils.exceptions import ResourceConflictException
 
-# ---------------------------------------------------------------------------
 # Helpers
-# ---------------------------------------------------------------------------
 
 
 def _response_station_create(vault_id: UUID, *, coordinate_x: int = 1, size: int = 3) -> RoomCreate:
@@ -184,14 +182,11 @@ async def _occupants(session: AsyncSession, room: Room) -> int:
     return await crud.dweller.count_in_room(session, room.id)
 
 
-# ---------------------------------------------------------------------------
 # Capacity follows footprint, through the real assignment path
-# ---------------------------------------------------------------------------
 
 
 @pytest.mark.asyncio
 async def test_station_size_three_holds_two_then_rejects_third(async_session: AsyncSession, rich_vault: Vault) -> None:
-    """A size-3 station allows 2 occupant slots; the 3rd assignment is rejected."""
     created = await _create_station(async_session, rich_vault.id)
     station = await crud.room.get(async_session, created.id)
     assert station.size == 3
@@ -215,7 +210,6 @@ async def test_station_size_three_holds_two_then_rejects_third(async_session: As
 async def test_station_grown_to_six_holds_four_then_rejects_fifth(
     async_session: AsyncSession, rich_vault: Vault
 ) -> None:
-    """After growing 3 -> 6 the station holds 4; the 5th assignment is rejected."""
     station = await _create_station(async_session, rich_vault.id)
 
     await _grow_station(async_session, rich_vault.id, station.id)
@@ -241,7 +235,6 @@ async def test_station_grown_to_six_holds_four_then_rejects_fifth(
 async def test_station_grows_three_six_nine_through_assignment_path(
     async_session: AsyncSession, rich_vault: Vault
 ) -> None:
-    """End-to-end 3 -> 6 -> 9: slots follow footprint and each overflow is rejected."""
     station = await _create_station(async_session, rich_vault.id)
     adults = [await _create_adult(async_session, rich_vault.id, f"Person{i}") for i in range(7)]
     assigned: list[Dweller] = []
@@ -278,9 +271,7 @@ async def test_station_grows_three_six_nine_through_assignment_path(
     await expect_overflow_rejected()
 
 
-# ---------------------------------------------------------------------------
 # Team membership is independent of room assignment
-# ---------------------------------------------------------------------------
 
 
 @pytest.mark.asyncio
@@ -306,7 +297,6 @@ async def test_assigning_dweller_to_station_creates_no_team_membership(
 async def test_station_assignment_leaves_existing_roster_and_active_places_unchanged(
     async_session: AsyncSession, rich_vault: Vault
 ) -> None:
-    """Room assignment changes neither an existing active place nor roster counts."""
     station = await _create_station(async_session, rich_vault.id)
     veteran = await _create_adult(async_session, rich_vault.id, "Veteran")
     newcomer = await _create_adult(async_session, rich_vault.id, "Newcomer")
@@ -336,7 +326,6 @@ async def test_station_assignment_leaves_existing_roster_and_active_places_uncha
 async def test_eligibility_and_active_place_do_not_depend_on_room_id(
     async_session: AsyncSession, rich_vault: Vault
 ) -> None:
-    """A roomless dweller earns and keeps an active place; assigning them keeps it."""
     incident_room = await _create_non_unique_room(async_session, rich_vault.id)
     nomad = await _create_adult(async_session, rich_vault.id, "Nomad")
     assert nomad.room_id is None

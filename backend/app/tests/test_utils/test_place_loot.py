@@ -1,5 +1,3 @@
-"""Tests for the place-loot table catalog."""
-
 import json
 
 import pytest
@@ -10,7 +8,6 @@ from app.utils.place_loot import LOOT_FILE, load_place_loot, loot_table
 
 
 def test_catalog_keeps_the_risk_tables_and_adds_themed_tables() -> None:
-    """The risk tables remain as fallbacks; themed tables carry the material filters."""
     tables = load_place_loot()["tables"]
     assert {"low", "medium", "high"} <= set(tables)
     assert {"automotive", "household", "tech", "medical", "military"} <= set(tables)
@@ -20,7 +17,6 @@ def test_catalog_keeps_the_risk_tables_and_adds_themed_tables() -> None:
 
 
 def test_every_clearable_group_loot_table_resolves() -> None:
-    """Every clearable group points at a table that exists in the catalog."""
     tables = load_place_loot()["tables"]
     for group in load_place_groups():
         if group["clearable"]:
@@ -28,7 +24,6 @@ def test_every_clearable_group_loot_table_resolves() -> None:
 
 
 def test_every_loot_entry_resolves_to_a_real_catalog_item() -> None:
-    """A valid category can still match an empty pool; catch it here, not mid-resolution."""
     for table_key, table in load_place_loot()["tables"].items():
         for entry in table["items"]:
             item = loot_calculator.roll_item(
@@ -42,7 +37,6 @@ def test_every_loot_entry_resolves_to_a_real_catalog_item() -> None:
 
 
 def test_each_themed_table_starts_with_a_single_category_signature() -> None:
-    """The first entry owns one material family, so every clear promises that material."""
     tables = load_place_loot()["tables"]
     for key in ("automotive", "household", "tech", "medical"):
         assert len(tables[key]["items"][0]["junk_types"]) == 1
@@ -102,7 +96,6 @@ def test_unknown_junk_type_filter_is_rejected(tmp_path) -> None:
 
 
 def test_category_filter_on_the_wrong_item_type_is_rejected(tmp_path) -> None:
-    """A weapon filter on an outfit entry would be silently ignored, so it fails authoring instead."""
     data = json.loads(LOOT_FILE.read_text(encoding="utf-8"))
     data["tables"]["automotive"]["items"][2]["weapon_types"] = ["gun"]
     monkeypatch = _write_loot(tmp_path, data)
@@ -139,7 +132,6 @@ def test_inverted_caps_range_is_rejected(tmp_path) -> None:
 
 
 def test_boolean_cap_is_rejected(tmp_path) -> None:
-    """A bool is an int in Python, but a boolean cap is an authoring error, not 1/0."""
     data = json.loads(LOOT_FILE.read_text(encoding="utf-8"))
     data["tables"]["low"]["caps"] = {"min": True, "max": 10}
     monkeypatch = _write_loot(tmp_path, data)

@@ -1,5 +1,3 @@
-"""Additional tests for RewardService — uncovered paths."""
-
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import UUID
 
@@ -66,7 +64,6 @@ async def test_grant_item_supported_generic_type_creates_item(
 
 @pytest.mark.asyncio
 async def test_grant_item_pet_creates_pet_row(async_session: AsyncSession) -> None:
-    """A pet reward mints a dedicated Pet row (not an inert generic Item), with art resolved."""
     from app.models.pet import Pet
 
     user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
@@ -90,7 +87,6 @@ async def test_grant_item_pet_creates_pet_row(async_session: AsyncSession) -> No
 
 @pytest.mark.asyncio
 async def test_grant_item_infers_pet_from_name(async_session: AsyncSession) -> None:
-    """A recognized pet name infers item_type='pet' and mints a Pet row without an explicit type."""
     from app.models.pet import Pet
 
     user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
@@ -112,7 +108,6 @@ async def test_grant_item_infers_pet_from_name(async_session: AsyncSession) -> N
 
 
 def test_infer_item_type_recognizes_mapped_pet_names() -> None:
-    """Pet inference keys off the mapped pet names and leaves existing categories untouched."""
     from app.schemas.quest import infer_item_type
 
     assert infer_item_type("German Shepherd") == "pet"
@@ -131,7 +126,6 @@ async def test_grant_item_medication_credits_dweller_stock(
     async_session: AsyncSession, item_name: str, stock_field: str, reward_type: RewardType
 ) -> None:
     """ITEM-type medication must land in dweller stock, not as inert generic rows."""
-    from app.schemas.dweller import DwellerCreate
 
     user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
     vault = await crud.vault.create(
@@ -269,7 +263,6 @@ async def test_grant_item_legendary_dweller_uses_canonical_template(async_sessio
 async def test_grant_item_legendary_dweller_exhausted_pool_keeps_canonical_name(
     async_session: AsyncSession,
 ) -> None:
-    """Exhausted legendary pool still grants a canonical name, not 'Legendary Dweller'."""
     from app.utils.static_data import game_data_store
 
     user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
@@ -389,9 +382,6 @@ async def test_prepare_template_dweller_clamps_level_override(async_session: Asy
 @pytest.mark.asyncio
 async def test_prepare_template_dweller_unknown_id_raises_404(async_session: AsyncSession) -> None:
     """An unknown template id raises the 404 guard, not a TypeError from the constructor."""
-    import pytest
-
-    from app.utils.exceptions import ResourceNotFoundException
 
     user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
     vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id))
@@ -404,11 +394,6 @@ async def test_prepare_template_dweller_unknown_id_raises_404(async_session: Asy
 
 @pytest.mark.asyncio
 async def test_grant_dweller_unknown_template_raises_404(async_session: AsyncSession) -> None:
-    """A reward claim referencing a removed template answers 404, not a ValueError."""
-    import pytest
-
-    from app.utils.exceptions import ResourceNotFoundException
-
     user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
     vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id))
 
@@ -451,7 +436,6 @@ async def test_grant_dweller_item_uses_reward_name(async_session: AsyncSession) 
 
 @pytest.mark.asyncio
 async def test_grant_resource_water(async_session: AsyncSession) -> None:
-    """Test granting water resource."""
     user_data = create_fake_user()
     user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))
     vault_data = create_fake_vault()
@@ -473,7 +457,6 @@ async def test_grant_resource_water(async_session: AsyncSession) -> None:
 
 @pytest.mark.asyncio
 async def test_grant_resource_power(async_session: AsyncSession) -> None:
-    """Test granting power resource."""
     user_data = create_fake_user()
     user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))
     vault_data = create_fake_vault()
@@ -492,7 +475,6 @@ async def test_grant_resource_power(async_session: AsyncSession) -> None:
 
 @pytest.mark.asyncio
 async def test_grant_resource_caps_at_max(async_session: AsyncSession) -> None:
-    """Test that resource grant respects max cap."""
     user_data = create_fake_user()
     user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))
     vault_data = create_fake_vault()
@@ -510,9 +492,6 @@ async def test_grant_resource_caps_at_max(async_session: AsyncSession) -> None:
 
 @pytest.mark.asyncio
 async def test_grant_experience_level_up(async_session: AsyncSession) -> None:
-    """Test granting experience that causes level up."""
-    from app.schemas.dweller import DwellerCreate
-
     user_data = create_fake_user()
     user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))
     vault_data = create_fake_vault()
@@ -550,7 +529,6 @@ async def test_grant_experience_level_up(async_session: AsyncSession) -> None:
 
 @pytest.mark.asyncio
 async def test_grant_stimpak_no_dwellers(async_session: AsyncSession) -> None:
-    """Test granting stimpaks when no dwellers exist."""
     user_data = create_fake_user()
     user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))
     vault_data = create_fake_vault()
@@ -565,9 +543,6 @@ async def test_grant_stimpak_no_dwellers(async_session: AsyncSession) -> None:
 
 @pytest.mark.asyncio
 async def test_grant_radaway_success(async_session: AsyncSession) -> None:
-    """Test granting radaways to a dweller."""
-    from app.schemas.dweller import DwellerCreate
-
     user_data = create_fake_user()
     user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))
     vault_data = create_fake_vault()
@@ -622,7 +597,6 @@ async def test_radaway_reward_goes_to_storage_when_vault_has_only_nonhumans(
 
 @pytest.mark.asyncio
 async def test_grant_lunchbox(async_session: AsyncSession) -> None:
-    """Granting a lunchbox reward mints one unopened Item; nothing auto-rolls."""
     user_data = create_fake_user()
     user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))
     vault_data = create_fake_vault()
@@ -662,7 +636,6 @@ def test_parse_objective_reward_lunchbox() -> None:
 
 @pytest.mark.asyncio
 async def test_lunchbox_roll_is_catalog_backed(async_session: AsyncSession) -> None:
-    """Every lunchbox roll is a real catalog row whose rarity matches the rolled tier."""
     from app.services import catalog_service as data_loader
 
     user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
@@ -685,7 +658,6 @@ async def test_lunchbox_roll_is_catalog_backed(async_session: AsyncSession) -> N
 
 @pytest.mark.asyncio
 async def test_grant_item_outfit_uses_catalog_stats(async_session: AsyncSession) -> None:
-    """Objective/quest gear resolves through the catalog instead of a zero-SPECIAL default row."""
     from app.services import catalog_service as data_loader
 
     user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
@@ -730,7 +702,6 @@ async def test_process_quest_rewards_empty(async_session: AsyncSession) -> None:
 
 @pytest.mark.asyncio
 async def test_process_quest_rewards_multiple(async_session: AsyncSession) -> None:
-    """Test processing quest with multiple rewards."""
     quest = Quest(
         title="Multi Reward Quest",
         short_description="Test",
@@ -777,7 +748,6 @@ async def test_process_quest_rewards_multiple(async_session: AsyncSession) -> No
         "luck": 5,
         "vault_id": vault.id,
     }
-    from app.schemas.dweller import DwellerCreate
 
     await crud.dweller.create(async_session, obj_in=DwellerCreate(**dweller_in))
 
@@ -792,7 +762,6 @@ async def test_process_quest_rewards_multiple(async_session: AsyncSession) -> No
 
 
 def test_parse_starter_resident_reward_returns_profile() -> None:
-    """Named starter rewards carry their curated name, bio, and appearance."""
     reward_type, reward_data = settlement._parse_objective_reward("dweller:Juno Pike")
 
     assert reward_type == RewardType.DWELLER
@@ -848,7 +817,6 @@ async def test_starter_resident_reward_creates_named_dweller(async_session: Asyn
     ],
 )
 def test_parse_objective_reward(reward_str: str, expected_type: RewardType, expected_data: dict[str, object]) -> None:
-    """_parse_objective_reward splits a reward string into its type and payload."""
     reward_type, reward_data = settlement._parse_objective_reward(reward_str)
 
     assert reward_type == expected_type
@@ -857,9 +825,6 @@ def test_parse_objective_reward(reward_str: str, expected_type: RewardType, expe
 
 @pytest.mark.asyncio
 async def test_process_single_reward_experience(async_session: AsyncSession) -> None:
-    """Test _process_single_reward routes experience correctly."""
-    from app.schemas.dweller import DwellerCreate
-
     user_data = create_fake_user()
     user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))
     vault_data = create_fake_vault()
@@ -899,7 +864,6 @@ async def test_process_single_reward_experience(async_session: AsyncSession) -> 
 
 @pytest.mark.asyncio
 async def test_process_single_reward_unknown_type_raises(async_session: AsyncSession) -> None:
-    """Test _process_single_reward raises on unknown type."""
     with pytest.raises(ValueError, match="Unknown reward type"):
         await settlement._process_single_reward(async_session, "fake-vault-id", "unknown_type", {})
 
@@ -916,7 +880,6 @@ async def test_process_single_reward_unknown_type_raises(async_session: AsyncSes
 async def test_process_objective_reward(
     async_session: AsyncSession, reward_str: str, expected: dict[str, object]
 ) -> None:
-    """process_objective_reward settles the objective's parsed reward for the vault."""
     from app.core.enums import ObjectiveCategoryEnum
     from app.crud.objective import objective_crud
     from app.models.vault_objective import VaultObjectiveProgressLink
@@ -951,7 +914,6 @@ async def test_process_objective_reward(
 
 @pytest.mark.asyncio
 async def test_template_reservation_conflict_grants_fallback(async_session: AsyncSession) -> None:
-    """A template already active in the vault reserves the slot: second grant falls back to common."""
     user_data = create_fake_user()
     user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))
     vault_data = create_fake_vault()
@@ -973,9 +935,6 @@ async def test_template_reservation_conflict_grants_fallback(async_session: Asyn
 
 @pytest.mark.asyncio
 async def test_lunchbox_template_picks_are_distinct(async_session: AsyncSession) -> None:
-    """Concurrent-eligible lunchbox openings pick distinct templates instead of a COMMON fallback."""
-    from uuid import UUID
-
     from app.utils.static_data import game_data_store
 
     user_data = create_fake_user()
@@ -1015,7 +974,6 @@ async def _vault_at_capacity(async_session: AsyncSession):
 
 @pytest.mark.asyncio
 async def test_dweller_reward_at_capacity_is_refused(async_session: AsyncSession) -> None:
-    """A quest/objective dweller reward is refused at the cap, leaving the vault unchanged."""
     vault = await _vault_at_capacity(async_session)
 
     with pytest.raises(ResourceConflictException, match="population capacity"):
@@ -1028,7 +986,6 @@ async def test_dweller_reward_at_capacity_is_refused(async_session: AsyncSession
 
 @pytest.mark.asyncio
 async def test_item_to_dweller_reward_at_capacity_is_refused(async_session: AsyncSession) -> None:
-    """A dweller item reward is refused at the cap."""
     vault = await _vault_at_capacity(async_session)
 
     with pytest.raises(ResourceConflictException, match="population capacity"):
@@ -1041,7 +998,6 @@ async def test_item_to_dweller_reward_at_capacity_is_refused(async_session: Asyn
 
 @pytest.mark.asyncio
 async def test_lunchbox_dweller_at_capacity_is_refused_and_box_kept(async_session: AsyncSession) -> None:
-    """Opening a lunchbox at the cap is refused and the box survives the rollback."""
     vault = await _vault_at_capacity(async_session)
     vault_id = vault.id
     async_session.add(Storage(vault_id=vault_id, max_space=100))
@@ -1058,7 +1014,6 @@ async def test_lunchbox_dweller_at_capacity_is_refused_and_box_kept(async_sessio
 
 
 def test_reward_junk_uses_data_supplied_type_value_prose_and_art() -> None:
-    """Migrated _build_junk forwards reward-data fields into the factory row unchanged."""
     from uuid import uuid4
 
     from app.core.enums import JunkTypeEnum
@@ -1084,7 +1039,6 @@ def test_reward_junk_uses_data_supplied_type_value_prose_and_art() -> None:
 
 
 def test_reward_junk_falls_back_to_valuables_and_name_keyed_art() -> None:
-    """Absent reward data keeps the exploration default: valuables, name-keyed art, rarity value."""
     from uuid import uuid4
 
     from app.core.enums import JunkTypeEnum
@@ -1101,7 +1055,6 @@ def test_reward_junk_falls_back_to_valuables_and_name_keyed_art() -> None:
 
 @pytest.mark.asyncio
 async def test_grant_item_nuka_cola_succeeds_with_full_storage(async_session: AsyncSession) -> None:
-    """Nuka-Cola bottles occupy no slot: they land even at zero available space."""
     user_data = create_fake_user()
     user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))
     vault_data = create_fake_vault()
@@ -1134,7 +1087,6 @@ async def test_grant_item_nuka_cola_succeeds_with_full_storage(async_session: As
 
 @pytest.mark.asyncio
 async def test_grant_item_full_storage_still_rejects_counted_items(async_session: AsyncSession) -> None:
-    """Non-space-free rewards keep failing the capacity check in a full vault."""
     user_data = create_fake_user()
     user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))
     vault_data = create_fake_vault()

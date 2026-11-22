@@ -1,5 +1,3 @@
-"""AI endpoints require a verified email address; chat stays available to everyone."""
-
 from unittest.mock import MagicMock
 from uuid import uuid4
 
@@ -36,7 +34,6 @@ async def test_ai_endpoints_reject_unverified_users(
     params: dict[str, str],
     json_body: dict | None,
 ) -> None:
-    """Every player-facing AI route answers 403 before touching a dweller or a provider."""
     headers, _ = await create_isolated_user_with_token(async_client, async_session)
 
     response = await async_client.post(

@@ -1,5 +1,3 @@
-"""Tests for map API endpoints."""
-
 import random
 from uuid import uuid4
 
@@ -17,14 +15,10 @@ from app.services.dweller_service import dweller_service
 from app.services.map_service import map_service
 from app.tests.utils.utils import get_gender_based_name
 
-# ------------------------------------------------------------------
 # helpers
-# ------------------------------------------------------------------
 
 
-# ------------------------------------------------------------------
 # happy path
-# ------------------------------------------------------------------
 
 
 @pytest.mark.asyncio
@@ -35,7 +29,6 @@ async def test_get_vault_map_includes_bio_places(
     vault: Vault,
     dweller: Dweller,
 ) -> None:
-    """After registering bio places, GET /map returns the location with dwellers populated."""
     await map_service.register_bio_places(
         async_session,
         dweller,
@@ -85,7 +78,6 @@ async def test_get_vault_map_includes_discoverable_player_vaults(
     superuser_token_headers: dict[str, str],
     vault: Vault,
 ) -> None:
-    """A vault's slot is exposed on the map so other players can discover it."""
     await vault_slot.claim_next(db_session=async_session, vault_id=vault.id)
     await async_session.commit()
 
@@ -107,7 +99,6 @@ async def test_get_location_detail_with_dwellers(
     vault: Vault,
     dweller: Dweller,
 ) -> None:
-    """GET /map/vault/{vault_id}/locations/{location_id} returns linked dweller refs."""
     await map_service.register_bio_places(
         async_session,
         dweller,
@@ -140,14 +131,10 @@ async def test_get_location_detail_with_dwellers(
     assert ref["relation"] == DwellerLocationRelationEnum.ORIGIN
 
 
-# ------------------------------------------------------------------
 # failures
-# ------------------------------------------------------------------
 
 
-# ------------------------------------------------------------------
 # OpenAPI schema assertion
-# ------------------------------------------------------------------
 
 
 @pytest.mark.asyncio

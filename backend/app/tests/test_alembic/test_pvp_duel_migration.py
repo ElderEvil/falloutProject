@@ -1,5 +1,3 @@
-"""pvpduel migration: single head, columns, composite expiry index, VARCHAR status."""
-
 from __future__ import annotations
 
 import importlib.util

@@ -85,25 +85,21 @@ class TestResourceManager:
     def test_check_resource_warnings(self):
         vault = Vault(power_max=100, food_max=100, water_max=100)
 
-        # Test normal levels
         resources = {"power": 50.0, "food": 50.0, "water": 50.0}
         warnings = get_resource_warnings(vault, resources)
         assert len(warnings) == 0
 
-        # Test low power (19%)
         resources = {"power": 19.0, "food": 50.0, "water": 50.0}
         warnings = get_resource_warnings(vault, resources)
         assert len(warnings) == 1
         assert isinstance(warnings[0], ResourceLevelWarning)
         assert warnings[0].type == "low_power"
 
-        # Test critical power (4%)
         resources = {"power": 4.0, "food": 50.0, "water": 50.0}
         warnings = get_resource_warnings(vault, resources)
         assert len(warnings) == 1
         assert warnings[0].type == "critical_power"
 
-        # Test multiple warnings
         resources = {"power": 4.0, "food": 19.0, "water": 50.0}
         warnings = get_resource_warnings(vault, resources)
         assert len(warnings) == 2
@@ -198,7 +194,6 @@ class TestResourceManager:
 
     @pytest.mark.asyncio
     async def test_production_events_emit_one_batched_event(self, vault: Vault) -> None:
-        """Every positive production amount rides one event; zero amounts are dropped."""
         events = ResourceTickEvents(
             production=ResourceProduction(power=12.4, food=0.0, water=3.6, stimpack=1.0, radaway=0.0)
         )
@@ -222,7 +217,6 @@ class TestResourceManager:
 
     @pytest.mark.asyncio
     async def test_junior_worker_assists_production_at_the_reduced_rate(self):
-        """A youth posted to a production room adds production at the junior reduced rate."""
         from app.core.enums import AgeGroupEnum
 
         manager = ResourceManager()
@@ -253,7 +247,6 @@ STARTER_ROOM_OUTPUT = 28  # catalog output (2*S*(L+4))-2 at tier 1, size 3
 
 
 def test_base_production_rate_default_matches_resource_economy_baseline() -> None:
-    """The shipped default reproduces the documented per-tick starts across staffing states."""
     assert game_config.resource.base_production_rate == pytest.approx(0.0012)
 
 
@@ -268,7 +261,6 @@ def test_base_production_rate_default_matches_resource_economy_baseline() -> Non
 def test_starter_vault_meets_resource_economy_baseline_contract(
     workers_per_room: int, expected_net_per_tick: dict[str, int]
 ) -> None:
-    """The simulator's three-production-room model at the shipped rate (live all-room draw lives in §10)."""
     result = simulate(
         ResourceEconomyConfig(
             population=9,
@@ -349,7 +341,6 @@ async def test_live_tick_matches_offline_kernel_production_at_default_rate(vault
 
 
 def test_offline_window_matches_per_tick_fractional_carry() -> None:
-    """Catch-up and minute ticks share the same fractional stock kernel."""
     from app.cli.simulate_resources import _build_scenario
 
     cfg = ResourceEconomyConfig(
@@ -414,7 +405,6 @@ def _outfitted_workers(stat: str, count: int) -> list[Dweller]:
 
 @pytest.mark.asyncio
 async def test_seeded_standard_vault_live_power_survives_when_staffed_and_deficits_unstaffed() -> None:
-    """The full seeded draw, not the simulator's three rooms, is the live starter tripwire (§10)."""
     from uuid import uuid4
 
     from app.core.game_data import get_static_game_data
@@ -428,7 +418,6 @@ async def test_seeded_standard_vault_live_power_survives_when_staffed_and_defici
 
 @pytest.mark.asyncio
 async def test_seeded_boosted_vault_size_six_generator_keeps_live_power_positive_with_margin() -> None:
-    """The seeded size-6 generator's outfitted double crew nets a large margin; a deep shed still flips negative."""
     from uuid import uuid4
 
     from app.core.game_data import get_static_game_data
@@ -453,7 +442,6 @@ async def test_seeded_boosted_vault_size_six_generator_keeps_live_power_positive
 
 @pytest.mark.asyncio
 async def test_seeded_boosted_diner_outfitted_crew_keeps_live_food_positive() -> None:
-    """The diner's two outfitted AGI workers plus the seeded teen out-produce the boosted food draw."""
     from uuid import uuid4
 
     from app.core.game_data import get_static_game_data

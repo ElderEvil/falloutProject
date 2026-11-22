@@ -145,7 +145,6 @@ async def test_cleanup_notifications_respects_read_unread_and_dismissed_retentio
     async_session: AsyncSession,
     user_with_vault: tuple[User, Vault],
 ) -> None:
-    """Read/dismissed rows use the short window; untouched unread rows use the long one."""
     user, vault = user_with_vault
 
     old_read = _notification(user, vault, created_days_ago=40, is_read=True, is_dismissed=False)
@@ -183,7 +182,6 @@ async def test_cleanup_notifications_batches_expired_rows(
     async_session: AsyncSession,
     user_with_vault: tuple[User, Vault],
 ) -> None:
-    """The CRUD limit bounds each pass and the service loops until the backlog is gone."""
     user, vault = user_with_vault
     expired = [_notification(user, vault, created_days_ago=40, is_read=True, is_dismissed=False) for _ in range(5)]
     async_session.add_all(expired)
@@ -214,7 +212,6 @@ async def test_cleanup_prunes_the_incidents_responder_team(
     async_session: AsyncSession,
     room_with_dwellers: dict[str, object],
 ) -> None:
-    """Deleting an incident cascades to its roster, so incident teams cannot accumulate."""
     room = cast("Room", room_with_dwellers["room"])
     dwellers = cast("list", room_with_dwellers["dwellers"])
 

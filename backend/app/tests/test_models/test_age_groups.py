@@ -17,7 +17,6 @@ def _dweller(age_group: AgeGroupEnum) -> Dweller:
 
 
 def test_adult_age_groups_covers_adults_and_elders_only() -> None:
-    """Elders are grown-ups; children and teens are excluded."""
     assert {AgeGroupEnum.ADULT, AgeGroupEnum.ELDER} == ADULT_AGE_GROUPS
 
 
@@ -31,10 +30,8 @@ def test_adult_age_groups_covers_adults_and_elders_only() -> None:
     ],
 )
 def test_is_mature_follows_age_group(age_group: AgeGroupEnum, expected: bool) -> None:
-    """Work, combat and exploration eligibility includes elders."""
     assert _dweller(age_group).is_mature is expected
 
 
 def test_elder_is_a_valid_age_group_value() -> None:
-    """The enum member round-trips from its persisted value."""
     assert AgeGroupEnum("elder") is AgeGroupEnum.ELDER

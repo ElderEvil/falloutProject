@@ -57,7 +57,6 @@ async def _equip_strength_outfit(async_session, dweller_id, *, strength: int = 5
 
 @pytest.mark.asyncio
 async def test_equipped_outfit_raises_combat_power(async_session, vault) -> None:
-    """A +5 S outfit raises combat_power by 5 x the unarmed strength weight."""
     dweller = await _create_dweller(async_session, vault)
     base_power = combat_power(dweller)
 
@@ -70,7 +69,6 @@ async def test_equipped_outfit_raises_combat_power(async_session, vault) -> None
 
 @pytest.mark.asyncio
 async def test_outfit_bonus_reaches_production_rate(async_session, vault) -> None:
-    """Production (the real effective_stat consumer) scales with the outfit bonus."""
     dweller = await _create_dweller(async_session, vault)
     room = Room(
         name="Power Generator",
@@ -91,7 +89,6 @@ async def test_outfit_bonus_reaches_production_rate(async_session, vault) -> Non
 
 @pytest.mark.asyncio
 async def test_equipping_never_writes_the_stored_stat(async_session, vault) -> None:
-    """The bonus is effective-only: the stored SPECIAL stays the trained value."""
     dweller = await _create_dweller(async_session, vault)
     assert dweller.strength == 10
 

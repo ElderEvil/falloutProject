@@ -25,7 +25,6 @@ class TestAIUsageSchemas:
         assert op.total_tokens == 5
 
     def test_ai_usage_response_defaults_are_backward_compatible(self):
-        """Old payloads without by_operation/chat_heavy (cached JSON) still validate."""
         data = {
             "all_time": {"prompt_tokens": 100, "completion_tokens": 50, "total_tokens": 150},
             "current_month": {"prompt_tokens": 10, "completion_tokens": 5, "total_tokens": 15},

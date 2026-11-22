@@ -1,5 +1,3 @@
-"""Tests for DwellerAssignmentService — unit tests with mocked DB."""
-
 import uuid
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import UUID
@@ -19,9 +17,7 @@ from app.services.dweller_assignment_service import (
     DwellerAssignmentService,
 )
 
-# ---------------------------------------------------------------------------
 # Stable UUIDs for deterministic test IDs
-# ---------------------------------------------------------------------------
 
 _D1 = uuid.UUID("15a0766e-8c61-4e42-a7bb-fed34ed0a7ee")
 _D2 = uuid.UUID("e5cf820c-e7e6-4e4a-95f0-c12a9f96984a")
@@ -44,9 +40,7 @@ _R_RADIO = uuid.UUID("d78c2ead-faef-4c77-b4d5-37094526be31")
 _R_CRAFT = uuid.UUID("5f2a1c3e-9b4d-4e6f-8a1b-2c3d4e5f6a7b")
 
 
-# ---------------------------------------------------------------------------
 # Helpers
-# ---------------------------------------------------------------------------
 
 
 def _make_dweller(
@@ -114,9 +108,7 @@ def _make_exec_result(items: list) -> MagicMock:
     return mock_result
 
 
-# ---------------------------------------------------------------------------
 # Fixtures
-# ---------------------------------------------------------------------------
 
 
 @pytest.fixture
@@ -131,39 +123,25 @@ def mock_db() -> AsyncMock:
     return AsyncMock(spec=AsyncSession)
 
 
-# ===================================================================
 # _calculate_room_capacity
-# ===================================================================
 
 
-# ===================================================================
 # _filter_rooms_by_abilities
-# ===================================================================
 
 
-# ===================================================================
 # _get_available_slots
-# ===================================================================
 
 
-# ===================================================================
 # _assign_dweller_to_room
-# ===================================================================
 
 
-# ===================================================================
 # _calculate_total_slots
-# ===================================================================
 
 
-# ===================================================================
 # _assign_ability_dwellers
-# ===================================================================
 
 
 class TestAssignAbilityDwellers:
-    """Tests for _assign_ability_dwellers."""
-
     @pytest.mark.asyncio
     async def test_no_ability_specific_rooms_returns_unchanged(self, svc, mock_db):
         r1 = _make_room(_id=_R1, ability=SPECIALEnum.AGILITY)
@@ -215,14 +193,10 @@ class TestAssignAbilityDwellers:
         mock_start_training.assert_not_awaited()
 
 
-# ===================================================================
 # _assign_to_rooms_proportional
-# ===================================================================
 
 
 class TestAssignToRoomsProportional:
-    """Tests for _assign_to_rooms_proportional."""
-
     @pytest.mark.asyncio
     async def test_no_matching_ability_rooms_returns_unchanged(self, svc, mock_db):
         r1 = _make_room(_id=_R1, ability=SPECIALEnum.CHARISMA)
@@ -243,14 +217,10 @@ class TestAssignToRoomsProportional:
         assert len(result) == 1
 
 
-# ===================================================================
 # unassign_all_dwellers
-# ===================================================================
 
 
 class TestUnassignAllDwellers:
-    """Tests for unassign_all_dwellers."""
-
     @pytest.mark.asyncio
     async def test_updates_to_idle_status(self, svc, mock_db):
         d = _make_dweller(_id=_D1, room_id=_R1)
@@ -274,14 +244,10 @@ class TestUnassignAllDwellers:
         assert update_schema.status == DwellerStatusEnum.IDLE
 
 
-# ===================================================================
 # auto_assign_production_rooms
-# ===================================================================
 
 
 class TestAutoAssignProductionRooms:
-    """Tests for auto_assign_production_rooms."""
-
     @pytest.mark.asyncio
     async def test_apprentice_does_not_consume_production_worker_capacity(self, svc, mock_db):
         room = _make_room(_id=_R_STR, ability=SPECIALEnum.STRENGTH, size=3)  # 2 worker slots
@@ -568,7 +534,6 @@ class TestAutoAssignProductionRooms:
 
     @pytest.mark.asyncio
     async def test_respects_ability_priority_order(self, svc, mock_db):
-        """Strength rooms filled first, even if dweller has higher agility."""
         r_str = _make_room(_id=_R_STR, ability=SPECIALEnum.STRENGTH, size=3)
         r_agi = _make_room(_id=_R_AGI, ability=SPECIALEnum.AGILITY, size=3)
 
@@ -606,14 +571,10 @@ class TestAutoAssignProductionRooms:
         assert update_schema.room_id == _R_STR  # assigned to first-priority room
 
 
-# ===================================================================
 # auto_assign_training_rooms
-# ===================================================================
 
 
 class TestAutoAssignTrainingRooms:
-    """Tests for auto_assign_training_rooms."""
-
     @pytest.mark.asyncio
     async def test_assigns_lowest_eligible_stat_first(self, svc, mock_db):
         room = _make_room(
@@ -689,14 +650,10 @@ class TestAutoAssignTrainingRooms:
         assert [call.args[1] for call in mock_start_training.await_args_list] == [_D2]
 
 
-# ===================================================================
 # _total_special
-# ===================================================================
 
 
 class TestTotalSpecial:
-    """Tests for the _total_special static helper."""
-
     def test_sums_all_seven_stats(self):
         d = _make_dweller(
             _id=_D1,
@@ -716,14 +673,10 @@ class TestTotalSpecial:
         assert DwellerAssignmentService._total_special(d) == 30  # 5 * 6 remaining stats
 
 
-# ===================================================================
 # auto_assign_crafting_rooms
-# ===================================================================
 
 
 class TestAutoAssignCraftingRooms:
-    """Tests for auto_assign_crafting_rooms."""
-
     @pytest.mark.asyncio
     async def test_fills_crafting_rooms_by_descending_total_special(self, svc, mock_db):
         room = _make_room(_id=_R_CRAFT, category=RoomTypeEnum.CRAFTING, ability=None, size=9)
@@ -774,7 +727,6 @@ class TestAutoAssignCraftingRooms:
 
     @pytest.mark.asyncio
     async def test_skips_dwellers_ineligible_for_work(self, svc, mock_db):
-        """Feral dwellers are not posted to crafting rooms."""
         room = _make_room(_id=_R_CRAFT, category=RoomTypeEnum.CRAFTING, ability=None, size=9)
         feral = _make_dweller(_id=_D1)
         feral.visual_attributes = {"race": "ghoul", "state_of_being": "feral"}
@@ -805,7 +757,6 @@ class TestAutoAssignCraftingRooms:
 
     @pytest.mark.asyncio
     async def test_crafting_room_capacity_respected(self, svc, mock_db):
-        """Crafting room size 9 → 6 slots; only 6 of 8 dwellers assigned."""
         room = _make_room(_id=_R_CRAFT, category=RoomTypeEnum.CRAFTING, ability=None, size=9)
         dwellers = [
             _make_dweller(
@@ -874,7 +825,6 @@ class TestAutoAssignCraftingRooms:
 
     @pytest.mark.asyncio
     async def test_no_apprentice_pass_for_crafting(self, svc, mock_db):
-        """Crafting auto-assign is adult-only: no youth apprentice pass runs."""
         room = _make_room(_id=_R_CRAFT, category=RoomTypeEnum.CRAFTING, ability=None, size=9)
         adult = _make_dweller(
             _id=_D1,
@@ -915,17 +865,12 @@ class TestAutoAssignCraftingRooms:
         mock_youth.assert_not_awaited()
 
 
-# ===================================================================
 # auto_assign_all_rooms
-# ===================================================================
 
 
 class TestAutoAssignAllRooms:
-    """Tests for auto_assign_all_rooms."""
-
     @pytest.mark.asyncio
     async def test_unassigned_dwellers_cascade_across_tiers(self, svc, mock_db):
-        """Dwellers not assigned in earlier tiers flow to later tiers."""
         r_prod = _make_room(_id=_R1, category=RoomTypeEnum.PRODUCTION, ability=SPECIALEnum.STRENGTH, size=3)
         r_train = _make_room(_id=_R2, category=RoomTypeEnum.TRAINING, ability=SPECIALEnum.STRENGTH, size=3)
         d1 = _make_dweller(_id=_D1, strength=5)
@@ -960,7 +905,6 @@ class TestAutoAssignAllRooms:
 
     @pytest.mark.asyncio
     async def test_crafting_rooms_filled_after_training_tier(self, svc, mock_db):
-        """Dwellers left over from earlier tiers flow into crafting rooms."""
         r_craft = _make_room(_id=_R_CRAFT, category=RoomTypeEnum.CRAFTING, ability=None, size=9)
         d1 = _make_dweller(
             _id=_D1,
@@ -1009,14 +953,10 @@ class TestAutoAssignAllRooms:
         mock_update.assert_called_once()
 
 
-# ===================================================================
 # Module-level constants
-# ===================================================================
 
 
 class TestModuleConstants:
-    """Verify the module-level constants are correct."""
-
     def test_ability_to_stat_map_coverage(self):
         for stat in SPECIALEnum:
             assert stat in ABILITY_TO_STAT_MAP
@@ -1039,14 +979,10 @@ class TestModuleConstants:
         assert set(TRAINING_ABILITIES) == set(SPECIALEnum)
 
 
-# ===================================================================
 # Singleton
-# ===================================================================
 
 
 class TestServiceSingleton:
-    """Verify the singleton instance at module level."""
-
     def test_singleton_exists(self):
         from app.services.dweller_assignment_service import dweller_assignment_service
 

@@ -1,5 +1,3 @@
-"""Tests for storage counting semantics."""
-
 import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -10,7 +8,6 @@ from app.models.item import Item
 
 @pytest.mark.asyncio
 async def test_count_items_excludes_nuka_consumables(async_session: AsyncSession, vault) -> None:
-    """Nuka-cola consumables are space-free; every other item still counts."""
     storage = await crud.vault.create_storage(db_session=async_session, vault_id=vault.id)
 
     for name in ("Nuka-Cola Quantum", "nuka-cola", "Stimpak"):

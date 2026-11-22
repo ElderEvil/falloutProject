@@ -18,7 +18,6 @@ from app.utils.narration_keys import ELEVENLABS_VOICES, narration_cache_key
 
 
 def test_runtime_and_generator_produce_identical_keys() -> None:
-    """Runtime _cache_key and narration_cache_key agree for the same inputs."""
     text, voice = "Hello, dweller.", "echo"
     assert dweller_ai._cache_key(text, voice) == narration_cache_key(text, voice)
 
@@ -81,7 +80,6 @@ def test_generator_rejects_unknown_voice_type() -> None:
 
 
 def test_shared_helper_matches_runtime_cache_key_for_all_voices() -> None:
-    """Key shape and stability: 16 hex chars under pa/, deterministic on re-run."""
     first = narration_cache_key("some line", "echo")
     second = narration_cache_key("some line", "echo")
     assert first == second

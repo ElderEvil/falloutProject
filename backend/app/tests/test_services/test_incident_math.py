@@ -1,5 +1,3 @@
-"""Incident math helpers used by the per-attack journal."""
-
 import pytest
 
 from app.core.enums import IncidentType

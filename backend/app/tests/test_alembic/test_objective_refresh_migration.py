@@ -1,5 +1,3 @@
-"""Existing assignments are adopted for the current UTC periods on deployment."""
-
 import importlib.util
 from datetime import datetime, timedelta
 from pathlib import Path

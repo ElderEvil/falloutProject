@@ -102,20 +102,15 @@ async def _create_room(session: AsyncSession, vault_id, **overrides) -> Room:
     return await crud.room.create(db_session=session, obj_in=room_in)
 
 
-# =============================================================================
 # evaluate_capacity_formula
-# =============================================================================
 
 
 class TestEvaluateCapacityFormula:
     def test_unknown_name_is_rejected(self, room_crud):
-        """Formulas may only refer to the backend-owned L and S variables."""
         assert room_crud.evaluate_capacity_formula("S / unknown_var", level=3, size=5) == 0
 
 
-# =============================================================================
 # evaluate_output_formula
-# =============================================================================
 
 
 class TestEvaluateOutputFormula:
@@ -124,14 +119,10 @@ class TestEvaluateOutputFormula:
         assert result == 0
 
 
-# =============================================================================
 # requires_recalculation
-# =============================================================================
 
 
-# =============================================================================
 # get_multy_by_vault
-# =============================================================================
 
 
 class TestGetMultyByVault:
@@ -147,9 +138,7 @@ class TestGetMultyByVault:
         assert {room.id for room in result} == created
 
 
-# =============================================================================
 # get_existing_room_names
-# =============================================================================
 
 
 class TestGetExistingRoomNames:
@@ -164,14 +153,10 @@ class TestGetExistingRoomNames:
         assert result == {"living room", "diner", "elevator"}
 
 
-# =============================================================================
 # get_room_by_coordinates
-# =============================================================================
 
 
-# =============================================================================
 # get_room_build_price
-# =============================================================================
 
 
 class TestGetRoomBuildPrice:
@@ -232,9 +217,7 @@ class TestGetRoomBuildPrice:
         assert await room_crud.get_room_build_price(db_session=async_session, room_in=room_in) == expected
 
 
-# =============================================================================
 # check_is_unique_room
-# =============================================================================
 
 
 class TestCheckIsUniqueRoom:
@@ -247,9 +230,7 @@ class TestCheckIsUniqueRoom:
             await room_crud.check_is_unique_room(db_session=async_session, obj_in=room_in)
 
 
-# =============================================================================
 # get_adjacent_mergeable_rooms
-# =============================================================================
 
 
 class TestGetAdjacentMergeableRooms:
@@ -324,14 +305,10 @@ class TestGetAdjacentMergeableRooms:
         assert result == []
 
 
-# =============================================================================
 # check_elevator_dependencies
-# =============================================================================
 
 
-# =============================================================================
 # build
-# =============================================================================
 
 
 class TestBuild:
@@ -360,7 +337,6 @@ class TestBuild:
     async def test_build_rejects_invalid_input(
         self, async_session: AsyncSession, vault: Vault, overrides: dict, message: str
     ) -> None:
-        """_build() rejects malformed size/coordinate input before any placement or write."""
         base = _make_room_create(vault_id=vault.id)
         room_in = RoomCreate.model_construct(**{**base.model_dump(exclude=set(overrides)), **overrides})
 
@@ -459,9 +435,7 @@ class TestBuild:
         assert vault.bottle_caps == 9_500
 
 
-# =============================================================================
 # build - elevator gating
-# =============================================================================
 
 
 class TestBuildElevatorGating:
@@ -482,9 +456,7 @@ class TestBuildElevatorGating:
         assert created is True
 
 
-# =============================================================================
 # destroy
-# =============================================================================
 
 
 class TestDestroy:
@@ -560,7 +532,6 @@ class TestDestroy:
 
     @pytest.mark.asyncio
     async def test_destroy_different_case_vault_door(self, async_session: AsyncSession, vault: Vault):
-        """Verify that 'VAULT DOOR' (any case) is blocked."""
         vault_door = await _create_room(
             async_session, vault.id, name="VAULT DOOR", incremental_cost=0, coordinate_x=0, coordinate_y=0
         )
@@ -569,9 +540,7 @@ class TestDestroy:
             await RoomService().destroy_room(db_session=async_session, room_id=vault_door.id)
 
 
-# =============================================================================
 # upgrade
-# =============================================================================
 
 
 class TestUpgrade:

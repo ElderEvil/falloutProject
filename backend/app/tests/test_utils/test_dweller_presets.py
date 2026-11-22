@@ -23,7 +23,6 @@ from app.utils.appearance_roll import roll_appearance
 
 
 def test_presets_importable_with_core_entries():
-    """Archetype presets should be importable with core archetypes."""
     assert len(archetypes) >= 5
     assert "Vault Dweller" in archetypes
     assert "Super Mutant Brute" in archetypes

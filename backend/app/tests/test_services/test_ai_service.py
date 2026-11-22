@@ -21,9 +21,7 @@ from app.services.ai_service import (
 
 pytestmark = pytest.mark.asyncio(scope="module")
 
-# ============================================================================
 # Helpers — reset singleton state and create fresh uninitialized instances
-# ============================================================================
 
 
 def reset_singleton() -> None:
@@ -46,25 +44,18 @@ def _make_fresh_service(*, skip_init: bool = True) -> AIService:
     return svc
 
 
-# ============================================================================
 # Singleton & Basic Properties
-# ============================================================================
 
 
 @pytest.mark.asyncio
 class TestSingletonPattern:
-    """Tests for singleton pattern, properties, and initialization gating."""
-
     def test_get_model_classmethod(self) -> None:
-        """get_model() class method returns model property."""
         svc = _make_fresh_service()
         svc._model = "fake_model"
         assert svc.get_model() == "fake_model"
 
 
-# ============================================================================
 # is_available / ensure_* guards
-# ============================================================================
 
 
 def test_lmstudio_keeps_openai_client_for_image_generation(monkeypatch) -> None:
@@ -84,14 +75,10 @@ def test_lmstudio_keeps_openai_client_for_image_generation(monkeypatch) -> None:
     assert svc.client is mock_client.return_value
 
 
-# ============================================================================
 # Provider Initialization — Disabled
-# ============================================================================
 
 
-# ============================================================================
 # Provider Initialization — Gateway
-# ============================================================================
 
 
 @pytest.mark.asyncio
@@ -116,15 +103,11 @@ class TestInitializationGateway:
             assert svc._using_gateway is False
 
 
-# ============================================================================
 # Provider Initialization — Direct (Deprecated)
-# ============================================================================
 
 
 @pytest.mark.asyncio
 class TestInitializationDirect:
-    """Tests for direct provider initialization (deprecated path)."""
-
     def test_direct_openai_initializes_model_and_client(self, monkeypatch) -> None:
         monkeypatch.setattr("app.services.ai_service.settings.AI_PROVIDER", "openai")
         monkeypatch.setattr("app.services.ai_service.settings.OPENAI_API_KEY", "sk-test-key")
@@ -171,20 +154,14 @@ class TestInitializationDirect:
             mock_logger.warning.assert_called_once()
 
 
-# ============================================================================
 # Provider Initialization — Ollama
-# ============================================================================
 
 
-# ============================================================================
 # Provider Initialization — Routing (_initialize_provider)
-# ============================================================================
 
 
 @pytest.mark.asyncio
 class TestInitializeProviderRouting:
-    """Tests that _initialize_provider routes to the correct sub-initializer."""
-
     def test_routes_to_direct(self) -> None:
         svc = _make_fresh_service()
         with patch("app.services.ai_service.settings") as mock_settings:
@@ -204,15 +181,11 @@ class TestInitializeProviderRouting:
             mock_logger.warning.assert_called_once()
 
 
-# ============================================================================
 # generate_image
-# ============================================================================
 
 
 @pytest.mark.asyncio
 class TestGenerateImage:
-    """Tests for generate_image method."""
-
     @staticmethod
     def _make_svc_with_client(using_gateway: bool = False) -> AIService:
         svc = _make_fresh_service()
@@ -337,15 +310,11 @@ class TestGenerateImage:
             assert "Gateway" in mock_logger.debug.call_args[0][0]
 
 
-# ============================================================================
 # generate_audio
-# ============================================================================
 
 
 @pytest.mark.asyncio
 class TestGenerateAudio:
-    """Tests for generate_audio method."""
-
     @staticmethod
     def _make_svc_with_client(using_gateway: bool = False) -> AIService:
         svc = _make_fresh_service()
@@ -386,15 +355,11 @@ class TestGenerateAudio:
         )
 
 
-# ============================================================================
 # generate_completion
-# ============================================================================
 
 
 @pytest.mark.asyncio
 class TestGenerateCompletion:
-    """Tests for generate_completion method."""
-
     @staticmethod
     def _make_svc_with_client() -> AIService:
         svc = _make_fresh_service()
@@ -425,15 +390,11 @@ class TestGenerateCompletion:
             await svc.generate_completion(messages=[{"role": "user", "content": "Hi"}])
 
 
-# ============================================================================
 # generate_completion_json
-# ============================================================================
 
 
 @pytest.mark.asyncio
 class TestGenerateCompletionJson:
-    """Tests for generate_completion_json method."""
-
     @staticmethod
     def _make_svc_with_client() -> AIService:
         svc = _make_fresh_service()
@@ -465,15 +426,11 @@ class TestGenerateCompletionJson:
             await svc.generate_completion_json(prompt="make json")
 
 
-# ============================================================================
 # generate_speech_from_text
-# ============================================================================
 
 
 @pytest.mark.asyncio
 class TestGenerateSpeechFromText:
-    """Tests for generate_speech_from_text method."""
-
     @staticmethod
     def _make_svc_with_client() -> AIService:
         svc = _make_fresh_service()
@@ -491,15 +448,11 @@ class TestGenerateSpeechFromText:
         mock_response.write_to_file.assert_called_once_with("/tmp/speech.mp3")
 
 
-# ============================================================================
 # transcribe_audio
-# ============================================================================
 
 
 @pytest.mark.asyncio
 class TestTranscribeAudio:
-    """Tests for transcribe_audio method."""
-
     @staticmethod
     def _make_svc_with_client(using_gateway: bool = False) -> AIService:
         svc = _make_fresh_service()
@@ -530,15 +483,11 @@ class TestTranscribeAudio:
             assert "Gateway" in mock_logger.debug.call_args[0][0]
 
 
-# ============================================================================
 # chat_completion / chat_completion_with_usage
-# ============================================================================
 
 
 @pytest.mark.asyncio
 class TestChatCompletion:
-    """Tests for chat_completion and chat_completion_with_usage methods."""
-
     @staticmethod
     def _make_svc_with_model() -> AIService:
         svc = _make_fresh_service()
@@ -619,15 +568,11 @@ class TestChatCompletion:
             await svc.chat_completion_with_usage(messages=[{"role": "user", "content": "Hi"}])
 
 
-# ============================================================================
 # Module-level helper functions
-# ============================================================================
 
 
 @pytest.mark.asyncio
 class TestModuleLevelFunctions:
-    """Tests for module-level functions that wrap the singleton."""
-
     def test_get_ai_service_returns_singleton(self) -> None:
         reset_singleton()
         svc = get_ai_service()
@@ -645,16 +590,11 @@ class TestModuleLevelFunctions:
         assert is_using_gateway() is True
 
 
-# ============================================================================
 # ChatCompletionResult dataclass
-# ============================================================================
 
 
 class TestChatCompletionResult:
-    """Tests for the ChatCompletionResult dataclass."""
-
     def test_default_values(self) -> None:
-        """ChatCompletionResult defaults token fields to None."""
         result = ChatCompletionResult(text="test")
         assert result.text == "test"
         assert result.prompt_tokens is None
@@ -662,7 +602,6 @@ class TestChatCompletionResult:
         assert result.total_tokens is None
 
     def test_full_fields(self) -> None:
-        """ChatCompletionResult stores all fields."""
         result = ChatCompletionResult(
             text="hello",
             prompt_tokens=10,

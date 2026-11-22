@@ -1,5 +1,3 @@
-"""Type-tiered incident rewards, and the loot the vault actually receives."""
-
 import random
 
 import pytest
@@ -33,7 +31,6 @@ def test_every_incident_type_has_a_reward_tier(incident_type: IncidentType):
 
 
 def test_caps_escalate_with_severity(monkeypatch: pytest.MonkeyPatch):
-    """Under an identical roll, the roll decides only difficulty — the tier decides the rest."""
     monkeypatch.setattr(random, "randint", lambda low, high: high)
 
     caps = [
@@ -225,7 +222,6 @@ async def _resolve_victory_into_a_full_vault(async_session: AsyncSession, room, 
 async def test_held_incident_overflow_reaches_storage_once_space_frees_up(
     async_session: AsyncSession, room_with_dwellers: dict
 ) -> None:
-    """Taking a held item stores it under its catalog name and empties the held list."""
     room = room_with_dwellers["room"]
     vault = room_with_dwellers["vault"]
     incident, storage = await _resolve_victory_into_a_full_vault(async_session, room, vault)
@@ -246,7 +242,6 @@ async def test_held_incident_overflow_reaches_storage_once_space_frees_up(
 async def test_taking_held_incident_overflow_conflicts_while_full(
     async_session: AsyncSession, room_with_dwellers: dict
 ) -> None:
-    """Taking with no space raises 409 and keeps the held list intact."""
     room = room_with_dwellers["room"]
     vault = room_with_dwellers["vault"]
     incident, _ = await _resolve_victory_into_a_full_vault(async_session, room, vault)
@@ -265,7 +260,6 @@ async def test_taking_held_incident_overflow_conflicts_while_full(
 async def test_selling_held_incident_overflow_pays_caps_without_space(
     async_session: AsyncSession, room_with_dwellers: dict
 ) -> None:
-    """Selling a held item pays caps from the catalog even when storage is full."""
     room = room_with_dwellers["room"]
     vault = room_with_dwellers["vault"]
     incident, _ = await _resolve_victory_into_a_full_vault(async_session, room, vault)

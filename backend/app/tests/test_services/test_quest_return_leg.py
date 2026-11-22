@@ -1,5 +1,3 @@
-"""Tests for the quest return leg (parties travel home before rewards)."""
-
 from datetime import datetime, timedelta
 
 import pytest
@@ -58,7 +56,6 @@ async def _expired_quest(
 
 @pytest.mark.asyncio
 async def test_return_starts_at_expiry(async_session: AsyncSession, vault: Vault) -> None:
-    """An elapsed quest starts its return leg; the party stays QUESTING."""
     quest, link, dweller = await _expired_quest(async_session, vault)
 
     completed = await quest_service.check_and_complete_quests(async_session, vault_id=vault.id)
@@ -75,7 +72,6 @@ async def test_return_starts_at_expiry(async_session: AsyncSession, vault: Vault
 
 @pytest.mark.asyncio
 async def test_mark_ready_refuses_while_travelling(async_session: AsyncSession, vault: Vault) -> None:
-    """A party still travelling home cannot be marked ready to claim."""
     quest, link, dweller = await _expired_quest(async_session, vault)
     await quest_service.start_quest_return(async_session, quest.id, vault.id)
 
@@ -85,7 +81,6 @@ async def test_mark_ready_refuses_while_travelling(async_session: AsyncSession, 
 
 @pytest.mark.asyncio
 async def test_start_return_refuses_before_expiry(async_session: AsyncSession, vault: Vault) -> None:
-    """A quest still in its work window cannot start its return leg."""
     quest, link, dweller = await _expired_quest(async_session, vault)
     link.started_at = utcnow() - timedelta(minutes=10)
     link.duration_minutes = 60
@@ -97,7 +92,6 @@ async def test_start_return_refuses_before_expiry(async_session: AsyncSession, v
 
 @pytest.mark.asyncio
 async def test_start_return_refuses_when_already_returning(async_session: AsyncSession, vault: Vault) -> None:
-    """A party already travelling home cannot start a second return leg."""
     quest, link, dweller = await _expired_quest(async_session, vault)
     await quest_service.start_quest_return(async_session, quest.id, vault.id)
 
@@ -107,7 +101,6 @@ async def test_start_return_refuses_when_already_returning(async_session: AsyncS
 
 @pytest.mark.asyncio
 async def test_arrival_finalizes_once_and_is_idempotent(async_session: AsyncSession, vault: Vault) -> None:
-    """Arrival flips the party to IDLE and makes rewards claimable exactly once."""
     quest, link, dweller = await _expired_quest(async_session, vault)
     await quest_service.start_quest_return(async_session, quest.id, vault.id)
     await async_session.refresh(link)
@@ -125,7 +118,6 @@ async def test_arrival_finalizes_once_and_is_idempotent(async_session: AsyncSess
 
 @pytest.mark.asyncio
 async def test_rewards_unclaimable_while_travelling(async_session: AsyncSession, vault: Vault) -> None:
-    """Claiming while the party travels home is rejected."""
     quest, link, dweller = await _expired_quest(async_session, vault)
     await quest_service.start_quest_return(async_session, quest.id, vault.id)
 
@@ -135,7 +127,6 @@ async def test_rewards_unclaimable_while_travelling(async_session: AsyncSession,
 
 @pytest.mark.asyncio
 async def test_existing_no_window_quest_gets_a_return_leg(async_session: AsyncSession, vault: Vault) -> None:
-    """A pre-migration quest without return fields gets a return window on the next tick."""
     quest, link, dweller = await _expired_quest(async_session, vault)
     link.return_started_at = None
     link.return_completes_at = None
@@ -151,7 +142,6 @@ async def test_existing_no_window_quest_gets_a_return_leg(async_session: AsyncSe
 
 @pytest.mark.asyncio
 async def test_state_objective_quests_skip_the_return_leg(async_session: AsyncSession, vault: Vault) -> None:
-    """Building/population/training quests stay instantly ready, no travel window."""
     quest = await crud.quest_crud.create(
         async_session,
         obj_in=QuestCreate(
@@ -178,7 +168,6 @@ async def test_state_objective_quests_skip_the_return_leg(async_session: AsyncSe
 
 @pytest.mark.asyncio
 async def test_tick_starts_return_then_finalizes_on_arrival(async_session: AsyncSession, vault: Vault) -> None:
-    """check_and_complete_quests starts the return leg, then finalizes on arrival."""
     quest, link, dweller = await _expired_quest(async_session, vault)
 
     first = await quest_service.check_and_complete_quests(async_session, vault_id=vault.id)

@@ -1,5 +1,3 @@
-"""Tests for game control API endpoints."""
-
 # TODO: Fix session isolation issues in incident API tests
 # See test_services/test_incident_service.py for details
 
@@ -28,7 +26,6 @@ async def test_resume_vault(
     async_session: AsyncSession,
     normal_user_token_headers: dict[str, str],
 ):
-    """Test resuming a paused vault's game loop."""
     # Create and pause a vault
     user = await crud.user.get_by_email(async_session, email=settings.EMAIL_TEST_USER)
     vault = await vault_service.initiate_vault(
@@ -61,7 +58,6 @@ async def test_manual_tick(
     async_session: AsyncSession,
     normal_user_token_headers: dict[str, str],
 ):
-    """Test manually triggering a game tick."""
     # Create a vault
     user = await crud.user.get_by_email(async_session, email=settings.EMAIL_TEST_USER)
     vault = await vault_service.initiate_vault(
@@ -101,7 +97,6 @@ async def test_get_incidents(
     async_session: AsyncSession,
     normal_user_token_headers: dict[str, str],
 ):
-    """Test getting list of incidents for a vault."""
     # Create a vault
     user = await crud.user.get_by_email(async_session, email=settings.EMAIL_TEST_USER)
     vault = await vault_service.initiate_vault(
@@ -131,7 +126,6 @@ async def test_vault_initialization_creates_game_state(
     async_session: AsyncSession,
     normal_user_token_headers: dict[str, str],
 ):
-    """Test that initializing a vault creates proper game state."""
     # Create a vault via initiate endpoint
     response = await async_client.post(
         "/vaults/initiate",
@@ -168,7 +162,6 @@ async def test_spawn_incident_specific_type(
     async_session: AsyncSession,
     normal_user_token_headers: dict[str, str],
 ):
-    """Test spawning a specific incident type."""
     # Create a vault with a room and dwellers
     user = await crud.user.get_by_email(async_session, email=settings.EMAIL_TEST_USER)
     vault = await vault_service.initiate_vault(
@@ -179,7 +172,6 @@ async def test_spawn_incident_specific_type(
 
     # Create room with dweller
     from app.schemas.dweller import DwellerCreate
-    from app.schemas.room import RoomCreate
 
     room_data = create_fake_room()
     room_in = RoomCreate(**room_data, vault_id=vault.id)
@@ -222,7 +214,6 @@ async def test_spawn_incident_disabled_vault_rejected(
     async_session: AsyncSession,
     normal_user_token_headers: dict[str, str],
 ):
-    """Spawn endpoint rejects disabled vaults with a distinct message."""
     from app.core.game_config import game_config
 
     user = await crud.user.get_by_email(async_session, email=settings.EMAIL_TEST_USER)
@@ -284,9 +275,6 @@ async def test_assign_incident_responders(
     async_session: AsyncSession,
     normal_user_token_headers: dict[str, str],
 ):
-    """Test assigning an eligible dweller to defend an incident."""
-    from app.core.enums import IncidentType
-
     # Create a vault with incident
     user = await crud.user.get_by_email(async_session, email=settings.EMAIL_TEST_USER)
     vault = await vault_service.initiate_vault(
@@ -297,7 +285,6 @@ async def test_assign_incident_responders(
 
     # Create the incident room and a separate room containing the responder.
     from app.schemas.dweller import DwellerCreate
-    from app.schemas.room import RoomCreate
 
     room_data = create_fake_room()
     room_in = RoomCreate(**room_data, vault_id=vault.id)
@@ -354,10 +341,7 @@ async def test_get_incident_team_returns_assigned_responders(
     async_session: AsyncSession,
     normal_user_token_headers: dict[str, str],
 ):
-    """The incident team endpoint returns the assigned responder roster."""
-    from app.core.enums import IncidentType
     from app.schemas.dweller import DwellerCreate
-    from app.schemas.room import RoomCreate
 
     user = await crud.user.get_by_email(async_session, email=settings.EMAIL_TEST_USER)
     vault = await vault_service.initiate_vault(
@@ -420,7 +404,6 @@ async def test_get_incident_team_missing_or_foreign_returns_404(
     async_session: AsyncSession,
     normal_user_token_headers: dict[str, str],
 ):
-    """A missing or foreign incident returns 404 for the team endpoint."""
     from uuid import uuid4
 
     user = await crud.user.get_by_email(async_session, email=settings.EMAIL_TEST_USER)
@@ -439,7 +422,6 @@ async def test_get_incident_team_missing_or_foreign_returns_404(
 
 @pytest.mark.asyncio
 async def test_get_incident_team_requires_auth(async_client: AsyncClient):
-    """The incident team endpoint rejects requests without auth headers."""
     from uuid import uuid4
 
     response = await async_client.get(
@@ -454,7 +436,6 @@ async def test_incident_overflow_is_discoverable_sellable_and_takeable(
     async_session: AsyncSession,
     normal_user_token_headers: dict[str, str],
 ):
-    """Held incident loot surfaces as pending, sells without space, and takes when there is space."""
     user = await crud.user.get_by_email(async_session, email=settings.EMAIL_TEST_USER)
     vault = await vault_service.initiate_vault(
         db_session=async_session, obj_in=VaultNumber(number=987), user_id=user.id

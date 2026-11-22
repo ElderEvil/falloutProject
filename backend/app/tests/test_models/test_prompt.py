@@ -1,5 +1,3 @@
-"""Tests for Prompt registry versioning: (name, version) uniqueness and single active row."""
-
 import pytest
 from sqlalchemy.exc import IntegrityError
 from sqlmodel.ext.asyncio.session import AsyncSession

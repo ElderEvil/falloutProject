@@ -1,5 +1,3 @@
-"""Tests for AI Settings admin endpoints (GET/PUT /ai-settings)."""
-
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest

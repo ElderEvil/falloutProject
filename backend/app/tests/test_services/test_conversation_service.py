@@ -1,5 +1,3 @@
-"""Tests for conversation service (audio chat)."""
-
 from contextlib import asynccontextmanager
 from unittest.mock import AsyncMock, MagicMock, PropertyMock, patch
 from uuid import uuid4
@@ -10,22 +8,16 @@ from app.core.enums import GenderEnum
 from app.schemas.chat_models import AgentChatResult, VoiceMessagePayload
 from app.services.conversation_service import conversation_service
 
-# ============================================================================
 # Unit Tests for Helper Methods
-# ============================================================================
 
 
 @pytest.mark.asyncio
 class TestVoiceSelection:
-    """Tests for gender-based voice selection."""
-
     def test_select_voice_for_male(self):
-        """Test voice selection for male dwellers."""
         voice = conversation_service._select_voice_for_gender(GenderEnum.MALE)
         assert voice in ["echo", "fable", "onyx"]
 
     def test_select_voice_for_none_gender(self):
-        """Test voice selection defaults to alloy for None gender."""
         voice = conversation_service._select_voice_for_gender(None)
         assert voice == "alloy"
 

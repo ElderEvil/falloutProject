@@ -126,7 +126,6 @@ async def test_filter_dwellers_by_status(
     superuser_token_headers: dict[str, str],
     room: Room,
 ) -> None:
-    """Test filtering dwellers by status."""
     from app.core.enums import DwellerStatusEnum
     from app.schemas.dweller import DwellerUpdate
 
@@ -170,8 +169,6 @@ async def test_search_dwellers_by_name(
     superuser_token_headers: dict[str, str],
     room: Room,
 ) -> None:
-    """Test searching dwellers by name."""
-
     # Create dwellers with specific names
     dweller_1_data = create_fake_dweller()
     dweller_2_data = create_fake_dweller()
@@ -218,8 +215,6 @@ async def test_sort_dwellers(
     superuser_token_headers: dict[str, str],
     room: Room,
 ) -> None:
-    """Test sorting dwellers."""
-
     # Create dwellers with different levels
     dweller_1_data = create_fake_dweller()
     dweller_2_data = create_fake_dweller()
@@ -258,7 +253,6 @@ async def test_read_dweller_lineage_not_found(
     async_client: AsyncClient,
     superuser_token_headers: dict[str, str],
 ) -> None:
-    """GET /dwellers/{id}/lineage returns 404 for a non-existent dweller."""
     response = await async_client.get(f"/dwellers/{uuid4()}/lineage", headers=superuser_token_headers)
     assert response.status_code == 404
 
@@ -271,7 +265,6 @@ async def test_add_bio_addendum_records_dialogue_entry(
     room: Room,
     dweller_data: dict,
 ) -> None:
-    """A confirmed conversation detail lands as a dialogue entry and recompiles the bio."""
     dweller_data.update({"vault_id": str(room.vault_id)})
     dweller = await crud.dweller.create(async_session, DwellerCreate(**dweller_data))
 
@@ -522,7 +515,6 @@ async def test_revival_endpoints_reject_users_without_vault_access(
     async_client: AsyncClient,
     superuser_token_headers: dict[str, str],
 ) -> None:
-    """Both revival endpoints map a failed ownership check to 403."""
     from app.utils.exceptions import AccessDeniedException
 
     dweller_id = uuid4()
@@ -563,7 +555,6 @@ async def test_update_dweller_accepts_player_editable_fields(
     dweller: Dweller,
     staffed_barbershop: Room,
 ) -> None:
-    """Renaming and appearance edits still work through the player-facing schema."""
     response = await async_client.put(
         f"/dwellers/{dweller.id}",
         json={"first_name": "Renamed", "visual_attributes": {"race": "human"}},
@@ -616,7 +607,6 @@ async def test_update_dweller_can_unassign_a_room(
     dweller: Dweller,
     room: Room,
 ) -> None:
-    """The dweller roster unassigns by PUTting room_id: null."""
     dweller.room_id = room.id
     async_session.add(dweller)
     await async_session.commit()
@@ -658,12 +648,9 @@ async def test_filter_dwellers_by_race_and_faction(
     vault: Vault,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Roster filters narrow by identity, which lives in the visual_attributes JSONB."""
     from app.core.game_config import game_config
 
     monkeypatch.setattr(game_config.features, "faction_mechanics", True)
-    from app.schemas.dweller import DwellerCreate
-    from app.tests.factory.dwellers import create_fake_dweller
 
     def identity(race: str, faction: str) -> DwellerCreate:
         data = create_fake_dweller()
@@ -696,10 +683,6 @@ async def test_filter_dwellers_by_gender(
     superuser_token_headers: dict[str, str],
     vault: Vault,
 ) -> None:
-    """Roster filters narrow by gender, a real enum column on the dweller."""
-    from app.schemas.dweller import DwellerCreate
-    from app.tests.factory.dwellers import create_fake_dweller
-
     def dweller_of_gender(gender: GenderEnum) -> DwellerCreate:
         data = create_fake_dweller()
         data.update({"vault_id": vault.id, "gender": gender})
@@ -727,10 +710,6 @@ async def test_filter_dwellers_by_rarity(
     superuser_token_headers: dict[str, str],
     vault: Vault,
 ) -> None:
-    """Roster filters narrow by rarity, a real enum column on the dweller."""
-    from app.schemas.dweller import DwellerCreate
-    from app.tests.factory.dwellers import create_fake_dweller
-
     def dweller_of_rarity(rarity: RarityEnum) -> DwellerCreate:
         data = create_fake_dweller()
         data.update({"vault_id": vault.id, "rarity": rarity})
@@ -776,7 +755,6 @@ async def test_faction_filter_rejected_while_switch_off(
     vault: Vault,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """A faction filter while the switch is off is a 422, not a silent empty roster."""
     from app.core.game_config import game_config
 
     monkeypatch.setattr(game_config.features, "faction_mechanics", False)
@@ -818,7 +796,6 @@ async def test_appearance_options_endpoint(
     async_client: AsyncClient,
     superuser_token_headers: dict[str, str],
 ) -> None:
-    """Clients fetch the editor catalogue from the API instead of mirroring it."""
     response = await async_client.get("/dwellers/appearance-options", headers=superuser_token_headers)
 
     assert response.status_code == 200

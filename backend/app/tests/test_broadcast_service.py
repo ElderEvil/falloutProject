@@ -1,5 +1,3 @@
-"""Broadcast service tests on the real session; only TTS and storage are stubbed."""
-
 from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 

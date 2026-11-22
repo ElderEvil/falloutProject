@@ -37,9 +37,7 @@ from app.utils.item_factory import build_outfit, build_pet, build_weapon
 fake = Faker()
 
 
-# ---------------------------------------------------------------------------
 # Helpers — persist factory-built rows through the real session
-# ---------------------------------------------------------------------------
 
 
 def _make_mock_item(model_class, *, item_id="00000000-0000-0000-0000-000000000001", **overrides) -> MagicMock:
@@ -87,9 +85,7 @@ async def _create_other_vault_storage(async_session: AsyncSession) -> Storage:
     return await crud.vault.create_storage(db_session=async_session, vault_id=other_vault.id)
 
 
-# ---------------------------------------------------------------------------
 # get_items_by_vault
-# ---------------------------------------------------------------------------
 
 
 @pytest.mark.asyncio
@@ -105,9 +101,7 @@ async def test_get_items_by_vault_returns_items(async_session: AsyncSession, vau
     assert {weapon.id for weapon in result} == {stored[0].id, stored[1].id, equipped.id}
 
 
-# ---------------------------------------------------------------------------
 # CRUDItem.create
-# ---------------------------------------------------------------------------
 
 
 @pytest.mark.asyncio
@@ -116,9 +110,7 @@ async def test_create_raises_both_storage_and_dweller_schema(async_session: Asyn
         await CRUDItem(Outfit).create(async_session, {"storage_id": uuid4(), "dweller_id": uuid4()})
 
 
-# ---------------------------------------------------------------------------
 # CRUDItem.equip
-# ---------------------------------------------------------------------------
 
 
 @pytest.mark.asyncio
@@ -165,9 +157,7 @@ async def test_equipment_maturity_gate(
         assert equipped.dweller_id == dweller.id
 
 
-# ---------------------------------------------------------------------------
 # _fetch_unequip_data
-# ---------------------------------------------------------------------------
 
 
 @pytest.mark.asyncio
@@ -201,14 +191,10 @@ async def test_fetch_unequip_data_not_found(async_session: AsyncSession) -> None
     assert await CRUDItem._fetch_unequip_data(async_session, uuid4()) == (None, None, None)
 
 
-# ---------------------------------------------------------------------------
 # _get_item_model
-# ---------------------------------------------------------------------------
 
 
-# ---------------------------------------------------------------------------
 # _update_item
-# ---------------------------------------------------------------------------
 
 
 @pytest.mark.asyncio
@@ -225,9 +211,7 @@ async def test_update_item_executes_update(async_session: AsyncSession, vault: V
     assert reloaded.storage_id == target.id
 
 
-# ---------------------------------------------------------------------------
 # _update_dweller
-# ---------------------------------------------------------------------------
 
 
 @pytest.mark.asyncio
@@ -244,9 +228,7 @@ async def test_update_dweller_clears_weapon(async_session: AsyncSession, equippe
     assert loaded_dweller.weapon is None
 
 
-# ---------------------------------------------------------------------------
 # unequip
-# ---------------------------------------------------------------------------
 
 
 @pytest.mark.asyncio
@@ -268,14 +250,10 @@ async def test_unequip_not_found(async_session: AsyncSession) -> None:
     assert "Dweller" in exc.value.detail
 
 
-# ---------------------------------------------------------------------------
 # convert_to_junk
-# ---------------------------------------------------------------------------
 
 
 class TestConvertToJunk:
-    """Tests for CRUDItem.convert_to_junk static method."""
-
     @patch("app.crud.item_base.random.choice")
     @patch("app.crud.item_base.random.random")
     def test_legendary_with_both_probs(self, mock_random: MagicMock, mock_choice: MagicMock) -> None:
@@ -296,9 +274,7 @@ class TestConvertToJunk:
             CRUDItem.convert_to_junk(item)
 
 
-# ---------------------------------------------------------------------------
 # scrap
-# ---------------------------------------------------------------------------
 
 
 @pytest.mark.asyncio
@@ -316,7 +292,6 @@ async def test_scrap_success(async_session: AsyncSession, vault: Vault) -> None:
 
 @pytest.mark.asyncio
 async def test_scrap_rejects_when_junk_would_exceed_capacity(async_session: AsyncSession, vault: Vault) -> None:
-    """A scrap whose junk would overflow storage is rejected before anything changes."""
     storage = await _create_storage(async_session, vault.id, max_space=1)
     weapon = await _create_weapon(async_session, storage_id=storage.id, rarity=RarityEnum.LEGENDARY)
 
@@ -342,9 +317,7 @@ async def test_scrap_not_found(async_session: AsyncSession) -> None:
     assert "Outfit" in exc.value.detail
 
 
-# ---------------------------------------------------------------------------
 # get_item_vault_id
-# ---------------------------------------------------------------------------
 
 
 @pytest.mark.asyncio
@@ -369,6 +342,4 @@ async def test_get_item_vault_id_unattached(async_session: AsyncSession) -> None
     assert await get_item_vault_id(async_session, weapon) is None
 
 
-# ---------------------------------------------------------------------------
 # Inheritance / init smoke tests
-# ---------------------------------------------------------------------------

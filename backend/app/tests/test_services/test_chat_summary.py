@@ -1,5 +1,3 @@
-"""Summary service: rewrite the thread summary from the messages being pruned."""
-
 from uuid import UUID
 
 import pytest
@@ -16,8 +14,6 @@ from app.services.chat.summary import build_summary_prompt, maybe_summarize
 
 
 class Recorder:
-    """Stub summariser: records prompts, returns a fixed reply."""
-
     def __init__(self, reply: str = "Vera lost her brother to raiders and asked the Overseer for news.") -> None:
         self.prompts: list[str] = []
         self.reply = reply

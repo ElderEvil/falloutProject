@@ -66,7 +66,6 @@ async def _settled_exploration(async_session: AsyncSession, vault: Vault, dwelle
 async def test_list_load_applies_pet_special_and_max_health(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
 ) -> None:
-    """get_multi_by_vault (roster list) applies the pet's SPECIAL and max_health."""
     dweller.strength = 5
     dweller.max_health = 100
     dweller.radiation = 40
@@ -83,7 +82,6 @@ async def test_list_load_applies_pet_special_and_max_health(
 async def test_global_list_load_applies_pet_max_health(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
 ) -> None:
-    """get_multi (superuser global list) applies the pet's max_health."""
     dweller.max_health = 100
     dweller.radiation = 40
     async_session.add(dweller)
@@ -98,7 +96,6 @@ async def test_global_list_load_applies_pet_max_health(
 async def test_get_with_equipment_applies_pet_special(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
 ) -> None:
-    """get_with_equipment (exploration combat profile) applies the pet's SPECIAL."""
     dweller.strength = 5
     async_session.add(dweller)
     await async_session.commit()
@@ -113,7 +110,6 @@ async def test_get_with_equipment_applies_pet_special(
 async def test_arena_fighters_apply_pet_combat_power(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
 ) -> None:
-    """get_arena_fighters applies the pet's SPECIAL through combat_power."""
     room = await _room(async_session, vault)
     await _assign_to_room(async_session, dweller, room)
     dweller.strength = 5
@@ -131,7 +127,6 @@ async def test_arena_fighters_apply_pet_combat_power(
 
 @pytest.mark.asyncio
 async def test_arena_roster_applies_pet_max_health(async_session: AsyncSession, vault: Vault, dweller: Dweller) -> None:
-    """get_arena_roster applies the pet's max_health to the roster wire value."""
     room = await _room(async_session, vault)
     await _assign_to_room(async_session, dweller, room)
     dweller.max_health = 100
@@ -149,7 +144,6 @@ async def test_arena_roster_applies_pet_max_health(async_session: AsyncSession, 
 async def test_incident_defenders_apply_pet_resists(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
 ) -> None:
-    """get_healthy_adults_in_room applies the pet's incident/radiation resists."""
     room = await _room(async_session, vault)
     await _assign_to_room(async_session, dweller, room)
     await _equip_pet(async_session, dweller, "Pallas's Cat")  # incident_response_pct 0.25
@@ -166,7 +160,6 @@ async def test_incident_defenders_apply_pet_resists(
 async def test_incident_defenders_apply_pet_radiation_resist(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
 ) -> None:
-    """get_healthy_adults_in_room applies the pet's radiation resist."""
     room = await _room(async_session, vault)
     await _assign_to_room(async_session, dweller, room)
     await _equip_pet(async_session, dweller, "St. Bernard")  # radiation_resist_pct 0.25
@@ -180,7 +173,6 @@ async def test_incident_defenders_apply_pet_radiation_resist(
 async def test_incident_snapshot_defenders_apply_pet_resists(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
 ) -> None:
-    """snapshot_vault_defenders applies the pet's incident resists (vs a no-pet control)."""
     control = await snapshot_vault_defenders(async_session, vault.id)
     assert len(control) == 1
     assert control[0].reductions_physical.shares == ()
@@ -196,7 +188,6 @@ async def test_incident_snapshot_defenders_apply_pet_resists(
 
 @pytest.mark.asyncio
 async def test_tick_sweep_applies_pet_max_health(async_session: AsyncSession, vault: Vault, dweller: Dweller) -> None:
-    """get_all_in_vault (game-tick sweep) applies the pet's max_health."""
     dweller.max_health = 100
     dweller.radiation = 40
     async_session.add(dweller)
@@ -224,7 +215,6 @@ async def test_quest_eligible_applies_pet_stat(async_session: AsyncSession, vaul
 async def test_quest_team_dwellers_apply_pet_combat_power(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
 ) -> None:
-    """get_quest_team_dwellers applies the pet's SPECIAL through combat_power."""
     dweller.strength = 5
     dweller.agility = 5
     dweller.endurance = 5
@@ -248,7 +238,6 @@ async def test_quest_team_dwellers_apply_pet_combat_power(
 async def test_exploration_team_dwellers_apply_pet_combat_power(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
 ) -> None:
-    """get_exploration_team_dwellers applies the pet's SPECIAL through combat_power."""
     dweller.strength = 5
     dweller.agility = 5
     dweller.endurance = 5
@@ -271,7 +260,6 @@ async def test_exploration_team_dwellers_apply_pet_combat_power(
 
 @pytest.mark.asyncio
 async def test_deleted_list_applies_pet_max_health(async_session: AsyncSession, vault: Vault, dweller: Dweller) -> None:
-    """get_deleted_by_vault (deleted roster) applies the pet's max_health."""
     dweller.max_health = 100
     dweller.radiation = 40
     dweller.is_deleted = True
@@ -287,7 +275,6 @@ async def test_deleted_list_applies_pet_max_health(async_session: AsyncSession, 
 async def test_tradable_list_applies_pet_max_health(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
 ) -> None:
-    """get_tradable (trading post) applies the pet's max_health."""
     dweller.max_health = 100
     dweller.radiation = 40
     dweller.is_deleted = True
@@ -303,7 +290,6 @@ async def test_tradable_list_applies_pet_max_health(
 async def test_count_living_with_effective_stat_includes_pet(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
 ) -> None:
-    """count_living_with_effective_stat counts the pet-boosted stat."""
     dweller.strength = 5
     async_session.add(dweller)
     await async_session.commit()
@@ -314,7 +300,6 @@ async def test_count_living_with_effective_stat_includes_pet(
 
 @pytest.mark.asyncio
 async def test_resource_tick_applies_pet_stat(async_session: AsyncSession, vault: Vault, dweller: Dweller) -> None:
-    """get_vault_resource_data (production tick) applies the pet's SPECIAL."""
     room = await _room(async_session, vault)
     await _assign_to_room(async_session, dweller, room)
     dweller.strength = 5
@@ -330,7 +315,6 @@ async def test_resource_tick_applies_pet_stat(async_session: AsyncSession, vault
 
 @pytest.mark.asyncio
 async def test_apply_rewards_applies_pet_xp_bonus(async_session: AsyncSession, vault: Vault, dweller: Dweller) -> None:
-    """apply_rewards grants the pet's xp_pct through the real settlement path."""
     await _equip_pet(async_session, dweller, "CX404")  # xp_pct 0.25
     exploration = await _settled_exploration(async_session, vault, dweller)
     initial_xp = dweller.experience

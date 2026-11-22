@@ -1,5 +1,3 @@
-"""Tests for QuotaService."""
-
 from unittest.mock import AsyncMock
 from uuid import uuid4
 
@@ -18,7 +16,6 @@ from app.utils.exceptions import ResourceNotFoundException
 
 @pytest.mark.asyncio
 async def test_check_quota_admin_with_no_usage(async_session: AsyncSession) -> None:
-    """Test admin user with no token usage."""
     # Create admin user
     user_in = UserCreate(
         username="admin_no_usage",
@@ -41,7 +38,6 @@ async def test_check_quota_admin_with_no_usage(async_session: AsyncSession) -> N
 
 @pytest.mark.asyncio
 async def test_check_quota_normal_user_warning_threshold(async_session: AsyncSession) -> None:
-    """Test that normal users get warning when near quota threshold (80%)."""
     # Create normal user with default quota (500000)
     user_in = UserCreate(
         username="warning_user",
@@ -98,7 +94,6 @@ def test_quota_enforcement_keeps_http_headers_at_api_boundary(allowed: bool, war
 
 async def test_quota_raw_session_owns_usage_transaction(db_connection, async_session):
     from datetime import datetime
-    from unittest.mock import AsyncMock
 
     from sqlalchemy import event
     from sqlalchemy.dialects import postgresql
@@ -144,7 +139,6 @@ async def test_quota_raw_session_owns_usage_transaction(db_connection, async_ses
 async def test_check_quota_disabled_allows_a_regular_user(
     async_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """QUOTA_DISABLED short-circuits the check for a regular (non-admin) user too."""
     monkeypatch.setattr(settings, "QUOTA_DISABLED", True)
     user = await crud.user.create(
         async_session,
@@ -163,7 +157,6 @@ async def test_check_quota_disabled_allows_a_regular_user(
 
 @pytest.mark.asyncio
 async def test_check_quota_unknown_user_raises_not_found(async_session: AsyncSession) -> None:
-    """An unknown user id is a not-found error, not an empty quota."""
     missing_id = uuid4()
 
     with pytest.raises(ResourceNotFoundException) as exc_info:

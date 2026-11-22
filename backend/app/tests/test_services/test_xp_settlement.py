@@ -69,7 +69,6 @@ async def _make_production_room(async_session: AsyncSession, vault: Vault) -> Ro
 
 @pytest.mark.asyncio
 async def test_canonical_path_surfaces_level_up(async_session: AsyncSession, vault: Vault, dweller: Dweller) -> None:
-    """The canonical path emits the event and notifies on level-up."""
     dweller.level = 1
     dweller.experience = 0
     async_session.add(dweller)
@@ -95,7 +94,6 @@ async def test_canonical_path_surfaces_level_up(async_session: AsyncSession, vau
 async def test_canonical_path_quiet_without_level_up(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
 ) -> None:
-    """No level-up means no event and no notification (no over-notifying)."""
     dweller.level = 1
     dweller.experience = 0
     async_session.add(dweller)
@@ -138,7 +136,6 @@ async def test_work_tick_surfaces_level_up(async_session: AsyncSession, vault: V
 
 @pytest.mark.asyncio
 async def test_incident_path_surfaces_level_up(async_session: AsyncSession, vault: Vault, dweller: Dweller) -> None:
-    """Incident level-ups park until the round commits, then surface like canonical."""
     room = await _make_production_room(async_session, vault)
     await _pin_level_one(async_session, dweller)
     incident = Incident(vault_id=vault.id, room_id=room.id, type=IncidentType.RAIDER_ATTACK, difficulty=1)
@@ -169,7 +166,6 @@ async def test_incident_path_surfaces_level_up(async_session: AsyncSession, vaul
 async def test_incident_level_up_rolls_back_with_the_round(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
 ) -> None:
-    """The incident level-up write rides the round's transaction, not its own commit."""
     room = await _make_production_room(async_session, vault)
     await _pin_level_one(async_session, dweller)
     incident = Incident(vault_id=vault.id, room_id=room.id, type=IncidentType.RAIDER_ATTACK, difficulty=1)
@@ -230,7 +226,6 @@ async def test_exploration_path_surfaces_level_up(async_session: AsyncSession, v
 async def test_deferred_level_up_queues_until_drained(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
 ) -> None:
-    """commit=False parks the event and notification; the drain dispatches both."""
     with (
         patch("app.core.event_bus.event_bus.emit", new_callable=AsyncMock) as emit,
         patch(
@@ -253,7 +248,6 @@ async def test_deferred_level_up_queues_until_drained(
 
 @pytest.mark.asyncio
 async def test_discarded_level_up_never_dispatches(async_session: AsyncSession, vault: Vault, dweller: Dweller) -> None:
-    """A rolled-back transaction drops queued level-up surfacing entirely."""
     with (
         patch("app.core.event_bus.event_bus.emit", new_callable=AsyncMock) as emit,
         patch(

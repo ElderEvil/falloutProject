@@ -1,5 +1,3 @@
-"""Age portrait backfill only rewrites curated child/teen defaults."""
-
 import importlib.util
 from pathlib import Path
 

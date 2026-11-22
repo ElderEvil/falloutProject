@@ -1,5 +1,3 @@
-"""Game balance configuration validation."""
-
 import pytest
 from pydantic import ValidationError
 

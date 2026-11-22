@@ -1,5 +1,3 @@
-"""Tests for the discovery-unlock backfill service."""
-
 from __future__ import annotations
 
 import pytest
@@ -20,7 +18,6 @@ from app.services.map_service import map_service
 async def test_backfill_unlocks_discoveries_and_is_idempotent(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
 ) -> None:
-    """First run unlocks every discovery; a second run changes nothing."""
     exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
     await async_session.refresh(exploration)
 

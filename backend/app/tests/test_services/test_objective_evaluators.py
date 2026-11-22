@@ -1,5 +1,3 @@
-"""Tests for ObjectiveEvaluators."""
-
 import asyncio
 import logging
 from unittest.mock import patch
@@ -64,7 +62,6 @@ async def test_collect_evaluator_wrong_resource(
     fresh_event_bus,
     patched_session_maker,
 ) -> None:
-    """Test CollectEvaluator ignores wrong resource type."""
     user_data = create_fake_user()
     user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))
     vault_data = create_fake_vault()
@@ -107,7 +104,6 @@ async def test_collect_evaluator_credits_batched_resources(
     fresh_event_bus,
     patched_session_maker,
 ) -> None:
-    """One batched event credits each matching objective, and a wildcard sums them."""
     user_data = create_fake_user()
     user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))
     vault_data = create_fake_vault()
@@ -276,7 +272,6 @@ async def test_build_evaluator_room_built(
     fresh_event_bus,
     patched_session_maker,
 ) -> None:
-    """Test BuildEvaluator updates progress on room built."""
     user_data = create_fake_user()
     user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))
     vault_data = create_fake_vault()
@@ -321,7 +316,6 @@ async def test_train_evaluator_dweller_trained(
     fresh_event_bus,
     patched_session_maker,
 ) -> None:
-    """Test TrainEvaluator updates progress on training complete."""
     user_data = create_fake_user()
     user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))
     vault_data = create_fake_vault()
@@ -372,7 +366,6 @@ async def test_assign_evaluator_dweller_assigned(
     fresh_event_bus,
     patched_session_maker,
 ) -> None:
-    """Test AssignEvaluator updates progress on dweller assignment."""
     user_data = create_fake_user()
     user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))
     vault_data = create_fake_vault()
@@ -423,7 +416,6 @@ async def test_explore_evaluator_credits_at_departure(
     fresh_event_bus,
     patched_session_maker,
 ) -> None:
-    """An 'explore' objective advances on departure, not on the hour-scale return."""
     user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
     vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id))
 
@@ -459,7 +451,6 @@ async def test_reach_evaluator_population_reached(
     fresh_event_bus,
     patched_session_maker,
 ) -> None:
-    """Test ReachEvaluator completes when population target met."""
     user_data = create_fake_user()
     user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))
     vault_data = create_fake_vault()
@@ -697,7 +688,6 @@ async def test_all_assigned_starter_steps_record_early_progress(
     fresh_event_bus,
     patched_session_maker,
 ) -> None:
-    """Events count toward later starter steps before their rewards become claimable."""
     user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
     vault = await crud.vault.create(
         async_session,
@@ -818,7 +808,6 @@ async def test_completing_current_starter_step_advances_to_next(
     fresh_event_bus,
     patched_session_maker,
 ) -> None:
-    """Completing the current step makes the next step current on the following read."""
     user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
     vault = await crud.vault.create(
         async_session,
@@ -860,10 +849,7 @@ async def test_completing_current_starter_step_advances_to_next(
 
 
 class TestAliasMatching:
-    """Tests for evaluator alias matching functionality."""
-
     def test_build_evaluator_matches_room_alias(self, fresh_event_bus):
-        """Test BuildEvaluator matches room aliases like 'living quarters' -> 'living_room'."""
         evaluator = BuildEvaluator(fresh_event_bus)
         objective = Objective(
             challenge="Build a Living Room",
@@ -878,7 +864,6 @@ class TestAliasMatching:
         assert evaluator._matches(objective, GameEvent.ROOM_BUILT, data) is True
 
     def test_collect_evaluator_matches_item_alias_weapons(self, fresh_event_bus):
-        """Test CollectEvaluator matches 'Weapons' -> 'weapon'."""
         evaluator = CollectEvaluator(fresh_event_bus)
         objective = Objective(
             challenge="Collect 3 weapons",
@@ -893,7 +878,6 @@ class TestAliasMatching:
         assert evaluator._matches(objective, GameEvent.ITEM_COLLECTED, data) is True
 
     def test_assign_evaluator_matches_room_alias(self, fresh_event_bus):
-        """Test AssignEvaluator matches room aliases."""
         evaluator = AssignEvaluator(fresh_event_bus)
         objective = Objective(
             challenge="Assign to Living Room",
@@ -909,10 +893,7 @@ class TestAliasMatching:
 
 
 class TestExpeditionEvaluator:
-    """Tests for ExpeditionEvaluator functionality."""
-
     def test_matches_specific_quest_type(self, fresh_event_bus):
-        """Test ExpeditionEvaluator matches specific quest type."""
         evaluator = ExpeditionEvaluator(fresh_event_bus)
         objective = Objective(
             challenge="Complete 1 Main Quest",
@@ -932,7 +913,6 @@ async def test_expedition_evaluator_quest_completed(
     fresh_event_bus,
     patched_session_maker,
 ) -> None:
-    """Test ExpeditionEvaluator updates progress on quest completion."""
     user_data = create_fake_user()
     user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))
     vault_data = create_fake_vault()
@@ -970,7 +950,6 @@ async def test_level_up_evaluator_dweller_leveled_up(
     fresh_event_bus,
     patched_session_maker,
 ) -> None:
-    """Test LevelUpEvaluator updates progress on dweller level up."""
     user_data = create_fake_user()
     user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))
     vault_data = create_fake_vault()
@@ -1008,7 +987,6 @@ async def test_scrap_evaluator_matches_rare_weapon(
     fresh_event_bus,
     patched_session_maker,
 ) -> None:
-    """Test ScrapEvaluator completes a rare-weapon objective on a matching scrap."""
     user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
     vault = await crud.vault.create(
         async_session,
@@ -1051,7 +1029,6 @@ async def test_scrap_evaluator_ignores_rarity_mismatch(
     fresh_event_bus,
     patched_session_maker,
 ) -> None:
-    """Test ScrapEvaluator ignores a common scrap for a rare objective."""
     user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
     vault = await crud.vault.create(
         async_session,
@@ -1094,7 +1071,6 @@ async def test_scrap_evaluator_ignores_item_type_mismatch(
     fresh_event_bus,
     patched_session_maker,
 ) -> None:
-    """Test ScrapEvaluator ignores an outfit scrap for a weapon objective."""
     user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
     vault = await crud.vault.create(
         async_session,
@@ -1137,7 +1113,6 @@ async def test_scrap_evaluator_rarity_only_matches_any_item_type(
     fresh_event_bus,
     patched_session_maker,
 ) -> None:
-    """Test a rarity-only scrap objective matches any item type."""
     user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
     vault = await crud.vault.create(
         async_session,
@@ -1178,7 +1153,6 @@ async def test_scrap_evaluator_rarity_only_matches_any_item_type(
 async def test_full_storage_reward_rollback_preserves_other_objectives_and_retry(
     async_session, vault, fresh_event_bus, caplog
 ):
-    """Earned rewards survive a blocked claim; independent rewards and retry still work."""
     vault_id = vault.id
     initial_caps = vault.bottle_caps
     storage = Storage(vault_id=vault_id, max_space=0)
@@ -1322,7 +1296,6 @@ async def test_objective_target_waits_for_claim_and_announces_once(
     ],
 )
 def test_collect_matches_material_and_source(target: dict, event: dict, expected: bool, fresh_event_bus) -> None:
-    """A material filter narrows to that catalog type; a source filter rejects unstamped events."""
     objective = Objective(
         challenge="Collect junk",
         reward="50 caps",

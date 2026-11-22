@@ -91,7 +91,6 @@ class TestMemoryRegression:
     RSS_GROWTH_MAX = 15.0  # MB — request handling should not balloon
 
     def test_rss_growth_after_requests(self, _app_and_client):
-        """RSS should not grow excessively after handling 200+ requests."""
         _app, client = _app_and_client
         rss_before = get_rss_mb()
 
@@ -112,7 +111,6 @@ class TestMemoryRegression:
         )
 
     def test_dependency_endpoints_respond_correctly(self, _app_and_client):
-        """Verify dependency-chained endpoints return correct values."""
         _, client = _app_and_client
         r = client.get("/chain-0")
         assert r.status_code == 200
@@ -123,7 +121,6 @@ class TestMemoryRegression:
         assert r.json() == {"l1": 49, "l2": 49}
 
     def test_simple_endpoints_respond_correctly(self, _app_and_client):
-        """Verify simple endpoints work."""
         _, client = _app_and_client
         r = client.get("/simple-0")
         assert r.status_code == 200

@@ -1,5 +1,3 @@
-"""Tests for workshop crafting — recipes and the timed order queue."""
-
 from datetime import datetime, timedelta
 from uuid import uuid4
 
@@ -204,7 +202,6 @@ async def test_list_recipes_excludes_uncraftable_entries(async_session: AsyncSes
 async def test_power_struggle_outfits_craftable_without_discovery(
     async_session: AsyncSession, vault: Vault, name: str, junk_types: list[str]
 ) -> None:
-    """An existing vault can craft chain requirements without finding them in a lunchbox first."""
     storage = await _make_storage(async_session, vault)
     await _add_workshop(async_session, vault, "Outfit workshop")
     vault.bottle_caps = 1_000
@@ -293,7 +290,6 @@ async def test_start_order_consumes_materials_and_caps(async_session: AsyncSessi
 
 @pytest.mark.asyncio
 async def test_only_the_items_junk_types_count(async_session: AsyncSession, vault: Vault) -> None:
-    """A melee item takes steel/adhesive, so circuitry scrap cannot pay for it."""
     storage = await _make_storage(async_session, vault)
     await _add_workshop(async_session, vault, "Weapon workshop")
     await _add_junk(async_session, storage, RarityEnum.COMMON, 10, JunkTypeEnum.CIRCUITRY)
@@ -306,7 +302,6 @@ async def test_only_the_items_junk_types_count(async_session: AsyncSession, vaul
 
 @pytest.mark.asyncio
 async def test_each_tier_needs_its_own_rarity(async_session: AsyncSession, vault: Vault) -> None:
-    """A rare order needs common AND rare materials; rare-only stock is not enough."""
     storage = await _make_storage(async_session, vault)
     await _add_workshop(async_session, vault, "Weapon workshop")
     await _add_junk(async_session, storage, RarityEnum.RARE, 10)
@@ -318,7 +313,6 @@ async def test_each_tier_needs_its_own_rarity(async_session: AsyncSession, vault
 
 @pytest.mark.asyncio
 async def test_recipe_reports_stock_and_projected_time(async_session: AsyncSession, vault: Vault) -> None:
-    """The recipe carries the have/need counts and the crew's projected duration."""
     storage = await _make_storage(async_session, vault)
     room = await _add_workshop(async_session, vault, "Weapon workshop")
     await _add_junk(async_session, storage, RarityEnum.COMMON, 5)
@@ -391,7 +385,6 @@ async def test_start_order_insufficient_caps(async_session: AsyncSession, vault:
 
 @pytest.mark.asyncio
 async def test_item_stat_shortens_the_order_duration(async_session: AsyncSession, vault: Vault) -> None:
-    """The item names the stat (pistols want agility) and the crew supplies the points."""
     storage = await _make_storage(async_session, vault)
     room = await _add_workshop(async_session, vault, "Weapon workshop")
     await _add_junk(async_session, storage, RarityEnum.COMMON, _junk_cost(RarityEnum.COMMON) * 2)
@@ -417,7 +410,6 @@ async def test_item_stat_shortens_the_order_duration(async_session: AsyncSession
 
 @pytest.mark.asyncio
 async def test_unrelated_stats_do_not_speed_the_craft(async_session: AsyncSession, vault: Vault) -> None:
-    """A pistol keys off agility, so a strength-heavy worker adds nothing."""
     storage = await _make_storage(async_session, vault)
     room = await _add_workshop(async_session, vault, "Weapon workshop")
     await _add_junk(async_session, storage, RarityEnum.COMMON, _junk_cost(RarityEnum.COMMON))
@@ -543,10 +535,8 @@ async def test_list_orders_returns_the_queue(async_session: AsyncSession, vault:
 
 @pytest.mark.asyncio
 async def test_crafting_tick_notifies_owner_when_order_completes(async_session: AsyncSession, vault: Vault) -> None:
-    """A finished order both flips to completed and signals the owner (bell + toast)."""
     from app.core.enums import NotificationType
     from app.models.notification import Notification
-    from app.services.game_tick import crafting_tick
 
     storage = await _make_storage(async_session, vault)
     await _add_workshop(async_session, vault, "Weapon workshop")
@@ -798,8 +788,6 @@ async def test_cancel_legacy_order_rebuilds_an_equivalent_junk_refund(
 
 @pytest.mark.asyncio
 async def test_crafting_tick_does_not_revive_a_cancelled_order(async_session: AsyncSession, vault: Vault) -> None:
-    from app.services.game_tick import crafting_tick
-
     storage = await _make_storage(async_session, vault)
     await _add_workshop(async_session, vault, "Weapon workshop")
     await _add_junk(async_session, storage, RarityEnum.COMMON, _junk_cost(RarityEnum.COMMON), JunkTypeEnum.STEEL)

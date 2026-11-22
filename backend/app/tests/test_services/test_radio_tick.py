@@ -26,8 +26,6 @@ from app.services.radio_service import radio_service
 
 
 class _FixedRng:
-    """Randomness source whose roll always returns the same value."""
-
     def __init__(self, value: float) -> None:
         self._value = value
 
@@ -69,7 +67,6 @@ async def _set_radio_mode(async_session: AsyncSession, vault: Vault, mode: str) 
 
 @pytest.mark.asyncio
 async def test_recruits_when_the_roll_succeeds(async_session: AsyncSession, vault: Vault, radio_room: Room) -> None:
-    """A winning roll adds a dweller to the vault."""
     await _set_radio_mode(async_session, vault, "recruitment")
     before = await crud.dweller.count_in_vault(async_session, vault.id)
 
@@ -83,7 +80,6 @@ async def test_recruits_when_the_roll_succeeds(async_session: AsyncSession, vaul
 async def test_does_not_recruit_when_the_roll_fails(
     async_session: AsyncSession, vault: Vault, radio_room: Room
 ) -> None:
-    """A losing roll recruits nobody."""
     await _set_radio_mode(async_session, vault, "recruitment")
     before = await crud.dweller.count_in_vault(async_session, vault.id)
 
@@ -95,7 +91,6 @@ async def test_does_not_recruit_when_the_roll_fails(
 
 @pytest.mark.asyncio
 async def test_does_not_recruit_in_happiness_mode(async_session: AsyncSession, vault: Vault, radio_room: Room) -> None:
-    """Happiness mode is not a recruitment mode, even on a winning roll."""
     await _set_radio_mode(async_session, vault, "happiness")
 
     stats = await process_radio(async_session, vault.id, rng=_FixedRng(0.0))
@@ -105,7 +100,6 @@ async def test_does_not_recruit_in_happiness_mode(async_session: AsyncSession, v
 
 @pytest.mark.asyncio
 async def test_does_not_recruit_without_a_radio_room(async_session: AsyncSession, vault: Vault) -> None:
-    """No radio studio means no recruitment, even on a winning roll."""
     await _set_radio_mode(async_session, vault, "recruitment")
 
     stats = await process_radio(async_session, vault.id, rng=_FixedRng(0.0))
@@ -115,7 +109,6 @@ async def test_does_not_recruit_without_a_radio_room(async_session: AsyncSession
 
 @pytest.mark.asyncio
 async def test_recovers_the_session_when_recruitment_raises(async_session: AsyncSession, vault: Vault) -> None:
-    """A database failure is isolated and leaves the session usable."""
     vault_id = vault.id
     with patch.object(radio_service, "check_for_recruitment", new=AsyncMock(side_effect=SQLAlchemyError("boom"))):
         stats = await process_radio(async_session, vault_id)
@@ -129,7 +122,6 @@ async def test_recovers_the_session_when_recruitment_raises(async_session: Async
 
 @pytest.mark.asyncio
 async def test_process_vault_tick_runs_the_radio_phase(async_session: AsyncSession, vault: Vault) -> None:
-    """process_vault_tick drives the radio phase and records its result."""
     mock_update = MagicMock()
     mock_update.power = 100
     mock_update.food = 50

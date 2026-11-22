@@ -1,5 +1,3 @@
-"""Tests for radio service logic."""
-
 from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -27,9 +25,7 @@ from app.tests.factory.dwellers import create_fake_dweller
 from app.tests.utils.query_counter import count_sql_statements
 from app.utils.exceptions import ResourceConflictException
 
-# ---------------------------------------------------------------------------
 # Fixtures
-# ---------------------------------------------------------------------------
 
 
 @pytest_asyncio.fixture(name="radio_room")
@@ -132,9 +128,7 @@ async def deleted_dweller_fixture(async_session: AsyncSession, vault: Vault) -> 
     return dweller
 
 
-# ---------------------------------------------------------------------------
 # Existing tests (radio rooms / rates / manual recruit)
-# ---------------------------------------------------------------------------
 
 
 @pytest.mark.asyncio
@@ -142,7 +136,6 @@ async def test_calculate_recruitment_rate_no_radio(
     async_session: AsyncSession,
     vault: Vault,
 ):
-    """Test recruitment rate with no radio rooms."""
     rate = await RadioService.calculate_recruitment_rate(async_session, vault, [])
     assert rate == 0.0
 
@@ -154,7 +147,6 @@ async def test_calculate_recruitment_rate_batches_room_dwellers(
     radio_room: Room,
     radio_dweller: Dweller,
 ):
-    """All radio-room dwellers load in one query regardless of room count."""
     second_room = await crud.room.create(
         db_session=async_session,
         obj_in=RoomCreate(
@@ -232,7 +224,6 @@ async def test_check_for_recruitment_no_radio(
     async_session: AsyncSession,
     vault: Vault,
 ):
-    """Test recruitment check with no radio room."""
     dweller = await RadioService.check_for_recruitment(async_session, vault.id)
     assert dweller is None
 
@@ -243,7 +234,6 @@ async def test_check_for_recruitment_success(
     vault: Vault,
     radio_room: Room,
 ):
-    """Test successful recruitment via radio."""
     # Mock random to always succeed the rate roll; pin rare_chance=0 so the
     # rare roll (0.0 < 0.04 default) cannot flip the fresh dweller to RARE.
     with patch("random.random", return_value=0.0), patch.object(game_config.radio, "rare_chance", new=0.0):
@@ -260,7 +250,6 @@ async def test_check_for_recruitment_failure(
     vault: Vault,
     radio_room: Room,
 ):
-    """Test failed recruitment via radio."""
     # Mock random to always fail the rate roll
     with patch("random.random", return_value=1.0):
         dweller = await RadioService.check_for_recruitment(async_session, vault.id)
@@ -274,7 +263,6 @@ async def test_check_for_recruitment_skips_full_vault_before_the_roll(
     vault: Vault,
     radio_room: Room,
 ):
-    """A full vault does not roll or create a passive radio recruit."""
     vault.population_max = 0
     async_session.add(vault)
     await async_session.commit()
@@ -313,7 +301,6 @@ async def test_recruit_dweller_fresh_when_pool_empty(
     vault: Vault,
     race: RaceOption,
 ):
-    """When no recyclable dwellers exist the service creates a fresh random dweller."""
     # rare_chance=0 pins the rarity roll to COMMON (default 0.04 would give RARE at random=0.0)
     with (
         patch("random.random", return_value=0.0),
@@ -414,7 +401,6 @@ async def test_manual_recruit_success(
     radio_room: Room,
     radio_dweller: Dweller,
 ):
-    """Test manual recruitment with sufficient caps."""
     vault.bottle_caps = game_config.radio.manual_recruitment_cost + 500
     await async_session.commit()
     initial_caps = vault.bottle_caps
@@ -436,7 +422,6 @@ async def test_manual_recruit_insufficient_caps(
     radio_room: Room,
     radio_dweller: Dweller,
 ):
-    """Test manual recruitment with insufficient caps."""
     # Set caps below cost
     vault.bottle_caps = game_config.radio.manual_recruitment_cost - 1
     await async_session.commit()
@@ -452,7 +437,6 @@ async def test_manual_recruit_does_not_spend_caps_when_vault_is_full(
     radio_room: Room,
     radio_dweller: Dweller,
 ):
-    """Manual radio recruitment leaves caps and population unchanged at capacity."""
     vault.population_max = 1
     vault.bottle_caps = game_config.radio.manual_recruitment_cost + 500
     async_session.add(vault)
@@ -472,7 +456,6 @@ async def test_manual_recruit_no_radio(
     async_session: AsyncSession,
     vault: Vault,
 ):
-    """Test manual recruitment without radio room."""
     with pytest.raises(ValueError, match="No radio room available"):
         await RadioService.manual_recruit(async_session, vault.id)
 
@@ -482,7 +465,6 @@ async def test_get_recruitment_stats_no_radio(
     async_session: AsyncSession,
     vault: Vault,
 ):
-    """Test recruitment stats without radio room."""
     stats = await RadioService.get_recruitment_stats(async_session, vault.id)
 
     assert stats["has_radio"] is False
@@ -496,7 +478,6 @@ async def test_get_recruitment_stats_with_radio(
     vault: Vault,
     radio_room: Room,
 ):
-    """Test recruitment stats with radio room."""
     stats = await RadioService.get_recruitment_stats(async_session, vault.id)
 
     assert stats["has_radio"] is True
@@ -507,9 +488,7 @@ async def test_get_recruitment_stats_with_radio(
     assert stats["manual_cost_caps"] == game_config.radio.manual_recruitment_cost
 
 
-# ---------------------------------------------------------------------------
 # New tests: radio asset repurpose (2.14-repurpose)
-# ---------------------------------------------------------------------------
 
 
 @pytest.mark.asyncio
@@ -518,7 +497,6 @@ async def test_recruit_dweller_recycles_from_pool(
     vault: Vault,
     deleted_dweller: Dweller,
 ):
-    """When a recyclable dweller exists the radio restores it instead of creating a new one."""
     deleted_dweller_id = deleted_dweller.id
 
     # Force recycle probability roll to pass
@@ -537,7 +515,6 @@ async def test_recruit_dweller_recycled_preserves_rarity(
     vault: Vault,
     deleted_dweller: Dweller,
 ):
-    """The recycled dweller keeps its original rarity (RARE stays RARE, not capped to COMMON)."""
     with patch("random.random", return_value=0.0):
         dweller, recycled = await RadioService.recruit_dweller(async_session, vault.id)
 
@@ -551,7 +528,6 @@ async def test_recruit_dweller_recycled_preserves_assets(
     vault: Vault,
     deleted_dweller: Dweller,
 ):
-    """The recycled dweller retains its existing bio, image_url, and thumbnail_url."""
     with patch("random.random", return_value=0.0):
         dweller, recycled = await RadioService.recruit_dweller(async_session, vault.id)
 
@@ -567,7 +543,6 @@ async def test_recruit_dweller_recycled_resets_stats(
     vault: Vault,
     deleted_dweller: Dweller,
 ):
-    """Recycled dweller has its gameplay stats reset to level 1 defaults."""
     partner = await crud.dweller.create(
         db_session=async_session,
         obj_in=DwellerCreate(**create_fake_dweller(), vault_id=vault.id),
@@ -595,7 +570,6 @@ async def test_recruit_dweller_skips_recycling_when_disabled(
     vault: Vault,
     deleted_dweller: Dweller,
 ):
-    """When recycle_enabled=False the service always creates a fresh dweller."""
     # rare_chance=0 pins the rarity roll to COMMON (default 0.04 would give RARE at random=0.0)
     with (
         patch.object(game_config.radio, "recycle_enabled", new=False),
@@ -611,7 +585,6 @@ async def test_recruit_dweller_skips_recycling_when_disabled(
 
 @pytest.mark.asyncio
 async def test_recruit_dweller_rare_chance_rolls_rare(async_session: AsyncSession, vault: Vault) -> None:
-    """rare_chance=1.0 makes fresh recruits RARE; 0.0 keeps them COMMON."""
     # 0.5 < 1.0 → RARE; 0.5 < 0.0 is False → COMMON. Both rolls use the same mocked value.
     with patch.object(game_config.radio, "rare_chance", new=1.0), patch("random.random", return_value=0.5):
         dweller, recycled = await RadioService.recruit_dweller(async_session, vault.id)
@@ -681,7 +654,6 @@ async def test_recruit_dweller_skips_recycling_when_probability_roll_fails(
     vault: Vault,
     deleted_dweller: Dweller,
 ):
-    """When the probability roll loses, a fresh dweller is created even if pool has candidates."""
     with patch("random.random", return_value=0.99):  # 0.99 > default 0.8, roll fails
         dweller, recycled = await RadioService.recruit_dweller(async_session, vault.id)
 
@@ -695,7 +667,6 @@ async def test_recruit_dweller_falls_back_on_resource_conflict(
     vault: Vault,
     deleted_dweller: Dweller,
 ):
-    """If recycling raises ResourceConflictException the service falls back to create_random."""
     with (
         patch.object(
             dweller_recycling_service,
@@ -717,7 +688,6 @@ async def test_recruit_dweller_does_not_recycle_recently_deleted(
     async_session: AsyncSession,
     vault: Vault,
 ):
-    """Dwellers deleted less than recycle_min_age_days ago are not eligible for radio recycling."""
     # Create a dweller deleted just 1 day ago (below the 7-day threshold)
     dweller_data = {
         "first_name": "Fresh",

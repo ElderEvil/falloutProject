@@ -69,8 +69,6 @@ class TestTaskSessionExec:
             assert first.get_bind() is second.get_bind()
 
     def test_run_async_reuses_the_thread_loop(self) -> None:
-        """Dramatiq worker threads keep one loop, so pooled connections survive."""
-
         async def loop_id() -> int:
             return id(asyncio.get_running_loop())
 

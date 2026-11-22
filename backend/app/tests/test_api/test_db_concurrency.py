@@ -1,5 +1,3 @@
-"""Exercise the shared production dependency with real pooled sessions and ASGI requests."""
-
 import asyncio
 from typing import Annotated
 from uuid import uuid4

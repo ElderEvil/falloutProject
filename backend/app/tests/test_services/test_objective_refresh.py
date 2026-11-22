@@ -1,5 +1,3 @@
-"""UTC renewals exercise real services and database state."""
-
 from datetime import UTC, datetime, timedelta
 
 import pytest

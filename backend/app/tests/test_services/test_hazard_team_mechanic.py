@@ -1,5 +1,3 @@
-"""Hazard-team mechanic: response bonus, damage resist, and auto-equip."""
-
 from unittest.mock import patch
 
 import pytest
@@ -27,7 +25,6 @@ from app.utils.combat import combat_power
 
 @pytest.mark.asyncio
 async def test_active_member_takes_less_damage(async_session: AsyncSession, room_with_dwellers: dict):
-    """An active matching member takes the hazard-resist share off their damage."""
     room = room_with_dwellers["room"]
     dwellers = room_with_dwellers["dwellers"]
     await full_health(async_session, dwellers)
@@ -45,7 +42,6 @@ async def test_active_member_takes_less_damage(async_session: AsyncSession, room
 
 @pytest.mark.asyncio
 async def test_active_member_takes_less_radiation(async_session: AsyncSession, room_with_dwellers: dict):
-    """A radiation-team member absorbs less RAD from a radscorpion attack."""
     room = room_with_dwellers["room"]
     dwellers = room_with_dwellers["dwellers"]
     await full_health(async_session, dwellers)
@@ -100,7 +96,6 @@ async def test_active_member_response_bonus(
     member_team: HazardTeam,
     expected_power: int,
 ):
-    """Only active members of the matching team add response power to the round."""
     room = room_with_dwellers["room"]
     dwellers = room_with_dwellers["dwellers"]
     await make_member(async_session, room.vault_id, dwellers[0].id, member_team, ACTIVE_STATUS)
@@ -147,7 +142,6 @@ async def test_attack_shares_match_the_total_power_model(async_session: AsyncSes
 
 @pytest.mark.asyncio
 async def test_active_gainer_with_spare_outfit_gets_equipped(async_session: AsyncSession, room_with_dwellers: dict):
-    """A newly-active member wears the spare matching outfit from storage."""
     room = room_with_dwellers["room"]
     dweller = room_with_dwellers["dwellers"][0]
     storage = await crud.vault.create_storage(db_session=async_session, vault_id=room.vault_id)
@@ -162,7 +156,6 @@ async def test_active_gainer_with_spare_outfit_gets_equipped(async_session: Asyn
 
 @pytest.mark.asyncio
 async def test_no_spare_outfit_leaves_unchanged(async_session: AsyncSession, room_with_dwellers: dict):
-    """No spare matching outfit means the dweller keeps whatever they had."""
     room = room_with_dwellers["room"]
     dweller = room_with_dwellers["dwellers"][0]
 
@@ -173,7 +166,6 @@ async def test_no_spare_outfit_leaves_unchanged(async_session: AsyncSession, roo
 
 @pytest.mark.asyncio
 async def test_bench_member_not_equipped(async_session: AsyncSession, room_with_dwellers: dict, dweller_data: dict):
-    """Only active gainers are equipped; a bench qualifier keeps no outfit."""
     room = room_with_dwellers["room"]
     dwellers = list(room_with_dwellers["dwellers"])
     while len(dwellers) <= TEAM_SIZE:
@@ -207,7 +199,6 @@ async def test_bench_member_not_equipped(async_session: AsyncSession, room_with_
 
 @pytest.mark.asyncio
 async def test_already_wearing_target_unchanged(async_session: AsyncSession, room_with_dwellers: dict):
-    """A dweller already wearing the target keeps it and the spare stays put."""
     room = room_with_dwellers["room"]
     dweller = room_with_dwellers["dwellers"][0]
     storage = await crud.vault.create_storage(db_session=async_session, vault_id=room.vault_id)
@@ -226,7 +217,6 @@ async def test_already_wearing_target_unchanged(async_session: AsyncSession, roo
 async def test_equip_failure_does_not_abort_batch(
     async_session: AsyncSession, room_with_dwellers: dict, monkeypatch: pytest.MonkeyPatch
 ):
-    """One failed auto-equip is contained; the remaining members still get their outfit."""
     room = room_with_dwellers["room"]
     dwellers = room_with_dwellers["dwellers"]
     storage = await crud.vault.create_storage(db_session=async_session, vault_id=room.vault_id)
@@ -257,7 +247,6 @@ async def test_equip_failure_does_not_abort_batch(
 async def test_failed_notification_flush_does_not_poison_the_round(
     async_session: AsyncSession, room_with_dwellers: dict
 ):
-    """A deferred notification that errors rolls back to its savepoint, so the round still commits."""
     room = room_with_dwellers["room"]
     dweller = room_with_dwellers["dwellers"][0]
 
@@ -275,7 +264,6 @@ async def test_failed_notification_flush_does_not_poison_the_round(
 
 @pytest.mark.asyncio
 async def test_fallen_member_is_benched_not_left_slotless_active(async_session: AsyncSession, room_with_dwellers: dict):
-    """A fallen member frees their slot and drops to the bench, so a revival cannot re-add a place."""
     room = room_with_dwellers["room"]
     dwellers = list(room_with_dwellers["dwellers"])
     await make_member(async_session, room.vault_id, dwellers[0].id, HazardTeam.FIRE, ACTIVE_STATUS)

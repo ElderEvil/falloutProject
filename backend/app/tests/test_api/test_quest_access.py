@@ -1,5 +1,3 @@
-"""Quest endpoint access-control tests."""
-
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
@@ -12,7 +10,6 @@ from app.schemas.pagination import Pagination
 
 @pytest.mark.asyncio
 async def test_read_vault_quests_checks_access_before_querying() -> None:
-    """A caller without vault access cannot list that vault's quests."""
     db_session = AsyncMock()
     user = MagicMock()
     vault_id = uuid4()

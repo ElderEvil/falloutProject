@@ -150,7 +150,6 @@ async def test_free_space_settles_held_row_and_skips_equipped_entry(
     dweller: Dweller,
     make_vault_storage,
 ):
-    """A held row moves into storage; an already-equipped loot entry creates nothing."""
     storage = await make_vault_storage(10)
     exploration = await _returning_exploration(async_session, vault, dweller)
     held = await _create_held_weapon(async_session, dweller, exploration.id)
@@ -222,7 +221,6 @@ async def test_no_orphan_rows_after_settlement(
     dweller: Dweller,
     make_vault_storage,
 ):
-    """Settling held rows plus loot leaves no row in the unassigned/unheld limbo state."""
     await make_vault_storage(10)
     exploration = await _returning_exploration(async_session, vault, dweller)
     await _create_held_weapon(async_session, dweller, exploration.id)
@@ -244,7 +242,6 @@ async def test_failed_settlement_keeps_run_returning_and_held_rows_intact(
     make_vault_storage,
     monkeypatch: pytest.MonkeyPatch,
 ):
-    """A failure after the held move rolls back; a retry then settles exactly once."""
     storage = await make_vault_storage(10)
     exploration = await _returning_exploration(async_session, vault, dweller)
     exploration.location_xp = 120
@@ -301,7 +298,6 @@ async def test_failed_settlement_discards_level_up_and_retry_delivers_once(
     make_vault_storage,
     monkeypatch: pytest.MonkeyPatch,
 ):
-    """A level-up queued by settlement is discarded on failure and delivered exactly once on retry."""
     vault_id = vault.id
     await make_vault_storage(10)
     exploration = await _returning_exploration(async_session, vault, dweller)
@@ -362,7 +358,6 @@ async def test_recall_settles_held_rows_like_natural_completion(
     dweller: Dweller,
     make_vault_storage,
 ):
-    """An early recall settles held rows into storage exactly like a natural finish."""
     storage = await make_vault_storage(10)
     exploration = await _returning_exploration(async_session, vault, dweller, recalled=True)
     held = await _create_held_weapon(async_session, dweller, exploration.id)
@@ -406,7 +401,6 @@ async def test_no_storage_holds_everything_including_held_rows(
     vault: Vault,
     dweller: Dweller,
 ):
-    """Without a storage row every candidate lands in unclaimed_loot; held rows are deleted."""
     exploration = await _returning_exploration(async_session, vault, dweller)
     held = await _create_held_weapon(async_session, dweller, exploration.id)
     exploration.add_loot(item_name="Fire hydrant bat", quantity=1, rarity="Legendary", item_type="weapon")
@@ -435,7 +429,6 @@ def _junk_payloads(emit: AsyncMock) -> list[dict]:
 async def test_junk_settlement_credits_each_material_once(
     async_session: AsyncSession, vault: Vault, dweller: Dweller, make_vault_storage
 ):
-    """One ITEM_COLLECTED per material present, carrying the catalog junk type and wasteland source."""
     await make_vault_storage(10)
     exploration = await _returning_exploration(async_session, vault, dweller)
     for name, rarity in (
@@ -462,7 +455,6 @@ async def test_junk_settlement_credits_each_material_once(
 async def test_failed_settlement_discards_queued_junk_credit(
     async_session: AsyncSession, vault: Vault, dweller: Dweller, make_vault_storage
 ):
-    """A failure after the junk credit is queued emits nothing and stores nothing; the retry credits once."""
     storage = await make_vault_storage(10)
     exploration = await _returning_exploration(async_session, vault, dweller)
     exploration.add_loot(item_name="Duct tape", rarity="Common", item_type="junk")
@@ -502,7 +494,6 @@ async def test_failed_settlement_discards_queued_junk_credit(
 async def test_overflow_junk_credits_its_material_when_taken(
     async_session: AsyncSession, vault: Vault, dweller: Dweller, make_vault_storage
 ):
-    """Storage-full overflow earns nothing on settlement, then credits the material when taken."""
     storage = await make_vault_storage(1)
     exploration = await _returning_exploration(async_session, vault, dweller)
     exploration.add_loot(item_name="Duct tape", rarity="Common", item_type="junk")

@@ -1,5 +1,3 @@
-"""Focused coverage for the CRUD helpers the account-merge service calls."""
-
 import pytest
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession

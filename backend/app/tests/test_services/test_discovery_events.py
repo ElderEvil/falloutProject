@@ -1,5 +1,3 @@
-"""Tests for discovery event generation (procedural, no LLM)."""
-
 import sys
 from datetime import datetime, timedelta
 from unittest.mock import AsyncMock, patch
@@ -35,7 +33,6 @@ async def test_map_routes_preserve_repeated_discoveries_from_event_history(
     vault: Vault,
     dweller: Dweller,
 ) -> None:
-    """The map route comes from events, not the de-duplicated location row."""
     exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
     location = await map_service.register_discovery(async_session, vault.id, exploration.id, dweller.id, "Rusty Depot")
     assert location is not None
@@ -69,7 +66,6 @@ async def test_map_routes_preserve_repeated_discoveries_from_event_history(
 
 @pytest.mark.asyncio
 async def test_discovery_dict_parses_through_union():
-    """A discovery dict parses through the ExplorationEvent union."""
     discovery_dict = {
         "type": "discovery",
         "description": "Your dweller has discovered Rusty Depot in the wasteland.",
@@ -84,7 +80,6 @@ async def test_discovery_dict_parses_through_union():
 
 @pytest.mark.asyncio
 async def test_existing_event_weights_untouched():
-    """Failure: combat/loot/danger/rest config weights are unchanged from defaults."""
     assert game_config.exploration.event_weight_combat == 35
     assert game_config.exploration.event_weight_loot == 35
     assert game_config.exploration.event_weight_danger == 20
@@ -141,7 +136,6 @@ async def test_process_event_map_service_import_failure_does_not_break_event(
     vault: Vault,
     dweller: Dweller,
 ):
-    """Failure: a failed map_service import is swallowed and the event still persists."""
     exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
     await async_session.refresh(exploration)
     _make_expired_exploration(exploration)
@@ -168,7 +162,6 @@ async def test_discovery_records_one_bio_visit(
     vault: Vault,
     dweller: Dweller,
 ) -> None:
-    """A discovery narrates into the explorer's bio; rediscovery does not duplicate it."""
     exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
     await async_session.refresh(exploration)
 

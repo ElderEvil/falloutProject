@@ -37,7 +37,6 @@ async def _online_game_state(session: AsyncSession, vault: Vault):
 
 @pytest.mark.asyncio
 async def test_spawn_suppressed_without_presence(async_session: AsyncSession, vault: Vault) -> None:
-    """No heartbeat, no incident — even with population, online status, and full chance."""
     await _populated_vault(async_session, vault)
     state = await _online_game_state(async_session, vault)
     assert state.last_presence_at is None
@@ -47,7 +46,6 @@ async def test_spawn_suppressed_without_presence(async_session: AsyncSession, va
 
 @pytest.mark.asyncio
 async def test_spawn_allowed_with_fresh_presence(async_session: AsyncSession, vault: Vault) -> None:
-    """A watching player (heartbeat inside the window) keeps the full spawn chance."""
     await _populated_vault(async_session, vault)
     state = await _online_game_state(async_session, vault)
     state.last_presence_at = utcnow()
@@ -57,7 +55,6 @@ async def test_spawn_allowed_with_fresh_presence(async_session: AsyncSession, va
 
 @pytest.mark.asyncio
 async def test_spawn_suppressed_with_stale_presence(async_session: AsyncSession, vault: Vault) -> None:
-    """A tab left open but unseen lapses out of the window and spawns nothing."""
     await _populated_vault(async_session, vault)
     state = await _online_game_state(async_session, vault)
     state.last_presence_at = utcnow() - timedelta(minutes=10)
@@ -66,7 +63,6 @@ async def test_spawn_suppressed_with_stale_presence(async_session: AsyncSession,
 
 
 def test_spawn_rate_tiers_scale_with_room_count() -> None:
-    """Starter vaults see one incident an hour, developed ones one per quarter."""
     rate = game_config.incident.get_spawn_rate
 
     assert rate(12) == 1.0
@@ -81,7 +77,6 @@ def test_spawn_rate_tiers_scale_with_room_count() -> None:
 async def test_developed_vault_spawns_where_a_starter_vault_does_not(
     async_session: AsyncSession, vault: Vault, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """The room tier decides the roll: 40 rooms spawns at 0.5h where 12 rooms does not."""
     from app.crud import room as room_crud
 
     await _populated_vault(async_session, vault)
@@ -100,7 +95,6 @@ async def test_developed_vault_spawns_where_a_starter_vault_does_not(
 async def test_dead_and_archived_dwellers_do_not_satisfy_the_population_gate(
     async_session: AsyncSession, vault: Vault, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Only living dwellers count: dead/archived rows cannot unlock incidents."""
     state = await _online_game_state(async_session, vault)
     state.last_presence_at = utcnow()
     monkeypatch.setattr("random.random", lambda: 0.0)

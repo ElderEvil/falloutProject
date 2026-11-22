@@ -28,9 +28,7 @@ from app.tests.factory.users import create_fake_user
 pytestmark = pytest.mark.asyncio(scope="module")
 
 
-# ============================================================================
 # Fixtures
-# ============================================================================
 
 
 @pytest_asyncio.fixture
@@ -94,14 +92,11 @@ async def unverified_user(async_session: AsyncSession):
     return user, token, user_data["password"]
 
 
-# ============================================================================
 # Email Verification Tests
-# ============================================================================
 
 
 @pytest.mark.asyncio
 async def test_verify_email_with_invalid_token(async_client: AsyncClient):
-    """Test email verification with invalid token."""
     response = await async_client.post(
         "auth/verify-email",
         json={"token": "invalid_token_xyz"},
@@ -116,7 +111,6 @@ async def test_expired_verification_token_rejected(
     async_client: AsyncClient,
     async_session: AsyncSession,
 ):
-    """An expired verification JWT is rejected even when it was legitimately signed."""
     user = await crud.user.create(db_session=async_session, obj_in=UserCreate(**create_fake_user()))
     expired_token = jwt.encode(
         {
@@ -141,7 +135,6 @@ async def test_resend_verification_email(
     mock_redis_client,
     async_session: AsyncSession,
 ):
-    """Test resending verification email to unverified user."""
     from app.api.deps import get_redis_client
     from main import app
 
@@ -186,7 +179,6 @@ async def test_resend_verification_already_verified(
     verified_user,
     mock_redis_client,
 ):
-    """Test resending verification email to already verified user fails."""
     from app.api.deps import get_redis_client
     from main import app
 
@@ -216,14 +208,11 @@ async def test_resend_verification_already_verified(
         app.dependency_overrides.pop(get_redis_client, None)
 
 
-# ============================================================================
 # Password Reset Tests
-# ============================================================================
 
 
 @pytest.mark.asyncio
 async def test_reset_password_with_invalid_token(async_client: AsyncClient, mock_redis_client):
-    """Test resetting password with invalid token."""
     from app.api.deps import get_redis_client
     from main import app
 
@@ -243,9 +232,7 @@ async def test_reset_password_with_invalid_token(async_client: AsyncClient, mock
         app.dependency_overrides.pop(get_redis_client, None)
 
 
-# ============================================================================
 # Change Password Tests
-# ============================================================================
 
 
 @pytest.mark.asyncio
@@ -254,7 +241,6 @@ async def test_change_password_incorrect_current_password(
     verified_user,
     mock_redis_client,
 ):
-    """Test changing password with incorrect current password fails."""
     from app.api.deps import get_redis_client
     from main import app
 
@@ -285,9 +271,7 @@ async def test_change_password_incorrect_current_password(
         app.dependency_overrides.pop(get_redis_client, None)
 
 
-# ============================================================================
 # Integration Tests
-# ============================================================================
 
 
 @pytest.mark.smoke
@@ -298,7 +282,6 @@ async def test_full_registration_verification_flow(
     mock_redis_client,
     async_session: AsyncSession,
 ):
-    """Test complete flow: register → verify email → login."""
     from app.api.deps import get_redis_client
     from main import app
 
@@ -358,7 +341,6 @@ async def test_full_password_reset_flow(
     mock_redis_client,
     async_session: AsyncSession,
 ):
-    """Test complete flow: forgot password → reset → login with new password."""
     from app.api.deps import get_redis_client
     from main import app
 
@@ -419,7 +401,6 @@ async def test_full_change_password_flow(
     mock_redis_client,
     async_session: AsyncSession,
 ):
-    """Test complete flow: login → change password → login with new password."""
     from app.api.deps import get_redis_client
     from main import app
 

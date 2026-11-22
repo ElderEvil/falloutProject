@@ -1,5 +1,3 @@
-"""Vault slots: placement coordinates, claim order, and the shared discovery list."""
-
 import pytest
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -94,8 +92,6 @@ async def test_create_with_user_id_claims_a_slot(async_session: AsyncSession, va
 async def test_slot_allocation_failure_leaves_no_vault(
     async_session: AsyncSession, vault: Vault, monkeypatch: pytest.MonkeyPatch
 ):
-    from app.utils.exceptions import ResourceConflictException
-
     async def _exhausted(*args, **kwargs):
         raise ResourceConflictException("No vault slots are available.")
 

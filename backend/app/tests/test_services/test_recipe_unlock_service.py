@@ -31,8 +31,6 @@ RARE_WEAPON = "Baseball bat"
 
 
 class _NoCurrentSession:
-    """Forces the handler to fall back to the patched ``async_session_maker``."""
-
     def get(self) -> None:
         return None
 

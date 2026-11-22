@@ -113,7 +113,6 @@ async def test_concurrent_spend_is_rejected(live_pg_engine: AsyncEngine, radiate
 async def test_concurrent_use_stimpack_spends_once(
     live_pg_engine: AsyncEngine, radiated_dweller: tuple[UUID, int]
 ) -> None:
-    """Two simultaneous uses with one stimpack: exactly one heals, the other is rejected."""
     from app.core.game_config import game_config
 
     dweller_id: UUID = radiated_dweller[0]
@@ -138,7 +137,6 @@ async def test_concurrent_use_stimpack_spends_once(
 async def test_concurrent_use_radaway_spends_once(
     live_pg_engine: AsyncEngine, radiated_dweller: tuple[UUID, int]
 ) -> None:
-    """Two simultaneous uses with one RadAway: exactly one treats, the other is rejected."""
     from app.utils.radiation import radiation_removal_amount
 
     dweller_id: UUID = radiated_dweller[0]
@@ -183,7 +181,6 @@ async def vault_stimpack_stock(live_pg_engine: AsyncEngine, radiated_dweller: tu
 
 @pytest.mark.asyncio
 async def test_two_dwellers_cannot_spend_the_same_vault_stimpack(live_pg_engine: AsyncEngine, vault_stimpack_stock):
-    """Separate fighter requests sharing one dose heal exactly one fighter."""
     from app.models.storage import Storage
 
     first_id, second_id, stock_id = vault_stimpack_stock

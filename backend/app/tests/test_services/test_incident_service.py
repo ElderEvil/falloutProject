@@ -1,5 +1,3 @@
-"""Tests for incident service logic."""
-
 from datetime import datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
@@ -48,7 +46,6 @@ from app.utils.time import utcnow
 @pytest_asyncio.fixture(name="room")
 async def room_fixture(async_session: AsyncSession, vault: Vault) -> Room:
     """Create a test room."""
-    from app.schemas.room import RoomCreate
 
     room_data = create_fake_room()
     room_in = RoomCreate(**room_data, vault_id=vault.id)
@@ -92,14 +89,12 @@ def response_station_room(vault_id, *, coordinate_x: int, coordinate_y: int, siz
 
 @pytest.mark.asyncio
 async def test_spawn_incident_no_rooms(async_session: AsyncSession, vault: Vault):
-    """Test that no incident spawns when there are no occupied rooms."""
     incident = await incident_service.spawn_incident(async_session, vault.id)
     assert incident is None
 
 
 @pytest.mark.asyncio
 async def test_runtime_spawn_rolls_from_the_balance_weights(async_session: AsyncSession, room_with_dwellers: dict):
-    """A no-type spawn picks a weighted type instead of always radscorpions."""
     room = room_with_dwellers["room"]
 
     with patch("app.services.combat.incident_spawning.random.choices", return_value=[IncidentType.FIRE]) as chooser:
@@ -115,9 +110,6 @@ async def test_runtime_spawn_rolls_from_the_balance_weights(async_session: Async
 
 @pytest.mark.asyncio
 async def test_runtime_spawn_continues_the_active_wave(async_session: AsyncSession, vault: Vault, dweller_data: dict):
-    """A vault already fighting a hazard spawns more of it without rolling again."""
-    from app.schemas.room import RoomCreate
-
     for index in range(2):
         room = await crud.room.create(
             async_session,
@@ -142,9 +134,6 @@ async def test_runtime_spawn_continues_the_active_wave(async_session: AsyncSessi
 
 @pytest.mark.asyncio
 async def test_incident_never_spawns_in_an_arena(async_session: AsyncSession, vault: Vault):
-    """An arena hosts matches; an incident there has no correct UI to open."""
-    from app.schemas.room import RoomCreate
-
     arena = await crud.room.create(
         db_session=async_session,
         obj_in=RoomCreate(
@@ -193,7 +182,6 @@ async def test_incident_never_spawns_in_an_arena(async_session: AsyncSession, va
 @pytest.mark.asyncio
 async def test_incident_does_not_spread_into_an_arena(async_session: AsyncSession, vault: Vault):
     """A spread must not carry an incident into an arena either."""
-    from app.schemas.room import RoomCreate
 
     source = await crud.room.create(
         db_session=async_session,
@@ -225,7 +213,6 @@ async def test_incident_does_not_spread_into_an_arena(async_session: AsyncSessio
 
 @pytest.mark.asyncio
 async def test_incident_never_spawns_in_a_response_station(async_session: AsyncSession, vault: Vault):
-    """A Response Station is a management surface; an incident there has no UI to open."""
     station = await crud.room.create(
         db_session=async_session,
         obj_in=response_station_room(vault.id, coordinate_x=1, coordinate_y=1),
@@ -315,7 +302,6 @@ async def test_incident_read_returns_the_latest_journal_entries(async_session: A
 
 @pytest.mark.asyncio
 async def test_incident_read_pins_fire_containment_progress(async_session: AsyncSession, room_with_dwellers: dict):
-    """FIRE progress reports containment percentage against a fixed target of 100."""
     room = room_with_dwellers["room"]
     incident = await crud.incident_crud.create(
         async_session,
@@ -342,7 +328,6 @@ async def test_incident_read_pins_fire_containment_progress(async_session: Async
 
 @pytest.mark.asyncio
 async def test_incident_read_pins_combat_kill_progress(async_session: AsyncSession, room_with_dwellers: dict):
-    """Combat progress reports enemies defeated against difficulty * 2 raiders."""
     room = room_with_dwellers["room"]
     incident = await crud.incident_crud.create(
         async_session,
@@ -366,7 +351,6 @@ async def test_incident_read_pins_combat_kill_progress(async_session: AsyncSessi
 
 @pytest.mark.asyncio
 async def test_get_incident_for_vault_returns_owned_incident(async_session: AsyncSession, room_with_dwellers: dict):
-    """An incident belonging to the requesting vault is returned as-is."""
     room = room_with_dwellers["room"]
     incident = await crud.incident_crud.create(
         async_session,
@@ -383,7 +367,6 @@ async def test_get_incident_for_vault_returns_owned_incident(async_session: Asyn
 
 @pytest.mark.asyncio
 async def test_get_incident_for_vault_rejects_other_vault(async_session: AsyncSession, room_with_dwellers: dict):
-    """An incident from another vault is denied."""
     room = room_with_dwellers["room"]
     incident = await crud.incident_crud.create(
         async_session,
@@ -399,7 +382,6 @@ async def test_get_incident_for_vault_rejects_other_vault(async_session: AsyncSe
 
 @pytest.mark.asyncio
 async def test_get_incident_for_vault_missing_raises_not_found(async_session: AsyncSession, vault: Vault):
-    """An unknown incident id raises not-found."""
     with pytest.raises(ResourceNotFoundException):
         await incident_service.get_incident_for_vault(async_session, uuid4(), vault.id)
 
@@ -418,7 +400,6 @@ async def test_process_incident_distributes_all_integer_damage(
     damage: float,
     expected_health: list[int],
 ):
-    """Each integer point of a damage tick is assigned to a dweller."""
     room = room_with_dwellers["room"]
     dwellers = room_with_dwellers["dwellers"]
     for dweller in dwellers:
@@ -447,7 +428,6 @@ async def test_process_incident_distributes_all_integer_damage(
 
 @pytest.mark.asyncio
 async def test_radscorpion_deals_health_and_radiation_damage(async_session: AsyncSession, room_with_dwellers: dict):
-    """Radscorpions damage HP and add radiation during the same combat round."""
     room = room_with_dwellers["room"]
     dweller = room_with_dwellers["dwellers"][0]
     dweller.health = 100
@@ -538,7 +518,6 @@ async def test_round_failure_leaves_no_partial_state(async_session: AsyncSession
 async def test_fatal_round_delivers_death_notification_after_commit(
     async_session: AsyncSession, room_with_dwellers: dict
 ):
-    """A killing blow notifies the owner only after the round commit lands."""
     room = room_with_dwellers["room"]
     dweller = room_with_dwellers["dwellers"][0]
     dweller.visual_attributes = {"race": "synth", "state_of_being": "gen_1"}
@@ -572,7 +551,6 @@ async def test_fatal_round_delivers_death_notification_after_commit(
 
 @pytest.mark.asyncio
 async def test_generate_loot(async_session: AsyncSession, vault: Vault):
-    """Test loot generation for different difficulties."""
     # A hazard pays in experience: no caps, no loot, however severe.
     loot_low = incident_math.generate_loot(difficulty=1, incident_type=IncidentType.FIRE)
     assert loot_low["caps"] == 0
@@ -588,7 +566,6 @@ async def test_generate_loot(async_session: AsyncSession, vault: Vault):
 async def test_assign_responders_moves_healthy_adult(
     async_session: AsyncSession, room_with_dwellers: dict, dweller_data: dict
 ):
-    """A healthy adult can join an active incident room before the next round."""
     room = room_with_dwellers["room"]
     responder = await crud.dweller.create(
         async_session,
@@ -624,7 +601,6 @@ async def _assign_quest_to_vault(async_session: AsyncSession, vault: Vault) -> Q
 async def test_assign_responders_persists_incident_team(
     async_session: AsyncSession, room_with_dwellers: dict, dweller_data: dict
 ):
-    """Assigning responders records the incident's designated team roster."""
     room = room_with_dwellers["room"]
     responder = await crud.dweller.create(
         async_session,
@@ -648,7 +624,6 @@ async def test_assign_responders_persists_incident_team(
 async def test_assign_responders_appends_to_roster(
     async_session: AsyncSession, room_with_dwellers: dict, dweller_data: dict
 ):
-    """A second assignment keeps prior members, adds new ones, and ignores duplicates."""
     room = room_with_dwellers["room"]
     responder1 = await crud.dweller.create(async_session, obj_in=DwellerCreate(**dweller_data, vault_id=room.vault_id))
     responder2 = await crud.dweller.create(async_session, obj_in=DwellerCreate(**dweller_data, vault_id=room.vault_id))
@@ -668,7 +643,6 @@ async def test_assign_responders_appends_to_roster(
 async def test_assign_responders_skips_committed_and_errors_when_all_committed(
     async_session: AsyncSession, room_with_dwellers: dict, dweller_data: dict
 ):
-    """A dweller rostered on another active incident is skipped; all-committed raises a 400."""
     room = room_with_dwellers["room"]
     vault = room_with_dwellers["vault"]
     responder = await crud.dweller.create(async_session, obj_in=DwellerCreate(**dweller_data, vault_id=vault.id))
@@ -704,7 +678,6 @@ async def test_assign_responders_skips_committed_and_errors_when_all_committed(
 async def test_assign_responders_accepts_six_responders(
     async_session: AsyncSession, room_with_dwellers: dict, dweller_data: dict
 ):
-    """A full six-responder roster is accepted."""
     room = room_with_dwellers["room"]
     responders = [
         await crud.dweller.create(async_session, obj_in=DwellerCreate(**dweller_data, vault_id=room.vault_id))
@@ -727,7 +700,6 @@ async def test_assign_responders_accepts_six_responders(
 async def test_assign_responders_rejects_seventh_responder(
     async_session: AsyncSession, room_with_dwellers: dict, dweller_data: dict
 ):
-    """A seventh responder is rejected and writes no team."""
     room = room_with_dwellers["room"]
     responders = [
         await crud.dweller.create(async_session, obj_in=DwellerCreate(**dweller_data, vault_id=room.vault_id))
@@ -746,7 +718,6 @@ async def test_assign_responders_rejects_seventh_responder(
 async def test_assign_responders_rejects_roster_overflow(
     async_session: AsyncSession, room_with_dwellers: dict, dweller_data: dict
 ):
-    """Adding two responders to an existing five-responder roster is rejected."""
     room = room_with_dwellers["room"]
     first_five = [
         await crud.dweller.create(async_session, obj_in=DwellerCreate(**dweller_data, vault_id=room.vault_id))
@@ -774,7 +745,6 @@ async def test_assign_responders_rejects_roster_overflow(
 async def test_assign_responders_reloads_incident_for_update(
     async_session: AsyncSession, room_with_dwellers: dict, dweller_data: dict, monkeypatch: pytest.MonkeyPatch
 ):
-    """The roster read and cap check run under a FOR UPDATE re-load of the incident row."""
     room = room_with_dwellers["room"]
     responder = await crud.dweller.create(async_session, obj_in=DwellerCreate(**dweller_data, vault_id=room.vault_id))
     incident = await incident_service.spawn_incident(async_session, room.vault_id, IncidentType.FIRE)
@@ -800,7 +770,6 @@ async def test_assign_responders_reloads_incident_for_update(
 async def test_assign_responders_revalidates_status_under_lock(
     async_session: AsyncSession, room_with_dwellers: dict, dweller_data: dict
 ):
-    """A caller's stale incident object cannot bypass the locked row's status."""
     room = room_with_dwellers["room"]
     responder = await crud.dweller.create(async_session, obj_in=DwellerCreate(**dweller_data, vault_id=room.vault_id))
     incident = await incident_service.spawn_incident(async_session, room.vault_id, IncidentType.FIRE)
@@ -820,7 +789,6 @@ async def test_assign_responders_revalidates_status_under_lock(
 async def test_deleting_incident_cascades_its_team(
     async_session: AsyncSession, room_with_dwellers: dict, dweller_data: dict
 ):
-    """Deleting an incident removes its team row and members via the ORM cascade."""
     room = room_with_dwellers["room"]
     responder = await crud.dweller.create(async_session, obj_in=DwellerCreate(**dweller_data, vault_id=room.vault_id))
     incident = await incident_service.spawn_incident(async_session, room.vault_id, IncidentType.FIRE)
@@ -838,7 +806,6 @@ async def test_deleting_incident_cascades_its_team(
 async def test_incident_team_retrievable_via_crud(
     async_session: AsyncSession, room_with_dwellers: dict, dweller_data: dict
 ):
-    """The persisted incident team is retrievable through team_crud.get_incident_team."""
     room = room_with_dwellers["room"]
     responder = await crud.dweller.create(async_session, obj_in=DwellerCreate(**dweller_data, vault_id=room.vault_id))
     incident = await incident_service.spawn_incident(async_session, room.vault_id, IncidentType.FIRE)
@@ -853,7 +820,6 @@ async def test_incident_team_retrievable_via_crud(
 async def test_quest_and_incident_teams_coexist(
     async_session: AsyncSession, room_with_dwellers: dict, dweller_data: dict
 ):
-    """A quest team and an incident team coexist as separate team rows."""
     room = room_with_dwellers["room"]
     vault = room_with_dwellers["vault"]
     quest = await _assign_quest_to_vault(async_session, vault)
@@ -878,7 +844,6 @@ async def test_quest_and_incident_teams_coexist(
 async def test_assign_responders_rejections_write_no_team(
     async_session: AsyncSession, room_with_dwellers: dict, dweller_data: dict
 ):
-    """Unhealthy, duplicate, foreign-vault, and inactive-incident rejections write no team."""
     room = room_with_dwellers["room"]
     vault = room_with_dwellers["vault"]
     incident = await incident_service.spawn_incident(async_session, vault.id, IncidentType.FIRE)
@@ -923,10 +888,6 @@ async def test_assign_responders_rejections_write_no_team(
 
 @pytest.mark.asyncio
 async def test_only_one_incident_type_per_vault(async_session: AsyncSession, vault: Vault, dweller_data: dict):
-    """Test that only one incident type can be active in a vault at once."""
-    from app.schemas.dweller import DwellerCreate
-    from app.schemas.room import RoomCreate
-
     # Create three separate rooms with dwellers (need 3+ rooms for multiple incidents)
     room1_data = create_fake_room()
     room1_data["name"] = "Power Generator"
@@ -985,8 +946,6 @@ async def test_only_one_incident_type_per_vault(async_session: AsyncSession, vau
 @pytest.mark.asyncio
 async def test_spread_skips_elevator(async_session: AsyncSession, vault: Vault, dweller_data: dict):
     """Test that incidents don't spread to elevator rooms."""
-    from app.schemas.dweller import DwellerCreate
-    from app.schemas.room import RoomCreate
 
     # Create incident room
     incident_room_data = create_fake_room()
@@ -1050,8 +1009,6 @@ async def test_spread_skips_elevator(async_session: AsyncSession, vault: Vault, 
 
 @pytest.mark.asyncio
 async def test_spread_respects_active_incident_cap(async_session: AsyncSession, vault: Vault):
-    from app.schemas.room import RoomCreate
-
     current_room = await crud.room.create(
         async_session,
         RoomCreate(
@@ -1132,8 +1089,6 @@ async def test_spread_respects_active_incident_cap(async_session: AsyncSession, 
 
 
 class TestProcessVaultIncidents:
-    """Tests for per-vault incident processing on the fast tick."""
-
     @pytest.mark.asyncio
     async def test_spawns_new_incident(self, async_session: AsyncSession, vault: Vault):
         mock_incident = MagicMock()
@@ -1289,8 +1244,6 @@ class TestProcessVaultIncidents:
 
     @pytest.mark.asyncio
     async def test_outer_exception_set_error(self, async_session: AsyncSession, vault: Vault):
-        from sqlalchemy.exc import SQLAlchemyError
-
         with patch.object(
             incident_service,
             "should_spawn_incident",
@@ -1338,7 +1291,6 @@ class TestTickCommitBoundaries:
 
     @pytest.mark.asyncio
     async def test_quiet_round_commits_exactly_once(self, async_session: AsyncSession, room_with_dwellers: dict):
-        """A round with no spawn, no victory, and no caps commits exactly once."""
         vault = room_with_dwellers["vault"]
         incident = await incident_service.spawn_incident(async_session, vault.id, IncidentType.FIRE)
         assert incident is not None
@@ -1360,7 +1312,6 @@ class TestTickCommitBoundaries:
     async def test_spawn_commits_activation_before_notification(
         self, async_session: AsyncSession, room_with_dwellers: dict
     ):
-        """Spawning commits the incident and lifecycle together, then the owner notification."""
         vault = room_with_dwellers["vault"]
         with (
             patch.object(async_session, "commit", wraps=async_session.commit) as commit_spy,
@@ -1376,7 +1327,6 @@ class TestTickCommitBoundaries:
     async def test_victory_commits_round_notification_then_deposit(
         self, async_session: AsyncSession, room_with_dwellers: dict
     ):
-        """A victorious round commits the round, the victory notification, then the caps payout."""
         vault = room_with_dwellers["vault"]
         for dweller in room_with_dwellers["dwellers"]:
             dweller.level = game_config.leveling.max_level  # keep level-up commits out of this count

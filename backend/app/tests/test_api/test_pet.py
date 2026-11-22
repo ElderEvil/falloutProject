@@ -1,5 +1,3 @@
-"""Pet API endpoint tests (Phase A)."""
-
 import uuid
 
 import pytest

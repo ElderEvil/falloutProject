@@ -4,6 +4,13 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Explorer card long-name fixture</title>
+    <style>
+      /* Force the wrap regardless of font metrics: the icon must follow the last
+         line, so the name has to span at least two. */
+      .dweller-name-link {
+        max-width: 110px;
+      }
+    </style>
   </head>
   <body>
     <!-- A 300px preview forces the long name to wrap; the spec measures icon placement. -->

@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## 3.14.2 (2026-11-22)
+
+### Bug Fixes
+
+* **radio:** an unstaffed studio stops broadcasting happiness ([#1482](https://github.com/ElderEvil/falloutProject/issues/1482)) 133d247
+
+### Documentation
+
+* **conventions:** never emit events inside an uncommitted vault write bcf227b
+* **conventions:** never emit events inside an uncommitted vault write ([#1481](https://github.com/ElderEvil/falloutProject/issues/1481)) 9096cc5
+* **conventions:** workflow lint only sees shellcheck when it is installed 58d5e6c
+
+### Continuous Integration
+
+* **deploy:** add a one-dispatch hotfix lane ([#1480](https://github.com/ElderEvil/falloutProject/issues/1480)) 5100bda
+
 ## 3.14.1 (2026-11-22)
 
 ### Bug Fixes

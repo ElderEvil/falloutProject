@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 3.17.1 (2026-11-22)
+
+### Performance Improvements
+
+* **quests:** evaluate requirements against one vault snapshot (15 queries, flat) ([#1492](https://github.com/ElderEvil/falloutProject/issues/1492)) e3b8707
+
 ## 3.17.0 (2026-11-22)
 
 ### Features

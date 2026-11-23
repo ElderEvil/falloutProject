@@ -4,13 +4,9 @@ import type { DeathStatistics } from '../../src/core/types/death'
 import { TEST_USER, type TestUser } from './fixtures/auth'
 
 const TOKEN = 'deterministic-e2e-token'
+const AI_SETTINGS_URL = '/api/v1/ai-settings/'
+const ADMIN_PANEL_MARKER = 'Provider configuration'
 
-/**
- * Fixture shaped like the real `AISettingsRead` payload. AISettingsPanel
- * dereferences `effective.*` and `jev.*` directly as soon as it renders, so the
- * `{}` this spec used to return made the panel throw and the test passed on a
- * crashed page.
- */
 const AI_SETTINGS: AISettingsRead = {
   profile: null,
   effective: {
@@ -28,16 +24,6 @@ const AI_SETTINGS: AISettingsRead = {
   },
 }
 
-const AI_SETTINGS_URL = '/api/v1/ai-settings/'
-
-/** Card title only rendered once `/api/v1/ai-settings/` resolves into a real payload. */
-const ADMIN_PANEL_MARKER = 'Provider configuration'
-
-/**
- * A signed-in Overseer *without* superuser rights. Anonymous requests prove nothing
- * about authorisation: they are stopped by the requiresAuth branch before
- * requiresSuperuser is ever consulted, so the admin gate needs a real session.
- */
 const NON_ADMIN_USER: TestUser = {
   ...TEST_USER,
   id: 'non-admin-user-id',
@@ -69,7 +55,6 @@ const PROFILE = {
   updated_at: '2026-02-01T08:00:00Z',
 }
 
-/** ProfileView's LifeDeathStatistics reads `deaths_by_cause.*` unguarded. */
 const DEATH_STATISTICS: DeathStatistics = {
   total_dwellers_born: 0,
   total_dwellers_died: 0,
@@ -78,10 +63,6 @@ const DEATH_STATISTICS: DeathStatistics = {
   permanently_dead_count: 0,
 }
 
-/**
- * Stub the API surface the shell touches on boot. CI runs this spec with
- * PW_SKIP_BACKEND=1 (Vite only), so every request must be answered here.
- */
 async function mockApi(page: Page, user: TestUser | null): Promise<void> {
   await page.route('**/api/v1/**', async (route) => {
     const path = new URL(route.request().url()).pathname
@@ -97,15 +78,11 @@ async function mockApi(page: Page, user: TestUser | null): Promise<void> {
     if (path === '/api/v1/auth/oauth/providers') {
       return route.fulfill({ json: { google: false, github: false } })
     }
-    // ProfileView's ConnectedAccountsCard reads `accounts.providers` unguarded;
-    // the generic `{}` fallback below crashes the profile page on render.
     if (path === '/api/v1/auth/oauth/accounts') {
       return route.fulfill({ json: { providers: [], has_password: true } })
     }
     if (path === '/api/v1/vaults/my') return route.fulfill({ json: [] })
     if (path === '/api/v1/ai-settings/') return route.fulfill({ json: AI_SETTINGS })
-    // Collection endpoints the dashboard/store layer iterates; an object stub here
-    // throws `forEach is not a function` and would be misread as a guard failure.
     if (path === '/api/v1/dwellers' || path.startsWith('/api/v1/dwellers/vault/')) {
       return route.fulfill({ json: [] })
     }
@@ -121,34 +98,24 @@ async function mockApi(page: Page, user: TestUser | null): Promise<void> {
   })
 }
 
-/**
- * Seed the session *before* the app boots: the auth store freezes
- * `initialization` at creation time, so a token written after hydration is not
- * consulted by the first guard pass.
- */
-async function signInBeforeLoad(page: Page, user: TestUser): Promise<void> {
-  await page.addInitScript(
-    ([token, user]) => {
-      localStorage.setItem('token', token)
-      localStorage.setItem('user', JSON.stringify(user))
-    },
-    [TOKEN, user] as const
-  )
-}
-
-/** Records JS crashes so a guard that "redirects" by blowing up cannot pass. */
-function trackPageErrors(page: Page): string[] {
+/** Stubs the API, seeds an optional session, and returns any uncaught page errors. */
+async function prepareAs(page: Page, user: TestUser | null): Promise<string[]> {
   const errors: string[] = []
   page.on('pageerror', (err) => errors.push(`PAGE ERROR: ${err.message}`))
+  await mockApi(page, user)
+  // `initialization` freezes at store creation, so a token added later misses the first guard pass.
+  if (user) {
+    await page.addInitScript(
+      ([token, user]) => {
+        localStorage.setItem('token', token)
+        localStorage.setItem('user', JSON.stringify(user))
+      },
+      [TOKEN, user] as const
+    )
+  }
   return errors
 }
 
-/**
- * Records `/api/v1/ai-settings/` requests from the first navigation on. The panel
- * only fetches on mount, so a redirect that never mounts the view makes none —
- * that is what proves the router stopped the admin page rather than unmounting
- * it after a render.
- */
 function trackAiSettingsRequests(page: Page): string[] {
   const hits: string[] = []
   page.on('request', (request) => {
@@ -163,36 +130,41 @@ async function expectNoCrash(page: Page, errors: string[]): Promise<void> {
   await expect(page.locator('body')).not.toBeEmpty()
 }
 
-/**
- * All auth-protected routes that must redirect to /login when not authenticated.
- */
-const AUTH_ROUTES = [
-  { url: '/', name: 'home' },
-  { url: '/vault/fake-id', name: 'vault' },
-  { url: '/vault/fake-id/happiness', name: 'happiness' },
-  { url: '/vault/fake-id/storage', name: 'storage' },
-  { url: '/vault/fake-id/dwellers', name: 'dwellers' },
-  { url: '/vault/fake-id/dwellers/test-id', name: 'dweller-detail' },
-  { url: '/vault/fake-id/dwellers/graveyard', name: 'graveyard' },
-  { url: '/vault/fake-id/exploration', name: 'exploration' },
-  { url: '/vault/fake-id/exploration/test-id', name: 'exploration-detail' },
-  { url: '/vault/fake-id/training', name: 'training' },
-  { url: '/vault/fake-id/quests', name: 'quests' },
-  { url: '/vault/fake-id/quests?claimQuest=test-id', name: 'quest-reward-claim' },
-  { url: '/vault/fake-id/objectives', name: 'objectives' },
-  { url: '/vault/fake-id/map', name: 'map' },
-  { url: '/vault/fake-id/relationships', name: 'relationships' },
-  { url: '/profile', name: 'profile' },
-  { url: '/settings', name: 'settings' },
-  { url: '/preferences', name: 'preferences' },
-  { url: '/changelog', name: 'changelog' },
+const AUTH_ROUTES: [name: string, url: string][] = [
+  ['home', '/'],
+  ['vault', '/vault/fake-id'],
+  ['happiness', '/vault/fake-id/happiness'],
+  ['storage', '/vault/fake-id/storage'],
+  ['dwellers', '/vault/fake-id/dwellers'],
+  ['dweller-detail', '/vault/fake-id/dwellers/test-id'],
+  ['graveyard', '/vault/fake-id/dwellers/graveyard'],
+  ['exploration', '/vault/fake-id/exploration'],
+  ['exploration-detail', '/vault/fake-id/exploration/test-id'],
+  ['training', '/vault/fake-id/training'],
+  ['quests', '/vault/fake-id/quests'],
+  ['quest-reward-claim', '/vault/fake-id/quests?claimQuest=test-id'],
+  ['objectives', '/vault/fake-id/objectives'],
+  ['map', '/vault/fake-id/map'],
+  ['relationships', '/vault/fake-id/relationships'],
+  ['profile', '/profile'],
+  ['settings', '/settings'],
+  ['preferences', '/preferences'],
+  ['changelog', '/changelog'],
+]
+
+const PUBLIC_ROUTES: [name: string, url: string][] = [
+  ['login', '/login'],
+  ['register', '/register'],
+  ['forgot-password', '/forgot-password'],
+  ['reset-password', '/reset-password'],
+  ['verify-email', '/verify-email'],
+  ['about', '/about'],
 ]
 
 test.describe('Auth guard — unauthenticated deep routes redirect to /login', () => {
-  for (const { url, name } of AUTH_ROUTES) {
+  for (const [name, url] of AUTH_ROUTES) {
     test(`${name} (${url}) redirects to /login`, async ({ page }) => {
-      const pageErrors = trackPageErrors(page)
-      await mockApi(page, null)
+      const pageErrors = await prepareAs(page, null)
 
       await page.goto(url)
       await page.waitForURL('**/login**', { timeout: 10_000 })
@@ -202,18 +174,9 @@ test.describe('Auth guard — unauthenticated deep routes redirect to /login', (
     })
   }
 
-  // Deepest zone route: a dweller conversation is per-dweller state, so it must be
-  // gated even though it is reachable only from an already-guarded page.
-  //
-  // KNOWN ROUTER GAP: `chatRoutes` registers this path with `meta: { parentRoute }`
-  // and no `requiresAuth`, so the beforeEach guard never fires for it and an
-  // anonymous visitor renders the chat shell. `test.fail` keeps the expectation
-  // recorded (and turns into a hard failure the moment the route is guarded, which
-  // is the signal to drop the marker). Fixing it needs `meta.requiresAuth: true`
-  // in src/modules/chat/routes — out of scope for this test-only PR.
+  // #1502: chatRoutes registers this path without meta.requiresAuth, so the guard never fires.
   test.fail('dweller chat (/dweller/:id/chat) redirects to /login', async ({ page }) => {
-    const pageErrors = trackPageErrors(page)
-    await mockApi(page, null)
+    const pageErrors = await prepareAs(page, null)
 
     await page.goto('/dweller/fake-id/chat')
     await page.waitForURL('**/login**', { timeout: 10_000 })
@@ -224,14 +187,7 @@ test.describe('Auth guard — unauthenticated deep routes redirect to /login', (
 })
 
 test.describe('Auth guard — public routes stay reachable without a session', () => {
-  for (const { url, name } of [
-    { url: '/login', name: 'login' },
-    { url: '/register', name: 'register' },
-    { url: '/forgot-password', name: 'forgot-password' },
-    { url: '/reset-password', name: 'reset-password' },
-    { url: '/verify-email', name: 'verify-email' },
-    { url: '/about', name: 'about' },
-  ]) {
+  for (const [name, url] of PUBLIC_ROUTES) {
     test(`${name} stays on page without auth`, async ({ page }) => {
       await mockApi(page, null)
 
@@ -246,9 +202,7 @@ test.describe('Auth guard — public routes stay reachable without a session', (
 
 test.describe('Auth guard — signed-in users', () => {
   test('non-admin session is denied /admin/ai-settings and sent to /profile', async ({ page }) => {
-    const pageErrors = trackPageErrors(page)
-    await mockApi(page, NON_ADMIN_USER)
-    await signInBeforeLoad(page, NON_ADMIN_USER)
+    const pageErrors = await prepareAs(page, NON_ADMIN_USER)
     const aiSettingsRequests = trackAiSettingsRequests(page)
 
     await page.goto('/admin/ai-settings')
@@ -256,17 +210,13 @@ test.describe('Auth guard — signed-in users', () => {
     await page.waitForLoadState('networkidle')
 
     expect(new URL(page.url()).pathname).toBe('/profile')
-    // The view fetches on mount, so zero requests prove the router never mounted
-    // the admin page — stronger than checking that its text is absent afterwards.
+    // Zero requests prove no ai-settings fetch fired: the router never mounted the view.
     expect(aiSettingsRequests).toHaveLength(0)
     await expectNoCrash(page, pageErrors)
   })
 
   test('superuser session reaches /admin/ai-settings and the panel renders', async ({ page }) => {
-    const pageErrors = trackPageErrors(page)
-    await mockApi(page, TEST_USER)
-    await signInBeforeLoad(page, TEST_USER)
-    // The page fetches its settings on mount, so this request is the proof it mounted.
+    const pageErrors = await prepareAs(page, TEST_USER)
     const settingsRequest = page.waitForRequest(
       (request) => new URL(request.url()).pathname === AI_SETTINGS_URL,
       { timeout: 10_000 }
@@ -277,21 +227,16 @@ test.describe('Auth guard — signed-in users', () => {
 
     await page.waitForURL('**/admin/ai-settings', { timeout: 10_000 })
     expect(new URL(page.url()).pathname).toBe('/admin/ai-settings')
-    // Only the successful-load branch renders these; the loading skeleton and the
-    // "AI settings unavailable" error card render neither.
     await expect(page.getByText(ADMIN_PANEL_MARKER, { exact: true })).toBeVisible()
     await expect(page.getByText('Effective configuration', { exact: true })).toBeVisible()
     await expect(page.locator('#ai-model')).toBeVisible()
     await expect(page.getByText('AI settings unavailable')).toHaveCount(0)
-    // Effective config echoes the fixture, so a silently empty payload fails too.
     await expect(page.getByText('gpt-4o-mini', { exact: true }).first()).toBeVisible()
     await expectNoCrash(page, pageErrors)
   })
 
   test('signed-in non-admin reaches a protected route', async ({ page }) => {
-    const pageErrors = trackPageErrors(page)
-    await mockApi(page, NON_ADMIN_USER)
-    await signInBeforeLoad(page, NON_ADMIN_USER)
+    const pageErrors = await prepareAs(page, NON_ADMIN_USER)
 
     await page.goto('/vault/fake-id/happiness')
     await page.waitForLoadState('networkidle')

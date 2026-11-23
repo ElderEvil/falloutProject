@@ -8,6 +8,7 @@ import pytest
 from app.schemas.dweller import DwellerVisualAttributes
 from app.schemas.dweller_ai import DwellerBackstory
 from app.services.dweller_ai_service import BIO_MAX_LENGTH, dweller_ai
+from app.services.quota_service import QuotaCheckResult
 from app.tests.test_services.test_dweller_ai_helpers import SVC, ai_env, fake_db, make_dweller, make_user
 from app.utils.exceptions import (
     AIAudioException,
@@ -30,7 +31,11 @@ DEFAULT_PORTRAIT = "/static/dweller_images/base/FOS_Dw_Default_Human_Male.webp"
 )
 async def test_quota_exceeded_raises(method_name, method_kwargs) -> None:
     with ai_env() as d:
-        d.quota.check_quota = AsyncMock(return_value=MagicMock(allowed=False, used=500000, limit=500000))
+        d.quota.check_quota = AsyncMock(
+            return_value=QuotaCheckResult(
+                allowed=False, remaining=0, limit=500_000, percentage=100.0, warning=True, used=500_000
+            )
+        )
         dweller = make_dweller("A story." if method_name == "extend_bio" else None)
         d.crud.get_full_info = AsyncMock(return_value=dweller)
         kwargs = {"user": make_user(), "db_session": MagicMock(), **method_kwargs}
@@ -139,7 +144,11 @@ async def test_generate_audio_quota_exceeded() -> None:
     storage.file_exists.return_value = False  # no cache hit
     dweller = make_dweller(visual_attributes=None)
     with ai_env(storage=storage) as d:
-        d.quota.check_quota = AsyncMock(return_value=MagicMock(allowed=False, remaining=0, used=500000, limit=500000))
+        d.quota.check_quota = AsyncMock(
+            return_value=QuotaCheckResult(
+                allowed=False, remaining=0, limit=500_000, percentage=100.0, warning=True, used=500_000
+            )
+        )
         with pytest.raises(QuotaExceededException):
             await dweller_ai.generate_audio(
                 text="Hello world test audio", user=make_user(), db_session=fake_db(), dweller_info=dweller

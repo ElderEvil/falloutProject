@@ -7,7 +7,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from app.models.dweller import Dweller
 from app.services.dweller_ai_service import _require_image_bytes, _resolve_dweller, dweller_ai
+from app.services.quota_service import QuotaCheckResult
 from app.utils.exceptions import AIProviderException, ValidationException
 
 SVC = "app.services.dweller_ai_service"
@@ -27,7 +29,7 @@ IDENTITY = {
 
 
 def make_dweller(bio: str | None = None, **overrides) -> MagicMock:
-    dweller = MagicMock(bio=bio, **IDENTITY, **STATS)
+    dweller = MagicMock(spec=Dweller, bio=bio, **IDENTITY, **STATS)
     dweller.configure_mock(**overrides)
     dweller.id = overrides.get("id") or uuid.uuid4()
     dweller.vault_id = uuid.uuid4()
@@ -78,7 +80,9 @@ def ai_env(
             map=collaborator("map_service"),
         )
         doubles.quota.check_quota = AsyncMock(
-            return_value=MagicMock(allowed=True, remaining=500_000, used=0, limit=500_000)
+            return_value=QuotaCheckResult(
+                allowed=True, remaining=500_000, limit=500_000, percentage=0.0, warning=False, used=0
+            )
         )
         doubles.crud.update = AsyncMock()
         doubles.crud.get_full_info = AsyncMock()

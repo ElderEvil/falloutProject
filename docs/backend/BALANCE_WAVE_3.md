@@ -21,6 +21,12 @@ Source: issue #1456. Reviewed against the code in four rounds before implementat
 
 Capacities, room output formulas, tier multipliers and `offline_reserve_fraction` are untouched.
 
+**Mixed-output rooms re-weight.** Each share of a room's output is now priced at its own resource's rate, so an
+ENDURANCE room's power share earns `0.00040` against `0.00020` for its food and water shares. Before, every share
+was priced identically; an ENDURANCE room is therefore worth ~1.33× what an equal-output single-resource room is.
+That is intended — power is the more expensive resource now — but it is a buff to ENDURANCE rooms that the bands
+below do not cover.
+
 ### Why these numbers
 
 The seeded layouts are the gate (`backend/app/tests/test_services/test_seeded_resource_rates.py`):
@@ -56,7 +62,7 @@ Config lives in `HealthConfig`; logic in `app/services/game_tick/deprivation.py`
 | food erosion | 0.10 % of max health per minute |
 | water radiation | 0.15 % of max health per minute |
 | floor | 25 % of max health — `deprivation_hp_floor_fraction` |
-| refill | above 5 % of max resets the counter, after that tick's increment is applied |
+| refill | any stock above zero resets the counter, after that tick's increment is applied |
 | lethality | none; the death predicate stays incident-driven |
 
 **Ordering invariant.** Each pass derives the cumulative amount from the persisted counter, applies
@@ -68,8 +74,21 @@ the radiation enters through drinking. The pass writes radiation directly, so it
 and never touches the `pet` relationship (a lazy load there would break the tick's async session).
 
 **Warnings** reuse `RESOURCE_LOW` / `RESOURCE_CRITICAL`, which already have preference gating, bell icons,
-routing and generated types. No new enum values, no client regeneration. Rows are staged in the phase
-transaction and committed with it.
+routing and generated types. No new enum values, no client regeneration. Both are **events, not states**: the
+warning fires on the tick a dweller enters hunger/thirst, and the critical one on the tick a dweller reaches the
+floor — never again while it sits there. Rows are staged in the phase transaction, committed with it, and pushed
+by the phase's own drain after the commit, so a rollback cannot leave a promise of a notification the vault never
+received.
+
+**Refill uses zero, not a threshold.** Any positive stock clears the counter. A share-of-maximum threshold leaves
+a band where the vault visibly holds food while the crew keeps the 0.7× penalty and dwellers keep eroding toward
+the floor, with no warning to explain it. If the vault runs dry again the grace window simply restarts, which is
+the punishment the ladder already defines.
+
+**Two consequences worth knowing.** Damage is priced against the dweller's *current* `max_health`, so a level-up or
+a health outfit mid-drought re-prices the accumulated history and lands as a one-shot jump; a dweller who joins
+mid-drought pays the whole historical bill in their first pass. Both are intended (famine is famine), but they are
+not free to rediscover later.
 
 ## Measured bands
 
@@ -89,6 +108,9 @@ Floor arrival is a multi-hour property and belongs in scratch verification, neve
 
 - Migration `b1e2f3a4c5d6` adds two non-null bigint counters defaulting to 0. That default is a true value
   ("no deprived time"), not a placeholder, so no backfill.
+- The starter lesson targets need no data migration: `sync_starter_templates` (startup) updates existing starter
+  rows from `starter.json`, so live vaults adopt the new `challenge` and `target_amount` on the restart that also
+  adopts the new rates. The `template_key` stays as authored even where it embeds the old amount.
 - Migrations live in `app/alembic/baseline_versions/` — `alembic.ini` overrides `version_locations`, so a
   file placed in `alembic/versions/` is silently ignored.
 - Rates are process-wide config: every vault adopts them when the API and worker restart. Confirm no
@@ -99,6 +121,16 @@ Floor arrival is a multi-hour property and belongs in scratch verification, neve
 ## Follow-ups
 
 - The tick commits per phase by design. Unifying the resource window under one owner is optional future work; the
-  dweller phase already stages counters, health and warnings together.
+  dweller phase already stages counters, health and warnings together, and it is now the only commit point in the
+  phase (a death and the exit-request sync no longer publish ahead of it).
+- **Deprivation is charged per tick window, not per dry second.** The vault's stock at the end of the window
+  decides whether the window counted, so a stock that dips and recovers inside a window accrues nothing, and a
+  catch-up window (hours) that ends dry charges the whole thing at once. The simulator already steps minute by
+  minute, so the honest fix is to return per-resource dry seconds from `calculate_resource_window` and hand those
+  to `apply_deprivation` instead of `seconds_passed`. That shifts the measured bands and needs a re-measure, so it
+  is deliberately not in this wave. The boundary guard above already removes the one case where the error compounds
+  (a rolled-back tick replaying the same interval).
+- `GameState.water_empty_since` is now write-free: the persisted counters replaced its only reader. Drop the column
+  in the next schema migration.
 - Legacy dead knobs (`starvation_threshold`, `dehydration_threshold`, `regen_per_tick`) remain for a cleanup
   pass; `regen_per_tick` still feeds the incident simulator's default.

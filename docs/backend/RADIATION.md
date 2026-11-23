@@ -42,9 +42,9 @@ into `GameState.water_deprived_ms`; paused and offline time is excluded:
 - radiation stops at `deprivation_hp_floor_fraction` (25% of max health), so drought alone never kills — the death
   predicate stays incident-driven;
 - each pass applies `cumulative(after) - cumulative(before)` from the persisted counter and only then clears it once
-  water is back above 5% of capacity, so retries and catch-up windows can neither double-apply nor heal;
+  water is back above zero, so retries and catch-up windows can neither double-apply nor heal;
 - dwellers `EXPLORING` or `QUESTING` are exempt — they carry their own supplies and settle on return;
-- `dehydration_radiation_per_tick` is the master switch: setting it to 0 disables the water branch.
+- `water_deprivation_enabled` is the master switch: setting it to `false` disables the water branch.
 
 ## Single source of truth
 
@@ -65,7 +65,7 @@ RadAway removes it, which keeps inventory a real decision.
 
 | Setting | Meaning |
 | --- | --- |
-| `dehydration_radiation_per_tick` | Master switch for the drought branch (0 disables it). |
+| `water_deprivation_enabled` | Master switch for the drought branch (`false` disables it). |
 | `thirst_grace_minutes` | Dry minutes before thirst warnings and radiation begin (30). |
 | `water_radiation_fraction_per_min` | Share of max health gained as RAD per dry minute (0.15%). |
 | `deprivation_hp_floor_fraction` | Floor that deprivation cannot take health or the ceiling below (25%). |

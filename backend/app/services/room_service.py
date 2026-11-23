@@ -321,11 +321,13 @@ class RoomService:
         vault_id: UUID,
         *,
         dry_run: bool = True,
+        commit: bool = True,
     ) -> dict[str, int]:
         """Merge existing adjacent duplicate rooms in one vault.
 
         Scans left-to-right, top-to-bottom until no merges fit within size_max. Apply mode holds the vault
-        placement lock against concurrent builds/upgrades; a dry run is lock-free.
+        placement lock against concurrent builds/upgrades; a dry run is lock-free. ``commit=False`` stages
+        the merges for a composing caller such as vault bootstrap.
         """
         if dry_run:
             return await self._merge_adjacent_vault_rooms(db_session, vault_id, dry_run=True)
@@ -335,7 +337,7 @@ class RoomService:
             vault_id,
             conflict_detail=f"Vault {vault_id} is already being built in — try again",
         ):
-            return await self._merge_adjacent_vault_rooms(db_session, vault_id, dry_run=False)
+            return await self._merge_adjacent_vault_rooms(db_session, vault_id, dry_run=False, commit=commit)
 
     async def _merge_adjacent_vault_rooms(
         self,
@@ -343,6 +345,7 @@ class RoomService:
         vault_id: UUID,
         *,
         dry_run: bool,
+        commit: bool = True,
     ) -> dict[str, int]:
         """Run the vault-wide adjacent-room merge scan; caller owns the placement lock."""
         rooms = await crud.room.get_all_by_vault(db_session, vault_id)
@@ -361,6 +364,7 @@ class RoomService:
                     db_session,
                     candidate=current,
                     dry_run=dry_run,
+                    commit=commit,
                 )
                 if not result.merged:
                     break
@@ -379,6 +383,7 @@ class RoomService:
                         room_obj=current,
                         action=RoomActionEnum.BUILD,
                         previous_capacity=result.previous_capacity,
+                        commit=commit,
                     )
 
         return {"merged": merged_count}

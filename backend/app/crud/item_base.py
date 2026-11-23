@@ -138,21 +138,26 @@ class CRUDItem[ModelType: Weapon | Outfit | Pet, CreateSchemaType: SQLModel, Upd
         return (await db_session.execute(query)).scalars().first()
 
     async def create_many(
-        self, db_session: AsyncSession, objs_in: Sequence[ModelType | dict[str, Any]]
+        self, db_session: AsyncSession, objs_in: Sequence[ModelType | dict[str, Any]], *, commit: bool = True
     ) -> Sequence[ModelType]:
-        """Persist pre-built items in one transaction (vault seeding)."""
+        """Persist pre-built items; with ``commit=False`` the caller owns the transaction."""
         db_objs = [self.model.model_validate(o) if isinstance(o, dict) else o for o in objs_in]
         db_session.add_all(db_objs)
-        await db_session.commit()
-        for db_obj in db_objs:
-            await db_session.refresh(db_obj)
+        if commit:
+            await db_session.commit()
+            for db_obj in db_objs:
+                await db_session.refresh(db_obj)
+        else:
+            await db_session.flush()
         return db_objs
 
-    async def create(self, db_session: AsyncSession, obj_in: CreateSchemaType | dict) -> ModelType:
+    async def create(
+        self, db_session: AsyncSession, obj_in: CreateSchemaType | dict, *, commit: bool = True
+    ) -> ModelType:
         obj_in = obj_in if isinstance(obj_in, dict) else obj_in.model_dump()
         if obj_in.get("storage_id") and obj_in.get("dweller_id"):
             raise InvalidItemAssignmentException(self.model)
-        return await super().create(db_session, obj_in)
+        return await super().create(db_session, obj_in, commit=commit)
 
     async def update(
         self,

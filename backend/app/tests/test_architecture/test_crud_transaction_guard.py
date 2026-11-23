@@ -84,8 +84,6 @@ CRUD_TRANSACTION_BASELINE: dict[tuple[str, str, str], int] = {
     ("user_profile.py", "CRUDUserProfile.delete_for_user", "commit"): 1,
     ("user_profile.py", "CRUDUserProfile.increment_statistic", "commit"): 1,
     ("user_profile.py", "CRUDUserProfile.reassign_user", "commit"): 1,
-    ("vault.py", "CRUDVault.create_with_user_id", "commit"): 1,
-    ("vault.py", "CRUDVault.create_with_user_id", "rollback"): 2,
     ("vault.py", "CRUDVault.delete", "commit"): 2,
     ("vault.py", "CRUDVault.reassign_user", "commit"): 1,
     ("vault.py", "CRUDVault.restore", "commit"): 1,

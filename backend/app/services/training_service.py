@@ -110,8 +110,14 @@ class TrainingService:
         db_session: AsyncSession,
         dweller_id: UUID,
         room_id: UUID,
+        *,
+        commit: bool = True,
     ) -> Training:
-        """Start training a dweller in a training room."""
+        """Start training a dweller in a training room.
+
+        With ``commit=False`` the training row and the dweller's assignment are staged for the
+        caller's transaction instead of landing on their own boundary.
+        """
         # Fetch dweller and room
         dweller = await dweller_crud.get(db_session, dweller_id)
 
@@ -148,8 +154,11 @@ class TrainingService:
             DwellerUpdate(status=DwellerStatusEnum.TRAINING, room_id=room.id),
             commit=False,
         )
-        await db_session.commit()
-        await db_session.refresh(training)
+        if commit:
+            await db_session.commit()
+            await db_session.refresh(training)
+        else:
+            await db_session.flush()
 
         self.logger.info("Started training %s for dweller %s", training.id, dweller.id)
 

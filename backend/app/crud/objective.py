@@ -208,13 +208,16 @@ class CRUDObjective(CRUDBase[Objective, ObjectiveCreate, ObjectiveUpdate]):
         *,
         is_boosted: bool,
         starter_reward_overrides: Mapping[str, str] | None = None,
+        commit: bool = True,
     ) -> int:
         """Assign the deterministic starter objective set for a new vault.
 
         Standard vaults get the full starter arc (ordered by sequence) plus the first daily and
         weekly. Boosted vaults skip the arc (Overseer's Office already seeded) and draw 8
         objectives from every category except daily/weekly/starter. Starter reward overrides
-        are pinned on their vault links for reads and claims.
+        are pinned on their vault links for reads and claims. With ``commit=False`` the links
+        are staged for the caller's transaction and a database failure propagates instead of
+        being swallowed, because the caller's session would be left unusable.
         """
         overrides = starter_reward_overrides or {}
         try:
@@ -280,11 +283,16 @@ class CRUDObjective(CRUDBase[Objective, ObjectiveCreate, ObjectiveUpdate]):
             ]
             for link in links:
                 db_session.add(link)
-            if links:
-                await db_session.commit()
+            if commit:
+                if links:
+                    await db_session.commit()
+            else:
+                await db_session.flush()
             return len(links)
         except SQLAlchemyError:
             logger.exception("Failed to assign initial objectives to vault %s", vault_id)
+            if not commit:
+                raise
             with contextlib.suppress(Exception):
                 await db_session.rollback()
             return 0

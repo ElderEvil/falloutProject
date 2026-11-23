@@ -870,11 +870,16 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         return await self.get_active_template_names(db_session, vault_id)
 
     @staticmethod
-    async def persist_new_dweller(db_session: AsyncSession, vault_id: UUID, dweller_data: dict[str, Any]) -> Dweller:
-        """Insert a prepared dweller payload, commit and refresh (bio-place registration is the caller's job)."""
+    async def persist_new_dweller(
+        db_session: AsyncSession, vault_id: UUID, dweller_data: dict[str, Any], *, commit: bool = True
+    ) -> Dweller:
+        """Insert a prepared dweller payload and refresh (bio-place registration is the caller's job)."""
         db_obj = Dweller(**dweller_data, vault_id=vault_id)
         db_session.add(db_obj)
-        await db_session.commit()
+        if commit:
+            await db_session.commit()
+        else:
+            await db_session.flush()
         await db_session.refresh(db_obj)
         return db_obj
 

@@ -81,6 +81,8 @@ async def test_create_with_user_id_claims_a_slot_and_failure_leaves_no_vault(
         await crud_vault.create_with_user_id(
             db_session=async_session, obj_in={"number": 125, "bottle_caps": 1000}, user_id=vault.user_id
         )
+    # CRUD stages and propagates; the caller owns the rollback that discards the flushed vault.
+    await async_session.rollback()
 
     persisted = (await async_session.execute(select(Vault).where(Vault.number == 125))).scalar_one_or_none()
     assert persisted is None

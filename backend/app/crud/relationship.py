@@ -197,8 +197,10 @@ class CRUDRelationship(CRUDBase[Relationship, RelationshipCreate, RelationshipUp
         dweller_2_id: UUID,
         relationship_type: str = "acquaintance",
         affinity: int = 0,
+        *,
+        commit: bool = True,
     ) -> Relationship:
-        """Create a relationship with default values."""
+        """Create a relationship with default values; ``commit=False`` stages it."""
         relationship = Relationship(
             dweller_1_id=dweller_1_id,
             dweller_2_id=dweller_2_id,
@@ -206,8 +208,11 @@ class CRUDRelationship(CRUDBase[Relationship, RelationshipCreate, RelationshipUp
             affinity=affinity,
         )
         db.add(relationship)
-        await db.commit()
-        await db.refresh(relationship)
+        if commit:
+            await db.commit()
+            await db.refresh(relationship)
+        else:
+            await db.flush()
         return relationship
 
 

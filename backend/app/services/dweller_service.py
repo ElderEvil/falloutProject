@@ -200,17 +200,20 @@ class DwellerService:
         rarity: RarityEnum = RarityEnum.COMMON,
         register_bio_places: bool = True,
         enforce_capacity: bool = True,
+        *,
+        commit: bool = True,
     ) -> Dweller:
         """Create a random dweller, recording the overseer's total and registering bio places.
 
         Callers composing their OWN bio (e.g. pregen_service) pass ``register_bio_places=False``.
-        Vault-bootstrap callers (seeding, pregen) pass ``enforce_capacity=False``.
+        Vault-bootstrap callers (seeding, pregen) pass ``enforce_capacity=False``. ``commit=False``
+        callers own the commit and emit DWELLER_ADDED themselves after committing.
         """
         if enforce_capacity:
             await self._require_population_slot(db_session, vault_id)
         payload = await crud.dweller.prepare_random_dweller(db_session, vault_id, obj_in, seed=seed, rarity=rarity)
         payload["visual_attributes"] = complete_appearance(payload, random.Random(seed))
-        return await self._persist_registered_dweller(db_session, vault_id, payload, register_bio_places)
+        return await self._persist_registered_dweller(db_session, vault_id, payload, register_bio_places, commit=commit)
 
     async def create_dweller_from_template(
         self,
@@ -219,15 +222,19 @@ class DwellerService:
         template_id: str,
         overrides: Mapping[str, Any] | None = None,
         enforce_capacity: bool = True,
+        *,
+        commit: bool = True,
     ) -> Dweller:
         """Instantiate a dweller from a named template, recording the overseer's total and bio places."""
         if enforce_capacity:
             await self._require_population_slot(db_session, vault_id)
         payload = await crud.dweller.prepare_template_dweller(db_session, vault_id, template_id, overrides=overrides)
-        dweller = await self._persist_registered_dweller(db_session, vault_id, payload, register_bio_places=True)
+        dweller = await self._persist_registered_dweller(
+            db_session, vault_id, payload, register_bio_places=True, commit=commit
+        )
         from app.services.family.known_relations import reconcile_known_parent_links
 
-        await reconcile_known_parent_links(db_session, vault_id, template_id)
+        await reconcile_known_parent_links(db_session, vault_id, template_id, commit=commit)
         return dweller
 
     async def _persist_registered_dweller(
@@ -236,6 +243,8 @@ class DwellerService:
         vault_id: UUID,
         payload: dict[str, Any],
         register_bio_places: bool,
+        *,
+        commit: bool = True,
     ) -> Dweller:
         """Persist a prepared payload, record the lifetime total and register explicit bio places."""
         from app.services.bio_service import make_entry
@@ -244,13 +253,18 @@ class DwellerService:
         bio_places = payload.pop("_bio_places", None)
         if payload.get("bio") and not payload.get("bio_entries"):
             payload["bio_entries"] = [make_entry("template", payload["bio"])]
-        dweller = await crud.dweller.persist_new_dweller(db_session, vault_id, payload)
-        await user_service.record_vault_statistic(db_session, vault_id, "total_dwellers_created")
-        await event_bus.emit(GameEvent.DWELLER_ADDED, vault_id, {"dweller_id": str(dweller.id)})
+        dweller = await crud.dweller.persist_new_dweller(db_session, vault_id, payload, commit=commit)
+        await user_service.record_vault_statistic(db_session, vault_id, "total_dwellers_created", commit=commit)
+        if commit:
+            await event_bus.emit(GameEvent.DWELLER_ADDED, vault_id, {"dweller_id": str(dweller.id)})
         if bio_places and register_bio_places:
             origin, visited = bio_places
             await map_service.register_bio_places(
-                db_session, cast("_MapDwellerLike", dweller), origin_place=origin or "", visited_places=visited
+                db_session,
+                cast("_MapDwellerLike", dweller),
+                origin_place=origin or "",
+                visited_places=visited,
+                commit=commit,
             )
         return dweller
 

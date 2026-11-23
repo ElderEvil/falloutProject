@@ -123,12 +123,19 @@ class CRUDStorage(CRUDBase[Storage, StorageBase, StorageBase]):
             await db_session.flush()
         return storage_obj
 
-    async def adjust_max_space(self, db_session: AsyncSession, vault_id: UUID, delta: int) -> Storage:
+    async def adjust_max_space(
+        self, db_session: AsyncSession, vault_id: UUID, delta: int, *, commit: bool = True
+    ) -> Storage:
         """Shift a vault's storage max space by a room capacity delta."""
-        return await self.set_max_space(db_session, vault_id, await self.get_max_space(db_session, vault_id) + delta)
+        return await self.set_max_space(
+            db_session,
+            vault_id,
+            await self.get_max_space(db_session, vault_id) + delta,
+            commit=commit,
+        )
 
     async def set_medical_supplies(
-        self, db_session: AsyncSession, vault_id: UUID, stimpack: int, radaway: int
+        self, db_session: AsyncSession, vault_id: UUID, stimpack: int, radaway: int, *, commit: bool = True
     ) -> Storage | None:
         """Set stimpack/radaway counts; returns None when no storage row exists."""
         storage_obj = await self.get_by_vault(db_session, vault_id)
@@ -137,8 +144,11 @@ class CRUDStorage(CRUDBase[Storage, StorageBase, StorageBase]):
         storage_obj.stimpack = stimpack
         storage_obj.radaway = radaway
         db_session.add(storage_obj)
-        await db_session.commit()
-        await db_session.refresh(storage_obj)
+        if commit:
+            await db_session.commit()
+            await db_session.refresh(storage_obj)
+        else:
+            await db_session.flush()
         return storage_obj
 
     async def get_available_space(self, db_session: AsyncSession, storage_id: UUID) -> int:

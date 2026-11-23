@@ -39,7 +39,8 @@ async def create_vault(
     Returns:
         The created vault.
     """
-    return await crud.vault.create_with_user_id(db_session=db_session, obj_in=vault_data, user_id=admin.id)
+    # The service owns the create and its commit; the endpoint never touches the transaction.
+    return await vault_service.create_vault(db_session=db_session, obj_in=vault_data, user_id=admin.id)
 
 
 @router.get("/", response_model=list[VaultReadWithUser])

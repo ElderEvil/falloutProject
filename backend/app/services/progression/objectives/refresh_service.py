@@ -20,11 +20,15 @@ def objective_periods(now: datetime) -> tuple[datetime, datetime]:
     return daily, daily - timedelta(days=daily.weekday())
 
 
-async def ensure_current_objectives(db: AsyncSession, vault_id: UUID, *, now: datetime | None = None) -> list[str]:
+async def ensure_current_objectives(
+    db: AsyncSession, vault_id: UUID, *, now: datetime | None = None, commit: bool = True
+) -> list[str]:
     """Commit assignments and successful periods atomically; failures leave them due.
 
     Existing links with an unknown period are adopted for the current period,
-    preserving work when deploying or adding state for an older vault.
+    preserving work when deploying or adding state for an older vault. With
+    ``commit=False`` the assignments are staged for the caller's transaction and
+    completion notifications are left to the caller after it commits.
     """
     await vault_crud.lock_for_update(db, vault_id)
     state = await game_state_crud.get_or_create(db, vault_id, commit=False)
@@ -35,7 +39,11 @@ async def ensure_current_objectives(db: AsyncSession, vault_id: UUID, *, now: da
         and state.daily_objectives_period == daily
         and state.weekly_objectives_period == weekly
     ):
-        await db.commit()  # Release the vault lock even when a sweep has no work.
+        # Release the vault lock even when a sweep has no work; a composing caller keeps it.
+        if commit:
+            await db.commit()
+        else:
+            await db.flush()
         return []
     links = await objective_crud.get_links_for_vault(db, vault_id)
     service = ObjectiveAssignmentService(db)
@@ -59,6 +67,9 @@ async def ensure_current_objectives(db: AsyncSession, vault_id: UUID, *, now: da
         await service.assign_achievement_objectives(vault_id, auto_commit=False)
         state.achievement_tracks_initialized = True
     db.add(state)
+    if not commit:
+        await db.flush()
+        return refreshed
     await db.commit()
     await service.notify_completions(vault_id)
     if refreshed:

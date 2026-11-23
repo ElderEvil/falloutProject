@@ -189,12 +189,16 @@ async def create_initial_rooms(
     db_session: AsyncSession,
     vault: Vault,
     prepared: PreparedRooms,
+    *,
+    commit: bool = True,
 ) -> tuple[Vault, CreatedRooms]:
+    """Create the starter rooms; ``commit=False`` stages every row for the caller's commit."""
+
     async def create_batch(rooms: list[RoomCreate]) -> list[Room]:
-        return [await room_crud.create(db_session, r) for r in rooms]
+        return [await room_crud.create(db_session, r, commit=commit) for r in rooms]
 
     for r in prepared.infrastructure:
-        await room_crud.create(db_session, r)
+        await room_crud.create(db_session, r, commit=commit)
 
     created_capacity = await create_batch(prepared.capacity)
     for room in created_capacity:
@@ -202,9 +206,12 @@ async def create_initial_rooms(
             if room.ability == SPECIALEnum.CHARISMA:
                 vault.population_max = (vault.population_max or 0) + (room.capacity or 0)
             elif room.ability == SPECIALEnum.ENDURANCE and room.capacity:
-                await storage_crud.adjust_max_space(db_session, vault.id, room.capacity)
+                await storage_crud.adjust_max_space(db_session, vault.id, room.capacity, commit=commit)
 
-    await db_session.commit()
+    if commit:
+        await db_session.commit()
+    else:
+        await db_session.flush()
     await db_session.refresh(vault)
 
     created_production = await create_batch(prepared.production)
@@ -223,14 +230,17 @@ async def create_initial_rooms(
     created_arena = await create_batch(prepared.arena)
     created_crafting = await create_batch(prepared.crafting)
 
-    await db_session.commit()
+    if commit:
+        await db_session.commit()
+    else:
+        await db_session.flush()
     await db_session.refresh(vault)
     for room in (
         created_production + created_training + created_misc + created_capacity + created_arena + created_crafting
     ):
         await db_session.refresh(room)
 
-    await merge_adjacent_seed_rooms(db_session, vault.id)
+    await merge_adjacent_seed_rooms(db_session, vault.id, commit=commit)
 
     return vault, CreatedRooms(
         production=created_production,
@@ -242,11 +252,11 @@ async def create_initial_rooms(
     )
 
 
-async def merge_adjacent_seed_rooms(db_session: AsyncSession, vault_id: UUID) -> None:
+async def merge_adjacent_seed_rooms(db_session: AsyncSession, vault_id: UUID, *, commit: bool = True) -> None:
     """Fuse adjacent same-name seed rooms (the boosted storage row) via the merge flow."""
     from app.services.room_service import room_service
 
-    await room_service.backfill_merge_rooms_for_vault(db_session, vault_id, dry_run=False)
+    await room_service.backfill_merge_rooms_for_vault(db_session, vault_id, dry_run=False, commit=commit)
 
 
 def roll_initial_rarity(is_boosted: bool) -> RarityEnum:
@@ -274,11 +284,13 @@ async def seed_working_dweller(
         DwellerCreateCommonOverride(special_boost=boosted_stat, gender=gender),
         rarity=RarityEnum.COMMON if gender else roll_initial_rarity(is_boosted),
         enforce_capacity=False,  # vault bootstrap: fill a fresh vault
+        commit=False,
     )
     await dweller_crud.update(
         db_session=db_session,
         id=dweller_obj.id,
         obj_in=DwellerUpdate(room_id=room.id, status=DwellerStatusEnum.WORKING),
+        commit=False,
     )
     dweller_obj.room_id = room.id
     logger.info("Dweller %s assigned to %s", dweller_obj.id, room.name)
@@ -296,11 +308,11 @@ async def equip_boosted_worker_outfit(db_session: AsyncSession, worker: Dweller,
     if entry is None:
         logger.warning("Boosted worker outfit %r missing from catalog, skipping", name)
         return
-    item = await outfit_crud.create(db_session, build_outfit(entry, entry["rarity"]))
+    item = await outfit_crud.create(db_session, build_outfit(entry, entry["rarity"]), commit=False)
     await outfit_crud.equip(db_session=db_session, item_id=item.id, dweller_id=worker.id, commit=False)
 
 
-async def seed_boosted_theme_unlocks(db_session: AsyncSession, vault_id: UUID) -> None:
+async def seed_boosted_theme_unlocks(db_session: AsyncSession, vault_id: UUID, *, commit: bool = True) -> None:
     """Seed every catalog theme as crafted so a boosted vault can theme eligible rooms immediately."""
     from app.services.catalog_service import load_themes
 
@@ -308,7 +320,10 @@ async def seed_boosted_theme_unlocks(db_session: AsyncSession, vault_id: UUID) -
         style = str(entry.get("style") or "")
         if style:
             await vault_theme_crud.mark_crafted(db_session, vault_id=vault_id, style=style, source="boosted")
-    await db_session.commit()
+    if commit:
+        await db_session.commit()
+    else:
+        await db_session.flush()
     logger.info(f"Seeded boosted theme unlocks for vault {vault_id}")
 
 
@@ -331,11 +346,13 @@ async def seed_boosted_response_team(db_session: AsyncSession, vault_id: UUID, s
             DwellerCreateCommonOverride(special_boost=boosted_stat),
             rarity=roll_initial_rarity(is_boosted=True),
             enforce_capacity=False,  # vault bootstrap: fill a fresh vault
+            commit=False,
         )
         await dweller_crud.update(
             db_session=db_session,
             id=dweller.id,
             obj_in=DwellerUpdate(room_id=station_room.id, status=DwellerStatusEnum.WORKING),
+            commit=False,
         )
         dweller.room_id = station_room.id
         hazard_team = await team_crud.get_or_create_hazard_team(db_session, vault_id, team)
@@ -406,6 +423,7 @@ async def create_initial_dwellers(
                         dweller_data,
                         rarity=roll_initial_rarity(is_boosted),
                         enforce_capacity=False,  # vault bootstrap: fill a fresh vault
+                        commit=False,
                     )
 
                     # Assign to training room with IDLE status (training service will update status)
@@ -414,6 +432,7 @@ async def create_initial_dwellers(
                         db_session=db_session,
                         id=dweller_obj.id,
                         obj_in=DwellerUpdate(room_id=room.id, status=DwellerStatusEnum.IDLE),
+                        commit=False,
                     )
                     logger.info(f"Dweller {dweller_obj.id} assigned to training room {room.id}")
 
@@ -445,15 +464,20 @@ async def create_initial_dwellers(
                     dweller_data,
                     rarity=RarityEnum.COMMON if majority_gender else roll_initial_rarity(is_boosted),
                     enforce_capacity=False,  # vault bootstrap: fill a fresh vault
+                    commit=False,
                 )
                 if is_boosted and dweller.charisma != game_config.dweller.boosted_stat_value:
                     await dweller_crud.update(
-                        db_session, dweller.id, {"charisma": game_config.dweller.boosted_stat_value}
+                        db_session,
+                        dweller.id,
+                        {"charisma": game_config.dweller.boosted_stat_value},
+                        commit=False,
                     )
                 await dweller_crud.update(
                     db_session=db_session,
                     id=dweller.id,
                     obj_in=DwellerUpdate(room_id=living_room.id, status=DwellerStatusEnum.RESTING),
+                    commit=False,
                 )
                 dweller.room_id = living_room.id
                 living.append(dweller)
@@ -481,28 +505,49 @@ async def seed_youth_apprentice(db_session: AsyncSession, youth_id: UUID, room: 
             "apprentice_stat": room.ability,
             "apprentice_started_at": utcnow(),
         },
+        commit=False,
     )
 
 
 async def pair_seeded_couple(db_session: AsyncSession, first: Dweller, second: Dweller) -> None:
-    """Link a seeded couple both ways with a committed relationship row and spouse lore."""
+    """Link a seeded couple both ways with a staged relationship row and spouse lore."""
     from app.services.bio_service import bio_service
 
     first.partner_id, second.partner_id = second.id, first.id
     db_session.add_all([first, second])
     await relationship_crud.create_with_defaults(
-        db_session, first.id, second.id, relationship_type=SEEDED_COUPLE_STAGE, affinity=SEEDED_COUPLE_AFFINITY
+        db_session,
+        first.id,
+        second.id,
+        relationship_type=SEEDED_COUPLE_STAGE,
+        affinity=SEEDED_COUPLE_AFFINITY,
+        commit=False,
     )
     bonus = game_config.relationship.partner_happiness_bonus + game_config.relationship.married_happiness_bonus
     for dweller in (first, second):
-        await dweller_crud.update(db_session, dweller.id, {"happiness": max(0, min(100, dweller.happiness + bonus))})
+        await dweller_crud.update(
+            db_session,
+            dweller.id,
+            {"happiness": max(0, min(100, dweller.happiness + bonus))},
+            commit=False,
+        )
     first_name = f"{first.first_name} {first.last_name or ''}".strip()
     second_name = f"{second.first_name} {second.last_name or ''}".strip()
     await bio_service.append_entry(
-        db_session, first.id, "family", f"Married {second_name}.", ref={"partner_id": str(second.id)}
+        db_session,
+        first.id,
+        "family",
+        f"Married {second_name}.",
+        ref={"partner_id": str(second.id)},
+        commit=False,
     )
     await bio_service.append_entry(
-        db_session, second.id, "family", f"Married {first_name}.", ref={"partner_id": str(first.id)}
+        db_session,
+        second.id,
+        "family",
+        f"Married {first_name}.",
+        ref={"partner_id": str(first.id)},
+        commit=False,
     )
 
 
@@ -527,6 +572,7 @@ async def seed_family_child(
         DwellerCreateCommonOverride(special_boost=room.ability if room else None, gender=child_gender),
         rarity=RarityEnum.COMMON if child_gender else roll_initial_rarity(is_boosted),
         enforce_capacity=False,  # vault bootstrap: fill a fresh vault
+        commit=False,
     )
     surname = father.last_name or child.last_name
     child_name = f"{child.first_name} {surname or ''}".strip()
@@ -562,6 +608,7 @@ async def seed_family_child(
                 )
             ],
         },
+        commit=False,
     )
     if room:
         await seed_youth_apprentice(db_session, child.id, room)
@@ -580,6 +627,7 @@ async def seed_family_child(
                 "partner_name": partner_name,
                 **({"adopted": True} if not biological else {}),
             },
+            commit=False,
         )
     return child
 
@@ -616,11 +664,13 @@ async def seed_seeded_families(
         await seed_family_child(db_session, vault_id, mother, father, room, is_boosted, child_gender=child_gender)
 
 
-async def start_dweller_training(db_session: AsyncSession, dweller: Dweller, room: Room) -> None:
+async def start_dweller_training(
+    db_session: AsyncSession, dweller: Dweller, room: Room, *, commit: bool = True
+) -> None:
     """Start one training session; domain failures are logged, not raised."""
     try:
         await db_session.refresh(dweller)
-        await training_service.start_training(db_session, dweller.id, room.id)
+        await training_service.start_training(db_session, dweller.id, room.id, commit=commit)
         logger.info(f"Started training for dweller {dweller.id} in room {room.id}")
     except (ResourceNotFoundException, ResourceConflictException, VaultOperationException, ValueError) as e:
         logger.warning(f"Failed to start training for dweller {dweller.id} in room {room.id}: {e}")
@@ -631,6 +681,8 @@ async def start_training_sessions(
     vault_id: UUID,
     created_training_rooms: list[Room],
     is_boosted: bool,
+    *,
+    commit: bool = True,
 ) -> None:
     """Start training sessions for dwellers in training rooms (boosted only)."""
     if not is_boosted or not created_training_rooms:
@@ -656,7 +708,7 @@ async def start_training_sessions(
             dwellers = dwellers_by_room.get(room.id, [])
 
             for dweller in dwellers:
-                await start_dweller_training(db_session, dweller, room)
+                await start_dweller_training(db_session, dweller, room, commit=commit)
     except Exception:
         logger.exception("Failed to start training sessions")
         raise
@@ -686,7 +738,7 @@ async def seed_boosted_junk(db_session: AsyncSession, storage_id: UUID) -> None:
             )
             seeded += 1
     if seeded:
-        await db_session.commit()
+        await db_session.flush()
         logger.info(f"Seeded {seeded} crafting materials into storage {storage_id}")
 
 
@@ -705,7 +757,7 @@ async def seed_boosted_pets(db_session: AsyncSession, vault_id: UUID, storage_id
     for pet, dweller in zip(equipped, legendary_dwellers, strict=False):
         pet.storage_id = None
         pet.dweller_id = dweller.id
-    await pet_crud.create_many(db_session, pets)
+    await pet_crud.create_many(db_session, pets, commit=False)
     logger.info(f"Seeded {len(pets)} pets for vault {vault_id} ({len(equipped)} equipped)")
 
 
@@ -724,7 +776,9 @@ def build_boosted_outfits(storage_id: UUID) -> list[Outfit]:
     return outfits
 
 
-async def create_initial_items(db_session: AsyncSession, vault_id: UUID, is_boosted: bool = False) -> None:
+async def create_initial_items(
+    db_session: AsyncSession, vault_id: UUID, is_boosted: bool = False, *, commit: bool = True
+) -> None:
     """Create initial weapons and outfits for testing, plus crafting junk when boosted."""
     storage = await storage_crud.get_by_vault(db_session, vault_id)
     if not storage:
@@ -734,15 +788,15 @@ async def create_initial_items(db_session: AsyncSession, vault_id: UUID, is_boos
     outfits = [build_outfit(data, data["rarity"], storage.id) for data in SEED_OUTFITS]
     if is_boosted:
         outfits.extend(build_boosted_outfits(storage.id))
-    await weapon_crud.create_many(db_session, weapons)
-    await outfit_crud.create_many(db_session, outfits)
+    await weapon_crud.create_many(db_session, weapons, commit=commit)
+    await outfit_crud.create_many(db_session, outfits, commit=commit)
     if is_boosted:
         await seed_boosted_junk(db_session, storage.id)
         await seed_boosted_pets(db_session, vault_id, storage.id)
     logger.info(f"Created initial items for vault {vault_id}")
 
 
-async def create_boosted_legendary_dwellers(db_session: AsyncSession, vault_id: UUID) -> None:
+async def create_boosted_legendary_dwellers(db_session: AsyncSession, vault_id: UUID, *, commit: bool = True) -> None:
     """Add a random, equipped legendary roster to boosted vaults."""
     from app.services.catalog_service import load_outfits, load_weapons
     from app.services.dweller_service import dweller_service
@@ -769,6 +823,7 @@ async def create_boosted_legendary_dwellers(db_session: AsyncSession, vault_id: 
                 vault_id,
                 template.template_id,
                 enforce_capacity=False,  # vault bootstrap: fill a fresh vault
+                commit=commit,
             )
         except ResourceConflictException:
             logger.info("Boosted template %s already active in vault %s, skipping", template.template_id, vault_id)
@@ -792,6 +847,6 @@ async def create_boosted_legendary_dwellers(db_session: AsyncSession, vault_id: 
                 legendary_outfits.append(item)
 
     if legendary_weapons:
-        await weapon_crud.create_many(db_session, legendary_weapons)
+        await weapon_crud.create_many(db_session, legendary_weapons, commit=commit)
     if legendary_outfits:
-        await outfit_crud.create_many(db_session, legendary_outfits)
+        await outfit_crud.create_many(db_session, legendary_outfits, commit=commit)

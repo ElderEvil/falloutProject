@@ -200,11 +200,11 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
         return result.one()
 
     @staticmethod
-    async def create_storage(*, db_session: AsyncSession, vault_id: UUID) -> Storage:
+    async def create_storage(*, db_session: AsyncSession, vault_id: UUID, commit: bool = True) -> Storage:
         """Create the storage row for a vault (delegates to storage CRUD)."""
         from app.crud.storage import storage as storage_crud
 
-        return await storage_crud.create_for_vault(db_session=db_session, vault_id=vault_id)
+        return await storage_crud.create_for_vault(db_session=db_session, vault_id=vault_id, commit=commit)
 
     async def create(self, db_session: AsyncSession, obj_in: VaultCreate) -> Vault:
         _validate_vault_number(obj_in.number if not isinstance(obj_in, dict) else obj_in["number"])
@@ -218,10 +218,11 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
         user_id: UUID,
         scenario_key: str | None = None,
     ) -> Vault:
-        """Create a vault and claim its atlas slot in one transaction.
+        """Stage a vault row and claim its atlas slot; the caller owns the transaction.
 
-        Vault flushed, slot claim inserted under savepoints, single commit makes both durable
-        or neither; an allocation failure rolls the vault back.
+        Vault flushed, slot claim inserted under savepoints, so one caller commit makes both
+        durable or neither. A conflict is propagated without rolling back the caller's work
+        (see SERVICE_LAYER.md:47-59): the caller rolls back the whole operation.
         """
         from app.crud.vault_slot import vault_slot as vault_slot_crud
 
@@ -236,12 +237,8 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
             await db_session.flush()
             await vault_slot_crud.claim_for_new_vault(db_session=db_session, vault_id=vault.id)
         except IntegrityError as e:
-            await db_session.rollback()
             raise ResourceAlreadyExistsException(self.model, vault.number, headers={"detail": str(e)}) from e
-        except Exception:
-            await db_session.rollback()
-            raise
-        await db_session.commit()
+        await db_session.flush()
         await db_session.refresh(vault)
         return vault
 

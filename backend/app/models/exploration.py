@@ -9,7 +9,7 @@ from sqlalchemy import orm
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Field, SQLModel
 
-from app.core.enums import ExpeditionRunStatus, ExplorationStatus
+from app.core.enums import ExpeditionRunStatus, ExplorationPurpose, ExplorationStatus
 from app.models.base import BaseUUIDModel, TimeStampMixin
 from app.utils.serialize import serialize_naive_utc_datetime
 from app.utils.time import as_utc, utcnow
@@ -107,6 +107,12 @@ class Exploration(BaseUUIDModel, ExplorationBase, TimeStampMixin, table=True):
     # behaviour. SET NULL so retiring a location never deletes the run's history.
     target_location_id: UUID | None = Field(
         default=None, foreign_key="worldlocation.id", nullable=True, ondelete="SET NULL"
+    )
+    # Clear | trade (issue 1493): a String-backed enum, never a PG enum type, so existing rows and every
+    # current code path keep working untouched. Trade runs skip combat, XP and the clear cooldown.
+    purpose: ExplorationPurpose = Field(
+        default=ExplorationPurpose.CLEAR,
+        sa_column=sa.Column(sa.String(16), nullable=False, default=ExplorationPurpose.CLEAR.value),
     )
     # Escalation tier this run faced, snapshotted for deterministic rewards/display.
     clear_tier: int | None = Field(default=None, ge=0)

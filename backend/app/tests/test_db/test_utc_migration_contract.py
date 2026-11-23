@@ -83,8 +83,8 @@ async def test_timestamp_inventory_matches_migrated_schema(utc_connection: Async
         for column in table.c
         if isinstance(column.type, UTCDateTime)
     }
-    # Pinned totals: the world-event, pvpduel and collectible migrations add their columns here.
-    assert len(expected) == 144
+    # Pinned totals: the world-event, pvpduel, collectible and caravan migrations add their columns here.
+    assert len(expected) == 145
     assert len({table for table, _ in expected}) == 45
     rows = await utc_connection.execute(
         text(

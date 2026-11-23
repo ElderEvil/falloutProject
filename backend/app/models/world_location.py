@@ -87,6 +87,9 @@ class VaultLocationState(BaseUUIDModel, VaultLocationStateBase, TimeStampMixin, 
     clear_count: int = Field(default=0, ge=0, description="Successful clears; drives escalation tier")
     # One-time salvage marker for inert places that hold a bobblehead.
     searched_at: datetime | None = Field(sa_type=UTCDateTime, default=None)
+    # Caravan cooldown (issue 1493): separate from reclear_available_at, because trading and clearing are
+    # different clocks and must not be able to starve each other. NULL means "never traded".
+    caravan_available_at: datetime | None = Field(sa_type=UTCDateTime, default=None)
 
     __table_args__ = (sa.UniqueConstraint("vault_id", "location_id", name="uq_vault_location_state"),)
 

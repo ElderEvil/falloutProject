@@ -8,7 +8,7 @@ their caller").
 """
 
 import pytest
-from sqlalchemy.exc import IntegrityError, InvalidRequestError
+from sqlalchemy.exc import InvalidRequestError, PendingRollbackError
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
@@ -53,27 +53,22 @@ async def test_create_duplicate_without_name_field_raises_conflict(
     assert "Conversation" in exc_info.value.detail
 
 
-async def test_commit_false_conflict_keeps_the_callers_earlier_write_committable(
-    async_session: AsyncSession,
-    vault: Vault,
-    dweller: Dweller,
-    dweller_data: dict,
-    monkeypatch: pytest.MonkeyPatch,
+async def test_commit_false_conflict_without_a_savepoint_poisons_the_caller_transaction(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller, dweller_data: dict
 ) -> None:
+    """A real unique violation aborts the whole transaction unless the caller opened a savepoint.
+
+    This pins the honest contract rather than a comfortable one: ``create(commit=False)``
+    propagates the conflict and does not roll back, but the database has already aborted the
+    transaction, so the caller's earlier staged write is gone and ``commit()`` raises
+    ``PendingRollbackError``. A caller that must keep its earlier work opens a savepoint first,
+    which is what ``test_caller_owned_savepoint_absorbs_the_conflict`` covers.
+    """
     conversation_in = await _conversation_in(async_session, vault, dweller)
     await crud.conversation.create(db_session=async_session, obj_in=conversation_in)
     earlier = await _staged_dweller(async_session, vault, dweller_data)
     assert earlier.id is not None
-
-    async def conflicting_flush(self: AsyncSession, *args: object, **kwargs: object) -> None:
-        # The staged INSERT hits the conversation unique pair; raise what the driver raises.
-        raise IntegrityError(
-            "INSERT INTO conversation",
-            {},
-            Exception("UNIQUE constraint failed: conversation.user_id, conversation.dweller_id"),
-        )
-
-    monkeypatch.setattr(AsyncSession, "flush", conflicting_flush)
+    earlier_id = earlier.id
 
     with pytest.raises(ResourceAlreadyExistsException):
         await crud.conversation.create(
@@ -82,11 +77,11 @@ async def test_commit_false_conflict_keeps_the_callers_earlier_write_committable
             commit=False,
         )
 
-    monkeypatch.undo()
-    # The caller discards the row it knows failed; its earlier write was already flushed.
-    async_session.expunge_all()
-    await async_session.commit()
-    assert await async_session.get(Dweller, earlier.id) is not None
+    with pytest.raises(PendingRollbackError):
+        await async_session.commit()
+
+    await async_session.rollback()
+    assert await async_session.get(Dweller, earlier_id) is None
 
 
 async def test_caller_owned_savepoint_absorbs_the_conflict(

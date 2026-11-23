@@ -69,7 +69,9 @@ class CRUDBase[ModelType: SQLModel, CreateSchemaType: (SQLModel | None), UpdateS
         """Create a new item; raises ResourceAlreadyExistsException on unique-violation.
 
         With commit=False the caller owns the transaction: the row is flushed and the conflict is
-        propagated, but no rollback happens here (a caller-owned savepoint absorbs the failure).
+        propagated, but no rollback happens here. The caller must open a savepoint first if it
+        needs to keep earlier writes: the database aborts the surrounding transaction on a failed
+        flush, so without one the caller can only roll back (see SERVICE_LAYER.md:56-59).
         """
         db_obj = self.model.model_validate(obj_in)
         try:

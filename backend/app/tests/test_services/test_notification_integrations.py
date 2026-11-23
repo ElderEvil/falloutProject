@@ -2,11 +2,13 @@ from datetime import timedelta
 from unittest.mock import AsyncMock, patch
 
 import pytest
+from sqlalchemy import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
 from app.core.enums import IncidentStatus, IncidentType, NotificationType
 from app.core.game_config import game_config
+from app.models.notification import Notification
 from app.services.combat.incident_service import IncidentService
 from app.services.notification_service import NotificationService
 from app.utils.time import utcnow
@@ -200,6 +202,10 @@ async def test_failed_room_unlock_staging_discards_the_parked_recruit(
     """
     user, vault = user_with_vault
     mock_ws, mock_sse = channel_mocks
+    # A rollback expires loaded instances, so capture the ids the retry query needs.
+    user_id, vault_id = user.id, vault.id
+    # Make the fixture vault durable: the failure below rolls back only the announcement.
+    await async_session.commit()
 
     with (
         patch(
@@ -208,7 +214,7 @@ async def test_failed_room_unlock_staging_discards_the_parked_recruit(
         ),
         pytest.raises(RuntimeError, match="room-unlock summary staging failed"),
     ):
-        await NotificationService.notify_radio_new_dweller(async_session, user.id, vault.id, "Rolled Back Recruit")
+        await NotificationService.notify_radio_new_dweller(async_session, user_id, vault_id, "Rolled Back Recruit")
 
     mock_ws.send_personal_message.assert_not_called()
     mock_sse.publish.assert_not_called()
@@ -216,13 +222,19 @@ async def test_failed_room_unlock_staging_discards_the_parked_recruit(
 
     # A retry on the same session must deliver its own notice and nothing else.
     with patch.object(NotificationService, "notify_room_unlocks", new_callable=AsyncMock):
-        await NotificationService.notify_radio_new_dweller(async_session, user.id, vault.id, "Kept Recruit")
+        await NotificationService.notify_radio_new_dweller(async_session, user_id, vault_id, "Kept Recruit")
 
     mock_ws.send_personal_message.assert_called_once()
     payload = mock_ws.send_personal_message.call_args.args[0]
     assert "Kept Recruit" in payload["notification"]["message"]
     assert "Rolled Back Recruit" not in payload["notification"]["message"]
     assert "deferred_notification_deliveries" not in async_session.info
+
+    rows = (
+        (await async_session.execute(select(Notification).where(Notification.user_id == user_id))).scalars().all()
+    )
+    assert len(rows) == 1
+    assert "Kept Recruit" in rows[0].message
 
 
 async def test_ws_failure_does_not_block_sse(async_session: AsyncSession, user_with_vault: tuple, send_mocks):

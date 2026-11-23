@@ -147,6 +147,9 @@ class ResourceManager:
         stocks = {key: float(getattr(vault, key)) + remainders.get(key, 0.0) for key in ("power", "food", "water")}
         consumption = dict.fromkeys(stocks, 0.0)
         production = dict.fromkeys((*stocks, "stimpack", "radaway"), 0.0)
+        # A step counts as dry when the resource ends it empty: a vault that refills inside the minute was not
+        # starving for that minute. Only food and water feed the deprivation ladder.
+        dry = dict.fromkeys(("food", "water"), 0)
         scenario = vault_scenario_service.get(vault.scenario_key)
         food_water_multiplier = scenario.food_water_multiplier if scenario else 1.0
         elapsed = 0
@@ -168,6 +171,8 @@ class ResourceManager:
                 floor = min(stock, math.ceil(maximum * game_config.resource.offline_reserve_fraction)) if offline else 0
                 stocks[key] = max(floor, min(maximum, stock + made[key] - used[key]))
                 consumption[key] += used[key]
+                if key in dry and stocks[key] <= 0:
+                    dry[key] += step
             for key in production:
                 production[key] += made[key]
             elapsed += step
@@ -196,6 +201,7 @@ class ResourceManager:
                 production=ResourceProduction(**production),
                 objective_production=ResourceProduction(**objective_production),
                 consumption=PrimaryResourceAmounts(**consumption),
+                dry_seconds=dry,
             ),
         )
 

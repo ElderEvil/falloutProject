@@ -172,6 +172,18 @@ async def test_medical_events_match_persisted_storage_change(
     assert resources.get("stimpack", 0) == expected_delta
 
 
+def test_a_window_that_runs_dry_partway_reports_only_its_dry_seconds() -> None:
+    """Deprivation charges dry time, so the resource window has to measure it: 7 food at 2.8/min lasts two steps."""
+    manager = ResourceManager()
+    vault = Vault(power=100, power_max=100, food=7, food_max=100, water=100, water_max=100)
+
+    _, events = manager.calculate_resource_window(
+        vault, [], dweller_count=20, rooms_with_dwellers=[], seconds_passed=600
+    )
+
+    assert events.dry_seconds == {"food": 8 * 60, "water": 0}
+
+
 @pytest.mark.asyncio
 async def test_production_events_emit_one_batched_event(vault: Vault):
     events = ResourceTickEvents(

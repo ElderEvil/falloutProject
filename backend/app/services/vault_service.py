@@ -158,6 +158,7 @@ class VaultService:
 
             await db_session.commit()
         except Exception:
+            ObjectiveAssignmentService.discard_pending_completions(db_session)
             await db_session.rollback()
             raise
         await db_session.refresh(vault_db_obj)

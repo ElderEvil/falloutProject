@@ -15,6 +15,11 @@ from app.services.progression.objectives.guidance import current_state_progress
 
 logger = logging.getLogger(__name__)
 
+# Completions prepared inside a caller-owned transaction ride on the session so a
+# fresh service instance can still deliver them once that transaction commits
+# (same convention as NotificationService's deferred_notification_deliveries).
+_DEFERRED_COMPLETIONS = "deferred_objective_completions"
+
 
 def _earned(link: VaultObjectiveProgressLink) -> bool:
     return link.is_completed or link.progress >= link.total
@@ -73,13 +78,31 @@ class ObjectiveAssignmentService:
                 if active.objective_type == "reach":
                     link.progress = min(link.total, await current_state_progress(db, vault_id, active))
                     if link.progress >= link.total:
-                        self._pending_completions.append(await self.prepare_completion(vault_id, active, link))
+                        await self._queue_completion(db, vault_id, active, link, auto_commit=auto_commit)
                 assigned.append(active)
         await db.flush()
         if auto_commit:
             await db.commit()
             await self.notify_completions(vault_id)
         return assigned
+
+    async def _queue_completion(
+        self,
+        db: AsyncSession,
+        vault_id: UUID,
+        objective: Objective,
+        link: VaultObjectiveProgressLink,
+        *,
+        auto_commit: bool,
+    ) -> None:
+        """Prepare a completion, parking it on the session while the caller owns the commit."""
+        data = await self.prepare_completion(vault_id, objective, link)
+        self._pending_completions.append(data)
+        if auto_commit:
+            return
+        parked = db.info.setdefault(_DEFERRED_COMPLETIONS, [])
+        if all(item.get("objective_id") != data["objective_id"] for item in parked):
+            parked.append(data)
 
     async def prepare_completion(
         self, vault_id: UUID, objective: Objective, link: VaultObjectiveProgressLink
@@ -95,10 +118,25 @@ class ObjectiveAssignmentService:
         }
 
     async def notify_completions(self, vault_id: UUID) -> None:
-        """Publish initial-assignment completions only after the caller commits."""
+        """Publish initial-assignment completions only after the caller commits.
+
+        Drains both this instance's queue and completions parked on the session by
+        an earlier service instance that staged them inside the same transaction.
+        """
         completions, self._pending_completions = self._pending_completions, []
+        completions = [*self._db_session.info.pop(_DEFERRED_COMPLETIONS, []), *completions]
+        delivered: set[str | None] = set()
         for data in completions:
+            objective_id = data.get("objective_id")
+            if objective_id in delivered:
+                continue
+            delivered.add(objective_id)
             await event_bus.emit(GameEvent.OBJECTIVE_COMPLETED, vault_id, data)
+
+    @staticmethod
+    def discard_pending_completions(db_session: AsyncSession) -> None:
+        """Drop completions parked for a transaction that rolled back."""
+        db_session.info.pop(_DEFERRED_COMPLETIONS, None)
 
     async def unlock_next_achievement(self, vault_id: UUID, completed: Objective) -> Objective | None:
         """Unlock the next unfinished stage at zero in the completion transaction."""

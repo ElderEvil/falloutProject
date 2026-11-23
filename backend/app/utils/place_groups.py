@@ -11,13 +11,17 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
-from app.core.enums import PlaceKindEnum
+from app.core.enums import JunkTypeEnum, PlaceKindEnum
 from app.core.game_config import game_config
 from app.utils.place_loot import loot_table
 from app.utils.place_seed import load_seed_entries
 from app.utils.places import normalize_place_name
 
 GROUPS_FILE = Path(__file__).parent.parent / "data" / "places" / "place_groups.json"
+TRADE_FILE = Path(__file__).parent.parent / "data" / "places" / "settlement_trade.json"
+
+# Tradeable groups and their caravan tier: a settlement is tier 1, a city tier 2.
+TRADE_GROUPS = {"settlement": 1, "city": 2}
 
 DEFAULT_EMERGENT_GROUP = "wasteland_site"
 
@@ -123,3 +127,68 @@ def effective_place_group(group_key: str | None, kind: PlaceKindEnum | None) -> 
     if kind == PlaceKindEnum.PLACE and game_config.features.emergent_sites:
         return get_place_group(DEFAULT_EMERGENT_GROUP)
     return None
+
+
+@lru_cache(maxsize=1)
+def load_settlement_trade() -> dict[str, dict[str, Any]]:
+    """Caravan shipment catalog, keyed by normalized place name (cached).
+
+    Every tradeable seed place needs one entry: a real junk material, a unit band, and a
+    comparable clearable site that benchmarks the half-yield guardrail. A tradeable place
+    missing from the catalog is an authoring error, not a silent gap — an inert settlement
+    is the bug this catalog exists to fix.
+    """
+    with TRADE_FILE.open(encoding="utf-8") as f:
+        entries: list[dict[str, Any]] = json.load(f)["places"]
+
+    junk = {member.value for member in JunkTypeEnum}
+    groups = seeded_place_groups()
+    trade: dict[str, dict[str, Any]] = {}
+    for entry in entries:
+        name = entry["place"]
+        key = normalize_place_name(name)
+        if key in trade:
+            raise ValueError(f"Duplicate caravan shipment for {name!r}")
+        group_key = groups.get(key)
+        if group_key not in TRADE_GROUPS:
+            raise ValueError(f"Caravan shipment for {name!r} needs a settlement or city seed place")
+        if entry.get("material") not in junk:
+            raise ValueError(f"Caravan shipment for {name!r} needs a known junk material")
+        band = entry.get("band")
+        if not (
+            isinstance(band, list)
+            and len(band) == 2
+            and all(isinstance(v, int) and not isinstance(v, bool) for v in band)
+            and 1 <= band[0] <= band[1] <= 10
+        ):
+            raise ValueError(f"Caravan shipment for {name!r} needs an integer band 1 <= min <= max <= 10")
+        comparable = get_place_group(groups.get(normalize_place_name(entry.get("comparable") or "")))
+        if comparable is None or not comparable.get("clearable"):
+            raise ValueError(f"Caravan shipment for {name!r} needs a clearable comparable site")
+        trade[key] = entry
+
+    if missing := sorted(name for name, group in groups.items() if group in TRADE_GROUPS and name not in trade):
+        raise ValueError(f"Tradeable places without a caravan shipment: {missing}")
+    return trade
+
+
+def trade_entry(name: str) -> dict[str, Any] | None:
+    """Caravan shipment for a place name, else None when the place does not trade."""
+    return load_settlement_trade().get(normalize_place_name(name))
+
+
+def trade_tier(group: dict[str, Any] | None) -> int:
+    """Caravan tier for a place group: settlement 1, city 2, anything else 0 (not tradeable)."""
+    return TRADE_GROUPS.get((group or {}).get("key") or "", 0)
+
+
+def trade_caps_cost(group: dict[str, Any] | None) -> int:
+    """Flat per-tier caravan fee: a city costs more than a settlement, untradeable places nothing."""
+    cfg = game_config.exploration.caravan
+    match trade_tier(group):
+        case 1:
+            return cfg.caps_cost_settlement
+        case 2:
+            return cfg.caps_cost_city
+        case _:
+            return 0

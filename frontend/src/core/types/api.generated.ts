@@ -12028,7 +12028,7 @@ export interface components {
              * Radio Mode
              * @default recruitment
              */
-            radio_mode: string;
+            radio_mode: string | null;
             /**
              * Vault Mode
              * @description Difficulty mode chosen at creation; immutable thereafter
@@ -12115,7 +12115,7 @@ export interface components {
              * Radio Mode
              * @default recruitment
              */
-            radio_mode: string;
+            radio_mode: string | null;
             /** @default standard */
             vault_mode: components["schemas"]["VaultModeEnum"];
             /**
@@ -12335,7 +12335,7 @@ export interface components {
              * Radio Mode
              * @default recruitment
              */
-            radio_mode: string;
+            radio_mode: string | null;
             /**
              * Vault Mode
              * @description Difficulty mode chosen at creation; immutable thereafter
@@ -12425,7 +12425,7 @@ export interface components {
              * Radio Mode
              * @default recruitment
              */
-            radio_mode: string;
+            radio_mode: string | null;
             /**
              * Vault Mode
              * @description Difficulty mode chosen at creation; immutable thereafter
@@ -12523,7 +12523,7 @@ export interface components {
              * Radio Mode
              * @default recruitment
              */
-            radio_mode: string;
+            radio_mode: string | null;
             /**
              * Vault Mode
              * @description Difficulty mode chosen at creation; immutable thereafter

@@ -192,6 +192,43 @@ async def test_discard_drops_queued_delivery(async_session: AsyncSession, user_w
     mock_sse.publish.assert_not_called()
 
 
+async def test_failed_room_unlock_staging_discards_the_parked_recruit(
+    async_session: AsyncSession, user_with_vault: tuple, channel_mocks
+):
+    """A staging failure after the recruit is parked must not survive into a retry.
+
+    ``notify_radio_new_dweller`` parks the recruit delivery with ``commit=False`` and then stages
+    the room-unlock summary. If that second stage raises, the recruit payload stayed in
+    ``db.info``, so any later commit on the same session pushed a notice for a recruit whose
+    transaction never committed.
+    """
+    user, vault = user_with_vault
+    mock_ws, mock_sse = channel_mocks
+
+    with (
+        patch(
+            "app.services.notification_service.dweller_crud.count_alive_in_vault",
+            side_effect=RuntimeError("room-unlock summary staging failed"),
+        ),
+        pytest.raises(RuntimeError, match="room-unlock summary staging failed"),
+    ):
+        await NotificationService.notify_radio_new_dweller(async_session, user.id, vault.id, "Rolled Back Recruit")
+
+    mock_ws.send_personal_message.assert_not_called()
+    mock_sse.publish.assert_not_called()
+    assert "deferred_notification_deliveries" not in async_session.info
+
+    # A retry on the same session must deliver its own notice and nothing else.
+    with patch.object(NotificationService, "notify_room_unlocks", new_callable=AsyncMock):
+        await NotificationService.notify_radio_new_dweller(async_session, user.id, vault.id, "Kept Recruit")
+
+    mock_ws.send_personal_message.assert_called_once()
+    payload = mock_ws.send_personal_message.call_args.args[0]
+    assert "Kept Recruit" in payload["notification"]["message"]
+    assert "Rolled Back Recruit" not in payload["notification"]["message"]
+    assert "deferred_notification_deliveries" not in async_session.info
+
+
 async def test_ws_failure_does_not_block_sse(async_session: AsyncSession, user_with_vault: tuple, send_mocks):
     user, vault = user_with_vault
     mock_ws, mock_sse = send_mocks

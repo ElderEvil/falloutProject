@@ -419,23 +419,30 @@ class NotificationService:
         """Announce a recruit and the room thresholds it crossed in one transaction.
 
         The recruit row and the room-unlock summary are one event: both are staged through CRUD,
-        committed once here, and only then pushed. A failure while building the summary must not
-        leave an announcement delivered for a recruit the caller may still roll back.
+        committed once here, and only then pushed. Staging happens inside one failure cleanup, so
+        any raise between the first parked payload and the commit drops every parked delivery
+        before propagating - a retry on the same session can never announce a recruit for a
+        transaction that never committed.
         """
-        notification = await NotificationService.create_and_send(
-            db,
-            user_id=user_id,
-            vault_id=vault_id,
-            notification_type=NotificationType.RADIO_NEW_DWELLER,
-            priority=NotificationPriority.HIGH,
-            title="New Dweller Arrived!",
-            message=f"{dweller_name} heard your radio broadcast and joined the vault!",
-            meta_data=meta_data,
-            commit=False,
-        )
-        await NotificationService.notify_room_unlocks(db, user_id, vault_id, commit=False)
-        if commit:
-            await NotificationService._commit_and_deliver_transaction(db)
+        try:
+            notification = await NotificationService.create_and_send(
+                db,
+                user_id=user_id,
+                vault_id=vault_id,
+                notification_type=NotificationType.RADIO_NEW_DWELLER,
+                priority=NotificationPriority.HIGH,
+                title="New Dweller Arrived!",
+                message=f"{dweller_name} heard your radio broadcast and joined the vault!",
+                meta_data=meta_data,
+                commit=False,
+            )
+            await NotificationService.notify_room_unlocks(db, user_id, vault_id, commit=False)
+            if commit:
+                await NotificationService._commit_and_deliver_transaction(db)
+        except BaseException:
+            # Undelivered notices for rows the caller's transaction may still discard.
+            NotificationService.discard_deferred_notifications(db)
+            raise
         return notification
 
     @staticmethod

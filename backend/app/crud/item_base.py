@@ -393,6 +393,12 @@ class CRUDItem[ModelType: Weapon | Outfit | Pet, CreateSchemaType: SQLModel, Upd
         return junk_results
 
     async def scrap(self, *, db_session: AsyncSession, item_id: UUID) -> list[Junk]:
+        """Stage a scrap: junk rows plus the item's deletion, flushed, without committing.
+
+        The caller owns the transaction: it commits once the staged rows and the deletion are
+        durable. Ids come from python-side defaults, so the returned junk rows are safe to read
+        before that commit and no refresh statement is needed afterwards.
+        """
         item = await db_session.get(self.model, item_id)
         item = ensure_found(item, self.model, identifier=item_id)
 
@@ -416,10 +422,6 @@ class CRUDItem[ModelType: Weapon | Outfit | Pet, CreateSchemaType: SQLModel, Upd
             db_session.add(junk)
 
         await db_session.delete(item)
-        await db_session.commit()
-
-        # Refresh junk items to get IDs
-        for junk in junk_list:
-            await db_session.refresh(junk)
+        await db_session.flush()
 
         return junk_list

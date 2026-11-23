@@ -72,7 +72,12 @@ class ItemService:
         await event_bus.emit(GameEvent.RESOURCE_COLLECTED, vault_id, {"resource_type": "caps", "amount": credited})
 
     async def scrap_item(self, db_session: AsyncSession, *, item_id: UUID, model: ItemModel) -> list[Junk]:
-        """Scrap an item into junk, then publish ITEM_SCRAPPED once it has committed."""
+        """Scrap an item into junk in one transaction, then publish ITEM_SCRAPPED.
+
+        The junk rows and the item's deletion are staged and flushed by CRUD without committing,
+        then committed once here; the recipe-progress subscriber runs on its own session, so it
+        must never observe a rolled-back scrap.
+        """
         item = await _crud_for(model).get_or_none(db_session, item_id)
         item = ensure_found(item, model, identifier=item_id)
 
@@ -82,6 +87,7 @@ class ItemService:
         rarity = str(item.rarity)
 
         junk_list = await _crud_for(model).scrap(db_session=db_session, item_id=item_id)
+        await db_session.commit()
 
         # Publish only after the scrap commits: the unlock handler runs on a
         # separate session and must never observe a rolled-back scrap.

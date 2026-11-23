@@ -51,7 +51,6 @@ CRUD_TRANSACTION_BASELINE: dict[tuple[str, str, str], int] = {
     ("incident.py", "CRUDIncident.spread_to_room", "commit"): 1,
     ("item_base.py", "CRUDItem.create_many", "commit"): 1,
     ("item_base.py", "CRUDItem.equip", "commit"): 1,
-    ("item_base.py", "CRUDItem.scrap", "commit"): 1,
     ("item_base.py", "CRUDItem.unequip", "commit"): 1,
     ("llm_interaction.py", "CRUDLLMInteraction.reassign_user", "commit"): 1,
     ("mixins.py", "CompletionMixin.complete", "commit"): 1,

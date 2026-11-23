@@ -64,7 +64,7 @@ async def roster(live_pg_engine, dweller_data):
     suffix = uuid4().hex[:8]
 
     async with maker() as session:
-        user_in = UserCreate(username=f"conc-{suffix}", email=f"conc-{suffix}@example.com", password="***")
+        user_in = UserCreate(username=f"conc-{suffix}", email=f"conc-{suffix}@example.com", password="testpass123")
         user = await crud.user.create(session, obj_in=user_in)
         vault = await crud.vault.create(session, obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id))
         room = await crud.room.create(session, RoomCreate(**create_fake_room(), vault_id=vault.id))

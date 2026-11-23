@@ -157,6 +157,21 @@ def _seed_dweller(harness: MigrationHarness, *, vault_id: str, first_name: str, 
     return dweller_id
 
 
+_INSERT_LIFECYCLE_DWELLER = (
+    "INSERT INTO dweller ("
+    "id, vault_id, first_name, last_name, age_group, gender, rarity, level, experience, "
+    "max_health, health, radiation, happiness, stimpack, radaway, status, is_deleted, is_dead, "
+    "is_permanently_dead, death_cause, death_timestamp, "
+    "strength, perception, endurance, charisma, intelligence, agility, luck"
+    ") VALUES ("
+    ":id, :vault_id, :first_name, :last_name, 'ADULT', 'MALE', 'COMMON', 1, 0, "
+    "100, 100, 0, 50, 0, 0, :status, :is_deleted, :is_dead, "
+    ":is_permanently_dead, CAST(:death_cause AS deathcauseenum), :death_timestamp, "
+    "1, 1, 1, 1, 1, 1, 1"
+    ")"
+)
+
+
 def _seed_lifecycle_dweller(
     harness: MigrationHarness,
     *,

@@ -332,15 +332,26 @@ class HealthConfig(BaseSettings):
 
     # Radiation saturates at the dweller's own max health, so the health ceiling bottoms out at 1 HP instead of the
     # bar overflowing past the health pool.
-    dehydration_radiation_per_tick: int = Field(
-        default=1,
-        description="Master switch for dehydration radiation; rate now comes from flat/percent per window",
-        ge=0,
+    water_deprivation_enabled: bool = Field(
+        default=True, description="Whether zero water accrues deprived time and irradiates dwellers"
     )
-    dehydration_percent_per_tick: float = Field(
-        default=0.01, description="Share of max HP as RAD per irradiated-water tick", ge=0.0, le=1.0
+    hunger_grace_minutes: int = Field(default=60, description="Minutes at zero food before dwellers are hungry", ge=0)
+    thirst_grace_minutes: int = Field(default=30, description="Minutes at zero water before dwellers are thirsty", ge=0)
+    hungry_output_multiplier: float = Field(
+        default=0.7, description="Crew output while hungry or thirsty", ge=0.0, le=1.0
     )
-    dehydration_grace_ticks: int = Field(default=5, description="Ticks at zero water before radiation starts", ge=0)
+    food_erosion_fraction_per_min: float = Field(
+        default=0.0010, description="Share of max health lost per deprived food minute (0.1%)", ge=0.0
+    )
+    water_radiation_fraction_per_min: float = Field(
+        default=0.0015, description="Share of max health added as radiation per deprived water minute (0.15%)", ge=0.0
+    )
+    deprivation_hp_floor_fraction: float = Field(
+        default=0.25,
+        description="Deprivation never takes health or the radiation ceiling below this share of max health",
+        ge=0.0,
+        le=1.0,
+    )
     recovery_radaways_per_dweller: int = Field(
         default=1, description="RadAway used on each irradiated dweller by the recovery action", ge=0
     )
@@ -460,13 +471,22 @@ class ResourceConfig(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="RESOURCE_")
 
     base_production_rate: float = Field(
-        default=0.0012,
+        default=0.00020,
         description=(
-            "Per SPECIAL point per second, calibrated for the 60-second game tick. "
-            "Tuned for the live all-room economy (docs/backend/BALANCE_PLAYTEST.md Slice 3b correction): "
-            "a totally staffed starter room yields ~20/min against the seeded full-room draw of ~14/min, "
-            "so shedding a production worker is an immediate, recoverable deficit; boosted seeds add a "
-            "second power generator to stay net-positive against their larger room set."
+            "Per SPECIAL point per second for food and water, calibrated for the 60-second game tick. "
+            "Balance wave 3 (issue #1456): measured against both seeded layouts, the boosted diner is the binding "
+            "case because one of its three slots is a half-rate apprentice. At 0.00020 with consumption 0.14/min "
+            "the boosted diner nets ~1.2x and the bare starter nets well above parity; the scarcity lever is the "
+            "stock buffer, not the staffing ratio. See docs/backend/BALANCE_WAVE_3.md."
+        ),
+        ge=0.0,
+    )
+    power_production_rate: float = Field(
+        default=0.00040,
+        description=(
+            "Per SPECIAL point per second for power rooms. Split from base_production_rate so power tension is "
+            "tuned independently of food and water: 0.00040 puts the standard seed at ~1.43x surplus against its "
+            "seeded draw, while boosted starts stay power-rich by design (balance wave 3)."
         ),
         ge=0.0,
     )
@@ -483,9 +503,11 @@ class ResourceConfig(BaseSettings):
     tier_2_multiplier: float = Field(default=1.5, ge=0.0)
     tier_3_multiplier: float = Field(default=2.0, ge=0.0)
 
-    power_consumption_rate: float = Field(default=0.4 / 60, description="Per room per tier per second", ge=0.0)
-    food_consumption_per_dweller: float = Field(default=0.30 / 60, description="Per dweller per second", ge=0.0)
-    water_consumption_per_dweller: float = Field(default=0.30 / 60, description="Per dweller per second", ge=0.0)
+    power_consumption_rate: float = Field(
+        default=0.19 / 60, description="Per room per size per tier per second", ge=0.0
+    )
+    food_consumption_per_dweller: float = Field(default=0.14 / 60, description="Per dweller per second", ge=0.0)
+    water_consumption_per_dweller: float = Field(default=0.14 / 60, description="Per dweller per second", ge=0.0)
 
     offline_reserve_fraction: float = Field(default=0.25, ge=0.0, le=1.0)
 

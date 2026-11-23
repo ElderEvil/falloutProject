@@ -7,16 +7,6 @@ from app.core.game_config import game_config
 from app.models.dweller import Dweller
 from app.utils.damage_reductions import damage_reductions
 
-# Irradiated water deals 1% of max health per tick, so every dweller erodes at the same relative pace (tanks hold out
-# on absolute HP, not rate). Tanks still hit the fixed cap first on paper, but in practice they keep hundreds of
-# effective HP long after weaklings collapse to the 1 HP floor — a multi-hour total drought has already failed the
-# vault by then.
-
-
-def dehydration_rads(max_health: int, ticks: int) -> int:
-    """Raw irradiated-water RAD for a tick span: 1% of max HP per tick, scaled by elapsed ticks."""
-    return max(1, int(max_health * game_config.health.dehydration_percent_per_tick * ticks))
-
 
 def radiation_removal_amount(radiation: int, max_health: int) -> int:
     """RAD removed by one RadAway: half the max-health bar, always at least 1 (mirrors the

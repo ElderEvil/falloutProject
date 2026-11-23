@@ -158,6 +158,7 @@ class GameLoopService:
             "updates": {},
         }
 
+        boundary_advanced = True
         try:
             with tick_phase("resources"):
                 resource_update, resource_events = await self.resource_manager.process_vault_resources(
@@ -170,11 +171,6 @@ class GameLoopService:
                     # recomputes seconds_passed from this boundary instead of reapplying the same production window
                     # and duplicating events.
                     game_state.update_tick(seconds_passed)
-                    if resource_update.water is not None:
-                        if resource_update.water <= 0 and game_state.water_empty_since is None:
-                            game_state.water_empty_since = utcnow()
-                        elif resource_update.water > 0:
-                            game_state.water_empty_since = None
                     db_session.add(game_state)
                     await db_session.commit()
 
@@ -197,6 +193,9 @@ class GameLoopService:
             self.logger.error(f"Error updating resources for vault {vault_id}: {e}", exc_info=True)
             results["updates"]["resources"] = {"error": str(e)}
             game_state = await self._get_or_create_game_state(db_session, vault_id)
+            # The tick boundary rolled back with the resource window, so the next tick replays this interval.
+            # Deprivation must not charge it twice.
+            boundary_advanced = False
 
         # Incident combat runs on its own fast cadence (incident_tick actor), not here.
 
@@ -204,7 +203,9 @@ class GameLoopService:
             results["updates"]["explorations"] = await self._process_explorations(db_session, vault_id)
 
         with tick_phase("dwellers"):
-            results["updates"]["dwellers"] = await self._process_dwellers(db_session, vault_id, seconds_passed)
+            results["updates"]["dwellers"] = await self._process_dwellers(
+                db_session, vault_id, seconds_passed, boundary_advanced=boundary_advanced
+            )
 
         with tick_phase("apprenticeships"):
             results["updates"]["apprenticeships"] = await self._process_apprenticeships(db_session, vault_id)
@@ -404,10 +405,17 @@ class GameLoopService:
         return await dwellers_tick.process_explorations(db_session, vault_id)
 
     async def _process_dwellers(
-        self, db_session: AsyncSession, vault_id: UUID, seconds_passed: int | None = None
+        self,
+        db_session: AsyncSession,
+        vault_id: UUID,
+        seconds_passed: int | None = None,
+        *,
+        boundary_advanced: bool = True,
     ) -> DwellersStats:
         """Process dweller updates for a vault."""
-        return await dwellers_tick.process_dwellers(db_session, vault_id, seconds_passed)
+        return await dwellers_tick.process_dwellers(
+            db_session, vault_id, seconds_passed, boundary_advanced=boundary_advanced
+        )
 
     async def _process_apprenticeships(self, db_session: AsyncSession, vault_id: UUID) -> ApprenticeStats:
         """Advance eligible youth apprentices by at most one SPECIAL point per tick."""

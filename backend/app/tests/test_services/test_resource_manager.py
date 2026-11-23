@@ -1,3 +1,4 @@
+import math
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -45,8 +46,10 @@ def test_short_rations_produces_less_food_and_water_with_the_same_workers():
     ]
     crews = [(room, [Dweller(strength=5, agility=5, perception=5)]) for room in rooms]
     manager = ResourceManager()
-    ordinary_update, ordinary = manager.calculate_resource_window(standard, rooms, 1, crews, 60)
-    challenge_update, reduced = manager.calculate_resource_window(challenge, rooms, 1, crews, 60)
+    # Ten minutes: objective counters are integer-valued, and at the retuned rates a single
+    # minute of one-worker production rounds to zero.
+    ordinary_update, ordinary = manager.calculate_resource_window(standard, rooms, 1, crews, 600)
+    challenge_update, reduced = manager.calculate_resource_window(challenge, rooms, 1, crews, 600)
 
     assert reduced.consumption == ordinary.consumption
     assert reduced.production.power == ordinary.production.power
@@ -77,9 +80,22 @@ def test_short_rations_makes_feeding_the_vault_a_staffing_decision():
         return (update.food - vault.food) / 10
 
     starter = net_food(9, 2, 5)
-    assert 0 < starter < 5, f"starter should be solvent but tight, got {starter:+.2f}/min"
-    assert net_food(20, 2, 3) < 0, "an ordinary growing vault must not be fed by two cooks"
-    assert net_food(20, 3, 3) > 0, "a third cook must be the recovery, not a dead end"
+    scenario = vault_scenario_service.get(SHORT_RATIONS_SCENARIO)
+    assert scenario is not None
+    reducer = scenario.food_water_multiplier
+    assert -0.5 < starter < 0.5, f"the experiment is near break-even at the seeded crew, got {starter:+.2f}/min"
+    assert net_food(9, 3, 5) > 0, "one more cook must clear the shortfall"
+
+    # Recovery is a computed boundary rather than a magic cook count: short rations must always cost
+    # extra cooks, and the count follows the shipped rates instead of being pinned to one wave.
+    per_cook = 28 * 3 * game_config.resource.base_production_rate * 60 * reducer
+    draw = 20 * game_config.resource.food_consumption_per_dweller * 60
+    cooks_needed = math.ceil(draw / per_cook)
+    assert net_food(20, cooks_needed - 1, 3) < 0
+    # At the exact boundary the margin is a rounding error against an integer-valued vault, so the
+    # boundary asserts break-even and a small staffing margin proves the recovery.
+    assert net_food(20, cooks_needed, 3) >= 0
+    assert net_food(20, cooks_needed + 2, 3) > 0
 
 
 def test_check_resource_warnings():
@@ -196,15 +212,16 @@ async def test_junior_worker_assists_production_at_the_reduced_rate():
 
 
 def test_base_production_rate_default_matches_resource_economy_baseline() -> None:
-    assert game_config.resource.base_production_rate == pytest.approx(0.0012)
+    """The shipped default reproduces the documented per-tick starts across staffing states."""
+    assert game_config.resource.base_production_rate == pytest.approx(0.00020)
 
 
 @pytest.mark.parametrize(
     ("workers_per_room", "expected_net_per_tick"),
     [
-        (2, {"power": 17, "food": 17, "water": 17}),
-        (1, {"power": 6, "food": 7, "water": 7}),
-        (0, {"power": -4, "food": -3, "water": -3}),
+        (2, {"power": 5, "food": 2, "water": 2}),
+        (1, {"power": 2, "food": 0, "water": 0}),
+        (0, {"power": -2, "food": -1, "water": -1}),
     ],
 )
 def test_starter_vault_meets_resource_economy_baseline_contract(
@@ -327,7 +344,7 @@ async def test_seeded_vault_live_power_and_food_hold_when_staffed() -> None:
     assert (generators[0].size, generators[0].output) == (6, 70)  # (2*6*(2+4))-2 at tier 2, size 6
 
     full = [[*_outfitted_workers("strength", 5), _apprentice(5)]]
-    assert _seeded_net(prepared, 33, full, "power", "power") > 100
+    assert _seeded_net(prepared, 33, full, "power", "power") > 75
     # A two-worker shed stays safe; one worker left is the depth at which the big boosted draw wins.
     two_left = [[*_outfitted_workers("strength", 2), _apprentice(5)]]
     assert _seeded_net(prepared, 33, two_left, "power", "power") > 0

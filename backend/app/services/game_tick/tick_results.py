@@ -27,7 +27,7 @@ class DwellersStats(TypedDict, total=False):
     leveled_up: int
     xp_awarded: int
     deaths: int
-    irradiated: int
+    deprived: int
     exit_requests_raised: int
 
 

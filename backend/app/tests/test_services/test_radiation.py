@@ -7,7 +7,6 @@ from app.core.game_config import game_config
 from app.utils.radiation import (
     apply_health_gain,
     apply_radiation_gain,
-    dehydration_rads,
     stimpack_heal_amount,
 )
 
@@ -67,18 +66,6 @@ def test_radiation_saturates_at_max_health_and_lowers_the_ceiling() -> None:
     assert apply_radiation_gain(dweller, 50, resisted_by_outfit=False) is True
     assert dweller.radiation == 100
     assert dweller.effective_max_health == 1
-
-
-@pytest.mark.parametrize(
-    ("max_health", "ticks", "expected"),
-    [
-        (100, 1, 1),
-        (100, 5, 5),
-        (200, 2, 4),
-    ],
-)
-def test_dehydration_rads_scales_with_health_and_ticks(max_health: int, ticks: int, expected: int) -> None:
-    assert dehydration_rads(max_health, ticks) == expected
 
 
 def test_stimpack_heal_amount_is_share_of_max_health() -> None:

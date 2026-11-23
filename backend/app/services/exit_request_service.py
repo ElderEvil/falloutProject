@@ -154,8 +154,14 @@ class ExitRequestService:
         logger.info("Dweller %s left vault %s as a living departure", dweller_id, vault.id)
         return dweller
 
-    async def sync_despair_requests(self, db_session: AsyncSession, vault_id: UUID) -> list[Dweller]:
-        """Raise requests for dwellers in despair, and withdraw requests from dwellers who recovered."""
+    async def sync_despair_requests(
+        self, db_session: AsyncSession, vault_id: UUID, *, commit: bool = True
+    ) -> list[Dweller]:
+        """Raise requests for dwellers in despair, and withdraw requests from dwellers who recovered.
+
+        ``commit=False`` leaves the transaction and the deferred-notification drain to the caller — the dweller
+        tick phase owns that boundary and must not have this helper publish before it.
+        """
         threshold = game_config.exit_request.despair_happiness
         now = utcnow()
 
@@ -163,8 +169,9 @@ class ExitRequestService:
         await self._withdraw_recovered(db_session, vault_id, threshold)
         for dweller in asked:
             await self._announce_request(db_session, dweller, vault_id=vault_id, commit=False)
-        await db_session.commit()
-        await notification_service.deliver_deferred_notifications(db_session)
+        if commit:
+            await db_session.commit()
+            await notification_service.deliver_deferred_notifications(db_session)
         if asked:
             logger.info("%d dweller(s) in vault %s asked to leave", len(asked), vault_id)
         return asked

@@ -33,15 +33,18 @@ block everything.
 
 ## Drought — irradiated water
 
-While a vault has no water, in-vault dwellers accumulate `dehydration_percent_per_tick` of their max health **per
-elapsed game-loop tick**, after `dehydration_grace_ticks` of quiet:
+Deprivation is graded and non-lethal (balance wave 3, issue #1456). Each tick accumulates active time at zero water
+into `GameState.water_deprived_ms`; paused and offline time is excluded:
 
-- only ticks past the grace boundary radiate, so a catch-up interval spanning the boundary credits just the overlap
-  (never the whole window);
-- the rate scales with elapsed ticks and saturates at `max_health`;
+- the first `thirst_grace_minutes` (30) are warning-only;
+- past the grace, radiation accrues at `water_radiation_fraction_per_min` (0.15% of max health per minute) and crew
+  output drops to `hungry_output_multiplier` (0.7);
+- radiation stops at `deprivation_hp_floor_fraction` (25% of max health), so drought alone never kills — the death
+  predicate stays incident-driven;
+- each pass applies `cumulative(after) - cumulative(before)` from the persisted counter and only then clears it once
+  water is back above zero, so retries and catch-up windows can neither double-apply nor heal;
 - dwellers `EXPLORING` or `QUESTING` are exempt — they carry their own supplies and settle on return;
-- `GameState.water_empty_since` drives the grace clock and is cleared as soon as water returns;
-- `dehydration_radiation_per_tick` is the master switch: setting it to 0 disables the whole effect.
+- `water_deprivation_enabled` is the master switch: setting it to `false` disables the water branch.
 
 ## Single source of truth
 
@@ -52,7 +55,8 @@ elapsed game-loop tick**, after `dehydration_grace_ticks` of quiet:
 - `radiation_removal_amount(radiation, max_health)` — one RadAway's removal as the configured share of **max health**
   (not of current radiation), at least one point, never more than the dweller has.
 - `outfit_radiation_resist(outfit)` in `app/utils/hazard_resist.py` /
-  `dehydration_rads(max_health, ticks)` in `app/utils/radiation.py` — pure lookups and rate math.
+  `cumulative_amount(max_health, eligible_ms, fraction_per_min)` and `hp_floor(max_health, fraction)` in
+  `app/services/game_tick/deprivation.py` — pure deprivation math.
 
 The helpers own no session and never commit; callers persist the dweller. Radiation has **no passive decay** — only
 RadAway removes it, which keeps inventory a real decision.
@@ -61,9 +65,10 @@ RadAway removes it, which keeps inventory a real decision.
 
 | Setting | Meaning |
 | --- | --- |
-| `dehydration_radiation_per_tick` | Master switch for drought radiation (0 disables it). |
-| `dehydration_percent_per_tick` | Share of max health gained per post-grace drought tick. |
-| `dehydration_grace_ticks` | Quiet ticks at zero water before radiation starts. |
+| `water_deprivation_enabled` | Master switch for the drought branch (`false` disables it). |
+| `thirst_grace_minutes` | Dry minutes before thirst warnings and radiation begin (30). |
+| `water_radiation_fraction_per_min` | Share of max health gained as RAD per dry minute (0.15%). |
+| `deprivation_hp_floor_fraction` | Floor that deprivation cannot take health or the ceiling below (25%). |
 | `recovery_radaways_per_dweller` | RadAway used per dweller by the one-shot recovery action. |
 | `recovery_stimpaks_per_dweller` | Stimpack used per dweller by the one-shot recovery action. |
 | `radaway_removal_percent` | Share of max health one RadAway clears (at least one point). |

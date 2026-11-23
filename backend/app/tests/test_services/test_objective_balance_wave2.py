@@ -92,9 +92,11 @@ async def test_fractional_production_counts_at_full_storage(async_session, vault
     for _ in range(20):
         _, tick = manager.calculate_resource_window(vault, [room], 0, [(room, [Dweller(strength=1)])], 60, state=state)
         events.append(tick)
-        if len(events) == 10:
-            assert sum(e.objective_production.power for e in events) == 0  # 0.72 output, retained for a later tick
-    assert sum(e.objective_production.power for e in events) == 1
+    assert sum(event.objective_production.power for event in events) == 0  # 0.48 output, retained for a later tick
+    for _ in range(40):  # 60 x 0.024 power reaches the first whole point at the retuned power rate
+        _, tick = manager.calculate_resource_window(vault, [room], 0, [(room, [Dweller(strength=1)])], 60, state=state)
+        events.append(tick)
+    assert sum(event.objective_production.power for event in events) == 1
 
 
 @pytest.mark.parametrize("item_type", ["weapon", "outfit", "junk"])
@@ -134,7 +136,7 @@ async def test_gross_production_at_capacity_advances_an_objective(async_session,
         vault, [room], 0, [(room, [Dweller(strength=5)])], 60, state=GameState(vault_id=vault.id)
     )
     assert update.power == 100
-    assert events.objective_production.power == 10
+    assert events.objective_production.power == 3
     await CollectEvaluator(EventBus())._credit_event(
         async_session,
         vault.id,
@@ -142,7 +144,7 @@ async def test_gross_production_at_capacity_advances_an_objective(async_session,
         link,
         {**POWER, "amount": events.objective_production.power, "source": "production"},
     )
-    assert link.progress == 10
+    assert link.progress == 3
 
 
 @pytest.mark.parametrize("event_type", [GameEvent.RESOURCE_COLLECTED, GameEvent.ITEM_COLLECTED])

@@ -24,9 +24,9 @@ async def test_offline_reserve_never_grants_stock(initial, expected):
 async def test_active_vault_can_run_out():
     vault = Vault(power=50, food=50, water=50, power_max=100, food_max=100, water_max=100)
     state = GameState(vault_id=uuid4())
-    update, _ = ResourceManager().calculate_resource_window(vault, [Room(size=100, tier=1)], 100, [], 60, state=state)
-    assert update.power < 25
-    assert update.food == 20
+    update, _ = ResourceManager().calculate_resource_window(vault, [Room(size=100, tier=1)], 100, [], 600, state=state)
+    assert update.power == 0
+    assert update.food == 0
 
 
 async def test_catchup_restores_nonpower_production_after_generator_recovers():
@@ -48,7 +48,7 @@ async def test_catchup_restores_nonpower_production_after_generator_recovers():
         for key in ("power", "food", "water"):
             setattr(vault, key, getattr(update, key))
     assert (one_update.power, one_update.food, one_update.water) == (vault.power, vault.food, vault.water)
-    assert one_update.food == 100
+    assert one_update.food > 70
 
 
 async def test_fractional_changes_survive_repeated_ticks():
@@ -58,8 +58,8 @@ async def test_fractional_changes_survive_repeated_ticks():
     for _ in range(10):
         update, _ = manager.calculate_resource_window(vault, [], 1, [], 60, state=state)
         vault.food, vault.water = update.food, update.water
-    assert vault.food == 47
-    assert vault.water == 47
+    assert vault.food == 49
+    assert vault.water == 49
 
 
 async def test_fractional_carry_survives_database_reload(async_session, vault):
@@ -74,8 +74,8 @@ async def test_fractional_carry_survives_database_reload(async_session, vault):
     loaded = await async_session.get(GameState, state_id)
     vault = await async_session.get(Vault, vault_id)
     update, _ = ResourceManager().calculate_resource_window(vault, [], 1, [], 60, state=loaded)
-    assert loaded.resource_remainders["food"] == pytest.approx(-0.1)
-    assert loaded.resource_remainders["water"] == pytest.approx(-0.1)
+    assert loaded.resource_remainders["food"] == pytest.approx(0.06)
+    assert loaded.resource_remainders["water"] == pytest.approx(0.06)
 
 
 async def test_population_counts_only_present_living_dwellers(async_session, vault):

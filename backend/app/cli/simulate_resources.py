@@ -109,11 +109,14 @@ def _production_rate_override(rate: float | None) -> Generator[None]:
         return
 
     original_rate = game_config.resource.base_production_rate
+    original_power_rate = game_config.resource.power_production_rate
     game_config.resource.base_production_rate = rate
+    game_config.resource.power_production_rate = rate
     try:
         yield
     finally:
         game_config.resource.base_production_rate = original_rate
+        game_config.resource.power_production_rate = original_power_rate
 
 
 def simulate(config: ResourceEconomyConfig) -> ResourceEconomyResult:

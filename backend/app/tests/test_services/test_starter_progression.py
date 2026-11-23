@@ -203,7 +203,12 @@ async def test_starter_cohorts_reach_office_without_random_loot(
             break
     await async_session.refresh(vault)
     assert granted_residents == (7 if cohort == "legacy" else 9)
-    assert production_seconds <= 30 * 60
+    # The short-rations experiment multiplies food and water production by 0.35 on top of the balance-wave-3
+    # rates, so its lessons take roughly twice as long by design; every other cohort keeps the 30-minute arc.
+    # The short-rations arc measures 43-63 production minutes across runs (the seed fills the production rooms
+    # from an unordered query, so the crew's strength and the power lesson's tick count vary), hence 70 minutes.
+    budget_seconds = 70 * 60 if scenario == "vault_67_short_rations" else 30 * 60
+    assert production_seconds <= budget_seconds
     assert await crud.dweller.count_living_in_vault(async_session, vault.id) == 18
     assert vault.bottle_caps >= 200
     if cohort == "continuity":

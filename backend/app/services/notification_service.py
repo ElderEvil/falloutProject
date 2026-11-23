@@ -50,7 +50,6 @@ class NotificationService:
 
     @staticmethod
     async def _get_vault_prefix(db: AsyncSession, vault_id: UUID | None) -> str:
-        """Get vault number prefix for notification messages."""
         if not vault_id:
             return ""
 
@@ -75,7 +74,6 @@ class NotificationService:
         meta_data: dict[str, Any] | None = None,
         commit: bool = True,
     ):
-        """Create a notification and send it via WebSocket."""
         profile = await profile_crud.get_by_user_id(db, user_id)
         if not should_deliver_notification(profile.preferences if profile else None, notification_type):
             logger.info("Suppressed %s notification for user %s by preference", notification_type, user_id)
@@ -135,7 +133,7 @@ class NotificationService:
         """Push one notification payload over WebSocket and SSE (best-effort, never raises)."""
         try:
             await manager.send_personal_message(payload, user_id=user_id)
-        except Exception:  # broad by design: best-effort delivery must never fail the caller
+        except Exception:
             logger.exception(f"Failed to send notification {payload['notification']['id']} to user {user_id}")
 
         try:
@@ -144,7 +142,7 @@ class NotificationService:
                 "notifications",
                 payload,
             )
-        except Exception:  # broad by design: best-effort delivery must never fail the caller
+        except Exception:
             logger.exception(f"Failed to send SSE notification {payload['notification']['id']} to user {user_id}")
 
     @staticmethod
@@ -195,8 +193,6 @@ class NotificationService:
             await sender(vault.user_id)
         except Exception:  # broad by design: caller-supplied sender may raise anything; must never fail the caller
             logger.exception("Failed to notify vault owner (%s)", context)
-
-    # Convenience methods for common notification types
 
     @staticmethod
     async def notify_exploration_update(
@@ -418,11 +414,8 @@ class NotificationService:
     ):
         """Announce a recruit and the room thresholds it crossed in one transaction.
 
-        The recruit row and the room-unlock summary are one event: both are staged through CRUD,
-        committed once here, and only then pushed. Staging happens inside one failure cleanup, so
-        any raise between the first parked payload and the commit drops every parked delivery
-        before propagating - a retry on the same session can never announce a recruit for a
-        transaction that never committed.
+        Both rows are staged through CRUD, committed once, and only then pushed; any raise
+        before the commit drops every parked delivery.
         """
         try:
             notification = await NotificationService.create_and_send(
@@ -662,5 +655,4 @@ class NotificationService:
         )
 
 
-# Global service instance
 notification_service = NotificationService()

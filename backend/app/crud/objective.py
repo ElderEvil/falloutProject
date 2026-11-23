@@ -24,7 +24,6 @@ class CRUDObjective(CRUDBase[Objective, ObjectiveCreate, ObjectiveUpdate]):
         self.link_model = link_model
 
     async def create_for_vault(self, db_session: AsyncSession, vault_id: UUID, obj_in: ObjectiveCreate) -> Objective:
-        """Create an objective together with its initial vault progress link."""
         db_obj = self.model(**obj_in.model_dump())
         db_session.add(db_obj)
 
@@ -61,7 +60,6 @@ class CRUDObjective(CRUDBase[Objective, ObjectiveCreate, ObjectiveUpdate]):
     async def get_multi_for_vault(
         self, db_session: AsyncSession, vault_id: UUID, skip: int = 0, limit: int = 100
     ) -> Sequence[ObjectiveRead]:
-        """Return a vault's objectives with their persisted progress state."""
         query = (
             select(
                 self.model,
@@ -136,7 +134,6 @@ class CRUDObjective(CRUDBase[Objective, ObjectiveCreate, ObjectiveUpdate]):
         await db_session.commit()
 
     async def get_all(self, db_session: AsyncSession) -> list[Objective]:
-        """Every objective."""
         return list((await db_session.execute(select(self.model))).scalars().all())
 
     async def get_assigned_objective_ids(self, db_session: AsyncSession, vault_id: UUID) -> set[UUID]:
@@ -212,12 +209,8 @@ class CRUDObjective(CRUDBase[Objective, ObjectiveCreate, ObjectiveUpdate]):
     ) -> int:
         """Assign the deterministic starter objective set for a new vault.
 
-        Standard vaults get the full starter arc (ordered by sequence) plus the first daily and
-        weekly. Boosted vaults skip the arc (Overseer's Office already seeded) and draw 8
-        objectives from every category except daily/weekly/starter. Starter reward overrides
-        are pinned on their vault links for reads and claims. With ``commit=False`` the links
-        are staged for the caller's transaction and a database failure propagates instead of
-        being swallowed, because the caller's session would be left unusable.
+        Standard vaults get the ordered starter arc plus the first daily and weekly; boosted
+        vaults seat the Overseer's Office instead and draw 8 from the remaining categories.
         """
         overrides = starter_reward_overrides or {}
         try:

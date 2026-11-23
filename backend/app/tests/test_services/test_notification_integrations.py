@@ -195,12 +195,8 @@ async def test_discard_drops_queued_delivery(async_session: AsyncSession, user_w
 async def test_failed_room_unlock_staging_discards_the_parked_recruit(
     async_session: AsyncSession, user_with_vault: tuple, channel_mocks
 ):
-    """A staging failure after the recruit is parked must not survive into a retry.
-
-    ``notify_radio_new_dweller`` parks the recruit delivery with ``commit=False`` and then stages
-    the room-unlock summary. If that second stage raises, the recruit payload stayed in
-    ``db.info``, so any later commit on the same session pushed a notice for a recruit whose
-    transaction never committed.
+    """A staging failure after the recruit is parked must not leave a payload in ``db.info``
+    for a later commit to deliver.
     """
     user, vault = user_with_vault
     mock_ws, mock_sse = channel_mocks

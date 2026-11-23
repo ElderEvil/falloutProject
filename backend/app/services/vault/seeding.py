@@ -275,7 +275,6 @@ async def seed_working_dweller(
     *,
     gender: GenderEnum | None = None,
 ) -> Dweller:
-    """Create a dweller and assign it to a room as a worker."""
     from app.services.dweller_service import dweller_service
 
     dweller_obj = await dweller_service.create_random_dweller(
@@ -283,7 +282,7 @@ async def seed_working_dweller(
         vault_id,
         DwellerCreateCommonOverride(special_boost=boosted_stat, gender=gender),
         rarity=RarityEnum.COMMON if gender else roll_initial_rarity(is_boosted),
-        enforce_capacity=False,  # vault bootstrap: fill a fresh vault
+        enforce_capacity=False,
         commit=False,
     )
     await dweller_crud.update(
@@ -345,7 +344,7 @@ async def seed_boosted_response_team(db_session: AsyncSession, vault_id: UUID, s
             vault_id,
             DwellerCreateCommonOverride(special_boost=boosted_stat),
             rarity=roll_initial_rarity(is_boosted=True),
-            enforce_capacity=False,  # vault bootstrap: fill a fresh vault
+            enforce_capacity=False,
             commit=False,
         )
         await dweller_crud.update(
@@ -375,7 +374,6 @@ async def create_initial_dwellers(
     *,
     majority_gender: GenderEnum | None = None,
 ) -> None:
-    """Create and assign initial dwellers to production, training, and crafting rooms."""
     from app.services.dweller_service import dweller_service
 
     try:
@@ -411,7 +409,6 @@ async def create_initial_dwellers(
             ):
                 workers.append(await seed_working_dweller(db_session, vault_id, room, boosted_stat, is_boosted))
 
-        # Training dwellers (boosted only)
         if is_boosted:
             for i, training_stat in enumerate(BOOSTED_TRAINING_STATS):
                 if i < len(created_training_rooms):
@@ -422,7 +419,7 @@ async def create_initial_dwellers(
                         vault_id,
                         dweller_data,
                         rarity=roll_initial_rarity(is_boosted),
-                        enforce_capacity=False,  # vault bootstrap: fill a fresh vault
+                        enforce_capacity=False,
                         commit=False,
                     )
 
@@ -436,7 +433,6 @@ async def create_initial_dwellers(
                     )
                     logger.info(f"Dweller {dweller_obj.id} assigned to training room {room.id}")
 
-        # Radio studio dweller (Charisma-based, for recruitment)
         if created_misc_rooms:
             radio_room = next((r for r in created_misc_rooms if "radio" in r.name.lower()), None)
             if radio_room:
@@ -463,7 +459,7 @@ async def create_initial_dwellers(
                     vault_id,
                     dweller_data,
                     rarity=RarityEnum.COMMON if majority_gender else roll_initial_rarity(is_boosted),
-                    enforce_capacity=False,  # vault bootstrap: fill a fresh vault
+                    enforce_capacity=False,
                     commit=False,
                 )
                 if is_boosted and dweller.charisma != game_config.dweller.boosted_stat_value:
@@ -571,7 +567,7 @@ async def seed_family_child(
         vault_id,
         DwellerCreateCommonOverride(special_boost=room.ability if room else None, gender=child_gender),
         rarity=RarityEnum.COMMON if child_gender else roll_initial_rarity(is_boosted),
-        enforce_capacity=False,  # vault bootstrap: fill a fresh vault
+        enforce_capacity=False,
         commit=False,
     )
     surname = father.last_name or child.last_name
@@ -691,15 +687,11 @@ async def start_training_sessions(
     try:
         # Batch-fetch all dwellers in training rooms via CRUD
         room_ids = [room.id for room in created_training_rooms]
-        # Get all dwellers in vault via CRUD
         vault_dwellers = await dweller_crud.get_multi_by_vault(db_session, vault_id)
-        # Filter by room_ids (training rooms)
         all_dwellers = [d for d in vault_dwellers if d.room_id in room_ids]
 
-        # Group dwellers by room_id for processing
         dwellers_by_room = group_dwellers_by_room(all_dwellers)
 
-        # Process each training room
         for room in created_training_rooms:
             # Re-fetch room to ensure all fields are loaded
             await db_session.refresh(room)
@@ -779,7 +771,6 @@ def build_boosted_outfits(storage_id: UUID) -> list[Outfit]:
 async def create_initial_items(
     db_session: AsyncSession, vault_id: UUID, is_boosted: bool = False, *, commit: bool = True
 ) -> None:
-    """Create initial weapons and outfits for testing, plus crafting junk when boosted."""
     storage = await storage_crud.get_by_vault(db_session, vault_id)
     if not storage:
         return
@@ -797,7 +788,6 @@ async def create_initial_items(
 
 
 async def create_boosted_legendary_dwellers(db_session: AsyncSession, vault_id: UUID, *, commit: bool = True) -> None:
-    """Add a random, equipped legendary roster to boosted vaults."""
     from app.services.catalog_service import load_outfits, load_weapons
     from app.services.dweller_service import dweller_service
 
@@ -822,7 +812,7 @@ async def create_boosted_legendary_dwellers(db_session: AsyncSession, vault_id: 
                 db_session,
                 vault_id,
                 template.template_id,
-                enforce_capacity=False,  # vault bootstrap: fill a fresh vault
+                enforce_capacity=False,
                 commit=commit,
             )
         except ResourceConflictException:

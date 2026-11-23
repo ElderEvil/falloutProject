@@ -44,7 +44,6 @@ class CRUDBase[ModelType: SQLModel, CreateSchemaType: (SQLModel | None), UpdateS
     async def get_by_ids(
         self, list_ids: Sequence[UUID | str], db_session: AsyncSession, include_deleted: bool = False
     ) -> Sequence[ModelType]:
-        """Get items by a list of IDs."""
         query = select(self.model).where(self.model.id.in_(list_ids))
 
         if not include_deleted and hasattr(self.model, "is_deleted"):
@@ -68,10 +67,8 @@ class CRUDBase[ModelType: SQLModel, CreateSchemaType: (SQLModel | None), UpdateS
     async def create(self, db_session: AsyncSession, obj_in: CreateSchemaType, *, commit: bool = True) -> ModelType:
         """Create a new item; raises ResourceAlreadyExistsException on unique-violation.
 
-        With commit=False the caller owns the transaction: the row is flushed and the conflict is
-        propagated, but no rollback happens here. The caller must open a savepoint first if it
-        needs to keep earlier writes: the database aborts the surrounding transaction on a failed
-        flush, so without one the caller can only roll back (see SERVICE_LAYER.md:56-59).
+        commit=False gives the caller the transaction: the row is flushed and a conflict
+        propagated, so keep earlier writes by opening a savepoint first.
         """
         db_obj = self.model.model_validate(obj_in)
         try:
@@ -112,7 +109,6 @@ class CRUDBase[ModelType: SQLModel, CreateSchemaType: (SQLModel | None), UpdateS
         *,
         commit: bool = True,
     ) -> ModelType:
-        """Update an existing item from a SQLModel instance or dict."""
         db_obj = await self.get(db_session=db_session, id=id)
         update_data = obj_in if isinstance(obj_in, dict) else obj_in.model_dump(exclude_unset=True)
 
@@ -152,7 +148,6 @@ class CRUDBase[ModelType: SQLModel, CreateSchemaType: (SQLModel | None), UpdateS
         return existing_obj
 
     async def exists(self, db_session: AsyncSession, **filters: Any) -> bool:
-        """Check whether any record matches the given filters."""
         query = select(func.count()).select_from(self.model).filter_by(**filters)
         result = await db_session.execute(query)
         return result.scalar() > 0
@@ -217,7 +212,6 @@ class CRUDBase[ModelType: SQLModel, CreateSchemaType: (SQLModel | None), UpdateS
     async def get_deleted(
         self, db_session: AsyncSession, skip: int = 0, limit: int = 100
     ) -> Sequence[Row[Any] | RowMapping | Any]:
-        """List soft-deleted items with skip/limit pagination."""
         if not hasattr(self.model, "is_deleted"):
             return []
 

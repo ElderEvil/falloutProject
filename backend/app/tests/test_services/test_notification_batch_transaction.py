@@ -1,13 +1,7 @@
 """One notification event that yields several rows owns one transaction boundary (real session).
 
-``notify_radio_new_dweller`` is the recruit announcement plus the room-unlock summary it
-crosses. Today each row was created by ``CRUDNotification.create`` with its own commit, and the
-recruit push went out before the summary row existed -- so a failure while building the summary
-left a delivered notification for a recruit the caller might still roll back. SERVICE_LAYER.md
-"Reviewing a composed write" (step 4) requires the notification rows to commit with the
-operation and every push to follow that commit. These tests pin it on the test database: one
-commit for the pair, both rows durable before any delivery, no database work after the commit,
-and no row or delivery when a later write fails.
+``notify_radio_new_dweller`` writes the recruit row and the room-unlock summary it crosses in
+one commit; every push follows that commit, and a failure leaves neither row nor delivery.
 """
 
 from collections.abc import AsyncGenerator
@@ -16,7 +10,7 @@ from unittest.mock import AsyncMock, patch
 from uuid import UUID
 
 import pytest
-from sqlalchemy import event, func, select
+from sqlalchemy import func, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
@@ -25,36 +19,12 @@ from app.models.notification import Notification
 from app.schemas.dweller import DwellerCreate
 from app.services.notification_service import NotificationService
 from app.tests.factory.dwellers import create_random_common_dweller
+from app.tests.test_services._transaction_helpers import fresh_session, record_statements
 
 pytestmark = pytest.mark.asyncio
 
 SUMMARY_READ = "app.services.notification_service.get_static_game_data"
 UNLOCK_POPULATION = 15
-
-
-@asynccontextmanager
-async def _record_statements(async_session: AsyncSession) -> AsyncGenerator[tuple[list[str], list[int]]]:
-    """Record every statement and the statement index at which each commit was issued."""
-    connection = (await async_session.connection()).sync_connection
-    statements: list[str] = []
-    commit_marks: list[int] = []
-
-    def hook(_conn, _cursor, statement, _parameters, _context, _many) -> None:
-        if not statement.lower().startswith(("savepoint", "release savepoint", "rollback to savepoint", "begin")):
-            statements.append(statement)
-
-    original_commit = async_session.commit
-
-    async def counting_commit() -> None:
-        await original_commit()
-        commit_marks.append(len(statements))
-
-    event.listen(connection, "before_cursor_execute", hook)
-    async_session.commit = counting_commit  # type: ignore[method-assign]
-    try:
-        yield statements, commit_marks
-    finally:
-        event.remove(connection, "before_cursor_execute", hook)
 
 
 @asynccontextmanager
@@ -117,7 +87,7 @@ async def test_recruit_event_does_no_database_work_after_its_commit(async_sessio
     await _fill_vault(async_session, vault.id)
 
     with patch.object(NotificationService, "_deliver", new=AsyncMock()):
-        async with _record_statements(async_session) as (statements, commit_marks):
+        async with record_statements(async_session) as (statements, commit_marks):
             await NotificationService.notify_radio_new_dweller(
                 async_session, user_id=vault.user_id, vault_id=vault.id, dweller_name="Nora"
             )
@@ -148,9 +118,7 @@ async def test_failure_building_the_summary_leaves_no_row_and_no_delivery(
 
     deliver.assert_not_awaited()
     await async_session.rollback()
-    async with AsyncSession(
-        bind=db_connection, expire_on_commit=False, join_transaction_mode="create_savepoint"
-    ) as session:
+    async with fresh_session(db_connection) as session:
         count = (
             await session.execute(
                 select(func.count()).select_from(Notification).where(Notification.vault_id == vault_id)

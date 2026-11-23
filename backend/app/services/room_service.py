@@ -102,7 +102,6 @@ async def _apply_merged_size(
     image_url: str | None,
     commit: bool = True,
 ) -> Room:
-    """Persist a merge's total footprint onto the existing survivor room."""
     return await crud.room.update(
         db_session=db_session,
         id=room_id,
@@ -325,9 +324,8 @@ class RoomService:
     ) -> dict[str, int]:
         """Merge existing adjacent duplicate rooms in one vault.
 
-        Scans left-to-right, top-to-bottom until no merges fit within size_max. Apply mode holds the vault
-        placement lock against concurrent builds/upgrades; a dry run is lock-free. ``commit=False`` stages
-        the merges for a composing caller such as vault bootstrap.
+        Apply mode holds the placement lock; a dry run is lock-free, and commit=False
+        stages the merges for a composing caller such as vault bootstrap.
         """
         if dry_run:
             return await self._merge_adjacent_vault_rooms(db_session, vault_id, dry_run=True)
@@ -393,7 +391,6 @@ class RoomService:
         db_session: AsyncSession,
         room_request: RoomBuild,
     ) -> Room:
-        """Build a new room in a vault."""
         try:
             room_template = game_data_store.get_room(room_request.room_name)
             if room_template is None or room_template.name.lower() == "vault door":
@@ -689,7 +686,6 @@ class RoomService:
             return await self._upgrade_locked_transaction(db_session, room)
 
     async def apply_room_style(self, db_session: AsyncSession, room_id: UUID, style: str) -> Room:
-        """Apply a cosmetic room-wide style, updating the stored sprite URL."""
         room = await crud.room.get(db_session, room_id)
         async with vault_placement_guard(
             db_session,

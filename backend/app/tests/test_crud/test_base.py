@@ -1,10 +1,7 @@
 """Regression tests for ``CRUDBase.create``/``create_all``: conflict detection and transaction ownership.
 
-Two defects are pinned here. A create schema without a ``name`` field must still produce a
-``ResourceAlreadyExistsException`` (409) instead of an ``AttributeError`` raised from inside the
-handler - for the single-row and the bulk path alike. And ``commit=False`` must flush and propagate without rolling back the caller's
-transaction (docs/backend/SERVICE_LAYER.md: "recoverable nested attempts use a savepoint owned by
-their caller").
+A create schema without a ``name`` field must still raise ``ResourceAlreadyExistsException``
+(409), and ``commit=False`` must flush and propagate without rolling back the caller.
 """
 
 import pytest
@@ -20,11 +17,7 @@ from app.utils.exceptions import ResourceAlreadyExistsException
 
 
 class NamedConversationCreate(ConversationBase):
-    """Conversation payload that also exposes ``name``.
-
-    ``Conversation`` has no ``name`` column, so the value is ignored by ``model_validate``; it only
-    keeps the name-less message path out of the rollback assertions below.
-    """
+    """Conversation payload that also exposes ``name`` (``Conversation`` has no such column)."""
 
     name: str = "thread"
 
@@ -56,13 +49,8 @@ async def test_create_duplicate_without_name_field_raises_conflict(
 async def test_commit_false_conflict_without_a_savepoint_poisons_the_caller_transaction(
     async_session: AsyncSession, vault: Vault, dweller: Dweller, dweller_data: dict
 ) -> None:
-    """A real unique violation aborts the whole transaction unless the caller opened a savepoint.
-
-    This pins the honest contract rather than a comfortable one: ``create(commit=False)``
-    propagates the conflict and does not roll back, but the database has already aborted the
-    transaction, so the caller's earlier staged write is gone and ``commit()`` raises
-    ``PendingRollbackError``. A caller that must keep its earlier work opens a savepoint first,
-    which is what ``test_caller_owned_savepoint_absorbs_the_conflict`` covers.
+    """A unique violation aborts the transaction: the earlier staged write is gone and
+    ``commit()`` raises ``PendingRollbackError`` unless the caller opened a savepoint.
     """
     conversation_in = await _conversation_in(async_session, vault, dweller)
     await crud.conversation.create(db_session=async_session, obj_in=conversation_in)
@@ -110,11 +98,8 @@ async def test_caller_owned_savepoint_absorbs_the_conflict(
 async def test_create_all_duplicate_without_name_field_raises_conflict(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
 ) -> None:
-    """The bulk path translates a unique violation the same way the single-row path does.
-
-    ``create_all`` reads the conflict identifier off the first staged schema; a schema without a
-    ``name`` field must fall back to the model name instead of raising ``AttributeError`` from the
-    exception handler, which would surface a 500 rather than the expected 409.
+    """The bulk path must translate a unique violation like the single-row path, not raise
+    ``AttributeError`` (a 500) from its exception handler.
     """
     conversation_in = await _conversation_in(async_session, vault, dweller)
     await crud.conversation.create(db_session=async_session, obj_in=conversation_in)

@@ -177,7 +177,6 @@ class BioService:
 
     @staticmethod
     def has_dialogue_entry(dweller: BioEntryOwner, text: str) -> bool:
-        """Whether this detail is already recorded in the life log."""
         candidate = text.strip().lower()
         return any(
             entry.get("source") == "dialogue" and str(entry.get("text") or "").strip().lower() == candidate

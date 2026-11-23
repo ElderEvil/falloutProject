@@ -1,20 +1,12 @@
 """Unequipping an item owns one transaction boundary (real session).
 
-SERVICE_LAYER.md "Transaction ownership": unequipping moves one row back to the vault's
-storage and clears the dweller's equipment slot. Both writes belong to a single operation, so
-the service entry point stages them through CRUD, commits once, and the endpoint keeps no
-session lifecycle. Today the weapon/outfit endpoints reached ``CRUDItem.unequip`` directly and
-CRUD owned that commit. These tests pin the target contract on the test database: one commit
-per unequip, every write durable on success, nothing surviving a failure at the later write,
-no database work after the commit, and a repeated request hitting the same not-found error.
+The storage return and the slot clear are staged through CRUD and committed once.
 """
 
-from collections.abc import AsyncGenerator, Callable
-from contextlib import asynccontextmanager
 from uuid import UUID
 
 import pytest
-from sqlalchemy import event, select
+from sqlalchemy import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
@@ -23,58 +15,20 @@ from app.models.dweller import Dweller
 from app.models.storage import Storage
 from app.models.weapon import Weapon
 from app.services.item_service import item_service
+from app.tests.test_services._transaction_helpers import (
+    counting_commit,
+    fail_sql,
+    fresh_session,
+    record_statements,
+)
 from app.utils.exceptions import ResourceNotFoundException
 
 pytestmark = pytest.mark.asyncio
-
-FaultHook = Callable[[str], object]
-
-
-@asynccontextmanager
-async def _fail_sql(async_session: AsyncSession, predicate: FaultHook, message: str) -> AsyncGenerator[None]:
-    """Raise at the first statement matching ``predicate`` while the block runs."""
-    connection = (await async_session.connection()).sync_connection
-
-    def hook(_conn, _cursor, statement, _parameters, _context, _many) -> None:
-        if predicate(statement):
-            raise RuntimeError(message)
-
-    event.listen(connection, "before_cursor_execute", hook)
-    try:
-        yield
-    finally:
-        event.remove(connection, "before_cursor_execute", hook)
 
 
 def _writes_item(statement: str) -> bool:
     """The unequip's single write: the item row moves to storage and loses its dweller."""
     return statement.lower().startswith("update weapon")
-
-
-@asynccontextmanager
-async def _record_statements(async_session: AsyncSession) -> AsyncGenerator[tuple[list[str], list[int]]]:
-    """Record every statement and the statement index at which each commit was issued."""
-    connection = (await async_session.connection()).sync_connection
-    statements: list[str] = []
-    commit_marks: list[int] = []
-
-    def hook(_conn, _cursor, statement, _parameters, _context, _many) -> None:
-        if not statement.lower().startswith(("savepoint", "release savepoint", "rollback to savepoint", "begin")):
-            statements.append(statement)
-
-    original_commit = async_session.commit
-
-    async def counting_commit() -> None:
-        await original_commit()
-        # Mark the boundary after the flush: the commit itself emits the staged UPDATEs.
-        commit_marks.append(len(statements))
-
-    event.listen(connection, "before_cursor_execute", hook)
-    async_session.commit = counting_commit  # type: ignore[method-assign]
-    try:
-        yield statements, commit_marks
-    finally:
-        event.remove(connection, "before_cursor_execute", hook)
 
 
 async def _vault_storage(async_session: AsyncSession, vault_id: UUID) -> Storage:
@@ -85,25 +39,13 @@ async def _vault_storage(async_session: AsyncSession, vault_id: UUID) -> Storage
     return storage
 
 
-def _counting_commit(session: AsyncSession) -> list[int]:
-    commits: list[int] = []
-    original_commit = session.commit
-
-    async def counting_commit() -> None:
-        commits.append(1)
-        await original_commit()
-
-    session.commit = counting_commit  # type: ignore[method-assign]
-    return commits
-
-
 async def test_unequip_commits_once_and_persists_both_writes(
     async_session: AsyncSession, equipped_dweller: tuple[Dweller, object, Weapon]
 ) -> None:
     dweller, _, weapon = equipped_dweller
     weapon_id, dweller_id = weapon.id, dweller.id
     storage = await _vault_storage(async_session, dweller.vault_id)
-    commits = _counting_commit(async_session)
+    commits = counting_commit(async_session)
 
     await item_service.unequip_item(async_session, item_id=weapon_id, model=Weapon)
 
@@ -125,13 +67,11 @@ async def test_failure_at_the_item_write_leaves_the_item_equipped(
     await _vault_storage(async_session, dweller.vault_id)
 
     with pytest.raises(RuntimeError, match="injected item failure"):
-        async with _fail_sql(async_session, _writes_item, "injected item failure"):
+        async with fail_sql(async_session, _writes_item, "injected item failure"):
             await item_service.unequip_item(async_session, item_id=weapon_id, model=Weapon)
     # A listener raising mid-flush leaves this session poisoned; read the outcome on a fresh one.
     await async_session.close()
-    async with AsyncSession(
-        bind=db_connection, expire_on_commit=False, join_transaction_mode="create_savepoint"
-    ) as session:
+    async with fresh_session(db_connection) as session:
         reloaded_weapon = await crud.weapon.get(session, weapon_id)
         assert reloaded_weapon.dweller_id == dweller_id, "the item must stay equipped after a failed unequip"
         reloaded_dweller = (await session.execute(select(Dweller).where(Dweller.id == dweller_id))).scalar_one()
@@ -146,7 +86,7 @@ async def test_unequip_does_no_database_work_after_its_commit(
     dweller, _, weapon = equipped_dweller
     await _vault_storage(async_session, dweller.vault_id)
 
-    async with _record_statements(async_session) as (statements, commit_marks):
+    async with record_statements(async_session) as (statements, commit_marks):
         await item_service.unequip_item(async_session, item_id=weapon.id, model=Weapon)
 
     assert len(commit_marks) == 1
@@ -161,7 +101,7 @@ async def test_repeat_unequip_raises_the_same_not_found_error(
     await _vault_storage(async_session, dweller.vault_id)
 
     await item_service.unequip_item(async_session, item_id=weapon.id, model=Weapon)
-    commits = _counting_commit(async_session)
+    commits = counting_commit(async_session)
 
     with pytest.raises(ResourceNotFoundException):
         await item_service.unequip_item(async_session, item_id=weapon.id, model=Weapon)

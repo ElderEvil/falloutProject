@@ -1,14 +1,8 @@
 """Ratchet for commit/rollback calls inside the CRUD layer.
 
-SERVICE_LAYER.md declares the target state: *CRUD never commits and never rolls back; it only
-executes queries and flushes*. Today 25 legacy CRUD modules still own transactions, so this guard
-freezes the current inventory **per function and per call count** instead of blessing whole files.
-
-Why counts: a function that already commits twice can silently gain a third commit and stay
-"green" under a key-set ratchet, which is exactly the regression that turns one transaction
-boundary into several. Each `(module, function, kind)` key therefore carries its observed call
-count; any new key, any count growth and any stale (shrunken) entry fails the suite. Shrink the
-baseline whenever a function stops committing - never grow it by hand.
+CRUD must never commit or roll back. Each ``(module, function, kind)`` key carries its
+observed call count, so a new key, a grown count or a stale entry all fail the suite;
+shrink the baseline when a function stops committing, never grow it by hand.
 """
 
 import ast
@@ -123,13 +117,10 @@ BASE_COMMIT_KIND = "commit"
 
 
 def _transaction_calls(source: str) -> dict[tuple[str, str], int]:
-    """Count awaited ``commit``/``rollback`` calls per owner, including nested callables.
+    """Count awaited ``commit``/``rollback`` calls per owner.
 
-    The key carries the enclosing class (``CRUDUser.create``, not ``create``) so two classes
-    that happen to share a method name cannot mask each other's transaction calls. A nested
-    callable is a distinct owner (``CRUDUser.create.<locals>.retry``) rather than invisible: its
-    body never merges into the enclosing function's count, but a commit parked in a closure is
-    still measured and therefore still fails the inventory ratchet.
+    The key carries the enclosing class (``CRUDUser.create``) so two classes cannot share a
+    counter; a nested callable is its own owner (``CRUDUser.create.<locals>.retry``).
     """
     tree = ast.parse(source)
     found: collections.Counter[tuple[str, str]] = collections.Counter()
@@ -189,10 +180,8 @@ def _functions_in_class(source: str, class_name: str) -> set[str]:
 
 
 def test_counter_keeps_classes_apart() -> None:
-    """Two classes sharing a method name must not share a counter.
-
-    A single ``create`` key would let ``Beta.create`` gain a commit while ``Alpha.create``
-    loses one and leave the total unchanged - the ratchet would accept a new transaction owner.
+    """Two classes sharing a method name must not share a counter, or one gaining a commit
+    while the other loses one leaves the total unchanged.
     """
     source = """
 class Alpha:
@@ -208,12 +197,7 @@ class Beta:
 
 
 def test_counter_attributes_nested_callable_transactions() -> None:
-    """A transaction call inside an inner ``async def`` must have an owner.
-
-    Nested callables used to be skipped outright, so a commit added to a closure was attributed
-    to nobody and the inventory ratchet could never see it - the guard's whole point is that no
-    CRUD commit escapes measurement.
-    """
+    """A transaction call inside an inner ``async def`` must have its own owner key."""
     source = """
 class Alpha:
     async def create(self, session):
@@ -276,11 +260,7 @@ def test_crud_transaction_inventory_is_frozen() -> None:
 
 
 def test_only_the_sanctioned_legacy_owners_commit() -> None:
-    """Ownership check, shrink-only: entries may disappear, unsanctioned owners may not appear.
-
-    The baseline is allowed to shrink as debt is paid, so this test validates who owns the
-    calls that remain instead of demanding that every sanctioned call still exists.
-    """
+    """Ownership check, shrink-only: entries may disappear, unsanctioned owners may not appear."""
     baseline_keys = set(CRUD_TRANSACTION_BASELINE)
 
     base_functions = _functions_in_class((CRUD_DIR / "base.py").read_text(encoding="utf-8"), SANCTIONED_BASE_CLASS)

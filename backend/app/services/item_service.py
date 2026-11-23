@@ -72,7 +72,6 @@ class ItemService:
             await db_session.delete(item)
             await db_session.commit()
         except SQLAlchemyError:
-            # Ensure we rollback on any error to avoid partial state in async contexts
             with contextlib.suppress(Exception):
                 await db_session.rollback()
             raise
@@ -126,5 +125,4 @@ class ItemService:
         )
 
 
-# Singleton instance
 item_service = ItemService()

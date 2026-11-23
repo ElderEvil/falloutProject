@@ -38,14 +38,7 @@ router = APIRouter(prefix="/game", tags=["Game"])
 
 @router.get("/balance", response_model=GameBalanceResponse)
 async def get_game_balance_settings(_: CurrentActiveUser) -> GameBalanceResponse:
-    """Get current game balance configuration (read-only).
-
-    This endpoint exposes all game balance constants that can be tuned via
-    environment variables. Useful for debugging and future admin panels.
-
-    Returns:
-        GameBalanceResponse: All game balance settings.
-    """
+    """Get current game balance configuration (read-only)."""
     return GameBalanceResponse(
         game_loop=game_config.game_loop.model_dump(),
         incident={
@@ -90,11 +83,7 @@ async def pause_vault(
     vault: Annotated[Vault, Depends(get_user_vault_or_403)],
     db_session: DBSession,
 ) -> PauseResumeResponse:
-    """Pause the game loop for a vault.
-
-    Returns:
-        PauseResumeResponse: Pause confirmation with vault state.
-    """
+    """Pause the game loop for a vault."""
     game_state = await game_loop_service.pause_vault(db_session, vault.id)
 
     return PauseResumeResponse(
@@ -111,11 +100,7 @@ async def resume_vault(
     vault: Annotated[Vault, Depends(get_user_vault_or_403)],
     db_session: DBSession,
 ) -> PauseResumeResponse:
-    """Resume the game loop for a vault.
-
-    Returns:
-        PauseResumeResponse: Resume confirmation with vault state.
-    """
+    """Resume the game loop for a vault."""
     game_state = await game_loop_service.resume_vault(db_session, vault.id)
 
     return PauseResumeResponse(
@@ -136,9 +121,6 @@ async def record_presence(
 
     The frontend calls this only while the vault overview is visible, so
     incidents spawn for watching players instead of background tabs.
-
-    Returns:
-        PresenceResponse: Presence confirmation with vault state.
     """
     game_state = await game_loop_service.record_presence(db_session, vault.id)
 
@@ -154,11 +136,7 @@ async def get_game_state(
     vault: Annotated[Vault, Depends(get_user_vault_or_403)],
     db_session: DBSession,
 ) -> dict[str, Any]:
-    """Get current game state for a vault.
-
-    Returns:
-        dict[str, Any]: Current game state details.
-    """
+    """Get current game state for a vault."""
     return await game_loop_service.get_vault_status(db_session, vault.id)
 
 
@@ -168,11 +146,7 @@ async def list_incidents(
     vault: Annotated[Vault, Depends(get_user_vault_or_403)],
     db_session: DBSession,
 ) -> IncidentListResponse:
-    """List all active incidents in a vault.
-
-    Returns:
-        IncidentListResponse: List of active incidents.
-    """
+    """List all active incidents in a vault."""
     return await incident_service.get_active_incident_list(db_session, vault.id)
 
 
@@ -197,14 +171,7 @@ async def get_incident(
     incident_id: UUID,
     db_session: DBSession,
 ) -> IncidentRead:
-    """Get details of a specific incident.
-
-    Returns:
-        IncidentRead: Incident details.
-
-    Raises:
-        ResourceNotFoundException: 404 if the incident is not in this vault.
-    """
+    """Get details of a specific incident."""
     return await incident_service.get_incident_read_for_vault(db_session, vault.id, incident_id)
 
 
@@ -216,16 +183,7 @@ async def manual_tick(
     vault: Annotated[Vault, Depends(get_user_vault_or_403)],
     db_session: DBSession,
 ) -> dict[str, Any]:
-    """Manually trigger a game tick for a vault (for testing/debugging).
-
-    This endpoint is useful for:
-    - Testing resource production/consumption
-    - Triggering catch-up after pause
-    - Development and debugging
-
-    Returns:
-        dict[str, Any]: Tick processing result.
-    """
+    """Manually trigger a game tick for a vault (for testing/debugging)."""
     result = await game_loop_service.process_vault_tick(db_session, vault.id)
 
     return {
@@ -295,13 +253,6 @@ async def spawn_debug_incident(
     """[DEBUG] Manually spawn an incident for testing purposes.
 
     If incident_type is not provided, a radscorpion incident will be spawned.
-
-    Returns:
-        IncidentSpawnResponse: Spawned incident details.
-
-    Raises:
-        HTTPException: 400 if incidents are disabled or no occupied rooms available.
-        HTTPException: 409 if the vault is at the active-incident cap.
     """
     try:
         incident = await incident_service.spawn_incident(db_session, vault.id, incident_type)
@@ -333,11 +284,7 @@ async def delete_all_incidents(
     db_session: DBSession,
     _user: CurrentSuperuser,
 ) -> DeleteIncidentsResponse:
-    """Delete all incidents for a vault.
-
-    Returns:
-        DeleteIncidentsResponse: Deletion confirmation with count.
-    """
+    """Delete all incidents for a vault."""
     count = await crud.incident_crud.remove_all_by_vault(db_session, vault.id)
 
     return DeleteIncidentsResponse(
@@ -355,14 +302,7 @@ async def delete_incident(
     db_session: DBSession,
     _user: CurrentSuperuser,
 ) -> DeleteIncidentsResponse:
-    """Delete a specific incident.
-
-    Returns:
-        DeleteIncidentsResponse: Deletion confirmation.
-
-    Raises:
-        HTTPException: 404 if incident not found. 400 if deletion fails.
-    """
+    """Delete a specific incident."""
     # Verify incident belongs to vault
     incident = await crud.incident_crud.get(db_session, incident_id)
     if not incident or incident.vault_id != vault.id:

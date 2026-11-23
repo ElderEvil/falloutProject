@@ -1,18 +1,13 @@
 """Registration owns a single transaction boundary (real session; no CRUD doubles).
 
-SERVICE_LAYER.md "Transaction ownership": the service entry point commits once and
-CRUD stages rows with ``flush``. These tests pin the observable contract on the test
-database: one durable user+profile write on success, and no surviving rows when a
-later write in the same operation fails.
+The service commits once; a failure at a later write leaves no user and no profile.
 """
 
-from collections.abc import AsyncGenerator, Callable
-from contextlib import asynccontextmanager
 from unittest.mock import AsyncMock, patch
 
 import pytest
 from redis.asyncio import Redis
-from sqlalchemy import event, select
+from sqlalchemy import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
@@ -21,24 +16,7 @@ from app.models.user_profile import UserProfile
 from app.schemas.user import UserCreate, UserWithTokens
 from app.services.user_service import user_service
 from app.tests.factory.users import create_fake_user
-
-FaultHook = Callable[[str], object]
-
-
-@asynccontextmanager
-async def _fail_sql(async_session: AsyncSession, predicate: FaultHook, message: str) -> AsyncGenerator[None]:
-    """Raise at the first statement matching ``predicate`` while the block runs."""
-    connection = (await async_session.connection()).sync_connection
-
-    def hook(_conn, _cursor, statement, _parameters, _context, _many) -> None:
-        if predicate(statement):
-            raise RuntimeError(message)
-
-    event.listen(connection, "before_cursor_execute", hook)
-    try:
-        yield
-    finally:
-        event.remove(connection, "before_cursor_execute", hook)
+from app.tests.test_services._transaction_helpers import counting_commit, fail_sql
 
 
 def _inserts_profile(statement: str) -> bool:
@@ -60,17 +38,10 @@ async def _register(async_session: AsyncSession, redis_client: Redis, data: dict
 
 
 async def test_registration_commits_once_and_creates_user_with_profile(
-    async_session: AsyncSession, _shared_fake_redis: Redis, monkeypatch: pytest.MonkeyPatch
+    async_session: AsyncSession, _shared_fake_redis: Redis
 ) -> None:
     data = create_fake_user()
-    commits: list[int] = []
-    original_commit = async_session.commit
-
-    async def counting_commit() -> None:
-        commits.append(1)
-        await original_commit()
-
-    monkeypatch.setattr(async_session, "commit", counting_commit)
+    commits = counting_commit(async_session)
     with patch("app.services.user_service.send_verification_email", new_callable=AsyncMock) as send_email:
         result = await _register(async_session, _shared_fake_redis, data)
 
@@ -87,7 +58,7 @@ async def test_registration_commits_once_and_creates_user_with_profile(
 async def test_failure_at_profile_write_leaves_no_user(async_session: AsyncSession, _shared_fake_redis: Redis) -> None:
     data = create_fake_user()
     with patch("app.services.user_service.send_verification_email", new_callable=AsyncMock) as send_email:
-        async with _fail_sql(async_session, _inserts_profile, "injected profile write failure"):
+        async with fail_sql(async_session, _inserts_profile, "injected profile write failure"):
             with pytest.raises(RuntimeError, match="injected profile write failure"):
                 await _register(async_session, _shared_fake_redis, data)
 
@@ -103,7 +74,7 @@ async def test_failure_after_the_first_durable_write_leaves_no_user(
     """The verification-token write used to land after ``crud.user.create`` committed."""
     data = create_fake_user()
     with patch("app.services.user_service.send_verification_email", new_callable=AsyncMock) as send_email:
-        async with _fail_sql(async_session, _updates_user, "injected token write failure"):
+        async with fail_sql(async_session, _updates_user, "injected token write failure"):
             with pytest.raises(RuntimeError, match="injected token write failure"):
                 await _register(async_session, _shared_fake_redis, data)
 
@@ -133,7 +104,7 @@ async def test_profile_creation_stays_race_safe(async_session: AsyncSession) -> 
 
 
 async def test_get_or_create_profile_creates_once_at_the_service_boundary(
-    async_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+    async_session: AsyncSession,
 ) -> None:
     """The lazy profile path used by GET /users/me/profile commits in the service, once."""
     user = await crud.user.create(db_session=async_session, obj_in=UserCreate(**create_fake_user()), commit=False)
@@ -141,14 +112,7 @@ async def test_get_or_create_profile_creates_once_at_the_service_boundary(
     await async_session.commit()
     assert await profile_crud.get_by_user_id(async_session, user_id) is None
 
-    commits: list[int] = []
-    original_commit = async_session.commit
-
-    async def counting_commit() -> None:
-        commits.append(1)
-        await original_commit()
-
-    monkeypatch.setattr(async_session, "commit", counting_commit)
+    commits = counting_commit(async_session)
     first = await user_service.get_or_create_profile(async_session, user_id)
     second = await user_service.get_or_create_profile(async_session, user_id)
 

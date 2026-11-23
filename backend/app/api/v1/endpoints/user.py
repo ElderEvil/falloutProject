@@ -34,14 +34,7 @@ async def create_user(
     user_in: UserCreate,
     actor: CurrentSuperuser,
 ) -> User:
-    """Admin route to create new user.
-
-    Returns:
-        The created user.
-
-    Raises:
-        HTTPException: 409 if user with this email already exists.
-    """
+    """Admin route to create new user."""
     return await create_user_account(db_session, user_in, actor_id=actor.id)
 
 
@@ -52,11 +45,7 @@ async def read_users(
     _: CurrentSuperuser,
     pagination: PaginationParams,
 ) -> Sequence[User]:
-    """Retrieve users.
-
-    Returns:
-        List of users.
-    """
+    """Retrieve users."""
     return await crud.user.get_multi(db_session, skip=pagination.skip, limit=pagination.limit)
 
 
@@ -69,11 +58,7 @@ async def update_user_me(
     email: Annotated[EmailStr | None, Body()] = None,
     user: CurrentActiveUser,
 ) -> User:
-    """Update current user.
-
-    Returns:
-        The updated user.
-    """
+    """Update current user."""
     return await user_service.update_account(
         db_session,
         user,
@@ -85,11 +70,7 @@ async def update_user_me(
 
 @router.get("/me", response_model=UserRead)
 async def read_user_me(user: CurrentActiveUser) -> User:
-    """Get current user.
-
-    Returns:
-        The current authenticated user.
-    """
+    """Get current user."""
     return user
 
 
@@ -102,11 +83,7 @@ async def create_user_open(
     password: Annotated[str, Body()],
     email: Annotated[EmailStr, Body()],
 ) -> UserWithTokens:
-    """Create new user and log them in automatically.
-
-    Returns:
-        New user with authentication tokens.
-    """
+    """Create new user and log them in automatically."""
     return await user_service.register_user(
         db_session=db_session,
         redis_client=redis_client,
@@ -123,16 +100,7 @@ async def read_user_by_id(
     db_session: DBSession,
     user: CurrentActiveUser,
 ) -> User:
-    """Get a specific user by id.
-
-    Returns:
-        The requested user.
-
-    Raises:
-        ResourceNotFoundException: 404 if the user does not exist, or the caller
-            may not see it. A 403 for an existing id and a 404 for an unknown one
-            would let a regular user probe which ids exist.
-    """
+    """Get a specific user by id."""
     if user_id != user.id and not crud.user.is_superuser(user):
         raise ResourceNotFoundException(model=User, identifier=user_id)
     return await crud.user.get(db_session, id=user_id)
@@ -146,14 +114,7 @@ async def update_user(
     user_in: UserUpdate,
     actor: CurrentSuperuser,
 ) -> User:
-    """Update a user.
-
-    Returns:
-        The updated user.
-
-    Raises:
-        HTTPException: 404 if user not found.
-    """
+    """Update a user."""
     return await update_user_account(db_session, user_id, user_in, actor_id=actor.id)
 
 
@@ -168,9 +129,6 @@ async def get_my_profile(
     If the profile doesn't exist, it will be auto-created with default values.
     This handles race conditions gracefully - if two concurrent requests try to
     create a profile, only one will succeed and both will return the profile.
-
-    Returns:
-        User's profile with statistics and preferences.
     """
     # The service owns the create and its commit; the endpoint never touches the transaction.
     return await user_service.get_or_create_profile(db_session, user.id)
@@ -188,12 +146,6 @@ async def update_my_profile(
     Only bio, avatar_url, and preferences can be updated via this endpoint.
     Statistics fields (total_dwellers_created, total_caps_earned, etc.) are
     managed internally by the game and cannot be modified directly.
-
-    Returns:
-        Updated profile.
-
-    Raises:
-        ResourceNotFoundException: 404 if the profile does not exist.
     """
     profile = await profile_crud.get_by_user_id(db_session, user.id)
     profile = ensure_found(profile, UserProfile, identifier=user.id)
@@ -211,9 +163,6 @@ async def get_death_statistics(
 
     Returns statistics about dwellers born, died, and breakdown by cause of death,
     as well as counts of currently revivable and permanently dead dwellers.
-
-    Returns:
-        Death statistics for the current user.
     """
     data = await death_service.get_death_statistics(db_session, user.id)
     return DeathStatsResponse(**data)
@@ -226,10 +175,6 @@ async def get_ai_usage(
     user: CurrentActiveUser,
     redis_client: Annotated[Redis, Depends(get_redis_client)],
 ) -> AIUsageResponse:
-    """Get AI usage statistics for the current user.
-
-    Returns:
-        AI usage statistics including token counts and rate limits.
-    """
+    """Get AI usage statistics for the current user."""
     data = await user_service.get_ai_usage(db_session, redis_client, str(user.id))
     return AIUsageResponse.model_validate(data)

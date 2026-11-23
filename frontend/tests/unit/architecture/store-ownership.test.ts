@@ -1,22 +1,14 @@
+/**
+ * Cross-store-write ratchet.
+ *
+ * Components and sibling stores must not mutate another module's store refs directly.
+ * CROSS_STORE_WRITE_BASELINE may only shrink: a new pair, a grown count or a stale entry
+ * all fail, and the fix is to remove the write, never to raise the count.
+ */
+
 import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join, relative } from 'node:path'
 import { describe, expect, it } from 'vite-plus/test'
-
-/**
- * Cross-store-write ratchet (Phase 0.3).
- *
- * Components and sibling stores must not mutate another module's store refs
- * directly — they go through the owning store's actions so its invariants hold.
- * This guard is deliberately crude and textual: it finds files that import a
- * store composable from another module (`@/modules/<module>/stores/...`) and
- * then assign a property on that store, call push/splice/sort on it, or assign
- * `.value` on a store ref.
- *
- * The measured backlog is frozen in CROSS_STORE_WRITE_BASELINE. The map may
- * only shrink: a new pair, a grown count, or a stale entry all fail, and the
- * fix is to remove the write (or lower the recorded count), never raise it.
- * The owning store's own file and same-module imports are ignored.
- */
 
 export interface SourceFile {
   path: string

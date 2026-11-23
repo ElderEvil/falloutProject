@@ -1,22 +1,10 @@
 """Ratchet: every documented operation must declare a usable response schema.
 
-FastAPI infers the response schema from the return annotation, so counting
-``response_model`` kwargs measures style, not wire contract. This guard reads the
-generated OpenAPI document instead.
-
-Each 2xx response must be one of:
-
-* ``structured`` — an ``application/json`` schema naming a ``$ref``, an object
-  with properties, a typed array, a primitive, or a union of those;
-* ``legitimate`` — a status that forbids a body (204, 205) declaring no content,
-  or a non-JSON media type such as ``text/event-stream`` or ``text/html``;
-* ``unresolved`` — a 2xx that may carry a body but declares no content at all,
-  or a JSON schema that is absent, empty, or unconstrained (an object with
-  neither properties nor ``$ref``, or ``additionalProperties: true``).
-
-A new operation with an unresolved response fails the suite. Fixing a listed
-operation fails it too, because the baseline entry becomes stale and must be
-deleted in the same change.
+Reads the generated OpenAPI document (FastAPI infers schemas from return annotations, so
+counting ``response_model`` kwargs measures style, not the wire contract) and requires each
+2xx response to be ``structured``, ``legitimate`` (204/205, or a non-JSON media type) or
+``unresolved``. A new unresolved response fails the suite; fixing a listed operation fails
+it too, because the baseline entry becomes stale.
 """
 
 from typing import Any
@@ -44,10 +32,8 @@ EXEMPT: dict[str, str] = {
     "GET /api/v1/stream/incidents/{vault_id}": "server-sent events; text/event-stream",
 }
 
-#: Measured debt at 8fa8f6b27. Shrink-only by policy: entries are deleted as
-#: operations gain typed responses, and no entry is ever added. A new unresolved
-#: response is fixed in the route (typed model) or, when it genuinely has no JSON
-#: schema, listed in ``EXEMPT`` with a written reason -- never added here.
+#: Shrink-only: entries are deleted as operations gain typed responses, never added.
+#: An operation with genuinely no JSON schema belongs in ``EXEMPT`` with a reason.
 UNRESOLVED_BASELINE: frozenset[str] = frozenset()
 
 PRIMITIVE_TYPES = frozenset({"string", "integer", "number", "boolean"})
@@ -85,11 +71,7 @@ def _is_typed_schema(schema: Any, *, allow_null: bool = False) -> bool:
 
 
 def _classify_response(response: dict[str, Any], status: str | int = "200") -> str:
-    """Classify one response object as structured, legitimate, or unresolved.
-
-    ``status`` decides whether omitting ``content`` is honest: 204/205 cannot carry a
-    body, while any other 2xx that declares no content is an undeclared response body.
-    """
+    """Classify one response object; ``status`` decides whether omitting ``content`` is honest."""
     content = response.get("content") or {}
     if not content:
         return LEGITIMATE if str(status) in BODYLESS_STATUSES else UNRESOLVED

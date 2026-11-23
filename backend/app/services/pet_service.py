@@ -58,7 +58,6 @@ class PetService:
         return await pet_crud.equip(db_session=db_session, item_id=pet_id, dweller_id=dweller_id)
 
     async def unequip(self, db_session: AsyncSession, pet_id: UUID, user: User) -> None:
-        """Return an equipped pet to its vault's storage."""
         pet = await pet_crud.get(db_session, pet_id)
         await self._verify_pet_vault(db_session, pet, user)
         await item_service.unequip_item(db_session, item_id=pet_id, model=Pet)
@@ -70,5 +69,4 @@ class PetService:
         await get_accessible_vault(vault_id, user, db_session)
 
 
-# Singleton instance
 pet_service = PetService()

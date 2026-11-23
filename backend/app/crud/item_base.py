@@ -81,7 +81,6 @@ class CRUDItem[ModelType: Weapon | Outfit | Pet, CreateSchemaType: SQLModel, Upd
         return int((await db_session.execute(query)).scalar_one())
 
     async def count_equipped(self, db_session: AsyncSession, vault_id: UUID, name: str | None = None) -> int:
-        """Count equipped items on living vault residents, optionally matching a name."""
         from sqlalchemy import func
 
         dweller_subquery = (
@@ -243,7 +242,6 @@ class CRUDItem[ModelType: Weapon | Outfit | Pet, CreateSchemaType: SQLModel, Upd
         return item
 
     async def get_held_for_exploration(self, db_session: AsyncSession, exploration_id: UUID) -> Sequence[ModelType]:
-        """All items of this type held by an exploration (equipped mid-run)."""
         result = await db_session.execute(select(self.model).where(self.model.exploration_id == exploration_id))
         return list(result.scalars().all())
 
@@ -365,7 +363,6 @@ class CRUDItem[ModelType: Weapon | Outfit | Pet, CreateSchemaType: SQLModel, Upd
 
         junk_results = []
 
-        # Always create at least one junk of the same rarity as the item
         same_rarity_junk_type = {
             RarityEnum.LEGENDARY: legendary_junk,
             RarityEnum.RARE: rare_junk,
@@ -407,7 +404,6 @@ class CRUDItem[ModelType: Weapon | Outfit | Pet, CreateSchemaType: SQLModel, Upd
         item = await db_session.get(self.model, item_id)
         item = ensure_found(item, self.model, identifier=item_id)
 
-        # Get storage_id from the item before deleting
         storage_id = item.storage_id
 
         junk_list = self.convert_to_junk(item)

@@ -17,7 +17,6 @@ logger = logging.getLogger(__name__)
 
 class CRUDUserProfile(CRUDBase[UserProfile, UserProfileBase, ProfileUpdate]):
     async def get_by_user_id(self, db_session: AsyncSession, user_id: UUID) -> UserProfile | None:
-        """Get profile by user ID."""
         response = await db_session.execute(select(self.model).where(self.model.user_id == user_id))
         return response.scalar_one_or_none()
 
@@ -33,7 +32,6 @@ class CRUDUserProfile(CRUDBase[UserProfile, UserProfileBase, ProfileUpdate]):
                 db_session.add(db_obj)
                 await db_session.flush()
         except IntegrityError:
-            # Race condition: another request created the profile first.
             logger.debug("Profile already exists for user %s, fetching existing", user_id)
             existing = await self.get_by_user_id(db_session, user_id)
             if existing:
@@ -63,7 +61,6 @@ class CRUDUserProfile(CRUDBase[UserProfile, UserProfileBase, ProfileUpdate]):
     async def reassign_user(
         self, db_session: AsyncSession, source_user_id: UUID, target_user_id: UUID, *, commit: bool = True
     ) -> int:
-        """Move the source profile to the target when the target has none."""
         result = await db_session.execute(
             update(self.model)
             .where(col(self.model.user_id) == source_user_id)
@@ -77,7 +74,6 @@ class CRUDUserProfile(CRUDBase[UserProfile, UserProfileBase, ProfileUpdate]):
         return cast("CursorResult", result).rowcount or 0
 
     async def delete_for_user(self, db_session: AsyncSession, user_id: UUID, *, commit: bool = True) -> int:
-        """Delete a profile whose counters were merged into the surviving profile."""
         result = await db_session.execute(
             delete(self.model).where(col(self.model.user_id) == user_id).execution_options(synchronize_session=False)
         )

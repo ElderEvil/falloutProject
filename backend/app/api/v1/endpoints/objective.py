@@ -34,11 +34,7 @@ async def create_objective(
     db_session: DBSession,
     _: CurrentSuperuser,
 ) -> Objective:
-    """Create an objective for a vault (administrators only).
-
-    Returns:
-        The created objective.
-    """
+    """Create an objective for a vault (administrators only)."""
     return await crud.objective_crud.create_for_vault(db_session, vault_id, objective_data)
 
 
@@ -49,14 +45,7 @@ async def read_objective_list(
     user: CurrentActiveUser,
     pagination: PaginationParams,
 ) -> Sequence[ObjectiveRead]:
-    """Retrieve objectives for a vault.
-
-    Returns:
-        List of objectives for the vault.
-
-    Raises:
-        AccessDeniedException: If the user doesn't own the vault.
-    """
+    """Retrieve objectives for a vault."""
     await get_user_vault_or_403(vault_id, user, db_session)
     return await read_objectives(db_session, vault_id, skip=pagination.skip, limit=pagination.limit)
 
@@ -71,9 +60,6 @@ async def read_objective(
 
     Objectives are global templates; a vault links to them with its own progress,
     so any authenticated caller may read one (vault-scoped lists stay owner-only).
-
-    Returns:
-        The requested objective.
     """
     return await crud.objective_crud.get(db_session, objective_id)
 
@@ -97,11 +83,7 @@ async def complete_objective(
     db_session: DBSession,
     _: CurrentSuperuser,
 ) -> Objective:
-    """Manually complete an objective for a vault (administrators only).
-
-    Returns:
-        The completed objective.
-    """
+    """Manually complete an objective for a vault (administrators only)."""
     return await reward_service.settle_objective_completion(db_session, objective_id, vault_id)
 
 
@@ -113,11 +95,7 @@ async def update_objective_progress(
     db_session: DBSession,
     _: CurrentSuperuser,
 ) -> VaultObjectiveProgressLink:
-    """Update the progress of an objective for a vault (administrators only).
-
-    Returns:
-        The updated objective.
-    """
+    """Update the progress of an objective for a vault (administrators only)."""
     return await reward_service.settle_objective_progress(db_session, objective_id, vault_id, progress)
 
 
@@ -128,14 +106,7 @@ async def assign_random_objectives(
     _: CurrentSuperuser,
     count: int = 5,
 ) -> AssignedResponse:
-    """Assign random available objectives to a vault (administrators only).
-
-    Returns:
-        Response with count of assigned objectives.
-
-    Raises:
-        HTTPException: 404 if vault not found.
-    """
+    """Assign random available objectives to a vault (administrators only)."""
     # Validate vault exists first to avoid orphan links
     vault = await crud.vault.get_or_none(db_session, vault_id)
     vault = ensure_found(vault, Vault, identifier=vault_id)

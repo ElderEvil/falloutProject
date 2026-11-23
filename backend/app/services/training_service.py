@@ -47,7 +47,6 @@ class TrainingService:
 
         duration = base_duration + (current_stat * per_level_increase)
 
-        # Apply tier multiplier
         tier_multiplier = game_config.training.get_tier_multiplier(room_tier)
         duration *= tier_multiplier
 
@@ -59,8 +58,6 @@ class TrainingService:
         dweller: Dweller,
         room: Room,
     ) -> tuple[bool, str]:
-        """Check if dweller can start training in the given room."""
-        # Check if room is a training room
         if room.category != RoomTypeEnum.TRAINING:
             return False, "Room is not a training room"
 
@@ -74,16 +71,13 @@ class TrainingService:
                 )
             return False, "This dweller's state prevents purposeful training."
 
-        # Check if dweller has an active training session
         existing_training = await training_crud.training.get_active_by_dweller(db_session, dweller.id)
         if existing_training:
             return False, f"Dweller is already training {existing_training.stat_being_trained}"
 
-        # Check dweller availability (allow TRAINING status if no active session exists)
         if dweller.status not in (DwellerStatusEnum.IDLE, DwellerStatusEnum.TRAINING):
             return False, f"Dweller is {dweller.status} and cannot train"
 
-        # Determine which stat this room trains and check if maxed
         if not room.ability:
             return False, "Training room has no assigned SPECIAL stat"
 
@@ -93,8 +87,6 @@ class TrainingService:
         if current_stat_value >= game_config.training.special_stat_max:
             return False, f"{stat_to_train.value} is already at maximum ({game_config.training.special_stat_max})"
 
-        # Check room capacity
-        # Calculate effective capacity: use explicit capacity or calculate from room size
         active_trainees = await training_crud.training.get_active_by_room(db_session, room.id)
         effective_capacity = room.capacity
         if effective_capacity is None and room.size is not None:
@@ -118,10 +110,8 @@ class TrainingService:
         With ``commit=False`` the training row and the dweller's assignment are staged for the
         caller's transaction instead of landing on their own boundary.
         """
-        # Fetch dweller and room
         dweller = await dweller_crud.get(db_session, dweller_id)
 
-        # Refresh to ensure all SPECIAL stats are loaded
         await db_session.refresh(dweller, with_for_update=True)
         # refresh() expires relationship attributes, dropping the eager-loaded pet; re-read so the training-speed
         # snapshot below sees it (B7).
@@ -134,7 +124,6 @@ class TrainingService:
         if room.vault_id != dweller.vault_id:
             raise InvalidVaultTransferException(detail="A dweller can only train in a room within their own vault.")
 
-        # Validate can start training
         can_train, reason = await self.can_start_training(db_session, dweller, room)
         if not can_train:
             if "already training" in reason.lower():
@@ -242,16 +231,13 @@ class TrainingService:
 
         now = utcnow()
 
-        # Check if training is complete
         if now >= training.estimated_completion_at:
             return await self.complete_training(db_session, training.id, dweller=dweller)
 
-        # Calculate progress
         total_duration = (training.estimated_completion_at - training.started_at).total_seconds()
         elapsed = (now - training.started_at).total_seconds()
         progress = min(1.0, elapsed / total_duration)
 
-        # Update progress
         training.progress = progress
         db_session.add(training)
         if commit:
@@ -276,7 +262,6 @@ class TrainingService:
         ):
             return await self.cancel_training(db_session, training_id)
 
-        # Increase SPECIAL stat
         stat_name = training.stat_being_trained.value.lower()
         current_value = SPECIALModel.get_stat(dweller, stat_name)
         new_value = min(current_value + 1, game_config.training.special_stat_max)
@@ -284,7 +269,6 @@ class TrainingService:
         SPECIALModel.set_stat(dweller, stat_name, new_value)
         db_session.add(dweller)
 
-        # Update training status
         training.status = TrainingStatus.COMPLETED
         training.completed_at = utcnow()
         training.progress = 1.0
@@ -362,12 +346,10 @@ class TrainingService:
         """
         training, dweller = await self._lock_active_training(db_session, training_id, "cancel")
 
-        # Update training status
         training.status = TrainingStatus.CANCELLED
         training.completed_at = utcnow()
         db_session.add(training)
 
-        # Update dweller status back to IDLE and remove from room
         from app.schemas.dweller import DwellerUpdate
 
         if dweller.room_id == training.room_id and dweller.status == DwellerStatusEnum.TRAINING:
@@ -389,5 +371,4 @@ class TrainingService:
         return training
 
 
-# Singleton instance
 training_service = TrainingService()

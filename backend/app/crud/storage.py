@@ -34,7 +34,6 @@ class CRUDStorage(CRUDBase[Storage, StorageBase, StorageBase]):
     """CRUD operations for Storage with utility methods."""
 
     async def count_items(self, db_session: AsyncSession, storage_id: UUID) -> int:
-        """Count total items in storage."""
         weapons_result = await db_session.execute(
             select(func.count()).select_from(Weapon).where(Weapon.storage_id == storage_id)
         )
@@ -78,7 +77,6 @@ class CRUDStorage(CRUDBase[Storage, StorageBase, StorageBase]):
         return total
 
     async def get_by_vault(self, db_session: AsyncSession, vault_id: UUID) -> Storage | None:
-        """Get storage by vault ID."""
         result = await db_session.execute(select(self.model).where(self.model.vault_id == vault_id))
         return result.scalar_one_or_none()
 
@@ -94,7 +92,6 @@ class CRUDStorage(CRUDBase[Storage, StorageBase, StorageBase]):
 
     @staticmethod
     async def create_for_vault(*, db_session: AsyncSession, vault_id: UUID, commit: bool = True) -> Storage:
-        """Create the storage row for a vault."""
         storage = Storage(vault_id=vault_id)
         db_session.add(storage)
         if commit:
@@ -152,7 +149,6 @@ class CRUDStorage(CRUDBase[Storage, StorageBase, StorageBase]):
         return storage_obj
 
     async def get_available_space(self, db_session: AsyncSession, storage_id: UUID) -> int:
-        """Get available storage space."""
         try:
             storage = await self.get(db_session, id=storage_id)
         except ResourceNotFoundException:
@@ -175,7 +171,6 @@ class CRUDStorage(CRUDBase[Storage, StorageBase, StorageBase]):
         return available
 
     async def update_used_space(self, db_session: AsyncSession, storage_id: UUID) -> Storage:
-        """Update used_space field based on actual item count."""
         try:
             storage = await self.get(db_session, id=storage_id)
         except ResourceNotFoundException as e:
@@ -199,7 +194,6 @@ class CRUDStorage(CRUDBase[Storage, StorageBase, StorageBase]):
         return storage
 
     async def get_info(self, db_session: AsyncSession, storage_id: UUID) -> dict:
-        """Get comprehensive storage information."""
         try:
             storage = await self.get(db_session, id=storage_id)
         except ResourceNotFoundException:
@@ -226,7 +220,6 @@ class CRUDStorage(CRUDBase[Storage, StorageBase, StorageBase]):
     async def get_all_items(
         self, db_session: AsyncSession, storage_id: UUID
     ) -> dict[str, list[Weapon] | list[Outfit] | list[Junk] | list[Item] | list[Pet]]:
-        """Get all items in storage."""
         weapons_result = await db_session.execute(select(Weapon).where(Weapon.storage_id == storage_id))
         outfits_result = await db_session.execute(select(Outfit).where(Outfit.storage_id == storage_id))
         junk_result = await db_session.execute(select(Junk).where(Junk.storage_id == storage_id))
@@ -269,7 +262,6 @@ class CRUDStorage(CRUDBase[Storage, StorageBase, StorageBase]):
 
 storage = CRUDStorage(Storage)
 
-# Backwards compatibility aliases
 count_storage_items = storage.count_items
 get_storage = storage.get
 get_storage_by_vault = storage.get_by_vault

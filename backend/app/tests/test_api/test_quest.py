@@ -25,17 +25,20 @@ from app.utils.time import utcnow
 CLAIM_PATCH = "app.api.v1.endpoints.quest"
 
 
-async def _vault_with_quest(async_session: AsyncSession, **quest_fields):
+async def _vault_with_quest(async_session: AsyncSession, client, **quest_fields):
+    """A vault with one quest assigned to its owner, plus that owner's auth headers."""
     user_data = create_fake_user()
     user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))
     vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id))
     quest = await crud.quest_crud.create(async_session, obj_in=QuestCreate(**quest_fields))
-    return user_data, user, vault, quest
+    headers = await user_authentication_headers(client=client, email=user.email, password=user_data["password"])
+    return vault, quest, headers
 
 
 async def test_start_accepts_and_departs_selected_party(async_client, async_session: AsyncSession) -> None:
-    user_data, user, vault, quest = await _vault_with_quest(
+    vault, quest, headers = await _vault_with_quest(
         async_session,
+        async_client,
         title="Atomic Departure",
         short_description="Depart",
         long_description="Select and depart together",
@@ -47,7 +50,6 @@ async def test_start_accepts_and_departs_selected_party(async_client, async_sess
     dweller = Dweller(**create_fake_adult_dweller(), vault_id=vault.id)
     async_session.add_all([office, dweller])
     await crud.quest_crud.assign_to_vault(async_session, quest.id, vault.id, is_visible=True)
-    headers = await user_authentication_headers(client=async_client, email=user.email, password=user_data["password"])
     response = await async_client.post(
         f"/quests/{vault.id}/{quest.id}/start", json={"dweller_ids": [str(dweller.id)]}, headers=headers
     )
@@ -86,8 +88,9 @@ async def test_claim_quest_rewards_rejects_unready_claims(
 
 
 async def test_vault_quest_list_serializes_return_leg_fields(async_client, async_session: AsyncSession) -> None:
-    user_data, user, vault, quest = await _vault_with_quest(
+    vault, quest, headers = await _vault_with_quest(
         async_session,
+        async_client,
         title="Returning Serialization",
         short_description="ETA fields",
         long_description="The list read must expose the return ETA.",
@@ -107,7 +110,6 @@ async def test_vault_quest_list_serializes_return_leg_fields(async_client, async
         )
     )
     await async_session.commit()
-    headers = await user_authentication_headers(client=async_client, email=user.email, password=user_data["password"])
     response = await async_client.get(f"/quests/{vault.id}/", headers=headers)
     assert response.status_code == 200, f"Expected 200, got {response.status_code}: {response.text}"
     quest_read = next(q for q in response.json() if q["id"] == str(quest.id))
@@ -116,8 +118,9 @@ async def test_vault_quest_list_serializes_return_leg_fields(async_client, async
 
 
 async def test_vault_quest_list_serializes_completion_details(async_client, async_session: AsyncSession) -> None:
-    user_data, user, vault, quest = await _vault_with_quest(
+    vault, quest, headers = await _vault_with_quest(
         async_session,
+        async_client,
         title="Completion Serialization",
         short_description="Completion fields",
         long_description="The list read must expose the completion details.",
@@ -136,7 +139,6 @@ async def test_vault_quest_list_serializes_completion_details(async_client, asyn
         )
     )
     await async_session.commit()
-    headers = await user_authentication_headers(client=async_client, email=user.email, password=user_data["password"])
     response = await async_client.get(f"/quests/{vault.id}/", headers=headers)
     assert response.status_code == 200, f"Expected 200, got {response.status_code}: {response.text}"
     quest_read = next(q for q in response.json() if q["id"] == str(quest.id))
@@ -145,8 +147,9 @@ async def test_vault_quest_list_serializes_completion_details(async_client, asyn
 
 
 async def test_assign_returns_the_completion_link_wire_shape(async_client, async_session: AsyncSession) -> None:
-    user_data, user, vault, quest = await _vault_with_quest(
+    vault, quest, headers = await _vault_with_quest(
         async_session,
+        async_client,
         title="Assign Serialization",
         short_description="Assign fields",
         long_description="The assignment response is the vault link itself.",
@@ -154,7 +157,6 @@ async def test_assign_returns_the_completion_link_wire_shape(async_client, async
         rewards="None",
         duration_minutes=60,
     )
-    headers = await user_authentication_headers(client=async_client, email=user.email, password=user_data["password"])
     response = await async_client.post(f"/quests/{vault.id}/{quest.id}/assign", headers=headers)
     assert response.status_code == 201, response.text
     body = response.json()

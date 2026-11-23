@@ -262,14 +262,11 @@ class ObjectiveAssignmentService:
 
     async def assign_random_objectives(self, vault_id: UUID, count: int = 5) -> list[Objective]:
         """Assign random unassigned objectives to a vault (testing/debugging)."""
-        # Get all objective IDs already assigned to this vault
         assigned_ids = await objective_crud.get_assigned_objective_ids(self._db_session, vault_id)
 
-        # Get all unassigned objectives
         all_objectives = await objective_crud.get_all(self._db_session)
         unassigned = [o for o in all_objectives if o.id not in assigned_ids]
 
-        # Shuffle and assign up to 'count' objectives
         random.shuffle(unassigned)
         for objective in unassigned[:count]:
             link = VaultObjectiveProgressLink(

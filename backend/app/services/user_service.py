@@ -213,7 +213,6 @@ class UserService:
         redis_client: Redis,
         user_id: str,
     ) -> dict:
-        """Get AI usage stats with Redis caching."""
         import json
 
         from app.core.ai_constants import AI_USAGE_CACHE_KEY

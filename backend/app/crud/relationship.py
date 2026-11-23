@@ -120,7 +120,6 @@ class CRUDRelationship(CRUDBase[Relationship, RelationshipCreate, RelationshipUp
         db: AsyncSession,
         dweller_id: UUID,
     ) -> list[Relationship]:
-        """Get all relationships for a dweller."""
         query = select(Relationship).where(
             (Relationship.dweller_1_id == dweller_id) | (Relationship.dweller_2_id == dweller_id)
         )
@@ -132,7 +131,6 @@ class CRUDRelationship(CRUDBase[Relationship, RelationshipCreate, RelationshipUp
         db: AsyncSession,
         vault_id: UUID,
     ) -> list[Relationship]:
-        """Get all relationships for dwellers in a vault."""
         from sqlalchemy.orm import aliased
 
         from app.models.dweller import Dweller

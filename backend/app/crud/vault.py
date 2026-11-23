@@ -62,7 +62,6 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
     async def reassign_user(
         self, db_session: AsyncSession, source_user_id: UUID, target_user_id: UUID, *, commit: bool = True
     ) -> int:
-        """Move every source vault, including soft-deleted vaults, to the target."""
         result = await db_session.execute(
             update(self.model)
             .where(self.model.user_id == source_user_id)
@@ -201,7 +200,6 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
 
     @staticmethod
     async def create_storage(*, db_session: AsyncSession, vault_id: UUID, commit: bool = True) -> Storage:
-        """Create the storage row for a vault (delegates to storage CRUD)."""
         from app.crud.storage import storage as storage_crud
 
         return await storage_crud.create_for_vault(db_session=db_session, vault_id=vault_id, commit=commit)
@@ -220,9 +218,8 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
     ) -> Vault:
         """Stage a vault row and claim its atlas slot; the caller owns the transaction.
 
-        Vault flushed, slot claim inserted under savepoints, so one caller commit makes both
-        durable or neither. A conflict is propagated without rolling back the caller's work
-        (see SERVICE_LAYER.md:47-59): the caller rolls back the whole operation.
+        One caller commit makes both durable or neither; a conflict propagates without
+        rolling back the caller's staged work.
         """
         from app.crud.vault_slot import vault_slot as vault_slot_crud
 
@@ -248,7 +245,6 @@ class CRUDVault(CRUDBase[Vault, VaultCreate, VaultUpdate]):
         Soft delete releases the map slot in the same transaction so deleted vaults cannot
         exhaust slot capacity; hard delete relies on the slot's CASCADE.
         """
-        # First, delete the associated gamestate if it exists
         result = await db_session.execute(select(GameState).where(GameState.vault_id == id))
         gamestate = result.scalar_one_or_none()
         if gamestate:

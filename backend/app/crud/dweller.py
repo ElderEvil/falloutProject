@@ -111,8 +111,7 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
     async def get_ancestry_rows(self, db_session: AsyncSession, dweller_ids: Sequence[UUID]) -> list[tuple]:
         """Parent links for dweller_ids: (id, vault_id, parent_1_id, parent_2_id, is_deleted).
 
-        Generation counting only walks parent links, so this skips the relationship eager loads
-        get performs — five statements each.
+        Generation counting walks only these, so no relationship loads are needed.
         """
         if not dweller_ids:
             return []
@@ -158,7 +157,6 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         return result.scalar_one_or_none()
 
     async def has_other_apprentice(self, db_session: AsyncSession, *, room_id: UUID, exclude_dweller_id: UUID) -> bool:
-        """Whether a room already has an apprentice besides the given dweller."""
         query = select(self.model.id).where(
             self.model.room_id == room_id,
             self.model.id != exclude_dweller_id,
@@ -202,7 +200,6 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         order: str = "desc",
         include_deleted: bool = False,
     ) -> Sequence[Dweller]:
-        """Get multiple dwellers by vault ID with optional filtering and sorting."""
         query = self._vault_query(vault_id)
 
         if not include_deleted:
@@ -295,7 +292,6 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         from_room_ids: list[UUID],
         to_room_id: UUID,
     ) -> int:
-        """Move every dweller of the source rooms into the destination room."""
         if not from_room_ids:
             return 0
         dwellers = await self.get_by_room_ids(db_session, vault_id=vault_id, room_ids=from_room_ids)
@@ -378,7 +374,6 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
     async def count_alive_in_vault(
         self, db_session: AsyncSession, vault_id: UUID, *, min_level: int | None = None
     ) -> int:
-        """Count living, non-deleted dwellers of a vault, optionally with a level floor."""
         conditions = self._living_conditions(vault_id)
         if min_level is not None:
             conditions.append(self.model.level >= min_level)
@@ -404,7 +399,6 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
     async def count_living_with_effective_stat(
         self, db_session: AsyncSession, vault_id: UUID, stat: str, min_value: int
     ) -> int:
-        """Count living dwellers whose effective SPECIAL stat is at least ``min_value``."""
         from app.options.identity_modifiers import effective_stat
 
         result = await db_session.execute(
@@ -445,8 +439,8 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
     async def get_living_with_equipment(self, db_session: AsyncSession, vault_id: UUID) -> Sequence[Dweller]:
         """Living dwellers with weapon, outfit and pet eagerly loaded in a single statement.
 
-        Batch requirement evaluation reads ``effective_stat`` and equipped weapon damage for every
-        dweller, so the modifiers must be in the identity map up front rather than per-dweller lazy loads.
+        Batch requirement evaluation reads effective_stat and weapon damage for every
+        dweller, so the modifiers must already be loaded.
         """
         query = (
             self._vault_query(vault_id, *self._living_conditions())
@@ -547,7 +541,6 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         return int(result.scalar_one())
 
     async def get_active_apprentices(self, db_session: AsyncSession, vault_id: UUID) -> Sequence[Dweller]:
-        """All active apprentices of a vault."""
         query = select(self.model).where(
             *self._living_conditions(vault_id),
             self.model.apprentice_stat.is_not(None),
@@ -702,7 +695,6 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         limit: int = 100,
         include_deleted: bool = False,
     ) -> Sequence[Dweller]:
-        """Get dwellers by status."""
         query = self._vault_query(vault_id, self.model.status == status)
 
         if not include_deleted:
@@ -819,12 +811,8 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
     ) -> Sequence[Dweller]:
         """Living, in-vault super mutants and synths whose provenance was never classified.
 
-        Only NULL provenance rows are candidates: rows created after the invariant shipped carry
-        a value, and a completed backfill marks its rows GENERATED, so re-runs are no-ops. The
-        caller still narrows synth generation and curated names.
-
-        for_update locks the selected rows until the caller commits, so an in-flight player
-        rename cannot be overwritten by a stale backfill write.
+        Only NULL provenance rows are candidates, so a completed backfill makes re-runs
+        no-ops; for_update locks them until the caller commits.
         """
         identity_attrs = self.model.__table__.c.visual_attributes
         query = (
@@ -862,9 +850,7 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
     async def lock_vault_for_template(self, db_session: AsyncSession, vault_id: UUID) -> set[str]:
         """Take a row lock on the vault so template reservation is atomic, then return active names.
 
-        Held until the caller's next commit/rollback — the shared persist path commits, making
-        check-then-insert atomic (a second creator blocks, then sees the committed dweller in its
-        fresh name snapshot). SQLite ignores FOR UPDATE; PostgreSQL enforces it.
+        Held until the caller's next commit, making check-then-insert atomic.
         """
         await self.lock_vault(db_session, vault_id)
         return await self.get_active_template_names(db_session, vault_id)
@@ -905,7 +891,6 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         return await self.update(db_session, dweller_id, DwellerUpdate(health=0, status=DwellerStatusEnum.DEAD))
 
     async def get_full_info(self, db_session: AsyncSession, dweller_id: UUID) -> DwellerReadFull:
-        """Get full information about a dweller."""
         query = (
             select(self.model)
             .options(
@@ -964,7 +949,6 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         skip: int = 0,
         limit: int = 100,
     ) -> Sequence[Dweller]:
-        """Get soft-deleted dwellers for a vault with skip/limit pagination."""
         query = (
             select(self.model)
             .where(self.model.vault_id == vault_id)
@@ -1152,7 +1136,6 @@ class CRUDDweller(CRUDBase[Dweller, DwellerCreate, DwellerUpdate]):
         skip: int = 0,
         limit: int = 100,
     ) -> Sequence[Dweller]:
-        """Get permanently dead dwellers (graveyard) for a vault with skip/limit pagination."""
         query = (
             select(self.model)
             .where(self.model.vault_id == vault_id)

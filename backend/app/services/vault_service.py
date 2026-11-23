@@ -64,7 +64,6 @@ class VaultService:
         from app.services.progression.objectives.refresh_service import ensure_current_objectives
 
         try:
-            # Create vault and storage
             vault_db_obj = await vault_crud.create_with_user_id(
                 db_session=db_session,
                 obj_in=obj_in,
@@ -74,21 +73,18 @@ class VaultService:
             await vault_crud.create_storage(db_session=db_session, vault_id=vault_db_obj.id, commit=False)
             await db_session.refresh(vault_db_obj)
 
-            # Prepare room data
             game_data_store = await get_static_game_data()
             rooms = game_data_store.rooms
             prepared = seeding.prepare_initial_rooms(
                 rooms, vault_db_obj.id, is_boosted, scenario_start=expedition_start
             )
 
-            # Create rooms and get created production/training/misc rooms
             vault_db_obj, created = await seeding.create_initial_rooms(db_session, vault_db_obj, prepared, commit=False)
             created_production_rooms = created.production
             created_training_rooms = created.training
             created_misc_rooms = created.misc
             created_capacity_rooms = created.capacity
 
-            # Set initial resources to the configured share of max capacity
             vault_start = game_config.vault_start
             initial_power = int(vault_db_obj.power_max * vault_start.initial_resource_pct)
             initial_food = int(vault_db_obj.food_max * vault_start.initial_resource_pct) // ration_divisor
@@ -116,7 +112,6 @@ class VaultService:
                     db_session, vault_db_obj.id, initial_stimpack, initial_radaway, commit=False
                 )
 
-            # Create and assign dwellers
             await seeding.create_initial_dwellers(
                 db_session,
                 vault_db_obj.id,
@@ -132,12 +127,10 @@ class VaultService:
             if is_boosted:
                 await seeding.create_boosted_legendary_dwellers(db_session, vault_db_obj.id, commit=False)
 
-            # Start training sessions for boosted vaults
             await seeding.start_training_sessions(
                 db_session, vault_db_obj.id, created_training_rooms, is_boosted, commit=False
             )
 
-            # Assign initial objectives to the vault (boosted vaults get more objectives)
             assigned = await objective_crud.assign_initial(
                 db_session,
                 vault_db_obj.id,
@@ -153,7 +146,6 @@ class VaultService:
             if is_boosted:
                 await seeding.seed_boosted_theme_unlocks(db_session, vault_db_obj.id, commit=False)
 
-            # Create initial weapons, outfits, and (boosted) crafting materials for testing
             await seeding.create_initial_items(db_session, vault_db_obj.id, is_boosted, commit=False)
 
             await db_session.commit()
@@ -193,7 +185,6 @@ class VaultService:
         return vault
 
     async def update_vault_resources(self, db_session: AsyncSession, vault_id: UUID) -> Vault:
-        """Update vault resources based on resource manager processing."""
         return await economy.update_vault_resources(db_session, vault_id)
 
     async def transfer_medical_supplies(
@@ -233,7 +224,6 @@ class VaultService:
     async def is_enough_dwellers(
         self, *, db_session: AsyncSession, vault_id: UUID, population_required: int | None
     ) -> bool:
-        """Check if the vault has enough dwellers to perform an operation."""
         return await economy.is_enough_dwellers(
             db_session=db_session, vault_id=vault_id, population_required=population_required
         )
@@ -242,8 +232,7 @@ class VaultService:
     async def is_enough_population_space(*, db_session: AsyncSession, vault_id: UUID, space_required: int) -> bool:
         """Check if the vault has enough space to perform an operation.
 
-        Only counts dwellers that are assigned to rooms (have room_id).
-        Unassigned dwellers don't take up living space.
+        Only assigned dwellers occupy living space.
         """
         return await economy.is_enough_population_space(
             db_session=db_session, vault_id=vault_id, space_required=space_required
@@ -282,7 +271,6 @@ class VaultService:
     async def get_vaults_with_room_and_dweller_count(
         self, *, db_session: AsyncSession, user_id: UUID
     ) -> list[VaultReadWithNumbers]:
-        """List the user's non-deleted vaults with room/dweller counts and resource warnings."""
         return await reads.get_vaults_with_room_and_dweller_count(db_session=db_session, user_id=user_id)
 
     async def get_vault_with_room_and_dweller_count(
@@ -292,5 +280,4 @@ class VaultService:
         return await reads.get_vault_with_room_and_dweller_count(db_session=db_session, vault_id=vault_id)
 
 
-# Singleton instance
 vault_service = VaultService()

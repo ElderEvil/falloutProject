@@ -1,19 +1,14 @@
 """OAuth first-login registration owns a single transaction boundary (real session).
 
-SERVICE_LAYER.md "Transaction ownership": the service entry point commits once and
-CRUD stages rows with ``flush``. These tests pin the observable contract on the test
-database: one durable user+profile+provider-link write on success, no surviving rows
-when a later write in the same operation fails, and no duplicate on a repeat sign-in.
+The service commits once; a failure at a later write leaves no user, profile or link.
 """
 
-from collections.abc import AsyncGenerator, Callable
-from contextlib import asynccontextmanager
 from urllib.parse import parse_qs, urlparse
 
 import fakeredis.aioredis
 import httpx
 import pytest
-from sqlalchemy import event, select
+from sqlalchemy import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
@@ -23,13 +18,12 @@ from app.models.user import User
 from app.models.user_profile import UserProfile
 from app.schemas.user import UserCreate
 from app.services.oauth_service import OAuthService
+from app.tests.test_services._transaction_helpers import counting_commit, fail_sql
 
 pytestmark = pytest.mark.asyncio
 
 EMAIL = "ada@gmail.com"
 SUBJECT = "google-1"
-
-FaultHook = Callable[[str], object]
 
 
 @pytest.fixture
@@ -55,22 +49,6 @@ def _google_transport(email: str = EMAIL) -> httpx.MockTransport:
     return httpx.MockTransport(handler)
 
 
-@asynccontextmanager
-async def _fail_sql(async_session: AsyncSession, predicate: FaultHook, message: str) -> AsyncGenerator[None]:
-    """Raise at the first statement matching ``predicate`` while the block runs."""
-    connection = (await async_session.connection()).sync_connection
-
-    def hook(_conn, _cursor, statement, _parameters, _context, _many) -> None:
-        if predicate(statement):
-            raise RuntimeError(message)
-
-    event.listen(connection, "before_cursor_execute", hook)
-    try:
-        yield
-    finally:
-        event.remove(connection, "before_cursor_execute", hook)
-
-
 def _inserts_provider_link(statement: str) -> bool:
     return statement.lower().startswith("insert into oauth_account")
 
@@ -94,17 +72,10 @@ async def _links(session: AsyncSession) -> list[OAuthAccount]:
 
 
 async def test_first_login_commits_once_and_creates_user_profile_and_link(
-    async_session: AsyncSession, redis_client, monkeypatch: pytest.MonkeyPatch
+    async_session: AsyncSession, redis_client
 ) -> None:
     service = OAuthService(transport=_google_transport())
-    commits: list[int] = []
-    original_commit = async_session.commit
-
-    async def counting_commit() -> None:
-        commits.append(1)
-        await original_commit()
-
-    monkeypatch.setattr(async_session, "commit", counting_commit)
+    commits = counting_commit(async_session)
     user = await _sign_in(service, async_session, redis_client)
 
     assert len(commits) == 1, f"first login committed {len(commits)} times; the service owns exactly one"
@@ -123,7 +94,7 @@ async def test_failure_at_provider_link_write_leaves_no_user_and_no_link(
 ) -> None:
     service = OAuthService(transport=_google_transport())
     with pytest.raises(RuntimeError, match="injected provider link write failure"):
-        async with _fail_sql(async_session, _inserts_provider_link, "injected provider link write failure"):
+        async with fail_sql(async_session, _inserts_provider_link, "injected provider link write failure"):
             await _sign_in(service, async_session, redis_client)
 
     await async_session.rollback()

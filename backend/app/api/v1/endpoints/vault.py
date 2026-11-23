@@ -34,11 +34,7 @@ async def create_vault(
     db_session: DBSession,
     admin: CurrentSuperuser,
 ) -> Vault:
-    """Create a new vault.
-
-    Returns:
-        The created vault.
-    """
+    """Create a new vault."""
     # The service owns the create and its commit; the endpoint never touches the transaction.
     return await vault_service.create_vault(db_session=db_session, obj_in=vault_data, user_id=admin.id)
 
@@ -50,11 +46,7 @@ async def read_vault_list(
     _: CurrentSuperuser,
     pagination: PaginationParams,
 ) -> Sequence[Vault]:
-    """Retrieve a paginated list of all vaults (admin only).
-
-    Returns:
-        List of vaults with user details.
-    """
+    """Retrieve a paginated list of all vaults (admin only)."""
     return await crud.vault.get_multi(db_session, skip=pagination.skip, limit=pagination.limit)
 
 
@@ -64,11 +56,7 @@ async def read_my_vaults(
     db_session: DBSession,
     user: CurrentActiveUser,
 ) -> list[VaultReadWithNumbers]:
-    """Retrieve vaults owned by the current user.
-
-    Returns:
-        List of the user's vaults with room and dweller counts.
-    """
+    """Retrieve vaults owned by the current user."""
     return await vault_service.get_vaults_with_room_and_dweller_count(db_session=db_session, user_id=user.id)
 
 
@@ -100,11 +88,7 @@ async def read_vault(
     db_session: DBSession,
     _: Annotated[Vault, Depends(get_user_vault_or_403)],
 ) -> VaultReadWithNumbers:
-    """Retrieve a vault by ID with room and dweller counts.
-
-    Returns:
-        Vault details with room and dweller counts.
-    """
+    """Retrieve a vault by ID with room and dweller counts."""
     return await vault_service.get_vault_with_room_and_dweller_count(db_session=db_session, vault_id=vault_id)
 
 
@@ -116,11 +100,7 @@ async def update_vault(
     db_session: DBSession,
     _: Annotated[Vault, Depends(get_user_vault_or_403)],
 ) -> Vault:
-    """Update a vault.
-
-    Returns:
-        The updated vault.
-    """
+    """Update a vault."""
     return await crud.vault.update(db_session, vault_id, vault_data)
 
 
@@ -146,11 +126,7 @@ async def start_vault(
     db_session: DBSession,
     user: CurrentActiveUser,
 ) -> Vault:
-    """Initiate a new vault for the current user.
-
-    Returns:
-        The newly initiated vault.
-    """
+    """Initiate a new vault for the current user."""
     return await vault_service.initiate_vault(
         db_session=db_session,
         obj_in=vault_data,
@@ -166,11 +142,7 @@ async def update_vault_resources(
     db_session: DBSession,
     _: CurrentSuperuser,
 ) -> Vault:
-    """Update vault resources (admin only).
-
-    Returns:
-        Updated vault resource data.
-    """
+    """Update vault resources (admin only)."""
     return await vault_service.update_vault_resources(db_session=db_session, vault_id=vault_id)
 
 
@@ -179,11 +151,7 @@ async def unassign_all_dwellers(
     vault: Annotated[Vault, Depends(get_user_vault_or_403)],
     db_session: DBSession,
 ) -> UnassignResponse:
-    """Unassign all dwellers from their rooms in the specified vault.
-
-    Returns:
-        Response with count of unassigned dwellers.
-    """
+    """Unassign all dwellers from their rooms in the specified vault."""
     result = await dweller_assignment_service.unassign_all_dwellers(db_session, vault.id)
     return UnassignResponse(**result)
 
@@ -198,9 +166,6 @@ async def auto_assign_production_rooms(
 
     Priority order: Power Plant (Strength) → Diner (Agility) → Water Treatment (Perception)
     Dwellers are matched to rooms based on their relevant SPECIAL stat (highest stat dwellers assigned first).
-
-    Returns:
-        Response with count of assigned dwellers.
     """
     result = await dweller_assignment_service.auto_assign_production_rooms(db_session, vault.id, age_group=age_group)
     return AutoAssignResponse.model_validate(result)
@@ -222,9 +187,6 @@ async def auto_assign_all_rooms(
 
     Within each tier, dwellers are distributed proportionally to room capacities.
     Dwellers are matched to rooms based on their relevant SPECIAL stat (highest stat dwellers assigned first).
-
-    Returns:
-        Response with count of assigned dwellers.
     """
     result = await dweller_assignment_service.auto_assign_all_rooms(db_session, vault.id, age_group=age_group)
     return AutoAssignResponse.model_validate(result)
@@ -251,9 +213,6 @@ async def auto_assign_crafting_rooms(
 
     Crafting rooms have no fixed SPECIAL ability (it varies per recipe), so the total
     SPECIAL sum is the ranking heuristic.
-
-    Returns:
-        Response with count of assigned dwellers.
     """
     result = await dweller_assignment_service.auto_assign_crafting_rooms(db_session, vault.id, age_group=age_group)
     return AutoAssignResponse.model_validate(result)

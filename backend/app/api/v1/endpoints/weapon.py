@@ -34,11 +34,7 @@ async def create_weapon(
     db_session: DBSession,
     _: CurrentSuperuser,
 ) -> Weapon:
-    """Create a new weapon (administrators only).
-
-    Returns:
-        The created weapon.
-    """
+    """Create a new weapon (administrators only)."""
     return await crud.weapon.create(db_session, weapon_data)
 
 
@@ -54,12 +50,6 @@ async def read_weapon_list(
     Every item lives in a vault's storage or on one of its dwellers, so the vault
     is required rather than optional: an unscoped list would enumerate other
     players' gear.
-
-    Returns:
-        List of weapons.
-
-    Raises:
-        AccessDeniedException: If the user doesn't own the vault.
     """
     await get_user_vault_or_403(vault_id, user, db_session)
     return await get_items_by_vault(db_session, Weapon, vault_id, pagination.skip, pagination.limit)
@@ -71,14 +61,7 @@ async def read_weapon(
     db_session: DBSession,
     user: CurrentActiveUser,
 ) -> Weapon:
-    """Retrieve a weapon by ID.
-
-    Returns:
-        The requested weapon.
-
-    Raises:
-        AccessDeniedException: If the user doesn't own the weapon's vault.
-    """
+    """Retrieve a weapon by ID."""
     await verify_item_access(weapon_id, Weapon, user, db_session)
     return await crud.weapon.get(db_session, weapon_id)
 
@@ -90,11 +73,7 @@ async def update_weapon(
     db_session: DBSession,
     _: CurrentSuperuser,
 ) -> Weapon:
-    """Update a weapon (administrators only).
-
-    Returns:
-        The updated weapon.
-    """
+    """Update a weapon (administrators only)."""
     return await crud.weapon.update(db_session, weapon_id, weapon_data)
 
 
@@ -115,14 +94,7 @@ async def equip_weapon(
     db_session: DBSession,
     user: CurrentActiveUser,
 ) -> Weapon:
-    """Equip a weapon on a dweller.
-
-    Returns:
-        The equipped weapon.
-
-    Raises:
-        AccessDeniedException: If the user owns neither the dweller nor the weapon.
-    """
+    """Equip a weapon on a dweller."""
     await verify_dweller_access(dweller_id, user, db_session)
     await verify_item_access(weapon_id, Weapon, user, db_session)
     return await item_service.equip_item(db_session, item_id=weapon_id, dweller_id=dweller_id, model=Weapon)
@@ -134,11 +106,7 @@ async def unequip_weapon(
     db_session: DBSession,
     user: CurrentActiveUser,
 ) -> None:
-    """Unequip a weapon from a dweller.
-
-    Raises:
-        AccessDeniedException: If the user doesn't own the weapon's vault.
-    """
+    """Unequip a weapon from a dweller."""
     await verify_item_access(weapon_id, Weapon, user, db_session)
     await item_service.unequip_item(db_session, item_id=weapon_id, model=Weapon)
 
@@ -149,14 +117,7 @@ async def scrap_weapon(
     db_session: DBSession,
     user: CurrentActiveUser,
 ) -> JunkListResponse:
-    """Scrap a weapon into junk items.
-
-    Returns:
-        List of junk items produced from scrapping.
-
-    Raises:
-        AccessDeniedException: If the user doesn't own the weapon's vault.
-    """
+    """Scrap a weapon into junk items."""
     await verify_item_access(weapon_id, Weapon, user, db_session)
     junk_list = await item_service.scrap_item(db_session, item_id=weapon_id, model=Weapon)
     return JunkListResponse(junk=junk_list)
@@ -168,20 +129,12 @@ async def sell_weapon(
     db_session: DBSession,
     user: CurrentActiveUser,
 ) -> None:
-    """Sell a weapon for caps.
-
-    Raises:
-        AccessDeniedException: If the user doesn't own the weapon's vault.
-    """
+    """Sell a weapon for caps."""
     await verify_item_access(weapon_id, Weapon, user, db_session)
     await item_service.sell_item(db_session, item_id=weapon_id, model=Weapon)
 
 
 @router.get("/read_data/", response_model=list[WeaponCreate])
 async def read_weapons_data(data_store: Annotated[StaticGameData, Depends(get_static_game_data)]) -> list[WeaponCreate]:
-    """Retrieve static weapon data definitions.
-
-    Returns:
-        List of static weapon definitions.
-    """
+    """Retrieve static weapon data definitions."""
     return data_store.weapons

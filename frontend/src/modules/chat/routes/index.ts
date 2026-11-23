@@ -7,7 +7,7 @@ export const chatRoutes: RouteRecordRaw[] = [
     path: '/dweller/:id/chat',
     name: 'DwellerChatPage',
     component: DwellerChatPage,
-    meta: { parentRoute: '/vault/:id/dwellers' },
+    meta: { requiresAuth: true, parentRoute: '/vault/:id/dwellers' },
   },
 ]
 

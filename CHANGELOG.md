@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 3.18.0 (2026-11-23)
+
+### Features
+
+* **map:** tint markers by five site families (wave 2) ([#1495](https://github.com/ElderEvil/falloutProject/issues/1495)) 3fe3e87
+
 ## 3.17.2 (2026-11-23)
 
 ### Bug Fixes

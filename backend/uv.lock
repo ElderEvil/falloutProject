@@ -703,7 +703,6 @@ typesafe = [
 dev = [
     { name = "fakeredis", extra = ["lua"] },
     { name = "memray" },
-    { name = "pytest-timeout" },
 ]
 lint = [
     { name = "prek" },
@@ -719,6 +718,7 @@ test = [
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "pytest-cov" },
+    { name = "pytest-timeout" },
     { name = "pytest-xdist" },
 ]
 
@@ -762,7 +762,6 @@ provides-extras = ["typesafe"]
 dev = [
     { name = "fakeredis", extras = ["lua"], specifier = ">=2.36.2" },
     { name = "memray", specifier = ">=1.20.0" },
-    { name = "pytest-timeout", specifier = ">=2.4.0" },
 ]
 lint = [
     { name = "prek", specifier = ">=0.4.12" },
@@ -778,6 +777,7 @@ test = [
     { name = "pytest", specifier = ">=9.1.1" },
     { name = "pytest-asyncio", specifier = ">=1.4.0" },
     { name = "pytest-cov", specifier = ">=7.0.0" },
+    { name = "pytest-timeout", specifier = ">=2.4.0" },
     { name = "pytest-xdist", specifier = ">=3.6.0" },
 ]
 

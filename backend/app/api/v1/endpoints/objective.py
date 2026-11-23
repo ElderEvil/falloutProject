@@ -105,14 +105,14 @@ async def complete_objective(
     return await reward_service.settle_objective_completion(db_session, objective_id, vault_id)
 
 
-@router.post("/{vault_id}/{objective_id}/progress")
+@router.post("/{vault_id}/{objective_id}/progress", response_model=VaultObjectiveProgressLink)
 async def update_objective_progress(
     vault_id: UUID,
     objective_id: UUID,
     progress: int,
     db_session: DBSession,
     _: CurrentSuperuser,
-):
+) -> VaultObjectiveProgressLink:
     """Update the progress of an objective for a vault (administrators only).
 
     Returns:
@@ -121,13 +121,13 @@ async def update_objective_progress(
     return await reward_service.settle_objective_progress(db_session, objective_id, vault_id, progress)
 
 
-@router.post("/{vault_id}/assign-random")
+@router.post("/{vault_id}/assign-random", response_model=AssignedResponse)
 async def assign_random_objectives(
     vault_id: UUID,
     db_session: DBSession,
     _: CurrentSuperuser,
     count: int = 5,
-):
+) -> AssignedResponse:
     """Assign random available objectives to a vault (administrators only).
 
     Returns:

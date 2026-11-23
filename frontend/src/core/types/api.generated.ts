@@ -6027,6 +6027,16 @@ export interface components {
             reason: string;
         };
         /**
+         * AssignedResponse
+         * @description Response for assignment operations.
+         */
+        AssignedResponse: {
+            /** Assigned */
+            assigned: number;
+            /** Message */
+            message: string;
+        };
+        /**
          * AutoAssignResponse
          * @description Response after auto-assigning dwellers to rooms.
          */
@@ -16907,7 +16917,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["VaultObjectiveProgressLink"];
                 };
             };
             /** @description Validation Error */
@@ -16940,7 +16950,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["AssignedResponse"];
                 };
             };
             /** @description Validation Error */

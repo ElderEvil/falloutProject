@@ -137,6 +137,7 @@ const AUTH_ROUTES: [name: string, url: string][] = [
   ['storage', '/vault/fake-id/storage'],
   ['dwellers', '/vault/fake-id/dwellers'],
   ['dweller-detail', '/vault/fake-id/dwellers/test-id'],
+  ['dweller-chat', '/dweller/fake-id/chat'],
   ['graveyard', '/vault/fake-id/dwellers/graveyard'],
   ['exploration', '/vault/fake-id/exploration'],
   ['exploration-detail', '/vault/fake-id/exploration/test-id'],
@@ -174,16 +175,6 @@ test.describe('Auth guard — unauthenticated deep routes redirect to /login', (
     })
   }
 
-  // #1502: chatRoutes registers this path without meta.requiresAuth, so the guard never fires.
-  test.fail('dweller chat (/dweller/:id/chat) redirects to /login', async ({ page }) => {
-    const pageErrors = await prepareAs(page, null)
-
-    await page.goto('/dweller/fake-id/chat')
-    await page.waitForURL('**/login**', { timeout: 10_000 })
-
-    expect(new URL(page.url()).pathname).toBe('/login')
-    await expectNoCrash(page, pageErrors)
-  })
 })
 
 test.describe('Auth guard — public routes stay reachable without a session', () => {

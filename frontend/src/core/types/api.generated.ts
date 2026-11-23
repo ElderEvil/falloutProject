@@ -12240,6 +12240,48 @@ export interface components {
             /** Reward Snapshot */
             reward_snapshot?: string | null;
         };
+        /** VaultQuestCompletionLink */
+        VaultQuestCompletionLink: {
+            /**
+             * Vault Id
+             * Format: uuid
+             */
+            vault_id: string;
+            /**
+             * Quest Id
+             * Format: uuid
+             */
+            quest_id: string;
+            /**
+             * Is Completed
+             * @default false
+             */
+            is_completed: boolean;
+            /**
+             * Is Reward Ready
+             * @default false
+             */
+            is_reward_ready: boolean;
+            /**
+             * Is Visible
+             * @default false
+             */
+            is_visible: boolean;
+            /** Started At */
+            started_at?: string | null;
+            /** Duration Minutes */
+            duration_minutes?: number | null;
+            /** Return Started At */
+            return_started_at?: string | null;
+            /** Return Completes At */
+            return_completes_at?: string | null;
+            /** Completed At */
+            completed_at?: string | null;
+            /** Granted Rewards */
+            granted_rewards?: {
+                [key: string]: unknown;
+            }[] | null;
+        };
         /** VaultRead */
         VaultRead: {
             /** Number */
@@ -17806,7 +17848,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["VaultQuestCompletionLink"];
                 };
             };
             /** @description Validation Error */

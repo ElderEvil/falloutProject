@@ -9,6 +9,7 @@ from app import crud
 from app.api.deps import CurrentActiveUser, CurrentSuperuser, DBSession, PaginationParams, get_user_vault_or_403
 from app.models.quest import Quest
 from app.models.team import TeamMember
+from app.models.vault_quest import VaultQuestCompletionLink
 from app.schemas.quest import (
     EligibleDwellerRead,
     QuestCompleteResponse,
@@ -166,7 +167,7 @@ async def delete_quest(
     await crud.quest_crud.delete(db_session, quest_id)
 
 
-@router.post("/{vault_id}/{quest_id}/assign", status_code=201)
+@router.post("/{vault_id}/{quest_id}/assign", response_model=VaultQuestCompletionLink, status_code=201)
 async def assign_quest_to_vault(
     vault_id: UUID,
     quest_id: UUID,
@@ -174,7 +175,7 @@ async def assign_quest_to_vault(
     db_session: DBSession,
     *,
     is_visible: bool = True,
-):
+) -> VaultQuestCompletionLink:
     """Assign a quest to a vault, making it available for completion.
 
     Returns:

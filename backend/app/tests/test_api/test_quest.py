@@ -142,3 +142,34 @@ async def test_vault_quest_list_serializes_completion_details(async_client, asyn
     quest_read = next(q for q in response.json() if q["id"] == str(quest.id))
     assert quest_read["completed_at"] is not None
     assert quest_read["granted_rewards"] == [{"reward_type": "caps", "amount": 50}]
+
+
+async def test_assign_returns_the_completion_link_wire_shape(async_client, async_session: AsyncSession) -> None:
+    user_data, user, vault, quest = await _vault_with_quest(
+        async_session,
+        title="Assign Serialization",
+        short_description="Assign fields",
+        long_description="The assignment response is the vault link itself.",
+        requirements="None",
+        rewards="None",
+        duration_minutes=60,
+    )
+    headers = await user_authentication_headers(client=async_client, email=user.email, password=user_data["password"])
+    response = await async_client.post(f"/quests/{vault.id}/{quest.id}/assign", headers=headers)
+    assert response.status_code == 201, response.text
+    body = response.json()
+    assert set(body) == {
+        "vault_id",
+        "quest_id",
+        "is_completed",
+        "is_reward_ready",
+        "is_visible",
+        "started_at",
+        "duration_minutes",
+        "return_started_at",
+        "return_completes_at",
+        "completed_at",
+        "granted_rewards",
+    }
+    assert body["vault_id"] == str(vault.id)
+    assert body["is_visible"] is True

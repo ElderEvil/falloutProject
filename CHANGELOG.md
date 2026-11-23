@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 3.17.2 (2026-11-23)
+
+### Bug Fixes
+
+* **router:** guard the dweller chat route ([#1504](https://github.com/ElderEvil/falloutProject/issues/1504)) da6480f
+
 ## 3.17.1 (2026-11-22)
 
 ### Performance Improvements

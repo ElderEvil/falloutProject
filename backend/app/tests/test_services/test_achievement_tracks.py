@@ -1,37 +1,75 @@
 from contextlib import asynccontextmanager
+from datetime import UTC, datetime
+from uuid import uuid4
 
 import pytest
 from sqlalchemy import event
 from sqlalchemy.exc import OperationalError
+from sqlalchemy.ext.asyncio import AsyncSession as RawAsyncSession
 
+from app import crud
 from app.core.event_bus import EventBus, GameEvent, event_bus
+from app.crud.game_state import game_state_crud
 from app.crud.objective import objective_crud
 from app.models.objective import Objective
 from app.models.vault_objective import VaultObjectiveProgressLink
+from app.schemas.dweller import DwellerCreate
 from app.services.progression.objectives.assignment import ObjectiveAssignmentService
 from app.services.progression.objectives.evaluators.base import current_session_maker
-from app.services.progression.objectives.evaluators.concrete import CollectEvaluator
+from app.services.progression.objectives.evaluators.concrete import AssignCorrectEvaluator, CollectEvaluator
+from app.services.progression.objectives.refresh_service import ensure_current_objectives
 from app.services.rewards.settlement import claim_objective_reward
+from app.tests.factory.dwellers import create_random_common_dweller
 from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException
+
+WATER = {"resource_type": "water"}
+REACH_KW = {
+    "objective_type": "reach",
+    "target_entity": {"reach_type": "dweller_count"},
+    "track_key": "reach:dweller_count",
+}
+BASE = {"reward": "10 caps", "category": "achievement", "target_entity": {}, "objective_type": "collect"}
+
+
+def _objective(challenge, amount, **kw):
+    fields = {"challenge": challenge, "target_amount": amount, **BASE, **kw}
+    return Objective(**fields)
 
 
 async def water_stages(db):
     stages = [
-        Objective(
-            challenge=f"Collect {amount} Water",
-            reward="10 caps",
-            category="achievement",
-            objective_type="collect",
-            target_entity={"resource_type": "water"},
-            target_amount=amount,
-            track_key="collect:water",
-            sequence=stage,
-        )
+        _objective(f"Collect {amount} Water", amount, target_entity=WATER, track_key="collect:water", sequence=stage)
         for stage, amount in enumerate((100, 500, 1500), 1)
     ]
     db.add_all(stages)
     await db.commit()
     return stages
+
+
+async def population_stages(db):
+    stages = [_objective(f"Reach {n} Dwellers", n, **REACH_KW, sequence=i) for i, n in enumerate((10, 25, 50), 1)]
+    db.add_all(stages)
+    await db.commit()
+    return stages
+
+
+async def existing_population(db, vault_id, count, *, level=1):
+    for _ in range(count):
+        data = create_random_common_dweller() | {"level": level}
+        await crud.dweller.create(db, obj_in=DwellerCreate(**data, vault_id=vault_id))
+
+
+async def _links(db, vault_id):
+    return {link.objective_id: link for link in await objective_crud.get_links_for_vault(db, vault_id)}
+
+
+async def _ids(db, vault_id):
+    return [link.objective_id for link in await objective_crud.get_links_for_vault(db, vault_id)]
+
+
+async def _assign(db, vault, **kwargs):
+    await ObjectiveAssignmentService(db).assign_achievement_objectives(vault.id, **kwargs)
+    await db.commit()
 
 
 @pytest.fixture
@@ -58,31 +96,28 @@ async def water_events(async_session):
 
 async def test_achievement_unlocks_only_on_claim(async_session, vault, water_events):
     stages = await water_stages(async_session)
-    await ObjectiveAssignmentService(async_session).assign_achievement_objectives(vault.id, auto_commit=False)
-    await async_session.commit()
-    assert [link.objective_id for link in await objective_crud.get_links_for_vault(async_session, vault.id)] == [
-        stages[0].id
-    ]
+    await _assign(async_session, vault, auto_commit=False)
+    assert await _ids(async_session, vault.id) == [stages[0].id]
     bus, notifications = water_events
     await bus.emit(GameEvent.RESOURCE_COLLECTED, vault.id, {"resource_type": "water", "amount": 150})
-    links = {link.objective_id: link for link in await objective_crud.get_links_for_vault(async_session, vault.id)}
+    links = await _links(async_session, vault.id)
     assert links[stages[0].id].progress == 100
     assert not links[stages[0].id].is_completed
     assert stages[1].id not in links
     assert "next_achievement" not in notifications[0]
     await bus.emit(GameEvent.RESOURCE_COLLECTED, vault.id, {"resource_type": "water", "amount": 60})
-    links = {link.objective_id: link for link in await objective_crud.get_links_for_vault(async_session, vault.id)}
+    links = await _links(async_session, vault.id)
     assert stages[1].id not in links
     assert links[stages[0].id].progress == 100
     await claim_objective_reward(async_session, stages[0].id, vault.id)
     with pytest.raises(ResourceConflictException):
         await claim_objective_reward(async_session, stages[0].id, vault.id)
-    links = {link.objective_id: link for link in await objective_crud.get_links_for_vault(async_session, vault.id)}
+    links = await _links(async_session, vault.id)
     assert links[stages[1].id].progress == 0
     assert not links[stages[1].id].is_locked
     await bus.emit(GameEvent.RESOURCE_COLLECTED, vault.id, {"resource_type": "water", "amount": 60})
     assert links[stages[1].id].progress == 60
-    await ObjectiveAssignmentService(async_session).assign_achievement_objectives(vault.id, auto_commit=False)
+    await _assign(async_session, vault, auto_commit=False)
     assert links[stages[1].id].progress == 60
 
 
@@ -98,8 +133,7 @@ async def test_legacy_parallel_progress_is_kept_until_the_next_counting_window(a
         ]
     )
     await async_session.commit()
-    await ObjectiveAssignmentService(async_session).assign_achievement_objectives(vault.id, auto_commit=False)
-    await async_session.commit()
+    await _assign(async_session, vault, auto_commit=False)
     visible = await objective_crud.get_multi_for_vault(async_session, vault.id)
     assert {row.id for row in visible} == {stages[0].id, stages[2].id}
     hidden = await objective_crud.get_link_for_update(async_session, stages[1].id, vault.id)
@@ -119,12 +153,10 @@ async def test_legacy_parallel_progress_is_kept_until_the_next_counting_window(a
 
 async def test_later_stage_cannot_be_claimed_before_the_active_stage(async_session, vault, water_events):
     stages = await water_stages(async_session)
-    await ObjectiveAssignmentService(async_session).assign_achievement_objectives(vault.id, auto_commit=False)
-    await async_session.commit()
+    await _assign(async_session, vault, auto_commit=False)
     for amount in (100, 500, 1500):
         await water_events[0].emit(GameEvent.RESOURCE_COLLECTED, vault.id, {"resource_type": "water", "amount": amount})
-    links = await objective_crud.get_links_for_vault(async_session, vault.id)
-    assert [link.objective_id for link in links] == [stages[0].id]
+    assert await _ids(async_session, vault.id) == [stages[0].id]
     with pytest.raises(ResourceNotFoundException):
         await claim_objective_reward(async_session, stages[2].id, vault.id)
     await claim_objective_reward(async_session, stages[0].id, vault.id)
@@ -134,27 +166,20 @@ async def test_later_stage_cannot_be_claimed_before_the_active_stage(async_sessi
 
 
 async def test_distinct_dwellers_get_a_fresh_counting_window(async_session, vault, water_events):
-    from uuid import uuid4
-
-    from app.services.progression.objectives.evaluators.concrete import AssignCorrectEvaluator
-
     stages = [
-        Objective(
-            challenge=f"Correctly assign {amount}",
-            reward="10 caps",
-            category="achievement",
+        _objective(
+            f"Correctly assign {amount}",
+            amount,
             objective_type="assign_correct",
-            target_entity={"distinct_dwellers": True},
-            target_amount=amount,
             track_key="assign_correct:any",
             sequence=stage,
+            target_entity={"distinct_dwellers": True},
         )
         for stage, amount in enumerate((1, 2), 1)
     ]
     async_session.add_all(stages)
     await async_session.commit()
-    await ObjectiveAssignmentService(async_session).assign_achievement_objectives(vault.id, auto_commit=False)
-    await async_session.commit()
+    await _assign(async_session, vault, auto_commit=False)
     bus = water_events[0]
     AssignCorrectEvaluator(bus)
     dweller_id = str(uuid4())
@@ -170,8 +195,7 @@ async def test_distinct_dwellers_get_a_fresh_counting_window(async_session, vaul
 
 async def test_claim_unlock_failure_rolls_back_the_claim(async_session, vault, water_events):
     stages = await water_stages(async_session)
-    await ObjectiveAssignmentService(async_session).assign_achievement_objectives(vault.id, auto_commit=False)
-    await async_session.commit()
+    await _assign(async_session, vault, auto_commit=False)
     vault_id, first_id, next_id = vault.id, stages[0].id, stages[1].id
     await water_events[0].emit(GameEvent.RESOURCE_COLLECTED, vault_id, {"resource_type": "water", "amount": 100})
     connection = await async_session.connection()
@@ -196,11 +220,6 @@ async def test_claim_unlock_failure_rolls_back_the_claim(async_session, vault, w
 
 
 async def test_existing_vault_initializes_tracks_without_waiting_for_a_calendar_reset(async_session, vault):
-    from datetime import UTC, datetime
-
-    from app.crud.game_state import game_state_crud
-    from app.services.progression.objectives.refresh_service import ensure_current_objectives
-
     stages = await water_stages(async_session)
     state = await game_state_crud.get_or_create(async_session, vault.id)
     state.daily_objectives_period = datetime(2026, 10, 19, tzinfo=UTC)
@@ -213,64 +232,22 @@ async def test_existing_vault_initializes_tracks_without_waiting_for_a_calendar_
 
 
 async def test_renewal_discovers_new_families_without_resetting_current_progress(async_session, vault):
-    from datetime import UTC, datetime
-
-    from app.services.progression.objectives.refresh_service import ensure_current_objectives
-
     stages = await water_stages(async_session)
     async_session.add(Objective(challenge="Daily water", category="daily", reward="10 caps", objective_type="collect"))
     await async_session.commit()
     await ensure_current_objectives(async_session, vault.id, now=datetime(2026, 10, 19, tzinfo=UTC))
     current = await objective_crud.get_link_for_update(async_session, stages[0].id, vault.id)
     current.progress = 42
-    added = Objective(
-        challenge="Collect 100 Food",
-        category="achievement",
-        reward="10 caps",
-        objective_type="collect",
-        target_entity={"resource_type": "food"},
-        target_amount=100,
-        track_key="collect:food",
-        sequence=1,
+    added = _objective(
+        "Collect 100 Food", 100, target_entity={"resource_type": "food"}, track_key="collect:food", sequence=1
     )
     async_session.add(added)
     await async_session.commit()
     assert await ensure_current_objectives(async_session, vault.id, now=datetime(2026, 10, 20, tzinfo=UTC)) == ["daily"]
-    links = {link.objective_id: link for link in await objective_crud.get_links_for_vault(async_session, vault.id)}
+    links = await _links(async_session, vault.id)
     assert links[stages[0].id].progress == 42
     assert links[added.id].progress == 0
     assert stages[1].id not in links
-
-
-async def existing_population(db, vault_id, count, *, level=1):
-    from app import crud
-    from app.schemas.dweller import DwellerCreate
-    from app.tests.factory.dwellers import create_random_common_dweller
-
-    for _ in range(count):
-        await crud.dweller.create(
-            db,
-            obj_in=DwellerCreate(**(create_random_common_dweller() | {"level": level}), vault_id=vault_id),
-        )
-
-
-async def population_stages(db):
-    stages = [
-        Objective(
-            challenge=f"Reach {amount} Dwellers",
-            reward="10 caps",
-            category="achievement",
-            objective_type="reach",
-            target_entity={"reach_type": "dweller_count"},
-            target_amount=amount,
-            track_key="reach:dweller_count",
-            sequence=sequence,
-        )
-        for sequence, amount in enumerate((10, 25, 50), 1)
-    ]
-    db.add_all(stages)
-    await db.commit()
-    return stages
 
 
 @pytest.mark.parametrize("population", [4, 15, 30])
@@ -278,20 +255,16 @@ async def population_stages(db):
 async def test_new_population_milestone_credits_existing_residents(
     async_session, vault, water_events, population, through_refresh
 ):
-    from app.services.progression.objectives.refresh_service import ensure_current_objectives
-
     await existing_population(async_session, vault.id, population)
     stages = await population_stages(async_session)
     if through_refresh:
-        from sqlalchemy.ext.asyncio import AsyncSession as RawAsyncSession
-
         async with RawAsyncSession(
             bind=await async_session.connection(), expire_on_commit=False, join_transaction_mode="create_savepoint"
         ) as worker:
             await ensure_current_objectives(worker, vault.id)
     else:
-        await ObjectiveAssignmentService(async_session).assign_achievement_objectives(vault.id)
-    links = {link.objective_id: link for link in await objective_crud.get_links_for_vault(async_session, vault.id)}
+        await _assign(async_session, vault)
+    links = await _links(async_session, vault.id)
     first = links[stages[0].id]
     assert first.progress == min(population, 10)
     assert not first.is_completed
@@ -304,11 +277,7 @@ async def test_new_population_milestone_credits_existing_residents(
         assert stages[1].id not in links
         assert stages[2].id not in links
         assert water_events[1] == [
-            {
-                "objective_id": str(stages[0].id),
-                "challenge": "Reach 10 Dwellers",
-                "ready_to_claim": True,
-            }
+            {"objective_id": str(stages[0].id), "challenge": "Reach 10 Dwellers", "ready_to_claim": True}
         ]
         await claim_objective_reward(async_session, stages[0].id, vault.id)
         await async_session.refresh(first)
@@ -317,7 +286,7 @@ async def test_new_population_milestone_credits_existing_residents(
         assert unlocked is not None
         assert unlocked.progress == 0
     before = len(water_events[1])
-    await ObjectiveAssignmentService(async_session).assign_achievement_objectives(vault.id)
+    await _assign(async_session, vault)
     assert len(water_events[1]) == before
     if population >= 10:
         refreshed = await objective_crud.get_link_for_update(async_session, stages[1].id, vault.id)
@@ -326,8 +295,6 @@ async def test_new_population_milestone_credits_existing_residents(
 
 
 async def test_initial_population_completion_is_not_announced_before_commit(async_session, vault, water_events):
-    from app.services.progression.objectives.refresh_service import ensure_current_objectives
-
     vault_id = vault.id
     await existing_population(async_session, vault_id, 15)
     stages = await population_stages(async_session)
@@ -352,19 +319,17 @@ async def test_initial_population_completion_is_not_announced_before_commit(asyn
 
 async def test_new_level_milestone_credits_existing_experience(async_session, vault, water_events):
     await existing_population(async_session, vault.id, 1, level=8)
-    milestone = Objective(
-        challenge="Reach Level 5",
-        reward="10 caps",
-        category="achievement",
+    milestone = _objective(
+        "Reach Level 5",
+        5,
         objective_type="reach",
         target_entity={"reach_type": "level"},
-        target_amount=5,
         track_key="reach:level",
         sequence=1,
     )
     async_session.add(milestone)
     await async_session.commit()
-    await ObjectiveAssignmentService(async_session).assign_achievement_objectives(vault.id)
+    await _assign(async_session, vault)
     link = await objective_crud.get_link_for_update(async_session, milestone.id, vault.id)
     assert link.progress == 5
     assert link.reward_snapshot == "10 caps"

@@ -1,4 +1,3 @@
-from datetime import datetime
 from typing import Any
 from unittest.mock import AsyncMock
 from uuid import uuid4
@@ -19,7 +18,7 @@ from app.schemas.user import UserCreate
 from app.services.family.adoption_service import adoption_service
 from app.services.game_loop_service import game_loop_service
 from app.services.game_tick import family_tick
-from app.services.notification_service import notification_service
+from app.services.notification_service import manager, notification_service
 from app.tests.factory.dwellers import create_random_common_dweller
 from app.tests.factory.users import create_fake_user
 from app.tests.factory.vaults import random_vault_number
@@ -52,8 +51,7 @@ async def _couple(async_session, vault_id, relationship_type=RelationshipTypeEnu
     second = await _dweller(async_session, vault_id, gender=GenderEnum.MALE, happiness=80)
     first.partner_id = second.id
     second.partner_id = first.id
-    async_session.add(first)
-    async_session.add(second)
+    async_session.add_all([first, second])
     await async_session.commit()
     await relationship_crud.create(
         db_session=async_session,
@@ -81,12 +79,16 @@ async def _orphan(async_session, vault_id, parent_alive: bool = False):
     return child
 
 
+async def _adopt(async_session, vault_id, seconds_passed=60):
+    return await adoption_service.process_adoptions(async_session, vault_id, seconds_passed=seconds_passed)
+
+
 async def test_orphan_is_adopted_by_committed_couple(async_session):
     vault = await _vault(async_session)
     first_parent, second_parent = await _couple(async_session, vault.id)
     child = await _orphan(async_session, vault.id)
 
-    adopted = await adoption_service.process_adoptions(async_session, vault.id, seconds_passed=60)
+    adopted = await _adopt(async_session, vault.id)
 
     await async_session.refresh(child)
     assert len(adopted) == 1
@@ -99,31 +101,6 @@ async def test_orphan_is_adopted_by_committed_couple(async_session):
     ).all()
     assert len(notifications) == 1
     assert notifications[0].meta_data["event"] == "child_adopted"
-
-
-async def test_child_with_living_parent_is_not_adopted(async_session):
-    vault = await _vault(async_session)
-    await _couple(async_session, vault.id)
-    child = await _orphan(async_session, vault.id, parent_alive=True)
-
-    adopted = await adoption_service.process_adoptions(async_session, vault.id, seconds_passed=60)
-
-    await async_session.refresh(child)
-    assert adopted == []
-    assert child.parent_1_id is not None
-
-
-async def test_no_committed_couple_means_no_adoption(async_session):
-    vault = await _vault(async_session)
-    await _couple(async_session, vault.id, relationship_type=RelationshipTypeEnum.FRIEND)
-    child = await _orphan(async_session, vault.id)
-    original_parent_id = child.parent_1_id
-
-    adopted = await adoption_service.process_adoptions(async_session, vault.id, seconds_passed=60)
-
-    await async_session.refresh(child)
-    assert adopted == []
-    assert child.parent_1_id == original_parent_id
 
 
 async def test_family_tick_reports_adoptions(async_session):
@@ -146,26 +123,13 @@ async def test_family_tick_reports_adoptions(async_session):
     assert stats["adoptions"] == 1
 
 
-async def test_dead_child_is_not_adopted(async_session):
-    vault = await _vault(async_session)
-    await _couple(async_session, vault.id)
-    child = await _orphan(async_session, vault.id)
-    child.is_dead = True
-    async_session.add(child)
-    await async_session.commit()
-
-    adopted = await adoption_service.process_adoptions(async_session, vault.id, seconds_passed=60)
-
-    assert adopted == []
-
-
 async def test_second_run_is_a_noop(async_session):
     vault = await _vault(async_session)
     await _couple(async_session, vault.id)
     child = await _orphan(async_session, vault.id)
 
-    first = await adoption_service.process_adoptions(async_session, vault.id, seconds_passed=60)
-    second = await adoption_service.process_adoptions(async_session, vault.id, seconds_passed=60)
+    first = await _adopt(async_session, vault.id)
+    second = await _adopt(async_session, vault.id)
 
     assert len(first) == 1
     assert second == []
@@ -178,7 +142,7 @@ async def test_child_and_both_adopters_get_bio_entries(async_session):
     first_parent, second_parent = await _couple(async_session, vault.id)
     child = await _orphan(async_session, vault.id)
 
-    await adoption_service.process_adoptions(async_session, vault.id, seconds_passed=60)
+    await _adopt(async_session, vault.id)
 
     await async_session.refresh(child)
     await async_session.refresh(first_parent)
@@ -189,7 +153,7 @@ async def test_child_and_both_adopters_get_bio_entries(async_session):
         assert any(e.get("ref", {}).get("child_id") == str(child.id) for e in parent.bio_entries)
 
 
-async def test_failed_notification_rolls_back_adoption(async_session, monkeypatch):
+async def test_failed_notification_rolls_back_adoption(async_session):
     vault = await _vault(async_session)
     await _couple(async_session, vault.id)
     child = await _orphan(async_session, vault.id)
@@ -201,7 +165,7 @@ async def test_failed_notification_rolls_back_adoption(async_session, monkeypatc
     event.listen(Notification, "before_insert", fail_insert)
     try:
         with pytest.raises(RuntimeError, match="notification failed"):
-            await adoption_service.process_adoptions(async_session, vault.id, seconds_passed=60)
+            await _adopt(async_session, vault.id)
     finally:
         event.remove(Notification, "before_insert", fail_insert)
     await async_session.rollback()
@@ -223,7 +187,7 @@ async def test_deleted_or_missing_parent_does_not_abort_adoption(async_session, 
         async_session.add(parent)
     await async_session.commit()
 
-    adopted = await adoption_service.process_adoptions(async_session, vault.id, seconds_passed=60)
+    adopted = await _adopt(async_session, vault.id)
     assert [dweller.id for dweller in adopted] == [child.id]
 
 
@@ -233,11 +197,10 @@ async def test_deleted_parent_with_living_other_parent_is_skipped(async_session)
     child = await _orphan(async_session, vault.id)
     parent = await crud.dweller.get(async_session, child.parent_1_id)
     parent.is_deleted = True
-    living_parent = await _dweller(async_session, vault.id)
-    child.parent_2_id = living_parent.id
+    child.parent_2_id = (await _dweller(async_session, vault.id)).id
     async_session.add_all([parent, child])
     await async_session.commit()
-    assert await adoption_service.process_adoptions(async_session, vault.id, seconds_passed=60) == []
+    assert await _adopt(async_session, vault.id) == []
 
 
 @pytest.mark.parametrize("race", [RaceEnum.HUMAN, RaceEnum.GHOUL])
@@ -249,7 +212,7 @@ async def test_same_gender_couple_uses_stable_parent_order(async_session, race):
     async_session.add_all([first, second])
     await async_session.commit()
     child = await _orphan(async_session, vault.id)
-    await adoption_service.process_adoptions(async_session, vault.id, seconds_passed=60)
+    await _adopt(async_session, vault.id)
     assert (child.parent_1_id, child.parent_2_id) == tuple(sorted([first.id, second.id], key=str))
 
 
@@ -265,20 +228,18 @@ async def test_raw_session_adoption_commits_before_delivery(async_session, monke
     ) as raw:
         assert not hasattr(raw, "exec")
 
-        from app.services.notification_service import manager, sse_manager
-
         async def publish(user_id, stream, payload):
             assert not raw.in_transaction()
             delivered.append(payload)
 
         monkeypatch.setattr(sse_manager, "publish", publish)
         monkeypatch.setattr(manager, "send_personal_message", AsyncMock())
-        adopted = await adoption_service.process_adoptions(raw, vault_id, seconds_passed=60)
+        adopted = await _adopt(raw, vault_id)
         assert [dweller.id for dweller in adopted] == [child_id]
         assert len(delivered) == 1
         assert delivered[0]["notification"]["notification_type"] == NotificationType.RELATIONSHIP_FORMED
         assert "deferred_notification_deliveries" not in raw.info
-        assert await adoption_service.process_adoptions(raw, vault_id, seconds_passed=60) == []
+        assert await _adopt(raw, vault_id) == []
 
 
 async def test_duplicate_relationship_rows_do_not_reuse_a_couple(async_session):
@@ -295,7 +256,7 @@ async def test_duplicate_relationship_rows_do_not_reuse_a_couple(async_session):
     )
     await _orphan(async_session, vault.id)
     await _orphan(async_session, vault.id)
-    assert len(await adoption_service.process_adoptions(async_session, vault.id, seconds_passed=60)) == 1
+    assert len(await _adopt(async_session, vault.id)) == 1
 
 
 async def test_adoption_lookup_failure_does_not_abort_later_tick_phases(async_session, vault, monkeypatch):
@@ -337,24 +298,30 @@ async def test_adoption_lookup_failure_does_not_abort_later_tick_phases(async_se
     assert any(call.args[1] == "game_ticks" for call in publish.call_args_list)
 
 
-@pytest.mark.parametrize("blocked", ["unhappy", "low_affinity", "full_family"])
+@pytest.mark.parametrize("blocked", ["living_parent", "friend", "dead_child", "unhappy", "low_affinity", "full_family"])
 async def test_ineligible_family_does_not_adopt(async_session, blocked):
     vault = await _vault(async_session)
-    first, second = await _couple(async_session, vault.id)
-    child = await _orphan(async_session, vault.id)
-    if blocked == "unhappy":
+    relationship_type = RelationshipTypeEnum.FRIEND if blocked == "friend" else RelationshipTypeEnum.PARTNER
+    first, second = await _couple(async_session, vault.id, relationship_type)
+    child = await _orphan(async_session, vault.id, parent_alive=blocked == "living_parent")
+    original_parent_id = child.parent_1_id
+    if blocked == "dead_child":
+        child.is_dead = True
+        async_session.add(child)
+    elif blocked == "unhappy":
         first.happiness = 59
         async_session.add(first)
     elif blocked == "low_affinity":
         relationship = await relationship_crud.get_by_dweller_pair(async_session, first.id, second.id)
         relationship.affinity = game_config.relationship.marriage_threshold - 1
         async_session.add(relationship)
-    else:
+    elif blocked == "full_family":
         for age in (AgeGroupEnum.CHILD, AgeGroupEnum.TEEN):
             await _dweller(async_session, vault.id, age_group=age, parent_1_id=first.id, parent_2_id=second.id)
     await async_session.commit()
-    assert await adoption_service.process_adoptions(async_session, vault.id, seconds_passed=60) == []
+    assert await _adopt(async_session, vault.id) == []
     await async_session.refresh(child)
+    assert child.parent_1_id == original_parent_id
     assert child.parent_2_id is None
 
 
@@ -363,8 +330,8 @@ async def test_adoption_chance_scales_with_elapsed_time(async_session, monkeypat
     await _couple(async_session, vault.id)
     child = await _orphan(async_session, vault.id)
     monkeypatch.setattr("random.random", lambda: 0.01)
-    assert await adoption_service.process_adoptions(async_session, vault.id, seconds_passed=60) == []
-    adopted = await adoption_service.process_adoptions(async_session, vault.id, seconds_passed=3600)
+    assert await _adopt(async_session, vault.id) == []
+    adopted = await _adopt(async_session, vault.id, seconds_passed=3600)
     assert [dweller.id for dweller in adopted] == [child.id]
 
 
@@ -381,7 +348,7 @@ async def test_failed_roll_changes_nothing_even_with_multiple_couples(async_sess
         return 1.0
 
     monkeypatch.setattr("random.random", miss)
-    assert await adoption_service.process_adoptions(async_session, vault.id, seconds_passed=3600) == []
+    assert await _adopt(async_session, vault.id, seconds_passed=3600) == []
     assert len(rolls) == 1
     await async_session.refresh(child)
     assert child.parent_1_id == original_parent_id
@@ -409,7 +376,7 @@ async def test_adult_and_dead_children_do_not_fill_family_slots(async_session):
         async_session, vault.id, parent_1_id=first.id, parent_2_id=second.id, age_group=AgeGroupEnum.CHILD, is_dead=True
     )
     child = await _orphan(async_session, vault.id)
-    adopted = await adoption_service.process_adoptions(async_session, vault.id, seconds_passed=60)
+    adopted = await _adopt(async_session, vault.id)
     assert [dweller.id for dweller in adopted] == [child.id]
 
 
@@ -420,7 +387,7 @@ async def test_partial_hour_chance_compounds_consistently(async_session, monkeyp
     # 64% over an hour means 40% over each half hour, not 32%.
     monkeypatch.setattr(game_config.breeding, "adoption_chance_per_hour", 0.64)
     monkeypatch.setattr("random.random", lambda: 0.39)
-    adopted = await adoption_service.process_adoptions(async_session, vault.id, seconds_passed=1800)
+    adopted = await _adopt(async_session, vault.id, seconds_passed=1800)
     assert [dweller.id for dweller in adopted] == [child.id]
 
 
@@ -429,9 +396,9 @@ async def test_later_adoptions_stop_when_family_reaches_capacity(async_session):
     await _couple(async_session, vault.id)
     for _ in range(3):
         await _orphan(async_session, vault.id)
-    first = await adoption_service.process_adoptions(async_session, vault.id, seconds_passed=60)
-    second = await adoption_service.process_adoptions(async_session, vault.id, seconds_passed=60)
-    third = await adoption_service.process_adoptions(async_session, vault.id, seconds_passed=60)
+    first = await _adopt(async_session, vault.id)
+    second = await _adopt(async_session, vault.id)
+    third = await _adopt(async_session, vault.id)
     assert len(first) == len(second) == 1
     assert first[0].id != second[0].id
     assert third == []

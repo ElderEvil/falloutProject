@@ -3,26 +3,20 @@ import pytest
 from app import crud
 from app.models.dweller import Dweller
 from app.models.quest import Quest
+from app.models.room import Room
 from app.schemas.user import UserCreate
 from app.schemas.vault import VaultCreateWithUserID
+from app.services.team_service import team_service
+from app.tests.factory.rooms import create_overseers_office
 from app.tests.factory.users import create_fake_user
 from app.tests.factory.vaults import create_fake_vault
+from app.tests.utils.user import user_authentication_headers
 
 
-@pytest.mark.asyncio
 async def test_start_quest_assigns_and_starts(async_client, async_session):
-    from app.models.room import Room
-    from app.services.team_service import team_service
-    from app.tests.factory.rooms import create_overseers_office
-    from app.tests.utils.user import user_authentication_headers
-
     user_data = create_fake_user()
     user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))
-    vault_data = create_fake_vault()
-    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**vault_data, user_id=user.id))
-    async_session.add(Room(**create_overseers_office(), vault_id=vault.id))
-    await async_session.commit()
-
+    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id))
     quest = Quest(
         title="Test Quest",
         short_description="Test",
@@ -31,23 +25,14 @@ async def test_start_quest_assigns_and_starts(async_client, async_session):
         rewards="100 caps",
         quest_type="side",
     )
-    async_session.add(quest)
+    async_session.add_all([Room(**create_overseers_office(), vault_id=vault.id), quest])
     await async_session.commit()
     await async_session.refresh(quest)
-
     await crud.quest_crud.assign_to_vault(async_session, quest_id=quest.id, vault_id=vault.id)
-    await async_session.commit()
-
     dweller = Dweller(first_name="Test", gender="male", rarity="common", level=1, vault_id=vault.id)
     async_session.add(dweller)
     await async_session.commit()
     await team_service.assign_quest_team(async_session, quest.id, vault.id, [dweller.id])
-
     headers = await user_authentication_headers(client=async_client, email=user.email, password=user_data["password"])
-
-    response = await async_client.post(
-        f"/quests/{vault.id}/{quest.id}/start",
-        headers=headers,
-    )
-
+    response = await async_client.post(f"/quests/{vault.id}/{quest.id}/start", headers=headers)
     assert response.status_code == 200, f"Expected 200, got {response.status_code}: {response.text}"

@@ -1,4 +1,5 @@
 import uuid
+from contextlib import contextmanager
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -10,8 +11,6 @@ from app.models.objective import Objective
 from app.models.vault_objective import VaultObjectiveProgressLink
 from app.services.progression.objectives.assignment import ObjectiveAssignmentService
 
-# Stable UUIDs for deterministic test IDs
-
 _VAULT_ID = uuid.UUID("11111111-1111-4111-8111-111111111111")
 
 _O1 = uuid.UUID("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa")
@@ -20,249 +19,140 @@ _O3 = uuid.UUID("cccccccc-cccc-4ccc-8ccc-cccccccccccc")
 _O4 = uuid.UUID("dddddddd-dddd-4ddd-8ddd-dddddddddddd")
 _O5 = uuid.UUID("eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee")
 _O6 = uuid.UUID("ffffffff-ffff-4fff-8fff-ffffffffffff")
-_OACH1 = uuid.UUID("11111111-2222-4333-8444-aaaaaaaaaaaa")
-_OACH2 = uuid.UUID("22222222-3333-4444-8555-bbbbbbbbbbbb")
 
-# Pre-generated sequential UUIDs for creating multiple test objectives
-_SEQUENTIAL_O_IDS = [
-    _O1,
-    _O2,
-    _O3,
-    _O4,
-    _O5,
-    _O6,
-    uuid.UUID("11111111-1111-4111-8111-000000000001"),
-    uuid.UUID("11111111-1111-4111-8111-000000000002"),
-    uuid.UUID("11111111-1111-4111-8111-000000000003"),
-    uuid.UUID("11111111-1111-4111-8111-000000000004"),
-    uuid.UUID("11111111-1111-4111-8111-000000000005"),
-]
-
-
-# Helpers
+_SEQ_PREFIX = "11111111-1111-4111-8111-0000000000"
+_SEQUENTIAL_O_IDS = [_O1, _O2, _O3, _O4, _O5, _O6, *(uuid.UUID(f"{_SEQ_PREFIX}{n:02d}") for n in range(1, 6))]
 
 
 def _make_exec_result(items: list) -> MagicMock:
-    """Build a mock DB execute result returning scalars().all() = items."""
-    mock_scalars = MagicMock()
-    mock_scalars.all.return_value = list(items)
-    mock_result = MagicMock()
-    mock_result.scalars.return_value = mock_scalars
-    return mock_result
+    scalars = MagicMock()
+    scalars.all.return_value = list(items)
+    result = MagicMock()
+    result.scalars.return_value = scalars
+    return result
 
 
 def _make_exec_all(items: list) -> MagicMock:
-    """Build a mock DB execute result returning scalars().all() as list of tuples
-    (for assigned_ids queries that return objective_id rows)."""
-    mock_scalars = MagicMock()
-    mock_scalars.all.return_value = [(item,) for item in items]
-    mock_result = MagicMock()
-    mock_result.scalars.return_value = mock_scalars
-    return mock_result
-
-
-def _make_exec_all(items: list) -> MagicMock:
-    """Mock where .all() returns list of (value,) tuples for row[0] access.
-    Used for queries where the service calls result.all() directly (not .scalars().all())."""
-    mock_result = MagicMock()
-    mock_result.all.return_value = [(item,) for item in items]
-    return mock_result
-
-
-def _make_exec_result_scalar_one_or_none(return_value: MagicMock | None) -> MagicMock:
-    """Build a mock DB execute result returning scalar_one_or_none()."""
-    mock_result = MagicMock()
-    mock_result.scalar_one_or_none.return_value = return_value
-    return mock_result
+    result = MagicMock()
+    result.all.return_value = [(item,) for item in items]
+    return result
 
 
 def _make_objective(
-    _id: uuid.UUID = _O1,
+    _id=_O1,
     *,
-    challenge: str = "Test Objective",
-    reward: str = "Test Reward",
-    category: ObjectiveCategoryEnum = ObjectiveCategoryEnum.DAILY,
-    objective_type: str | None = "collect",
-    target_amount: int = 5,
-) -> MagicMock:
-    """Create a MagicMock objective."""
+    challenge="Test Objective",
+    reward="Test Reward",
+    category=ObjectiveCategoryEnum.DAILY,
+    objective_type="collect",
+    target_amount=5,
+):
     obj = MagicMock(spec=Objective)
-    obj.id = _id
-    obj.challenge = challenge
-    obj.reward = reward
-    obj.category = category
-    obj.objective_type = objective_type
-    obj.target_amount = target_amount
+    obj.id, obj.challenge, obj.reward = _id, challenge, reward
+    obj.category, obj.objective_type, obj.target_amount = category, objective_type, target_amount
     return obj
 
 
-# Fixtures
-
-
-@pytest.fixture
-def service(mock_db: AsyncMock) -> ObjectiveAssignmentService:
-    """Return a fresh service instance with mocked DB."""
-    return ObjectiveAssignmentService(mock_db)
+@contextmanager
+def _catalog(objectives, links):
+    delete = AsyncMock()
+    with (
+        patch.object(objective_crud, "get_by_category", new_callable=AsyncMock, return_value=objectives),
+        patch.object(objective_crud, "get_links_for_vault", new_callable=AsyncMock, return_value=links),
+        patch.object(objective_crud, "delete_links", new=delete),
+    ):
+        yield delete
 
 
 @pytest.fixture
 def mock_db() -> AsyncMock:
-    """AsyncMock for AsyncSession."""
     return AsyncMock(spec=AsyncSession)
 
 
-# assign_daily_objectives
+@pytest.fixture
+def service(mock_db: AsyncMock) -> ObjectiveAssignmentService:
+    return ObjectiveAssignmentService(mock_db)
 
 
-# assign_weekly_objectives
+@pytest.mark.asyncio
+async def test_aggregates_all_three_categories(async_session, vault) -> None:
+    objectives = [
+        Objective(
+            challenge=f"{category} task", reward="10 caps", category=category, objective_type="collect", target_amount=5
+        )
+        for category in ("daily", "weekly", "achievement")
+    ]
+    async_session.add_all(objectives)
+    await async_session.commit()
+    result = await ObjectiveAssignmentService(async_session).assign_all_objectives(vault.id)
+    assert set(result) == {"daily", "weekly", "achievements"}
+    assert all(len(rows) == 1 for rows in result.values())
+    assert {link.objective_id for link in await objective_crud.get_links_for_vault(async_session, vault.id)} == {
+        o.id for o in objectives
+    }
 
 
-# assign_achievement_objectives
+@pytest.mark.asyncio
+async def test_no_links_returns_zero(service: ObjectiveAssignmentService, mock_db: AsyncMock) -> None:
+    mock_db.execute = AsyncMock(return_value=_make_exec_result([]))
+
+    result = await service.clear_daily_objectives(_VAULT_ID)
+
+    assert result == 0
+    assert mock_db.delete.await_count == 0
+    assert mock_db.commit.await_count == 0
 
 
-# assign_all_objectives
+@pytest.mark.asyncio
+async def test_clears_existing_links(service: ObjectiveAssignmentService, mock_db: AsyncMock) -> None:
+    link = MagicMock(spec=VaultObjectiveProgressLink)
+    link.objective_id = _O1
+    with _catalog([_make_objective()], [link]) as mock_delete:
+        result = await service.clear_weekly_objectives(_VAULT_ID)
+
+    assert result == 1
+    mock_delete.assert_awaited_once()
+    assert mock_db.commit.await_count == 1
 
 
-class TestAssignAllObjectives:
-    @pytest.mark.asyncio
-    async def test_aggregates_all_three_categories(self, async_session, vault) -> None:
-        objectives = [
-            Objective(
-                challenge=f"{category} task",
-                reward="10 caps",
-                category=category,
-                objective_type="collect",
-                target_amount=5,
-            )
-            for category in (
-                ObjectiveCategoryEnum.DAILY,
-                ObjectiveCategoryEnum.WEEKLY,
-                ObjectiveCategoryEnum.ACHIEVEMENT,
-            )
-        ]
-        async_session.add_all(objectives)
-        await async_session.commit()
-        result = await ObjectiveAssignmentService(async_session).assign_all_objectives(vault.id)
-        assert set(result) == {"daily", "weekly", "achievements"}
-        assert all(len(rows) == 1 for rows in result.values())
-        assert {link.objective_id for link in await objective_crud.get_links_for_vault(async_session, vault.id)} == {
-            o.id for o in objectives
-        }
+@pytest.mark.asyncio
+async def test_no_objectives_available_returns_empty(service: ObjectiveAssignmentService, mock_db: AsyncMock) -> None:
+    old_link = MagicMock(spec=VaultObjectiveProgressLink)
+    with _catalog([], [old_link]) as mock_delete:
+        result = await service.refresh_daily_objectives(_VAULT_ID)
+
+    assert result == []
+    mock_delete.assert_awaited_once()
+    assert mock_db.commit.await_count == 1
 
 
-# clear_daily_objectives
+@pytest.mark.asyncio
+async def test_no_weekly_still_commits(service: ObjectiveAssignmentService, mock_db: AsyncMock) -> None:
+    with (
+        patch.object(objective_crud, "get_by_category", new_callable=AsyncMock, return_value=[]),
+        patch.object(objective_crud, "get_links_for_vault", new_callable=AsyncMock, return_value=[]),
+    ):
+        result = await service.refresh_weekly_objectives(_VAULT_ID)
+
+    assert result == []
+    assert mock_db.commit.await_count == 1
 
 
-class TestClearDailyObjectives:
-    @pytest.mark.asyncio
-    async def test_no_links_returns_zero(self, service: ObjectiveAssignmentService, mock_db: AsyncMock) -> None:
-        mock_db.execute = AsyncMock(return_value=_make_exec_result([]))
+@pytest.mark.asyncio
+async def test_skips_already_assigned(service: ObjectiveAssignmentService, mock_db: AsyncMock) -> None:
+    objs = [_make_objective(_id=_SEQUENTIAL_O_IDS[i], category=ObjectiveCategoryEnum.DAILY) for i in range(5)]
+    mock_db.execute = AsyncMock(side_effect=[_make_exec_all([_O1]), _make_exec_result(objs)])  # O1 already assigned
 
-        result = await service.clear_daily_objectives(_VAULT_ID)
+    result = await service.assign_random_objectives(_VAULT_ID, count=4)
 
-        assert result == 0
-        assert mock_db.delete.await_count == 0
-        assert mock_db.commit.await_count == 0
-
-
-# clear_weekly_objectives
+    # O1 is excluded, so max 4 remain, we want 4
+    assert len(result) == 4
+    assert _O1 not in {r.id for r in result}
 
 
-class TestClearWeeklyObjectives:
-    @pytest.mark.asyncio
-    async def test_clears_existing_links(self, service: ObjectiveAssignmentService, mock_db: AsyncMock) -> None:
-        link = MagicMock(spec=VaultObjectiveProgressLink)
-        link.objective_id = _O1
-        with (
-            patch.object(objective_crud, "get_by_category", new_callable=AsyncMock, return_value=[_make_objective()]),
-            patch.object(objective_crud, "get_links_for_vault", new_callable=AsyncMock, return_value=[link]),
-            patch.object(objective_crud, "delete_links", new_callable=AsyncMock) as mock_delete,
-        ):
-            result = await service.clear_weekly_objectives(_VAULT_ID)
-
-        assert result == 1
-        mock_delete.assert_awaited_once()
-        assert mock_db.commit.await_count == 1
-
-
-# refresh_daily_objectives
-
-
-class TestRefreshDailyObjectives:
-    @pytest.mark.asyncio
-    async def test_no_objectives_available_returns_empty(
-        self, service: ObjectiveAssignmentService, mock_db: AsyncMock
-    ) -> None:
-        old_link = MagicMock(spec=VaultObjectiveProgressLink)
-        with (
-            patch.object(objective_crud, "get_by_category", new_callable=AsyncMock, return_value=[]),
-            patch.object(objective_crud, "get_links_for_vault", new_callable=AsyncMock, return_value=[old_link]),
-            patch.object(objective_crud, "delete_links", new_callable=AsyncMock) as mock_delete,
-        ):
-            result = await service.refresh_daily_objectives(_VAULT_ID)
-
-        assert result == []
-        mock_delete.assert_awaited_once()
-        assert mock_db.commit.await_count == 1
-
-
-# refresh_weekly_objectives
-
-
-class TestRefreshWeeklyObjectives:
-    @pytest.mark.asyncio
-    async def test_no_weekly_still_commits(self, service: ObjectiveAssignmentService, mock_db: AsyncMock) -> None:
-        with (
-            patch.object(objective_crud, "get_by_category", new_callable=AsyncMock, return_value=[]),
-            patch.object(objective_crud, "get_links_for_vault", new_callable=AsyncMock, return_value=[]),
-        ):
-            result = await service.refresh_weekly_objectives(_VAULT_ID)
-
-        assert result == []
-        assert mock_db.commit.await_count == 1
-
-
-# assign_random_objectives
-
-
-class TestAssignRandomObjectives:
-    @pytest.mark.asyncio
-    async def test_skips_already_assigned(self, service: ObjectiveAssignmentService, mock_db: AsyncMock) -> None:
-        objs = [_make_objective(_id=_SEQUENTIAL_O_IDS[i], category=ObjectiveCategoryEnum.DAILY) for i in range(5)]
-        responses = [
-            _make_exec_all([_O1]),  # O1 already assigned
-            _make_exec_result(objs),
-        ]
-        mock_db.execute = AsyncMock(side_effect=responses)
-
-        result = await service.assign_random_objectives(_VAULT_ID, count=4)
-
-        # O1 is excluded, so max 4 remain, we want 4
-        assert len(result) == 4
-        assert _O1 not in {r.id for r in result}
-
-
-# Edge case: mixed categories don't interfere
-
-
-# The mock can't verify the SQL subquery constraint, but we trust it
-
-
-# VaultObjectiveProgressLink creation
-
-
-# auto_commit=False behavior
-
-
-# Constants
-
-
-class TestConstants:
-    def test_daily_count_is_3(self) -> None:
-        assert ObjectiveAssignmentService.DAILY_COUNT == 3
-
-    def test_weekly_count_is_7(self) -> None:
-        assert ObjectiveAssignmentService.WEEKLY_COUNT == 7
+@pytest.mark.parametrize(("constant", "expected"), [("DAILY_COUNT", 3), ("WEEKLY_COUNT", 7)])
+def test_counts(constant: str, expected: int) -> None:
+    assert getattr(ObjectiveAssignmentService, constant) == expected
 
 
 async def test_daily_reset_preserves_earned_unclaimed_rewards() -> None:
@@ -270,10 +160,6 @@ async def test_daily_reset_preserves_earned_unclaimed_rewards() -> None:
     earned = VaultObjectiveProgressLink(vault_id=_VAULT_ID, objective_id=_O1, progress=5, total=5)
     unfinished = VaultObjectiveProgressLink(vault_id=_VAULT_ID, objective_id=_O2, progress=1, total=5)
     service = ObjectiveAssignmentService(session)
-    with (
-        patch.object(objective_crud, "get_by_category", return_value=[_make_objective(_O1), _make_objective(_O2)]),
-        patch.object(objective_crud, "get_links_for_vault", return_value=[earned, unfinished]),
-        patch.object(objective_crud, "delete_links", new=AsyncMock()) as delete,
-    ):
+    with _catalog([_make_objective(_O1), _make_objective(_O2)], [earned, unfinished]) as delete:
         assert await service.clear_daily_objectives(_VAULT_ID) == 1
         assert delete.call_args.args[1] == [unfinished]

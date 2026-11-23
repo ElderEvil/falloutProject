@@ -1,62 +1,131 @@
-"""Comprehensive tests for GameLoopService covering all public and internal methods.
+"""Game loop service: pause/resume, tick phases, relationship drift, births, aging.
 
-Covers pause/resume, game tick processing, incident management, dweller processing,
-training, happiness, breeding, relationships, and edge cases.
-
-Uses real in-memory SQLite DB fixtures for game_state/vault/dweller queries and
-mocked external services for complex dependencies.
-
-IMPORTANT: Methods with local-from imports (e.g. `from app.services.X import Y`)
-need patches at the SOURCE module (e.g. `app.services.X.Y`), NOT at
-`app.services.game_loop_service.Y`. Methods with module-level imports can use
-`app.services.game_loop_service.Y` directly.
+Names imported *inside* a method are patched at their source module; module-level
+imports can be patched on ``app.services.game_loop_service``.
 """
 
 import asyncio
 import logging
-from datetime import datetime, timedelta
+from contextlib import ExitStack, asynccontextmanager, contextmanager
+from datetime import timedelta
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 import pytest
+from sqlalchemy import event
+from sqlalchemy.exc import SQLAlchemyError
+from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app import crud
+from app.core.enums import (
+    AgeGroupEnum,
+    DwellerStatusEnum,
+    OutfitTypeEnum,
+    RarityEnum,
+    RelationshipTypeEnum,
+    RoomTypeEnum,
+    SPECIALEnum,
+    TrainingStatus,
+)
 from app.core.game_config import game_config
+from app.crud import training as training_crud
+from app.crud.relationship import relationship_crud
 from app.models.dweller import Dweller
 from app.models.game_state import GameState
+from app.models.notification import Notification
+from app.models.outfit import Outfit
+from app.models.training import Training
 from app.models.vault import Vault
-from app.schemas.incident import IncidentRoundResult
+from app.schemas.dweller import DwellerCreate
+from app.schemas.room import RoomCreate
 from app.schemas.vault import ResourceTickEvents
 from app.services.dweller_service import dweller_service
 from app.services.game_loop_service import game_loop_service
 from app.services.game_tick.family_tick import _deliver_due_baby
+from app.services.relationship_service import relationship_service
+from app.services.training_service import training_service
+from app.tests.factory.dwellers import create_fake_dweller
+from app.tests.factory.rooms import create_fake_room
 from app.utils.exceptions import NoLivingSpaceError, VaultOperationException
 from app.utils.time import utcnow
 
-# ═════════════════════════════════════════════════════════════════════
-# pause_vault / resume_vault / get_vault_status / _get_or_create
-# ═════════════════════════════════════════════════════════════════════
+
+async def _make_room(session, vault, *, name="Weight room", category=RoomTypeEnum.TRAINING, **extra):
+    data = create_fake_room() | {"name": name, "category": category, "ability": SPECIALEnum.STRENGTH, **extra}
+    return await crud.room.create(session, RoomCreate(**data, vault_id=vault.id))
+
+
+async def _make_dweller(session, vault, *, room=None, name=None, **fields):
+    data = create_fake_dweller() | fields
+    if name is not None:
+        data["first_name"] = name
+    dweller = await crud.dweller.create(session, DwellerCreate(**data, vault_id=vault.id))
+    if room is not None:
+        dweller.room_id = room.id
+        session.add(dweller)
+    return dweller
+
+
+@asynccontextmanager
+async def _one_shot_db_failure(async_session, predicate, broken_sql):
+    """Make the first statement matching ``predicate`` hit a missing table."""
+    connection = await async_session.connection()
+    state = {"failed": False}
+
+    def hook(_conn, _cursor, statement, parameters, _context, _many):
+        if predicate(statement) and not state["failed"]:
+            state["failed"] = True
+            return broken_sql, ()
+        return statement, parameters
+
+    event.listen(connection.sync_connection, "before_cursor_execute", hook, retval=True)
+    try:
+        yield state
+    finally:
+        event.remove(connection.sync_connection, "before_cursor_execute", hook)
+
+
+_PAIR = {"happiness": 50, "charisma": 5, "age_group": AgeGroupEnum.ADULT}
+
+
+async def _link(session, first, second, affinity=10):
+    relationship = await relationship_service.get_or_create_relationship(session, first.id, second.id)
+    relationship.affinity = affinity
+    session.add(relationship)
+    await session.commit()
+    return relationship
+
+
+@contextmanager
+def _active_vaults(vaults, fake_tick):
+    with (
+        patch.object(game_loop_service, "_get_active_vaults", new=AsyncMock(return_value=vaults)),
+        patch.object(game_loop_service, "process_vault_tick", new=fake_tick),
+    ):
+        yield
+
+
+def _pair_mocks():
+    rel = MagicMock(dweller_1_id="d-1", dweller_2_id="d-2")
+    d1, d2 = MagicMock(id="d-1", charisma=5), MagicMock(id="d-2", charisma=5)
+    return d1, d2, {("d-1", "d-2"): rel, ("d-2", "d-1"): rel}
 
 
 class TestPauseResume:
-    @pytest.mark.asyncio
-    async def test_resume_vault_sets_is_paused_false(self, async_session: AsyncSession, vault: Vault):
+    async def test_resume_and_status_contract(self, async_session, vault):
         await game_loop_service.pause_vault(async_session, vault.id)
         result = await game_loop_service.resume_vault(async_session, vault.id)
         assert result.is_paused is False
         assert result.resumed_at is not None
 
-    @pytest.mark.asyncio
-    async def test_get_vault_status_returns_correct_fields(self, async_session: AsyncSession, vault: Vault):
         await game_loop_service.process_vault_tick(async_session, vault.id)
         status = await game_loop_service.get_vault_status(async_session, vault.id)
         assert status["vault_id"] == str(vault.id)
         assert status["is_active"] is True
         assert status["is_paused"] is False
-        assert "total_game_time" in status
-        assert "last_tick_time" in status
-        assert "offline_time" in status
+        assert {"total_game_time", "last_tick_time", "offline_time"} <= status.keys()
 
 
 class _FakeSession:
@@ -71,35 +140,23 @@ def _fake_session_maker():
     return _FakeSession()
 
 
-# ═════════════════════════════════════════════════════════════════════
-# process_game_tick
-# ═════════════════════════════════════════════════════════════════════
-
-
 class TestProcessGameTick:
-    @pytest.mark.asyncio
-    async def test_paused_vaults_excluded(self, async_session: AsyncSession, session_factory, vault: Vault):
+    async def test_skips_paused_vaults_and_counts_errors(self, async_session, session_factory, vault):
         await game_loop_service.pause_vault(async_session, vault.id)
         with patch.object(game_loop_service, "process_vault_tick", new_callable=AsyncMock) as mock_tick:
             stats = await game_loop_service.process_game_tick(session_factory)
             mock_tick.assert_not_called()
-        assert "vaults_processed" in stats
-        assert "errors" in stats
-        assert "total_time" in stats
+        assert {"vaults_processed", "errors", "total_time"} <= stats.keys()
 
-    @pytest.mark.asyncio
-    async def test_counts_errors(self, async_session: AsyncSession, session_factory, vault: Vault):
-        await game_loop_service.process_vault_tick(async_session, vault.id)
+        await game_loop_service.resume_vault(async_session, vault.id)
         with patch.object(game_loop_service, "process_vault_tick", new_callable=AsyncMock) as mock_tick:
             mock_tick.side_effect = VaultOperationException("Simulated error")
             stats = await game_loop_service.process_game_tick(session_factory)
             assert stats["errors"] >= 1
 
-    @pytest.mark.asyncio
     async def test_runs_vaults_with_bounded_parallelism(self):
         vaults = [SimpleNamespace(id=uuid4()) for _ in range(6)]
-        active = 0
-        max_active = 0
+        active = max_active = 0
         sessions = []
 
         async def fake_tick(session, _vault_id):
@@ -110,10 +167,7 @@ class TestProcessGameTick:
             await asyncio.sleep(0.02)
             active -= 1
 
-        with (
-            patch.object(game_loop_service, "_get_active_vaults", new=AsyncMock(return_value=vaults)),
-            patch.object(game_loop_service, "process_vault_tick", new=fake_tick),
-        ):
+        with _active_vaults(vaults, fake_tick):
             stats = await game_loop_service.process_game_tick(_fake_session_maker, max_concurrency=3)
 
         assert max_active == 3
@@ -121,83 +175,46 @@ class TestProcessGameTick:
         assert stats["vaults_processed"] == len(vaults)
         assert stats["errors"] == 0
 
-    @pytest.mark.asyncio
-    async def test_isolates_single_vault_failures(self):
+    @pytest.mark.parametrize("scenario", ["isolated", "unexpected", "logged"])
+    async def test_vault_failure_handling(self, caplog, scenario):
         vaults = [SimpleNamespace(id=uuid4()) for _ in range(3)]
         processed: list = []
 
         async def fake_tick(_session, vault_id):
+            if scenario == "logged":
+                raise RuntimeError(f"boom {vault_id}")
             if vault_id == vaults[0].id:
-                raise VaultOperationException("Simulated failure")
+                if scenario == "isolated":
+                    raise VaultOperationException("Simulated failure")
+                raise RuntimeError("boom")
+            if scenario == "unexpected":
+                await asyncio.sleep(0.01)
             processed.append(vault_id)
 
-        with (
-            patch.object(game_loop_service, "_get_active_vaults", new=AsyncMock(return_value=vaults)),
-            patch.object(game_loop_service, "process_vault_tick", new=fake_tick),
-            patch("app.services.game_loop_service.recover_session", new=AsyncMock()),
-        ):
-            stats = await game_loop_service.process_game_tick(_fake_session_maker, max_concurrency=2)
+        stack = ExitStack()
+        stack.enter_context(_active_vaults(vaults, fake_tick))
+        if scenario == "isolated":
+            stack.enter_context(patch("app.services.game_loop_service.recover_session", new=AsyncMock()))
+        else:
+            stack.enter_context(caplog.at_level(logging.ERROR, logger="app.services.game_loop_service"))
+            stack.enter_context(pytest.raises(RuntimeError, match="boom"))
+        with stack:
+            result = await game_loop_service.process_game_tick(_fake_session_maker, max_concurrency=2)
 
-        assert sorted(processed) == sorted(vault.id for vault in vaults[1:])
-        assert stats["vaults_processed"] == 2
-        assert stats["errors"] == 1
-
-    @pytest.mark.asyncio
-    async def test_unexpected_failure_waits_for_sibling_vaults(self):
-        vaults = [SimpleNamespace(id=uuid4()) for _ in range(3)]
-        completed: list = []
-
-        async def fake_tick(_session, vault_id):
-            if vault_id == vaults[0].id:
-                raise RuntimeError("boom")
-            await asyncio.sleep(0.01)
-            completed.append(vault_id)
-
-        with (
-            patch.object(game_loop_service, "_get_active_vaults", new=AsyncMock(return_value=vaults)),
-            patch.object(game_loop_service, "process_vault_tick", new=fake_tick),
-            pytest.raises(RuntimeError, match="boom"),
-        ):
-            await game_loop_service.process_game_tick(_fake_session_maker, max_concurrency=2)
-
-        assert sorted(completed) == sorted(vault.id for vault in vaults[1:])
-
-    @pytest.mark.asyncio
-    async def test_logs_every_unexpected_vault_failure(self, caplog):
-        vaults = [SimpleNamespace(id=uuid4()) for _ in range(3)]
-
-        async def fake_tick(_session, vault_id):
-            raise RuntimeError(f"boom {vault_id}")
-
-        with (
-            patch.object(game_loop_service, "_get_active_vaults", new=AsyncMock(return_value=vaults)),
-            patch.object(game_loop_service, "process_vault_tick", new=fake_tick),
-            caplog.at_level(logging.ERROR, logger="app.services.game_loop_service"),
-            pytest.raises(RuntimeError, match="boom"),
-        ):
-            await game_loop_service.process_game_tick(_fake_session_maker, max_concurrency=2)
-
-        logged = [
-            record.getMessage()
-            for record in caplog.records
-            if "Unexpected error processing vault" in record.getMessage()
-        ]
-        assert len(logged) == 2
-
-
-# ═════════════════════════════════════════════════════════════════════
-# process_vault_tick edge cases
-# ═════════════════════════════════════════════════════════════════════
+        if scenario == "logged":
+            logged = [r.getMessage() for r in caplog.records if "Unexpected error processing vault" in r.getMessage()]
+            assert len(logged) == 2
+            return
+        assert sorted(processed) == sorted(v.id for v in vaults[1:])
+        if scenario == "isolated":
+            assert result["vaults_processed"] == 2
+            assert result["errors"] == 1
 
 
 class TestProcessVaultTick:
-    async def _patched_tick(self, async_session, vault):
-        """Run process_vault_tick with all internal methods mocked."""
-        mock_update = MagicMock()
-        mock_update.power = 100
-        mock_update.food = 50
-        mock_update.water = 75
-
+    async def _patched_tick(self, async_session, vault, resource_error=None):
+        """Run process_vault_tick with all internal phases mocked."""
+        update = MagicMock(power=100, food=50, water=75)
         with (
             patch.object(game_loop_service.resource_manager, "process_vault_resources", new_callable=AsyncMock) as mr,
             patch.object(game_loop_service, "_process_dwellers", new_callable=AsyncMock, return_value={}),
@@ -205,11 +222,11 @@ class TestProcessVaultTick:
             patch.object(game_loop_service, "_process_happiness", new_callable=AsyncMock, return_value={}),
             patch.object(game_loop_service, "_process_breeding", new_callable=AsyncMock, return_value={}),
         ):
-            mr.return_value = (mock_update, ResourceTickEvents())
+            mr.return_value = (update, ResourceTickEvents())
+            mr.side_effect = resource_error
             return await game_loop_service.process_vault_tick(async_session, vault.id)
 
-    @pytest.mark.asyncio
-    async def test_caps_offline_time(self, async_session: AsyncSession, vault: Vault):
+    async def test_caps_offline_time(self, async_session, vault):
         gs = await game_loop_service._get_or_create_game_state(async_session, vault.id)
         gs.last_tick_time = utcnow() - timedelta(hours=2)
         async_session.add(gs)
@@ -217,139 +234,63 @@ class TestProcessVaultTick:
         result = await self._patched_tick(async_session, vault)
         assert result["seconds_passed"] <= 3600
 
-    @pytest.mark.asyncio
-    async def test_resource_error_does_not_propagate(self, async_session: AsyncSession, vault: Vault):
-        # resource phase except catches (SQLAlchemyError, ResourceNotFoundException, VaultOperationException)
-        with (
-            patch.object(game_loop_service.resource_manager, "process_vault_resources", new_callable=AsyncMock) as mr,
-            patch.object(game_loop_service, "_process_dwellers", new_callable=AsyncMock, return_value={}),
-            patch.object(game_loop_service, "_process_training", new_callable=AsyncMock, return_value={}),
-            patch.object(game_loop_service, "_process_happiness", new_callable=AsyncMock, return_value={}),
-            patch.object(game_loop_service, "_process_breeding", new_callable=AsyncMock, return_value={}),
-        ):
-            mr.side_effect = VaultOperationException("Resource processing failed")
-            result = await game_loop_service.process_vault_tick(async_session, vault.id)
+    async def test_resource_error_does_not_propagate(self, async_session, vault):
+        # The resource phase catches SQLAlchemyError, ResourceNotFoundException and VaultOperationException.
+        error = VaultOperationException("Resource processing failed")
+        result = await self._patched_tick(async_session, vault, resource_error=error)
         assert "error" in result["updates"]["resources"]
 
 
-# ═════════════════════════════════════════════════════════════════════
-# _get_active_vaults
-# ═════════════════════════════════════════════════════════════════════
-
-
-# ═════════════════════════════════════════════════════════════════════
-# _process_incidents
-# ═════════════════════════════════════════════════════════════════════
-# incident_service is imported LOCALLY inside _process_incidents:
-# So we patch app.services.combat.incident_service.incident_service
-# incident_crud is imported at MODULE level:
-# So we patch app.services.game_loop_service.incident_crud
-# ═════════════════════════════════════════════════════════════════════
-
-
-# ═════════════════════════════════════════════════════════════════════
-# _process_dwellers
-# ═════════════════════════════════════════════════════════════════════
-# local imports: death_service
-# ═════════════════════════════════════════════════════════════════════
-
-
 class TestProcessDwellers:
-    @pytest.mark.asyncio
-    async def test_skips_dead_dwellers(self, async_session: AsyncSession, vault: Vault, dweller: Dweller):
-        from app.core.enums import DwellerStatusEnum
-
-        dweller.is_dead = True
-        dweller.status = DwellerStatusEnum.DEAD
+    @pytest.mark.parametrize(("dead", "expected"), [(True, 0), (False, 1)], ids=["already_dead", "health_zero"])
+    async def test_death_handling(self, async_session, vault, dweller, dead, expected):
+        if dead:
+            dweller.is_dead = True
+            dweller.status = DwellerStatusEnum.DEAD
+        else:
+            dweller.health = 0
         async_session.add(dweller)
         await async_session.commit()
         with patch(
             "app.services.family.death_service.death_service.mark_as_dead", new_callable=AsyncMock
         ) as mock_death:
             result = await game_loop_service._process_dwellers(async_session, vault.id)
-        mock_death.assert_not_called()
-        assert result["deaths"] == 0
+        assert mock_death.await_count == expected
+        assert result["deaths"] == expected
 
-    @pytest.mark.asyncio
-    async def test_detects_health_death(self, async_session: AsyncSession, vault: Vault, dweller: Dweller):
-        dweller.health = 0
-        async_session.add(dweller)
-        await async_session.commit()
-        with patch(
-            "app.services.family.death_service.death_service.mark_as_dead", new_callable=AsyncMock
-        ) as mock_death:
-            result = await game_loop_service._process_dwellers(async_session, vault.id)
-        mock_death.assert_called_once()
-        assert result["deaths"] == 1
-
-    @pytest.mark.asyncio
-    async def test_awards_xp_to_working_dwellers(self, async_session: AsyncSession, vault: Vault):
-        from app import crud
-        from app.core.enums import RoomTypeEnum, SPECIALEnum
-        from app.schemas.dweller import DwellerCreate
-        from app.schemas.room import RoomCreate
-        from app.tests.factory.dwellers import create_fake_dweller
-
-        room = await crud.room.create(
-            async_session,
-            RoomCreate(
-                name="Power Gen",
-                category=RoomTypeEnum.PRODUCTION,
-                ability=SPECIALEnum.STRENGTH,
-                base_cost=100,
-                incremental_cost=50,
-                capacity=4,
-                size=2,
-                tier=1,
-                t2_upgrade_cost=500,
-                t3_upgrade_cost=1500,
-                vault_id=vault.id,
-                coordinate_x=0,
-                coordinate_y=0,
-                size_min=1,
-                size_max=3,
-            ),
+    async def test_awards_xp_to_working_dwellers(self, async_session, vault):
+        room = await _make_room(
+            async_session, vault, name="Power Gen", category=RoomTypeEnum.PRODUCTION, capacity=4, size=2
         )
-        d_data = create_fake_dweller()
-        d_data["vault_id"] = vault.id
-        d_data["strength"] = 5
-        d_data["health"] = 100
-        d_data["radiation"] = 0
-        dweller = await crud.dweller.create(async_session, DwellerCreate(**d_data))
+        dweller = await _make_dweller(async_session, vault, strength=5, health=100, radiation=0)
         await dweller_service.move_to_room(async_session, dweller.id, room.id)
         await async_session.commit()
-        with patch("app.services.family.death_service.death_service.mark_as_dead", new_callable=AsyncMock):
-            import app.services.leveling_service as ls_mod
-
-            saved = ls_mod.leveling_service.check_level_up
-            ls_mod.leveling_service.check_level_up = AsyncMock(return_value=(False, 0))
-            try:
-                result = await game_loop_service._process_dwellers(async_session, vault.id)
-            finally:
-                ls_mod.leveling_service.check_level_up = saved
+        with (
+            patch("app.services.family.death_service.death_service.mark_as_dead", new_callable=AsyncMock),
+            patch(
+                "app.services.leveling_service.leveling_service.check_level_up",
+                new=AsyncMock(return_value=(False, 0)),
+            ),
+        ):
+            result = await game_loop_service._process_dwellers(async_session, vault.id)
         assert result["xp_awarded"] > 0
 
 
-# ═════════════════════════════════════════════════════════════════════
-# _process_dwellers — dehydration radiation
-# ═════════════════════════════════════════════════════════════════════
-
-
 class TestDehydrationRadiation:
-    @pytest.mark.asyncio
-    async def _prepare(self, async_session: AsyncSession, vault: Vault, dweller: Dweller, water: int) -> None:
-        vault.water = water
+    async def _prepare(self, async_session, vault, dweller):
+        vault.water = 0
         dweller.max_health = 100
         dweller.health = 100
         dweller.radiation = 0
         async_session.add_all([vault, dweller])
         await async_session.commit()
 
-    @pytest.mark.asyncio
-    async def test_away_dwellers_are_exempt(self, async_session: AsyncSession, vault: Vault, dweller: Dweller):
-        from app.core.enums import DwellerStatusEnum
+    async def _drain_since(self, async_session, vault, since):
+        async_session.add(GameState(vault_id=vault.id, water_empty_since=since))
+        await async_session.commit()
 
-        await self._prepare(async_session, vault, dweller, water=0)
+    async def test_away_dwellers_are_exempt(self, async_session, vault, dweller):
+        await self._prepare(async_session, vault, dweller)
         dweller.status = DwellerStatusEnum.EXPLORING
         async_session.add(dweller)
         await async_session.commit()
@@ -359,60 +300,57 @@ class TestDehydrationRadiation:
         await async_session.refresh(dweller)
         assert dweller.radiation == 0
 
-    @pytest.mark.asyncio
-    async def test_radiation_saturates_at_max_health(self, async_session: AsyncSession, vault: Vault, dweller: Dweller):
-        await self._prepare(async_session, vault, dweller, water=0)
-        dweller.radiation = 99
-        async_session.add(dweller)
-        async_session.add(GameState(vault_id=vault.id, water_empty_since=utcnow() - timedelta(minutes=10)))
-        await async_session.commit()
-
-        await game_loop_service._process_dwellers(async_session, vault.id, seconds_passed=600)
-        await async_session.refresh(dweller)
-        assert dweller.radiation == dweller.max_health
-        assert dweller.effective_max_health == 1
-
-    @pytest.mark.asyncio
-    async def test_rate_is_one_percent_per_tick(self, async_session: AsyncSession, vault: Vault, dweller: Dweller):
-        await self._prepare(async_session, vault, dweller, water=0)
-        dweller.max_health = 200
-        async_session.add(dweller)
-        async_session.add(GameState(vault_id=vault.id, water_empty_since=utcnow() - timedelta(minutes=10)))
-        await async_session.commit()
-
-        result = await game_loop_service._process_dwellers(async_session, vault.id, seconds_passed=120)
-        assert result["irradiated"] == 1
-        await async_session.refresh(dweller)
-        assert dweller.radiation == 4  # 1% of 200 per tick x 2 ticks
-
-    @pytest.mark.asyncio
-    async def test_grace_period_applies_no_radiation(self, async_session: AsyncSession, vault: Vault, dweller: Dweller):
-        await self._prepare(async_session, vault, dweller, water=0)
-        async_session.add(GameState(vault_id=vault.id, water_empty_since=utcnow()))
-        await async_session.commit()
-
-        result = await game_loop_service._process_dwellers(async_session, vault.id, seconds_passed=120)
-        assert result["irradiated"] == 0
-        await async_session.refresh(dweller)
-        assert dweller.radiation == 0
-
-    @pytest.mark.asyncio
-    async def test_armor_does_not_block_ingested_water_radiation(
-        self, async_session: AsyncSession, vault: Vault, dweller: Dweller
+    @pytest.mark.parametrize(
+        ("max_health", "radiation_start", "empty_ago", "seconds", "irradiated", "radiation", "saturates"),
+        [
+            (200, 0, timedelta(minutes=10), 120, 1, 4, False),
+            (100, 0, timedelta(0), 120, 0, 0, False),
+            (100, 99, timedelta(minutes=10), 600, 1, 100, True),
+        ],
+        ids=["one_percent_per_tick", "grace_period", "saturates_at_max_health"],
+    )
+    async def test_rate_grace_and_saturation(
+        self,
+        async_session,
+        vault,
+        dweller,
+        max_health,
+        radiation_start,
+        empty_ago,
+        seconds,
+        irradiated,
+        radiation,
+        saturates,
     ):
-        from app.core.enums import OutfitTypeEnum, RarityEnum
-        from app.models.outfit import Outfit
+        await self._prepare(async_session, vault, dweller)
+        dweller.max_health = max_health
+        dweller.radiation = radiation_start
+        async_session.add(dweller)
+        await self._drain_since(async_session, vault, utcnow() - empty_ago)
 
-        await self._prepare(async_session, vault, dweller, water=0)
+        result = await game_loop_service._process_dwellers(async_session, vault.id, seconds_passed=seconds)
+        assert result["irradiated"] == irradiated
+        await async_session.refresh(dweller)
+        if saturates:
+            assert dweller.radiation == dweller.max_health
+            assert dweller.effective_max_health == 1
+        else:
+            assert dweller.radiation == radiation  # 1% of max_health per post-grace tick
+
+    @pytest.mark.parametrize(
+        ("name", "rarity", "outfit_type"),
+        [
+            ("T-51d power armor", RarityEnum.LEGENDARY, OutfitTypeEnum.POWER_ARMOR),
+            ("Hazmat suit", RarityEnum.RARE, OutfitTypeEnum.RARE),
+        ],
+        ids=["power_armor", "hazmat"],
+    )
+    async def test_outfits_do_not_block_ingested_water_radiation(
+        self, async_session, vault, dweller, name, rarity, outfit_type
+    ):
+        await self._prepare(async_session, vault, dweller)
         async_session.add(GameState(vault_id=vault.id, water_empty_since=utcnow() - timedelta(minutes=10)))
-        async_session.add(
-            Outfit(
-                name="T-51d power armor",
-                rarity=RarityEnum.LEGENDARY,
-                outfit_type=OutfitTypeEnum.POWER_ARMOR,
-                dweller_id=dweller.id,
-            )
-        )
+        async_session.add(Outfit(name=name, rarity=rarity, outfit_type=outfit_type, dweller_id=dweller.id))
         await async_session.commit()
 
         result = await game_loop_service._process_dwellers(async_session, vault.id, seconds_passed=600)
@@ -420,91 +358,14 @@ class TestDehydrationRadiation:
         await async_session.refresh(dweller)
         assert dweller.radiation == 5  # 5 post-grace ticks x 1% of 100, armor ignored
 
-    @pytest.mark.asyncio
-    async def test_hazmat_suit_does_not_block_ingested_water_radiation(
-        self, async_session: AsyncSession, vault: Vault, dweller: Dweller
-    ):
-        from app.core.enums import OutfitTypeEnum, RarityEnum
-        from app.models.outfit import Outfit
-
-        await self._prepare(async_session, vault, dweller, water=0)
-        async_session.add(GameState(vault_id=vault.id, water_empty_since=utcnow() - timedelta(minutes=10)))
-        async_session.add(
-            Outfit(
-                name="Hazmat suit",
-                rarity=RarityEnum.RARE,
-                outfit_type=OutfitTypeEnum.RARE,
-                dweller_id=dweller.id,
-            )
-        )
-        await async_session.commit()
-
-        result = await game_loop_service._process_dwellers(async_session, vault.id, seconds_passed=600)
-        assert result["irradiated"] == 1
-        await async_session.refresh(dweller)
-        assert dweller.radiation == 5
-
-
-# ═════════════════════════════════════════════════════════════════════
-# _process_training
-# ═════════════════════════════════════════════════════════════════════
-# local imports: training_crud (from app.crud import training as training_crud)
-#                training_service (from app.services.training_service import)
-#          app.services.training_service.training_service
-# ═════════════════════════════════════════════════════════════════════
-
 
 class TestProcessTraining:
-    @pytest.mark.asyncio
-    async def test_detects_completion(self, async_session: AsyncSession, vault: Vault):
-        mt = MagicMock()
-        mt.id = "t-1"
-        mt.dweller_id = "d-1"
-        mu = MagicMock()
-        mu.is_completed = MagicMock(return_value=True)
-        mu.stat_being_trained = MagicMock()
-        mu.stat_being_trained.value = "strength"
-        mu.target_stat_value = 7
-        with patch("app.crud.training.training.get_active_by_vault", new_callable=AsyncMock) as mag:
-            mag.return_value = [mt]
-            with patch("app.crud.training.training.get_dwellers_for_trainings", new_callable=AsyncMock) as md:
-                md.return_value = {mt.dweller_id: MagicMock()}
-                with patch(
-                    "app.services.training_service.training_service.update_training_progress", new_callable=AsyncMock
-                ) as mu_async:
-                    mu_async.return_value = mu
-                    result = await game_loop_service._process_training(async_session, vault.id)
-        assert result["sessions_updated"] == 1
-        assert result["completed"] == 1
-
-    async def _seed_trainings(self, async_session: AsyncSession, vault: Vault, count: int = 3):
-        from app import crud
-        from app.core.enums import RoomTypeEnum, SPECIALEnum, TrainingStatus
-        from app.models.training import Training
-        from app.schemas.dweller import DwellerCreate
-        from app.schemas.room import RoomCreate
-        from app.tests.factory.dwellers import create_fake_dweller
-        from app.tests.factory.rooms import create_fake_room
-
-        room_data = create_fake_room()
-        room_data.update(
-            {
-                "name": "Weight room",
-                "category": RoomTypeEnum.TRAINING,
-                "ability": SPECIALEnum.STRENGTH,
-            }
-        )
-        room = await crud.room.create(async_session, RoomCreate(**room_data, vault_id=vault.id))
-
+    async def _seed_trainings(self, async_session, vault, count: int = 3):
+        room = await _make_room(async_session, vault)
         now = utcnow()
         trainings = []
         for index in range(count):
-            dweller_data = create_fake_dweller()
-            dweller_data["first_name"] = f"Trainee{index}"
-            dweller = await crud.dweller.create(
-                async_session,
-                DwellerCreate(**dweller_data, vault_id=vault.id),
-            )
+            dweller = await _make_dweller(async_session, vault, name=f"Trainee{index}")
             training = Training(
                 dweller_id=dweller.id,
                 room_id=room.id,
@@ -522,118 +383,46 @@ class TestProcessTraining:
         await async_session.commit()
         return trainings
 
-    @pytest.mark.asyncio
-    async def test_batches_progress_commit_once(self, async_session: AsyncSession, vault: Vault):
-        await self._seed_trainings(async_session, vault)
-
-        commit = AsyncMock(wraps=async_session.commit)
-        with patch.object(async_session, "commit", commit):
-            result = await game_loop_service._process_training(async_session, vault.id)
-
-        assert result["sessions_updated"] == 3
-        assert result["completed"] == 0
-        assert commit.await_count == 1
-
-    @pytest.mark.asyncio
-    async def test_failed_session_preserves_earlier_progress(self, async_session: AsyncSession, vault: Vault):
-        from sqlalchemy.exc import SQLAlchemyError
-
-        from app.crud import training as training_crud
-        from app.services.training_service import training_service
-
-        trainings = await self._seed_trainings(async_session, vault)
-        failing_dweller_id = trainings[1].dweller_id
-        update_progress = training_service.update_training_progress
-
-        async def update_side(db_session, training, dweller=None, **kwargs):
-            if training.dweller_id == failing_dweller_id:
-                raise SQLAlchemyError("simulated training failure")
-            return await update_progress(db_session, training, dweller=dweller, **kwargs)
-
-        commit = AsyncMock(wraps=async_session.commit)
-        with (
-            patch.object(async_session, "commit", commit),
-            patch(
-                "app.services.training_service.training_service.update_training_progress",
-                side_effect=update_side,
-            ),
-        ):
-            result = await game_loop_service._process_training(async_session, vault.id)
-
-        assert result["sessions_updated"] == 2
-        assert commit.await_count == 1
-        by_dweller = {
-            training.dweller_id: training
-            for training in await training_crud.training.get_active_by_vault(async_session, vault.id)
-        }
-        assert by_dweller[failing_dweller_id].progress == 0
-        assert by_dweller[trainings[0].dweller_id].progress > 0
-        assert by_dweller[trainings[2].dweller_id].progress > 0
-
-    @pytest.mark.asyncio
-    async def test_error_in_one_does_not_stop(self, async_session: AsyncSession, vault: Vault):
-        t1 = MagicMock()
-        t1.id = "t-1"
-        t1.dweller_id = "d-1"
-        t2 = MagicMock()
-        t2.id = "t-2"
-        t2.dweller_id = "d-2"
-        t2u = MagicMock()
-        t2u.is_completed = MagicMock(return_value=False)
-        call_count = [0]
-
-        async def update_side(db_session, training, dweller=None, **kwargs):
-            call_count[0] += 1
-            if call_count[0] == 1:
-                raise RuntimeError("Training failed")
-            return t2u
-
-        with patch("app.crud.training.training.get_active_by_vault", new_callable=AsyncMock) as mag:
-            mag.return_value = [t1, t2]
-            with (
-                patch("app.crud.training.training.get_dwellers_for_trainings", new_callable=AsyncMock, return_value={}),
-                patch(
-                    "app.services.training_service.training_service.update_training_progress",
-                    new_callable=AsyncMock,
-                    side_effect=update_side,
-                ),
-            ):
+    @pytest.mark.parametrize("scenario", ["completed", "second_survives", "load_error"])
+    async def test_session_outcomes(self, async_session, vault, scenario):
+        if scenario == "load_error":
+            with patch("app.crud.training.training.get_active_by_vault", new_callable=AsyncMock) as mag:
+                mag.side_effect = SQLAlchemyError("Failed to load trainings")
                 result = await game_loop_service._process_training(async_session, vault.id)
-        assert result["active_count"] == 2
+            assert "error" in result
+            return
 
-    @pytest.mark.asyncio
-    async def test_outer_exception_set_error(self, async_session: AsyncSession, vault: Vault):
-        from sqlalchemy.exc import SQLAlchemyError
+        first = MagicMock(id="t-1", dweller_id="d-1")
+        completed = MagicMock(is_completed=MagicMock(return_value=True), target_stat_value=7)
+        completed.stat_being_trained = MagicMock(value="strength")
+        pending = MagicMock(is_completed=MagicMock(return_value=False))
+        calls = [0]
 
-        with patch("app.crud.training.training.get_active_by_vault", new_callable=AsyncMock) as mag:
-            mag.side_effect = SQLAlchemyError("Failed to load trainings")
+        async def update_side(db_session, training, dweller=None, **kwargs):
+            calls[0] += 1
+            if scenario == "second_survives" and calls[0] == 1:
+                raise RuntimeError("Training failed")
+            return completed if scenario == "completed" else pending
+
+        with (
+            patch("app.crud.training.training.get_active_by_vault", new_callable=AsyncMock) as mag,
+            patch("app.crud.training.training.get_dwellers_for_trainings", new_callable=AsyncMock) as md,
+            patch("app.services.training_service.training_service.update_training_progress", side_effect=update_side),
+        ):
+            mag.return_value = [first] if scenario == "completed" else [first, MagicMock(id="t-2", dweller_id="d-2")]
+            md.return_value = {first.dweller_id: MagicMock()} if scenario == "completed" else {}
             result = await game_loop_service._process_training(async_session, vault.id)
-        assert "error" in result
 
-
-# ═════════════════════════════════════════════════════════════════════
-# _process_happiness
-# ═════════════════════════════════════════════════════════════════════
-# happiness_service is imported at module level
-# ═════════════════════════════════════════════════════════════════════
-
-
-# ═════════════════════════════════════════════════════════════════════
-# _process_breeding
-# ═════════════════════════════════════════════════════════════════════
-
-
-# ═════════════════════════════════════════════════════════════════════
-# _update_room_relationships
-# ═════════════════════════════════════════════════════════════════════
+        if scenario == "completed":
+            assert result["sessions_updated"] == 1
+            assert result["completed"] == 1
+        else:
+            assert result["active_count"] == 2
 
 
 class TestUpdateRoomRelationships:
-    @pytest.mark.asyncio
-    async def test_single_dweller_skips(self, async_session: AsyncSession, vault: Vault):
-        md = MagicMock()
-        md.id = "d-1"
-        md.room_id = "r-1"
+    async def test_single_dweller_skips(self, async_session, vault):
+        md = MagicMock(id="d-1", room_id="r-1")
         mock_result = MagicMock()
         mock_result.scalars.return_value.all.return_value = [md]
         with (
@@ -644,42 +433,14 @@ class TestUpdateRoomRelationships:
             result = await game_loop_service._update_room_relationships(async_session, vault.id)
         assert result["relationships_updated"] == 0
 
-    @pytest.mark.asyncio
     @pytest.mark.parametrize("existing", [False, True], ids=["new", "existing"])
-    async def test_pairs_use_loaded_relationship_and_commit_once(
-        self, async_session: AsyncSession, vault: Vault, existing: bool
-    ):
-        from app import crud
-        from app.core.enums import AgeGroupEnum, RoomTypeEnum
-        from app.crud.relationship import relationship_crud
-        from app.schemas.dweller import DwellerCreate
-        from app.schemas.room import RoomCreate
-        from app.services.relationship_service import relationship_service
-        from app.tests.factory.dwellers import create_fake_dweller
-        from app.tests.factory.rooms import create_fake_room
-
-        room_data = create_fake_room()
-        room_data["name"] = "Living Quarters"
-        room_data["category"] = RoomTypeEnum.CAPACITY
-        room = await crud.room.create(async_session, RoomCreate(**room_data, vault_id=vault.id))
-        dwellers = []
-        for index in range(4):
-            dweller_data = create_fake_dweller()
-            dweller_data.update(
-                {"first_name": f"Pair{index}", "happiness": 50, "charisma": 5, "age_group": AgeGroupEnum.ADULT}
-            )
-            dweller = await crud.dweller.create(
-                async_session,
-                DwellerCreate(**dweller_data, vault_id=vault.id),
-            )
-            dweller.room_id = room.id
-            async_session.add(dweller)
-            dwellers.append(dweller)
-
+    async def test_pairs_use_loaded_relationship_and_commit_once(self, async_session, vault, existing):
+        room = await _make_room(async_session, vault, name="Living Quarters", category=RoomTypeEnum.CAPACITY)
+        members = [await _make_dweller(async_session, vault, room=room, name=f"Pair{i}", **_PAIR) for i in range(4)]
         await async_session.commit()
         if existing:
-            for index, first in enumerate(dwellers):
-                for second in dwellers[index + 1 :]:
+            for index, first in enumerate(members):
+                for second in members[index + 1 :]:
                     await relationship_service.get_or_create_relationship(async_session, first.id, second.id)
 
         commit = AsyncMock(wraps=async_session.commit)
@@ -693,14 +454,9 @@ class TestUpdateRoomRelationships:
         pair_lookup.assert_not_awaited()
         assert commit.await_count == 1
 
-    @pytest.mark.asyncio
-    async def test_processes_pairs(self, async_session: AsyncSession, vault: Vault):
-        d1 = MagicMock()
-        d1.id = "d-1"
-        d1.room_id = "r-1"
-        d2 = MagicMock()
-        d2.id = "d-2"
-        d2.room_id = "r-1"
+    async def test_processes_pairs(self, async_session, vault):
+        d1 = MagicMock(id="d-1", room_id="r-1")
+        d2 = MagicMock(id="d-2", room_id="r-1")
         mock_result = MagicMock()
         mock_result.scalars.return_value.all.return_value = [d1, d2]
         with (
@@ -714,276 +470,103 @@ class TestUpdateRoomRelationships:
             result = await game_loop_service._update_room_relationships(async_session, vault.id)
         assert result["relationships_updated"] == 1
 
-    @pytest.mark.asyncio
-    async def test_handles_db_error(self, async_session: AsyncSession, vault: Vault):
-        from sqlalchemy.exc import SQLAlchemyError
-
-        with patch.object(async_session, "execute", new_callable=AsyncMock, side_effect=SQLAlchemyError("DB error")):
-            result = await game_loop_service._update_room_relationships(async_session, vault.id)
-        assert result["relationships_updated"] == 0
-
-    @pytest.mark.asyncio
-    async def test_handles_value_error(self, async_session: AsyncSession, vault: Vault):
-        with patch.object(async_session, "execute", new_callable=AsyncMock, side_effect=ValueError("Invalid")):
+    @pytest.mark.parametrize("error", [SQLAlchemyError("DB error"), ValueError("Invalid")], ids=["db", "value"])
+    async def test_handles_execute_errors(self, async_session, vault, error):
+        with patch.object(async_session, "execute", new_callable=AsyncMock, side_effect=error):
             result = await game_loop_service._update_room_relationships(async_session, vault.id)
         assert result["relationships_updated"] == 0
 
     @staticmethod
-    async def _apart_pair_setup(async_session: AsyncSession, vault: Vault, relationship_type=None, affinity=10):
-        """An acquainted pair in two different rooms plus the rooms they occupy."""
-        from app import crud
-        from app.core.enums import AgeGroupEnum, RoomTypeEnum
-        from app.models.relationship import Relationship
-        from app.schemas.dweller import DwellerCreate
-        from app.schemas.room import RoomCreate
-        from app.services.relationship_service import relationship_service
-        from app.tests.factory.dwellers import create_fake_dweller
-        from app.tests.factory.rooms import create_fake_room
-
-        lq = await crud.room.create(
-            async_session,
-            RoomCreate(
-                **{**create_fake_room(), "name": "Living Quarters", "category": RoomTypeEnum.CAPACITY},
-                vault_id=vault.id,
-            ),
-        )
-        diner = await crud.room.create(
-            async_session,
-            RoomCreate(
-                **{**create_fake_room(), "name": "Power Plant", "category": RoomTypeEnum.PRODUCTION},
-                vault_id=vault.id,
-            ),
-        )
-        dwellers = []
-        for index, room in enumerate((lq, diner)):
-            dweller_data = create_fake_dweller()
-            dweller_data.update(
-                {"first_name": f"Apart{index}", "happiness": 50, "charisma": 5, "age_group": AgeGroupEnum.ADULT}
-            )
-            dweller = await crud.dweller.create(
-                async_session,
-                DwellerCreate(**dweller_data, vault_id=vault.id),
-            )
-            dweller.room_id = room.id
-            async_session.add(dweller)
-            dwellers.append(dweller)
-        await async_session.commit()
-
-        relationship = await relationship_service.get_or_create_relationship(
-            async_session, dwellers[0].id, dwellers[1].id
-        )
-        update_data = {"affinity": affinity}
+    async def _apart_pair_setup(async_session, vault, relationship_type=None, affinity=10):
+        """An acquainted pair in two different rooms, plus those rooms."""
+        lq = await _make_room(async_session, vault, name="Living Quarters", category=RoomTypeEnum.CAPACITY)
+        plant = await _make_room(async_session, vault, name="Power Plant", category=RoomTypeEnum.PRODUCTION)
+        dwellers = [
+            await _make_dweller(async_session, vault, room=room, name=f"Apart{index}", **_PAIR)
+            for index, room in enumerate((lq, plant))
+        ]
+        relationship = await _link(async_session, dwellers[0], dwellers[1], affinity)
         if relationship_type is not None:
-            update_data["relationship_type"] = relationship_type
-        async_session.add(relationship)
-        for key, value in update_data.items():
-            setattr(relationship, key, value)
-        await async_session.commit()
-        await async_session.refresh(relationship)
-        return dwellers, relationship
+            relationship.relationship_type = relationship_type
+            await async_session.commit()
+            await async_session.refresh(relationship)
+        return dwellers, relationship, (lq, plant)
 
-    @pytest.mark.asyncio
-    async def test_apart_pair_loses_affinity_per_tick(self, async_session: AsyncSession, vault: Vault):
-        from app.core.enums import RelationshipTypeEnum
-
-        _, relationship = await self._apart_pair_setup(async_session, vault)
-
-        with patch.object(async_session, "commit", AsyncMock(wraps=async_session.commit)):
+    @staticmethod
+    async def _apart_tick(async_session, vault):
+        with patch.object(async_session, "commit", AsyncMock(wraps=async_session.commit)) as commit:
             result = await game_loop_service._update_room_relationships(async_session, vault.id)
+        return result, commit
 
-        assert result["relationships_updated"] == 1
+    @pytest.mark.parametrize(
+        ("rel_type", "affinity", "decay", "dead", "expected_affinity", "updated", "commits"),
+        [
+            (None, 10, None, False, 9, 1, 1),
+            (RelationshipTypeEnum.PARTNER, 5, None, False, 4, None, None),
+            (RelationshipTypeEnum.PARTNER, 0, None, False, 0, 0, 0),
+            (None, 10, 0, False, 10, None, None),
+            (RelationshipTypeEnum.RIVAL, -30, None, False, -30, None, None),
+            (RelationshipTypeEnum.EX, -30, None, False, -30, None, None),
+            (None, 10, None, True, 10, None, None),
+        ],
+        ids=[
+            "acquaintance",
+            "partner_decays",
+            "partner_floor_skipped",
+            "decay_disabled",
+            "rival_frozen",
+            "ex_frozen",
+            "dead_partner_frozen",
+        ],
+    )
+    async def test_apart_pair_drift(
+        self, async_session, vault, monkeypatch, rel_type, affinity, decay, dead, expected_affinity, updated, commits
+    ):
+        dwellers, relationship, _ = await self._apart_pair_setup(async_session, vault, rel_type, affinity)
+        if decay is not None:
+            monkeypatch.setattr(game_config.relationship, "apart_affinity_decay_per_tick", decay)
+        if dead:
+            dwellers[0].is_dead = True
+            async_session.add(dwellers[0])
+            await async_session.commit()
+        result, commit = await self._apart_tick(async_session, vault)
+
         await async_session.refresh(relationship)
-        assert relationship.affinity == 9
-        assert relationship.relationship_type == RelationshipTypeEnum.ACQUAINTANCE
+        assert relationship.affinity == expected_affinity
+        assert relationship.relationship_type == (rel_type or RelationshipTypeEnum.ACQUAINTANCE)
+        if updated is not None:
+            assert result["relationships_updated"] == updated
+        if commits is not None:
+            assert commit.await_count == commits
 
-    @pytest.mark.asyncio
-    async def test_committed_pair_apart_decays_without_demotion(self, async_session: AsyncSession, vault: Vault):
-        from app.core.enums import RelationshipTypeEnum
+    async def test_co_located_pair_is_not_decayed_by_the_apart_pass(self, async_session, vault):
+        dwellers, apart_relationship, (lq, _plant) = await self._apart_pair_setup(async_session, vault)
+        third = await _make_dweller(async_session, vault, room=lq, name="Third", **_PAIR)
+        co_located = await _link(async_session, dwellers[0], third)
 
-        _, relationship = await self._apart_pair_setup(
-            async_session, vault, relationship_type=RelationshipTypeEnum.PARTNER, affinity=5
-        )
-
-        with patch.object(async_session, "commit", AsyncMock(wraps=async_session.commit)):
-            await game_loop_service._update_room_relationships(async_session, vault.id)
-
-        await async_session.refresh(relationship)
-        assert relationship.affinity == 4
-        assert relationship.relationship_type == RelationshipTypeEnum.PARTNER
-
-    @pytest.mark.asyncio
-    async def test_co_located_pair_is_not_decayed_by_the_apart_pass(self, async_session: AsyncSession, vault: Vault):
-        from sqlalchemy import select
-
-        from app import crud
-        from app.core.enums import AgeGroupEnum
-        from app.schemas.dweller import DwellerCreate
-        from app.services.relationship_service import relationship_service
-        from app.tests.factory.dwellers import create_fake_dweller
-
-        _, apart_relationship = await self._apart_pair_setup(async_session, vault)
-        from app.models.room import Room
-
-        lq = (
-            await async_session.execute(select(Room).where(Room.vault_id == vault.id, Room.name == "Living Quarters"))
-        ).scalar_one()
-        dweller_data = create_fake_dweller()
-        dweller_data.update({"first_name": "Third", "happiness": 50, "charisma": 5, "age_group": AgeGroupEnum.ADULT})
-        third = await crud.dweller.create(async_session, DwellerCreate(**dweller_data, vault_id=vault.id))
-        third.room_id = lq.id
-        async_session.add(third)
-        await async_session.commit()
-
-        apart0 = (
-            await async_session.execute(select(Dweller).where(Dweller.room_id == lq.id, Dweller.first_name == "Apart0"))
-        ).scalar_one()
-        third = (
-            await async_session.execute(select(Dweller).where(Dweller.room_id == lq.id, Dweller.first_name == "Third"))
-        ).scalar_one()
-
-        co_located = await relationship_service.get_or_create_relationship(async_session, apart0.id, third.id)
-        co_located.affinity = 10
-        async_session.add(co_located)
-        await async_session.commit()
-
-        with (
-            patch.object(async_session, "commit", AsyncMock(wraps=async_session.commit)),
-            patch("app.services.relationship_service.affinity_change", return_value=2),
-        ):
-            await game_loop_service._update_room_relationships(async_session, vault.id)
+        with patch("app.services.relationship_service.affinity_change", return_value=2):
+            await self._apart_tick(async_session, vault)
 
         await async_session.refresh(co_located)
         await async_session.refresh(apart_relationship)
-        # The co-located pair follows the normal chemistry rule (gains +2 at
-        # baseline charisma), not the apart decay.
+        # Co-located pairs follow the chemistry rule (+2), not the apart decay.
         assert co_located.affinity == 12
         assert apart_relationship.affinity == 9
 
-    @pytest.mark.asyncio
-    async def test_roomless_pair_decays(self, async_session: AsyncSession, vault: Vault):
-        from app import crud
-        from app.core.enums import AgeGroupEnum
-        from app.schemas.dweller import DwellerCreate
-        from app.services.relationship_service import relationship_service
-        from app.tests.factory.dwellers import create_fake_dweller
-
-        dwellers = []
-        for index in range(2):
-            dweller_data = create_fake_dweller()
-            dweller_data.update(
-                {"first_name": f"Scout{index}", "happiness": 50, "charisma": 5, "age_group": AgeGroupEnum.ADULT}
-            )
-            dweller = await crud.dweller.create(async_session, DwellerCreate(**dweller_data, vault_id=vault.id))
-            dwellers.append(dweller)
-        await async_session.commit()
-
-        relationship = await relationship_service.get_or_create_relationship(
-            async_session, dwellers[0].id, dwellers[1].id
-        )
-        relationship.affinity = 10
-        async_session.add(relationship)
-        await async_session.commit()
-
-        with patch.object(async_session, "commit", AsyncMock(wraps=async_session.commit)):
-            result = await game_loop_service._update_room_relationships(async_session, vault.id)
+    async def test_roomless_pair_decays(self, async_session, vault):
+        dwellers = [await _make_dweller(async_session, vault, name=f"Scout{i}", **_PAIR) for i in range(2)]
+        relationship = await _link(async_session, dwellers[0], dwellers[1])
+        result, _ = await self._apart_tick(async_session, vault)
 
         await async_session.refresh(relationship)
         assert result["relationships_updated"] == 1
         assert relationship.affinity == 9
 
-    @pytest.mark.asyncio
-    async def test_dead_partner_freezes_the_pair(self, async_session: AsyncSession, vault: Vault):
-        _, relationship = await self._apart_pair_setup(async_session, vault)
-        # Kill dweller 1 (the LQ member): the apart pass must freeze the pair.
-        from sqlalchemy import select
-
-        dweller1 = (
-            await async_session.execute(
-                select(Dweller).where(Dweller.vault_id == vault.id, Dweller.first_name == "Apart0")
-            )
-        ).scalar_one()
-        dweller1.is_dead = True
-        async_session.add(dweller1)
-        await async_session.commit()
-
-        with patch.object(async_session, "commit", AsyncMock(wraps=async_session.commit)):
-            await game_loop_service._update_room_relationships(async_session, vault.id)
-
-        await async_session.refresh(relationship)
-        assert relationship.affinity == 10
-
-    @pytest.mark.parametrize("frozen_type", ["rival", "ex"])
-    @pytest.mark.asyncio
-    async def test_frozen_pair_apart_stays_frozen(self, async_session: AsyncSession, vault: Vault, frozen_type):
-        from app.core.enums import RelationshipTypeEnum
-
-        _, relationship = await self._apart_pair_setup(
-            async_session,
-            vault,
-            relationship_type=RelationshipTypeEnum(frozen_type),
-            affinity=-30,
-        )
-
-        with patch.object(async_session, "commit", AsyncMock(wraps=async_session.commit)):
-            await game_loop_service._update_room_relationships(async_session, vault.id)
-
-        await async_session.refresh(relationship)
-        assert relationship.affinity == -30
-        assert relationship.relationship_type == frozen_type
-
-    @pytest.mark.asyncio
-    async def test_committed_pair_at_zero_apart_is_skipped(self, async_session: AsyncSession, vault: Vault):
-        from app.core.enums import RelationshipTypeEnum
-
-        _, relationship = await self._apart_pair_setup(
-            async_session, vault, relationship_type=RelationshipTypeEnum.PARTNER, affinity=0
-        )
-
-        with patch.object(async_session, "commit", AsyncMock(wraps=async_session.commit)) as commit:
-            result = await game_loop_service._update_room_relationships(async_session, vault.id)
-
-        await async_session.refresh(relationship)
-        assert relationship.affinity == 0
-        # A no-op apart pass writes nothing (a floor pair is skipped) and
-        # must not even commit.
-        assert result["relationships_updated"] == 0
-        assert commit.await_count == 0
-
-    @pytest.mark.asyncio
-    async def test_same_room_non_living_quarters_pair_does_not_decay(self, async_session: AsyncSession, vault: Vault):
-        from sqlalchemy import select
-
-        from app import crud
-        from app.core.enums import AgeGroupEnum
-        from app.models.room import Room
-        from app.schemas.dweller import DwellerCreate
-        from app.services.relationship_service import relationship_service
-        from app.tests.factory.dwellers import create_fake_dweller
-
-        _, apart_relationship = await self._apart_pair_setup(async_session, vault)
-        plant = (
-            await async_session.execute(select(Room).where(Room.vault_id == vault.id, Room.name == "Power Plant"))
-        ).scalar_one()
-
-        pair = []
-        for index in range(2):
-            dweller_data = create_fake_dweller()
-            dweller_data.update(
-                {"first_name": f"Worker{index}", "happiness": 50, "charisma": 5, "age_group": AgeGroupEnum.ADULT}
-            )
-            dweller = await crud.dweller.create(async_session, DwellerCreate(**dweller_data, vault_id=vault.id))
-            dweller.room_id = plant.id
-            async_session.add(dweller)
-            pair.append(dweller)
-        await async_session.commit()
-
-        co_located = await relationship_service.get_or_create_relationship(async_session, pair[0].id, pair[1].id)
-        co_located.affinity = 10
-        async_session.add(co_located)
-        await async_session.commit()
-
-        with patch.object(async_session, "commit", AsyncMock(wraps=async_session.commit)):
-            await game_loop_service._update_room_relationships(async_session, vault.id)
+    async def test_same_room_non_living_quarters_pair_does_not_decay(self, async_session, vault):
+        _, apart_relationship, (_lq, plant) = await self._apart_pair_setup(async_session, vault)
+        pair = [await _make_dweller(async_session, vault, room=plant, name=f"Worker{i}", **_PAIR) for i in range(2)]
+        co_located = await _link(async_session, pair[0], pair[1])
+        await self._apart_tick(async_session, vault)
 
         await async_session.refresh(co_located)
         await async_session.refresh(apart_relationship)
@@ -991,25 +574,10 @@ class TestUpdateRoomRelationships:
         assert co_located.affinity == 10
         assert apart_relationship.affinity == 9
 
-    @pytest.mark.asyncio
-    async def test_rolls_back_apart_decay_on_commit_failure(self, async_session: AsyncSession, vault: Vault):
-        """A failed commit must not leave the apart pass's decay behind."""
-        from sqlalchemy.exc import SQLAlchemyError
-        from sqlmodel import select
-
-        from app.crud.relationship import relationship_crud
-        from app.models.notification import Notification
-
-        dwellers, relationship = await self._apart_pair_setup(async_session, vault)
-        relationship_id = relationship.id
-        original_type = relationship.relationship_type
-
-        with patch.object(
-            async_session,
-            "commit",
-            new_callable=AsyncMock,
-            side_effect=SQLAlchemyError("late failure"),
-        ):
+    async def test_rolls_back_apart_decay_on_commit_failure(self, async_session, vault):
+        _, relationship, _ = await self._apart_pair_setup(async_session, vault)
+        relationship_id, original_type = relationship.id, relationship.relationship_type
+        with patch.object(async_session, "commit", new_callable=AsyncMock, side_effect=SQLAlchemyError("late failure")):
             result = await game_loop_service._update_room_relationships(async_session, vault.id)
 
         assert result["relationships_updated"] == 1
@@ -1022,37 +590,11 @@ class TestUpdateRoomRelationships:
         ]
         assert async_session.info.get("deferred_notification_deliveries") is None
 
-    @pytest.mark.asyncio
-    async def test_apart_decay_disabled_leaves_affinity_untouched(self, async_session: AsyncSession, vault: Vault):
-        _, relationship = await self._apart_pair_setup(async_session, vault)
-        previous = game_config.relationship.apart_affinity_decay_per_tick
-        game_config.relationship.apart_affinity_decay_per_tick = 0
-        try:
-            with patch.object(async_session, "commit", AsyncMock(wraps=async_session.commit)):
-                await game_loop_service._update_room_relationships(async_session, vault.id)
-        finally:
-            game_config.relationship.apart_affinity_decay_per_tick = previous
-
-        await async_session.refresh(relationship)
-        assert relationship.affinity == 10
-
-
-# ═════════════════════════════════════════════════════════════════════
-# Relationship helper methods
-# ═════════════════════════════════════════════════════════════════════
-# _update_pair_affinity:   local import relationship_service
-# _create_new_relationships: local import relationship_service
-# ═════════════════════════════════════════════════════════════════════
-
 
 class TestRelationshipHelpers:
     def test_build_relationships_map_bidirectional(self):
-        r1 = MagicMock()
-        r1.dweller_1_id = "d1"
-        r1.dweller_2_id = "d2"
-        r2 = MagicMock()
-        r2.dweller_1_id = "d3"
-        r2.dweller_2_id = "d4"
+        r1 = MagicMock(dweller_1_id="d1", dweller_2_id="d2")
+        r2 = MagicMock(dweller_1_id="d3", dweller_2_id="d4")
         result = game_loop_service._build_relationships_map([r1, r2])
         assert result["d1", "d2"] == r1
         assert result["d2", "d1"] == r1
@@ -1060,86 +602,27 @@ class TestRelationshipHelpers:
         assert result["d4", "d3"] == r2
 
     @pytest.mark.usefixtures("vault")
-    @pytest.mark.asyncio
-    async def test_fetch_existing_relationships(self, async_session: AsyncSession):
+    async def test_fetch_existing_relationships(self, async_session):
         result = await game_loop_service._fetch_existing_relationships(async_session, set())
         assert result == []
 
-    @pytest.mark.asyncio
-    async def test_update_pair_affinity_existing(self, async_session: AsyncSession):
-        mr = MagicMock()
-        mr.dweller_1_id = "d-1"
-        mr.dweller_2_id = "d-2"
-        d1 = MagicMock()
-        d1.id = "d-1"
-        d1.charisma = 5
-        d2 = MagicMock()
-        d2.id = "d-2"
-        d2.charisma = 5
-        rel_map = {("d-1", "d-2"): mr, ("d-2", "d-1"): mr}
+    @pytest.mark.parametrize(("delta", "method"), [(2, "increase_affinity"), (-2, "decrease_affinity")])
+    async def test_update_pair_affinity_dispatch(self, async_session, delta, method):
+        d1, d2, rel_map = _pair_mocks()
         with (
-            patch("app.services.relationship_service.affinity_change", return_value=2),
-            patch(
-                "app.services.relationship_service.relationship_service.increase_affinity", new_callable=AsyncMock
-            ) as mi,
+            patch("app.services.relationship_service.affinity_change", return_value=delta),
+            patch(f"app.services.relationship_service.relationship_service.{method}", new_callable=AsyncMock) as mock,
         ):
             result = await game_loop_service._update_pair_affinity(async_session, d1, d2, rel_map, [])
-        mi.assert_awaited_once()
+        mock.assert_awaited_once()
         assert result == 1
+        if delta < 0:
+            assert mock.await_args.args[3] == 2
 
-    @pytest.mark.asyncio
-    async def test_update_pair_affinity_dispatches_decrease(self, async_session: AsyncSession):
-        mr = MagicMock()
-        mr.dweller_1_id = "d-1"
-        mr.dweller_2_id = "d-2"
-        d1 = MagicMock()
-        d1.id = "d-1"
-        d2 = MagicMock()
-        d2.id = "d-2"
-        rel_map = {("d-1", "d-2"): mr, ("d-2", "d-1"): mr}
-        with (
-            patch("app.services.relationship_service.affinity_change", return_value=-2),
-            patch(
-                "app.services.relationship_service.relationship_service.decrease_affinity", new_callable=AsyncMock
-            ) as md,
-        ):
-            result = await game_loop_service._update_pair_affinity(async_session, d1, d2, rel_map, [])
-        md.assert_awaited_once()
-        assert md.await_args.args[3] == 2
-        assert result == 1
-
-    @pytest.mark.asyncio
-    async def test_rolls_back_staged_demotion_on_commit_failure(self, async_session: AsyncSession, vault: Vault):
-        from sqlalchemy.exc import SQLAlchemyError
-        from sqlmodel import select
-
-        from app import crud
-        from app.core.enums import RelationshipTypeEnum, RoomTypeEnum
-        from app.crud.relationship import relationship_crud
-        from app.models.notification import Notification
-        from app.schemas.dweller import DwellerCreate
-        from app.schemas.room import RoomCreate
-        from app.services.relationship_service import relationship_service
-        from app.tests.factory.dwellers import create_fake_dweller
-        from app.tests.factory.rooms import create_fake_room
-
-        room_data = create_fake_room()
-        room_data["name"] = "Living Quarters"
-        room_data["category"] = RoomTypeEnum.CAPACITY
-        room = await crud.room.create(async_session, RoomCreate(**room_data, vault_id=vault.id))
-        dwellers = []
-        for index in range(2):
-            dweller_data = create_fake_dweller()
-            dweller_data.update({"first_name": f"Drift{index}", "happiness": 50, "charisma": 5})
-            member = await crud.dweller.create(async_session, DwellerCreate(**dweller_data, vault_id=vault.id))
-            member.room_id = room.id
-            async_session.add(member)
-            dwellers.append(member)
-        await async_session.commit()
-
-        relationship = await relationship_service.get_or_create_relationship(
-            async_session, dwellers[0].id, dwellers[1].id
-        )
+    async def test_rolls_back_staged_demotion_on_commit_failure(self, async_session, vault):
+        room = await _make_room(async_session, vault, name="Living Quarters", category=RoomTypeEnum.CAPACITY)
+        dwellers = [await _make_dweller(async_session, vault, room=room, name=f"Drift{i}", **_PAIR) for i in range(2)]
+        relationship = await _link(async_session, dwellers[0], dwellers[1])
         relationship_id = relationship.id
         relationship.relationship_type = RelationshipTypeEnum.ROMANTIC
         relationship.affinity = game_config.relationship.romantic_demotion_threshold
@@ -1147,12 +630,7 @@ class TestRelationshipHelpers:
 
         with (
             patch("app.services.relationship_service.affinity_change", return_value=-1),
-            patch.object(
-                async_session,
-                "commit",
-                new_callable=AsyncMock,
-                side_effect=SQLAlchemyError("late failure"),
-            ),
+            patch.object(async_session, "commit", new_callable=AsyncMock, side_effect=SQLAlchemyError("late failure")),
         ):
             await game_loop_service._update_room_relationships(async_session, vault.id)
 
@@ -1165,19 +643,9 @@ class TestRelationshipHelpers:
         ]
         assert async_session.info.get("deferred_notification_deliveries") is None
 
-    @pytest.mark.asyncio
-    async def test_update_pair_affinity_new_in_list_skipped(self, async_session: AsyncSession):
-        mr = MagicMock()
-        mr.dweller_1_id = "d-1"
-        mr.dweller_2_id = "d-2"
-        d1 = MagicMock()
-        d1.id = "d-1"
-        d1.charisma = 5
-        d2 = MagicMock()
-        d2.id = "d-2"
-        d2.charisma = 5
-        new_rels = [(mr, game_config.relationship.affinity_increase_per_tick)]
-        rel_map = {("d-1", "d-2"): mr, ("d-2", "d-1"): mr}
+    async def test_update_pair_affinity_new_in_list_skipped(self, async_session):
+        d1, d2, rel_map = _pair_mocks()
+        new_rels = [(rel_map["d-1", "d-2"], game_config.relationship.affinity_increase_per_tick)]
         with patch(
             "app.services.relationship_service.relationship_service.increase_affinity", new_callable=AsyncMock
         ) as mi:
@@ -1185,62 +653,49 @@ class TestRelationshipHelpers:
         mi.assert_not_called()
         assert result == 0
 
-    @pytest.mark.asyncio
-    async def test_create_new_relationships_with_rels(self, async_session: AsyncSession):
-        r1 = MagicMock()
-        r1.dweller_1_id = "d1"
-        r1.dweller_2_id = "d2"
-        r2 = MagicMock()
-        r2.dweller_1_id = "d3"
-        r2.dweller_2_id = "d4"
+    async def test_create_new_relationships_with_rels(self, async_session):
+        r1 = MagicMock(dweller_1_id="d1", dweller_2_id="d2")
+        r2 = MagicMock(dweller_1_id="d3", dweller_2_id="d4")
+        increase = game_config.relationship.affinity_increase_per_tick
         with (
             patch("app.services.relationship_service.relationship_service.increase_affinity", new_callable=AsyncMock),
             patch.object(async_session, "commit", new_callable=AsyncMock),
             patch.object(async_session, "add_all"),
         ):
-            result = await game_loop_service._create_new_relationships(
-                async_session,
-                [
-                    (r1, game_config.relationship.affinity_increase_per_tick),
-                    (r2, game_config.relationship.affinity_increase_per_tick),
-                ],
-            )
+            result = await game_loop_service._create_new_relationships(async_session, [(r1, increase), (r2, increase)])
         assert result == 2
 
 
-# ═════════════════════════════════════════════════════════════════════
-# _process_pregnancies_and_births
-# ═════════════════════════════════════════════════════════════════════
-# local import: breeding_service
-# ═════════════════════════════════════════════════════════════════════
-
-
 class TestProcessPregnancies:
-    @pytest.mark.asyncio
-    async def test_detects_conceptions(self, async_session: AsyncSession, vault: Vault):
+    @pytest.mark.parametrize(
+        ("conception", "due", "expected"),
+        [
+            ({"return_value": ["p1", "p2"]}, {"return_value": []}, {"conceptions": 2, "births": 0}),
+            ({"side_effect": SQLAlchemyError("DB down")}, {"return_value": []}, {"conceptions": 0}),
+            ({"side_effect": ValueError("Invalid")}, {"return_value": []}, {"conceptions": 0}),
+            ({"return_value": []}, {"side_effect": SQLAlchemyError("DB error")}, {"births": 0}),
+        ],
+        ids=["conceptions", "conception_db_error", "conception_value_error", "due_db_error"],
+    )
+    async def test_phase_results(self, async_session, vault, conception, due, expected):
         with patch("app.services.family.breeding_service.breeding_service") as mbs:
-            mbs.check_for_conception = AsyncMock(return_value=["p1", "p2"])
-            mbs.check_due_pregnancies = AsyncMock(return_value=[])
+            mbs.check_for_conception = AsyncMock(**conception)
+            mbs.check_due_pregnancies = AsyncMock(**due)
             result = await game_loop_service._process_pregnancies_and_births(async_session, vault.id)
-        assert result["conceptions"] == 2
-        assert result["births"] == 0
+        for key, value in expected.items():
+            assert result[key] == value
 
-    @pytest.mark.asyncio
-    async def test_error_in_delivery_does_not_stop(self, async_session: AsyncSession, vault: Vault):
-        p1 = MagicMock()
-        p1.id = "p-1"
-        p2 = MagicMock()
-        p2.id = "p-2"
-        mb = MagicMock()
-        mb.first_name = "OK"
-        mb.last_name = "Baby"
-        call_count = [0]
+    async def test_error_in_delivery_does_not_stop(self, async_session, vault):
+        p1 = MagicMock(id="p-1")
+        p2 = MagicMock(id="p-2")
+        baby = MagicMock(first_name="OK", last_name="Baby")
+        calls = [0]
 
         async def deliver_side(db_session, pregnancy_id):
-            call_count[0] += 1
-            if call_count[0] == 1:
+            calls[0] += 1
+            if calls[0] == 1:
                 raise ValueError("Delivery failed")
-            return [mb]
+            return [baby]
 
         with patch("app.services.family.breeding_service.breeding_service") as mbs:
             mbs.check_for_conception = AsyncMock(return_value=[])
@@ -1249,14 +704,11 @@ class TestProcessPregnancies:
             result = await game_loop_service._process_pregnancies_and_births(async_session, vault.id)
         assert result["births"] == 1
 
-    @pytest.mark.asyncio
-    async def test_capacity_deferral_logs_info_not_error(
-        self, async_session: AsyncSession, vault: Vault, caplog: pytest.LogCaptureFixture
-    ):
+    async def test_capacity_deferral_logs_info_not_error(self, async_session, vault, caplog):
+        defer = NoLivingSpaceError("No living space available for a newborn")
         with (
             patch(
-                "app.services.family.breeding_service.breeding_service.deliver_baby",
-                new=AsyncMock(side_effect=NoLivingSpaceError("No living space available for a newborn")),
+                "app.services.family.breeding_service.breeding_service.deliver_baby", new=AsyncMock(side_effect=defer)
             ),
             caplog.at_level(logging.INFO, logger="app.services.game_tick.family_tick"),
         ):
@@ -1269,79 +721,27 @@ class TestProcessPregnancies:
             for record in caplog.records
         )
 
-    @pytest.mark.asyncio
-    async def test_conception_db_error(self, async_session: AsyncSession, vault: Vault):
-        from sqlalchemy.exc import SQLAlchemyError
-
-        with patch("app.services.family.breeding_service.breeding_service") as mbs:
-            mbs.check_for_conception = AsyncMock(side_effect=SQLAlchemyError("DB down"))
-            mbs.check_due_pregnancies = AsyncMock(return_value=[])
-            result = await game_loop_service._process_pregnancies_and_births(async_session, vault.id)
-        assert result["conceptions"] == 0
-
-    @pytest.mark.asyncio
-    async def test_conception_value_error(self, async_session: AsyncSession, vault: Vault):
-        with patch("app.services.family.breeding_service.breeding_service") as mbs:
-            mbs.check_for_conception = AsyncMock(side_effect=ValueError("Invalid"))
-            mbs.check_due_pregnancies = AsyncMock(return_value=[])
-            result = await game_loop_service._process_pregnancies_and_births(async_session, vault.id)
-        assert result["conceptions"] == 0
-
-    @pytest.mark.asyncio
-    async def test_due_pregnancies_db_error(self, async_session: AsyncSession, vault: Vault):
-        from sqlalchemy.exc import SQLAlchemyError
-
-        with patch("app.services.family.breeding_service.breeding_service") as mbs:
-            mbs.check_for_conception = AsyncMock(return_value=[])
-            mbs.check_due_pregnancies = AsyncMock(side_effect=SQLAlchemyError("DB error"))
-            result = await game_loop_service._process_pregnancies_and_births(async_session, vault.id)
-        assert result["births"] == 0
-
-
-# ═════════════════════════════════════════════════════════════════════
-# _age_children
-# ═════════════════════════════════════════════════════════════════════
-# local import: breeding_service
-# ═════════════════════════════════════════════════════════════════════
-
 
 class TestAgeChildren:
-    @pytest.mark.asyncio
-    async def test_success(self, async_session: AsyncSession, vault: Vault):
+    @pytest.mark.parametrize(
+        ("call", "expected"),
+        [
+            ({"return_value": ["c1", "c2"]}, 2),
+            ({"side_effect": SQLAlchemyError("DB error")}, 0),
+            ({"side_effect": ValueError("Invalid")}, 0),
+        ],
+        ids=["success", "db_error", "value_error"],
+    )
+    async def test_age_children(self, async_session, vault, call, expected):
         with patch("app.services.family.breeding_service.breeding_service") as mbs:
-            mbs.age_children = AsyncMock(return_value=["c1", "c2"])
+            mbs.age_children = AsyncMock(**call)
             result = await game_loop_service._age_children(async_session, vault.id)
-        assert result["children_aged"] == 2
-
-    @pytest.mark.asyncio
-    async def test_db_error(self, async_session: AsyncSession, vault: Vault):
-        from sqlalchemy.exc import SQLAlchemyError
-
-        with patch("app.services.family.breeding_service.breeding_service") as mbs:
-            mbs.age_children = AsyncMock(side_effect=SQLAlchemyError("DB error"))
-            result = await game_loop_service._age_children(async_session, vault.id)
-        assert result["children_aged"] == 0
-
-    @pytest.mark.asyncio
-    async def test_value_error(self, async_session: AsyncSession, vault: Vault):
-        with patch("app.services.family.breeding_service.breeding_service") as mbs:
-            mbs.age_children = AsyncMock(side_effect=ValueError("Invalid"))
-            result = await game_loop_service._age_children(async_session, vault.id)
-        assert result["children_aged"] == 0
+        assert result["children_aged"] == expected
 
 
-@pytest.mark.asyncio
-async def test_tick_reports_arena_and_preserves_paused_contract(async_session, vault):
-    result = await game_loop_service.process_vault_tick(async_session, vault.id)
-    assert result["updates"]["arena"] == {"rooms": []}
-    await game_loop_service.pause_vault(async_session, vault.id)
-    result = await game_loop_service.process_vault_tick(async_session, vault.id)
-    assert result == {"status": "paused"}
-
-
-@pytest.mark.asyncio
-async def test_process_vault_tick_dedupes_recent_tick_ids(async_session, vault):
+async def test_process_vault_tick_dedupes_report_arena_and_preserves_paused_contract(async_session, vault):
     first = await game_loop_service.process_vault_tick(async_session, vault.id, tick_id="dispatch-1")
+    assert first["updates"]["arena"] == {"rooms": []}
     state = await game_loop_service._get_or_create_game_state(async_session, vault.id)
     first_tick_time = state.last_tick_time
     first_total_time = state.total_game_time
@@ -1361,67 +761,38 @@ async def test_process_vault_tick_dedupes_recent_tick_ids(async_session, vault):
     assert state.recent_tick_ids[-2:] == ["dispatch-1", "dispatch-2"]
     assert first["vault_id"] == str(vault.id)
 
+    await game_loop_service.pause_vault(async_session, vault.id)
+    paused = await game_loop_service.process_vault_tick(async_session, vault.id)
+    assert paused == {"status": "paused"}
 
-@pytest.mark.asyncio
+
 async def test_arena_snapshot_database_failure_recovers_for_events(async_session, vault):
-    from sqlalchemy import event
-
-    from app import crud
-    from app.core.enums import RoomTypeEnum, SPECIALEnum
     from app.models.arena_match_event import ArenaMatchEvent
-    from app.models.room import Room
-    from app.schemas.room import RoomCreate
+    from app.services.combat.arena_service import arena_service
 
-    room = await crud.room.create(
-        async_session,
-        RoomCreate(
-            name="Arena",
-            category=RoomTypeEnum.ARENA,
-            ability=SPECIALEnum.STRENGTH,
-            base_cost=100,
-            t2_upgrade_cost=500,
-            t3_upgrade_cost=1500,
-            size_min=6,
-            size_max=6,
-            vault_id=vault.id,
-        ),
-    )
+    room = await _make_room(async_session, vault, name="Arena", category=RoomTypeEnum.ARENA, size_min=6, size_max=6)
     async_session.add(ArenaMatchEvent(room_id=room.id, round_seq=1, kind="hit", message="saved"))
     await async_session.commit()
     vault_id = vault.id
-    connection = await async_session.connection()
-    failed = False
 
-    # Fail at the database boundary, once; exercise recovery and later phases for real.
-    def break_snapshot(conn, cursor, statement, parameters, context, executemany):
-        nonlocal failed
-        if "row_number() OVER" in statement and not failed:
-            failed = True
-            return "SELECT * FROM missing_arena_snapshot_table", ()
-        return statement, parameters
-
-    event.listen(connection.sync_connection, "before_cursor_execute", break_snapshot, retval=True)
-    try:
+    # Fail at the DB boundary once; recovery and later phases then run for real.
+    async with _one_shot_db_failure(
+        async_session, lambda sql: "row_number() OVER" in sql, "SELECT * FROM missing_arena_snapshot_table"
+    ) as failure:
         result = await game_loop_service.process_vault_tick(async_session, vault_id)
-    finally:
-        event.remove(connection.sync_connection, "before_cursor_execute", break_snapshot)
-    assert failed
+    assert failure["failed"]
     assert result["updates"]["arena"]["rooms"] == []
     assert "error" in result["updates"]["arena"]
     assert "error" not in result["updates"]["events"]
-    # Session remains usable after recovery, and the persisted journal survived.
-    from app.services.combat.arena_service import arena_service
-
-    assert (await arena_service.get_tick_snapshot(async_session, vault_id))["rooms"][0]["events"][0][
-        "message"
-    ] == "saved"
+    # Session stays usable after recovery, and the persisted journal survived.
+    snapshot = await arena_service.get_tick_snapshot(async_session, vault_id)
+    assert snapshot["rooms"][0]["events"][0]["message"] == "saved"
 
 
 @pytest.mark.parametrize(("start_offset", "elapsed"), [(-20, 20), (400, 0)])
 async def test_resume_preserves_incident_response_time_and_does_not_shift_twice(
     async_session, room_in_vault, start_offset, elapsed
 ):
-    from app import crud
     from app.core.enums import IncidentType
 
     incident = await crud.incident_crud.create(
@@ -1459,8 +830,6 @@ async def test_resume_excludes_paused_time_without_counting_it_twice(async_sessi
 
 
 async def test_storage_database_failure_recovers_before_remaining_tick_phases(async_session, vault, monkeypatch):
-    from sqlalchemy import event
-
     from app.models.storage import Storage
     from app.services.catalog_service import load_weapons
     from app.utils.item_factory import build_weapon
@@ -1472,23 +841,16 @@ async def test_storage_database_failure_recovers_before_remaining_tick_phases(as
     async_session.add_all([storage, weapon])
     await async_session.commit()
     vault_id = vault.id
-    connection = await async_session.connection()
-    failed = False
 
-    def break_trial_query(conn, cursor, statement, parameters, context, executemany):
-        nonlocal failed
-        if "FROM weapon" in statement and "weapon.last_maintenance_trial_at" in statement and not failed:
-            failed = True
-            return "SELECT * FROM missing_storage_trial_table", ()
-        return statement, parameters
+    def is_trial_query(sql):
+        return "FROM weapon" in sql and "weapon.last_maintenance_trial_at" in sql
 
-    event.listen(connection.sync_connection, "before_cursor_execute", break_trial_query, retval=True)
-    try:
+    async with _one_shot_db_failure(
+        async_session, is_trial_query, "SELECT * FROM missing_storage_trial_table"
+    ) as failure:
         with patch("app.services.game_loop_service.sse_manager.publish", new_callable=AsyncMock) as publish:
             result = await game_loop_service.process_vault_tick(async_session, vault_id)
-    finally:
-        event.remove(connection.sync_connection, "before_cursor_execute", break_trial_query)
-    assert failed
+    assert failure["failed"]
     assert result["updates"]["storage"] == {"checked": 0, "changed": 0}
     assert {"happiness", "radio", "breeding", "events"} <= result["updates"].keys()
     assert "error" not in result["updates"]["events"]

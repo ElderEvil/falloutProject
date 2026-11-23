@@ -4,8 +4,8 @@ import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
-from app.core.enums import AgeGroupEnum, GenderEnum, RarityEnum
-from app.models.dweller import Dweller
+from app.core.enums import AgeGroupEnum, GenderEnum, RarityEnum, RelationshipTypeEnum
+from app.models.relationship import Relationship
 from app.models.vault import Vault
 from app.schemas.dweller import DwellerCreate
 from app.services.family.lineage_service import lineage_service
@@ -14,74 +14,34 @@ from app.services.family.lineage_service import lineage_service
 async def _make_dweller(
     async_session: AsyncSession,
     vault: Vault,
-    *,
     first_name: str = "Test",
     gender: GenderEnum = GenderEnum.MALE,
-    parent_1_id: UUID | None = None,
-    parent_2_id: UUID | None = None,
-    partner_id: UUID | None = None,
-) -> Dweller:
-    """Create a dweller with explicit lineage links for testing.
-
-    Note: ``DwellerCreate`` does not expose parent/partner links, so they are
-    assigned on the persisted ORM object after creation (matching how gameplay
-    sets them via the relationship/breeding services).
-    """
-    dweller_in = DwellerCreate(
-        first_name=first_name,
-        last_name="Dweller",
-        gender=gender,
-        rarity=RarityEnum.COMMON,
-        age_group=AgeGroupEnum.ADULT,
-        level=1,
-        experience=0,
-        max_health=100,
-        health=100,
-        radiation=0,
-        happiness=50,
-        strength=1,
-        perception=1,
-        endurance=1,
-        charisma=1,
-        intelligence=1,
-        agility=1,
-        luck=1,
-        vault_id=vault.id,
+    **links: UUID | None,
+):
+    dweller = await crud.dweller.create(
+        async_session,
+        obj_in=DwellerCreate(
+            first_name=first_name,
+            last_name="Dweller",
+            gender=gender,
+            rarity=RarityEnum.COMMON,
+            age_group=AgeGroupEnum.ADULT,
+            vault_id=vault.id,
+        ),
     )
-    dweller = await crud.dweller.create(db_session=async_session, obj_in=dweller_in)
-    if parent_1_id is not None:
-        dweller.parent_1_id = parent_1_id
-    if parent_2_id is not None:
-        dweller.parent_2_id = parent_2_id
-    if partner_id is not None:
-        dweller.partner_id = partner_id
-    if parent_1_id is not None or parent_2_id is not None or partner_id is not None:
+    for field, value in links.items():
+        setattr(dweller, field, value)
+    if links:
         await async_session.commit()
         await async_session.refresh(dweller)
     return dweller
 
 
-@pytest.mark.asyncio
-async def test_lineage_siblings(
-    async_session: AsyncSession,
-    vault: Vault,
-) -> None:
-    parent_a = await _make_dweller(async_session, vault, first_name="ParentA")
-    parent_b = await _make_dweller(async_session, vault, first_name="ParentB")
-    sib_1 = await _make_dweller(
-        async_session,
-        vault,
-        first_name="Sib1",
-        parent_1_id=parent_a.id,
-        parent_2_id=parent_b.id,
-    )
-    sib_2 = await _make_dweller(
-        async_session,
-        vault,
-        first_name="Sib2",
-        parent_1_id=parent_a.id,
-        parent_2_id=parent_b.id,
-    )
+async def test_lineage_siblings(async_session: AsyncSession, vault: Vault) -> None:
+    parent_a = await _make_dweller(async_session, vault, "ParentA")
+    parent_b = await _make_dweller(async_session, vault, "ParentB")
+    sib_1 = await _make_dweller(async_session, vault, "Sib1", parent_1_id=parent_a.id, parent_2_id=parent_b.id)
+    sib_2 = await _make_dweller(async_session, vault, "Sib2", parent_1_id=parent_a.id, parent_2_id=parent_b.id)
 
     lineage = await lineage_service.get_lineage(async_session, sib_1.id)
 
@@ -89,16 +49,9 @@ async def test_lineage_siblings(
     assert lineage.children == []
 
 
-@pytest.mark.asyncio
-async def test_lineage_partner_context_reports_stage_and_affinity(
-    async_session: AsyncSession,
-    vault: Vault,
-) -> None:
-    from app.core.enums import RelationshipTypeEnum
-    from app.models.relationship import Relationship
-
-    d1 = await _make_dweller(async_session, vault, first_name="D1", gender=GenderEnum.MALE)
-    d2 = await _make_dweller(async_session, vault, first_name="D2", gender=GenderEnum.FEMALE)
+async def test_lineage_partner_context_reports_stage_and_affinity(async_session: AsyncSession, vault: Vault) -> None:
+    d1 = await _make_dweller(async_session, vault, "D1")
+    d2 = await _make_dweller(async_session, vault, "D2", gender=GenderEnum.FEMALE)
     d1.partner_id = d2.id
     d2.partner_id = d1.id
     async_session.add(
@@ -122,34 +75,25 @@ async def test_lineage_partner_context_reports_stage_and_affinity(
     assert partner.age_group == AgeGroupEnum.ADULT
 
 
-@pytest.mark.asyncio
-async def test_lineage_excludes_soft_deleted_ancestors(
-    async_session: AsyncSession,
-    vault: Vault,
-) -> None:
-    """Soft-deleted parents are omitted from the lineage and do not count toward
-    the generation number."""
-    grandparent = await _make_dweller(async_session, vault, first_name="GrandParent")
-    deleted_parent = await _make_dweller(async_session, vault, first_name="DeletedParent", parent_1_id=grandparent.id)
+async def test_lineage_excludes_soft_deleted_ancestors(async_session: AsyncSession, vault: Vault) -> None:
+    # Soft-deleted parents are omitted from the lineage and do not count toward the generation number.
+    grandparent = await _make_dweller(async_session, vault, "GrandParent")
+    deleted_parent = await _make_dweller(async_session, vault, "DeletedParent", parent_1_id=grandparent.id)
     await crud.dweller.delete(db_session=async_session, id=deleted_parent.id, soft=True)
-    child = await _make_dweller(async_session, vault, first_name="Child", parent_1_id=deleted_parent.id)
+    child = await _make_dweller(async_session, vault, "Child", parent_1_id=deleted_parent.id)
 
     lineage = await lineage_service.get_lineage(async_session, child.id)
 
-    # The deleted parent is omitted from the results and its own ancestor chain
-    # is not followed, so the child reports generation 0 (orphan) with no parents.
+    # The deleted parent's own ancestor chain is not followed: the child is an orphan at generation 0.
     assert lineage.parents == []
     assert lineage.generation == 0
 
 
-@pytest.mark.asyncio
 async def test_lineage_keeps_parent_slot_order(async_session: AsyncSession, vault: Vault):
-    """parent_1 must stay first: the batched parent query has no ORDER BY."""
-    parent_1 = await _make_dweller(async_session, vault, first_name="Alpha")
-    parent_2 = await _make_dweller(async_session, vault, first_name="Beta", gender=GenderEnum.FEMALE)
-    child = await _make_dweller(
-        async_session, vault, first_name="Child", parent_1_id=parent_1.id, parent_2_id=parent_2.id
-    )
+    # parent_1 must stay first: the batched parent query has no ORDER BY.
+    parent_1 = await _make_dweller(async_session, vault, "Alpha")
+    parent_2 = await _make_dweller(async_session, vault, "Beta", gender=GenderEnum.FEMALE)
+    child = await _make_dweller(async_session, vault, "Child", parent_1_id=parent_1.id, parent_2_id=parent_2.id)
 
     lineage = await lineage_service.get_lineage(async_session, child.id)
 

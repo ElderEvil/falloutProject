@@ -433,8 +433,10 @@ class NotificationService:
             if commit:
                 await NotificationService._commit_and_deliver_transaction(db)
         except BaseException:
-            # Undelivered notices for rows the caller's transaction may still discard.
             NotificationService.discard_deferred_notifications(db)
+            if commit:
+                # This call owns the transaction, so its staged rows must not survive the raise.
+                await db.rollback()
             raise
         return notification
 

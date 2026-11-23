@@ -779,11 +779,14 @@ async def create_initial_items(
     outfits = [build_outfit(data, data["rarity"], storage.id) for data in SEED_OUTFITS]
     if is_boosted:
         outfits.extend(build_boosted_outfits(storage.id))
-    await weapon_crud.create_many(db_session, weapons, commit=commit)
-    await outfit_crud.create_many(db_session, outfits, commit=commit)
+    # Stage every row before committing so ``commit`` covers the boosted seeds too.
+    await weapon_crud.create_many(db_session, weapons, commit=False)
+    await outfit_crud.create_many(db_session, outfits, commit=False)
     if is_boosted:
         await seed_boosted_junk(db_session, storage.id)
         await seed_boosted_pets(db_session, vault_id, storage.id)
+    if commit:
+        await db_session.commit()
     logger.info(f"Created initial items for vault {vault_id}")
 
 

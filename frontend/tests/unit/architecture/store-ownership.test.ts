@@ -220,9 +220,11 @@ function findWrites(content: string, name: string): number[] {
   const patterns: RegExp[] = [
     // Assigning a property on the store or one of its refs: `store.x = ...`, `ref.value = ...`
     new RegExp(`(?<![\\w$.])${identifier}(?![\\w$])${chain}\\s*(?:=|\\+=|-=)(?!=|>)`, 'g'),
-    // In-place mutation of an array owned by / exposed from the store.
+    // In-place mutation of an array owned by / exposed from the store, or a
+    // direct state patch: `store.$patch({ x: 1 })`. Like the array methods a
+    // `$patch` call may hang off a bare alias (no intermediate property step).
     new RegExp(
-      `(?<![\\w$.])${identifier}(?![\\w$])${mutationChain}\\s*\\.\\s*(?:push|splice|sort)\\s*\\(`,
+      `(?<![\\w$.])${identifier}(?![\\w$])${mutationChain}\\s*\\.\\s*(?:push|splice|sort|pop|shift|unshift|\\$patch)\\s*\\(`,
       'g'
     ),
   ]
@@ -512,5 +514,58 @@ describe('scanCrossStoreWrites fixtures', () => {
     ])
 
     expect(found.get('src/modules/rooms/composables/useDwellerRoster.ts -> useDwellerStore')).toBe(3)
+  })
+
+  it('flags a $patch call on another module\'s store', () => {
+    const found = scanCrossStoreWrites([
+      {
+        path: 'src/modules/chat/components/QuickBuild.vue',
+        content: `
+          <script setup lang="ts">
+          import { useRoomStore } from '@/modules/rooms/stores/room'
+          const roomStore = useRoomStore()
+          function clearSelection() {
+            roomStore.$patch({ selectedRoom: null })
+          }
+          </script>
+        `,
+      },
+    ])
+
+    expect([...found]).toEqual([['src/modules/chat/components/QuickBuild.vue -> useRoomStore', 1]])
+  })
+
+  it('flags a bare .pop() on a destructured store array', () => {
+    const found = scanCrossStoreWrites([
+      {
+        path: 'src/modules/rooms/composables/useDwellerRoster.ts',
+        content: `
+          import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
+          export function dropLast() {
+            const { dwellers } = useDwellerStore()
+            dwellers.pop()
+          }
+        `,
+      },
+    ])
+
+    expect(found.get('src/modules/rooms/composables/useDwellerRoster.ts -> useDwellerStore')).toBe(1)
+  })
+
+  it('flags an .unshift() on a store ref across modules', () => {
+    const found = scanCrossStoreWrites([
+      {
+        path: 'src/modules/chat/composables/useChatActions.ts',
+        content: `
+          import { storeToRefs } from 'pinia'
+          import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
+          const dwellerStore = useDwellerStore()
+          const { filter } = storeToRefs(dwellerStore)
+          filter.value.dwellers.unshift(entry)
+        `,
+      },
+    ])
+
+    expect(found.get('src/modules/chat/composables/useChatActions.ts -> useDwellerStore')).toBe(1)
   })
 })

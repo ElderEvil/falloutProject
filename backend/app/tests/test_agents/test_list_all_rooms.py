@@ -4,20 +4,12 @@ import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
-from app.agents.dweller_chat_agent import (
-    DwellerChatDeps,
-    RoomInfo,
-    dweller_chat_agent,
-    list_all_rooms,
-)
+from app.agents.dweller_chat_agent import DwellerChatDeps, RoomInfo, dweller_chat_agent, list_all_rooms
 from app.core.enums import RoomTypeEnum, SPECIALEnum
 from app.models.vault import Vault
 from app.schemas.dweller import DwellerCreate
 from app.schemas.room import RoomCreate
 from app.tests.factory.dwellers import create_fake_dweller
-
-pytestmark = pytest.mark.asyncio(scope="module")
-
 
 ROOM_DEFAULTS = {
     "base_cost": 100,
@@ -34,9 +26,9 @@ ROOM_DEFAULTS = {
 
 
 async def _create_room(session: AsyncSession, vault_id, config: dict):
-    data = {**ROOM_DEFAULTS, **config, "vault_id": vault_id}
-    room_in = RoomCreate(**data)
-    return await crud.room.create(db_session=session, obj_in=room_in)
+    return await crud.room.create(
+        db_session=session, obj_in=RoomCreate(**{**ROOM_DEFAULTS, **config, "vault_id": vault_id})
+    )
 
 
 def _make_ctx(db_session: AsyncSession, vault: Vault) -> MagicMock:
@@ -45,46 +37,34 @@ def _make_ctx(db_session: AsyncSession, vault: Vault) -> MagicMock:
     return ctx
 
 
-@pytest.mark.asyncio
-class TestListAllRoomsRoomInfoStructure:
-    async def test_room_info_fields_correct(
-        self,
-        async_session: AsyncSession,
-        vault: Vault,
-    ):
-        room = await _create_room(
-            async_session,
-            vault.id,
-            {
-                "name": "Test Diner",
-                "category": RoomTypeEnum.PRODUCTION,
-                "ability": SPECIALEnum.AGILITY,
-                "size": 6,
-                "size_min": 3,
-                "size_max": 9,
-                "coordinate_y": 22,
-            },
-        )
-
-        dweller_data = create_fake_dweller()
-        dweller_in = DwellerCreate(**dweller_data, vault_id=vault.id)
-        d = await crud.dweller.create(db_session=async_session, obj_in=dweller_in)
-        d.room_id = room.id
-        async_session.add(d)
-        await async_session.flush()
-
-        ctx = _make_ctx(async_session, vault)
-        result = await list_all_rooms(ctx)
-
-        info = next(r for r in result if r.room_id == str(room.id))
-
-        assert isinstance(info, RoomInfo)
-        assert info.room_id == str(room.id)
-        assert info.name == "Test Diner"
-        assert info.category == RoomTypeEnum.PRODUCTION.value
-        assert info.current_dwellers == 1
-        assert info.max_capacity == 4
-        assert info.ability == SPECIALEnum.AGILITY.value
+async def test_room_info_fields_correct(async_session: AsyncSession, vault: Vault):
+    room = await _create_room(
+        async_session,
+        vault.id,
+        {
+            "name": "Test Diner",
+            "category": RoomTypeEnum.PRODUCTION,
+            "ability": SPECIALEnum.AGILITY,
+            "size": 6,
+            "size_min": 3,
+            "size_max": 9,
+            "coordinate_y": 22,
+        },
+    )
+    d = await crud.dweller.create(
+        db_session=async_session, obj_in=DwellerCreate(**create_fake_dweller(), vault_id=vault.id)
+    )
+    d.room_id = room.id
+    async_session.add(d)
+    await async_session.flush()
+    result = await list_all_rooms(_make_ctx(async_session, vault))
+    info = next(r for r in result if r.room_id == str(room.id))
+    assert isinstance(info, RoomInfo)
+    assert ((info.room_id, info.name), (info.category, info.current_dwellers)) == (
+        (str(room.id), "Test Diner"),
+        (RoomTypeEnum.PRODUCTION.value, 1),
+    )
+    assert (info.max_capacity, info.ability) == (4, SPECIALEnum.AGILITY.value)
 
 
 async def _registered_tool_names() -> set[str]:
@@ -93,14 +73,8 @@ async def _registered_tool_names() -> set[str]:
     from pydantic_ai.usage import RunUsage
 
     ctx = RunContext(
-        deps=MagicMock(spec=DwellerChatDeps),
-        model=TestModel(),
-        usage=RunUsage(),
-        prompt="",
-        messages=[],
-        run_step=0,
+        deps=MagicMock(spec=DwellerChatDeps), model=TestModel(), usage=RunUsage(), prompt="", messages=[], run_step=0
     )
-
     names: set[str] = set()
     for toolset in dweller_chat_agent.toolsets:
         names.update((await toolset.get_tools(ctx)).keys())
@@ -118,14 +92,8 @@ EXPECTED_CHAT_TOOLS = {
 }
 
 
-@pytest.mark.asyncio
-class TestListAllRoomsToolRegistration:
-    async def test_tool_is_registered(self):
-        names = await _registered_tool_names()
-
-        assert "list_all_rooms" in names, f"list_all_rooms not found in agent tools. Registered: {sorted(names)}"
-
-    async def test_expected_tools_are_registered(self):
-        missing = EXPECTED_CHAT_TOOLS - await _registered_tool_names()
-
-        assert not missing, f"Expected chat tools missing from the agent: {sorted(missing)}"
+async def test_expected_tools_are_registered():
+    names = await _registered_tool_names()
+    assert "list_all_rooms" in names, f"list_all_rooms not found in agent tools. Registered: {sorted(names)}"
+    missing = EXPECTED_CHAT_TOOLS - names
+    assert not missing, f"Expected chat tools missing from the agent: {sorted(missing)}"

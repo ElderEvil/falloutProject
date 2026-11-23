@@ -14,6 +14,10 @@ from app.schemas.dweller import DwellerCreate
 from app.utils.time import utcnow
 
 
+def _conversation(user_id, vault_id, dweller_id, **extra) -> Conversation:
+    return Conversation(vault_id=vault_id, user_id=user_id, dweller_id=dweller_id, **extra)
+
+
 async def _pair(async_session: AsyncSession, vault: Vault) -> tuple:
     await async_session.refresh(vault, ["user"])
     return vault.user.id, vault.id
@@ -21,9 +25,8 @@ async def _pair(async_session: AsyncSession, vault: Vault) -> tuple:
 
 async def test_conversation_defaults_and_uuid7_id(async_session: AsyncSession, vault: Vault, dweller: Dweller) -> None:
     user_id, vault_id = await _pair(async_session, vault)
-    conversation = Conversation(vault_id=vault_id, user_id=user_id, dweller_id=dweller.id)
-    assert conversation.id.version == 7
-    assert conversation.message_count == 0
+    conversation = _conversation(user_id, vault_id, dweller.id)
+    assert (conversation.id.version, conversation.message_count) == (7, 0)
     assert conversation.summary is None
     assert conversation.summary_through_message_id is None
     assert conversation.last_message_at is None
@@ -35,12 +38,12 @@ async def test_conversation_defaults_and_uuid7_id(async_session: AsyncSession, v
 
 
 async def test_conversation_unique_pair_rejects_duplicate(
-    async_session: AsyncSession, vault: Vault, dweller: Dweller
+    async_session: AsyncSession, vault: Vault, dweller: Dweller, dweller_data: dict
 ) -> None:
     user_id, vault_id = await _pair(async_session, vault)
-    async_session.add(Conversation(vault_id=vault_id, user_id=user_id, dweller_id=dweller.id))
+    async_session.add(_conversation(user_id, vault_id, dweller.id))
     await async_session.commit()
-    async_session.add(Conversation(vault_id=vault_id, user_id=user_id, dweller_id=dweller.id))
+    async_session.add(_conversation(user_id, vault_id, dweller.id))
     with pytest.raises(IntegrityError):
         await async_session.flush()
     await async_session.rollback()
@@ -51,8 +54,8 @@ async def test_conversation_allows_same_user_with_other_dweller(
 ) -> None:
     user_id, vault_id = await _pair(async_session, vault)
     other = await crud.dweller.create(async_session, obj_in=DwellerCreate(**dweller_data, vault_id=vault_id))
-    async_session.add(Conversation(vault_id=vault_id, user_id=user_id, dweller_id=dweller.id))
-    async_session.add(Conversation(vault_id=vault_id, user_id=user_id, dweller_id=other.id))
+    async_session.add(_conversation(user_id, vault_id, dweller.id))
+    async_session.add(_conversation(user_id, vault_id, other.id))
     await async_session.flush()
 
 
@@ -61,13 +64,8 @@ async def test_conversation_context_round_trips_json(
 ) -> None:
     user_id, vault_id = await _pair(async_session, vault)
     context = {"id": str(uuid7()), "messages": [{"kind": "request", "parts": [{"content": "hi"}]}]}
-    conversation = Conversation(
-        vault_id=vault_id,
-        user_id=user_id,
-        dweller_id=dweller.id,
-        context=context,
-        last_message_at=utcnow(),
-        message_count=2,
+    conversation = _conversation(
+        user_id, vault_id, dweller.id, context=context, last_message_at=utcnow(), message_count=2
     )
     async_session.add(conversation)
     await async_session.commit()
@@ -76,15 +74,14 @@ async def test_conversation_context_round_trips_json(
     reloaded = await async_session.get(Conversation, conversation_id)
     if reloaded is None:
         raise AssertionError("conversation row vanished after commit")
-    assert reloaded.context == context
-    assert reloaded.message_count == 2
+    assert (reloaded.context, reloaded.message_count) == (context, 2)
     assert reloaded.last_message_at is not None
     assert reloaded.last_message_at.tzinfo is not None
 
 
 async def test_chat_message_links_to_conversation(async_session: AsyncSession, vault: Vault, dweller: Dweller) -> None:
     user_id, vault_id = await _pair(async_session, vault)
-    conversation = Conversation(vault_id=vault_id, user_id=user_id, dweller_id=dweller.id)
+    conversation = _conversation(user_id, vault_id, dweller.id)
     async_session.add(conversation)
     await async_session.flush()
     message = await chat_message_crud.create_message(

@@ -26,14 +26,7 @@ def test_effective_max_health_includes_equipped_pet_bonus() -> None:
     dweller.pet = Pet(name="Dogmeat (Fallout 4)", rarity="Legendary")
     pet_bonus = PET_EFFECT_BY_NAME["dogmeat (fallout 4)"].max_health
     assert dweller.effective_max_health == max(1, 100 + pet_bonus - 40)
-
-
-def test_effective_max_health_unchanged_without_pet() -> None:
-    dweller = _dweller()
-    assert dweller.effective_max_health == max(1, 100 - 40)
-
-
-def test_effective_max_health_floor_still_applies_with_pet() -> None:
-    dweller = _dweller(max_health=10, radiation=100)
-    dweller.pet = Pet(name="St. Bernard", rarity="Legendary")
-    assert dweller.effective_max_health == 1
+    assert _dweller().effective_max_health == max(1, 100 - 40)
+    floored = _dweller(max_health=10, radiation=100)
+    floored.pet = Pet(name="St. Bernard", rarity="Legendary")
+    assert floored.effective_max_health == 1

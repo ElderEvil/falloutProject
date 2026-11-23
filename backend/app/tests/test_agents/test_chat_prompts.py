@@ -17,71 +17,63 @@ from app.agents.chat_tools import load_family_members
 from app.core.enums import AgeGroupEnum, GenderEnum, RarityEnum
 from app.services.chat.agent_runner import build_dweller_prompt
 
+BASE = {
+    "first_name": "Nora",
+    "last_name": "Kell",
+    "level": 22,
+    "gender": GenderEnum.FEMALE,
+    "age_group": AgeGroupEnum.ADULT,
+    "rarity": RarityEnum.COMMON,
+    "room": SimpleNamespace(name="Science Lab"),
+    "outfit": SimpleNamespace(name="Vault Suit"),
+    "weapon": SimpleNamespace(name="10mm Pistol"),
+    "health": 50,
+    "max_health": 50,
+    "radiation": 0,
+    "stimpack": 2,
+    "radaway": 1,
+    "happiness": 62,
+    "vault": SimpleNamespace(
+        number=101, happiness=70, power=20, power_max=30, food=25, food_max=30, water=18, water_max=30
+    ),
+    "bio": "Two hundred years and a face that remembers all of them.",
+    "visual_attributes": {"race": "ghoul", "state_of_being": "sane"},
+    "strength": 4,
+    "perception": 5,
+    "endurance": 6,
+    "charisma": 3,
+    "intelligence": 5,
+    "agility": 3,
+    "luck": 4,
+}
+
 
 def _dweller(**overrides: object) -> SimpleNamespace:
-    """Smallest object shape both prompt builders read."""
-    attrs: dict[str, object] = {
-        "first_name": "Nora",
-        "last_name": "Kell",
-        "level": 22,
-        "gender": GenderEnum.FEMALE,
-        "age_group": AgeGroupEnum.ADULT,
-        "rarity": RarityEnum.COMMON,
-        "room": SimpleNamespace(name="Science Lab"),
-        "outfit": SimpleNamespace(name="Vault Suit"),
-        "weapon": SimpleNamespace(name="10mm Pistol"),
-        "health": 50,
-        "max_health": 50,
-        "radiation": 0,
-        "stimpack": 2,
-        "radaway": 1,
-        "happiness": 62,
-        "vault": SimpleNamespace(
-            number=101, happiness=70, power=20, power_max=30, food=25, food_max=30, water=18, water_max=30
-        ),
-        "bio": "Two hundred years and a face that remembers all of them.",
-        "visual_attributes": {"race": "ghoul", "state_of_being": "sane"},
-        "strength": 4,
-        "perception": 5,
-        "endurance": 6,
-        "charisma": 3,
-        "intelligence": 5,
-        "agility": 3,
-        "luck": 4,
-    }
-    attrs.update(overrides)
-    return SimpleNamespace(**attrs)
+    return SimpleNamespace(**(BASE | overrides))
 
 
 def test_identity_line_names_non_human_species_and_state() -> None:
-    """Race and state-of-being reach the prompt so a ghoul cannot read as human."""
     line = identity_line(_dweller(visual_attributes={"race": "ghoul", "state_of_being": "wild"}))
     assert "Species: ghoul" in line
     assert "wild" in line
     assert "never claim to be human" in line
 
 
-@pytest.mark.parametrize("attributes", [{"race": "human"}, None, "not-a-mapping"])
-def test_identity_line_is_empty_without_a_non_human_race(attributes: object) -> None:
+@pytest.mark.parametrize("attributes", [{"race": "human"}, None, "not-a-mapping", {"race": "robot"}])
+def test_identity_line_is_empty_without_a_known_non_human_race(attributes: object) -> None:
     assert identity_line(_dweller(visual_attributes=attributes)) == ""
 
 
-def test_identity_line_ignores_an_unknown_race() -> None:
-    assert identity_line(_dweller(visual_attributes={"race": "robot"})) == ""
-
-
-@pytest.mark.parametrize("state", ["gen_3", None, "unknown"])
-def test_identity_line_hides_passing_synths(state: str | None) -> None:
-    """Gen 3 synths pass as human and usually do not know what they are: never reveal it."""
+@pytest.mark.parametrize(
+    ("state", "expected"),
+    [("gen_3", None), (None, None), ("unknown", None), ("gen_1", "Species: synth"), ("gen_2", "Species: synth")],
+)
+def test_identity_line_synth_visibility(state: str | None, expected: str | None) -> None:
     attributes: dict[str, str] = {"race": "synth"}
     if state is not None:
         attributes["state_of_being"] = state
-    assert identity_line(_dweller(visual_attributes=attributes)) == ""
-
-
-@pytest.mark.parametrize("state", ["gen_1", "gen_2"])
-def test_identity_line_reveals_visibly_artificial_synth_models(state: str) -> None:
-    assert "Species: synth" in identity_line(_dweller(visual_attributes={"race": "synth", "state_of_being": state}))
+    line = identity_line(_dweller(visual_attributes=attributes))
+    assert (line == "") if expected is None else (expected in line)
 
 
 def test_synth_race_alone_does_not_leak_into_chat_instructions() -> None:
@@ -89,16 +81,17 @@ def test_synth_race_alone_does_not_leak_into_chat_instructions() -> None:
     assert "synth" not in instructions.lower()
 
 
-def test_state_mind_line_makes_feral_ghouls_incoherent() -> None:
-    """Feral ghouls lose reasoning: no conversation, no purposeful action."""
-    line = state_mind_line(_dweller(visual_attributes={"race": "ghoul", "state_of_being": "feral"}))
-    assert "growl" in line
-    assert "no_action" in line
-
-
-def test_state_mind_line_makes_wild_ghouls_fragmented() -> None:
-    line = state_mind_line(_dweller(visual_attributes={"race": "ghoul", "state_of_being": "wild"}))
-    assert "fragment" in line
+@pytest.mark.parametrize(
+    ("attributes", "expected"),
+    [
+        ({"race": "ghoul", "state_of_being": "feral"}, ["growl", "no_action"]),
+        ({"race": "ghoul", "state_of_being": "wild"}, ["fragment"]),
+    ],
+)
+def test_state_mind_line_marks_degraded_ghouls(attributes: dict, expected: list[str]) -> None:
+    line = state_mind_line(_dweller(visual_attributes=attributes))
+    for phrase in expected:
+        assert phrase in line
 
 
 def test_state_mind_line_grades_mutant_and_synth_models() -> None:
@@ -111,8 +104,10 @@ def test_state_mind_line_grades_mutant_and_synth_models() -> None:
 
 
 def test_state_mind_line_hides_passing_synths() -> None:
-    assert state_mind_line(_dweller(visual_attributes={"race": "synth", "state_of_being": "gen_3"})) == ""
-    assert state_mind_line(_dweller(visual_attributes={"race": "human"})) == ""
+    assert (
+        state_mind_line(_dweller(visual_attributes={"race": "synth", "state_of_being": "gen_3"})),
+        state_mind_line(_dweller(visual_attributes={"race": "human"})),
+    ) == ("", "")
 
 
 def test_dweller_trait_lines_carry_the_state_of_being_mind() -> None:
@@ -121,18 +116,15 @@ def test_dweller_trait_lines_carry_the_state_of_being_mind() -> None:
     assert "growl" in lines
 
 
-@pytest.mark.parametrize("age_group", [AgeGroupEnum.CHILD, AgeGroupEnum.TEEN, AgeGroupEnum.ELDER])
-def test_age_voice_line_covers_every_non_adult_group(age_group: AgeGroupEnum) -> None:
-    assert age_voice_line(age_group)
-
-
-def test_age_voice_line_is_silent_for_adults() -> None:
-    """Adults need no register override — they are the baseline voice."""
-    assert age_voice_line(AgeGroupEnum.ADULT) == ""
+@pytest.mark.parametrize(
+    ("age_group", "silent"),
+    [(AgeGroupEnum.CHILD, False), (AgeGroupEnum.TEEN, False), (AgeGroupEnum.ELDER, False), (AgeGroupEnum.ADULT, True)],
+)
+def test_age_voice_line_covers_every_non_adult_group(age_group: AgeGroupEnum, silent: bool) -> None:
+    assert (age_voice_line(age_group) == "") is silent
 
 
 def test_happiness_mood_line_separates_the_bands() -> None:
-    """A happiness of 12 must read very differently from 90."""
     assert "deeply unhappy" in happiness_mood_line(12)
     assert "unhappy" in happiness_mood_line(40)
     assert "steady" in happiness_mood_line(60)
@@ -185,7 +177,6 @@ def test_chat_instructions_default_to_no_family_registered() -> None:
 
 
 def test_fallback_prompt_includes_bio_traits_guardrail_and_length_rule() -> None:
-    """The fallback prompt now carries the biography it must not contradict."""
     prompt = build_dweller_prompt(
         _dweller(age_group=AgeGroupEnum.ELDER, happiness=90),
         family=[{"name": "Ana Reyes", "relation": "partner"}],
@@ -196,14 +187,15 @@ def test_fallback_prompt_includes_bio_traits_guardrail_and_length_rule() -> None
     assert "Ana Reyes (partner)" in prompt
     assert "Never contradict or invent biography details" in prompt
     assert "80 and 120 words" in prompt
+    assert "under 150 words" in build_dweller_prompt(_dweller(), for_audio=True)
 
 
-def test_fallback_prompt_for_audio_keeps_the_audio_length_rule() -> None:
-    prompt = build_dweller_prompt(_dweller(), for_audio=True)
-    assert "under 150 words" in prompt
+def _family_session(relatives: list, record: SimpleNamespace | None):
+    result = MagicMock()
+    result.scalars.return_value.all.return_value = relatives
+    return MagicMock(get=AsyncMock(return_value=record), execute=AsyncMock(return_value=result))
 
 
-@pytest.mark.asyncio
 async def test_load_family_members_reports_partner_and_children() -> None:
     dweller_id, partner_id, child_id = uuid4(), uuid4(), uuid4()
     record = SimpleNamespace(id=dweller_id, partner_id=partner_id, parent_1_id=None, parent_2_id=None)
@@ -211,32 +203,19 @@ async def test_load_family_members_reports_partner_and_children() -> None:
     child = SimpleNamespace(
         id=child_id, first_name="Tomas", last_name="Reyes", parent_1_id=dweller_id, parent_2_id=None
     )
-    result = MagicMock()
-    result.scalars.return_value.all.return_value = [partner, child]
-    session = MagicMock(get=AsyncMock(return_value=record), execute=AsyncMock(return_value=result))
-
-    family = await load_family_members(session, SimpleNamespace(id=dweller_id))
-
+    family = await load_family_members(_family_session([partner, child], record), SimpleNamespace(id=dweller_id))
     assert family == [
         {"name": "Ana Reyes", "relation": "partner"},
         {"name": "Tomas Reyes", "relation": "child"},
     ]
 
 
-@pytest.mark.asyncio
-async def test_load_family_members_returns_empty_without_relatives() -> None:
+@pytest.mark.parametrize("kind", ["no_relatives", "missing_record"])
+async def test_load_family_members_returns_empty_without_relatives(kind: str) -> None:
     dweller_id = uuid4()
-    record = SimpleNamespace(id=dweller_id, partner_id=None, parent_1_id=None, parent_2_id=None)
-    result = MagicMock()
-    result.scalars.return_value.all.return_value = []
-    session = MagicMock(get=AsyncMock(return_value=record), execute=AsyncMock(return_value=result))
-
+    if kind == "no_relatives":
+        record = SimpleNamespace(id=dweller_id, partner_id=None, parent_1_id=None, parent_2_id=None)
+        session = _family_session([], record)
+    else:
+        session = MagicMock(get=AsyncMock(return_value=None))
     assert await load_family_members(session, SimpleNamespace(id=dweller_id)) == []
-
-
-@pytest.mark.asyncio
-async def test_load_family_members_returns_empty_for_a_missing_record() -> None:
-    """A deleted or vanished dweller must not fail the chat prompt."""
-    session = MagicMock(get=AsyncMock(return_value=None))
-
-    assert await load_family_members(session, SimpleNamespace(id=uuid4())) == []

@@ -3,16 +3,18 @@ import pytest
 from app.cli.simulate_resources import ResourceEconomyConfig, simulate
 
 
-@pytest.mark.parametrize("field", ["population", "workers_per_room"])
-def test_simulate_rejects_negative_population_and_worker_counts(field: str) -> None:
-    with pytest.raises(ValueError, match="non-negative"):
-        simulate(ResourceEconomyConfig(**{field: -1}))
-
-
-@pytest.mark.parametrize("field", ["room_tier", "room_size"])
-def test_simulate_rejects_invalid_room_geometry(field: str) -> None:
-    with pytest.raises(ValueError, match="at least 1"):
-        simulate(ResourceEconomyConfig(**{field: 0}))
+@pytest.mark.parametrize(
+    ("field", "value", "match"),
+    [
+        ("population", -1, "non-negative"),
+        ("workers_per_room", -1, "non-negative"),
+        ("room_tier", 0, "at least 1"),
+        ("room_size", 0, "at least 1"),
+    ],
+)
+def test_simulate_rejects_invalid_config(field: str, value: int, match: str) -> None:
+    with pytest.raises(ValueError, match=match):
+        simulate(ResourceEconomyConfig(**{field: value}))
 
 
 def test_higher_room_tier_produces_and_consumes_more() -> None:

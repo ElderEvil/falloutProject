@@ -22,12 +22,8 @@ async def test_shared_session_cap_queues_across_routes_and_releases_after_cleanu
     limit = settings.API_DB_SESSION_CONCURRENCY
     application_name = f"concurrency-test-{uuid4()}"
     uri = str(settings.ASYNC_DATABASE_URI) if database == "postgresql" else f"sqlite+aiosqlite:///{tmp_path}/cap.db"
-    engine = create_async_engine(
-        uri,
-        pool_size=limit + 2,
-        max_overflow=0,
-        connect_args={"server_settings": {"application_name": application_name}} if database == "postgresql" else {},
-    )
+    connect_args = {"server_settings": {"application_name": application_name}} if database == "postgresql" else {}
+    engine = create_async_engine(uri, pool_size=limit + 2, max_overflow=0, connect_args=connect_args)
     if database == "postgresql":
         try:
             async with engine.connect():
@@ -38,15 +34,10 @@ async def test_shared_session_cap_queues_across_routes_and_releases_after_cleanu
 
     async def idle_transactions():
         async with engine.connect() as connection:
-            return (
-                await connection.execute(
-                    text(
-                        "SELECT count(*) FROM pg_stat_activity "
-                        "WHERE application_name = :name AND state = 'idle in transaction'"
-                    ),
-                    {"name": application_name},
-                )
-            ).scalar_one()
+            query = text(
+                "SELECT count(*) FROM pg_stat_activity WHERE application_name = :name AND state = 'idle in transaction'"
+            )
+            return (await connection.execute(query, {"name": application_name})).scalar_one()
 
     if database == "postgresql":
         assert await idle_transactions() == 0

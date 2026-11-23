@@ -9,11 +9,9 @@ SECRET_FIELDS = {
 }
 
 
-def test_user_read_exposes_email_verified_but_no_secret_tokens() -> None:
-    assert "email_verified" in UserRead.model_fields
-    assert SECRET_FIELDS.isdisjoint(UserRead.model_fields)
-
-
-def test_user_update_excludes_verification_and_reset_fields() -> None:
-    assert "email_verified" not in UserUpdate.model_fields
-    assert SECRET_FIELDS.isdisjoint(UserUpdate.model_fields)
+def test_user_schemas_keep_verification_readable_and_secrets_private() -> None:
+    assert ("email_verified" in UserRead.model_fields, SECRET_FIELDS.isdisjoint(UserRead.model_fields)) == (True, True)
+    assert ("email_verified" in UserUpdate.model_fields, SECRET_FIELDS.isdisjoint(UserUpdate.model_fields)) == (
+        False,
+        True,
+    )

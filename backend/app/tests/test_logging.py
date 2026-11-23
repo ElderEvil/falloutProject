@@ -11,35 +11,29 @@ from app.core.logging import CustomJsonFormatter, setup_logging
 
 
 def test_custom_json_formatter_accepts_base_class_keywords_and_emits_json() -> None:
-    """pythonjsonlogger may pass ``log_data`` by keyword; the override must keep that name."""
+    # pythonjsonlogger may pass ``log_data`` by keyword; the override must keep that name.
     record = logging.LogRecord("test.json", logging.INFO, __file__, 1, "hello %s", ("world",), None)
     data: dict[str, object] = {}
     formatter = CustomJsonFormatter("%(message)s")
-
     formatter.add_fields(log_data=data, record=record, message_dict={})
-
-    assert (data["level"], data["logger"]) == ("INFO", "test.json")
-    assert json.loads(formatter.format(record))["message"] == "hello world"
+    assert ((data["level"], data["logger"]), json.loads(formatter.format(record))["message"]) == (
+        ("INFO", "test.json"),
+        "hello world",
+    )
 
 
 def test_quest_duration_multiplier_is_local_only(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("ENVIRONMENT", "staging")
     monkeypatch.setenv("QUEST_DURATION_MULTIPLIER", "0.2")
-
     with pytest.raises(ValidationError, match="QUEST_DURATION_MULTIPLIER"):
         Settings()
 
 
-def test_production_uses_persistent_log_file_when_path_is_unset() -> None:
+def test_production_log_file_path_resolution() -> None:
     settings = Settings.model_construct(ENVIRONMENT="production", LOG_FILE_PATH=None)
-
     assert settings.log_file_path == "/var/log/fallout_shelter/app.log"
-
-
-def test_explicit_log_file_path_is_preserved() -> None:
-    settings = Settings.model_construct(ENVIRONMENT="production", LOG_FILE_PATH="/custom/app.log")
-
-    assert settings.log_file_path == "/custom/app.log"
+    explicit = Settings.model_construct(ENVIRONMENT="production", LOG_FILE_PATH="/custom/app.log")
+    assert explicit.log_file_path == "/custom/app.log"
 
 
 def test_setup_logging_creates_nested_log_file(tmp_path) -> None:
@@ -47,13 +41,11 @@ def test_setup_logging_creates_nested_log_file(tmp_path) -> None:
     previous_handlers = root_logger.handlers[:]
     previous_level = root_logger.level
     log_path = tmp_path / "nested" / "production.log"
-
     try:
         setup_logging(log_level="INFO", log_file=str(log_path))
         logging.getLogger("test.production").info("production logging check")
         for handler in root_logger.handlers:
             handler.flush()
-
         assert log_path.is_file()
         assert "production logging check" in log_path.read_text(encoding="utf-8")
     finally:

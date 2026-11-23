@@ -36,13 +36,15 @@ async def recover_session(db_session: "AsyncSession") -> None:
     """Restore a session after a failed statement and drop deferred side effects.
 
     A failed statement aborts the transaction until rollback; queued post-commit notifications/level-ups
-    describe work that no longer exists, so they are discarded with it.
+    and objective completions describe work that no longer exists, so they are discarded with it.
     """
     from app.services.leveling_service import leveling_service
     from app.services.notification_service import notification_service
+    from app.services.progression.objectives.assignment import ObjectiveAssignmentService
 
     notification_service.discard_deferred_notifications(db_session)
     leveling_service.discard_deferred_level_ups(db_session)
+    ObjectiveAssignmentService.discard_pending_completions(db_session)
     await db_session.rollback()
 
 

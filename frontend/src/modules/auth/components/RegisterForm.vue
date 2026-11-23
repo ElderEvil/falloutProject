@@ -63,8 +63,7 @@ const handleSubmit = async () => {
         </p>
         <p class="mt-3 font-mono text-sm leading-6 text-theme-primary/80">
           > A verification link was dispatched to
-          <span class="font-bold text-theme-primary">{{ email }}</span
-          >.
+          <span class="font-bold text-theme-primary">{{ email }}</span>.
         </p>
         <p class="mt-2 font-mono text-sm leading-6 text-theme-primary/60">
           > Confirm the address to secure your vault authorisation.

@@ -1,4 +1,4 @@
-"""Balance wave 3 (issue #1456): seeded-layout rate gates.
+"""Rate gates for the seeded starter layouts (#1456).
 
 These tests are the release gate for the retuned rates. They seed the real starter layouts through the
 production seeding path, then measure one 60-second resource window with the live ResourceManager formulas,

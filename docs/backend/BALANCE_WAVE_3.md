@@ -23,7 +23,7 @@ Capacities, room output formulas, tier multipliers and `offline_reserve_fraction
 
 ### Why these numbers
 
-The seeded layouts are the gate (`backend/app/tests/test_services/test_balance_wave_3.py`):
+The seeded layouts are the gate (`backend/app/tests/test_services/test_seeded_resource_rates.py`):
 
 | layout | measured result |
 | --- | --- |

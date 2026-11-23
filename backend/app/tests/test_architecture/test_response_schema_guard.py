@@ -41,20 +41,48 @@ JSON_MEDIA_TYPE = "application/json"
 #: Statuses that forbid a response body outright, so omitting ``content`` is the
 #: correct contract rather than an undeclared payload.
 BODYLESS_STATUSES = frozenset({"204", "205"})
+REF_PREFIX = "#/components/schemas/"
 
 
-def _is_typed_schema(schema: Any, *, allow_null: bool = False) -> bool:
+def _resolve_component(ref: str, document: dict[str, Any] | None) -> tuple[str, dict[str, Any]] | None:
+    """Name and schema for a local component ``$ref``; None when it cannot be resolved.
+
+    An unresolvable ref must not count as typed: a dangling reference hides the same
+    unconstrained payload a bare ``{}`` does, and passes the guard silently.
+    """
+    if document is None or not ref.startswith(REF_PREFIX):
+        return None
+    name = ref[len(REF_PREFIX) :]
+    schemas = (document.get("components") or {}).get("schemas") or {}
+    schema = schemas.get(name)
+    return (name, schema) if isinstance(schema, dict) else None
+
+
+def _is_typed_schema(
+    schema: Any,
+    *,
+    allow_null: bool = False,
+    document: dict[str, Any] | None = None,
+    _seen: frozenset[str] = frozenset(),
+) -> bool:
     """Whether a JSON schema fragment constrains its payload to a known shape."""
     if not isinstance(schema, dict):
         return False
     if "$ref" in schema:
-        return True
+        resolved = _resolve_component(schema["$ref"], document)
+        if resolved is None:
+            return False
+        name, target = resolved
+        # An alias cycle (A -> B -> A) defines no shape at all, so it is not a contract.
+        if name in _seen:
+            return False
+        return _is_typed_schema(target, allow_null=allow_null, document=document, _seen=_seen | {name})
     for combinator in ("anyOf", "oneOf"):
         members = schema.get(combinator)
         if (
             isinstance(members, list)
             and members
-            and all(_is_typed_schema(member, allow_null=True) for member in members)
+            and all(_is_typed_schema(member, allow_null=True, document=document, _seen=_seen) for member in members)
         ):
             return True
     schema_type = schema.get("type")
@@ -64,13 +92,13 @@ def _is_typed_schema(schema: Any, *, allow_null: bool = False) -> bool:
         # ``items`` must itself be typed: an array of unconstrained objects is
         # no more a contract than a bare ``{"type": "array"}``. Nullable elements
         # are allowed so arrays of ``anyOf``/``oneOf`` with ``null`` still pass.
-        return _is_typed_schema(schema.get("items"), allow_null=True)
+        return _is_typed_schema(schema.get("items"), allow_null=True, document=document, _seen=_seen)
     if schema_type in PRIMITIVE_TYPES:
         return True
     return allow_null and schema_type == "null"
 
 
-def _classify_response(response: dict[str, Any], status: str | int = "200") -> str:
+def _classify_response(response: dict[str, Any], status: str | int = "200", *, document=None) -> str:
     """Classify one response object; ``status`` decides whether omitting ``content`` is honest."""
     content = response.get("content") or {}
     if not content:
@@ -81,13 +109,13 @@ def _classify_response(response: dict[str, Any], status: str | int = "200") -> s
     schema = media.get("schema")
     if not schema:
         return UNRESOLVED
-    return STRUCTURED if _is_typed_schema(schema) else UNRESOLVED
+    return STRUCTURED if _is_typed_schema(schema, document=document) else UNRESOLVED
 
 
-def _classify_operation(operation: dict[str, Any]) -> str:
+def _classify_operation(operation: dict[str, Any], document: dict[str, Any] | None = None) -> str:
     """Worst 2xx classification for an operation; no 2xx at all is unresolved."""
     classifications = {
-        _classify_response(response, status)
+        _classify_response(response, status, document=document)
         for status, response in (operation.get("responses") or {}).items()
         if str(status).startswith("2")
     }
@@ -100,11 +128,12 @@ def _classify_operation(operation: dict[str, Any]) -> str:
     return LEGITIMATE
 
 
-def _classify_operations() -> dict[str, str]:
-    """Every documented operation keyed by "METHOD path"."""
+def _classify_operations(document: dict[str, Any] | None = None) -> dict[str, str]:
+    """Every documented operation keyed by "METHOD path", refs resolved inside ``document``."""
+    document = app.openapi() if document is None else document
     return {
-        f"{method.upper()} {path}": _classify_operation(operation)
-        for path, path_item in app.openapi()["paths"].items()
+        f"{method.upper()} {path}": _classify_operation(operation, document)
+        for path, path_item in document["paths"].items()
         for method, operation in path_item.items()
         if method in HTTP_METHODS
     }
@@ -161,6 +190,20 @@ def test_classifier_self_test() -> None:
             media["schema"] = schema
         return {"content": {media_type: media}}
 
+    document = {
+        "components": {
+            "schemas": {"X": {"type": "object", "properties": {"id": {"type": "string"}}}},
+        }
+    }
+    looping = {
+        "components": {
+            "schemas": {
+                "LoopA": {"$ref": "#/components/schemas/LoopB"},
+                "LoopB": {"$ref": "#/components/schemas/LoopA"},
+            },
+        }
+    }
+
     # Unconstrained or absent schemas must be rejected.
     assert _classify_response(response({})) == UNRESOLVED
     assert _classify_response(response()) == UNRESOLVED
@@ -176,7 +219,7 @@ def test_classifier_self_test() -> None:
     assert _classify_response(response({"type": "array", "items": {}})) == UNRESOLVED
 
     # Typed schemas and legitimate non-JSON payloads must be accepted.
-    assert _classify_response(response({"$ref": "#/components/schemas/X"})) == STRUCTURED
+    assert _classify_response(response({"$ref": "#/components/schemas/X"}), document=document) == STRUCTURED
     assert _classify_response(response({"type": "object", "properties": {"id": {"type": "string"}}})) == STRUCTURED
     assert (
         _classify_response(
@@ -187,14 +230,25 @@ def test_classifier_self_test() -> None:
                         {"type": "null"},
                     ]
                 }
-            )
+            ),
+            document=document,
         )
         == STRUCTURED
     )
     assert _classify_response(response({"type": "string"})) == STRUCTURED
     # Arrays stay valid when their elements are typed, including null elements.
     assert _classify_response(response({"type": "array", "items": {"type": "string"}})) == STRUCTURED
-    assert _classify_response(response({"type": "array", "items": {"$ref": "#/components/schemas/X"}})) == STRUCTURED
+    assert (
+        _classify_response(response({"type": "array", "items": {"$ref": "#/components/schemas/X"}}), document=document)
+        == STRUCTURED
+    )
+    # A ref the document cannot resolve (or that only aliases itself) is not a contract.
+    assert _classify_response(response({"$ref": "#/components/schemas/Missing"}), document=document) == UNRESOLVED
+    assert _classify_response(response({"$ref": "#/components/schemas/X"})) == UNRESOLVED
+    assert (
+        _classify_response(response({"$ref": "https://example.com/schemas.json#/X"}), document=document) == UNRESOLVED
+    )
+    assert _classify_response(response({"$ref": "#/components/schemas/LoopA"}), document=looping) == UNRESOLVED
     assert (
         _classify_response(
             response({"type": "array", "items": {"type": "object", "properties": {"id": {"type": "string"}}}})
@@ -208,7 +262,8 @@ def test_classifier_self_test() -> None:
                     "type": "array",
                     "items": {"anyOf": [{"$ref": "#/components/schemas/X"}, {"type": "null"}]},
                 }
-            )
+            ),
+            document=document,
         )
         == STRUCTURED
     )
@@ -225,3 +280,31 @@ def test_classifier_self_test() -> None:
     assert _classify_response({"description": "no body"}, status=204) == LEGITIMATE
     assert _classify_response({"content": {}}, status=205) == LEGITIMATE
     assert _classify_response(response({"type": "string"}), status=204) == STRUCTURED
+
+
+def test_ref_to_unconstrained_component_is_unresolved() -> None:
+    """A $ref is a contract only when the component it names is one."""
+
+    def operation(schema: Any) -> dict[str, Any]:
+        return {"responses": {"200": {"content": {JSON_MEDIA_TYPE: {"schema": schema}}}}}
+
+    document = {
+        "components": {
+            "schemas": {
+                # What ``RootModel[dict[str, Any]]`` (or a bare ``dict`` annotation) generates.
+                "Anything": {"type": "object", "additionalProperties": True},
+                "Typed": {"type": "object", "properties": {"ok": {"type": "boolean"}}},
+            }
+        },
+        "paths": {
+            "/anything": {"get": operation({"$ref": "#/components/schemas/Anything"})},
+            "/typed": {"get": operation({"$ref": "#/components/schemas/Typed"})},
+            "/dangling": {"get": operation({"$ref": "#/components/schemas/Missing"})},
+        },
+    }
+
+    assert _classify_operations(document) == {
+        "GET /anything": UNRESOLVED,
+        "GET /typed": STRUCTURED,
+        "GET /dangling": UNRESOLVED,
+    }

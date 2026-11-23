@@ -22,7 +22,9 @@ from typing import Any
 
 from main import app
 
-HTTP_METHODS = ("get", "post", "put", "patch", "delete")
+#: Every operation method in the OpenAPI Path Item Object (not ``parameters``,
+#: ``summary``, ``description``, ``servers``, or ``$ref``, which are metadata).
+HTTP_METHODS = ("get", "put", "post", "delete", "options", "head", "patch", "trace")
 
 STRUCTURED = "structured"
 LEGITIMATE = "legitimate"
@@ -41,7 +43,10 @@ EXEMPT: dict[str, str] = {
     "GET /api/v1/stream/incidents/{vault_id}": "server-sent events; text/event-stream",
 }
 
-#: Measured debt at 8fa8f6b27. Shrink this; never grow it without a reason.
+#: Measured debt at 8fa8f6b27. Shrink-only by policy: entries are deleted as
+#: operations gain typed responses, and no entry is ever added. A new unresolved
+#: response is fixed in the route (typed model) or, when it genuinely has no JSON
+#: schema, listed in ``EXEMPT`` with a written reason -- never added here.
 UNRESOLVED_BASELINE: frozenset[str] = frozenset(
     {
         "GET /api/v1/game/vaults/{vault_id}/game-state",
@@ -81,7 +86,10 @@ def _is_typed_schema(schema: Any, *, allow_null: bool = False) -> bool:
     if schema_type == "object":
         return bool(schema.get("properties"))
     if schema_type == "array":
-        return bool(schema.get("items"))
+        # ``items`` must itself be typed: an array of unconstrained objects is
+        # no more a contract than a bare ``{"type": "array"}``. Nullable elements
+        # are allowed so arrays of ``anyOf``/``oneOf`` with ``null`` still pass.
+        return _is_typed_schema(schema.get("items"), allow_null=True)
     if schema_type in PRIMITIVE_TYPES:
         return True
     return allow_null and schema_type == "null"
@@ -145,7 +153,10 @@ def test_no_new_unresolved_responses() -> None:
     new = sorted(_unresolved_operations() - UNRESOLVED_BASELINE)
     assert not new, (
         "Operations whose 2xx response has no usable JSON schema. Return a typed "
-        "response model, or add the operation to UNRESOLVED_BASELINE with a reason:\n  " + "\n  ".join(new)
+        "response model (a Pydantic model with declared fields, or a $ref to one). "
+        "UNRESOLVED_BASELINE is shrink-only and must not be extended. If an "
+        "operation genuinely cannot declare a JSON schema, add it to EXEMPT with a "
+        "written reason instead:\n  " + "\n  ".join(new)
     )
 
 
@@ -181,6 +192,13 @@ def test_classifier_self_test() -> None:
     assert _classify_response(response({"type": "object", "additionalProperties": True})) == UNRESOLVED
     assert _classify_response(response({"type": "object"})) == UNRESOLVED
     assert _classify_response(response({"type": "array"})) == UNRESOLVED
+    # An array whose elements are unconstrained is no contract at all.
+    assert (
+        _classify_response(response({"type": "array", "items": {"type": "object", "additionalProperties": True}}))
+        == UNRESOLVED
+    )
+    assert _classify_response(response({"type": "array", "items": {"type": "object"}})) == UNRESOLVED
+    assert _classify_response(response({"type": "array", "items": {}})) == UNRESOLVED
 
     # Typed schemas and legitimate non-JSON payloads must be accepted.
     assert _classify_response(response({"$ref": "#/components/schemas/X"})) == STRUCTURED
@@ -199,6 +217,26 @@ def test_classifier_self_test() -> None:
         == STRUCTURED
     )
     assert _classify_response(response({"type": "string"})) == STRUCTURED
+    # Arrays stay valid when their elements are typed, including null elements.
+    assert _classify_response(response({"type": "array", "items": {"type": "string"}})) == STRUCTURED
+    assert _classify_response(response({"type": "array", "items": {"$ref": "#/components/schemas/X"}})) == STRUCTURED
+    assert (
+        _classify_response(
+            response({"type": "array", "items": {"type": "object", "properties": {"id": {"type": "string"}}}})
+        )
+        == STRUCTURED
+    )
+    assert (
+        _classify_response(
+            response(
+                {
+                    "type": "array",
+                    "items": {"anyOf": [{"$ref": "#/components/schemas/X"}, {"type": "null"}]},
+                }
+            )
+        )
+        == STRUCTURED
+    )
     assert _classify_response({"description": "no body"}) == LEGITIMATE
     assert _classify_response(response(media_type="text/event-stream")) == LEGITIMATE
     assert _classify_response(response(media_type="text/html")) == LEGITIMATE

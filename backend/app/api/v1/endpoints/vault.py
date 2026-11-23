@@ -159,13 +159,13 @@ async def start_vault(
     )
 
 
-@router.post("/update_resources", status_code=200)
+@router.post("/update_resources", response_model=Vault, status_code=200)
 async def update_vault_resources(
     *,
     vault_id: UUID,
     db_session: DBSession,
     _: CurrentSuperuser,
-):
+) -> Vault:
     """Update vault resources (admin only).
 
     Returns:

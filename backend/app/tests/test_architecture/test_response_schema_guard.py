@@ -47,11 +47,7 @@ EXEMPT: dict[str, str] = {
 #: operations gain typed responses, and no entry is ever added. A new unresolved
 #: response is fixed in the route (typed model) or, when it genuinely has no JSON
 #: schema, listed in ``EXEMPT`` with a written reason -- never added here.
-UNRESOLVED_BASELINE: frozenset[str] = frozenset(
-    {
-        "POST /api/v1/vaults/update_resources",
-    }
-)
+UNRESOLVED_BASELINE: frozenset[str] = frozenset()
 
 PRIMITIVE_TYPES = frozenset({"string", "integer", "number", "boolean"})
 JSON_MEDIA_TYPE = "application/json"

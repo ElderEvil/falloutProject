@@ -8654,6 +8654,24 @@ export interface components {
             };
         };
         /**
+         * GameStateResponse
+         * @description Current game-loop status for one vault.
+         */
+        GameStateResponse: {
+            /** Vault Id */
+            vault_id: string;
+            /** Is Active */
+            is_active: boolean;
+            /** Is Paused */
+            is_paused: boolean;
+            /** Total Game Time */
+            total_game_time: number;
+            /** Last Tick Time */
+            last_tick_time: string;
+            /** Offline Time */
+            offline_time: number;
+        };
+        /**
          * GenderEnum
          * @enum {string}
          */
@@ -12561,6 +12579,30 @@ export interface components {
             /** Expedition */
             expedition: boolean;
         };
+        /**
+         * VaultTickResponse
+         * @description Manual tick acknowledgement.
+         *
+         *     A paused or duplicate tick short-circuits to ``status`` only; a processed
+         *     tick carries ``vault_id``/``seconds_passed``/``updates``. ``updates`` stays an
+         *     open map because the tick phases assemble per-phase diagnostics (including
+         *     per-phase ``error`` keys) that are internal working contracts, not wire
+         *     schemas.
+         */
+        VaultTickResponse: {
+            /** Message */
+            message: string;
+            /** Status */
+            status?: string | null;
+            /** Vault Id */
+            vault_id?: string | null;
+            /** Seconds Passed */
+            seconds_passed?: number | null;
+            /** Updates */
+            updates?: {
+                [key: string]: unknown;
+            } | null;
+        };
         /** VaultUpdate */
         VaultUpdate: {
             /** Number */
@@ -15861,9 +15903,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["GameStateResponse"];
                 };
             };
             /** @description Validation Error */
@@ -16051,9 +16091,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["VaultTickResponse"];
                 };
             };
             /** @description Validation Error */

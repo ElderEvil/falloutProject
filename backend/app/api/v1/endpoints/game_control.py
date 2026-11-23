@@ -22,7 +22,7 @@ from app.schemas.incident import (
     PendingIncidentOverflowRead,
 )
 from app.schemas.overflow import OverflowActionRequest, OverflowActionResponse
-from app.schemas.system import GameBalanceResponse, PresenceResponse
+from app.schemas.system import GameBalanceResponse, GameStateResponse, PresenceResponse, VaultTickResponse
 from app.services.combat.incident_service import incident_service
 from app.services.game_loop_service import game_loop_service
 from app.utils.exceptions import (
@@ -148,7 +148,7 @@ async def record_presence(
     )
 
 
-@router.get("/vaults/{vault_id}/game-state", status_code=200)
+@router.get("/vaults/{vault_id}/game-state", response_model=GameStateResponse, status_code=200)
 async def get_game_state(
     *,
     vault: Annotated[Vault, Depends(get_user_vault_or_403)],
@@ -208,7 +208,9 @@ async def get_incident(
     return await incident_service.get_incident_read_for_vault(db_session, vault.id, incident_id)
 
 
-@router.post("/vaults/{vault_id}/tick", status_code=200)
+@router.post(
+    "/vaults/{vault_id}/tick", response_model=VaultTickResponse, response_model_exclude_unset=True, status_code=200
+)
 async def manual_tick(
     *,
     vault: Annotated[Vault, Depends(get_user_vault_or_403)],

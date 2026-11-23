@@ -49,8 +49,6 @@ EXEMPT: dict[str, str] = {
 #: schema, listed in ``EXEMPT`` with a written reason -- never added here.
 UNRESOLVED_BASELINE: frozenset[str] = frozenset(
     {
-        "GET /api/v1/game/vaults/{vault_id}/game-state",
-        "POST /api/v1/game/vaults/{vault_id}/tick",
         "POST /api/v1/objectives/{vault_id}/{objective_id}/progress",
         "POST /api/v1/objectives/{vault_id}/assign-random",
         "POST /api/v1/quests/{vault_id}/{quest_id}/assign",

@@ -37,7 +37,7 @@ logger = logging.getLogger(__name__)
 
 
 async def _announce_deprivation(db_session: AsyncSession, vault_id: UUID, result: DeprivationResult) -> None:
-    """Warn once per transition; the row is staged and delivered by the phase commit."""
+    """Warn once per transition; the rows are staged in the phase transaction and pushed after its commit."""
 
     async def send(user_id: UUID, *, notification_type: NotificationType, title: str, message: str) -> None:
         await notification_service.create_and_send(
@@ -57,7 +57,7 @@ async def _announce_deprivation(db_session: AsyncSession, vault_id: UUID, result
             ),
             context="deprivation warning",
         )
-    if result.critical:
+    if result.became_critical:
         await notification_service.notify_owner(
             db_session,
             vault_id,
@@ -236,12 +236,19 @@ async def award_work_xp(db_session: AsyncSession, dweller, room) -> WorkXpStats:
 
 
 async def process_dwellers(
-    db_session: AsyncSession, vault_id: UUID, seconds_passed: int | None = None
+    db_session: AsyncSession,
+    vault_id: UUID,
+    seconds_passed: int | None = None,
+    *,
+    boundary_advanced: bool = True,
 ) -> DwellersStats:
     """Process dweller updates for a vault.
 
-    1% RAD per tick to in-vault dwellers once the zero-water grace expires; work XP for production rooms,
-    level-up checks, death checks (health <= 0).
+    Graded deprivation (see ``game_tick/deprivation``) once the grace windows expire; work XP for production
+    rooms, level-up checks, death checks (health <= 0).
+
+    ``boundary_advanced`` is False when the resource phase rolled back: the next tick replays that same interval,
+    so deprivation must not charge it now as well as then.
     """
     from app.core.enums import DeathCauseEnum, DwellerStatusEnum
     from app.services.exit_request_service import exit_request_service
@@ -252,7 +259,7 @@ async def process_dwellers(
         "leveled_up": 0,
         "xp_awarded": 0,
         "deaths": 0,
-        "irradiated": 0,
+        "deprived": 0,
         "exit_requests_raised": 0,
     }
 
@@ -263,9 +270,9 @@ async def process_dwellers(
         vault = await vault_crud.get(db_session, vault_id)
         state = await game_state_crud.get_by_vault_id(db_session, vault_id)
         if vault is not None and state is not None:
-            window_ms = (seconds_passed or game_config.game_loop.tick_interval) * 1000
+            window_ms = (seconds_passed or game_config.game_loop.tick_interval) * 1000 if boundary_advanced else 0
             deprivation = await apply_deprivation(db_session, vault, state, dwellers, window_ms)
-            stats["irradiated"] += deprivation.affected
+            stats["deprived"] += deprivation.affected
             await _announce_deprivation(db_session, vault_id, deprivation)
 
         # Get all unique room IDs from working dwellers
@@ -283,7 +290,7 @@ async def process_dwellers(
                 continue
 
             if dweller.health <= 0:
-                await death_service.mark_as_dead(db_session, dweller, DeathCauseEnum.HEALTH)
+                await death_service.mark_as_dead(db_session, dweller, DeathCauseEnum.HEALTH, commit=False)
                 stats["deaths"] += 1
                 logger.info(f"Dweller {dweller.first_name} {dweller.last_name} died from health depletion")
                 continue
@@ -295,8 +302,12 @@ async def process_dwellers(
                     stats["xp_awarded"] += dweller_stats["xp_awarded"]
                     stats["leveled_up"] += dweller_stats["leveled_up"]
 
-        stats["exit_requests_raised"] = len(await exit_request_service.sync_despair_requests(db_session, vault_id))
+        stats["exit_requests_raised"] = len(
+            await exit_request_service.sync_despair_requests(db_session, vault_id, commit=False)
+        )
         await db_session.commit()
+        # The phase commit is what makes the staged warnings durable; delivery has to follow it, never precede it.
+        await notification_service.deliver_deferred_notifications(db_session)
 
     except SQLAlchemyError as e:
         logger.error(f"Database error processing dwellers for vault {vault_id}: {e}", exc_info=True)

@@ -332,10 +332,8 @@ class HealthConfig(BaseSettings):
 
     # Radiation saturates at the dweller's own max health, so the health ceiling bottoms out at 1 HP instead of the
     # bar overflowing past the health pool.
-    dehydration_radiation_per_tick: int = Field(
-        default=1,
-        description="Master switch for the water deprivation branch and its radiation channel",
-        ge=0,
+    water_deprivation_enabled: bool = Field(
+        default=True, description="Whether zero water accrues deprived time and irradiates dwellers"
     )
     hunger_grace_minutes: int = Field(default=60, description="Minutes at zero food before dwellers are hungry", ge=0)
     thirst_grace_minutes: int = Field(default=30, description="Minutes at zero water before dwellers are thirsty", ge=0)

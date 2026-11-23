@@ -297,12 +297,12 @@ class TestDehydrationRadiation:
         await async_session.commit()
 
         result = await game_loop_service._process_dwellers(async_session, vault.id)
-        assert result["irradiated"] == 0
+        assert result["deprived"] == 0
         await async_session.refresh(dweller)
         assert dweller.radiation == 0
 
     @pytest.mark.parametrize(
-        ("max_health", "radiation_start", "deprived_minutes", "seconds", "irradiated", "radiation", "floor"),
+        ("max_health", "radiation_start", "deprived_minutes", "seconds", "deprived", "radiation", "floor"),
         [
             (100, 0, 0, 120, 0, 0, None),
             (200, 0, 40, 600, 1, 3, None),
@@ -319,7 +319,7 @@ class TestDehydrationRadiation:
         radiation_start,
         deprived_minutes,
         seconds,
-        irradiated,
+        deprived,
         radiation,
         floor,
     ):
@@ -331,11 +331,28 @@ class TestDehydrationRadiation:
         await async_session.commit()
 
         result = await game_loop_service._process_dwellers(async_session, vault.id, seconds_passed=seconds)
-        assert result["irradiated"] == irradiated
+        assert result["deprived"] == deprived
         await async_session.refresh(dweller)
         assert dweller.radiation == radiation
         if floor is not None:
             assert dweller.effective_max_health == floor
+
+    async def test_a_rolled_back_boundary_does_not_charge_the_window(self, async_session, vault, dweller):
+        """When the resource phase rolls back, the next tick replays the interval: charge it once, not twice."""
+        from app.crud.game_state import game_state_crud
+
+        await self._prepare(async_session, vault, dweller, water=0, water_deprived_minutes=40)
+
+        result = await game_loop_service._process_dwellers(
+            async_session, vault.id, seconds_passed=600, boundary_advanced=False
+        )
+
+        state = await game_state_crud.get_by_vault_id(async_session, vault.id)
+        assert state is not None
+        await async_session.refresh(dweller)
+        assert state.water_deprived_ms == 40 * 60_000
+        assert dweller.radiation == 0
+        assert result["deprived"] == 0
 
     @pytest.mark.parametrize(
         ("name", "rarity", "outfit_type"),
@@ -353,7 +370,7 @@ class TestDehydrationRadiation:
         await async_session.commit()
 
         result = await game_loop_service._process_dwellers(async_session, vault.id, seconds_passed=600)
-        assert result["irradiated"] == 1
+        assert result["deprived"] == 1
         await async_session.refresh(dweller)
         assert dweller.radiation == 2  # 10 post-grace minutes at 0.15% of max health, armor ignored
 

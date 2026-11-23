@@ -66,7 +66,11 @@ class CRUDBase[ModelType: SQLModel, CreateSchemaType: (SQLModel | None), UpdateS
         return response.scalars().all()
 
     async def create(self, db_session: AsyncSession, obj_in: CreateSchemaType, *, commit: bool = True) -> ModelType:
-        """Create a new item; raises ResourceAlreadyExistsException on unique-violation."""
+        """Create a new item; raises ResourceAlreadyExistsException on unique-violation.
+
+        With commit=False the caller owns the transaction: the row is flushed and the conflict is
+        propagated, but no rollback happens here (a caller-owned savepoint absorbs the failure).
+        """
         db_obj = self.model.model_validate(obj_in)
         try:
             db_session.add(db_obj)
@@ -75,8 +79,11 @@ class CRUDBase[ModelType: SQLModel, CreateSchemaType: (SQLModel | None), UpdateS
             else:
                 await db_session.flush()
         except IntegrityError as e:
-            await db_session.rollback()
-            raise ResourceAlreadyExistsException(self.model, obj_in.name, headers={"detail": str(e)}) from e
+            if commit:
+                # Standalone semantics: undo our own work before surfacing the conflict.
+                await db_session.rollback()
+            identifier = getattr(obj_in, "name", self.model.__name__)
+            raise ResourceAlreadyExistsException(self.model, identifier, headers={"detail": str(e)}) from e
         if not commit:
             # The caller owns the transaction; flush already populated defaults.
             return db_obj
@@ -91,7 +98,8 @@ class CRUDBase[ModelType: SQLModel, CreateSchemaType: (SQLModel | None), UpdateS
             await db_session.commit()
         except IntegrityError as e:
             await db_session.rollback()
-            raise ResourceAlreadyExistsException(self.model, objs_in[0].name, headers={"detail": str(e)}) from e
+            identifier = getattr(objs_in[0], "name", self.model.__name__)
+            raise ResourceAlreadyExistsException(self.model, identifier, headers={"detail": str(e)}) from e
         return db_objs
 
     async def update(

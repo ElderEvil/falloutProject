@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 3.19.0 (2026-11-23)
+
+### Features
+
+* **balance:** retune resources and add graded non-lethal deprivation ([#1494](https://github.com/ElderEvil/falloutProject/issues/1494)) 6cd8525, closes #1456 #1456
+
 ## 3.18.0 (2026-11-23)
 
 ### Features

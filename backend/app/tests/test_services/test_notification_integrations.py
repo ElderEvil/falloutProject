@@ -230,9 +230,7 @@ async def test_failed_room_unlock_staging_discards_the_parked_recruit(
     assert "Rolled Back Recruit" not in payload["notification"]["message"]
     assert "deferred_notification_deliveries" not in async_session.info
 
-    rows = (
-        (await async_session.execute(select(Notification).where(Notification.user_id == user_id))).scalars().all()
-    )
+    rows = (await async_session.execute(select(Notification).where(Notification.user_id == user_id))).scalars().all()
     assert len(rows) == 1
     assert "Kept Recruit" in rows[0].message
 

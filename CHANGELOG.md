@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 3.19.1 (2026-11-23)
+
+### Bug Fixes
+
+* **balance:** charge deprivation for dry time, not the elapsed window ([#1507](https://github.com/ElderEvil/falloutProject/issues/1507)) 9ed25a2
+
 ## 3.19.0 (2026-11-23)
 
 ### Features

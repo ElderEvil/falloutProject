@@ -1,15 +1,8 @@
-import importlib.util
 import inspect
-from pathlib import Path
 
-MIGRATIONS_DIR = Path(__file__).parents[2] / "alembic/versions"
-MIGRATION_PATH = next(MIGRATIONS_DIR.glob("*-a9f3c2d1e8b7_add_account_merge.py"), None)
-assert MIGRATION_PATH is not None, "account_merge migration not found"
-MIGRATION_SPEC = importlib.util.spec_from_file_location("add_account_merge", MIGRATION_PATH)
-assert MIGRATION_SPEC
-assert MIGRATION_SPEC.loader
-MIGRATION = importlib.util.module_from_spec(MIGRATION_SPEC)
-MIGRATION_SPEC.loader.exec_module(MIGRATION)
+from app.tests.test_alembic._support import load_migration
+
+MIGRATION = load_migration("a9f3c2d1e8b7", "add_account_merge")
 
 REQUIRED_COLUMNS = (
     "id",

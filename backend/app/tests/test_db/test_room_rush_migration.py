@@ -1,31 +1,12 @@
-"""Regression coverage for the Room Rush state and notification enum migrations."""
-
-import importlib.util
 import inspect
-from pathlib import Path
 
 from app.models.room import Room
+from app.tests.test_alembic._support import load_migration
 
-MIGRATIONS_DIR = Path(__file__).parents[2] / "alembic/versions"
-
-
-def _load_migration(filename: str, module_name: str):
-    spec = importlib.util.spec_from_file_location(module_name, MIGRATIONS_DIR / filename)
-    assert spec is not None
-    assert spec.loader is not None
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
-
-
-def _find_migration(revision: str) -> Path:
-    matches = sorted(MIGRATIONS_DIR.glob(f"*-{revision}_*.py"))
-    assert len(matches) == 1, f"Expected one migration for {revision}, found {matches}"
-    return matches[0]
-
-
-ROOM_STATE = _load_migration(_find_migration("a1c3e5f7b9d2").name, "add_room_rush_state")
-RUSH_NOTIFICATIONS = _load_migration(_find_migration("b2d4f6a8c0e1").name, "add_rush_notification_types")
+ROOM_STATE = load_migration("2026_10_24_1102-a1c3e5f7b9d2_add_room_rush_state.py", "add_room_rush_state")
+RUSH_NOTIFICATIONS = load_migration(
+    "2026_10_24_1103-b2d4f6a8c0e1_add_rush_notification_types.py", "add_rush_notification_types"
+)
 
 
 def test_room_rush_revision_chain() -> None:

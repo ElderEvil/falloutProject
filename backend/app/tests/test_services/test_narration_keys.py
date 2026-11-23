@@ -24,7 +24,6 @@ def test_runtime_and_generator_produce_identical_keys() -> None:
 
 def test_manifest_entries_hash_with_runtime_voice_type() -> None:
     """Every manifest entry's key, as the generator computes it, is a runtime key.
-
     Guards against the generator drifting back to hashing the ElevenLabs
     voice_id (which runtime requests never see).
     """
@@ -41,7 +40,6 @@ def test_manifest_entries_hash_with_runtime_voice_type() -> None:
 
 def test_manifest_voice_registry_is_one_to_one() -> None:
     """One canonical provider voice per game-side voice_type.
-
     The configured pack voices have distinct provider identities; line entries
     reference those shared identities instead of declaring independent voices.
     """
@@ -95,7 +93,6 @@ def test_changing_synthesis_voice_invalidates_pack_and_runtime_cache(monkeypatch
     entry = lines[0]
     original_key = gen.content_cache_key(entry)
     monkeypatch.setitem(ELEVENLABS_VOICES, entry["voice_type"], "replacement-provider-voice")
-
     provider = AsyncMock()
     provider.generate_speech.return_value = b"audio"
     assert gen.generate_entry(entry, provider) == b"audio"

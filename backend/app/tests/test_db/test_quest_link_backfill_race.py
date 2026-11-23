@@ -1,5 +1,3 @@
-"""PostgreSQL transaction boundaries for vault-quest link writers."""
-
 import re
 from datetime import UTC, datetime
 
@@ -95,7 +93,6 @@ def _vault_lock_index(statements: list[tuple[str, bool, tuple[str, ...]]]) -> li
 
 
 def _is_link_lock_or_write(sql: str, locked: bool) -> bool:
-    """An unlocked link SELECT is a plain read, not a lock or write."""
     if locked and sql.startswith("SELECT vaultquestcompletionlink"):
         return True
     return sql.startswith(("INSERT INTO vaultquestcompletionlink", "UPDATE vaultquestcompletionlink"))
@@ -108,8 +105,6 @@ def _link_op_index(statements: list[tuple[str, bool, tuple[str, ...]]]) -> list[
 @pytest.mark.asyncio(loop_scope="session")
 @pytest.mark.integration
 async def test_arrival_noop_releases_the_link_lock(quest_rows) -> None:
-    """A no-op arrival must end its transaction: a held link lock would deadlock the
-    read path's vault-first rotation against a claim holding the vault lock."""
     _, maker, vault_id, side, _ = quest_rows
     async with maker() as arrange:
         arrange.add(
@@ -122,7 +117,6 @@ async def test_arrival_noop_releases_the_link_lock(quest_rows) -> None:
             )
         )
         await arrange.commit()
-
     async with maker() as session:
         await quest_service.mark_quest_ready_to_claim(session, side, vault_id)
         assert not session.in_transaction(), "the no-op arrival must not keep the link lock"
@@ -132,12 +126,7 @@ async def test_arrival_noop_releases_the_link_lock(quest_rows) -> None:
 @pytest.mark.integration
 @pytest.mark.parametrize("case", ["claim", "assign_existing", "assign_missing", "list_backfill", "rotation"])
 async def test_writer_locks_vault_before_link_ops(case: str, quest_rows) -> None:
-    """Every quest-link writer locks the vault row before its first link lock or write.
-
-    Observed on the SQL the writer actually emits, run sequentially: no scheduling
-    to stage, no deadlocks to provoke, and a no-op cannot pass because the link
-    operation itself is required. Arrangement happens before the listener window.
-    """
+    """Observed on the SQL the writer emits, run sequentially: no deadlocks to provoke."""
     engine, maker, vault_id, side, daily = quest_rows
     async with maker() as arrange:
         if case == "claim":
@@ -148,15 +137,13 @@ async def test_writer_locks_vault_before_link_ops(case: str, quest_rows) -> None
         elif case == "assign_existing":
             arrange.add(VaultQuestCompletionLink(vault_id=vault_id, quest_id=side, is_visible=False))
         await arrange.commit()
-
     async with maker() as session:
         statements: list[tuple[str, bool, tuple[str, ...]]] = []
         original_commit = session.commit
 
         async def recording_commit():
             await original_commit()
-            # The commit lands after the statements it flushed, keeping the observed
-            # stream in true execution order.
+            # Recorded after the flush, keeping the stream in true execution order.
             statements.append(("__commit__", False, ()))
 
         session.commit = recording_commit
@@ -186,7 +173,6 @@ async def test_writer_locks_vault_before_link_ops(case: str, quest_rows) -> None
                 await ensure_current_quest_rotation(session, vault_id)
         finally:
             event.remove(engine.sync_engine, "before_cursor_execute", record)
-
     vault_locks = _vault_lock_index(statements)
     link_ops = _link_op_index(statements)
     assert vault_locks, f"{case}: the writer must read the vault row FOR UPDATE"
@@ -198,7 +184,6 @@ async def test_writer_locks_vault_before_link_ops(case: str, quest_rows) -> None
     assert not any(
         sql == "__commit__" and vault_locks[0] < i < link_ops[0] for i, (sql, _locked, _bound) in enumerate(statements)
     ), f"{case}: the vault lock and the link op must share one transaction"
-
     async with maker() as reader:
         link = await crud.quest_crud.get_link(reader, quest_id=daily if case == "rotation" else side, vault_id=vault_id)
     assert link is not None
@@ -211,7 +196,6 @@ async def test_writer_locks_vault_before_link_ops(case: str, quest_rows) -> None
 @pytest.mark.asyncio(loop_scope="session")
 @pytest.mark.integration
 async def test_link_insert_conflict_keeps_first_row(quest_rows) -> None:
-    """A lost insert race is a no-op: the first committed link row survives unchanged."""
     _, maker, vault_id, side, _ = quest_rows
     async with maker() as first:
         await crud.quest_crud.insert_links_if_absent(first, vault_id, {side: True})
@@ -219,7 +203,6 @@ async def test_link_insert_conflict_keeps_first_row(quest_rows) -> None:
     async with maker() as second:
         await crud.quest_crud.insert_links_if_absent(second, vault_id, {side: False})
         await second.commit()
-
     async with maker() as reader:
         link = (
             await reader.exec(select(VaultQuestCompletionLink).where(VaultQuestCompletionLink.vault_id == vault_id))

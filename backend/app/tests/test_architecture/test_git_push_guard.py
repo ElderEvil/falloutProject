@@ -23,7 +23,6 @@ def _git(repo: Path, *args: str, check: bool = True) -> subprocess.CompletedProc
 
 
 def _install(repo: Path) -> subprocess.CompletedProcess[str]:
-    """Run the documented installer exactly as a developer would."""
     return subprocess.run([SHELL, "-c", INSTALL_COMMAND], cwd=repo, check=False, capture_output=True, text=True)  # ruff: ignore[subprocess-without-shell-equals-true]
 
 
@@ -56,7 +55,6 @@ def push_repo(tmp_path: Path) -> tuple[Path, Path, str]:
 
 @pytest.fixture
 def install_repo(push_repo: tuple[Path, Path, str]) -> tuple[Path, Path, str]:
-    """Track the hook source so linked worktrees can install it too."""
     work, _, _ = push_repo
     source = work / "scripts/pre-push"
     source.parent.mkdir()

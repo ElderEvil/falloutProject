@@ -1,9 +1,11 @@
+from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 
 import pytest
 from sqlalchemy import event
 
 from app import crud
+from app.api import tasks
 from app.core.enums import QuestType, RequirementType
 from app.crud.game_state import game_state_crud
 from app.crud.quest import quest_crud
@@ -14,6 +16,7 @@ from app.models.room import Room
 from app.models.vault_quest import VaultQuestCompletionLink
 from app.schemas.user import UserCreate
 from app.schemas.vault import VaultCreateWithUserID
+from app.services.game_loop_service import game_loop_service
 from app.services.progression.quests.rotation import DAILY_COUNT, WEEKLY_COUNT, ensure_current_quest_rotation
 from app.services.progression.quests.service import quest_service
 from app.services.team_service import team_service
@@ -22,12 +25,15 @@ from app.tests.factory.users import create_fake_user
 from app.tests.factory.vaults import create_fake_vault
 from app.utils.exceptions import AccessDeniedException
 
+pytestmark = pytest.mark.asyncio
+
 MONDAY = datetime(2026, 11, 16, 12, tzinfo=UTC)
 TUESDAY = datetime(2026, 11, 17, 12, tzinfo=UTC)
 NEXT_MONDAY = datetime(2026, 11, 23, 12, tzinfo=UTC)
 MONDAY_PERIOD = datetime(2026, 11, 16, tzinfo=UTC)
 TUESDAY_PERIOD = datetime(2026, 11, 17, tzinfo=UTC)
 NEXT_MONDAY_PERIOD = datetime(2026, 11, 23, tzinfo=UTC)
+INSERT_LINK = "INSERT INTO vaultquestcompletionlink"
 
 
 def _base(**kw) -> dict:
@@ -55,9 +61,9 @@ def _add_link(db, vault_id, quest: Quest, **fields) -> VaultQuestCompletionLink:
 
 
 async def _seed_pools(db) -> list[Quest]:
-    daily = await _seed_quests(db, QuestType.DAILY, DAILY_COUNT, "Daily")
-    weekly = await _seed_quests(db, QuestType.REPEATABLE, WEEKLY_COUNT, "Weekly")
-    return daily + weekly
+    return await _seed_quests(db, QuestType.DAILY, DAILY_COUNT, "Daily") + await _seed_quests(
+        db, QuestType.REPEATABLE, WEEKLY_COUNT, "Weekly"
+    )
 
 
 def _assert_periods(state, daily, weekly) -> None:
@@ -75,7 +81,7 @@ def _fail_insert(bind, nth: int, message: str):
 
     def listener(_conn, _cursor, statement, _params, _context, _executemany):
         nonlocal calls
-        if statement.startswith("INSERT INTO vaultquestcompletionlink"):
+        if statement.startswith(INSERT_LINK):
             calls += 1
             if calls == nth:
                 raise RuntimeError(message)
@@ -86,8 +92,7 @@ def _fail_insert(bind, nth: int, message: str):
 
 async def test_rotation_calendar_scenarios(async_session, vault):
     quests = await _seed_pools(async_session)
-    offered = await ensure_current_quest_rotation(async_session, vault.id, now=MONDAY)
-    assert offered == DAILY_COUNT + WEEKLY_COUNT
+    assert await ensure_current_quest_rotation(async_session, vault.id, now=MONDAY) == DAILY_COUNT + WEEKLY_COUNT
     state = await _state(async_session, vault)
     _assert_periods(state, MONDAY_PERIOD, MONDAY_PERIOD)
     links = await quest_crud.get_links_for_quest_ids(async_session, vault.id, [quest.id for quest in quests])
@@ -165,8 +170,7 @@ async def test_completed_daily_is_reset_and_can_be_started_again(async_session, 
         True,
     )
     await team_service.assign_quest_team(async_session, daily[0].id, vault.id, [dweller.id])
-    started = await quest_service.start_quest(async_session, daily[0].id, vault.id)
-    assert started.started_at is not None
+    assert (await quest_service.start_quest(async_session, daily[0].id, vault.id)).started_at is not None
 
 
 @pytest.mark.parametrize(
@@ -281,9 +285,7 @@ async def test_failed_roll_persists_nothing(async_session, vault):
     assert (state.daily_quests_period, state.weekly_quests_period) == (None, None)
 
 
-async def test_tick_hook_recovers_from_failure_and_rotates_next_tick(async_session, vault, monkeypatch):
-    from app.services.game_loop_service import game_loop_service
-
+async def test_tick_hook_recovers_from_failure_and_rotates_next_tick(async_session, vault):
     vault_id = vault.id
     await _seed_pools(async_session)
     state = await game_state_crud.get_or_create(async_session, vault_id)
@@ -304,10 +306,6 @@ async def test_tick_hook_recovers_from_failure_and_rotates_next_tick(async_sessi
 
 
 async def test_rotation_sweep_finishes_other_vaults_then_fails_retryably(async_session, vault, monkeypatch):
-    from contextlib import asynccontextmanager
-
-    from app.api import tasks
-
     first = vault.id  # Captured early: the sweep's session recovery expires loaded rows.
     user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
     second = await crud.vault.create(
@@ -326,7 +324,7 @@ async def test_rotation_sweep_finishes_other_vaults_then_fails_retryably(async_s
 
     def fail_first_vault_insert(conn, cursor, statement, parameters, context, executemany):
         nonlocal failing_hex
-        if failing_hex is not None or not statement.startswith("INSERT INTO vaultquestcompletionlink"):
+        if failing_hex is not None or not statement.startswith(INSERT_LINK):
             return
         # asyncpg renders uuid params in the compact hex form; the first param is vault_id.
         rows = parameters if isinstance(parameters, list) else [parameters]

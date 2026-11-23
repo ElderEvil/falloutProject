@@ -2,29 +2,41 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from app.cli.simulate_resources import ResourceEconomyConfig, simulate
-from app.core.enums import RarityEnum, RoomTypeEnum, SPECIALEnum
+from app.cli.simulate_resources import ResourceEconomyConfig, _build_scenario, simulate
+from app.core.enums import AgeGroupEnum, RarityEnum, RoomTypeEnum, SPECIALEnum
 from app.core.event_bus import GameEvent
 from app.core.game_config import game_config
-from app.crud import room as room_crud
 from app.crud.resource import VaultResourceData
 from app.models import Dweller, Storage
 from app.models.room import Room
 from app.models.vault import Vault
 from app.options.races import DISCOMFORT_EFFECTS, DISCOMFORT_PRODUCTION_FLOOR, DiscomfortSeverity
-from app.schemas.room import RoomCreate
 from app.schemas.vault import ResourceLevelWarning, ResourceProduction, ResourceTickEvents
 from app.services.resource_manager_service import ResourceManager
 from app.services.vault.scenario_service import SHORT_RATIONS_SCENARIO, vault_scenario_service
 from app.utils.item_factory import build_outfit
 from app.utils.resource_warnings import get_resource_warnings
 
+RM = "app.services.resource_manager_service"
+STARTER_ROOM_OUTPUT = 28  # catalog output (2*S*(L+4))-2 at tier 1, size 3
+
+
+def _room(name: str, ability: SPECIALEnum, output: float, **fields) -> Room:
+    fields.setdefault("tier", 1)
+    fields.setdefault("size", 1)
+    return Room(name=name, category=RoomTypeEnum.PRODUCTION, ability=ability, output=output, **fields)
+
+
+def _vault(**fields) -> Vault:
+    base = {"power": 75, "food": 50, "water": 50, "power_max": 150, "food_max": 150, "water_max": 150}
+    return Vault(**(base | fields))
+
 
 def test_short_rations_produces_less_food_and_water_with_the_same_workers():
-    standard = Vault(power=75, food=50, water=50, power_max=150, food_max=150, water_max=150)
+    standard = _vault()
     challenge = standard.model_copy(update={"scenario_key": SHORT_RATIONS_SCENARIO})
     rooms = [
-        Room(name=name, category=RoomTypeEnum.PRODUCTION, ability=ability, output=10, size=3, tier=1)
+        _room(name, ability, 10, size=3)
         for name, ability in (
             ("Power Generator", SPECIALEnum.STRENGTH),
             ("Diner", SPECIALEnum.AGILITY),
@@ -39,8 +51,7 @@ def test_short_rations_produces_less_food_and_water_with_the_same_workers():
     assert reduced.consumption == ordinary.consumption
     assert reduced.production.power == ordinary.production.power
     scenario = vault_scenario_service.get(SHORT_RATIONS_SCENARIO)
-    if scenario is None:  # pragma: no cover - the scenario is a shipped constant
-        raise ValueError("vault_67_short_rations is missing from VAULT_SCENARIOS")
+    assert scenario is not None
     expected = scenario.food_water_multiplier
     assert reduced.production.food == pytest.approx(ordinary.production.food * expected)
     assert reduced.production.water == pytest.approx(ordinary.production.water * expected)
@@ -51,24 +62,14 @@ def test_short_rations_produces_less_food_and_water_with_the_same_workers():
 def test_short_rations_makes_feeding_the_vault_a_staffing_decision():
     """The experiment must cost something from the first minute.
 
-    Two regimes, mirroring docs/backend/BALANCE_PLAYTEST.md: the seeded starter
-    (nine dwellers, two SPECIAL-5 cooks) and ordinary growth (SPECIAL-3 cooks,
-    the top of the common roll band). Before the multiplier was cut the starter
-    kitchen out-produced the vault by ~5:1 and filled storage in nine minutes.
+    Mirrors docs/backend/BALANCE_PLAYTEST.md: the seeded starter (nine dwellers,
+    two SPECIAL-5 cooks) and ordinary growth (SPECIAL-3 cooks).
     """
-    diner = Room(name="Diner", category=RoomTypeEnum.PRODUCTION, ability=SPECIALEnum.AGILITY, output=28, size=3, tier=1)
+    diner = _room("Diner", SPECIALEnum.AGILITY, 28, size=3)
     manager = ResourceManager()
 
     def net_food(population: int, cooks: int, special: int) -> float:
-        vault = Vault(
-            power=100,
-            food=100,
-            water=100,
-            power_max=150,
-            food_max=150,
-            water_max=150,
-            scenario_key=SHORT_RATIONS_SCENARIO,
-        )
+        vault = _vault(power=100, food=100, water=100, scenario_key=SHORT_RATIONS_SCENARIO)
         crew = [(diner, [Dweller(agility=special) for _ in range(cooks)])]
         # Ten minutes: the vault update is integer-valued, so a one-minute window
         # rounds a tight net (+0.35/min) away to zero.
@@ -81,169 +82,117 @@ def test_short_rations_makes_feeding_the_vault_a_staffing_decision():
     assert net_food(20, 3, 3) > 0, "a third cook must be the recovery, not a dead end"
 
 
-class TestResourceManager:
-    def test_check_resource_warnings(self):
-        vault = Vault(power_max=100, food_max=100, water_max=100)
+def test_check_resource_warnings():
+    vault = Vault(power_max=100, food_max=100, water_max=100)
 
-        resources = {"power": 50.0, "food": 50.0, "water": 50.0}
-        warnings = get_resource_warnings(vault, resources)
-        assert len(warnings) == 0
+    assert len(get_resource_warnings(vault, {"power": 50.0, "food": 50.0, "water": 50.0})) == 0
 
-        resources = {"power": 19.0, "food": 50.0, "water": 50.0}
-        warnings = get_resource_warnings(vault, resources)
-        assert len(warnings) == 1
-        assert isinstance(warnings[0], ResourceLevelWarning)
-        assert warnings[0].type == "low_power"
+    warnings = get_resource_warnings(vault, {"power": 19.0, "food": 50.0, "water": 50.0})
+    assert len(warnings) == 1
+    assert isinstance(warnings[0], ResourceLevelWarning)
+    assert warnings[0].type == "low_power"
 
-        resources = {"power": 4.0, "food": 50.0, "water": 50.0}
-        warnings = get_resource_warnings(vault, resources)
-        assert len(warnings) == 1
-        assert warnings[0].type == "critical_power"
+    warnings = get_resource_warnings(vault, {"power": 4.0, "food": 50.0, "water": 50.0})
+    assert len(warnings) == 1
+    assert warnings[0].type == "critical_power"
 
-        resources = {"power": 4.0, "food": 19.0, "water": 50.0}
-        warnings = get_resource_warnings(vault, resources)
-        assert len(warnings) == 2
-        types = [warning.type for warning in warnings]
-        assert "critical_power" in types
-        assert "low_food" in types
+    warnings = get_resource_warnings(vault, {"power": 4.0, "food": 19.0, "water": 50.0})
+    assert len(warnings) == 2
+    types = [warning.type for warning in warnings]
+    assert "critical_power" in types
+    assert "low_food" in types
 
-    def test_zero_water_emits_dehydration_instead_of_critical_water(self):
-        vault = Vault(power_max=100, food_max=100, water_max=100)
+    # Zero water means dehydration, not a plain critical-water warning.
+    types = [warning.type for warning in get_resource_warnings(vault, {"power": 50.0, "food": 50.0, "water": 0.0})]
+    assert "critical_water" not in types
+    assert "critical_dehydration" in types
 
-        resources = {"power": 50.0, "food": 50.0, "water": 0.0}
-        warnings = get_resource_warnings(vault, resources)
-        types = [warning.type for warning in warnings]
-        assert "critical_water" not in types
-        assert "critical_dehydration" in types
 
-    @pytest.mark.asyncio
-    async def test_power_outage_production(self):
-        manager = ResourceManager()
+def test_power_outage_production():
+    manager = ResourceManager()
+    crews = [
+        (_room("Power", SPECIALEnum.STRENGTH, 10.0), [Dweller(strength=10)]),
+        (_room("Diner", SPECIALEnum.AGILITY, 10.0), [Dweller(agility=10)]),
+    ]
 
-        # Create mock rooms
-        power_room = Room(
-            name="Power", category=RoomTypeEnum.PRODUCTION, ability=SPECIALEnum.STRENGTH, output=10.0, tier=1, size=1
-        )
-        food_room = Room(
-            name="Diner", category=RoomTypeEnum.PRODUCTION, ability=SPECIALEnum.AGILITY, output=10.0, tier=1, size=1
-        )
+    normal = manager._calculate_production(crews, seconds_passed=60, current_power=10)
+    assert normal["power"] > 0
+    assert normal["food"] > 0
 
-        from app.models.dweller import Dweller
+    outage = manager._calculate_production(crews, seconds_passed=60, current_power=0)
+    assert outage["power"] > 0  # Power plants still work
+    assert outage["food"] == 0  # Diners stop working
 
-        strong_dweller = Dweller(strength=10)
-        agile_dweller = Dweller(agility=10)
 
-        rooms_with_dwellers = [(power_room, [strong_dweller]), (food_room, [agile_dweller])]
-
-        # Scenario 1: Sufficient Power
-        production_normal = manager._calculate_production(rooms_with_dwellers, seconds_passed=60, current_power=10)
-        assert production_normal["power"] > 0
-        assert production_normal["food"] > 0
-
-        # Scenario 2: Power Outage
-        production_outage = manager._calculate_production(rooms_with_dwellers, seconds_passed=60, current_power=0)
-        assert production_outage["power"] > 0  # Power plants still work
-        assert production_outage["food"] == 0  # Diners stop working
-
-    @pytest.mark.asyncio
-    @pytest.mark.parametrize(
-        ("starting_stimpacks", "capacity", "output", "expected_delta"), [(4, 5, 33, 1), (5, 5, 100, 0)]
+@pytest.mark.parametrize(
+    ("starting_stimpacks", "capacity", "output", "expected_delta"), [(4, 5, 33, 1), (5, 5, 100, 0)]
+)
+@pytest.mark.asyncio
+async def test_medical_events_match_persisted_storage_change(
+    vault: Vault, starting_stimpacks: int, capacity: int, output: int, expected_delta: int
+):
+    """Medical collection events must match rounded, capacity-limited storage changes."""
+    vault.power = 10
+    storage = Storage(vault_id=vault.id, stimpack=starting_stimpacks)
+    medbay = _room("Medbay", SPECIALEnum.INTELLIGENCE, output, capacity=capacity)
+    resource_data = VaultResourceData(
+        vault=vault,
+        storage=storage,
+        rooms=[medbay],
+        dweller_count=0,
+        rooms_with_dwellers=[(medbay, [Dweller(intelligence=1)])],
     )
-    async def test_medical_events_match_persisted_storage_change(
-        self, vault: Vault, starting_stimpacks: int, capacity: int, output: int, expected_delta: int
-    ) -> None:
-        """Medical collection events must match rounded, capacity-limited storage changes."""
-        vault.power = 10
-        storage = Storage(vault_id=vault.id, stimpack=starting_stimpacks)
-        medbay = Room(
-            name="Medbay",
-            category=RoomTypeEnum.PRODUCTION,
-            ability=SPECIALEnum.INTELLIGENCE,
-            output=output,
-            capacity=capacity,
-            tier=1,
-            size=1,
-        )
-        resource_data = VaultResourceData(
-            vault=vault,
-            storage=storage,
-            rooms=[medbay],
-            dweller_count=0,
-            rooms_with_dwellers=[(medbay, [Dweller(intelligence=1)])],
-        )
 
-        with (
-            patch(
-                "app.services.resource_manager_service.resource_crud.get_vault_resource_data",
-                new_callable=AsyncMock,
-                return_value=resource_data,
-            ),
-            patch("app.services.resource_manager_service.event_bus.emit", new_callable=AsyncMock) as emit,
-            patch(
-                "app.services.resource_manager_service.relationship_crud.get_involving_any",
-                new_callable=AsyncMock,
-                return_value=[],
-            ),
-        ):
-            _, events = await ResourceManager().process_vault_resources(MagicMock(), vault.id, 60)
-            await ResourceManager.emit_production_events(vault.id, events)
+    with (
+        patch(f"{RM}.resource_crud.get_vault_resource_data", new_callable=AsyncMock, return_value=resource_data),
+        patch(f"{RM}.event_bus.emit", new_callable=AsyncMock) as emit,
+        patch(f"{RM}.relationship_crud.get_involving_any", new_callable=AsyncMock, return_value=[]),
+    ):
+        _, events = await ResourceManager().process_vault_resources(MagicMock(), vault.id, 60)
+        await ResourceManager.emit_production_events(vault.id, events)
 
-        resources = emit.await_args.args[2]["resources"] if emit.await_args else {}
-        assert storage.stimpack == starting_stimpacks + expected_delta
-        assert resources.get("stimpack", 0) == expected_delta
-
-    @pytest.mark.asyncio
-    async def test_production_events_emit_one_batched_event(self, vault: Vault) -> None:
-        events = ResourceTickEvents(
-            production=ResourceProduction(power=12.4, food=0.0, water=3.6, stimpack=1.0, radaway=0.0)
-        )
-
-        with patch("app.services.resource_manager_service.event_bus.emit", new_callable=AsyncMock) as emit:
-            await ResourceManager.emit_production_events(vault.id, events)
-
-        emit.assert_awaited_once()
-        event_type, vault_id, payload = emit.await_args.args
-        assert event_type == GameEvent.RESOURCE_COLLECTED
-        assert vault_id == vault.id
-        assert payload == {"resources": {"power": 12, "water": 3, "stimpack": 1}, "source": "production"}
-
-    @pytest.mark.asyncio
-    async def test_production_events_skip_an_empty_batch(self, vault: Vault) -> None:
-        """A tick with no positive production must not emit an empty event."""
-        with patch("app.services.resource_manager_service.event_bus.emit", new_callable=AsyncMock) as emit:
-            await ResourceManager.emit_production_events(vault.id, ResourceTickEvents())
-
-        emit.assert_not_awaited()
-
-    @pytest.mark.asyncio
-    async def test_junior_worker_assists_production_at_the_reduced_rate(self):
-        from app.core.enums import AgeGroupEnum
-
-        manager = ResourceManager()
-        room = Room(
-            name="Power",
-            category=RoomTypeEnum.PRODUCTION,
-            ability=SPECIALEnum.STRENGTH,
-            output=10.0,
-            tier=1,
-            size=1,
-        )
-        adult = Dweller(strength=10)
-        junior = Dweller(strength=10, age_group=AgeGroupEnum.TEEN, apprentice_stat=SPECIALEnum.STRENGTH)
-
-        adult_only = manager._calculate_production([(room, [adult])], seconds_passed=60, current_power=10)["power"]
-        with_junior = manager._calculate_production([(room, [adult, junior])], seconds_passed=60, current_power=10)[
-            "power"
-        ]
-
-        assert adult_only > 0
-        assert with_junior == pytest.approx(adult_only * (1 + game_config.resource.junior_worker_output_multiplier))
+    resources = emit.await_args.args[2]["resources"] if emit.await_args else {}
+    assert storage.stimpack == starting_stimpacks + expected_delta
+    assert resources.get("stimpack", 0) == expected_delta
 
 
-# Slice 3b contract source: docs/features/RESOURCE_ECONOMY_BALANCE.md. The
-# shipped default moved to 0.0012 with the live-tuned correction
-# (docs/backend/BALANCE_PLAYTEST.md Slice 3b §10).
-STARTER_ROOM_OUTPUT = 28  # catalog output (2*S*(L+4))-2 at tier 1, size 3
+@pytest.mark.asyncio
+async def test_production_events_emit_one_batched_event(vault: Vault):
+    events = ResourceTickEvents(
+        production=ResourceProduction(power=12.4, food=0.0, water=3.6, stimpack=1.0, radaway=0.0)
+    )
+
+    with patch(f"{RM}.event_bus.emit", new_callable=AsyncMock) as emit:
+        await ResourceManager.emit_production_events(vault.id, events)
+
+    emit.assert_awaited_once()
+    event_type, vault_id, payload = emit.await_args.args
+    assert event_type == GameEvent.RESOURCE_COLLECTED
+    assert vault_id == vault.id
+    assert payload == {"resources": {"power": 12, "water": 3, "stimpack": 1}, "source": "production"}
+
+
+@pytest.mark.asyncio
+async def test_production_events_skip_an_empty_batch(vault: Vault):
+    """A tick with no positive production must not emit an empty event."""
+    with patch(f"{RM}.event_bus.emit", new_callable=AsyncMock) as emit:
+        await ResourceManager.emit_production_events(vault.id, ResourceTickEvents())
+
+    emit.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_junior_worker_assists_production_at_the_reduced_rate():
+    manager = ResourceManager()
+    room = _room("Power", SPECIALEnum.STRENGTH, 10.0)
+    adult = Dweller(strength=10)
+    junior = Dweller(strength=10, age_group=AgeGroupEnum.TEEN, apprentice_stat=SPECIALEnum.STRENGTH)
+
+    adult_only = manager._calculate_production([(room, [adult])], seconds_passed=60, current_power=10)["power"]
+    with_junior = manager._calculate_production([(room, [adult, junior])], seconds_passed=60, current_power=10)["power"]
+
+    assert adult_only > 0
+    assert with_junior == pytest.approx(adult_only * (1 + game_config.resource.junior_worker_output_multiplier))
 
 
 def test_base_production_rate_default_matches_resource_economy_baseline() -> None:
@@ -263,11 +212,7 @@ def test_starter_vault_meets_resource_economy_baseline_contract(
 ) -> None:
     result = simulate(
         ResourceEconomyConfig(
-            population=9,
-            workers_per_room=workers_per_room,
-            worker_special=5,
-            room_tier=1,
-            room_size=3,
+            population=9, workers_per_room=workers_per_room, worker_special=5, room_tier=1, room_size=3
         )
     )
     persisted_per_tick = {
@@ -282,30 +227,9 @@ async def test_live_tick_matches_offline_kernel_production_at_default_rate(vault
     vault.power = 100
     manager = ResourceManager()
     rooms = [
-        Room(
-            name="Power Generator",
-            category=RoomTypeEnum.PRODUCTION,
-            ability=SPECIALEnum.STRENGTH,
-            output=float(STARTER_ROOM_OUTPUT),
-            tier=1,
-            size=3,
-        ),
-        Room(
-            name="Diner",
-            category=RoomTypeEnum.PRODUCTION,
-            ability=SPECIALEnum.AGILITY,
-            output=float(STARTER_ROOM_OUTPUT),
-            tier=1,
-            size=3,
-        ),
-        Room(
-            name="Water Treatment",
-            category=RoomTypeEnum.PRODUCTION,
-            ability=SPECIALEnum.PERCEPTION,
-            output=float(STARTER_ROOM_OUTPUT),
-            tier=1,
-            size=3,
-        ),
+        _room("Power Generator", SPECIALEnum.STRENGTH, float(STARTER_ROOM_OUTPUT), size=3),
+        _room("Diner", SPECIALEnum.AGILITY, float(STARTER_ROOM_OUTPUT), size=3),
+        _room("Water Treatment", SPECIALEnum.PERCEPTION, float(STARTER_ROOM_OUTPUT), size=3),
     ]
     rooms_with_dwellers = [
         (rooms[0], [Dweller(strength=5), Dweller(strength=5)]),
@@ -314,25 +238,13 @@ async def test_live_tick_matches_offline_kernel_production_at_default_rate(vault
     ]
     offline = manager._calculate_production(rooms_with_dwellers, seconds_passed=60, current_power=vault.power)
     resource_data = VaultResourceData(
-        vault=vault,
-        storage=None,
-        rooms=rooms,
-        dweller_count=9,
-        rooms_with_dwellers=rooms_with_dwellers,
+        vault=vault, storage=None, rooms=rooms, dweller_count=9, rooms_with_dwellers=rooms_with_dwellers
     )
 
     with (
-        patch(
-            "app.services.resource_manager_service.resource_crud.get_vault_resource_data",
-            new_callable=AsyncMock,
-            return_value=resource_data,
-        ),
-        patch("app.services.resource_manager_service.event_bus.emit", new_callable=AsyncMock),
-        patch(
-            "app.services.resource_manager_service.relationship_crud.get_involving_any",
-            new_callable=AsyncMock,
-            return_value=[],
-        ),
+        patch(f"{RM}.resource_crud.get_vault_resource_data", new_callable=AsyncMock, return_value=resource_data),
+        patch(f"{RM}.event_bus.emit", new_callable=AsyncMock),
+        patch(f"{RM}.relationship_crud.get_involving_any", new_callable=AsyncMock, return_value=[]),
     ):
         _, events = await manager.process_vault_resources(MagicMock(), vault.id, 60)
 
@@ -341,8 +253,6 @@ async def test_live_tick_matches_offline_kernel_production_at_default_rate(vault
 
 
 def test_offline_window_matches_per_tick_fractional_carry() -> None:
-    from app.cli.simulate_resources import _build_scenario
-
     cfg = ResourceEconomyConfig(
         population=9,
         workers_per_room=2,
@@ -357,19 +267,12 @@ def test_offline_window_matches_per_tick_fractional_carry() -> None:
         resource_max=1_000_000,
     )
     vault, rooms, rooms_with_dwellers = _build_scenario(cfg)
-    manager = ResourceManager()
-    update, _ = manager.calculate_resource_window(vault, rooms, cfg.population, rooms_with_dwellers, 3600)
+    update, _ = ResourceManager().calculate_resource_window(vault, rooms, cfg.population, rooms_with_dwellers, 3600)
     per_tick = simulate(cfg).final_resources
     assert {key: getattr(update, key) for key in ("power", "food", "water")} == per_tick
 
 
-def _seeded_net(
-    prepared,
-    dweller_count: int,
-    crews: list[list[Dweller]],
-    resource: str,
-    room_prefix: str,
-) -> float:
+def _seeded_net(prepared, dweller_count: int, crews: list[list[Dweller]], resource: str, room_prefix: str) -> float:
     """Net live per-minute change for one resource over the real seeded room set."""
     manager = ResourceManager()
     rooms = [
@@ -403,32 +306,25 @@ def _outfitted_workers(stat: str, count: int) -> list[Dweller]:
     return [Dweller(**{stat: 5, "outfit": outfit}) for _ in range(count)]
 
 
-@pytest.mark.asyncio
-async def test_seeded_standard_vault_live_power_survives_when_staffed_and_deficits_unstaffed() -> None:
+async def _prepared(is_boosted: bool):
     from uuid import uuid4
 
     from app.core.game_data import get_static_game_data
     from app.services.vault import seeding
 
-    prepared = seeding.prepare_initial_rooms((await get_static_game_data()).rooms, uuid4(), is_boosted=False)
-
-    assert _seeded_net(prepared, 10, [_adults(5, 2)], "power", "power") > 0
-    assert _seeded_net(prepared, 10, [_adults(5, 0)], "power", "power") < 0
+    return seeding.prepare_initial_rooms((await get_static_game_data()).rooms, uuid4(), is_boosted=is_boosted)
 
 
 @pytest.mark.asyncio
-async def test_seeded_boosted_vault_size_six_generator_keeps_live_power_positive_with_margin() -> None:
-    from uuid import uuid4
+async def test_seeded_vault_live_power_and_food_hold_when_staffed() -> None:
+    standard = await _prepared(is_boosted=False)
+    assert _seeded_net(standard, 10, [_adults(5, 2)], "power", "power") > 0
+    assert _seeded_net(standard, 10, [_adults(5, 0)], "power", "power") < 0
 
-    from app.core.game_data import get_static_game_data
-    from app.services.vault import seeding
-
-    prepared = seeding.prepare_initial_rooms((await get_static_game_data()).rooms, uuid4(), is_boosted=True)
+    prepared = await _prepared(is_boosted=True)
     generators = [room for room in prepared.production if str(room.name).lower().startswith("power")]
-
     assert len(generators) == 1  # seeded directly at final size, no fusion round-trip
-    assert generators[0].size == 6
-    assert generators[0].output == 70  # (2*6*(2+4))-2 at tier 2, size 6
+    assert (generators[0].size, generators[0].output) == (6, 70)  # (2*6*(2+4))-2 at tier 2, size 6
 
     full = [[*_outfitted_workers("strength", 5), _apprentice(5)]]
     assert _seeded_net(prepared, 33, full, "power", "power") > 100
@@ -439,24 +335,13 @@ async def test_seeded_boosted_vault_size_six_generator_keeps_live_power_positive
     assert _seeded_net(prepared, 33, one_left, "power", "power") > 0
     assert _seeded_net(prepared, 33, [[_apprentice(5)]], "power", "power") < 0
 
-
-@pytest.mark.asyncio
-async def test_seeded_boosted_diner_outfitted_crew_keeps_live_food_positive() -> None:
-    from uuid import uuid4
-
-    from app.core.game_data import get_static_game_data
-    from app.services.vault import seeding
-
-    prepared = seeding.prepare_initial_rooms((await get_static_game_data()).rooms, uuid4(), is_boosted=True)
     diner_crew = [*_outfitted_workers("agility", 2), _apprentice(5, SPECIALEnum.AGILITY)]
     assert _seeded_net(prepared, 33, [diner_crew], "food", "diner") > 0
 
 
 def test_friction_multiplier_penalizes_discomfort_and_rivals() -> None:
-    human = Dweller(strength=5)
-    human.visual_attributes = {"race": "human"}
-    peer = Dweller(strength=5)
-    peer.visual_attributes = {"race": "human"}
+    human, peer = Dweller(strength=5), Dweller(strength=5)
+    human.visual_attributes = peer.visual_attributes = {"race": "human"}
     feral = Dweller(strength=5)
     feral.visual_attributes = {"race": "ghoul", "state_of_being": "feral"}
     mutant = Dweller(strength=5)

@@ -29,28 +29,38 @@ REACH_KW = {
     "track_key": "reach:dweller_count",
 }
 BASE = {"reward": "10 caps", "category": "achievement", "target_entity": {}, "objective_type": "collect"}
+NOW = datetime(2026, 10, 19, tzinfo=UTC)
 
 
 def _objective(challenge, amount, **kw):
-    fields = {"challenge": challenge, "target_amount": amount, **BASE, **kw}
-    return Objective(**fields)
+    return Objective(**{"challenge": challenge, "target_amount": amount, **BASE, **kw})
+
+
+async def _stages(db, *specs):
+    stages = [_objective(challenge, amount, **extra) for challenge, amount, extra in specs]
+    db.add_all(stages)
+    await db.commit()
+    return stages
 
 
 async def water_stages(db):
-    stages = [
-        _objective(f"Collect {amount} Water", amount, target_entity=WATER, track_key="collect:water", sequence=stage)
-        for stage, amount in enumerate((100, 500, 1500), 1)
-    ]
-    db.add_all(stages)
-    await db.commit()
-    return stages
+    return await _stages(
+        db,
+        *[
+            (
+                f"Collect {amount} Water",
+                amount,
+                {"target_entity": WATER, "track_key": "collect:water", "sequence": i},
+            )
+            for i, amount in enumerate((100, 500, 1500), 1)
+        ],
+    )
 
 
 async def population_stages(db):
-    stages = [_objective(f"Reach {n} Dwellers", n, **REACH_KW, sequence=i) for i, n in enumerate((10, 25, 50), 1)]
-    db.add_all(stages)
-    await db.commit()
-    return stages
+    return await _stages(
+        db, *[(f"Reach {n} Dwellers", n, dict(REACH_KW, sequence=i)) for i, n in enumerate((10, 25, 50), 1)]
+    )
 
 
 async def existing_population(db, vault_id, count, *, level=1):
@@ -64,7 +74,7 @@ async def _links(db, vault_id):
 
 
 async def _ids(db, vault_id):
-    return [link.objective_id for link in await objective_crud.get_links_for_vault(db, vault_id)]
+    return list(await _links(db, vault_id))
 
 
 async def _assign(db, vault, **kwargs):
@@ -166,19 +176,22 @@ async def test_later_stage_cannot_be_claimed_before_the_active_stage(async_sessi
 
 
 async def test_distinct_dwellers_get_a_fresh_counting_window(async_session, vault, water_events):
-    stages = [
-        _objective(
-            f"Correctly assign {amount}",
-            amount,
-            objective_type="assign_correct",
-            track_key="assign_correct:any",
-            sequence=stage,
-            target_entity={"distinct_dwellers": True},
-        )
-        for stage, amount in enumerate((1, 2), 1)
-    ]
-    async_session.add_all(stages)
-    await async_session.commit()
+    stages = await _stages(
+        async_session,
+        *[
+            (
+                f"Correctly assign {amount}",
+                amount,
+                {
+                    "objective_type": "assign_correct",
+                    "track_key": "assign_correct:any",
+                    "sequence": stage,
+                    "target_entity": {"distinct_dwellers": True},
+                },
+            )
+            for stage, amount in enumerate((1, 2), 1)
+        ],
+    )
     await _assign(async_session, vault, auto_commit=False)
     bus = water_events[0]
     AssignCorrectEvaluator(bus)
@@ -222,10 +235,10 @@ async def test_claim_unlock_failure_rolls_back_the_claim(async_session, vault, w
 async def test_existing_vault_initializes_tracks_without_waiting_for_a_calendar_reset(async_session, vault):
     stages = await water_stages(async_session)
     state = await game_state_crud.get_or_create(async_session, vault.id)
-    state.daily_objectives_period = datetime(2026, 10, 19, tzinfo=UTC)
-    state.weekly_objectives_period = datetime(2026, 10, 19, tzinfo=UTC)
+    state.daily_objectives_period = NOW
+    state.weekly_objectives_period = NOW
     await async_session.commit()
-    assert await ensure_current_objectives(async_session, vault.id, now=datetime(2026, 10, 19, tzinfo=UTC)) == []
+    assert await ensure_current_objectives(async_session, vault.id, now=NOW) == []
     assert state.achievement_tracks_initialized
     links = await objective_crud.get_links_for_vault(async_session, vault.id)
     assert [(link.objective_id, link.progress) for link in links] == [(stages[0].id, 0)]
@@ -235,7 +248,7 @@ async def test_renewal_discovers_new_families_without_resetting_current_progress
     stages = await water_stages(async_session)
     async_session.add(Objective(challenge="Daily water", category="daily", reward="10 caps", objective_type="collect"))
     await async_session.commit()
-    await ensure_current_objectives(async_session, vault.id, now=datetime(2026, 10, 19, tzinfo=UTC))
+    await ensure_current_objectives(async_session, vault.id, now=NOW)
     current = await objective_crud.get_link_for_update(async_session, stages[0].id, vault.id)
     current.progress = 42
     added = _objective(

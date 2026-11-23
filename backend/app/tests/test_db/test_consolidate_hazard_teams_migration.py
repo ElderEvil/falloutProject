@@ -1,24 +1,8 @@
-"""Regression coverage for the hazard-team consolidation migration.
+from app.tests.test_alembic._support import load_migration
 
-The earned fire/radiation rosters moved from the parallel ``hazard_team_member``
-table onto the reusable ``team``/``team_member`` primitive. This test pins the
-migration's revision chain, the three-way purpose check, and the member
-backfill's status-to-slot mapping: living ``active`` members hold slots 1-3 in
-seniority order, while ``reserve`` and fallen members hold no slot (NULL).
-"""
-
-import importlib.util
-from pathlib import Path
-
-MIGRATION_PATH = (
-    Path(__file__).parents[2]
-    / "alembic/versions/2026_09_19_0003-c9d8e7f6a5b4_consolidate_hazard_teams_onto_team_roster.py"
+MIGRATION = load_migration(
+    "2026_09_19_0003-c9d8e7f6a5b4_consolidate_hazard_teams_onto_team_roster.py", "consolidate_hazard_teams"
 )
-MIGRATION_SPEC = importlib.util.spec_from_file_location("consolidate_hazard_teams", MIGRATION_PATH)
-assert MIGRATION_SPEC
-assert MIGRATION_SPEC.loader
-MIGRATION = importlib.util.module_from_spec(MIGRATION_SPEC)
-MIGRATION_SPEC.loader.exec_module(MIGRATION)
 
 
 def test_revision_chain() -> None:
@@ -49,20 +33,16 @@ def test_member_backfill_assigns_slots_to_living_active_only() -> None:
 
 
 def test_member_backfill_caps_active_slots_at_the_roster_size() -> None:
-    """A legacy roster can exceed three living active members; the excess becomes bench."""
     sql = str(MIGRATION.MEMBER_BACKFILL_SQL)
     limit = MIGRATION.ACTIVE_SLOT_LIMIT
-
     assert limit == 3
     assert f"ranked.slot_rank <= {limit} THEN ranked.slot_rank" in sql
     assert f"ranked.slot_rank <= {limit} THEN 'active' ELSE 'reserve'" in sql
 
 
 def test_member_backfill_derives_status_from_slot_occupancy() -> None:
-    """Status is never copied: a slot-less row that stayed active would count as a responder."""
-    sql = str(MIGRATION.MEMBER_BACKFILL_SQL)
-
-    assert "ELSE htm.status" not in sql
+    # Status is never copied: a slot-less row that stayed active would count as a responder.
+    assert "ELSE htm.status" not in str(MIGRATION.MEMBER_BACKFILL_SQL)
 
 
 def test_member_backfill_copies_timestamps() -> None:

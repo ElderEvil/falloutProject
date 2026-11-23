@@ -4,6 +4,7 @@ import random
 from unittest.mock import patch
 
 import pytest
+from click import unstyle
 from typer.testing import CliRunner
 
 from app.cli import simulate_incidents as sim_cli
@@ -24,6 +25,26 @@ def _profile(label: str, power: float) -> DefenderProfile:
     )
 
 
+def _defender(label: str, power: float = 10.0, health: int = 100) -> SimDefender:
+    return SimDefender(profile=_profile(label, power), health=health)
+
+
+def _invoke(*args: str):
+    return CliRunner().invoke(cli, ["simulate-incidents", *args])
+
+
+def _outcome() -> IncidentOutcome:
+    return IncidentOutcome(resolved=True, failed=False, ticks=1, progress=1.0, damage_taken=0, deaths=0)
+
+
+def _total_damage(run: list[IncidentOutcome]) -> int:
+    return sum(outcome.damage_taken for outcome in run)
+
+
+def _total_ticks(run: list[IncidentOutcome]) -> int:
+    return sum(outcome.ticks for outcome in run)
+
+
 def test_regen_respects_radiation_ceiling():
     cfg = IncidentConfig(heal_per_tick=5)
     sim = IncidentSimulator(cfg)
@@ -33,9 +54,8 @@ def test_regen_respects_radiation_ceiling():
     assert defender.health == 30
 
 
-def test_simulator_is_deterministic_with_seed():
-    cfg = IncidentConfig(spawn_chance_per_hour=0.8)
-    sim = IncidentSimulator(cfg)
+def test_simulator_is_deterministic_with_seed_and_differs_across_seeds():
+    sim = IncidentSimulator(IncidentConfig(spawn_chance_per_hour=0.8))
     first = sim.run(48, seed=42)
     second = sim.run(48, seed=42)
     assert first.total_incidents == second.total_incidents
@@ -43,13 +63,9 @@ def test_simulator_is_deterministic_with_seed():
     assert first.incidents_resolved == second.incidents_resolved
     assert first.population_by_hour == second.population_by_hour
 
-
-def test_simulator_differs_with_different_seed():
-    cfg = IncidentConfig(spawn_chance_per_hour=0.8)
-    sim = IncidentSimulator(cfg)
-    first = sim.run(48, seed=1)
-    second = sim.run(48, seed=2)
-    assert (first.total_incidents, first.total_deaths) != (second.total_incidents, second.total_deaths)
+    other = sim.run(48, seed=1)
+    third = sim.run(48, seed=2)
+    assert (other.total_incidents, other.total_deaths) != (third.total_incidents, third.total_deaths)
 
 
 @pytest.mark.parametrize("resolved", [False, True])
@@ -67,14 +83,11 @@ def test_spawn_preserves_active_wave_below_deathclaw_gate(resolved: bool):
 def test_defenders_per_incident_caps_responders():
     cfg = IncidentConfig(spawn_chance_per_hour=1.0, defenders_per_incident=6)
     sim = IncidentSimulator(cfg)
-    roster = [SimDefender(profile=_profile(f"d{i}", 10.0), health=100) for i in range(100)]
+    roster = [_defender(f"d{i}") for i in range(100)]
     vault = sim_cli.VaultState(population=100, adults=100, roster=roster)
     vault.incidents.append(sim_cli.Incident(start_time=0, incident_type=IncidentType.RAIDER_ATTACK, difficulty=2))
 
-    with patch(
-        "app.cli.simulate_incidents.resolve_incident",
-        return_value=IncidentOutcome(resolved=True, failed=False, ticks=1, progress=1.0, damage_taken=0, deaths=0),
-    ) as mock_resolve:
+    with patch("app.cli.simulate_incidents.resolve_incident", return_value=_outcome()) as mock_resolve:
         sim._resolve_incidents(vault, [], random.Random(0))
 
     assert mock_resolve.call_count == 1
@@ -83,7 +96,7 @@ def test_defenders_per_incident_caps_responders():
 
 
 def test_cli_runs_and_prints_report():
-    result = CliRunner().invoke(cli, ["simulate-incidents", "--days", "1", "--runs", "2"])
+    result = _invoke("--days", "1", "--runs", "2")
     assert result.exit_code == 0, result.output
     assert "Incident Simulation" in result.output
     assert "Balance assessment" in result.output
@@ -116,51 +129,53 @@ def test_matchup_fire_team_responds_stronger_than_unassigned_roster():
 
 
 def test_matchup_cli_prints_report():
-    result = CliRunner().invoke(
-        cli, ["simulate-incidents", "--matchup", "RADSCORPION_ATTACK:4", "--runs", "100", "--seed", "7"]
-    )
+    result = _invoke("--matchup", "RADSCORPION_ATTACK:4", "--runs", "100", "--seed", "7")
     assert result.exit_code == 0, result.output
     assert "Matchup: RADSCORPION_ATTACK difficulty 4" in result.output
 
 
-def test_matchup_cli_rejects_unknown_type():
-    result = CliRunner().invoke(cli, ["simulate-incidents", "--matchup", "NOT_A_TYPE:2", "--runs", "1"])
-    assert result.exit_code != 0
+@pytest.mark.parametrize(
+    ("args", "expected_code", "expected_text"),
+    [
+        (("--matchup", "NOT_A_TYPE:2", "--runs", "1"), None, None),
+        (
+            ("--matchup", "FIRE:2", "--runs", "1", "--vault-id", "00000000-0000-0000-0000-000000000000"),
+            2,
+            "--vault-id",
+        ),
+        (("--runs", "0"), 2, "--runs"),
+    ],
+)
+def test_matchup_cli_rejects_invalid_invocations(args, expected_code, expected_text):
+    result = _invoke(*args)
+    if expected_code is None:
+        assert result.exit_code != 0
+        return
+    assert result.exit_code == expected_code
+    assert expected_text in unstyle(result.output)
 
 
-def test_matchup_zero_responders_reports_unopposed_instead_of_crashing():
-    run = sim_cli.run_matchup(IncidentConfig(defenders_per_incident=0), IncidentType.RAIDER_ATTACK, 2, 10, seed=3)
-    assert len(run) == 10
-    assert all(outcome.failed and not outcome.resolved for outcome in run)
-    assert sum(outcome.damage_taken for outcome in run) == 0
-    assert sum(outcome.deaths for outcome in run) == 0
-
-
-def test_matchup_zero_responders_honors_configured_grace():
-    """Unopposed matchup runs wait out the configured grace, like the live engine."""
+@pytest.mark.parametrize("runs", [10, 3])
+def test_matchup_zero_responders_reports_unopposed_instead_of_crashing(runs: int):
     cfg = IncidentConfig(defenders_per_incident=0)
-    run = sim_cli.run_matchup(cfg, IncidentType.RAIDER_ATTACK, 2, 3, seed=3)
+    run = sim_cli.run_matchup(cfg, IncidentType.RAIDER_ATTACK, 2, runs, seed=3)
     expected_ticks = cfg.response_grace_seconds // cfg.incident_dt + 1
-    assert len(run) == 3
+    assert len(run) == runs
     assert all(outcome.failed and not outcome.resolved for outcome in run)
+    # Unopposed matchup runs wait out the configured grace, like the live engine.
     assert all(outcome.ticks == expected_ticks for outcome in run)
     assert sum(outcome.damage_taken for outcome in run) == 0
     assert sum(outcome.deaths for outcome in run) == 0
 
 
 def test_resolve_incidents_passes_configured_grace():
-    """The simulator resolve path runs the real kernel with the configured grace."""
     cfg = IncidentConfig(response_rate=0.0)
     sim = IncidentSimulator(cfg)
-    roster = [SimDefender(profile=_profile("d0", 10.0), health=100)]
-    vault = sim_cli.VaultState(population=1, adults=1, roster=roster)
+    vault = sim_cli.VaultState(population=1, adults=1, roster=[_defender("d0")])
     vault.incidents.append(sim_cli.Incident(start_time=0, incident_type=IncidentType.RAIDER_ATTACK, difficulty=2))
     resolution_times: list[int] = []
 
-    with patch(
-        "app.cli.simulate_incidents.resolve_incident",
-        wraps=sim_cli.resolve_incident,
-    ) as spy_resolve:
+    with patch("app.cli.simulate_incidents.resolve_incident", wraps=sim_cli.resolve_incident) as spy_resolve:
         sim._resolve_incidents(vault, resolution_times, random.Random(0))
 
     assert spy_resolve.call_count == 1
@@ -170,75 +185,31 @@ def test_resolve_incidents_passes_configured_grace():
     assert resolution_times == [cfg.response_grace_seconds // cfg.incident_dt + 1]
 
 
-def test_matchup_cli_rejects_vault_id_combination():
-    from click import unstyle
-
-    result = CliRunner().invoke(
-        cli,
-        [
-            "simulate-incidents",
-            "--matchup",
-            "FIRE:2",
-            "--runs",
-            "1",
-            "--vault-id",
-            "00000000-0000-0000-0000-000000000000",
-        ],
-    )
-    assert result.exit_code == 2
-    assert "--vault-id" in unstyle(result.output)
-
-
-def test_simulate_cli_rejects_zero_runs():
-    from click import unstyle
-
-    result = CliRunner().invoke(cli, ["simulate-incidents", "--runs", "0"])
-    assert result.exit_code == 2
-    assert "--runs" in unstyle(result.output)
-
-
 def test_matchup_cli_accepts_team_size_and_outfit_count():
-    result = CliRunner().invoke(
-        cli,
-        [
-            "simulate-incidents",
-            "--matchup",
-            "FIRE:4",
-            "--runs",
-            "5",
-            "--seed",
-            "1",
-            "--hazard-team",
-            "fire",
-            "--team-size",
-            "0",
-            "--outfit-count",
-            "3",
-        ],
+    result = _invoke(
+        "--matchup",
+        "FIRE:4",
+        "--runs",
+        "5",
+        "--seed",
+        "1",
+        "--hazard-team",
+        "fire",
+        "--team-size",
+        "0",
+        "--outfit-count",
+        "3",
     )
     assert result.exit_code == 0, result.output
 
 
-def _total_damage(run: list[IncidentOutcome]) -> int:
-    return sum(outcome.damage_taken for outcome in run)
-
-
-def _total_ticks(run: list[IncidentOutcome]) -> int:
-    return sum(outcome.ticks for outcome in run)
-
-
 def test_four_defender_conditions_isolate_team_place_from_matching_gear():
-    """The seeded four-condition comparison the playtest protocol is built on.
-
-    Same seed and roster size across runs, so the responder sample is identical
-    and the only variable is the condition: plain, matching gear without a place,
-    a place without gear, and the trained team (place + gear).
-    """
     seed = 20261012
 
-    def run(incident_type: IncidentType, **config_overrides) -> dict:
+    def run(incident_type: IncidentType, **config_overrides) -> list[IncidentOutcome]:
         return sim_cli.run_matchup(IncidentConfig(**config_overrides), incident_type, 4, 200, seed=seed)
 
+    # Same seed and roster size across runs, so only the condition varies.
     plain = run(IncidentType.FIRE)
     gear_only = run(IncidentType.FIRE, hazard_team=HazardTeam.FIRE, team_size=0, outfit_count=3)
     team_only = run(IncidentType.FIRE, hazard_team=HazardTeam.FIRE, team_size=3, outfit_count=0)

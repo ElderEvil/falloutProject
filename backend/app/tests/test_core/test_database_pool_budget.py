@@ -54,7 +54,6 @@ def test_default_connection_budget_keeps_headroom() -> None:
 
 
 def test_production_worker_pool_size_keeps_headroom() -> None:
-    """The k3s worker overrides TASK_DB_POOL_SIZE to 4; keep that inside the budget."""
     settings = _settings_with_documented_defaults(TASK_DB_POOL_SIZE=4)
 
     assert settings.task_pool_connections == 64

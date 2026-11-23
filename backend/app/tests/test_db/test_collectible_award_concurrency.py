@@ -1,20 +1,10 @@
-"""PostgreSQL-only: two simultaneous awards claim once and grant the bonus once.
-
-The unit test simulates a stale pre-check; only a real database can show the unique index
-actually arbitrating. SQLite has no row locks, so this skips unless the configured database is
-a live PostgreSQL, matching the other lock-contract tests in this package.
-"""
-
 import asyncio
 
 import pytest
 import pytest_asyncio
 from sqlalchemy import func, select
-from sqlalchemy.engine import make_url
-from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
-from sqlalchemy.pool import NullPool
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
-from app.core.config import settings
 from app.core.enums import AgeGroupEnum, GenderEnum, RarityEnum
 from app.crud import user as user_crud
 from app.crud import vault as vault_crud
@@ -28,32 +18,20 @@ from app.schemas.vault import VaultCreate
 from app.services.collectible_service import collectible_service
 from app.tests.factory.vaults import random_vault_number
 
-
-@pytest_asyncio.fixture(scope="module")
-async def live_pg_engine() -> AsyncEngine:
-    uri = str(settings.ASYNC_DATABASE_URI)
-    if make_url(uri).get_backend_name() != "postgresql":
-        pytest.skip("ASYNC_DATABASE_URI is not PostgreSQL; skipping collectible award race")
-    engine = create_async_engine(uri, poolclass=NullPool)
-    try:
-        async with engine.connect() as conn:
-            await conn.execute(select(1))
-    except Exception as exc:
-        await engine.dispose()
-        pytest.skip(f"PostgreSQL unavailable: {exc}")
-    yield engine
-    await engine.dispose()
+pytest_plugins = ["app.tests.test_alembic._support"]
 
 
-async def _vault_with_dweller(db: AsyncSession) -> tuple:
+async def vault_with_dweller(
+    db: AsyncSession,
+    *,
+    prefix: str = "bobble",
+    surname: str = "Finder",
+    password: str = "bobblepw123",  # ruff: ignore[hardcoded-password-default]
+) -> tuple:
     number = random_vault_number()
     user = await user_crud.create(
         db_session=db,
-        obj_in=UserCreate(
-            username=f"bobble{number}",
-            email=f"bobble{number}@example.com",
-            password="bobblepw123",
-        ),
+        obj_in=UserCreate(username=f"{prefix}{number}", email=f"{prefix}{number}@example.com", password=password),
     )
     vault = await vault_crud.create_with_user_id(
         db_session=db, obj_in=VaultCreate(number=number, name=f"Vault {number}"), user_id=user.id
@@ -63,7 +41,7 @@ async def _vault_with_dweller(db: AsyncSession) -> tuple:
         obj_in=DwellerCreate(
             vault_id=vault.id,
             first_name="Race",
-            last_name=f"Finder{number}",
+            last_name=f"{surname}{number}",
             gender=GenderEnum.MALE,
             age_group=AgeGroupEnum.ADULT,
             rarity=RarityEnum.COMMON,
@@ -86,12 +64,10 @@ async def _vault_with_dweller(db: AsyncSession) -> tuple:
 
 
 @pytest.mark.integration
-@pytest.mark.asyncio
 async def test_two_simultaneous_awards_claim_once(live_pg_engine: AsyncEngine) -> None:
     maker = async_sessionmaker(live_pg_engine, class_=AsyncSession, expire_on_commit=False)
-
     async with maker() as db:
-        _, vault, dweller = await _vault_with_dweller(db)
+        _, vault, dweller = await vault_with_dweller(db)
     vault_id, dweller_id = vault.id, dweller.id
 
     async def _award() -> bool:
@@ -105,22 +81,18 @@ async def test_two_simultaneous_awards_claim_once(live_pg_engine: AsyncEngine) -
             return claimed
 
     first, second = await asyncio.gather(_award(), _award())
-
     # Exactly one of the two claims the bobblehead; the loser is told so, not crashed into.
     assert sum(1 for claimed in (first, second) if claimed) == 1
-
     async with maker() as db:
         claim = await collectible_crud.get_by_vault_and_key(db, vault_id, "strength")
         assert claim is not None
         assert claim.finder_dweller_id == dweller_id
         count = await db.execute(select(func.count(VaultCollectible.id)).where(VaultCollectible.vault_id == vault_id))
         assert count.scalar_one() == 1
-
         reloaded = await dweller_crud.get(db, dweller_id)
         assert reloaded is not None
         # One bobblehead, one +1: a lost race must not grant a second bonus.
         assert reloaded.collectible_bonus == {"strength": 1}
-
         await db.delete(claim)
         dwellers = await db.execute(select(Dweller).where(Dweller.vault_id == vault_id))
         for found in dwellers.scalars().all():

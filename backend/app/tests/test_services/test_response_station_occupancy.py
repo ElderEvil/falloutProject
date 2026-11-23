@@ -1,9 +1,7 @@
 """Response Station occupancy and hazard-team independence (issue #997).
 
-Occupancy must follow the station's footprint (3/6/9 -> 2/4/6 slots) through the
-REAL dweller-assignment path (``dweller_service.move_to_room``), and assigning a
-dweller to the station must never touch fire/radiation team membership or the
-active places a dweller holds.
+Occupancy follows the station's footprint (3/6/9 -> 2/4/6 slots) through the REAL
+dweller-assignment path, and assignment never touches hazard-team membership.
 """
 
 from __future__ import annotations
@@ -16,7 +14,16 @@ import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
-from app.core.enums import AgeGroupEnum, GenderEnum, HazardTeam, IncidentType, RarityEnum, RoomTypeEnum, SPECIALEnum
+from app.core.enums import (
+    SPECIAL_STATS,
+    AgeGroupEnum,
+    GenderEnum,
+    HazardTeam,
+    IncidentType,
+    RarityEnum,
+    RoomTypeEnum,
+    SPECIALEnum,
+)
 from app.models.dweller import Dweller
 from app.models.room import Room
 from app.models.team import ACTIVE_STATUS, RESERVE_STATUS
@@ -30,39 +37,29 @@ from app.services.room_service import room_service
 from app.tests.test_services._hazard_team_helpers import fight, make_member, outfit_data
 from app.utils.exceptions import ResourceConflictException
 
-# Helpers
+pytestmark = pytest.mark.asyncio
+
+STATION = {
+    "name": "Response Station",
+    "category": RoomTypeEnum.RESPONSE,
+    "ability": SPECIALEnum.ENDURANCE,
+    "base_cost": 600,
+    "incremental_cost": None,
+    "t2_upgrade_cost": None,
+    "t3_upgrade_cost": None,
+    "size_min": 3,
+    "size_max": 9,
+    "tier": 1,
+    "coordinate_y": 1,
+}
 
 
-def _response_station_create(vault_id: UUID, *, coordinate_x: int = 1, size: int = 3) -> RoomCreate:
-    """A Response Station catalog payload: unique (null incremental cost), 3..9 footprint."""
-    return RoomCreate(
-        vault_id=vault_id,
-        name="Response Station",
-        category=RoomTypeEnum.RESPONSE,
-        ability=SPECIALEnum.ENDURANCE,
-        population_required=None,
-        base_cost=600,
-        incremental_cost=None,
-        t2_upgrade_cost=None,
-        t3_upgrade_cost=None,
-        capacity=None,
-        output=None,
-        size_min=3,
-        size_max=9,
-        size=size,
-        tier=1,
-        coordinate_x=coordinate_x,
-        coordinate_y=1,
-        image_url=None,
-        capacity_formula=None,
-        output_formula=None,
-    )
+def _station_create(vault_id: UUID, *, coordinate_x: int = 1, size: int = 3) -> RoomCreate:
+    return RoomCreate(**STATION, vault_id=vault_id, size=size, coordinate_x=coordinate_x)
 
 
 async def _create_station(session: AsyncSession, vault_id: UUID, *, coordinate_x: int = 1, size: int = 3) -> Room:
-    return await crud.room.create(
-        session, obj_in=_response_station_create(vault_id, coordinate_x=coordinate_x, size=size)
-    )
+    return await crud.room.create(session, obj_in=_station_create(vault_id, coordinate_x=coordinate_x, size=size))
 
 
 async def _ensure_elevator(session: AsyncSession, vault_id: UUID, coordinate_y: int) -> None:
@@ -70,31 +67,25 @@ async def _ensure_elevator(session: AsyncSession, vault_id: UUID, coordinate_y: 
     existing = await crud.room.get_room_by_coordinates(
         db_session=session, vault_id=vault_id, x_coord=0, y_coord=coordinate_y
     )
-    if existing is not None:
-        return
-    await crud.room.create(
-        session,
-        obj_in=RoomCreate(
-            vault_id=vault_id,
-            name="Elevator",
-            category=RoomTypeEnum.MISC,
-            ability=None,
-            population_required=None,
-            base_cost=100,
-            incremental_cost=None,
-            t2_upgrade_cost=None,
-            t3_upgrade_cost=None,
-            capacity=None,
-            output=None,
-            size_min=1,
-            size_max=1,
-            size=1,
-            tier=1,
-            coordinate_x=0,
-            coordinate_y=coordinate_y,
-            image_url=None,
-        ),
-    )
+    if existing is None:
+        await crud.room.create(
+            session,
+            obj_in=RoomCreate(
+                vault_id=vault_id,
+                name="Elevator",
+                category=RoomTypeEnum.MISC,
+                ability=None,
+                base_cost=100,
+                t2_upgrade_cost=None,
+                t3_upgrade_cost=None,
+                size_min=1,
+                size_max=1,
+                size=1,
+                tier=1,
+                coordinate_x=0,
+                coordinate_y=coordinate_y,
+            ),
+        )
 
 
 async def _grow_station(session: AsyncSession, vault_id: UUID, station_id: UUID) -> Room:
@@ -106,10 +97,7 @@ async def _grow_station(session: AsyncSession, vault_id: UUID, station_id: UUID)
     with patch("app.services.vault_service.vault_service.recalculate_vault_attributes", new_callable=AsyncMock):
         grown, _created = await room_service._build(
             db_session=session,
-            obj_in=_response_station_create(
-                vault_id,
-                coordinate_x=station.coordinate_x + (station.size or station.size_min),
-            ),
+            obj_in=_station_create(vault_id, coordinate_x=station.coordinate_x + (station.size or station.size_min)),
         )
     return grown
 
@@ -123,49 +111,39 @@ async def _create_non_unique_room(session: AsyncSession, vault_id: UUID, *, coor
             name="Power Generator",
             category=RoomTypeEnum.PRODUCTION,
             ability=SPECIALEnum.STRENGTH,
-            population_required=None,
             base_cost=100,
             incremental_cost=25,
             t2_upgrade_cost=500,
             t3_upgrade_cost=1500,
-            capacity=None,
-            output=None,
             size_min=3,
             size_max=9,
             size=3,
             tier=1,
             coordinate_x=coordinate_x,
             coordinate_y=1,
-            image_url=None,
-            capacity_formula=None,
-            output_formula=None,
         ),
     )
 
 
 async def _create_adult(session: AsyncSession, vault_id: UUID, surname: str) -> Dweller:
-    dweller_in = DwellerCreate(
-        vault_id=vault_id,
-        first_name="Occupant",
-        last_name=surname,
-        gender=GenderEnum.MALE,
-        rarity=RarityEnum.COMMON,
-        age_group=AgeGroupEnum.ADULT,
-        level=1,
-        experience=0,
-        max_health=100,
-        health=100,
-        radiation=0,
-        happiness=50,
-        strength=5,
-        perception=5,
-        endurance=5,
-        charisma=5,
-        intelligence=5,
-        agility=5,
-        luck=5,
+    return await crud.dweller.create(
+        session,
+        obj_in=DwellerCreate(
+            vault_id=vault_id,
+            first_name="Occupant",
+            last_name=surname,
+            gender=GenderEnum.MALE,
+            rarity=RarityEnum.COMMON,
+            age_group=AgeGroupEnum.ADULT,
+            level=1,
+            experience=0,
+            max_health=100,
+            health=100,
+            radiation=0,
+            happiness=50,
+            **dict.fromkeys(SPECIAL_STATS, 5),
+        ),
     )
-    return await crud.dweller.create(session, obj_in=dweller_in)
 
 
 @pytest.fixture
@@ -182,56 +160,44 @@ async def _occupants(session: AsyncSession, room: Room) -> int:
     return await crud.dweller.count_in_room(session, room.id)
 
 
-# Capacity follows footprint, through the real assignment path
-
-
-@pytest.mark.asyncio
 async def test_station_size_three_holds_two_then_rejects_third(async_session: AsyncSession, rich_vault: Vault) -> None:
-    created = await _create_station(async_session, rich_vault.id)
-    station = await crud.room.get(async_session, created.id)
+    station = await crud.room.get(async_session, (await _create_station(async_session, rich_vault.id)).id)
     assert station.size == 3
     assert calculate_room_capacity(station.size) == 2
 
     first = await _create_adult(async_session, rich_vault.id, "First")
     second = await _create_adult(async_session, rich_vault.id, "Second")
     third = await _create_adult(async_session, rich_vault.id, "Third")
-
     await dweller_service.move_to_room(async_session, first.id, station.id)
     await dweller_service.move_to_room(async_session, second.id, station.id)
     assert await _occupants(async_session, station) == 2
 
     with pytest.raises(ResourceConflictException, match="full capacity"):
         await dweller_service.move_to_room(async_session, third.id, station.id)
-
     assert await _occupants(async_session, station) == 2
 
 
-@pytest.mark.asyncio
 async def test_station_grown_to_six_holds_four_then_rejects_fifth(
     async_session: AsyncSession, rich_vault: Vault
 ) -> None:
     station = await _create_station(async_session, rich_vault.id)
-
     await _grow_station(async_session, rich_vault.id, station.id)
     # Re-read the row so the assertion runs against committed state, not the stale instance.
     grown = await crud.room.get(async_session, station.id)
-    assert grown.id == station.id
-    assert grown.size == 6
-    assert calculate_room_capacity(grown.size) == 4
+    assert (grown.id, grown.size, calculate_room_capacity(grown.size)) == (station.id, 6, 4)
 
-    dwellers = [await _create_adult(async_session, rich_vault.id, f"Occupant{i}") for i in range(4)]
-    for dweller in dwellers:
-        await dweller_service.move_to_room(async_session, dweller.id, grown.id)
+    for index in range(4):
+        await dweller_service.move_to_room(
+            async_session, (await _create_adult(async_session, rich_vault.id, f"Occupant{index}")).id, grown.id
+        )
     assert await _occupants(async_session, grown) == 4
 
     extra = await _create_adult(async_session, rich_vault.id, "Overflow")
     with pytest.raises(ResourceConflictException, match="full capacity"):
         await dweller_service.move_to_room(async_session, extra.id, grown.id)
-
     assert await _occupants(async_session, grown) == 4
 
 
-@pytest.mark.asyncio
 async def test_station_grows_three_six_nine_through_assignment_path(
     async_session: AsyncSession, rich_vault: Vault
 ) -> None:
@@ -249,32 +215,16 @@ async def test_station_grows_three_six_nine_through_assignment_path(
         with pytest.raises(ResourceConflictException, match="full capacity"):
             await dweller_service.move_to_room(async_session, intruder.id, station.id)
 
-    for _ in range(2):  # size 3 -> 2 slots
-        await assign_next()
-    assert await _occupants(async_session, station) == 2
-    await expect_overflow_rejected()
-
-    grown_to_six = await _grow_station(async_session, rich_vault.id, station.id)
-    assert grown_to_six.size == 6
-    assert calculate_room_capacity(grown_to_six.size) == 4
-    for _ in range(2):
-        await assign_next()
-    assert await _occupants(async_session, station) == 4
-    await expect_overflow_rejected()
-
-    grown_to_nine = await _grow_station(async_session, rich_vault.id, station.id)
-    assert grown_to_nine.size == 9
-    assert calculate_room_capacity(grown_to_nine.size) == 6
-    for _ in range(2):
-        await assign_next()
-    assert await _occupants(async_session, station) == 6
-    await expect_overflow_rejected()
+    for size, slots in ((3, 2), (6, 4), (9, 6)):
+        if size > 3:
+            assert (await _grow_station(async_session, rich_vault.id, station.id)).size == size
+        assert calculate_room_capacity(size) == slots
+        for _ in range(2):
+            await assign_next()
+        assert await _occupants(async_session, station) == slots
+        await expect_overflow_rejected()
 
 
-# Team membership is independent of room assignment
-
-
-@pytest.mark.asyncio
 async def test_assigning_dweller_to_station_creates_no_team_membership(
     async_session: AsyncSession, rich_vault: Vault
 ) -> None:
@@ -286,14 +236,10 @@ async def test_assigning_dweller_to_station_creates_no_team_membership(
 
     for team in HazardTeam:
         assert await crud.team_crud.get_hazard_member(async_session, rich_vault.id, team, dweller.id) is None
-
-    roster = await crud.team_crud.get_hazard_team(async_session, rich_vault.id, HazardTeam.FIRE)
-    assert roster == []
-    reserve = await crud.team_crud.get_hazard_reserve(async_session, rich_vault.id, HazardTeam.RADIATION)
-    assert reserve == []
+    assert await crud.team_crud.get_hazard_team(async_session, rich_vault.id, HazardTeam.FIRE) == []
+    assert await crud.team_crud.get_hazard_reserve(async_session, rich_vault.id, HazardTeam.RADIATION) == []
 
 
-@pytest.mark.asyncio
 async def test_station_assignment_leaves_existing_roster_and_active_places_unchanged(
     async_session: AsyncSession, rich_vault: Vault
 ) -> None:
@@ -302,16 +248,13 @@ async def test_station_assignment_leaves_existing_roster_and_active_places_uncha
     newcomer = await _create_adult(async_session, rich_vault.id, "Newcomer")
     await make_member(async_session, rich_vault.id, veteran.id, HazardTeam.FIRE, ACTIVE_STATUS)
 
-    before = await crud.team_crud.get_active_hazard_member_ids(
-        async_session, rich_vault.id, HazardTeam.FIRE, [veteran.id, newcomer.id]
-    )
+    members = [veteran.id, newcomer.id]
+    before = await crud.team_crud.get_active_hazard_member_ids(async_session, rich_vault.id, HazardTeam.FIRE, members)
     assert before == {veteran.id}
 
     await dweller_service.move_to_room(async_session, newcomer.id, station.id)
 
-    after = await crud.team_crud.get_active_hazard_member_ids(
-        async_session, rich_vault.id, HazardTeam.FIRE, [veteran.id, newcomer.id]
-    )
+    after = await crud.team_crud.get_active_hazard_member_ids(async_session, rich_vault.id, HazardTeam.FIRE, members)
     assert after == {veteran.id}
     assert await crud.team_crud.get_hazard_member(async_session, rich_vault.id, HazardTeam.FIRE, newcomer.id) is None
 
@@ -322,7 +265,6 @@ async def test_station_assignment_leaves_existing_roster_and_active_places_uncha
     assert veteran_place.status == ACTIVE_STATUS
 
 
-@pytest.mark.asyncio
 async def test_eligibility_and_active_place_do_not_depend_on_room_id(
     async_session: AsyncSession, rich_vault: Vault
 ) -> None:
@@ -357,20 +299,16 @@ async def _equip_catalog_named_outfit(async_session: AsyncSession, vault: Vault,
     return outfit.id, outfit.name
 
 
-@pytest.mark.asyncio
 async def test_demolish_and_rebuild_station_leaves_teams_ledger_and_gear_unchanged(
     async_session: AsyncSession, vault: Vault
 ) -> None:
     """Demolishing the Response Station and rebuilding it changes no roster state.
 
-    The station is only a place to stand: its removal must not touch active or
-    reserve places, the participation ledger behind them, or the gear the members
-    wear. Two members are stationed when it comes down, so the demolish also runs
+    Two members are stationed when it comes down, so the demolish also runs
     with occupants in the room being destroyed.
     """
     incident_room = await _create_non_unique_room(async_session, vault.id)
     station = await _create_station(async_session, vault.id, coordinate_x=5)
-
     fighters = [await _create_adult(async_session, vault.id, f"Fighter{i}") for i in range(4)]
     for _ in range(QUALIFYING_INCIDENTS):
         await fight(async_session, incident_room, IncidentType.FIRE, fighters)
@@ -378,8 +316,7 @@ async def test_demolish_and_rebuild_station_leaves_teams_ledger_and_gear_unchang
     roster = await crud.team_crud.get_hazard_team(async_session, vault.id, HazardTeam.FIRE)
     active_before = {place.dweller_id: place.slot_number for place in roster if place.status == ACTIVE_STATUS}
     reserve_before = {place.dweller_id for place in roster if place.status == RESERVE_STATUS}
-    assert len(active_before) == 3
-    assert len(reserve_before) == 1
+    assert (len(active_before), len(reserve_before)) == (3, 1)
 
     service_before = {
         dweller.id: await crud.incident_participant_crud.count_incidents(
@@ -388,7 +325,6 @@ async def test_demolish_and_rebuild_station_leaves_teams_ledger_and_gear_unchang
         for dweller in fighters
     }
     assert set(service_before.values()) == {QUALIFYING_INCIDENTS}
-
     gear_before = {
         dweller.id: await _equip_catalog_named_outfit(async_session, vault, dweller, "Firefighter suit")
         for dweller in fighters[:2]
@@ -412,8 +348,7 @@ async def test_demolish_and_rebuild_station_leaves_teams_ledger_and_gear_unchang
         for dweller_id, (outfit_id, name) in gear_before.items():
             worn = await crud.outfit.get_equipped(async_session, dweller_id)
             assert worn is not None
-            assert worn.id == outfit_id
-            assert worn.name == name
+            assert (worn.id, worn.name) == (outfit_id, name)
 
     await room_service.destroy_room(async_session, station.id)
     assert await crud.room.get_or_none(async_session, station.id) is None
@@ -427,10 +362,8 @@ async def test_demolish_and_rebuild_station_leaves_teams_ledger_and_gear_unchang
 
 def test_hazard_team_eligibility_source_never_reads_room_id() -> None:
     """Structural guard: eligibility/roster methods and the roster CRUD never touch room_id."""
-    eligibility_methods = ("record_participation", "_join_if_qualified", "get_roster", "set_place")
-    for name in eligibility_methods:
+    for name in ("record_participation", "_join_if_qualified", "get_roster", "set_place"):
         source = inspect.getsource(getattr(HazardTeamService, name))
         assert "room_id" not in source, f"HazardTeamService.{name} must not read room_id"
 
-    roster_source = inspect.getsource(type(crud.team_crud))
-    assert "room_id" not in roster_source, "the team roster CRUD must not read room_id"
+    assert "room_id" not in inspect.getsource(type(crud.team_crud)), "the team roster CRUD must not read room_id"

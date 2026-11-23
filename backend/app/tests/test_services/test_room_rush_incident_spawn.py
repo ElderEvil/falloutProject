@@ -38,7 +38,6 @@ async def rooms(async_session: AsyncSession, user_with_vault: tuple) -> dict[str
     return {"vault": vault, "target": target, "other": other, "elevator": elevator}
 
 
-@pytest.mark.asyncio
 async def test_spawn_incident_uses_target_room_and_difficulty_bonus(
     async_session: AsyncSession, rooms: dict[str, Any]
 ) -> None:
@@ -49,14 +48,12 @@ async def test_spawn_incident_uses_target_room_and_difficulty_bonus(
         target_room_id=rooms["target"].id,
         difficulty_bonus=4,
     )
-
     assert incident is not None
     assert incident.room_id == rooms["target"].id
     assert incident.difficulty <= 10
     assert incident.difficulty >= 5
 
 
-@pytest.mark.asyncio
 async def test_spawn_incident_rejects_target_elevator(async_session: AsyncSession, rooms: dict[str, Any]) -> None:
     incident = await spawn_incident(
         async_session,
@@ -64,11 +61,9 @@ async def test_spawn_incident_rejects_target_elevator(async_session: AsyncSessio
         IncidentType.FIRE,
         target_room_id=rooms["elevator"].id,
     )
-
     assert incident is None
 
 
-@pytest.mark.asyncio
 async def test_spawn_incident_rejects_target_with_active_incident(
     async_session: AsyncSession, rooms: dict[str, Any]
 ) -> None:
@@ -79,18 +74,15 @@ async def test_spawn_incident_rejects_target_with_active_incident(
         target_room_id=rooms["target"].id,
     )
     assert first is not None
-
     second = await spawn_incident(
         async_session,
         rooms["vault"].id,
         IncidentType.FIRE,
         target_room_id=rooms["target"].id,
     )
-
     assert second is None
 
 
-@pytest.mark.asyncio
 async def test_delayed_incident_activates_after_a_newer_event(
     async_session: AsyncSession, rooms: dict[str, Any]
 ) -> None:
@@ -105,20 +97,16 @@ async def test_delayed_incident_activates_after_a_newer_event(
     assert incident is not None
     incident_publishing.record_event(async_session, incident, "responders_assigned", "Responders assigned.")
     await async_session.commit()
-
     incident.start_time = utcnow() - timedelta(seconds=1)
     async_session.add(incident)
     await async_session.commit()
-
     await incident_service.process_vault_incidents(async_session, vault.id, 2)
-
     visible = await incident_service.get_active_incident_list(async_session, vault.id)
     assert visible.incident_count == 1
     events = await crud.incident_crud.get_recent_events(async_session, incident.id)
     assert all(event.kind != "pending" for event in events)
 
 
-@pytest.mark.asyncio
 async def test_assign_responders_rejects_incident_before_its_start(
     async_session: AsyncSession, rooms: dict[str, Any]
 ) -> None:
@@ -135,6 +123,5 @@ async def test_assign_responders_rejects_incident_before_its_start(
         async_session,
         DwellerCreate(vault_id=vault.id, **create_rush_dweller_payload()),
     )
-
     with pytest.raises(ValidationException):
         await incident_service.assign_responders(async_session, incident, [dweller.id])

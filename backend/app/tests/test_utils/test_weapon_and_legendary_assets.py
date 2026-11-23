@@ -1,17 +1,26 @@
+import shutil
 from pathlib import Path
 
 import pytest
 
 from app.utils import weapon_assets
-from app.utils.legendary_dweller_assets import (
-    LEGENDARY_DWELLER_IMAGE_FILES,
-    get_legendary_dweller_image_url,
-)
+from app.utils.legendary_dweller_assets import LEGENDARY_DWELLER_IMAGE_FILES, get_legendary_dweller_image_url
 from app.utils.static_data import game_data_store
 from app.utils.weapon_assets import WEAPON_NAME_TO_IMAGE_FILE, get_weapon_image_url
+from app.utils.weapon_naming import family_key
 
-WEAPON_IMAGE_DIR = Path(__file__).parent.parent.parent / "static" / "weapon_images"
-LEGENDARY_IMAGE_DIR = Path(__file__).parent.parent.parent / "static" / "legendary_dweller_images"
+STATIC = Path(__file__).parent.parent.parent / "static"
+WEAPON_DIR = STATIC / "weapon_images"
+LEGENDARY_DIR = STATIC / "legendary_dweller_images"
+FALLBACK = "/static/legendary_dweller_images/FOS_Dw_Legendary_Red.png"
+VARIANT_CASES = [
+    ("Hardened Gauss pistol", "Gauss Pistol FOS.png"),
+    ("hardened gauss PISTOL", "Gauss Pistol FOS.png"),
+    ("Auto pipe pistol", "Pipe Pistol FOS.png"),
+    ("Tactical Junk Jet", "Junk Jet FOS.png"),
+    ("Rusty T60 pistol", "FOS T60 pistol.png"),
+    ("Surgical Ripper", "FOS Surgical Ripper.png"),
+]
 
 
 @pytest.fixture
@@ -22,19 +31,17 @@ def isolated_weapon_art(tmp_path, monkeypatch):
     weapon_assets._disk_index.cache_clear()
 
 
-def test_weapon_filename_lookup_keeps_its_lazy_directory_snapshot(isolated_weapon_art):
+def test_weapon_filename_lookup_caches_directory_snapshots(isolated_weapon_art):
     isolated_weapon_art.mkdir()
     (isolated_weapon_art / "Prototype blaster FOS.png").touch()
     (isolated_weapon_art / "10mm pistol FOS.png").touch()
     assert get_weapon_image_url("PROTOTYPE BLASTER") == "/static/weapon_images/Prototype blaster FOS.png"
-
     (isolated_weapon_art / "Future blaster FOS.png").touch()
     assert get_weapon_image_url("Future blaster") == "/static/weapon_images/10mm pistol FOS.png"
     weapon_assets._disk_index.cache_clear()
     assert get_weapon_image_url("Future blaster") == "/static/weapon_images/Future blaster FOS.png"
-
-
-def test_weapon_filename_lookup_caches_a_missing_directory(isolated_weapon_art):
+    shutil.rmtree(isolated_weapon_art)
+    weapon_assets._disk_index.cache_clear()
     assert get_weapon_image_url("Prototype blaster") is None
     isolated_weapon_art.mkdir()
     (isolated_weapon_art / "Prototype blaster FOS.png").touch()
@@ -46,70 +53,33 @@ def test_weapon_filename_lookup_caches_a_missing_directory(isolated_weapon_art):
 def test_static_weapons_have_image_urls() -> None:
     assert all(weapon.image_url for weapon in game_data_store.weapons)
     assert get_weapon_image_url("Laser pistol") == "/static/weapon_images/Laser pistol FOS.png"
-
-
-def test_every_catalog_weapon_has_its_own_image() -> None:
-    from app.utils.weapon_naming import family_key
-
     fallback = "/static/weapon_images/10mm pistol FOS.png"
     for weapon in game_data_store.weapons:
         if weapon.image_url == fallback:
             assert family_key(weapon.name) == "10mm pistol", weapon.name
+    for mapping, directory in [(WEAPON_NAME_TO_IMAGE_FILE, WEAPON_DIR), (LEGENDARY_DWELLER_IMAGE_FILES, LEGENDARY_DIR)]:
+        assert [f for f in set(mapping.values()) if not (directory / f).exists()] == []
 
 
-def test_rare_variant_resolves_to_family_icon() -> None:
-    assert get_weapon_image_url("Hardened Gauss pistol") == "/static/weapon_images/Gauss Pistol FOS.png"
-    assert get_weapon_image_url("hardened gauss PISTOL") == "/static/weapon_images/Gauss Pistol FOS.png"
+def test_variants_resolve_to_family_icons() -> None:
+    for name, filename in VARIANT_CASES:
+        assert get_weapon_image_url(name) == f"/static/weapon_images/{filename}"
 
 
-def test_variant_without_a_card_shares_the_family_look() -> None:
-    assert get_weapon_image_url("Auto pipe pistol") == "/static/weapon_images/Pipe Pistol FOS.png"
-    assert get_weapon_image_url("Tactical Junk Jet") == "/static/weapon_images/Junk Jet FOS.png"
-
-
-def test_new_family_variants_resolve() -> None:
-    assert get_weapon_image_url("Rusty T60 pistol") == "/static/weapon_images/FOS T60 pistol.png"
-    assert get_weapon_image_url("Surgical Ripper") == "/static/weapon_images/FOS Surgical Ripper.png"
-
-
-def test_every_mapped_weapon_file_exists_on_disk() -> None:
-    missing = [f for f in set(WEAPON_NAME_TO_IMAGE_FILE.values()) if not (WEAPON_IMAGE_DIR / f).exists()]
-    assert missing == []
-
-
-def test_every_legendary_dweller_has_a_portrait() -> None:
-    """Every legendary.json dweller resolves to a real portrait, never the generic red fallback."""
-    fallback = "/static/legendary_dweller_images/FOS_Dw_Legendary_Red.png"
+def test_legendary_portraits_are_complete_and_distinct() -> None:
     for dweller in game_data_store.dwellers:
         full = f"{dweller.first_name} {dweller.last_name or ''}".strip().casefold()
-        if full not in LEGENDARY_DWELLER_IMAGE_FILES:
-            continue
-        url = get_legendary_dweller_image_url(full)
-        assert url is not None, full
-        assert url != fallback, full
-
-
-def test_every_mapped_legendary_file_exists_on_disk() -> None:
-    missing = [f for f in set(LEGENDARY_DWELLER_IMAGE_FILES.values()) if not (LEGENDARY_IMAGE_DIR / f).exists()]
-    assert missing == []
-
-
-def test_cx404_is_a_pet_not_a_dweller_portrait() -> None:
-    assert "cx404" not in LEGENDARY_DWELLER_IMAGE_FILES
-    assert not (LEGENDARY_IMAGE_DIR / "FOS_Dw_CX404.png").exists()
-    assert (LEGENDARY_IMAGE_DIR.parent / "pet_images" / "FOS CX404.png").exists()
-
-
-def test_legendary_aliases_resolve_to_the_same_portrait() -> None:
-    assert get_legendary_dweller_image_url("Colonel Autumn") == get_legendary_dweller_image_url("Augustus Autumn")
-    assert get_legendary_dweller_image_url("Dr. Li") == get_legendary_dweller_image_url("Madison Li")
-    assert get_legendary_dweller_image_url("Elder Lyons") == get_legendary_dweller_image_url("Owyn Lyons")
-
-
-def test_quest_reward_dwellers_have_their_own_portraits() -> None:
-    """TV-series quest rewards must not share the generic fallback (or anyone else's) portrait."""
-    fallback = "/static/legendary_dweller_images/FOS_Dw_Legendary_Red.png"
+        if full in LEGENDARY_DWELLER_IMAGE_FILES:
+            url = get_legendary_dweller_image_url(full)
+            assert url is not None, full
+            assert url != FALLBACK, full
     names = ["Lucy MacLean", "The Ghoul", "Maximus", "Ma June", "Snip Snip", "Snake Oil Salesman"]
     urls = [get_legendary_dweller_image_url(name) for name in names]
-    assert all(url is not None and url != fallback for url in urls)
+    assert all(url is not None and url != FALLBACK for url in urls)
     assert len(set(urls)) == len(names)
+    for alias, canonical in [("Colonel Autumn", "Augustus Autumn"), ("Dr. Li", "Madison Li")]:
+        assert get_legendary_dweller_image_url(alias) == get_legendary_dweller_image_url(canonical)
+    assert get_legendary_dweller_image_url("Elder Lyons") == get_legendary_dweller_image_url("Owyn Lyons")
+    assert "cx404" not in LEGENDARY_DWELLER_IMAGE_FILES
+    assert not (LEGENDARY_DIR / "FOS_Dw_CX404.png").exists()
+    assert (LEGENDARY_DIR.parent / "pet_images" / "FOS CX404.png").exists()

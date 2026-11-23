@@ -1,5 +1,3 @@
-"""Exercise the squashed baseline against PostgreSQL, using scratch databases only."""
-
 import asyncio
 import json
 import os
@@ -21,8 +19,9 @@ from app.core.security import verify_password
 from app.tests.test_alembic import test_data_migrations as legacy
 from app.tests.test_alembic.test_data_migrations import MigrationHarness
 
+pytest_plugins = ["app.tests.test_alembic.test_data_migrations"]
+
 pytestmark = pytest.mark.integration
-harness = legacy.harness
 
 BACKEND = Path(__file__).resolve().parents[3]
 BASELINE = "squash_4b3cbd7b15ff"
@@ -54,7 +53,8 @@ def schema_state(db: MigrationHarness) -> dict:
 
 def _rows(db: MigrationHarness, table: str, *, exclude: tuple[str, ...] = ()) -> list[str]:
     assert table.isidentifier()
-    rows = db.fetch(f'SELECT to_jsonb(t) FROM public."{table}" t')  # ruff: ignore[hardcoded-sql-expression] — identifier validated above; table names come from pg_tables or constants
+    # ruff: ignore[hardcoded-sql-expression] — identifier validated above; names are constants.
+    rows = db.fetch(f'SELECT to_jsonb(t) FROM public."{table}" t')
     return sorted(json.dumps({k: v for k, v in row.items() if k not in exclude}, sort_keys=True) for (row,) in rows)
 
 
@@ -62,12 +62,10 @@ def test_baseline_matches_full_history_and_bootstrap(harness: MigrationHarness) 
     harness.upgrade(LEGACY_HEAD)
     expected_schema = schema_state(harness)
     seeds = {table: _rows(harness, table, exclude=excluded) for table, excluded in SEED_EXCLUSIONS.items()}
-    # The imported harness creates its own UUID-named database and cleans it up.
     harness.execute("DROP SCHEMA public CASCADE")
     harness.execute("CREATE SCHEMA public")
     command.upgrade(_config(), BASELINE)
-    actual_schema = schema_state(harness)
-    assert actual_schema == expected_schema
+    assert schema_state(harness) == expected_schema
     for table, expected in seeds.items():
         assert _rows(harness, table, exclude=SEED_EXCLUSIONS[table]) == expected, table
     assert harness.scalar("SELECT version_num FROM alembic_version") == BASELINE
@@ -99,11 +97,10 @@ def test_scenario_opt_in_migration_preserves_numbered_vaults(harness: MigrationH
     command.upgrade(config, BASELINE)
     vault_id = legacy._seed_vault(harness, number=69)
     command.upgrade(config, "head")
-    columns = harness.fetch(
+    assert harness.fetch(
         "SELECT is_nullable FROM information_schema.columns WHERE table_schema = 'public' "
         "AND table_name = 'vault' AND column_name = 'scenario_key'"
-    )
-    assert columns == [("YES",)]
+    ) == [("YES",)]
     assert harness.fetch("SELECT number, scenario_key FROM vault WHERE id = :id", id=vault_id) == [(69, None)]
     database = baseline_tools.make_url(harness.url).database
     head = ScriptDirectory.from_config(config).get_current_head()
@@ -154,8 +151,7 @@ def test_guarded_adoption_preserves_rows_and_is_idempotent(harness: MigrationHar
     assert json.loads(check.output)["schema_matches"]
     assert harness.scalar("SELECT version_num FROM alembic_version") == LEGACY_HEAD
     for _ in range(2):
-        result = asyncio.run(baseline_tools.inspect_database(database, apply=True))
-        assert result["applied"]
+        assert asyncio.run(baseline_tools.inspect_database(database, apply=True))["applied"]
         assert harness.scalar("SELECT version_num FROM alembic_version") == BASELINE
         assert _rows(harness, "objective") == expected
 
@@ -228,8 +224,7 @@ def test_freeze_records_reference_without_overwriting(harness: MigrationHarness,
 def test_baseline_graph_matches_models(harness: MigrationHarness) -> None:
     command.upgrade(_config(), "head")
     database = baseline_tools.make_url(harness.url).database
-    # Run in a fresh interpreter: the session-scoped SQLite fixture rewrites JSONB
-    # columns to JSON in the in-process metadata, which would make this check lie.
+    # Fresh interpreter: the session SQLite fixture rewrites JSONB to JSON in-process.
     result = subprocess.run(
         [sys.executable, "-m", "alembic", "-c", "alembic.ini", "check"],
         cwd=BACKEND,

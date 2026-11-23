@@ -7,11 +7,20 @@ import pytest
 from app.core.enums import GenderEnum
 from app.schemas.chat_models import AgentChatResult, VoiceMessagePayload
 from app.services.conversation_service import conversation_service
+from app.utils.exceptions import ValidationException
 
-# Unit Tests for Helper Methods
+
+def _payload(**overrides) -> VoiceMessagePayload:
+    return VoiceMessagePayload(
+        transcribed_text="Status report?",
+        user_audio_url=None,
+        audio_duration=None,
+        dweller_response_text="All clear.",
+        dweller_audio_url=None,
+        **overrides,
+    )
 
 
-@pytest.mark.asyncio
 class TestVoiceSelection:
     def test_select_voice_for_male(self):
         voice = conversation_service._select_voice_for_gender(GenderEnum.MALE)
@@ -28,12 +37,7 @@ class TestAudioChatProvenance:
     async def test_save_messages_persists_prompt_and_model_snapshot(self) -> None:
         """Voice chat must retain the same call-time provenance as text chat."""
         prompt_id = uuid4()
-        payload = VoiceMessagePayload(
-            transcribed_text="Status report?",
-            user_audio_url=None,
-            audio_duration=None,
-            dweller_response_text="All clear.",
-            dweller_audio_url=None,
+        payload = _payload(
             provider="openai",
             model="gpt-4o-mini",
             prompt_id=prompt_id,
@@ -44,7 +48,6 @@ class TestAudioChatProvenance:
         dweller = MagicMock(id=uuid4(), vault=MagicMock(id=uuid4()))
         interaction = MagicMock(id=uuid4())
         message = MagicMock(id=uuid4())
-
         with (
             patch(
                 "app.services.conversation_service.llm_interaction_crud.create",
@@ -56,7 +59,6 @@ class TestAudioChatProvenance:
             ),
         ):
             await conversation_service._save_messages_to_db(MagicMock(), user, dweller, payload)
-
         assert create_interaction.await_args is not None
         saved_interaction = create_interaction.await_args.kwargs["obj_in"]
         assert saved_interaction.provider == "openai"
@@ -68,13 +70,7 @@ class TestAudioChatProvenance:
 
 async def test_voice_exchange_advances_the_thread() -> None:
     """A voice turn must move the thread's clock, or the gap line measures from the last typed message."""
-    payload = VoiceMessagePayload(
-        transcribed_text="Status report?",
-        user_audio_url=None,
-        audio_duration=None,
-        dweller_response_text="All clear.",
-        dweller_audio_url=None,
-    )
+    payload = _payload()
     user = MagicMock(id=uuid4())
     dweller = MagicMock(id=uuid4(), vault=MagicMock(id=uuid4()))
     message = MagicMock(id=uuid4())
@@ -86,7 +82,6 @@ async def test_voice_exchange_advances_the_thread() -> None:
         yield
 
     db.begin_nested = savepoint
-
     with (
         patch(
             "app.services.conversation_service.llm_interaction_crud.create",
@@ -99,15 +94,9 @@ async def test_voice_exchange_advances_the_thread() -> None:
         patch("app.services.chat.continuation.conversation_crud.touch", new=AsyncMock()) as touch,
     ):
         await conversation_service._save_messages_to_db(db, user, dweller, payload, conversation=thread)
-
     touch.assert_awaited_once()
     assert touch.await_args.kwargs["message_count"] == 8
     assert touch.await_args.kwargs["at"] is message.created_at
-
-
-# Note: Integration tests for audio processing are omitted as they require complex mocking
-# of external services (OpenAI API, storage). The unit tests above (voice selection and
-# prompt building) cover the core logic of the conversation service.
 
 
 @pytest.mark.parametrize("token_counts", [(12, 8, 20), (None, None, None)])
@@ -121,8 +110,6 @@ async def test_voice_response_preserves_shared_runner_usage(
 
 
 async def test_empty_audio_is_rejected_before_loading_dweller() -> None:
-    from app.utils.exceptions import ValidationException
-
     with (
         patch("app.services.conversation_service.get_accessible_dweller", new_callable=AsyncMock) as load,
         patch.object(
@@ -137,8 +124,6 @@ async def test_empty_audio_is_rejected_before_loading_dweller() -> None:
 
 
 async def test_dead_dweller_is_rejected_before_transcription() -> None:
-    from app.utils.exceptions import ValidationException
-
     dead_dweller = MagicMock(is_dead=True)
     with (
         patch(
@@ -166,10 +151,8 @@ async def test_voice_generation_uses_shared_audio_agent_runner() -> None:
         completion_tokens=8,
         total_tokens=20,
     )
-
     with patch("app.services.conversation_service.run_chat_agent", new=AsyncMock(return_value=generated)) as runner:
         result = await conversation_service._generate_response_with_agent(db_session, dweller, "Status?", "Chat")
-
     assert result is generated
     args, kwargs = runner.await_args
     assert args == (db_session, dweller, "Status?", "Chat")
@@ -186,11 +169,9 @@ async def test_audio_helpers_do_not_log_transcript_or_gender(caplog, monkeypatch
     monkeypatch.setattr(conversation_service.ai_service, "transcribe_audio", transcribe)
     monkeypatch.setattr(conversation_service.ai_service, "generate_audio", generate)
     monkeypatch.setattr(conversation_service, "storage_service", None)
-
     with caplog.at_level("DEBUG", logger="app.services.conversation_service"):
         transcript, _, _ = await conversation_service._transcribe_audio(b"audio", uuid4(), uuid4(), "audio.webm")
         audio, _ = await conversation_service._generate_tts_audio(private_text, GenderEnum.FEMALE, uuid4(), uuid4())
-
     assert transcript == private_text
     assert audio == b"generated audio"
     assert private_text not in caplog.text

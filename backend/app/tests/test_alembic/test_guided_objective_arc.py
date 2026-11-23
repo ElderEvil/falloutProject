@@ -1,4 +1,3 @@
-import importlib.util
 import json
 from pathlib import Path
 from unittest.mock import patch
@@ -8,13 +7,13 @@ from sqlalchemy import select
 
 from app.models.objective import Objective
 from app.models.vault_objective import VaultObjectiveProgressLink
+from app.tests.test_alembic._support import load_migration
+
+STARTER_SEED = Path(__file__).parents[1] / "data/starter_pre_continuity.json"
 
 
 async def test_guided_arc_migration_is_idempotent_and_preserves_claimed_rewards(async_session, vault):
-    path = Path(__file__).parents[2] / "alembic/versions/2026_10_13_0001-b7d93840ac12_extend_guided_objective_arc.py"
-    spec = importlib.util.spec_from_file_location("guided_arc_migration", path)
-    migration = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(migration)
+    migration = load_migration("2026_10_13_0001-b7d93840ac12_extend_guided_objective_arc.py", "guided_arc_migration")
     assert len(migration._STEPS) == 4
     old = Objective(challenge="Office already built", reward="200 caps", category="starter", sequence=7)
     old_link = VaultObjectiveProgressLink(
@@ -54,12 +53,9 @@ async def test_guided_arc_migration_is_idempotent_and_preserves_claimed_rewards(
 async def test_scrap_guidance_migration_preserves_earned_and_claimed_rewards(
     async_session, vault, template_key, claimed
 ):
-    path = (
-        Path(__file__).parents[2] / "alembic/versions/2026_10_16_0003-d8e4c7a2b915_clarify_starter_scrap_objective.py"
+    migration = load_migration(
+        "2026_10_16_0003-d8e4c7a2b915_clarify_starter_scrap_objective.py", "scrap_guidance_migration"
     )
-    spec = importlib.util.spec_from_file_location("scrap_guidance_migration", path)
-    migration = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(migration)
     objective = Objective(
         challenge="Reverse-engineer a schematic",
         description="Scrap it to learn its schematic.",
@@ -89,8 +85,7 @@ async def test_scrap_guidance_migration_preserves_earned_and_claimed_rewards(
     await async_session.run_sync(apply)
     await async_session.refresh(objective)
     await async_session.refresh(link)
-    starter_path = Path(__file__).parents[1] / "data/starter_pre_continuity.json"
-    seed = next(row for row in json.loads(starter_path.read_text()) if row["objective_type"] == "scrap")
+    seed = next(row for row in json.loads(STARTER_SEED.read_text()) if row["objective_type"] == "scrap")
     assert objective.challenge == seed["challenge"] == "Scrap a rare weapon"
     assert objective.description == seed["description"]
     assert objective.template_key == template_key

@@ -56,7 +56,6 @@ SESSION_ONLY_ATTRIBUTES = frozenset({"get", "refresh"})
 
 
 def _crud_imports(source: str) -> set[str]:
-    """Return every ``app.crud*`` module imported by a module (including nested imports)."""
     modules: set[str] = set()
     for node in ast.walk(ast.parse(source)):
         if isinstance(node, ast.ImportFrom):
@@ -70,7 +69,6 @@ def _crud_imports(source: str) -> set[str]:
 
 
 def _raw_query_lines(source: str) -> list[tuple[int, str]]:
-    """Return (line, description) for raw session loads and query building in a module."""
     violations: list[tuple[int, str]] = []
     for node in ast.walk(ast.parse(source)):
         if not isinstance(node, ast.Call):
@@ -100,7 +98,6 @@ def test_endpoints_do_not_query_directly() -> None:
 
 
 def test_endpoints_do_not_import_crud() -> None:
-    """New endpoint -> CRUD dependencies fail; the baseline must shrink, never grow."""
     found = set()
     for path, name in _endpoint_files():
         found.update((name, module) for module in _crud_imports(path.read_text(encoding="utf-8")))

@@ -1,16 +1,12 @@
-"""Corrective cohort migration: restore legacy starter rows and version the revised ones."""
-
-import importlib.util
 import json
 from pathlib import Path
 from uuid import uuid4
 
 import sqlalchemy as sa
-from alembic.migration import MigrationContext
-from alembic.operations import Operations
 from alembic.script import ScriptDirectory
 
-VERSIONS = Path(__file__).parents[2] / "alembic/versions"
+from app.tests.test_alembic._support import VERSIONS, bind_op, load_migration, sqlite_db
+
 SPINE_MIGRATION = "2026_10_14_0001-e5c2b7f19a04_spine_starter_objectives.py"
 CORRECTIVE_MIGRATION = "2026_10_14_0002-f6a1b2c3d4e5_restore_legacy_starter_cohort.py"
 RETIRE_RADIO_MIGRATION = "2026_10_24_1001-d6e8f0a2b4c9_retire_staff_radio_objective.py"
@@ -18,13 +14,6 @@ RETIRE_RADIO_MIGRATION = "2026_10_24_1001-d6e8f0a2b4c9_retire_staff_radio_object
 STAFFING = "starter:assign a dweller correctly"
 POWER_STEP = "starter:collect 150 power"
 RADIO_STEP = "starter:staff the radio"
-
-
-def _load(filename):
-    spec = importlib.util.spec_from_file_location(filename, VERSIONS / filename)
-    migration = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(migration)
-    return migration
 
 
 def _schema():
@@ -58,53 +47,43 @@ def _schema():
     return metadata, objective, link
 
 
-def test_corrective_migration_restores_legacy_and_versions_revised(monkeypatch):
-    spine = _load(SPINE_MIGRATION)
-    corrective = _load(CORRECTIVE_MIGRATION)
+def test_corrective_migration_restores_legacy_and_versions_revised():
+    spine = load_migration(SPINE_MIGRATION, "spine_starter_objectives")
+    corrective = load_migration(CORRECTIVE_MIGRATION, "restore_legacy_starter_cohort")
     metadata, objective, link = _schema()
-    engine = sa.create_engine("sqlite://")
-
-    with engine.begin() as connection:
+    with sqlite_db() as connection:
         metadata.create_all(connection)
-
         identifiers = {}
         for entry in corrective._LEGACY:
             identifier = uuid4()
             identifiers[entry["template_key"]] = identifier
             connection.execute(objective.insert().values(id=identifier, **entry))
-
-        connection.execute(
-            link.insert().values(
-                vault_id=uuid4(),
-                objective_id=identifiers[POWER_STEP],
-                progress=5,
-                total=150,
-                is_completed=False,
-                reward_snapshot=None,
-                credited_dweller_ids=[],
+        for key, progress, total, completed, snapshot in (
+            (POWER_STEP, 5, 150, False, None),
+            (STAFFING, 1, 1, True, "50 caps"),
+        ):
+            connection.execute(
+                link.insert().values(
+                    vault_id=uuid4(),
+                    objective_id=identifiers[key],
+                    progress=progress,
+                    total=total,
+                    is_completed=completed,
+                    reward_snapshot=snapshot,
+                    credited_dweller_ids=[],
+                )
             )
-        )
-        connection.execute(
-            link.insert().values(
-                vault_id=uuid4(),
-                objective_id=identifiers[STAFFING],
-                progress=1,
-                total=1,
-                is_completed=True,
-                reward_snapshot="50 caps",
-                credited_dweller_ids=[],
-            )
-        )
-
-        monkeypatch.setattr(spine, "op", Operations(MigrationContext.configure(connection)))
+        bind_op(spine, connection)
         spine.upgrade()
-        monkeypatch.setattr(corrective, "op", Operations(MigrationContext.configure(connection)))
+        bind_op(corrective, connection)
         corrective.upgrade()
-
         upgraded = sa.MetaData()
         upgraded.reflect(connection)
         objectives, links = upgraded.tables["objective"], upgraded.tables["vaultobjectiveprogresslink"]
         by_key = {row["template_key"]: row for row in connection.execute(sa.select(objectives)).mappings().all()}
+
+        def linked(objective_id):
+            return connection.execute(sa.select(links).where(links.c.objective_id == objective_id)).mappings().one()
 
         restored = (
             connection.execute(sa.select(objectives).where(objectives.c.id == identifiers[STAFFING])).mappings().one()
@@ -112,64 +91,45 @@ def test_corrective_migration_restores_legacy_and_versions_revised(monkeypatch):
         assert restored["challenge"] == "Assign a dweller correctly"
         assert restored["sequence"] == 3
         assert not restored["assignable"]
-
         versioned = by_key[f"{STAFFING}#v2"]
         assert versioned["challenge"] == "Match a dweller to their room"
         assert versioned["sequence"] == 0
         assert versioned["assignable"]
-
         withdrawn = (
             connection.execute(sa.select(objectives).where(objectives.c.id == identifiers[POWER_STEP])).mappings().one()
         )
         assert withdrawn["objective_type"] == "collect"
         assert withdrawn["sequence"] == 1
         assert not withdrawn["assignable"]
-
-        partial = (
-            connection.execute(sa.select(links).where(links.c.objective_id == identifiers[POWER_STEP])).mappings().one()
-        )
+        partial = linked(identifiers[POWER_STEP])
         assert partial["progress"] == 5
         assert partial["total"] == 150
         assert not partial["is_completed"]
-
-        earned = (
-            connection.execute(sa.select(links).where(links.c.objective_id == identifiers[STAFFING])).mappings().one()
-        )
+        earned = linked(identifiers[STAFFING])
         assert earned["is_completed"]
         assert earned["reward_snapshot"] == "50 caps"
 
-        assignable = (
-            connection.execute(
-                sa.select(objectives.c.template_key).where(
-                    objectives.c.assignable.is_(True), objectives.c.category == "starter"
+        def assignable_keys():
+            return (
+                connection.execute(
+                    sa.select(objectives.c.template_key).where(
+                        objectives.c.assignable.is_(True), objectives.c.category == "starter"
+                    )
                 )
+                .scalars()
+                .all()
             )
-            .scalars()
-            .all()
-        )
+
+        assignable = assignable_keys()
         assert len(assignable) == 11
-
         corrective.upgrade()
-        rerun = (
-            connection.execute(
-                sa.select(objectives.c.template_key).where(
-                    objectives.c.assignable.is_(True), objectives.c.category == "starter"
-                )
-            )
-            .scalars()
-            .all()
-        )
-        assert sorted(rerun) == sorted(assignable)
-
-    engine.dispose()
+        assert sorted(assignable_keys()) == sorted(assignable)
 
 
-def test_retire_radio_migration_stops_fresh_assignment(monkeypatch):
-    migration = _load(RETIRE_RADIO_MIGRATION)
+def test_retire_radio_migration_stops_fresh_assignment():
+    migration = load_migration(RETIRE_RADIO_MIGRATION, "retire_staff_radio_objective")
     metadata, objective, _ = _schema()
-    engine = sa.create_engine("sqlite://")
-
-    with engine.begin() as connection:
+    with sqlite_db() as connection:
         metadata.create_all(connection)
         identifier = uuid4()
         connection.execute(
@@ -184,19 +144,13 @@ def test_retire_radio_migration_stops_fresh_assignment(monkeypatch):
                 assignable=True,
             )
         )
-
-        monkeypatch.setattr(migration, "op", Operations(MigrationContext.configure(connection)))
+        bind_op(migration, connection)
         migration.upgrade()
-        retired = connection.execute(sa.select(objective.c.assignable).where(objective.c.id == identifier)).scalar_one()
-        assert not retired
-
-        migration.downgrade()
-        restored = connection.execute(
+        assert not connection.execute(
             sa.select(objective.c.assignable).where(objective.c.id == identifier)
         ).scalar_one()
-        assert restored
-
-    engine.dispose()
+        migration.downgrade()
+        assert connection.execute(sa.select(objective.c.assignable).where(objective.c.id == identifier)).scalar_one()
 
 
 def test_migration_graph_has_one_upgrade_head():

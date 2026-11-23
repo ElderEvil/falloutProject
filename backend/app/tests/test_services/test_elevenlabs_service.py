@@ -35,7 +35,6 @@ class TestGenerateSpeech:
         from app.services.elevenlabs_service import ElevenLabsTtsService
 
         monkeypatch.setattr("app.services.elevenlabs_service.settings.ELEVENLABS_API_KEY", "test-key")
-
         mock_response = MagicMock()
         mock_response.status_code = 200
         mock_response.content = b"mp3-audio-bytes"
@@ -44,11 +43,9 @@ class TestGenerateSpeech:
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = AsyncMock(return_value=None)
         monkeypatch.setattr("app.services.elevenlabs_service.httpx.AsyncClient", lambda *a, **k: mock_client)
-
         svc = ElevenLabsTtsService()
         result = await svc.generate_speech("Hello world")
         assert result == b"mp3-audio-bytes"
-
         mock_client.post.assert_called_once()
         call_args = mock_client.post.call_args
         assert "xi-api-key" in call_args.kwargs.get("headers", {})
@@ -61,7 +58,6 @@ class TestGenerateSpeech:
         from app.services.elevenlabs_service import ElevenLabsTtsService
 
         monkeypatch.setattr("app.services.elevenlabs_service.settings.ELEVENLABS_API_KEY", "bad-key")
-
         mock_response = MagicMock()
         mock_response.status_code = 401
         mock_response.text = "Unauthorized"
@@ -70,7 +66,6 @@ class TestGenerateSpeech:
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = AsyncMock(return_value=None)
         monkeypatch.setattr("app.services.elevenlabs_service.httpx.AsyncClient", lambda *a, **k: mock_client)
-
         svc = ElevenLabsTtsService()
         with pytest.raises(ElevenLabsProviderException, match="API key is invalid"):
             await svc.generate_speech("test")
@@ -79,7 +74,6 @@ class TestGenerateSpeech:
         from app.services.elevenlabs_service import ElevenLabsTtsService
 
         monkeypatch.setattr("app.services.elevenlabs_service.settings.ELEVENLABS_API_KEY", "test-key")
-
         mock_response = MagicMock()
         mock_response.status_code = 429
         mock_response.text = "Rate limited"
@@ -88,7 +82,6 @@ class TestGenerateSpeech:
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = AsyncMock(return_value=None)
         monkeypatch.setattr("app.services.elevenlabs_service.httpx.AsyncClient", lambda *a, **k: mock_client)
-
         svc = ElevenLabsTtsService()
         with pytest.raises(ElevenLabsProviderException, match="rate limit"):
             await svc.generate_speech("test")
@@ -97,7 +90,6 @@ class TestGenerateSpeech:
         from app.services.elevenlabs_service import ElevenLabsTtsService
 
         monkeypatch.setattr("app.services.elevenlabs_service.settings.ELEVENLABS_API_KEY", "test-key")
-
         mock_response = MagicMock()
         mock_response.status_code = 500
         mock_response.text = "Internal error"
@@ -106,7 +98,6 @@ class TestGenerateSpeech:
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = AsyncMock(return_value=None)
         monkeypatch.setattr("app.services.elevenlabs_service.httpx.AsyncClient", lambda *a, **k: mock_client)
-
         svc = ElevenLabsTtsService()
         with pytest.raises(ElevenLabsProviderException, match="HTTP 500"):
             await svc.generate_speech("test")
@@ -115,7 +106,6 @@ class TestGenerateSpeech:
         from app.services.elevenlabs_service import ElevenLabsTtsService
 
         monkeypatch.setattr("app.services.elevenlabs_service.settings.ELEVENLABS_API_KEY", "")
-
         svc = ElevenLabsTtsService()
         with pytest.raises(ElevenLabsProviderException, match="not configured"):
             await svc.generate_speech("test")
@@ -127,13 +117,11 @@ class TestGenerateSpeech:
         from app.services.elevenlabs_service import ElevenLabsTtsService
 
         monkeypatch.setattr("app.services.elevenlabs_service.settings.ELEVENLABS_API_KEY", "test-key")
-
         mock_client = AsyncMock()
         mock_client.post = AsyncMock(side_effect=httpx.ConnectError("connection refused"))
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = AsyncMock(return_value=None)
         monkeypatch.setattr("app.services.elevenlabs_service.httpx.AsyncClient", lambda *a, **k: mock_client)
-
         svc = ElevenLabsTtsService()
         with pytest.raises(ElevenLabsProviderException, match="unreachable"):
             await svc.generate_speech("test")

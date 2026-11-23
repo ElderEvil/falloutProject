@@ -12,7 +12,6 @@ from app.services.place_seed_service import (
 from app.utils.place_seed import load_seed_entries
 
 
-@pytest.mark.asyncio
 async def test_seed_inserts_roster_and_is_idempotent(async_session: AsyncSession) -> None:
     first = await seed_places_from_json(async_session, commit=False)
     assert first == len(load_seed_entries())
@@ -20,7 +19,6 @@ async def test_seed_inserts_roster_and_is_idempotent(async_session: AsyncSession
     assert second == 0
 
 
-@pytest.mark.asyncio
 async def test_seeded_vault_rows_match_roster(async_session: AsyncSession) -> None:
     await seed_places_from_json(async_session, commit=False)
     rows = (
@@ -47,7 +45,6 @@ def test_seed_covers_known_bio_places() -> None:
     assert "Nuka-Cola Plant" in get_visited_places()
 
 
-@pytest.mark.asyncio
 async def test_seed_conflict_rolls_back_only_that_entry(async_session: AsyncSession) -> None:
     """A conflicting seed insert must not discard previously seeded rows."""
     from unittest.mock import patch
@@ -57,7 +54,6 @@ async def test_seed_conflict_rolls_back_only_that_entry(async_session: AsyncSess
     await seed_places_from_json(async_session, commit=False)
     await async_session.commit()
     before = len((await async_session.execute(select(WorldLocation))).scalars().all())
-
     real_lookup = wl_crud.get_registry_by_normalized
     megaton = await real_lookup(async_session, "megaton")
     assert megaton is not None
@@ -78,7 +74,6 @@ async def test_seed_conflict_rolls_back_only_that_entry(async_session: AsyncSess
     assert after == before
 
 
-@pytest.mark.asyncio
 async def test_seeded_places_carry_their_group(async_session: AsyncSession) -> None:
     await seed_places_from_json(async_session, commit=False)
     rows = (
@@ -92,7 +87,6 @@ async def test_seeded_places_carry_their_group(async_session: AsyncSession) -> N
     assert by_name["Super Duper Mart"].group_key == "supermarket"
 
 
-@pytest.mark.asyncio
 async def test_emergent_place_resolves_seeded_group(async_session: AsyncSession) -> None:
     from app.crud.world_location import world_location as wl_crud
 
@@ -100,7 +94,6 @@ async def test_emergent_place_resolves_seeded_group(async_session: AsyncSession)
     assert location.group_key == "gas_station"
 
 
-@pytest.mark.asyncio
 async def test_reseed_backfills_group_on_existing_rows(async_session: AsyncSession) -> None:
     from app.crud.world_location import world_location as wl_crud
 
@@ -111,31 +104,25 @@ async def test_reseed_backfills_group_on_existing_rows(async_session: AsyncSessi
     red_rocket.source = "emergent"
     async_session.add(red_rocket)
     await async_session.flush()
-
     await seed_places_from_json(async_session, commit=False)
     await async_session.flush()
-
     await async_session.refresh(red_rocket)
     assert red_rocket.group_key == "gas_station"
 
 
-@pytest.mark.asyncio
 async def test_seed_rejects_unknown_group(async_session: AsyncSession, monkeypatch) -> None:
     from app.crud.world_location import world_location as wl_crud
     from app.services import place_seed_service
 
     bad = [{"name": "Nowhere Gulch", "kind": "place", "description": None, "roles": [], "group": "not_a_group"}]
     monkeypatch.setattr(place_seed_service, "load_seed_entries", lambda: bad)
-
     with pytest.raises(ValueError, match="Unknown place group"):
         await seed_places_from_json(async_session, commit=False)
-
     assert await wl_crud.get_registry_by_normalized(async_session, "nowhere gulch") is None
 
 
 def test_seed_descriptions_fit_the_registry_column() -> None:
     """Every seed description must fit the registry column: Postgres rejects overflow (SQLite does not)."""
-
     limit = WorldLocation.__table__.c.description.type.length
     for entry in load_seed_entries():
         assert len(entry.get("description") or "") <= limit, entry["name"]

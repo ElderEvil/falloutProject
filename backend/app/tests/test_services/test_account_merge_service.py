@@ -24,6 +24,8 @@ from app.utils.exceptions import (
     ValidationException,
 )
 
+pytestmark = pytest.mark.asyncio
+
 
 async def _make_user(
     session: AsyncSession,
@@ -33,9 +35,10 @@ async def _make_user(
     active: bool = True,
     password: str | None = None,
     with_profile: bool = True,
+    email: str | None = None,
 ) -> User:
     suffix = random_lower_string(10)
-    user = build_user_model(username=f"u{suffix}", email=f"{suffix}@example.com")
+    user = build_user_model(username=f"u{suffix}", email=email or f"{suffix}@example.com")
     user.is_superuser = superuser
     user.is_first_superuser = first_superuser
     user.is_active = active
@@ -48,12 +51,34 @@ async def _make_user(
     return user
 
 
-async def _fresh_user(session: AsyncSession, user_id, *, include_deleted: bool = True) -> User:
-    return await crud.user.get(session, user_id, include_deleted=include_deleted)
+async def _trio(session: AsyncSession, *, source_password: str | None = None) -> tuple[User, User, User]:
+    return (
+        await _make_user(session, password=source_password),
+        await _make_user(session),
+        await _make_user(session, superuser=True),
+    )
+
+
+async def _fresh(session: AsyncSession, user_id) -> User:
+    return await crud.user.get(session, user_id, include_deleted=True)
 
 
 async def _audit_count(session: AsyncSession) -> int:
     return int((await session.execute(select(func.count()).select_from(AccountMerge))).scalar_one())
+
+
+async def _merge(
+    session, source_id, target_id, actor_id, *, reason: str = "duplicate", dry_run: bool = False, redis=None
+):
+    return await merge_users(
+        session,
+        str(source_id),
+        str(target_id),
+        actor=str(actor_id),
+        reason=reason,
+        dry_run=dry_run,
+        redis_client=redis,
+    )
 
 
 async def _seed_owned_rows(session: AsyncSession, source: User, target: User) -> dict:
@@ -61,10 +86,8 @@ async def _seed_owned_rows(session: AsyncSession, source: User, target: User) ->
     target_profile = await profile_crud.get_by_user_id(session, target.id)
     assert source_profile is not None
     assert target_profile is not None
-    source_profile.total_caps_earned = 10
-    source_profile.total_dwellers_created = 2
-    target_profile.total_caps_earned = 5
-    target_profile.total_dwellers_created = 1
+    source_profile.total_caps_earned, source_profile.total_dwellers_created = 10, 2
+    target_profile.total_caps_earned, target_profile.total_dwellers_created = 5, 1
 
     vault = Vault(user_id=source.id, number=random_vault_number())
     deleted_vault = Vault(user_id=source.id, number=random_vault_number())
@@ -79,35 +102,15 @@ async def _seed_owned_rows(session: AsyncSession, source: User, target: User) ->
                 title="Level up",
                 message="A dweller leveled up",
             ),
-            LLMInteraction(
-                parameters="prompt",
-                response="response",
-                usage="chat",
-                user_id=source.id,
-                total_tokens=7,
-            ),
-            OAuthAccount(
-                provider="google",
-                provider_user_id=random_lower_string(16),
-                user_id=source.id,
-            ),
+            LLMInteraction(parameters="prompt", response="response", usage="chat", user_id=source.id, total_tokens=7),
+            OAuthAccount(provider="google", provider_user_id=random_lower_string(16), user_id=source.id),
         ]
     )
     await session.flush()
     session.add_all(
         [
-            ChatMessage(
-                vault_id=vault.id,
-                from_user_id=source.id,
-                to_user_id=target.id,
-                message_text="out",
-            ),
-            ChatMessage(
-                vault_id=vault.id,
-                from_user_id=target.id,
-                to_user_id=source.id,
-                message_text="in",
-            ),
+            ChatMessage(vault_id=vault.id, from_user_id=source.id, to_user_id=target.id, message_text="out"),
+            ChatMessage(vault_id=vault.id, from_user_id=target.id, to_user_id=source.id, message_text="in"),
         ]
     )
     await session.commit()
@@ -119,34 +122,17 @@ async def _seed_owned_rows(session: AsyncSession, source: User, target: User) ->
     }
 
 
-async def _apply(session: AsyncSession, source: User, target: User, actor: User, redis=None, reason="duplicate"):
-    return await merge_users(
-        session,
-        str(source.id),
-        str(target.id),
-        actor=str(actor.id),
-        reason=reason,
-        dry_run=False,
-        redis_client=redis,
-    )
-
-
-@pytest.mark.asyncio
 async def test_apply_moves_every_owned_row_and_tombstones_source(async_session: AsyncSession) -> None:
-    source = await _make_user(async_session, password="source-hash")
-    target = await _make_user(async_session)
-    actor = await _make_user(async_session, superuser=True)
+    source, target, actor = await _trio(async_session, source_password="source-hash")
     seeded = await _seed_owned_rows(async_session, source, target)
-    source_id = source.id
-    target_id = target.id
-    old_email = str(source.email)
-    original_username = source.username
+    source_id, target_id = source.id, target.id
+    old_email, original_username = str(source.email), source.username
     redis = fakeredis.aioredis.FakeRedis(decode_responses=True)
     await redis.set(f"refresh_token:{source_id}", "source-token")
     await redis.set(f"refresh_token:{target_id}", "target-token")
 
     try:
-        preview = await _apply(async_session, source, target, actor, redis)
+        preview = await _merge(async_session, source_id, target_id, actor.id, redis=redis)
         assert await redis.get(f"refresh_token:{source_id}") is None
         assert await redis.get(f"refresh_token:{target_id}") == "target-token"
     finally:
@@ -166,11 +152,9 @@ async def test_apply_moves_every_owned_row_and_tombstones_source(async_session: 
         "profiles": 1,
     }
 
-    fresh_source = await _fresh_user(async_session, source_id)
-    fresh_target = await _fresh_user(async_session, target_id)
-    assert fresh_source.is_deleted is True
-    assert fresh_source.is_active is False
-    assert fresh_source.hashed_password is None
+    fresh_source = await _fresh(async_session, source_id)
+    fresh_target = await _fresh(async_session, target_id)
+    assert (fresh_source.is_deleted, fresh_source.is_active, fresh_source.hashed_password) == (True, False, None)
     assert fresh_source.email != old_email
     assert fresh_source.email.startswith("merged-")
     assert fresh_source.username.startswith("merged_")
@@ -190,23 +174,17 @@ async def test_apply_moves_every_owned_row_and_tombstones_source(async_session: 
 
     target_profile = await profile_crud.get_by_user_id(async_session, target_id)
     assert target_profile is not None
-    assert target_profile.total_caps_earned == 15
-    assert target_profile.total_dwellers_created == 3
+    assert (target_profile.total_caps_earned, target_profile.total_dwellers_created) == (15, 3)
     assert await profile_crud.get_by_user_id(async_session, source_id) is None
 
     assert await _audit_count(async_session) == 1
     audit = await crud.account_merge.get_by_source(async_session, source_id)
     assert audit is not None
-    assert audit.source_username == original_username
-    assert audit.source_email == old_email
-    assert audit.reason == "duplicate"
+    assert (audit.source_username, audit.source_email, audit.reason) == (original_username, old_email, "duplicate")
 
 
-@pytest.mark.asyncio
 async def test_dry_run_reports_counts_conflicts_and_changes_nothing(async_session: AsyncSession) -> None:
-    source = await _make_user(async_session)
-    target = await _make_user(async_session)
-    actor = await _make_user(async_session, superuser=True)
+    source, target, actor = await _trio(async_session)
     seeded = await _seed_owned_rows(async_session, source, target)
     async_session.add(Vault(user_id=target.id, number=seeded["vault"].number))
     await async_session.commit()
@@ -214,15 +192,7 @@ async def test_dry_run_reports_counts_conflicts_and_changes_nothing(async_sessio
     await redis.set(f"refresh_token:{source.id}", "source-token")
 
     try:
-        preview = await merge_users(
-            async_session,
-            str(source.id),
-            str(target.id),
-            actor=str(actor.id),
-            reason="duplicate",
-            dry_run=True,
-            redis_client=redis,
-        )
+        preview = await _merge(async_session, source.id, target.id, actor.id, dry_run=True, redis=redis)
         assert await redis.get(f"refresh_token:{source.id}") == "source-token"
     finally:
         await redis.aclose()
@@ -233,46 +203,35 @@ async def test_dry_run_reports_counts_conflicts_and_changes_nothing(async_sessio
     assert preview.duplicate_vault_numbers == [seeded["vault"].number]
     assert preview.oauth_conflicts == []
     assert preview.tokens_this_month == {"source": 7, "target": 0}
-    assert preview.moved_counts["vaults"] == 2
-    assert preview.moved_counts["vaults_soft_deleted"] == 1
-    assert preview.moved_counts["notifications"] == 1
+    assert {key: preview.moved_counts[key] for key in ("vaults", "vaults_soft_deleted", "notifications")} == {
+        "vaults": 2,
+        "vaults_soft_deleted": 1,
+        "notifications": 1,
+    }
     assert preview.moved_counts["chat_messages"] == 2
     assert preview.moved_counts["oauth_links"] == 1
 
-    assert (await _fresh_user(async_session, source.id)).is_deleted is False
+    assert (await _fresh(async_session, source.id)).is_deleted is False
     assert await _audit_count(async_session) == 0
     assert await crud.vault.count_by_user(async_session, source.id) == 2
 
 
-@pytest.mark.asyncio
 async def test_apply_allows_duplicate_vault_numbers(async_session: AsyncSession) -> None:
-    source = await _make_user(async_session)
-    target = await _make_user(async_session)
-    actor = await _make_user(async_session, superuser=True)
+    source, target, actor = await _trio(async_session)
     number = random_vault_number()
-    async_session.add_all(
-        [
-            Vault(user_id=source.id, number=number),
-            Vault(user_id=target.id, number=number),
-        ]
-    )
+    async_session.add_all([Vault(user_id=source.id, number=number), Vault(user_id=target.id, number=number)])
     await async_session.commit()
-    source_id = source.id
-    target_id = target.id
 
-    preview = await _apply(async_session, source, target, actor)
+    preview = await _merge(async_session, source.id, target.id, actor.id)
 
     assert preview.applied is True
     assert preview.duplicate_vault_numbers == [number]
-    assert await crud.vault.count_by_user(async_session, source_id) == 0
-    assert sorted(await crud.vault.list_numbers_by_user(async_session, target_id)) == [number, number]
+    assert await crud.vault.count_by_user(async_session, source.id) == 0
+    assert sorted(await crud.vault.list_numbers_by_user(async_session, target.id)) == [number, number]
 
 
-@pytest.mark.asyncio
 async def test_rejects_oauth_provider_conflict(async_session: AsyncSession) -> None:
-    source = await _make_user(async_session)
-    target = await _make_user(async_session)
-    actor = await _make_user(async_session, superuser=True)
+    source, target, actor = await _trio(async_session)
     source_id = source.id
     async_session.add_all(
         [
@@ -282,43 +241,22 @@ async def test_rejects_oauth_provider_conflict(async_session: AsyncSession) -> N
     )
     await async_session.commit()
 
-    preview = await merge_users(
-        async_session,
-        str(source.id),
-        str(target.id),
-        actor=str(actor.id),
-        reason="duplicate",
-        dry_run=True,
-    )
-    assert preview.oauth_conflicts == ["google"]
+    assert (await _merge(async_session, source.id, target.id, actor.id, dry_run=True)).oauth_conflicts == ["google"]
 
     with pytest.raises(ResourceConflictException):
-        await _apply(async_session, source, target, actor)
+        await _merge(async_session, source.id, target.id, actor.id)
 
-    fresh_source = await _fresh_user(async_session, source_id)
-    assert fresh_source.is_deleted is False
+    assert (await _fresh(async_session, source_id)).is_deleted is False
     assert await _audit_count(async_session) == 0
 
 
-@pytest.mark.asyncio
 async def test_idempotent_retry_and_different_target_conflict(async_session: AsyncSession) -> None:
-    source = await _make_user(async_session)
-    target = await _make_user(async_session)
+    source, target, actor = await _trio(async_session)
     other_target = await _make_user(async_session)
-    actor = await _make_user(async_session, superuser=True)
     await _seed_owned_rows(async_session, source, target)
-    source_id = source.id
-    target_id = target.id
 
-    first = await _apply(async_session, source, target, actor)
-    second = await merge_users(
-        async_session,
-        str(source_id),
-        str(target_id),
-        actor=str(actor.id),
-        reason="retry",
-        dry_run=False,
-    )
+    first = await _merge(async_session, source.id, target.id, actor.id)
+    second = await _merge(async_session, source.id, target.id, actor.id, reason="retry")
 
     assert first.applied is True
     assert second.already_merged is True
@@ -327,103 +265,63 @@ async def test_idempotent_retry_and_different_target_conflict(async_session: Asy
     assert await _audit_count(async_session) == 1
 
     with pytest.raises(ResourceConflictException):
-        await merge_users(
-            async_session,
-            str(source_id),
-            str(other_target.id),
-            actor=str(actor.id),
-            reason="wrong target",
-            dry_run=False,
-        )
+        await _merge(async_session, source.id, other_target.id, actor.id, reason="wrong target")
 
 
-@pytest.mark.asyncio
 async def test_old_email_reused_by_new_user_cannot_retry_merge(async_session: AsyncSession) -> None:
-    source = await _make_user(async_session)
-    target = await _make_user(async_session)
-    actor = await _make_user(async_session, superuser=True)
+    source, target, actor = await _trio(async_session)
     old_email = str(source.email)
     await _seed_owned_rows(async_session, source, target)
-    await _apply(async_session, source, target, actor)
-
-    suffix = random_lower_string(10)
-    replacement = build_user_model(username=f"u{suffix}", email=old_email)
-    async_session.add(replacement)
-    await async_session.flush()
-    await profile_crud.create_staged(async_session, replacement.id)
-    await async_session.commit()
+    await _merge(async_session, source.id, target.id, actor.id)
+    await _make_user(async_session, email=old_email)
 
     with pytest.raises(ResourceConflictException, match="source UUID"):
-        await merge_users(
-            async_session,
-            old_email,
-            str(target.id),
-            actor=str(actor.id),
-            reason="retry by old email",
-            dry_run=False,
-        )
+        await _merge(async_session, old_email, target.id, actor.id, reason="retry by old email")
 
 
-@pytest.mark.asyncio
 async def test_source_password_is_moved_only_when_target_has_none(async_session: AsyncSession) -> None:
-    source = await _make_user(async_session, password="source-hash")
-    target = await _make_user(async_session, password="target-hash")
-    actor = await _make_user(async_session, superuser=True)
-    source_id = source.id
-    target_id = target.id
+    source, target, actor = await _trio(async_session, source_password="source-hash")
+    target.hashed_password = "target-hash"
+    await async_session.commit()
 
-    await _apply(async_session, source, target, actor)
+    await _merge(async_session, source.id, target.id, actor.id)
 
-    fresh_source = await _fresh_user(async_session, source_id)
-    fresh_target = await _fresh_user(async_session, target_id)
-    assert fresh_source.hashed_password is None
-    assert fresh_target.hashed_password == "target-hash"
+    assert (await _fresh(async_session, source.id)).hashed_password is None
+    assert (await _fresh(async_session, target.id)).hashed_password == "target-hash"
 
 
-@pytest.mark.asyncio
 async def test_target_profile_missing_is_reassigned_from_source(async_session: AsyncSession) -> None:
-    source = await _make_user(async_session)
-    target = await _make_user(async_session)
-    actor = await _make_user(async_session, superuser=True)
+    source, target, actor = await _trio(async_session)
     source_profile = await profile_crud.get_by_user_id(async_session, source.id)
     assert source_profile is not None
     source_profile.total_caps_earned = 11
     await profile_crud.delete_for_user(async_session, target.id, commit=True)
 
-    preview = await _apply(async_session, source, target, actor)
+    preview = await _merge(async_session, source.id, target.id, actor.id)
 
     target_profile = await profile_crud.get_by_user_id(async_session, target.id)
     assert target_profile is not None
-    assert target_profile.id == source_profile.id
-    assert target_profile.total_caps_earned == 11
+    assert (target_profile.id, target_profile.total_caps_earned) == (source_profile.id, 11)
     assert await profile_crud.get_by_user_id(async_session, source.id) is None
     assert preview.moved_counts["profiles"] == 1
 
 
-@pytest.mark.asyncio
 async def test_both_profiles_missing_creates_target_profile(async_session: AsyncSession) -> None:
-    source = await _make_user(async_session)
-    target = await _make_user(async_session)
-    actor = await _make_user(async_session, superuser=True)
+    source, target, actor = await _trio(async_session)
     await profile_crud.delete_for_user(async_session, source.id, commit=True)
     await profile_crud.delete_for_user(async_session, target.id, commit=True)
 
-    preview = await _apply(async_session, source, target, actor)
+    preview = await _merge(async_session, source.id, target.id, actor.id)
 
     assert await profile_crud.get_by_user_id(async_session, target.id) is not None
     assert await profile_crud.get_by_user_id(async_session, source.id) is None
     assert preview.moved_counts["profiles"] == 0
 
 
-@pytest.mark.asyncio
 async def test_late_audit_failure_rolls_back_everything(async_session: AsyncSession, monkeypatch) -> None:
-    source = await _make_user(async_session)
-    target = await _make_user(async_session)
-    actor = await _make_user(async_session, superuser=True)
+    source, target, actor = await _trio(async_session)
     await _seed_owned_rows(async_session, source, target)
-    source_id = source.id
-    target_id = target.id
-    source_username = source.username
+    source_id, target_id, source_username = source.id, target.id, source.username
     redis = fakeredis.aioredis.FakeRedis(decode_responses=True)
     await redis.set(f"refresh_token:{source_id}", "source-token")
     await redis.set(f"refresh_token:{target_id}", "target-token")
@@ -434,16 +332,14 @@ async def test_late_audit_failure_rolls_back_everything(async_session: AsyncSess
     monkeypatch.setattr(crud.account_merge, "create", fail_create)
     try:
         with pytest.raises(RuntimeError, match="late audit failure"):
-            await _apply(async_session, source, target, actor, redis)
+            await _merge(async_session, source_id, target_id, actor.id, redis=redis)
         assert await redis.get(f"refresh_token:{source_id}") == "source-token"
         assert await redis.get(f"refresh_token:{target_id}") == "target-token"
     finally:
         await redis.aclose()
 
-    fresh_source = await _fresh_user(async_session, source_id)
-    assert fresh_source.is_deleted is False
-    assert fresh_source.is_active is True
-    assert fresh_source.username == source_username
+    fresh_source = await _fresh(async_session, source_id)
+    assert (fresh_source.is_deleted, fresh_source.is_active, fresh_source.username) == (False, True, source_username)
     assert await crud.vault.count_by_user(async_session, source_id) == 2
     assert await crud.notification.count_by_user(async_session, source_id) == 1
     assert await crud.llm_interaction.count_by_user(async_session, source_id) == 1
@@ -453,116 +349,57 @@ async def test_late_audit_failure_rolls_back_everything(async_session: AsyncSess
     assert await _audit_count(async_session) == 0
 
 
-@pytest.mark.asyncio
 async def test_rejects_self_merge_non_superuser_actor_and_inactive_target(async_session: AsyncSession) -> None:
-    source = await _make_user(async_session)
-    target = await _make_user(async_session)
-    actor = await _make_user(async_session, superuser=True)
+    source, target, actor = await _trio(async_session)
 
     with pytest.raises(ValidationException, match="different"):
-        await merge_users(
-            async_session,
-            str(source.id),
-            str(source.id),
-            actor=str(actor.id),
-            reason="duplicate",
-        )
+        await _merge(async_session, source.id, source.id, actor.id)
 
     normal_actor = await _make_user(async_session)
     with pytest.raises(AccessDeniedException):
-        await merge_users(
-            async_session,
-            str(source.id),
-            str(target.id),
-            actor=str(normal_actor.id),
-            reason="duplicate",
-        )
+        await _merge(async_session, source.id, target.id, normal_actor.id)
 
     target.is_active = False
     await async_session.commit()
     with pytest.raises(ValidationException, match="inactive or deleted"):
-        await merge_users(
-            async_session,
-            str(source.id),
-            str(target.id),
-            actor=str(actor.id),
-            reason="duplicate",
-        )
+        await _merge(async_session, source.id, target.id, actor.id)
 
 
-@pytest.mark.asyncio
 async def test_rejects_superuser_and_first_superuser_accounts(async_session: AsyncSession) -> None:
     actor = await _make_user(async_session, superuser=True)
     source = await _make_user(async_session, superuser=True)
     target = await _make_user(async_session)
 
     with pytest.raises(ValidationException, match="Superuser"):
-        await merge_users(
-            async_session,
-            str(source.id),
-            str(target.id),
-            actor=str(actor.id),
-            reason="duplicate",
-        )
+        await _merge(async_session, source.id, target.id, actor.id)
 
     first = await _make_user(async_session, first_superuser=True)
     with pytest.raises(ValidationException, match="first superuser"):
-        await merge_users(
-            async_session,
-            str(first.id),
-            str(target.id),
-            actor=str(actor.id),
-            reason="duplicate",
-        )
+        await _merge(async_session, first.id, target.id, actor.id)
 
 
-@pytest.mark.asyncio
 async def test_rejects_actor_membership_empty_reason_and_deleted_target(async_session: AsyncSession) -> None:
-    source = await _make_user(async_session)
-    target = await _make_user(async_session)
-    actor = await _make_user(async_session, superuser=True)
+    source, target, actor = await _trio(async_session)
 
     with pytest.raises(ValidationException, match="actor cannot"):
-        await merge_users(
-            async_session,
-            str(source.id),
-            str(target.id),
-            actor=str(source.id),
-            reason="duplicate",
-        )
+        await _merge(async_session, source.id, target.id, source.id)
 
     with pytest.raises(ValidationException, match="reason"):
-        await merge_users(
-            async_session,
-            str(source.id),
-            str(target.id),
-            actor=str(actor.id),
-            reason="  ",
-        )
+        await _merge(async_session, source.id, target.id, actor.id, reason="  ")
 
     target.soft_delete()
     await async_session.commit()
     with pytest.raises(ResourceNotFoundException):
-        await merge_users(
-            async_session,
-            str(source.id),
-            str(target.id),
-            actor=str(actor.id),
-            reason="duplicate",
-        )
+        await _merge(async_session, source.id, target.id, actor.id)
 
 
-@pytest.mark.asyncio
 async def test_allows_already_soft_deleted_source(async_session: AsyncSession) -> None:
-    source = await _make_user(async_session)
-    target = await _make_user(async_session)
-    actor = await _make_user(async_session, superuser=True)
-    source_id = source.id
+    source, target, actor = await _trio(async_session)
     source.soft_delete()
     await async_session.commit()
 
-    preview = await _apply(async_session, source, target, actor)
+    preview = await _merge(async_session, source.id, target.id, actor.id)
 
     assert preview.applied is True
-    assert (await _fresh_user(async_session, source_id)).is_deleted is True
+    assert (await _fresh(async_session, source.id)).is_deleted is True
     assert await _audit_count(async_session) == 1

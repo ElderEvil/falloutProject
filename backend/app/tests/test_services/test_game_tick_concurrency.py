@@ -1,14 +1,10 @@
 """Regression test for overlapping game-tick objective event handling.
 
-``EventBus.emit`` serializes handlers *within one emission*, but two game-loop
-tasks can emit ``RESOURCE_COLLECTED`` concurrently. Objective evaluators open
-sessions from the module-global session maker, so overlapping emits can issue
-two queries through one guarded asyncpg connection and trigger
-``InterfaceError: another operation is in progress``.
-
-The test below gives every evaluator session one shared connection and makes
-its first query yield before it finishes. A concurrent query then reliably
-trips the same single-operation invariant enforced by asyncpg.
+``EventBus.emit`` serializes handlers *within one emission*, but two game-loop tasks can emit
+``RESOURCE_COLLECTED`` concurrently. Evaluators open sessions from the module-global maker, so overlapping emits
+issue two queries through one guarded asyncpg connection and trip ``InterfaceError: another operation is in
+progress``. Every evaluator session here shares one connection and yields mid-query so a concurrent query trips the
+same invariant asyncpg enforces.
 """
 
 import asyncio
@@ -36,10 +32,8 @@ logger = logging.getLogger(__name__)
 
 class _ThreadSafeGuardedSession(AsyncSession):
     """AsyncSession enforcing one in-flight operation per connection, thread-safe.
-
-    State is keyed by the bound connection so that sessions from different
-    threads (each with their own connection post-fix) never collide, while
-    sessions sharing one connection (pre-fix) deterministically do.
+    State is keyed by the bound connection: sessions from different threads never collide, while sessions sharing
+    one connection (pre-fix) deterministically do.
     """
 
     _state_lock = threading.Lock()
@@ -63,8 +57,7 @@ class _ThreadSafeGuardedSession(AsyncSession):
             _ThreadSafeGuardedSession._in_flight[conn_key] = _ThreadSafeGuardedSession._in_flight.get(conn_key, 0) + 1
             _ThreadSafeGuardedSession.executions += 1
         try:
-            # Hold the simulated connection busy so a concurrent operation from
-            # the other worker thread deterministically trips the guard.
+            # Hold the connection busy so the other worker thread deterministically trips the guard.
             await asyncio.sleep(0.1)
             return await super().execute(*args, **kwargs)
         finally:
@@ -96,12 +89,7 @@ class _CollectLikeEvaluator(ObjectiveEvaluator):
 
 
 def _seeded_engine() -> tuple[Any, Any, Any]:
-    """Create a fresh in-memory engine (SQLite, StaticPool) with schema.
-
-    Returns ``(engine, create_all, dispose)`` so callers control lifecycle
-    from their own event loop (``await create_all()`` / ``await dispose()``).
-    """
-
+    """Create a fresh in-memory engine with schema; returns (engine, create_all, dispose) for caller-owned loops."""
     engine = create_async_engine(
         "sqlite+aiosqlite:///:memory:",
         echo=False,
@@ -132,21 +120,12 @@ def test_cross_thread_ticks_do_not_collide_on_shared_objective_connection(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     """Dramatiq worker threads (each with its own event loop) must not share one DB connection.
-
-    Production: ``asyncio.run(run_tick())`` runs per worker thread with a fresh
-    loop, while objective evaluators open sessions from the module-global
-    ``async_session_maker``. Two ticks then issue queries through one pooled
-    asyncpg connection -> ``InterfaceError: another operation is in progress``.
-
-    Pre-fix the fix API ``set_current_session_maker`` does not exist, so both
-    threads fall back to the patched module-global maker sharing one connection
-    and deterministically collide. Post-fix each thread sets its own
-    loop-local session maker, so no connection is shared.
+    Without ``set_current_session_maker`` both threads fall back to the patched module-global maker sharing one
+    connection and deterministically collide; with it each thread sets its own loop-local maker.
     """
     from unittest.mock import patch
 
     _ThreadSafeGuardedSession.reset()
-
     shared_engine, create_shared, dispose_shared = _seeded_engine()
 
     async def _connect_shared() -> Any:
@@ -155,7 +134,6 @@ def test_cross_thread_ticks_do_not_collide_on_shared_objective_connection(
 
     shared_conn = asyncio.run(_connect_shared())
     shared_maker = _make_thread_safe_session_maker(shared_conn)
-
     bus = EventBus()
     vaults = [
         UUID("00000000-0000-0000-0000-000000000002"),
@@ -179,11 +157,7 @@ def test_cross_thread_ticks_do_not_collide_on_shared_objective_connection(
                 try:
                     barrier.wait(timeout=30)
                     for _ in range(3):
-                        await bus.emit(
-                            GameEvent.RESOURCE_COLLECTED,
-                            vault_id,
-                            {"resource_type": "caps", "amount": 10},
-                        )
+                        await bus.emit(GameEvent.RESOURCE_COLLECTED, vault_id, {"resource_type": "caps", "amount": 10})
                 finally:
                     if own_conn is not None:
                         await own_conn.close()
@@ -200,7 +174,6 @@ def test_cross_thread_ticks_do_not_collide_on_shared_objective_connection(
 
     try:
         _CollectLikeEvaluator(bus)
-
         with (
             patch("app.services.progression.objectives.evaluators.base.async_session_maker", shared_maker),
             caplog.at_level(logging.ERROR, logger="app.core.event_bus"),
@@ -208,11 +181,8 @@ def test_cross_thread_ticks_do_not_collide_on_shared_objective_connection(
             threads = [_worker_thread(vault_id) for vault_id in vaults]
             for thread in threads:
                 thread.join(timeout=60)
-
         interface_errors = [
-            record
-            for record in caplog.records
-            if record.exc_info and isinstance(record.exc_info[1], asyncpg.InterfaceError)
+            r for r in caplog.records if r.exc_info and isinstance(r.exc_info[1], asyncpg.InterfaceError)
         ]
         assert not errors, f"worker threads raised: {errors}"
         assert _ThreadSafeGuardedSession.collisions == 0

@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import timedelta
 from uuid import uuid4
 
 import pytest
@@ -9,7 +9,6 @@ from app.core.enums import (
     SPECIAL_STATS,
     AgeGroupEnum,
     AvailabilityEnum,
-    DeathCauseEnum,
     DwellerStatusEnum,
     GenderEnum,
     IncidentStatus,
@@ -24,9 +23,11 @@ from app.core.game_config import game_config
 from app.crud import training as training_crud
 from app.crud.room import room as room_crud
 from app.models.dweller import Dweller
+from app.models.room import Room
 from app.models.vault import Vault
 from app.schemas.dweller import DwellerCreate
 from app.schemas.room import RoomCreate
+from app.services.combat.arena_service import arena_service
 from app.services.combat.incident_service import incident_service
 from app.services.exit_request_service import exit_request_service
 from app.services.family.death_service import death_service
@@ -34,6 +35,10 @@ from app.services.hazard_team_service import hazard_team_service
 from app.services.training_service import training_service
 from app.utils.exceptions import ResourceNotFoundException, VaultOperationException
 from app.utils.time import utcnow
+
+pytestmark = pytest.mark.asyncio
+
+EXIT = game_config.exit_request
 
 
 def _dweller_data(**overrides: object) -> dict:
@@ -68,10 +73,36 @@ async def _populate(db_session: AsyncSession, vault: Vault, count: int) -> list[
 
 
 async def _with_room_for_one_exit(db_session: AsyncSession, vault: Vault) -> list[Dweller]:
-    return await _populate(db_session, vault, game_config.exit_request.min_population + 1)
+    return await _populate(db_session, vault, EXIT.min_population + 1)
 
 
-@pytest.mark.asyncio
+async def _sad(db_session: AsyncSession, vault: Vault) -> Dweller:
+    return await _create(db_session, vault, first_name="Clara", happiness=EXIT.despair_happiness)
+
+
+async def _room(db_session: AsyncSession, vault: Vault, name: str, category: RoomTypeEnum, **fields) -> Room:
+    payload = {
+        "vault_id": vault.id,
+        "name": name,
+        "category": category,
+        "ability": SPECIALEnum.STRENGTH,
+        "base_cost": fields.pop("base_cost", 100),
+        "t2_upgrade_cost": fields.pop("t2_upgrade_cost", 500),
+        "t3_upgrade_cost": fields.pop("t3_upgrade_cost", 1500),
+        "size_min": fields.pop("size_min", 3),
+        "size_max": fields.pop("size_max", 9),
+        **fields,
+    }
+    return await room_crud.create(db_session, RoomCreate(**payload))
+
+
+async def _despair(db_session: AsyncSession, dweller: Dweller) -> Dweller:
+    await crud.dweller.update(
+        db_session, dweller.id, {"despair_since": utcnow() - timedelta(hours=EXIT.despair_grace_hours)}
+    )
+    return dweller
+
+
 async def test_request_exit_records_the_ask(async_session: AsyncSession, vault: Vault) -> None:
     dwellers = await _with_room_for_one_exit(async_session, vault)
 
@@ -81,15 +112,13 @@ async def test_request_exit_records_the_ask(async_session: AsyncSession, vault: 
     assert [d.id for d in await exit_request_service.list_pending(async_session, vault.id)] == [dwellers[0].id]
 
 
-@pytest.mark.asyncio
 async def test_request_exit_is_refused_below_the_population_floor(async_session: AsyncSession, vault: Vault) -> None:
-    dwellers = await _populate(async_session, vault, game_config.exit_request.min_population)
+    dwellers = await _populate(async_session, vault, EXIT.min_population)
 
     with pytest.raises(VaultOperationException, match="minimum population"):
         await exit_request_service.request_exit(async_session, dwellers[0].id)
 
 
-@pytest.mark.asyncio
 async def test_request_exit_rejects_children(async_session: AsyncSession, vault: Vault) -> None:
     await _with_room_for_one_exit(async_session, vault)
     child = await _create(async_session, vault, first_name="Pip", age_group=AgeGroupEnum.CHILD)
@@ -106,7 +135,6 @@ async def test_request_exit_rejects_children(async_session: AsyncSession, vault:
         (DwellerStatusEnum.FIGHTING, "busy in an arena match"),
     ],
 )
-@pytest.mark.asyncio
 async def test_request_exit_rejects_a_dweller_who_is_away(
     async_session: AsyncSession, vault: Vault, status: DwellerStatusEnum, reason: str
 ) -> None:
@@ -117,13 +145,11 @@ async def test_request_exit_rejects_a_dweller_who_is_away(
         await exit_request_service.request_exit(async_session, dwellers[0].id)
 
 
-@pytest.mark.asyncio
 async def test_request_exit_unknown_dweller(async_session: AsyncSession, vault: Vault) -> None:
     with pytest.raises(ResourceNotFoundException):
         await exit_request_service.request_exit(async_session, uuid4())
 
 
-@pytest.mark.asyncio
 async def test_request_exit_respects_the_daily_cap(async_session: AsyncSession, vault: Vault) -> None:
     dwellers = await _with_room_for_one_exit(async_session, vault)
     await exit_request_service.request_exit(async_session, dwellers[0].id)
@@ -133,7 +159,6 @@ async def test_request_exit_respects_the_daily_cap(async_session: AsyncSession, 
         await exit_request_service.request_exit(async_session, dwellers[1].id)
 
 
-@pytest.mark.asyncio
 async def test_refuse_exit_resolves_the_request_and_costs_the_whole_vault(
     async_session: AsyncSession, vault: Vault
 ) -> None:
@@ -144,16 +169,15 @@ async def test_refuse_exit_resolves_the_request_and_costs_the_whole_vault(
 
     refused = await exit_request_service.refuse_exit(async_session, vault, dwellers[0].id)
 
-    vault_penalty = game_config.exit_request.vault_refusal_happiness_penalty
+    penalty = EXIT.vault_refusal_happiness_penalty
     assert refused.exit_requested_at is None
     assert await exit_request_service.list_pending(async_session, vault.id) == []
-    assert refused.happiness == max(10, starts[dwellers[0].id] - vault_penalty)
+    assert refused.happiness == max(10, starts[dwellers[0].id] - penalty)
     for other in dwellers[1:]:
         await async_session.refresh(other)
-        assert other.happiness == max(10, starts[other.id] - vault_penalty)
+        assert other.happiness == max(10, starts[other.id] - penalty)
 
 
-@pytest.mark.asyncio
 async def test_refuse_exit_without_a_request_is_rejected(async_session: AsyncSession, vault: Vault) -> None:
     dwellers = await _with_room_for_one_exit(async_session, vault)
 
@@ -161,49 +185,37 @@ async def test_refuse_exit_without_a_request_is_rejected(async_session: AsyncSes
         await exit_request_service.refuse_exit(async_session, vault, dwellers[0].id)
 
 
-@pytest.mark.asyncio
 async def test_refuse_exit_from_another_vault_is_rejected(async_session: AsyncSession, vault: Vault) -> None:
     dwellers = await _with_room_for_one_exit(async_session, vault)
     await exit_request_service.request_exit(async_session, dwellers[0].id)
-    other_vault = Vault(id=uuid4(), number=999)
 
     with pytest.raises(VaultOperationException, match="does not belong"):
-        await exit_request_service.refuse_exit(async_session, other_vault, dwellers[0].id)
+        await exit_request_service.refuse_exit(async_session, Vault(id=uuid4(), number=999), dwellers[0].id)
 
 
-@pytest.mark.asyncio
 async def test_refuse_exit_happiness_is_clamped_at_ten(async_session: AsyncSession, vault: Vault) -> None:
     dwellers = await _with_room_for_one_exit(async_session, vault)
     await exit_request_service.request_exit(async_session, dwellers[0].id)
     await crud.dweller.update(async_session, dwellers[0].id, {"happiness": 10})
 
-    refused = await exit_request_service.refuse_exit(async_session, vault, dwellers[0].id)
-
-    assert refused.happiness == 10
+    assert (await exit_request_service.refuse_exit(async_session, vault, dwellers[0].id)).happiness == 10
 
 
-@pytest.mark.asyncio
 async def test_grant_exit_records_a_living_departure(async_session: AsyncSession, vault: Vault) -> None:
     dwellers = await _with_room_for_one_exit(async_session, vault)
     await exit_request_service.request_exit(async_session, dwellers[0].id)
 
     granted = await exit_request_service.grant_exit(async_session, vault, dwellers[0].id)
 
-    assert granted.lifecycle is LifecycleEnum.WASTELAND
-    assert granted.availability is AvailabilityEnum.DEPARTURE
-    assert granted.vault_id is None
-    assert granted.previous_vault_id == vault.id
+    assert (granted.lifecycle, granted.availability) == (LifecycleEnum.WASTELAND, AvailabilityEnum.DEPARTURE)
+    assert (granted.vault_id, granted.previous_vault_id, granted.room_id) == (None, vault.id, None)
     assert granted.departed_at is not None
     assert granted.departure_eligible_at is not None
-    assert granted.is_dead is False
-    assert granted.is_permanently_dead is False
-    assert granted.death_cause is None
-    assert granted.room_id is None
+    assert (granted.is_dead, granted.is_permanently_dead, granted.death_cause) == (False, False, None)
     assert granted.exit_requested_at is None
     assert granted.id not in [d.id for d in await exit_request_service.list_pending(async_session, vault.id)]
 
 
-@pytest.mark.asyncio
 async def test_granted_exit_has_no_revival_window(async_session: AsyncSession, vault: Vault) -> None:
     dwellers = await _with_room_for_one_exit(async_session, vault)
     await exit_request_service.request_exit(async_session, dwellers[0].id)
@@ -213,7 +225,6 @@ async def test_granted_exit_has_no_revival_window(async_session: AsyncSession, v
     assert death_service.get_days_until_permanent(granted) is None
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize("member_status", ["assigned", "dispatched"])
 @pytest.mark.parametrize("incident_status", [IncidentStatus.ACTIVE, IncidentStatus.SPREADING])
 @pytest.mark.parametrize("success", [False, True])
@@ -223,30 +234,10 @@ async def test_grant_exit_waits_for_incident_resolution(
     residents = await _with_room_for_one_exit(async_session, vault)
     responder = residents[0]
     await exit_request_service.request_exit(async_session, responder.id)
-    requested_at = responder.exit_requested_at
-    cooldown = vault.last_exit_request_at
-    room = await room_crud.create(
-        async_session,
-        RoomCreate(
-            name="Power Generator",
-            category=RoomTypeEnum.PRODUCTION,
-            ability=SPECIALEnum.STRENGTH,
-            base_cost=100,
-            t2_upgrade_cost=500,
-            t3_upgrade_cost=1500,
-            size_min=3,
-            size_max=9,
-            size=3,
-            tier=1,
-            vault_id=vault.id,
-        ),
-    )
+    requested_at, cooldown = responder.exit_requested_at, vault.last_exit_request_at
+    room = await _room(async_session, vault, "Power Generator", RoomTypeEnum.PRODUCTION, size=3)
     incident = await crud.incident_crud.create(
-        async_session,
-        vault_id=vault.id,
-        room_id=room.id,
-        incident_type=IncidentType.FIRE,
-        difficulty=2,
+        async_session, vault_id=vault.id, room_id=room.id, incident_type=IncidentType.FIRE, difficulty=2
     )
     await incident_service.assign_responders(async_session, incident, [responder.id])
     members = await crud.team_crud.get_incident_team(async_session, incident.id, vault.id)
@@ -259,10 +250,8 @@ async def test_grant_exit_waits_for_incident_resolution(
 
     await async_session.refresh(responder)
     await async_session.refresh(vault)
-    assert responder.vault_id == vault.id
-    assert responder.room_id == room.id
+    assert (responder.vault_id, responder.room_id, responder.departed_at) == (vault.id, room.id, None)
     assert responder.exit_requested_at == requested_at
-    assert responder.departed_at is None
     assert vault.last_exit_request_at == cooldown
 
     # A historical roster entry must not stop departure after either outcome.
@@ -276,31 +265,25 @@ async def test_grant_exit_waits_for_incident_resolution(
     assert await hazard_team_service.return_dispatched_responders(async_session, incident) == 0
     assert await crud.incident_crud.get_pending_responder_returns(async_session, vault.id) == []
     await async_session.refresh(responder)
-    assert responder.vault_id is None
-    assert responder.room_id is None
+    assert (responder.vault_id, responder.room_id) == (None, None)
 
 
-@pytest.mark.asyncio
 async def test_grant_exit_cancels_active_training(async_session: AsyncSession, vault: Vault) -> None:
     """A grant stops active training inside the departure transaction, as the lifecycle contract requires."""
     dwellers = await _with_room_for_one_exit(async_session, vault)
     trainee = dwellers[0]
-    room = await room_crud.create(
+    room = await _room(
         async_session,
-        RoomCreate(
-            name="Weight Room",
-            category=RoomTypeEnum.TRAINING,
-            tier=1,
-            size=2,
-            capacity=6,
-            ability=SPECIALEnum.STRENGTH,
-            base_cost=1000,
-            t2_upgrade_cost=2500,
-            t3_upgrade_cost=5000,
-            size_min=1,
-            size_max=3,
-            vault_id=vault.id,
-        ),
+        vault,
+        "Weight Room",
+        RoomTypeEnum.TRAINING,
+        size=2,
+        capacity=6,
+        base_cost=1000,
+        t2_upgrade_cost=2500,
+        t3_upgrade_cost=5000,
+        size_min=1,
+        size_max=3,
     )
     await crud.dweller.update(async_session, trainee.id, {"status": DwellerStatusEnum.IDLE, "strength": 3})
     training = await training_service.start_training(async_session, trainee.id, room.id)
@@ -315,7 +298,6 @@ async def test_grant_exit_cancels_active_training(async_session: AsyncSession, v
     assert await training_crud.training.get_active_by_vault(async_session, vault.id) == []
 
 
-@pytest.mark.asyncio
 async def test_grant_exit_respects_the_population_floor(async_session: AsyncSession, vault: Vault) -> None:
     dwellers = await _with_room_for_one_exit(async_session, vault)
     await exit_request_service.request_exit(async_session, dwellers[0].id)
@@ -326,7 +308,6 @@ async def test_grant_exit_respects_the_population_floor(async_session: AsyncSess
         await exit_request_service.grant_exit(async_session, vault, dwellers[0].id)
 
 
-@pytest.mark.asyncio
 async def test_grant_exit_rejects_a_dead_dweller(async_session: AsyncSession, vault: Vault) -> None:
     """A dead dweller cannot be exiled — the pending selector must reject them."""
     dwellers = await _with_room_for_one_exit(async_session, vault)
@@ -337,7 +318,6 @@ async def test_grant_exit_rejects_a_dead_dweller(async_session: AsyncSession, va
         await exit_request_service.grant_exit(async_session, vault, dwellers[0].id)
 
 
-@pytest.mark.asyncio
 async def test_grant_exit_rejects_a_deleted_dweller(async_session: AsyncSession, vault: Vault) -> None:
     """A soft-deleted dweller cannot be exiled — the pending selector must reject them."""
     dwellers = await _with_room_for_one_exit(async_session, vault)
@@ -348,15 +328,9 @@ async def test_grant_exit_rejects_a_deleted_dweller(async_session: AsyncSession,
         await exit_request_service.grant_exit(async_session, vault, dwellers[0].id)
 
 
-@pytest.mark.asyncio
 async def test_despair_makes_dwellers_ask(async_session: AsyncSession, vault: Vault) -> None:
     await _with_room_for_one_exit(async_session, vault)
-    sad = await _create(async_session, vault, first_name="Clara", happiness=game_config.exit_request.despair_happiness)
-    await crud.dweller.update(
-        async_session,
-        sad.id,
-        {"despair_since": utcnow() - timedelta(hours=game_config.exit_request.despair_grace_hours)},
-    )
+    sad = await _despair(async_session, await _sad(async_session, vault))
 
     asked = await exit_request_service.sync_despair_requests(async_session, vault.id)
 
@@ -365,47 +339,37 @@ async def test_despair_makes_dwellers_ask(async_session: AsyncSession, vault: Va
     assert sad.exit_requested_at is not None
 
 
-@pytest.mark.asyncio
 async def test_despair_needs_the_grace_period_before_asking(async_session: AsyncSession, vault: Vault) -> None:
     """A dweller must stay in despair for the grace period before the vault lets them ask."""
     await _with_room_for_one_exit(async_session, vault)
-    sad = await _create(async_session, vault, first_name="Clara", happiness=game_config.exit_request.despair_happiness)
+    sad = await _sad(async_session, vault)
 
     assert await exit_request_service.sync_despair_requests(async_session, vault.id) == []
 
-    await crud.dweller.update(
-        async_session,
-        sad.id,
-        {"despair_since": utcnow() - timedelta(hours=game_config.exit_request.despair_grace_hours)},
-    )
+    await _despair(async_session, sad)
     asked = await exit_request_service.sync_despair_requests(async_session, vault.id)
 
     assert [d.id for d in asked] == [sad.id]
 
 
-@pytest.mark.asyncio
 async def test_the_vault_asks_at_most_once_a_day(async_session: AsyncSession, vault: Vault) -> None:
     dwellers = await _with_room_for_one_exit(async_session, vault)
-    overdue = utcnow() - timedelta(hours=game_config.exit_request.despair_grace_hours)
+    overdue = utcnow() - timedelta(hours=EXIT.despair_grace_hours)
     for dweller in dwellers:
         await crud.dweller.update(
-            async_session,
-            dweller.id,
-            {"happiness": game_config.exit_request.despair_happiness, "despair_since": overdue},
+            async_session, dweller.id, {"happiness": EXIT.despair_happiness, "despair_since": overdue}
         )
 
     first = await exit_request_service.sync_despair_requests(async_session, vault.id)
     second = await exit_request_service.sync_despair_requests(async_session, vault.id)
 
-    assert len(first) == game_config.exit_request.max_exit_requests_per_day
+    assert len(first) == EXIT.max_exit_requests_per_day
     assert second == []
 
 
-@pytest.mark.asyncio
 async def test_answering_an_ask_consumes_the_day(async_session: AsyncSession, vault: Vault) -> None:
     dwellers = await _with_room_for_one_exit(async_session, vault)
-    overdue = utcnow() - timedelta(hours=game_config.exit_request.despair_grace_hours)
-    await crud.dweller.update(async_session, dwellers[0].id, {"despair_since": overdue})
+    await _despair(async_session, dwellers[0])
     await exit_request_service.request_exit(async_session, dwellers[0].id)
     vault.last_exit_request_at = None
     async_session.add(vault)
@@ -417,13 +381,12 @@ async def test_answering_an_ask_consumes_the_day(async_session: AsyncSession, va
     assert await exit_request_service.list_pending(async_session, vault.id) == []
 
 
-@pytest.mark.asyncio
 async def test_despair_tracking_survives_a_blocked_ask(async_session: AsyncSession, vault: Vault) -> None:
     await _with_room_for_one_exit(async_session, vault)
     vault.last_exit_request_at = utcnow()
     async_session.add(vault)
     await async_session.commit()
-    sad = await _create(async_session, vault, first_name="Clara", happiness=game_config.exit_request.despair_happiness)
+    sad = await _sad(async_session, vault)
 
     assert await exit_request_service.sync_despair_requests(async_session, vault.id) == []
 
@@ -431,24 +394,20 @@ async def test_despair_tracking_survives_a_blocked_ask(async_session: AsyncSessi
     assert sad.despair_since is not None
 
 
-@pytest.mark.asyncio
 async def test_despair_raises_no_ask_below_the_population_floor(async_session: AsyncSession, vault: Vault) -> None:
-    dwellers = await _populate(async_session, vault, game_config.exit_request.min_population)
+    dwellers = await _populate(async_session, vault, EXIT.min_population)
     for dweller in dwellers:
-        await crud.dweller.update(async_session, dweller.id, {"happiness": game_config.exit_request.despair_happiness})
+        await crud.dweller.update(async_session, dweller.id, {"happiness": EXIT.despair_happiness})
 
-    asked = await exit_request_service.sync_despair_requests(async_session, vault.id)
-
-    assert asked == []
+    assert await exit_request_service.sync_despair_requests(async_session, vault.id) == []
     for dweller in dwellers:
         await async_session.refresh(dweller)
         assert dweller.exit_requested_at is None
 
 
-@pytest.mark.asyncio
 async def test_recovery_withdraws_a_standing_request(async_session: AsyncSession, vault: Vault) -> None:
     dwellers = await _with_room_for_one_exit(async_session, vault)
-    sad = await _create(async_session, vault, first_name="Clara", happiness=game_config.exit_request.despair_happiness)
+    sad = await _sad(async_session, vault)
     await exit_request_service.request_exit(async_session, sad.id)
 
     await crud.dweller.update(async_session, sad.id, {"happiness": 90})
@@ -459,12 +418,11 @@ async def test_recovery_withdraws_a_standing_request(async_session: AsyncSession
     assert all(d.exit_requested_at is None for d in dwellers)
 
 
-@pytest.mark.asyncio
 async def test_recovery_withdrawal_requires_strictly_above_despair_threshold(
     async_session: AsyncSession, vault: Vault
 ) -> None:
-    dwellers = await _with_room_for_one_exit(async_session, vault)
-    sad = await _create(async_session, vault, first_name="Clara", happiness=game_config.exit_request.despair_happiness)
+    await _with_room_for_one_exit(async_session, vault)
+    sad = await _sad(async_session, vault)
     await exit_request_service.request_exit(async_session, sad.id)
 
     await exit_request_service.sync_despair_requests(async_session, vault.id)
@@ -473,10 +431,9 @@ async def test_recovery_withdrawal_requires_strictly_above_despair_threshold(
     assert sad.exit_requested_at is not None
 
 
-@pytest.mark.asyncio
 async def test_recovery_does_not_withdraw_a_dead_dwellers_request(async_session: AsyncSession, vault: Vault) -> None:
-    dwellers = await _with_room_for_one_exit(async_session, vault)
-    sad = await _create(async_session, vault, first_name="Clara", happiness=game_config.exit_request.despair_happiness)
+    await _with_room_for_one_exit(async_session, vault)
+    sad = await _sad(async_session, vault)
     await exit_request_service.request_exit(async_session, sad.id)
     await crud.dweller.update(async_session, sad.id, {"is_dead": True, "health": 0, "happiness": 90})
 
@@ -486,7 +443,6 @@ async def test_recovery_does_not_withdraw_a_dead_dwellers_request(async_session:
     assert sad.exit_requested_at is not None
 
 
-@pytest.mark.asyncio
 async def test_despair_leaves_content_dwellers_alone(async_session: AsyncSession, vault: Vault) -> None:
     dwellers = await _with_room_for_one_exit(async_session, vault)
 
@@ -494,35 +450,31 @@ async def test_despair_leaves_content_dwellers_alone(async_session: AsyncSession
     assert all(d.exit_requested_at is None for d in dwellers)
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize("completed", [False, True])
 async def test_grant_exit_clears_idle_arena_selection(
     async_session: AsyncSession, vault: Vault, completed: bool
 ) -> None:
-    from app.crud.arena_state import arena_state_crud
     from app.models.arena_match_event import ArenaMatchEvent
-    from app.services.combat.arena_service import arena_service
 
     departing, teammate, replacement, *_ = await _with_room_for_one_exit(async_session, vault)
-    arena = await room_crud.create(
+    arena = await _room(
         async_session,
-        RoomCreate(
-            name="Arena",
-            category=RoomTypeEnum.ARENA,
-            ability=SPECIALEnum.STRENGTH,
-            base_cost=800,
-            t2_upgrade_cost=3000,
-            t3_upgrade_cost=9000,
-            size_min=6,
-            size_max=6,
-            vault_id=vault.id,
-        ),
+        vault,
+        "Arena",
+        RoomTypeEnum.ARENA,
+        base_cost=800,
+        t2_upgrade_cost=3000,
+        t3_upgrade_cost=9000,
+        size_min=6,
+        size_max=6,
     )
     for dweller in (departing, teammate, replacement):
-        dweller.room_id = arena.id
-        dweller.status = DwellerStatusEnum.IDLE
-        dweller.health = 26
-        dweller.radiation = 11
+        dweller.room_id, dweller.status, dweller.health, dweller.radiation = (
+            arena.id,
+            DwellerStatusEnum.IDLE,
+            26,
+            11,
+        )
     await async_session.commit()
     state = await arena_service.set_fighters(async_session, arena.id, departing.id, teammate.id)
     if completed:
@@ -536,14 +488,10 @@ async def test_grant_exit_clears_idle_arena_selection(
 
     await async_session.refresh(state)
     await async_session.refresh(teammate)
-    assert state.fighter_a_id is None
-    assert state.fighter_b_id == teammate.id
-    assert state.fight_started_at is None
-    assert state.last_fight_at is None
-    assert departing.lifecycle == LifecycleEnum.WASTELAND
-    assert departing.vault_id is None
-    assert teammate.room_id == arena.id
-    assert teammate.status == DwellerStatusEnum.IDLE
+    assert (state.fighter_a_id, state.fighter_b_id) == (None, teammate.id)
+    assert (state.fight_started_at, state.last_fight_at) == (None, None)
+    assert (departing.lifecycle, departing.vault_id) == (LifecycleEnum.WASTELAND, None)
+    assert (teammate.room_id, teammate.status) == (arena.id, DwellerStatusEnum.IDLE)
     assert teammate.health == departing.health == 26
     assert teammate.radiation == departing.radiation == 11
     assert (await arena_service.get_tick_snapshot(async_session, vault.id))["rooms"][0]["events"] == []

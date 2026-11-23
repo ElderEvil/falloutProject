@@ -1,32 +1,15 @@
-"""Regression coverage for the unused dweller index cleanup."""
-
-import importlib.util
-from pathlib import Path
-
-from alembic.migration import MigrationContext
-from alembic.operations import Operations
-from sqlalchemy import create_engine, text
+from sqlalchemy import text
 
 from app.models.dweller import Dweller
+from app.tests.test_alembic._support import bind_op, load_migration, sqlite_db
 
-MIGRATION_PATH = (
-    Path(__file__).parents[2] / "alembic/versions/2026_11_01_0002-d1f3a5c7e9b2_drop_unused_dweller_indexes.py"
-)
+MIGRATION = load_migration("2026_11_01_0002-d1f3a5c7e9b2_drop_unused_dweller_indexes.py", "drop_unused_dweller_indexes")
 INDEXES = {
     "ix_dweller_first_name": ("first_name",),
     "ix_dweller_last_name": ("last_name",),
     "ix_dweller_is_dead": ("is_dead",),
     "ix_dweller_is_permanently_dead": ("is_permanently_dead",),
 }
-
-
-def _load_migration():
-    spec = importlib.util.spec_from_file_location("drop_unused_dweller_indexes", MIGRATION_PATH)
-    assert spec
-    assert spec.loader
-    migration = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(migration)
-    return migration
 
 
 def _index_names(connection) -> set[str]:
@@ -37,32 +20,24 @@ def _index_names(connection) -> set[str]:
     }
 
 
-def test_index_migration_drops_and_restores(monkeypatch):
-    migration = _load_migration()
-    engine = create_engine("sqlite://")
-    with engine.begin() as connection:
-        connection.execute(
-            text(
-                """CREATE TABLE dweller (
-                id VARCHAR PRIMARY KEY,
-                first_name VARCHAR,
-                last_name VARCHAR,
-                is_dead BOOLEAN,
-                is_permanently_dead BOOLEAN
-            )"""
-            )
-        )
+def test_index_migration_drops_and_restores():
+    with sqlite_db(
+        """CREATE TABLE dweller (
+            id VARCHAR PRIMARY KEY,
+            first_name VARCHAR,
+            last_name VARCHAR,
+            is_dead BOOLEAN,
+            is_permanently_dead BOOLEAN
+        )"""
+    ) as connection:
         for index_name, columns in INDEXES.items():
             connection.execute(text(f"CREATE INDEX {index_name} ON dweller ({', '.join(columns)})"))
         assert _index_names(connection) == set(INDEXES)
-
-        monkeypatch.setattr(migration, "op", Operations(MigrationContext.configure(connection)))
-        migration.upgrade()
+        bind_op(MIGRATION, connection)
+        MIGRATION.upgrade()
         assert _index_names(connection) == set()
-
-        migration.downgrade()
+        MIGRATION.downgrade()
         assert _index_names(connection) == set(INDEXES)
-    engine.dispose()
 
 
 def test_dweller_model_no_longer_defines_dropped_indexes():

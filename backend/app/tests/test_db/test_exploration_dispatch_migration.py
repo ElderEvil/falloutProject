@@ -1,16 +1,8 @@
-"""Regression coverage for the exploration dispatch-target migration (issue 772)."""
+from app.tests.test_alembic._support import load_migration
 
-import importlib.util
-from pathlib import Path
-
-MIGRATION_PATH = (
-    Path(__file__).parents[2] / "alembic/versions/2026_09_26_0002-401f95d70b98_add_exploration_dispatch_target.py"
+MIGRATION = load_migration(
+    "2026_09_26_0002-401f95d70b98_add_exploration_dispatch_target.py", "add_exploration_dispatch_target"
 )
-MIGRATION_SPEC = importlib.util.spec_from_file_location("add_exploration_dispatch_target", MIGRATION_PATH)
-assert MIGRATION_SPEC
-assert MIGRATION_SPEC.loader
-MIGRATION = importlib.util.module_from_spec(MIGRATION_SPEC)
-MIGRATION_SPEC.loader.exec_module(MIGRATION)
 
 
 def test_revision_chain() -> None:

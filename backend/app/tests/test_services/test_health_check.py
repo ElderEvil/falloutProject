@@ -2,115 +2,109 @@ from __future__ import annotations
 
 import logging
 import sys
-from typing import Literal, cast
+from asyncio import run as asyncio_run
+from typing import cast
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import aiosmtplib
 import httpx
 import pytest
-from botocore.exceptions import EndpointConnectionError
 from redis.exceptions import RedisError
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from app.core.config import settings
-from app.core.health_check import (
-    HealthCheckResult,
-    HealthCheckService,
-    ServiceStatus,
-)
+from app.core.health_check import HealthCheckResult, HealthCheckService, ServiceStatus
+
+HEALTH = "app.core.health_check"
+OK = ServiceStatus.HEALTHY
+BAD = ServiceStatus.UNHEALTHY
+DEGRADED = ServiceStatus.DEGRADED
 
 
-def _ok_result(service: str) -> HealthCheckResult:
-    return HealthCheckResult(service=service, status=ServiceStatus.HEALTHY, message="ok")
+def _result(service: str, status: ServiceStatus = OK, message: str = "ok") -> HealthCheckResult:
+    return HealthCheckResult(service=service, status=status, message=message)
 
 
-def _unhealthy_result(service: str) -> HealthCheckResult:
-    return HealthCheckResult(service=service, status=ServiceStatus.UNHEALTHY, message="fail")
+def _fake_boto3(return_buckets: list[str] | None = None, side_effect: BaseException | None = None) -> dict:
+    """Inject fake boto3/botocore modules so the inline ``import boto3`` succeeds."""
+    client = MagicMock()
+    if side_effect:
+        client.list_buckets.side_effect = side_effect
+    else:
+        client.list_buckets.return_value = {"Buckets": [{"Name": n} for n in (return_buckets or [])]}
+    boto3 = MagicMock()
+    boto3.client.return_value = client
+    return {"boto3": boto3, "botocore.config": MagicMock(), "botocore.exceptions": MagicMock()}
 
 
-# check_postgres
+def _local_ai_response(status_code: int, models: list[str] | None = None) -> MagicMock:
+    response = MagicMock(status_code=status_code)
+    if models is not None:
+        response.json.return_value = {"data": [{"id": model} for model in models]}
+    return response
 
 
-@pytest.mark.asyncio
-async def test_check_postgres_healthy() -> None:
-    mock_conn = MagicMock()
-    mock_conn.__aenter__ = AsyncMock(return_value=mock_conn)
-    mock_conn.__aexit__ = AsyncMock(return_value=None)
-    mock_conn.execute = AsyncMock()
-    mock_engine = MagicMock(spec=AsyncEngine)
-    mock_engine.connect.return_value = mock_conn
+def _local_ai_client(get_effect) -> MagicMock:
+    """AsyncClient mock whose .get returns get_effect, or raises it when given an exception."""
+    client = MagicMock()
+    client.__aenter__ = AsyncMock(return_value=client)
+    client.__aexit__ = AsyncMock(return_value=None)
+    client.get = (
+        AsyncMock(side_effect=get_effect) if isinstance(get_effect, Exception) else AsyncMock(return_value=get_effect)
+    )
+    return client
 
-    result = await HealthCheckService.check_postgres(mock_engine)
+
+def test_check_postgres_healthy() -> None:
+    conn = MagicMock(execute=AsyncMock())
+    conn.__aenter__ = AsyncMock(return_value=conn)
+    conn.__aexit__ = AsyncMock(return_value=None)
+    engine = MagicMock(spec=AsyncEngine)
+    engine.connect.return_value = conn
+
+    result = asyncio_run(HealthCheckService.check_postgres(engine))
 
     assert result.service == "postgresql"
-    assert result.status == ServiceStatus.HEALTHY
+    assert result.status == OK
     assert "successful" in result.message
     assert result.details is not None
     assert result.details["database"] == settings.POSTGRES_DB
 
 
-@pytest.mark.asyncio
-async def test_check_postgres_unhealthy() -> None:
-    mock_engine = MagicMock(spec=AsyncEngine)
-    mock_engine.connect.side_effect = ConnectionError("connection refused")
+def test_check_postgres_unhealthy() -> None:
+    engine = MagicMock(spec=AsyncEngine)
+    engine.connect.side_effect = ConnectionError("connection refused")
 
-    result = await HealthCheckService.check_postgres(mock_engine)
+    result = asyncio_run(HealthCheckService.check_postgres(engine))
 
-    assert result.service == "postgresql"
-    assert result.status == ServiceStatus.UNHEALTHY
+    assert (result.service, result.status) == ("postgresql", BAD)
     assert "failed" in result.message
 
 
-# check_redis
-
-
-@pytest.mark.asyncio
-async def test_check_redis_healthy() -> None:
-    mock_redis = MagicMock()
-    mock_redis.ping = AsyncMock()
-    mock_redis.close = AsyncMock()
-
-    with patch("app.core.health_check.Redis", return_value=mock_redis):
-        result = await HealthCheckService.check_redis()
+@pytest.mark.parametrize("ping_error", [None, RedisError("connection refused")])
+def test_check_redis(ping_error) -> None:
+    redis = MagicMock(ping=AsyncMock(side_effect=ping_error), close=AsyncMock())
+    with patch(f"{HEALTH}.Redis", return_value=redis):
+        result = asyncio_run(HealthCheckService.check_redis())
 
     assert result.service == "redis"
-    assert result.status == ServiceStatus.HEALTHY
-    assert "successful" in result.message
+    assert result.status == (OK if ping_error is None else BAD)
+    assert ("successful" if ping_error is None else "failed") in result.message
 
 
-@pytest.mark.asyncio
-async def test_check_redis_unhealthy_redis_error() -> None:
-    mock_redis = MagicMock()
-    mock_redis.ping = AsyncMock(side_effect=RedisError("connection refused"))
-    mock_redis.close = AsyncMock()
-
-    with patch("app.core.health_check.Redis", return_value=mock_redis):
-        result = await HealthCheckService.check_redis()
-
-    assert result.service == "redis"
-    assert result.status == ServiceStatus.UNHEALTHY
-    assert "failed" in result.message
-
-
-@pytest.mark.asyncio
-async def test_check_redis_unhealthy_invalid_port() -> None:
+def test_check_redis_unhealthy_invalid_port() -> None:
     with patch.object(settings, "REDIS_PORT", "not-a-port"):
-        result = await HealthCheckService.check_redis()
+        result = asyncio_run(HealthCheckService.check_redis())
 
-    assert result.service == "redis"
-    assert result.status == ServiceStatus.UNHEALTHY
+    assert (result.service, result.status) == ("redis", BAD)
     assert "failed" in result.message
-
-
-# check_dramatiq
 
 
 def test_check_dramatiq_not_configured() -> None:
-    with patch("app.core.health_check.broker", None):
+    with patch(f"{HEALTH}.broker", None):
         result = HealthCheckService.check_dramatiq()
 
-    assert result.service == "dramatiq"
-    assert result.status == ServiceStatus.DEGRADED
+    assert (result.service, result.status) == ("dramatiq", DEGRADED)
     assert "not configured" in result.message
     assert result.details is not None
     assert result.details["actors"] == 0
@@ -122,69 +116,31 @@ def test_check_dramatiq_unhealthy() -> None:
         def actors(self) -> dict:
             raise RedisError("broker down")
 
-    with patch("app.core.health_check.broker", BadBroker()):
+    with patch(f"{HEALTH}.broker", BadBroker()):
         result = HealthCheckService.check_dramatiq()
 
-    assert result.service == "dramatiq"
-    assert result.status == ServiceStatus.UNHEALTHY
+    assert (result.service, result.status) == ("dramatiq", BAD)
     assert "failed" in result.message
 
 
 def test_check_dramatiq_healthy_empty_actors() -> None:
-    mock_broker = MagicMock()
-    mock_broker.actors = {}
-    with patch("app.core.health_check.broker", mock_broker):
+    broker = MagicMock(actors={})
+    with patch(f"{HEALTH}.broker", broker):
         result = HealthCheckService.check_dramatiq()
 
-    assert result.status == ServiceStatus.HEALTHY
+    assert result.status == OK
     assert result.details is not None
     assert result.details["actors"] == 0
 
 
-# check_rustfs
-
-
-def _inject_fake_boto3(
-    return_buckets: list[str] | None = None,
-    side_effect: BaseException | None = None,
-) -> MagicMock:
-    """Inject a fake boto3 module so the inline ``import boto3`` succeeds."""
-    mock_boto3 = MagicMock()
-    mock_client = MagicMock()
-    if side_effect:
-        mock_client.list_buckets.side_effect = side_effect
-    else:
-        mock_client.list_buckets.return_value = {"Buckets": [{"Name": n} for n in (return_buckets or [])]}
-    mock_boto3.client.return_value = mock_client
-    return mock_boto3
-
-
-def _patch_boto3_in_sys_modules(
-    return_buckets: list[str] | None = None,
-    side_effect: BaseException | None = None,
-) -> dict:
-    """Return a dict for patch.dict(sys.modules, ...) with fake boto3 and botocore."""
-    return {
-        "boto3": _inject_fake_boto3(return_buckets=return_buckets, side_effect=side_effect),
-        "botocore.config": MagicMock(),
-        "botocore.exceptions": MagicMock(),
-    }
-
-
 def test_check_rustfs_not_configured_missing_key() -> None:
-    with (
-        patch.object(settings, "RUSTFS_ACCESS_KEY", "fake-key"),
-        patch.object(settings, "RUSTFS_SECRET_KEY", None),
-    ):
-        result = HealthCheckService.check_rustfs()
-
-    assert result.status == ServiceStatus.DEGRADED
+    with patch.object(settings, "RUSTFS_ACCESS_KEY", "fake-key"), patch.object(settings, "RUSTFS_SECRET_KEY", None):
+        assert HealthCheckService.check_rustfs().status == DEGRADED
 
 
 def test_check_rustfs_healthy_default_hostname() -> None:
-    fake_modules = _patch_boto3_in_sys_modules(return_buckets=[])
     with (
-        patch.dict(sys.modules, fake_modules),
+        patch.dict(sys.modules, _fake_boto3(return_buckets=[])),
         patch.object(settings, "RUSTFS_ACCESS_KEY", "fake-key"),
         patch.object(settings, "RUSTFS_SECRET_KEY", "fake-secret"),
         patch.object(settings, "RUSTFS_HOSTNAME", None),
@@ -193,15 +149,14 @@ def test_check_rustfs_healthy_default_hostname() -> None:
     ):
         result = HealthCheckService.check_rustfs()
 
-    assert result.service == "rustfs"
-    assert result.status == ServiceStatus.HEALTHY
+    assert (result.service, result.status) == ("rustfs", OK)
     assert result.details is not None
     assert result.details["endpoint"] == "https://s3.evillab.dev"
 
 
 def test_check_rustfs_os_error() -> None:
     with (
-        patch.dict(sys.modules, _patch_boto3_in_sys_modules(side_effect=OSError("network unreachable"))),
+        patch.dict(sys.modules, _fake_boto3(side_effect=OSError("network unreachable"))),
         patch.object(settings, "RUSTFS_ACCESS_KEY", "fake-key"),
         patch.object(settings, "RUSTFS_SECRET_KEY", "fake-secret"),
         patch.object(settings, "RUSTFS_HOSTNAME", "s3.example.com"),
@@ -210,50 +165,25 @@ def test_check_rustfs_os_error() -> None:
     ):
         result = HealthCheckService.check_rustfs()
 
-    assert result.status == ServiceStatus.DEGRADED
+    assert result.status == DEGRADED
     assert "failed" in result.message
 
 
-# check_local_ai
-
-
-def _local_ai_response(status_code: int, models: list[str] | None = None) -> MagicMock:
-    mock_response = MagicMock()
-    mock_response.status_code = status_code
-    if models is not None:
-        mock_response.json.return_value = {"data": [{"id": model} for model in models]}
-    return mock_response
-
-
-def _local_ai_client(get_effect: MagicMock | Exception) -> MagicMock:
-    """AsyncClient mock whose .get returns get_effect, or raises it when given an exception."""
-    mock_client = MagicMock()
-    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-    mock_client.__aexit__ = AsyncMock(return_value=None)
-    if isinstance(get_effect, Exception):
-        mock_client.get = AsyncMock(side_effect=get_effect)
-    else:
-        mock_client.get = AsyncMock(return_value=get_effect)
-    return mock_client
-
-
-@pytest.mark.parametrize("provider", [pytest.param("ollama", id="ollama"), pytest.param("lmstudio", id="lmstudio")])
-@pytest.mark.asyncio
-async def test_check_local_ai_not_configured(provider: Literal["ollama", "lmstudio"]) -> None:
+@pytest.mark.parametrize("provider", ["ollama", "lmstudio"])
+def test_check_local_ai_not_configured(provider: str) -> None:
     with patch.object(settings, "AI_PROVIDER", "openai"):
-        result = await HealthCheckService.check_local_ai(provider)
+        result = asyncio_run(HealthCheckService.check_local_ai(provider))
 
-    assert result.service == provider
-    assert result.status == ServiceStatus.DEGRADED
+    assert (result.service, result.status) == (provider, DEGRADED)
     assert "not configured" in result.message
     assert result.details is not None
     assert result.details["ai_provider"] == "openai"
 
 
 @pytest.fixture
-def local_ai_provider(request: pytest.FixtureRequest) -> Literal["ollama", "lmstudio"]:
+def local_ai_provider(request: pytest.FixtureRequest) -> str:
     """Patch settings for the parametrized local AI provider and yield its name."""
-    provider: Literal["ollama", "lmstudio"] = request.param
+    provider: str = request.param
     base_url = "http://localhost:11434/v1" if provider == "ollama" else "http://localhost:1234/v1"
     with (
         patch.object(settings, "AI_PROVIDER", provider),
@@ -263,143 +193,87 @@ def local_ai_provider(request: pytest.FixtureRequest) -> Literal["ollama", "lmst
         yield provider
 
 
+LOCAL_AI_CASES = [
+    pytest.param("ollama", _local_ai_response(200, ["llama2:latest", "mistral:7b"]), OK, "llama2", id="ollama-healthy"),
+    pytest.param("ollama", _local_ai_response(200, ["mistral:7b"]), DEGRADED, "not found", id="ollama-model-missing"),
+    pytest.param("ollama", _local_ai_response(503), BAD, "503", id="ollama-unexpected-status"),
+    pytest.param("ollama", httpx.ConnectError("connection refused"), BAD, "Cannot connect", id="ollama-connect-error"),
+    pytest.param("ollama", httpx.TimeoutException("timeout"), BAD, "timed out", id="ollama-timeout"),
+    pytest.param("lmstudio", _local_ai_response(200, ["llama2:latest"]), OK, "llama2", id="lmstudio-healthy"),
+    pytest.param("lmstudio", _local_ai_response(200, []), DEGRADED, "not found", id="lmstudio-model-missing"),
+    pytest.param("lmstudio", _local_ai_response(503), BAD, "503", id="lmstudio-unexpected-status"),
+    pytest.param(
+        "lmstudio", httpx.ConnectError("connection refused"), BAD, "Cannot connect", id="lmstudio-connect-error"
+    ),
+    pytest.param("lmstudio", httpx.TimeoutException("timeout"), BAD, "timed out", id="lmstudio-timeout"),
+]
+
+
 @pytest.mark.parametrize(
-    ("local_ai_provider", "get_effect", "expected_status", "message_fragment"),
-    [
-        pytest.param(
-            "ollama",
-            _local_ai_response(200, ["llama2:latest", "mistral:7b"]),
-            ServiceStatus.HEALTHY,
-            "llama2",
-            id="ollama-healthy",
-        ),
-        pytest.param(
-            "ollama",
-            _local_ai_response(200, ["mistral:7b"]),
-            ServiceStatus.DEGRADED,
-            "not found",
-            id="ollama-model-not-found",
-        ),
-        pytest.param("ollama", _local_ai_response(503), ServiceStatus.UNHEALTHY, "503", id="ollama-unexpected-status"),
-        pytest.param(
-            "ollama",
-            httpx.ConnectError("connection refused"),
-            ServiceStatus.UNHEALTHY,
-            "Cannot connect",
-            id="ollama-connect-error",
-        ),
-        pytest.param(
-            "ollama", httpx.TimeoutException("timeout"), ServiceStatus.UNHEALTHY, "timed out", id="ollama-timeout"
-        ),
-        pytest.param(
-            "lmstudio",
-            _local_ai_response(200, ["llama2:latest"]),
-            ServiceStatus.HEALTHY,
-            "llama2",
-            id="lmstudio-healthy",
-        ),
-        pytest.param(
-            "lmstudio", _local_ai_response(200, []), ServiceStatus.DEGRADED, "not found", id="lmstudio-model-not-found"
-        ),
-        pytest.param(
-            "lmstudio", _local_ai_response(503), ServiceStatus.UNHEALTHY, "503", id="lmstudio-unexpected-status"
-        ),
-        pytest.param(
-            "lmstudio",
-            httpx.ConnectError("connection refused"),
-            ServiceStatus.UNHEALTHY,
-            "Cannot connect",
-            id="lmstudio-connect-error",
-        ),
-        pytest.param(
-            "lmstudio", httpx.TimeoutException("timeout"), ServiceStatus.UNHEALTHY, "timed out", id="lmstudio-timeout"
-        ),
-    ],
-    indirect=["local_ai_provider"],
+    ("local_ai_provider", "get_effect", "expected_status", "fragment"), LOCAL_AI_CASES, indirect=["local_ai_provider"]
 )
-@pytest.mark.asyncio
-async def test_check_local_ai_provider_responses(
-    local_ai_provider: Literal["ollama", "lmstudio"],
-    get_effect: MagicMock | Exception,
-    expected_status: ServiceStatus,
-    message_fragment: str,
+def test_check_local_ai_provider_responses(
+    local_ai_provider: str, get_effect, expected_status: ServiceStatus, fragment: str
 ) -> None:
-    with patch("app.core.health_check.httpx.AsyncClient", return_value=_local_ai_client(get_effect)):
-        result = await HealthCheckService.check_local_ai(local_ai_provider)
+    with patch(f"{HEALTH}.httpx.AsyncClient", return_value=_local_ai_client(get_effect)):
+        result = asyncio_run(HealthCheckService.check_local_ai(local_ai_provider))
 
     assert result.service == local_ai_provider
     assert result.status == expected_status
-    assert message_fragment in result.message
+    assert fragment in result.message
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize("local_ai_provider", ["ollama", "lmstudio"], indirect=True)
-async def test_check_local_ai_unexpected_error_propagates(
-    local_ai_provider: Literal["ollama", "lmstudio"],
-) -> None:
+def test_check_local_ai_unexpected_error_propagates(local_ai_provider: str) -> None:
     """Non-HTTP, non-parse failures are bugs: they propagate instead of reporting UNHEALTHY."""
     with (
-        patch("app.core.health_check.httpx.AsyncClient", return_value=_local_ai_client(Exception("boom"))),
+        patch(f"{HEALTH}.httpx.AsyncClient", return_value=_local_ai_client(Exception("boom"))),
         pytest.raises(Exception, match="boom"),
     ):
-        await HealthCheckService.check_local_ai(local_ai_provider)
-
-
-# check_smtp
+        asyncio_run(HealthCheckService.check_local_ai(local_ai_provider))
 
 
 @pytest.mark.parametrize(
     ("smtp_user", "smtp_password", "expected_auth", "login_args"),
     [
         pytest.param(None, None, False, None, id="no-auth"),
-        pytest.param("user", "pass", True, ("user", "pass"), id="with-auth"),
+        pytest.param("user", "pass", True, ("user", "pass"), id="auth"),
     ],
 )
-@pytest.mark.asyncio
-async def test_check_smtp_healthy(
-    smtp_user: str | None, smtp_password: str | None, expected_auth: bool, login_args: tuple[str, str] | None
-) -> None:
-    mock_smtp = MagicMock()
-    mock_smtp.connect = AsyncMock()
-    mock_smtp.login = AsyncMock()
-    mock_smtp.quit = AsyncMock()
-
+def test_check_smtp_healthy(smtp_user, smtp_password, expected_auth: bool, login_args) -> None:
+    smtp = MagicMock(connect=AsyncMock(), login=AsyncMock(), quit=AsyncMock())
     with (
-        patch("app.core.health_check.aiosmtplib.SMTP", return_value=mock_smtp),
+        patch(f"{HEALTH}.aiosmtplib.SMTP", return_value=smtp),
         patch.object(settings, "SMTP_USER", smtp_user),
         patch.object(settings, "SMTP_PASSWORD", smtp_password),
     ):
-        result = await HealthCheckService.check_smtp()
+        result = asyncio_run(HealthCheckService.check_smtp())
 
-    assert result.service == "smtp"
-    assert result.status == ServiceStatus.HEALTHY
+    assert (result.service, result.status) == ("smtp", OK)
     assert "successful" in result.message
     assert result.details is not None
     assert result.details["auth"] is expected_auth
-    mock_smtp.connect.assert_called_once()
-    mock_smtp.quit.assert_called_once()
+    smtp.connect.assert_called_once()
+    smtp.quit.assert_called_once()
     if login_args is not None:
-        mock_smtp.login.assert_called_once_with(*login_args)
+        smtp.login.assert_called_once_with(*login_args)
 
 
 @pytest.mark.parametrize(
-    ("connect_error", "message_fragment"),
+    ("connect_error", "fragment"),
     [
         pytest.param(aiosmtplib.SMTPException("error"), "failed", id="smtp-exception"),
         pytest.param(TimeoutError("timed out"), "timed out", id="timeout"),
         pytest.param(ConnectionError("refused"), "failed", id="connection-error"),
     ],
 )
-@pytest.mark.asyncio
-async def test_check_smtp_connect_failures(connect_error: Exception, message_fragment: str) -> None:
-    mock_smtp = MagicMock()
-    mock_smtp.connect = AsyncMock(side_effect=connect_error)
+def test_check_smtp_connect_failures(connect_error: Exception, fragment: str) -> None:
+    smtp = MagicMock(connect=AsyncMock(side_effect=connect_error))
+    with patch(f"{HEALTH}.aiosmtplib.SMTP", return_value=smtp):
+        result = asyncio_run(HealthCheckService.check_smtp())
 
-    with patch("app.core.health_check.aiosmtplib.SMTP", return_value=mock_smtp):
-        result = await HealthCheckService.check_smtp()
-
-    assert result.status == ServiceStatus.UNHEALTHY
-    assert message_fragment in result.message
+    assert result.status == BAD
+    assert fragment in result.message
 
 
 @pytest.mark.parametrize(
@@ -409,90 +283,64 @@ async def test_check_smtp_connect_failures(connect_error: Exception, message_fra
         pytest.param(False, True, 587, "start_tls", "use_tls", id="starttls"),
     ],
 )
-@pytest.mark.asyncio
-async def test_check_smtp_tls_mapping(
-    tls: bool, ssl: bool, port: int, expected_tls_key: str, forbidden_tls_key: str
-) -> None:
-    with patch("app.core.health_check.aiosmtplib.SMTP") as mock_smtp_class:
-        mock_smtp_class.return_value.connect = AsyncMock()
-        mock_smtp_class.return_value.quit = AsyncMock()
+def test_check_smtp_tls_mapping(tls: bool, ssl: bool, port: int, expected_tls_key: str, forbidden_tls_key: str) -> None:
+    with patch(f"{HEALTH}.aiosmtplib.SMTP") as smtp_class:
+        smtp_class.return_value.connect = AsyncMock()
+        smtp_class.return_value.quit = AsyncMock()
         with (
             patch.object(settings, "SMTP_TLS", new=tls),
             patch.object(settings, "SMTP_SSL", new=ssl),
             patch.object(settings, "SMTP_HOST", "smtp.example.com"),
             patch.object(settings, "SMTP_PORT", port),
         ):
-            result = await HealthCheckService.check_smtp()
+            result = asyncio_run(HealthCheckService.check_smtp())
 
-    assert result.status == ServiceStatus.HEALTHY
-    kwargs = mock_smtp_class.call_args.kwargs
+    assert result.status == OK
+    kwargs = smtp_class.call_args.kwargs
     assert kwargs[expected_tls_key] is True
     assert forbidden_tls_key not in kwargs
     assert kwargs["port"] == port
 
 
-# check_all_services
+def test_check_all_services_with_local_ai() -> None:
+    async def fake_local_ai(provider: str) -> HealthCheckResult:
+        return _result(provider)
 
-
-@pytest.mark.asyncio
-async def test_check_all_services_with_local_ai() -> None:
-    service = HealthCheckService()
-
-    async def fake_local_ai(provider: Literal["ollama", "lmstudio"]) -> HealthCheckResult:
-        return _ok_result(provider)
-
-    pg = staticmethod(AsyncMock(return_value=_ok_result("postgresql")))
-    rd = staticmethod(AsyncMock(return_value=_ok_result("redis")))
-    rf = staticmethod(lambda: _ok_result("rustfs"))
-    dq = staticmethod(lambda: _ok_result("dramatiq"))
-    sm = staticmethod(AsyncMock(return_value=_ok_result("smtp")))
-    ai = staticmethod(fake_local_ai)
     with (
-        patch.object(HealthCheckService, "check_postgres", pg),
-        patch.object(HealthCheckService, "check_redis", rd),
-        patch.object(HealthCheckService, "check_rustfs", rf),
-        patch.object(HealthCheckService, "check_dramatiq", dq),
-        patch.object(HealthCheckService, "check_smtp", sm),
-        patch.object(HealthCheckService, "check_local_ai", ai),
+        patch.object(HealthCheckService, "check_postgres", AsyncMock(return_value=_result("postgresql"))),
+        patch.object(HealthCheckService, "check_redis", AsyncMock(return_value=_result("redis"))),
+        patch.object(HealthCheckService, "check_rustfs", staticmethod(lambda: _result("rustfs"))),
+        patch.object(HealthCheckService, "check_dramatiq", staticmethod(lambda: _result("dramatiq"))),
+        patch.object(HealthCheckService, "check_smtp", AsyncMock(return_value=_result("smtp"))),
+        patch.object(HealthCheckService, "check_local_ai", staticmethod(fake_local_ai)),
         patch.object(settings, "AI_PROVIDER", "ollama"),
     ):
-        engine = cast("AsyncEngine", object())
-        results = await service.check_all_services(
-            engine=engine, include_dramatiq=True, include_smtp=True, include_local_ai=True
+        results = asyncio_run(
+            HealthCheckService().check_all_services(
+                engine=cast("AsyncEngine", object()), include_dramatiq=True, include_smtp=True, include_local_ai=True
+            )
         )
 
     assert "ollama" in results
-    assert results["ollama"].status == ServiceStatus.HEALTHY
-
-
-# log_health_check_results
+    assert results["ollama"].status == OK
 
 
 def test_log_health_check_some_unhealthy() -> None:
-    results = {
-        "postgresql": _ok_result("postgresql"),
-        "redis": _unhealthy_result("redis"),
-    }
+    results = {"postgresql": _result("postgresql"), "redis": _result("redis", BAD, "fail")}
 
-    logger_instance = logging.getLogger("app.core.health_check")
-    with patch.object(logger_instance, "info") as mock_info, patch.object(logger_instance, "warning") as mock_warning:
+    logger_instance = logging.getLogger(HEALTH)
+    with patch.object(logger_instance, "info") as info, patch.object(logger_instance, "warning") as warning:
         overall = HealthCheckService.log_health_check_results(results)
 
     assert overall is False
     # The unhealthy result line uses logger.log(logging.WARNING, ...) — not logger.warning().
     # Only the final summary line uses logger.warning() directly, so warning() is called once.
-    assert mock_warning.call_count == 1
-    # info calls include header banners + individual healthy result line
-    assert mock_info.call_count >= 2
+    assert warning.call_count == 1
+    assert info.call_count >= 2  # header banners + the individual healthy result line
 
 
 def test_log_health_check_results_empty() -> None:
-    results: dict[str, HealthCheckResult] = {}
-    overall = HealthCheckService.log_health_check_results(results)
-    assert overall is True
-
-
-# Helper classes and enums
+    assert HealthCheckService.log_health_check_results({}) is True
 
 
 def test_service_status_enum() -> None:
@@ -502,17 +350,11 @@ def test_service_status_enum() -> None:
 
 
 def test_health_check_result_creation() -> None:
-    result = HealthCheckResult(
-        service="test",
-        status=ServiceStatus.HEALTHY,
-        message="All good",
-        details={"key": "value"},
+    result = HealthCheckResult(service="test", status=OK, message="All good", details={"key": "value"})
+    assert (result.service, result.status, result.message, result.details) == (
+        "test",
+        OK,
+        "All good",
+        {"key": "value"},
     )
-    assert result.service == "test"
-    assert result.status == ServiceStatus.HEALTHY
-    assert result.message == "All good"
-    assert result.details == {"key": "value"}
-
-    # details default to None
-    result_no_details = HealthCheckResult(service="test2", status=ServiceStatus.UNHEALTHY, message="Bad")
-    assert result_no_details.details is None
+    assert HealthCheckResult(service="test2", status=BAD, message="Bad").details is None

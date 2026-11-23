@@ -2,13 +2,14 @@
 
 import re
 from collections.abc import AsyncGenerator
+from datetime import timedelta
 from typing import Any
 from unittest.mock import AsyncMock
 from uuid import UUID, uuid4
 
 import pytest
 import pytest_asyncio
-from httpx import ASGITransport, AsyncClient
+from httpx import ASGITransport, AsyncClient, Response
 from sqlalchemy.ext.asyncio import AsyncConnection
 from sqlalchemy.orm import sessionmaker
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -30,15 +31,38 @@ from app.admin.views import (
     VaultAdmin,
 )
 from app.core.config import settings
-from app.core.enums import HazardTeam
+from app.core.enums import (
+    DwellerStatusEnum,
+    HazardTeam,
+    NotificationType,
+    RarityEnum,
+    RequirementType,
+    RewardType,
+    RoomTypeEnum,
+    SPECIALEnum,
+)
+from app.core.security import create_access_token
+from app.crud.game_state import game_state_crud
+from app.models import Item
+from app.models.crafting_order import CraftingOrder
 from app.models.dweller import Dweller
 from app.models.llm_interaction import LLMInteraction
+from app.models.notification import Notification
 from app.models.oauth_account import OAuthAccount
 from app.models.prompt import Prompt
+from app.models.quest_requirement import QuestRequirement
+from app.models.quest_reward import QuestReward
 from app.models.team import ACTIVE_STATUS, Team, TeamMember
 from app.models.user import User
 from app.models.vault import Vault
-from app.schemas.user import UserCreate
+from app.schemas.dweller import DwellerCreate
+from app.schemas.quest import QuestCreate
+from app.schemas.user import UserCreate, UserRead, UserUpdate
+from app.schemas.vault import VaultCreateWithUserID
+from app.services.exploration_service import exploration_service
+from app.services.training_service import training_service
+from app.tests.factory.dwellers import create_fake_adult_dweller
+from app.tests.factory.users import create_fake_user
 from app.tests.factory.vaults import random_vault_number
 from app.utils.time import utcnow
 from main import admin, app
@@ -57,6 +81,40 @@ def _preview_token_from(response: Any) -> str:
     match = _PREVIEW_TOKEN_RE.search(response.text)
     assert match is not None, "preview token not found in the confirmation form"
     return match.group(1)
+
+
+async def _login(client: AsyncClient, credentials: dict[str, str]) -> None:
+    response = await client.post(
+        "/admin/login", data={"username": credentials["email"], "password": credentials["password"]}
+    )
+    assert response.status_code == 302
+
+
+async def _post_support(client: AsyncClient, page: Any, model: str, operation: str, pks: object) -> Response:
+    data = {"operation": operation, "pks": str(pks), "csrf_token": _csrf_token_from(page)}
+    return await client.post(f"/admin/{model}/support", data=data)
+
+
+async def _confirmed(client: AsyncClient, model: str, operation: str, pks: object) -> Response:
+    page = await client.get(f"/admin/{model}/action/{operation}?pks={pks}")
+    assert page.status_code == 200
+    response = await _post_support(client, page, model, operation, pks)
+    assert response.status_code == 303
+    return response
+
+
+async def _toggle(client: AsyncClient, token: str, action: str, scope: str, vault_id: object = None) -> Response:
+    data = {"action": action, "scope": scope, "csrf_token": token}
+    if vault_id is not None:
+        data["vault_id"] = str(vault_id)
+    return await client.post("/admin/vault/incidents", data=data)
+
+
+async def _second_admin(client: AsyncClient, async_session: AsyncSession) -> dict[str, str]:
+    credentials = create_fake_user()
+    await crud.user.create(async_session, UserCreate(**credentials, is_superuser=True))
+    await _login(client, credentials)
+    return credentials
 
 
 def test_user_admin_never_exposes_credentials_or_recovery_tokens() -> None:
@@ -82,8 +140,6 @@ def test_operational_and_quest_data_views_are_read_only() -> None:
 
 
 def test_generic_item_admin_exposes_inventory_location() -> None:
-    from app.models import Item
-
     assert {Item.name, Item.item_type, Item.storage} <= set(ItemAdmin.column_list)
 
 
@@ -115,7 +171,6 @@ async def admin_client(
     superuser: Any,
     monkeypatch: pytest.MonkeyPatch,
 ) -> AsyncGenerator[AsyncClient]:
-    """Superuser client for sqladmin pages, with admin DB access bound to the test database."""
     from app.admin import auth as admin_auth
 
     test_session_maker = sessionmaker(bind=db_connection, class_=AsyncSession, expire_on_commit=False)
@@ -124,18 +179,12 @@ async def admin_client(
         monkeypatch.setattr(type(view), "session_maker", test_session_maker)
 
     async with AsyncClient(transport=ASGITransport(app=app), base_url="https://testserver") as client:
-        response = await client.post(
-            "/admin/login",
-            data={"username": settings.FIRST_SUPERUSER_EMAIL, "password": settings.FIRST_SUPERUSER_PASSWORD},
-        )
-        assert response.status_code == 302
+        await _login(client, {"email": settings.FIRST_SUPERUSER_EMAIL, "password": settings.FIRST_SUPERUSER_PASSWORD})
         yield client
 
 
 async def test_dweller_bio_is_available_in_details_without_cluttering_list(
-    admin_client: AsyncClient,
-    dweller: Dweller,
-    async_session: AsyncSession,
+    admin_client: AsyncClient, dweller: Dweller, async_session: AsyncSession
 ) -> None:
     assert "bio" not in [getattr(column, "key", column) for column in DwellerAdmin.column_list]
     dweller.bio = "x" * 80
@@ -180,43 +229,20 @@ def test_vault_admin_exposes_incident_toggle_page() -> None:
     assert VaultAdmin.incidents._methods == ["POST"]
 
 
-async def test_incident_toggle_page_renders_with_csrf_token(
-    admin_client: AsyncClient,
-    vault: Vault,
-) -> None:
+async def test_incident_toggle_page_renders_with_csrf_token(admin_client: AsyncClient, vault: Vault) -> None:
     response = await admin_client.get("/admin/vault/incidents")
     assert response.status_code == 200
     assert 'name="csrf_token"' in response.text
     assert str(vault.number) in response.text
 
 
-async def test_incident_toggle_post_without_token_is_forbidden(
-    admin_client: AsyncClient,
-    vault: Vault,
-    async_session: AsyncSession,
+@pytest.mark.parametrize("extra", [{}, {"csrf_token": "not-the-session-token"}], ids=["missing", "wrong"])
+async def test_incident_toggle_post_without_a_valid_token_is_forbidden(
+    admin_client: AsyncClient, vault: Vault, async_session: AsyncSession, extra: dict
 ) -> None:
     response = await admin_client.post(
         "/admin/vault/incidents",
-        data={"action": "disable", "scope": "selected", "vault_id": str(vault.id)},
-    )
-    assert response.status_code == 403
-    await async_session.refresh(vault)
-    assert vault.incidents_disabled is False
-
-
-async def test_incident_toggle_post_with_wrong_token_is_forbidden(
-    admin_client: AsyncClient,
-    vault: Vault,
-    async_session: AsyncSession,
-) -> None:
-    response = await admin_client.post(
-        "/admin/vault/incidents",
-        data={
-            "action": "disable",
-            "scope": "selected",
-            "vault_id": str(vault.id),
-            "csrf_token": "not-the-session-token",
-        },
+        data={"action": "disable", "scope": "selected", "vault_id": str(vault.id), **extra},
     )
     assert response.status_code == 403
     await async_session.refresh(vault)
@@ -224,54 +250,30 @@ async def test_incident_toggle_post_with_wrong_token_is_forbidden(
 
 
 async def test_incident_toggle_post_flips_selected_vaults(
-    admin_client: AsyncClient,
-    vault: Vault,
-    async_session: AsyncSession,
+    admin_client: AsyncClient, vault: Vault, async_session: AsyncSession
 ) -> None:
     page = await admin_client.get("/admin/vault/incidents")
     assert page.status_code == 200
     token = _csrf_token_from(page)
 
-    response = await admin_client.post(
-        "/admin/vault/incidents",
-        data={
-            "action": "disable",
-            "scope": "selected",
-            "vault_id": str(vault.id),
-            "csrf_token": token,
-        },
-    )
+    response = await _toggle(admin_client, token, "disable", "selected", vault.id)
     assert response.status_code == 303
     await async_session.refresh(vault)
     assert vault.incidents_disabled is True
 
-    response = await admin_client.post(
-        "/admin/vault/incidents",
-        data={
-            "action": "enable",
-            "scope": "selected",
-            "vault_id": str(vault.id),
-            "csrf_token": token,
-        },
-    )
+    response = await _toggle(admin_client, token, "enable", "selected", vault.id)
     assert response.status_code == 303
     await async_session.refresh(vault)
     assert vault.incidents_disabled is False
 
 
 async def test_incident_toggle_all_scope_flips_every_vault(
-    admin_client: AsyncClient,
-    vault: Vault,
-    async_session: AsyncSession,
+    admin_client: AsyncClient, vault: Vault, async_session: AsyncSession
 ) -> None:
-    from app.schemas.vault import VaultCreateWithUserID
-
     suffix = uuid4().hex[:8]
     user2 = await crud.user.create(
         db_session=async_session,
-        obj_in=UserCreate(
-            username=f"bulk-{suffix}", email=f"bulk-{suffix}@example.com", password="secret-password-123"
-        ),
+        obj_in=UserCreate(username=f"bulk-{suffix}", email=f"bulk-{suffix}@example.com", password="Secret123!"),
     )
     number = random_vault_number()
     while number == vault.number:
@@ -297,20 +299,14 @@ async def test_incident_toggle_all_scope_flips_every_vault(
     assert page.status_code == 200
     token = _csrf_token_from(page)
 
-    response = await admin_client.post(
-        "/admin/vault/incidents",
-        data={"action": "disable", "scope": "all", "csrf_token": token},
-    )
+    response = await _toggle(admin_client, token, "disable", "all")
     assert response.status_code == 303
     await async_session.refresh(vault)
     await async_session.refresh(vault2)
     assert vault.incidents_disabled is True
     assert vault2.incidents_disabled is True
 
-    response = await admin_client.post(
-        "/admin/vault/incidents",
-        data={"action": "enable", "scope": "all", "csrf_token": token},
-    )
+    response = await _toggle(admin_client, token, "enable", "all")
     assert response.status_code == 303
     await async_session.refresh(vault)
     await async_session.refresh(vault2)
@@ -319,9 +315,7 @@ async def test_incident_toggle_all_scope_flips_every_vault(
 
 
 async def test_old_incident_action_urls_no_longer_mutate(
-    admin_client: AsyncClient,
-    vault: Vault,
-    async_session: AsyncSession,
+    admin_client: AsyncClient, vault: Vault, async_session: AsyncSession
 ) -> None:
     response = await admin_client.get("/admin/vault/action/disable-incidents-all")
     assert response.status_code == 404
@@ -350,9 +344,7 @@ async def test_team_admin_pages_render(admin_client: AsyncClient) -> None:
 
 
 async def test_team_admin_lists_an_earned_roster(
-    admin_client: AsyncClient,
-    async_session: AsyncSession,
-    room_with_dwellers: dict,
+    admin_client: AsyncClient, async_session: AsyncSession, room_with_dwellers: dict
 ) -> None:
     room = room_with_dwellers["room"]
     dweller = room_with_dwellers["dwellers"][0]
@@ -380,19 +372,17 @@ async def test_verify_email_get_requires_confirmation_before_mutating(
     assert user.email_verified is False
     assert response.status_code == 200
     assert 'method="post"' in response.text
-    token = _csrf_token_from(response)
-    response = await admin_client.post(
-        "/admin/user/support", data={"operation": "verify-email", "pks": str(user.id), "csrf_token": token}
-    )
+    response = await _post_support(admin_client, response, "user", "verify-email", user.id)
     assert response.status_code == 303
     await async_session.refresh(user)
     assert user.email_verified is True
 
 
-async def test_inactive_superuser_cannot_keep_admin_session(
-    admin_client: AsyncClient, async_session: AsyncSession, superuser: User
+@pytest.mark.parametrize("state", ["is_active", "is_superuser", "is_deleted"])
+async def test_revoked_admin_access_rejects_existing_session(
+    admin_client: AsyncClient, async_session: AsyncSession, superuser: User, state: str
 ) -> None:
-    superuser.is_active = False
+    setattr(superuser, state, state == "is_deleted")
     async_session.add(superuser)
     await async_session.commit()
     response = await admin_client.get("/admin/")
@@ -431,10 +421,7 @@ async def test_support_action_requires_csrf_and_disallows_cross_model_actions(
     assert response.status_code == 403
     page = await admin_client.get(f"/admin/user/action/verify-email?pks={superuser.id}")
     assert str(superuser.email) in page.text
-    response = await admin_client.post(
-        "/admin/user/support",
-        data={"operation": "pause", "pks": str(superuser.id), "csrf_token": _csrf_token_from(page)},
-    )
+    response = await _post_support(admin_client, page, "user", "pause", superuser.id)
     assert response.status_code == 400
     await async_session.refresh(superuser)
     assert superuser.email_verified is False
@@ -449,8 +436,6 @@ async def test_support_action_missing_record_returns_404(admin_client: AsyncClie
 async def test_vault_support_pause_resume_preserves_normal_game_state_transitions(
     admin_client: AsyncClient, async_session: AsyncSession, vault: Vault
 ) -> None:
-    from app.crud.game_state import game_state_crud
-
     state = await game_state_crud.get_or_create(async_session, vault.id)
     for operation, expected in (("pause", True), ("resume", False)):
         page = await admin_client.get(f"/admin/vault/action/{operation}?pks={vault.id}")
@@ -458,10 +443,7 @@ async def test_vault_support_pause_resume_preserves_normal_game_state_transition
         assert str(vault) in page.text
         await async_session.refresh(state)
         assert state.is_paused is not expected
-        response = await admin_client.post(
-            "/admin/vault/support",
-            data={"operation": operation, "pks": str(vault.id), "csrf_token": _csrf_token_from(page)},
-        )
+        response = await _post_support(admin_client, page, "vault", operation, vault.id)
         assert response.status_code == 303
         await async_session.refresh(state)
         assert state.is_paused is expected
@@ -473,9 +455,6 @@ async def test_vault_support_pause_resume_preserves_normal_game_state_transition
 async def test_admin_cancels_training_without_stat_gain_and_rejects_repeat(
     admin_client: AsyncClient, async_session: AsyncSession, dweller_in_vault: Dweller, room_in_vault: Any
 ) -> None:
-    from app.core.enums import DwellerStatusEnum, RoomTypeEnum, SPECIALEnum
-    from app.services.training_service import training_service
-
     # Both fixtures must share one vault: training across vaults is rejected.
     dweller = dweller_in_vault
 
@@ -506,9 +485,6 @@ async def test_admin_cancels_training_without_stat_gain_and_rejects_repeat(
 async def test_dweller_list_filters_and_sorting_affect_results(
     admin_client: AsyncClient, async_session: AsyncSession, dweller: Dweller
 ) -> None:
-    from app.schemas.dweller import DwellerCreate
-    from app.tests.factory.dwellers import create_fake_adult_dweller
-
     dweller.first_name = "AlphaVisible"
     dweller.is_dead = False
     async_session.add(dweller)
@@ -528,24 +504,9 @@ async def test_dweller_list_filters_and_sorting_affect_results(
     assert page.text.index("ZuluHidden") < page.text.index("AlphaVisible")
 
 
-@pytest.mark.parametrize("state", ["is_deleted", "is_superuser"])
-async def test_revoked_admin_access_rejects_existing_session(
-    admin_client: AsyncClient, async_session: AsyncSession, superuser: User, state: str
-) -> None:
-    setattr(superuser, state, state == "is_deleted")
-    async_session.add(superuser)
-    await async_session.commit()
-    response = await admin_client.get("/admin/")
-    assert response.status_code in (302, 303)
-    assert response.headers["location"].endswith("/admin/login")
-
-
 async def test_admin_recall_starts_return_without_granting_rewards(
     admin_client: AsyncClient, async_session: AsyncSession, dweller: Dweller, vault: Vault
 ) -> None:
-    from app.core.enums import DwellerStatusEnum
-    from app.services.exploration_service import exploration_service
-
     dweller.status = DwellerStatusEnum.IDLE
     dweller.health = dweller.max_health
     dweller.radiation = 0
@@ -579,8 +540,6 @@ async def test_all_admin_list_pages_render(admin_client: AsyncClient, identity: 
 async def test_operational_records_link_back_to_their_vault(
     admin_client: AsyncClient, async_session: AsyncSession, vault: Vault
 ) -> None:
-    from app.crud.game_state import game_state_crud
-
     await game_state_crud.get_or_create(async_session, vault.id)
     page = await admin_client.get("/admin/game-state/list")
     assert page.status_code == 200
@@ -590,11 +549,6 @@ async def test_operational_records_link_back_to_their_vault(
 async def test_crafting_progress_is_readable_without_rounding_stored_value(
     admin_client: AsyncClient, async_session: AsyncSession, vault: Vault, room_in_vault: Any
 ) -> None:
-    from datetime import datetime, timedelta
-
-    from app.core.enums import RarityEnum
-    from app.models.crafting_order import CraftingOrder
-
     progress = 0.0077497756788665875
     order = CraftingOrder(
         vault_id=vault.id,
@@ -665,13 +619,9 @@ async def test_incident_controls_reject_empty_selection_and_skip_deleted_vaults(
     await async_session.commit()
     page = await admin_client.get("/admin/vault/incidents")
     token = _csrf_token_from(page)
-    response = await admin_client.post(
-        "/admin/vault/incidents", data={"action": "disable", "scope": "selected", "csrf_token": token}
-    )
+    response = await _toggle(admin_client, token, "disable", "selected")
     assert response.status_code == 400
-    response = await admin_client.post(
-        "/admin/vault/incidents", data={"action": "disable", "scope": "all", "csrf_token": token}
-    )
+    response = await _toggle(admin_client, token, "disable", "all")
     assert response.status_code == 303
     await async_session.refresh(vault)
     await async_session.refresh(deleted)
@@ -683,8 +633,6 @@ async def test_incident_controls_reject_empty_selection_and_skip_deleted_vaults(
 async def test_admin_promotes_user_only_after_post_confirmation(
     admin_client: AsyncClient, async_session: AsyncSession
 ) -> None:
-    from app.tests.factory.users import create_fake_user
-
     credentials = create_fake_user()
     target = await crud.user.create(async_session, UserCreate(**credentials))
     assert target.is_superuser is False
@@ -696,18 +644,12 @@ async def test_admin_promotes_user_only_after_post_confirmation(
         "/admin/user/support", data={"operation": "promote-superuser", "pks": str(target.id)}
     )
     assert response.status_code == 403
-    response = await admin_client.post(
-        "/admin/user/support",
-        data={"operation": "promote-superuser", "pks": str(target.id), "csrf_token": _csrf_token_from(page)},
-    )
+    response = await _post_support(admin_client, page, "user", "promote-superuser", target.id)
     assert response.status_code == 303
     await async_session.refresh(target)
     assert target.is_superuser is True
 
-    login = await admin_client.post(
-        "/admin/login", data={"username": credentials["email"], "password": credentials["password"]}
-    )
-    assert login.status_code == 302
+    await _login(admin_client, credentials)
     assert (await admin_client.get("/admin/")).status_code == 200
 
 
@@ -721,16 +663,8 @@ async def test_admin_soft_deletes_user_and_pauses_vault_without_deleting_data(
     existing_state: bool,
     first_admin_actor: bool,
 ) -> None:
-    from app.core.security import create_access_token
-    from app.crud.game_state import game_state_crud
-    from app.tests.factory.users import create_fake_user
-
     if not first_admin_actor:
-        credentials = create_fake_user()
-        await crud.user.create(async_session, UserCreate(**credentials, is_superuser=True))
-        await admin_client.post(
-            "/admin/login", data={"username": credentials["email"], "password": credentials["password"]}
-        )
+        await _second_admin(admin_client, async_session)
     target = await crud.user.get(async_session, vault.user_id)
     headers = {"Authorization": f"Bearer {create_access_token(str(target.id))}"}
     assert (await async_client.get("/users/me", headers=headers)).status_code == 200
@@ -746,10 +680,7 @@ async def test_admin_soft_deletes_user_and_pauses_vault_without_deleting_data(
     assert page.status_code == 200
     await async_session.refresh(target)
     assert target.is_deleted is False
-    response = await admin_client.post(
-        "/admin/user/support",
-        data={"operation": "soft-delete", "pks": str(target.id), "csrf_token": _csrf_token_from(page)},
-    )
+    response = await _post_support(admin_client, page, "user", "soft-delete", target.id)
     assert response.status_code == 303
     await async_session.refresh(target)
     await async_session.refresh(vault)
@@ -770,26 +701,27 @@ async def test_admin_soft_deletes_user_and_pauses_vault_without_deleting_data(
     assert (await async_client.get("/users/me", headers=headers)).status_code == 404
 
 
-async def test_admin_cannot_soft_delete_current_account(
-    admin_client: AsyncClient, async_session: AsyncSession, superuser: User
+@pytest.mark.parametrize(
+    ("operation", "field", "expected"),
+    [
+        ("soft-delete", "is_deleted", False),
+        ("deactivate", "is_active", True),
+        ("demote-superuser", "is_superuser", True),
+    ],
+)
+async def test_admin_cannot_apply_privileged_action_to_the_current_account(
+    admin_client: AsyncClient, async_session: AsyncSession, superuser: User, operation: str, field: str, expected: bool
 ) -> None:
-    page = await admin_client.get(f"/admin/user/action/soft-delete?pks={superuser.id}")
+    page = await admin_client.get(f"/admin/user/action/{operation}?pks={superuser.id}")
     assert page.status_code == 200
-    response = await admin_client.post(
-        "/admin/user/support",
-        data={"operation": "soft-delete", "pks": str(superuser.id), "csrf_token": _csrf_token_from(page)},
-    )
+    response = await _post_support(admin_client, page, "user", operation, superuser.id)
     assert response.status_code == 400
     await async_session.refresh(superuser)
-    assert superuser.is_deleted is False
+    assert getattr(superuser, field) is expected
     assert (await admin_client.get("/admin/")).status_code == 200
 
 
 def test_quest_requirement_and_reward_labels_are_concise() -> None:
-    from app.core.enums import RequirementType, RewardType
-    from app.models.quest_requirement import QuestRequirement
-    from app.models.quest_reward import QuestReward
-
     requirement = QuestRequirement(
         quest_id=uuid4(), requirement_type=RequirementType.LEVEL, requirement_data={"level": 46}
     )
@@ -801,11 +733,6 @@ def test_quest_requirement_and_reward_labels_are_concise() -> None:
 
 
 async def test_quest_related_labels_and_links_render(admin_client: AsyncClient, async_session: AsyncSession) -> None:
-    from app.core.enums import RequirementType, RewardType
-    from app.models.quest_requirement import QuestRequirement
-    from app.models.quest_reward import QuestReward
-    from app.schemas.quest import QuestCreate
-
     quest = await crud.quest_crud.create(
         async_session,
         QuestCreate(
@@ -837,9 +764,6 @@ async def test_quest_related_labels_and_links_render(admin_client: AsyncClient, 
 async def test_sent_notification_labels_do_not_dump_message_or_user_fields(
     admin_client: AsyncClient, async_session: AsyncSession, dweller: Dweller, vault: Vault
 ) -> None:
-    from app.core.enums import NotificationType
-    from app.models.notification import Notification
-
     notice = Notification(
         user_id=vault.user_id,
         vault_id=vault.id,
@@ -891,16 +815,8 @@ async def test_deactivate_and_reactivate_preserve_account_and_pause_vaults(
     existing_state: bool,
     first_admin_actor: bool,
 ) -> None:
-    from app.core.security import create_access_token
-    from app.crud.game_state import game_state_crud
-    from app.tests.factory.users import create_fake_user
-
     if not first_admin_actor:
-        credentials = create_fake_user()
-        await crud.user.create(async_session, UserCreate(**credentials, is_superuser=True))
-        await admin_client.post(
-            "/admin/login", data={"username": credentials["email"], "password": credentials["password"]}
-        )
+        await _second_admin(admin_client, async_session)
     target = await crud.user.get(async_session, vault.user_id)
     headers = {"Authorization": f"Bearer {create_access_token(str(target.id))}"}
     if existing_state:
@@ -916,10 +832,7 @@ async def test_deactivate_and_reactivate_preserve_account_and_pause_vaults(
     assert target.is_active is True
     blocked = await admin_client.post("/admin/user/support", data={"operation": "deactivate", "pks": str(target.id)})
     assert blocked.status_code == 403
-    response = await admin_client.post(
-        "/admin/user/support",
-        data={"operation": "deactivate", "pks": str(target.id), "csrf_token": _csrf_token_from(page)},
-    )
+    response = await _post_support(admin_client, page, "user", "deactivate", target.id)
     assert response.status_code == 303
     await async_session.refresh(target)
     assert target.is_active is False
@@ -933,32 +846,13 @@ async def test_deactivate_and_reactivate_preserve_account_and_pause_vaults(
     assert state.is_paused
     assert (await async_client.get("/users/me", headers=headers)).status_code == 403
 
-    page = await admin_client.get(f"/admin/user/action/reactivate?pks={target.id}")
-    assert page.status_code == 200
-    response = await admin_client.post(
-        "/admin/user/support",
-        data={"operation": "reactivate", "pks": str(target.id), "csrf_token": _csrf_token_from(page)},
-    )
-    assert response.status_code == 303
+    await _confirmed(admin_client, "user", "reactivate", target.id)
     await async_session.refresh(target)
     assert target.is_active is True
     assert target.is_deleted is False
     await async_session.refresh(state)
     assert state.is_paused is True
     assert (await async_client.get("/users/me", headers=headers)).status_code == 200
-
-
-async def test_admin_cannot_deactivate_current_account(admin_client, async_session, superuser):
-    page = await admin_client.get(f"/admin/user/action/deactivate?pks={superuser.id}")
-    assert page.status_code == 200
-    response = await admin_client.post(
-        "/admin/user/support",
-        data={"operation": "deactivate", "pks": str(superuser.id), "csrf_token": _csrf_token_from(page)},
-    )
-    assert response.status_code == 400
-    await async_session.refresh(superuser)
-    assert superuser.is_active is True
-    assert (await admin_client.get("/admin/")).status_code == 200
 
 
 async def test_reactivate_does_not_restore_a_soft_deleted_account(admin_client, async_session, vault):
@@ -969,10 +863,7 @@ async def test_reactivate_does_not_restore_a_soft_deleted_account(admin_client, 
     target.is_active = False
     async_session.add(target)
     await async_session.commit()
-    response = await admin_client.post(
-        "/admin/user/support",
-        data={"operation": "reactivate", "pks": str(target.id), "csrf_token": _csrf_token_from(page)},
-    )
+    response = await _post_support(admin_client, page, "user", "reactivate", target.id)
     assert response.status_code == 404
     await async_session.refresh(target)
     assert target.is_active is False
@@ -982,17 +873,11 @@ async def test_reactivate_does_not_restore_a_soft_deleted_account(admin_client, 
 async def test_first_superuser_demotes_only_after_confirmation_and_revokes_admin_session(
     admin_client: AsyncClient, async_session: AsyncSession, async_client: AsyncClient
 ) -> None:
-    from app.core.security import create_access_token
-    from app.tests.factory.users import create_fake_user
-
     credentials = create_fake_user()
     target = await crud.user.create(async_session, UserCreate(**credentials, is_superuser=True))
     headers = {"Authorization": f"Bearer {create_access_token(str(target.id))}"}
     async with AsyncClient(transport=ASGITransport(app=app), base_url="https://testserver") as target_client:
-        login = await target_client.post(
-            "/admin/login", data={"username": credentials["email"], "password": credentials["password"]}
-        )
-        assert login.status_code == 302
+        await _login(target_client, credentials)
         assert (await target_client.get("/admin/")).status_code == 200
         page = await admin_client.get(f"/admin/user/action/demote-superuser?pks={target.id}")
         assert page.status_code == 200
@@ -1003,10 +888,7 @@ async def test_first_superuser_demotes_only_after_confirmation_and_revokes_admin
                 "/admin/user/support", data={"operation": "demote-superuser", "pks": str(target.id)}
             )
         ).status_code == 403
-        response = await admin_client.post(
-            "/admin/user/support",
-            data={"operation": "demote-superuser", "pks": str(target.id), "csrf_token": _csrf_token_from(page)},
-        )
+        response = await _post_support(admin_client, page, "user", "demote-superuser", target.id)
         assert response.status_code == 303
         await async_session.refresh(target)
         assert target.is_superuser is False
@@ -1022,15 +904,11 @@ async def test_first_superuser_demotes_only_after_confirmation_and_revokes_admin
 async def test_other_admin_cannot_change_first_superuser_or_bypass_action_permissions(
     admin_client, async_session, superuser, operation
 ):
-    from app.tests.factory.users import create_fake_user
-
     credentials = create_fake_user()
     await crud.user.create(async_session, UserCreate(**credentials, is_superuser=True))
     target = await crud.user.create(async_session, UserCreate(**create_fake_user()))
     async with AsyncClient(transport=ASGITransport(app=app), base_url="https://testserver") as other_client:
-        await other_client.post(
-            "/admin/login", data={"username": credentials["email"], "password": credentials["password"]}
-        )
+        await _login(other_client, credentials)
         listing = await other_client.get("/admin/user/list")
         assert listing.status_code == 200
         assert "/action/promote-superuser" not in listing.text
@@ -1039,16 +917,10 @@ async def test_other_admin_cannot_change_first_superuser_or_bypass_action_permis
         page = await other_client.get(f"/admin/user/action/verify-email?pks={target.id}")
         assert page.status_code == 200
         assert (await other_client.get(f"/admin/user/action/{operation}?pks={superuser.id}")).status_code == 403
-        response = await other_client.post(
-            "/admin/user/support",
-            data={"operation": operation, "pks": str(superuser.id), "csrf_token": _csrf_token_from(page)},
-        )
+        response = await _post_support(other_client, page, "user", operation, superuser.id)
         assert response.status_code == 403
         if operation in {"promote-superuser", "demote-superuser"}:
-            response = await other_client.post(
-                "/admin/user/support",
-                data={"operation": operation, "pks": str(target.id), "csrf_token": _csrf_token_from(page)},
-            )
+            response = await _post_support(other_client, page, "user", operation, target.id)
             assert response.status_code == 403
     await async_session.refresh(superuser)
     assert superuser.is_superuser
@@ -1056,31 +928,14 @@ async def test_other_admin_cannot_change_first_superuser_or_bypass_action_permis
     assert not superuser.is_deleted
 
 
-async def test_first_superuser_cannot_demote_itself(admin_client, async_session, superuser):
-    page = await admin_client.get(f"/admin/user/action/demote-superuser?pks={superuser.id}")
-    assert page.status_code == 200
-    response = await admin_client.post(
-        "/admin/user/support",
-        data={"operation": "demote-superuser", "pks": str(superuser.id), "csrf_token": _csrf_token_from(page)},
-    )
-    assert response.status_code == 400
-    await async_session.refresh(superuser)
-    assert superuser.is_superuser is True
-
-
 async def test_first_superuser_keeps_authority_after_changing_email(admin_client, async_session, superuser):
-    from app.tests.factory.users import create_fake_user
-
     superuser.email = create_fake_user()["email"]
     async_session.add(superuser)
     await async_session.commit()
     target = await crud.user.create(async_session, UserCreate(**create_fake_user()))
     page = await admin_client.get(f"/admin/user/action/promote-superuser?pks={target.id}")
     assert page.status_code == 200
-    response = await admin_client.post(
-        "/admin/user/support",
-        data={"operation": "promote-superuser", "pks": str(target.id), "csrf_token": _csrf_token_from(page)},
-    )
+    response = await _post_support(admin_client, page, "user", "promote-superuser", target.id)
     assert response.status_code == 303
     await async_session.refresh(target)
     assert target.is_superuser is True
@@ -1089,8 +944,6 @@ async def test_first_superuser_keeps_authority_after_changing_email(admin_client
 
 
 def test_first_superuser_marker_is_not_client_writable():
-    from app.schemas.user import UserCreate, UserRead, UserUpdate
-
     for schema in (UserCreate, UserRead, UserUpdate):
         assert "is_first_superuser" not in schema.model_fields
 
@@ -1100,18 +953,12 @@ def test_first_superuser_marker_is_not_client_writable():
 async def test_profile_edit_uses_same_administrator_account_permissions(
     admin_client, async_session, superuser, first_admin_actor, admin_target
 ):
-    from app.tests.factory.users import create_fake_user
-
     target = superuser if admin_target else await crud.user.create(async_session, UserCreate(**create_fake_user()))
     await async_session.refresh(target, attribute_names=["profile"])
     profile = target.profile
     original_bio = profile.bio
     if not first_admin_actor:
-        credentials = create_fake_user()
-        await crud.user.create(async_session, UserCreate(**credentials, is_superuser=True))
-        await admin_client.post(
-            "/admin/login", data={"username": credentials["email"], "password": credentials["password"]}
-        )
+        await _second_admin(admin_client, async_session)
     url = f"/admin/user-profile/edit/{profile.id}"
     allowed = first_admin_actor or not admin_target
     assert (await admin_client.get(url)).status_code == (200 if allowed else 403)
@@ -1145,6 +992,16 @@ def _merge_form(source: User, target: User, token: str, action: str = "preview")
     }
 
 
+async def _merge_csrf(client: AsyncClient) -> str:
+    return _csrf_token_from(await client.get("/admin/merge-accounts"))
+
+
+def _fake_redis(monkeypatch: pytest.MonkeyPatch) -> AsyncMock:
+    redis = AsyncMock()
+    monkeypatch.setattr(admin_actions.Redis, "from_url", lambda *args, **kwargs: redis)
+    return redis
+
+
 def test_merge_accounts_admin_views_are_configured() -> None:
     assert MergeAccountsAdmin.name == "Merge accounts"
     assert MergeAccountsAdmin.category == "Accounts"
@@ -1174,24 +1031,12 @@ async def test_merge_accounts_requires_admin_login() -> None:
 
 
 async def test_merge_accounts_preview_requires_csrf(admin_client: AsyncClient) -> None:
-    source = uuid4()
-    target = uuid4()
-    response = await admin_client.post(
-        "/admin/merge-accounts",
-        data={"action": "preview", "source": str(source), "target": str(target), "reason": "duplicate"},
-    )
+    source, target = uuid4(), uuid4()
+    data = {"action": "preview", "source": str(source), "target": str(target), "reason": "duplicate"}
+    response = await admin_client.post("/admin/merge-accounts", data=data)
     assert response.status_code == 403
 
-    response = await admin_client.post(
-        "/admin/merge-accounts",
-        data={
-            "action": "preview",
-            "source": str(source),
-            "target": str(target),
-            "reason": "duplicate",
-            "csrf_token": "bad",
-        },
-    )
+    response = await admin_client.post("/admin/merge-accounts", data={**data, "csrf_token": "bad"})
     assert response.status_code == 403
 
 
@@ -1200,10 +1045,8 @@ async def test_merge_accounts_preview_does_not_mutate(admin_client: AsyncClient,
     target = await _merge_user(async_session, "mergetgt")
     async_session.add(Vault(user_id=source.id, number=random_vault_number()))
     await async_session.commit()
-    page = await admin_client.get("/admin/merge-accounts")
-    response = await admin_client.post(
-        "/admin/merge-accounts", data=_merge_form(source, target, _csrf_token_from(page))
-    )
+    csrf = await _merge_csrf(admin_client)
+    response = await admin_client.post("/admin/merge-accounts", data=_merge_form(source, target, csrf))
 
     assert response.status_code == 200
     assert "Preview" in response.text
@@ -1220,25 +1063,18 @@ async def test_merge_accounts_apply_moves_source_and_writes_audit(
 ) -> None:
     source = await _merge_user(async_session, "mergesrc")
     target = await _merge_user(async_session, "mergetgt")
-    source_id = source.id
-    target_id = target.id
-    source_username = source.username
+    source_id, target_id, source_username = source.id, target.id, source.username
     async_session.add(Vault(user_id=source_id, number=random_vault_number()))
     await async_session.commit()
 
-    fake_redis = AsyncMock()
-    fake_redis.delete = AsyncMock()
-    fake_redis.aclose = AsyncMock()
-    monkeypatch.setattr(admin_actions.Redis, "from_url", lambda *args, **kwargs: fake_redis)
+    fake_redis = _fake_redis(monkeypatch)
 
-    page = await admin_client.get("/admin/merge-accounts")
-    csrf = _csrf_token_from(page)
+    csrf = await _merge_csrf(admin_client)
     preview_response = await admin_client.post("/admin/merge-accounts", data=_merge_form(source, target, csrf))
     assert preview_response.status_code == 200
     preview_token = _preview_token_from(preview_response)
     response = await admin_client.post(
-        "/admin/merge-accounts",
-        data={"csrf_token": csrf, "action": "apply", "preview_token": preview_token},
+        "/admin/merge-accounts", data={"csrf_token": csrf, "action": "apply", "preview_token": preview_token}
     )
 
     assert response.status_code == 303
@@ -1262,13 +1098,10 @@ async def test_merge_accounts_apply_moves_source_and_writes_audit(
 
 async def test_merge_accounts_apply_requires_a_preview(admin_client: AsyncClient, async_session: AsyncSession) -> None:
     source = await _merge_user(async_session, "mergesrc")
-    target = await _merge_user(async_session, "mergetgt")
-    page = await admin_client.get("/admin/merge-accounts")
+    await _merge_user(async_session, "mergetgt")
+    csrf = await _merge_csrf(admin_client)
 
-    response = await admin_client.post(
-        "/admin/merge-accounts",
-        data={"csrf_token": _csrf_token_from(page), "action": "apply"},
-    )
+    response = await admin_client.post("/admin/merge-accounts", data={"csrf_token": csrf, "action": "apply"})
 
     assert response.status_code == 400
     await async_session.refresh(source)
@@ -1281,14 +1114,12 @@ async def test_merge_accounts_rejects_non_ascii_preview_token(
 ) -> None:
     source = await _merge_user(async_session, "mergesrc")
     target = await _merge_user(async_session, "mergetgt")
-    page = await admin_client.get("/admin/merge-accounts")
-    csrf = _csrf_token_from(page)
+    csrf = await _merge_csrf(admin_client)
     preview_response = await admin_client.post("/admin/merge-accounts", data=_merge_form(source, target, csrf))
     assert preview_response.status_code == 200
 
     response = await admin_client.post(
-        "/admin/merge-accounts",
-        data={"csrf_token": csrf, "action": "apply", "preview_token": "tøken-nöt-ascii"},
+        "/admin/merge-accounts", data={"csrf_token": csrf, "action": "apply", "preview_token": "tøken-nöt-ascii"}
     )
 
     assert response.status_code == 400
@@ -1299,30 +1130,17 @@ async def test_merge_accounts_rejects_non_ascii_preview_token(
 
 
 async def test_merge_accounts_confirmation_uses_previewed_ids(
-    admin_client: AsyncClient,
-    async_session: AsyncSession,
-    monkeypatch: pytest.MonkeyPatch,
+    admin_client: AsyncClient, async_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     source = await _merge_user(async_session, "mergesrc")
     target = await _merge_user(async_session, "mergetgt")
-    source_id = source.id
-    old_email = str(source.email)
-    fake_redis = AsyncMock()
-    fake_redis.delete = AsyncMock()
-    fake_redis.aclose = AsyncMock()
-    monkeypatch.setattr(admin_actions.Redis, "from_url", lambda *args, **kwargs: fake_redis)
+    source_id, old_email = source.id, str(source.email)
+    _fake_redis(monkeypatch)
 
-    page = await admin_client.get("/admin/merge-accounts")
-    csrf = _csrf_token_from(page)
+    csrf = await _merge_csrf(admin_client)
     preview_response = await admin_client.post(
         "/admin/merge-accounts",
-        data={
-            "csrf_token": csrf,
-            "action": "preview",
-            "source": old_email,
-            "target": str(target.id),
-            "reason": "duplicate",
-        },
+        data={"csrf_token": csrf, "action": "preview", "source": old_email, "target": str(target.id), "reason": "x"},
     )
     preview_token = _preview_token_from(preview_response)
 
@@ -1334,8 +1152,7 @@ async def test_merge_accounts_confirmation_uses_previewed_ids(
     )
 
     response = await admin_client.post(
-        "/admin/merge-accounts",
-        data={"csrf_token": csrf, "action": "apply", "preview_token": preview_token},
+        "/admin/merge-accounts", data={"csrf_token": csrf, "action": "apply", "preview_token": preview_token}
     )
 
     assert response.status_code == 303
@@ -1371,11 +1188,9 @@ async def test_merge_accounts_rejects_oauth_provider_conflict(
         ]
     )
     await async_session.commit()
-    page = await admin_client.get("/admin/merge-accounts")
+    csrf = await _merge_csrf(admin_client)
 
-    response = await admin_client.post(
-        "/admin/merge-accounts", data=_merge_form(source, target, _csrf_token_from(page))
-    )
+    response = await admin_client.post("/admin/merge-accounts", data=_merge_form(source, target, csrf))
 
     assert response.status_code == 200
     assert "google" in response.text

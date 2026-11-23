@@ -1,16 +1,6 @@
-"""Regression coverage for the exploration party-team migration (issue 772)."""
+from app.tests.test_alembic._support import load_migration
 
-import importlib.util
-from pathlib import Path
-
-MIGRATION_PATH = (
-    Path(__file__).parents[2] / "alembic/versions/2026_09_26_0004-b5a4c3d2e1f0_add_exploration_party_team.py"
-)
-MIGRATION_SPEC = importlib.util.spec_from_file_location("add_exploration_party_team", MIGRATION_PATH)
-assert MIGRATION_SPEC
-assert MIGRATION_SPEC.loader
-MIGRATION = importlib.util.module_from_spec(MIGRATION_SPEC)
-MIGRATION_SPEC.loader.exec_module(MIGRATION)
+MIGRATION = load_migration("2026_09_26_0004-b5a4c3d2e1f0_add_exploration_party_team.py", "add_exploration_party_team")
 
 
 def test_revision_chain() -> None:

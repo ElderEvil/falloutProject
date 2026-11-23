@@ -1,35 +1,13 @@
-"""PostgreSQL integration checks for the shared world-place registry.
-
-Skips unless a live PostgreSQL database is configured and reachable (the default
-CI suite is SQLite-backed), mirroring ``test_enum_drift``'s live-PG fixture.
-Read-only: asserts the registry invariants on the migrated database.
-"""
-
 import pytest
-import pytest_asyncio
 from sqlalchemy import text
-from sqlalchemy.engine import make_url
-from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
-from sqlalchemy.pool import NullPool
+from sqlalchemy.ext.asyncio import AsyncEngine
 
-from app.core.config import settings
+pytest_plugins = ["app.tests.test_alembic._support"]
 
 
-@pytest_asyncio.fixture(scope="module")
-async def live_pg_engine() -> AsyncEngine:
-    """Connect to the live PostgreSQL database, skipping when unavailable."""
-    uri = str(settings.ASYNC_DATABASE_URI)
-    if make_url(uri).get_backend_name() != "postgresql":
-        pytest.skip("ASYNC_DATABASE_URI is not PostgreSQL; skipping registry migration check")
-
-    engine = create_async_engine(uri, poolclass=NullPool)
-    try:
-        async with engine.connect() as conn:
-            await conn.execute(text("SELECT 1"))
-    except Exception as exc:
-        await engine.dispose()
-        pytest.skip(f"PostgreSQL unavailable: {exc}")
-    return engine
+async def _rows(engine: AsyncEngine, sql: str) -> list:
+    async with engine.connect() as conn:
+        return list((await conn.execute(text(sql))).all())
 
 
 async def _scalar(engine: AsyncEngine, sql: str) -> int:
@@ -37,36 +15,19 @@ async def _scalar(engine: AsyncEngine, sql: str) -> int:
         return (await conn.execute(text(sql))).scalar_one()
 
 
-class TestWorldPlaceRegistryMigration:
-    """The backfill must preserve every row and keep the old schema intact."""
+async def _tables(engine: AsyncEngine) -> set[str]:
+    return {row[0] for row in await _rows(engine, "SELECT tablename FROM pg_tables WHERE schemaname = 'public'")}
 
-    @pytest.mark.asyncio
+
+class TestWorldPlaceRegistryMigration:
     async def test_new_tables_exist(self, live_pg_engine: AsyncEngine) -> None:
-        tables = {
-            row[0]
-            for row in (
-                await _scalar_all(
-                    live_pg_engine,
-                    "SELECT tablename FROM pg_tables WHERE schemaname = 'public'",
-                )
-            )
-        }
+        tables = await _tables(live_pg_engine)
         assert {"worldlocation", "vaultlocationstate"} <= tables, (
             f"Registry tables missing (run `uv run alembic upgrade head`): {sorted(tables)}"
         )
 
-    @pytest.mark.asyncio
     async def test_old_table_dropped_and_fk_repointed(self, live_pg_engine: AsyncEngine) -> None:
-        tables = {
-            row[0]
-            for row in (
-                await _scalar_all(
-                    live_pg_engine,
-                    "SELECT tablename FROM pg_tables WHERE schemaname = 'public'",
-                )
-            )
-        }
-        assert "wastelandlocation" not in tables, "phase 2 drops the retired per-vault table"
+        assert "wastelandlocation" not in await _tables(live_pg_engine), "phase 2 drops the retired per-vault table"
         async with live_pg_engine.connect() as conn:
             fk_target = (
                 await conn.execute(
@@ -86,7 +47,6 @@ class TestWorldPlaceRegistryMigration:
             ).scalar_one()
         assert fk_target == "worldlocation", "phase 2 repoints the dwellerlocation FK at the registry"
 
-    @pytest.mark.asyncio
     async def test_every_state_and_link_resolves(self, live_pg_engine: AsyncEngine) -> None:
         orphan_states = await _scalar(
             live_pg_engine,
@@ -101,10 +61,7 @@ class TestWorldPlaceRegistryMigration:
         assert orphan_states == 0, "every fog state must resolve to a registry row"
         assert orphan_links == 0, "every dweller link must resolve to a registry row"
 
-    @pytest.mark.asyncio
     async def test_home_markers_placed_on_grid(self, live_pg_engine: AsyncEngine) -> None:
-        # Player home markers sit at their vault's slot (not the centre); seeded NPC
-        # vaults are scattered signals too. All must stay on the 0-100 grid.
         off_grid = await _scalar(
             live_pg_engine,
             "SELECT count(*) FROM worldlocation WHERE kind = 'VAULT' "
@@ -112,7 +69,6 @@ class TestWorldPlaceRegistryMigration:
         )
         assert off_grid == 0, "vault-kind registry rows must stay on the 0-100 grid"
 
-    @pytest.mark.asyncio
     async def test_every_home_state_maps_to_a_vault_registry_row(self, live_pg_engine: AsyncEngine) -> None:
         mismatched = await _scalar(
             live_pg_engine,
@@ -127,7 +83,6 @@ class TestWorldPlaceRegistryMigration:
         )
         assert mismatched == 0, "every HOME_VAULT state must sit on a VAULT registry row with its vault number"
 
-    @pytest.mark.asyncio
     async def test_place_coordinates_are_unique(self, live_pg_engine: AsyncEngine) -> None:
         duplicates = await _scalar(
             live_pg_engine,
@@ -137,8 +92,3 @@ class TestWorldPlaceRegistryMigration:
             ") duplicated",
         )
         assert duplicates == 0, "registry-level collision nudge must keep place coordinates unique"
-
-
-async def _scalar_all(engine: AsyncEngine, sql: str) -> list:
-    async with engine.connect() as conn:
-        return list((await conn.execute(text(sql))).all())

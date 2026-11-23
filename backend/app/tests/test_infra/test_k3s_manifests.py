@@ -91,7 +91,6 @@ def test_exactly_one_workload_invokes_the_periodiq_scheduler() -> None:
 
 
 def test_postgres_observability_config_is_pinned() -> None:
-    """The production Postgres manifest must keep the live data path and enable profiling."""
     manifest = _load("postgres-deployment.yaml")
     container = _container(manifest)
 

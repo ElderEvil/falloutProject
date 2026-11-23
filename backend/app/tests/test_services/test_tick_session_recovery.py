@@ -22,7 +22,6 @@ from app.services.game_tick.guard import guard_phase, recover_session, refresh_a
 
 async def test_raw_tick_session_recovers_after_a_failed_write() -> None:
     """The production shape: a raw session (no savepoint) is usable again after recovery.
-
     Rolling back discards the failed transaction's uncommitted work, which is
     exactly why the deferred notifications/level-ups queued on it must be dropped
     too rather than delivered later.
@@ -31,16 +30,12 @@ async def test_raw_tick_session_recovers_after_a_failed_write() -> None:
     try:
         async with engine.begin() as conn:
             await conn.execute(text("CREATE TABLE widget (id INTEGER PRIMARY KEY)"))
-
         session_maker = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
         async with session_maker() as session:
             await session.execute(text("INSERT INTO widget (id) VALUES (1)"))
-
             with pytest.raises(IntegrityError):
                 await session.execute(text("INSERT INTO widget (id) VALUES (1)"))
-
             await recover_session(session)
-
             # The session serves writes again; the rolled-back write is gone.
             await session.execute(text("INSERT INTO widget (id) VALUES (2)"))
             assert (await session.execute(text("SELECT id FROM widget"))).scalars().all() == [2]
@@ -51,18 +46,14 @@ async def test_raw_tick_session_recovers_after_a_failed_write() -> None:
 async def test_recover_session_restores_a_usable_session(async_session: AsyncSession) -> None:
     with pytest.raises(SQLAlchemyError):
         await async_session.execute(text("SELECT * FROM table_that_does_not_exist"))
-
     await recover_session(async_session)
-
     assert (await async_session.execute(text("SELECT 1"))).scalar_one() == 1
 
 
 async def test_recover_session_discards_deferred_side_effects(async_session: AsyncSession) -> None:
     async_session.info["deferred_notification_deliveries"] = ["stale"]
     async_session.info["deferred_level_up_deliveries"] = ["stale"]
-
     await recover_session(async_session)
-
     assert "deferred_notification_deliveries" not in async_session.info
     assert "deferred_level_up_deliveries" not in async_session.info
 
@@ -74,14 +65,12 @@ async def test_guard_phase_recovers_the_session_on_a_database_error(async_sessio
         await async_session.execute(text("SELECT * FROM table_that_does_not_exist"))
 
     error = await guard_phase("failing step", failing, catch=(SQLAlchemyError,), db_session=async_session)
-
     assert error is not None
     assert (await async_session.execute(text("SELECT 1"))).scalar_one() == 1
 
 
 async def test_refresh_after_recovery_unexpires_entities(async_session: AsyncSession) -> None:
     """A sweep may touch its loaded entities again only after they are reloaded.
-
     recover_session expires every loaded instance, so the next attribute access
     would otherwise trigger an implicit async refresh. refresh_after_recovery
     reloads them explicitly after the rollback.
@@ -90,12 +79,9 @@ async def test_refresh_after_recovery_unexpires_entities(async_session: AsyncSes
         async_session,
         obj_in=UserCreate(username="refresh-test", email="refresh-test@example.com", password="testpass123"),
     )
-
     # Expire exactly the way a rollback does.
     async_session.expire_all()
-
     await refresh_after_recovery(async_session, [user])
-
     assert user.username is not None
 
 
@@ -117,7 +103,6 @@ async def test_guard_phase_lets_later_entities_proceed_after_one_fails(async_ses
 
     first = await guard_phase("bad", bad_entity, catch=(SQLAlchemyError,), db_session=async_session)
     second = await guard_phase("good", good_entity, catch=(SQLAlchemyError,), db_session=async_session)
-
     assert first is not None
     assert second is None
     assert ran == ["bad", "good"]

@@ -113,7 +113,6 @@ def test_cleanup_keeps_ingress_closed_after_migration_started(tmp_path: Path) ->
     ],
 )
 def test_maintenance_backup_verification_and_failure_recovery(tmp_path: Path, scenario: str) -> None:
-    """Run the real maintenance shell against fake cluster and PostgreSQL commands."""
     block = WORKFLOW.read_text().split("      - name: Prepare maintenance and database backup\n", 1)[1]
     script = textwrap.dedent(block.split("<< 'SHELL'\n", 1)[1].split("          SHELL\n", 1)[0])
     for expression, value in {

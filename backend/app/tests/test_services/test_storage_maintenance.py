@@ -11,14 +11,16 @@ from app.core.game_config import game_config
 from app.models.game_state import GameState
 from app.models.notification import Notification
 from app.models.storage import Storage
+from app.options.identity_modifiers import effective_stat
 from app.schemas.dweller import DwellerCreate
 from app.schemas.room import RoomCreate
 from app.services import storage_maintenance_service as maintenance
-from app.services.catalog_service import load_weapons
+from app.services.catalog_service import load_outfits, load_weapons
+from app.services.game_loop_service import game_loop_service
 from app.services.game_tick.storage_tick import process_storage_maintenance
 from app.tests.factory.dwellers import create_random_common_dweller
 from app.tests.factory.rooms import create_fake_room
-from app.utils.item_factory import build_weapon
+from app.utils.item_factory import build_outfit, build_pet, build_weapon
 from app.utils.time import utcnow
 
 
@@ -81,13 +83,9 @@ async def test_gap_consumes_one_hour_and_never_banks_rolls(async_session, vault,
     assert stats == {"checked": 1, "changed": int(online)}
     assert rng.call_count == int(online)
     if online:
-        assert weapon.name == target.name
-        assert weapon.damage_min == target.damage_min
-        assert weapon.stat == target.stat
-        assert weapon.rarity == target.rarity
-        assert weapon.value == target.value
-    assert weapon.id == original_id
-    assert weapon.storage_id == original_storage
+        assert (weapon.name, weapon.damage_min, weapon.stat) == (target.name, target.damage_min, target.stat)
+        assert (weapon.rarity, weapon.value) == (target.rarity, target.value)
+    assert (weapon.id, weapon.storage_id) == (original_id, original_storage)
     assert await process_storage_maintenance(async_session, vault.id, rng) == {"checked": 0, "changed": 0}
     assert rng.call_count == int(online)
 
@@ -145,10 +143,6 @@ def test_ladder_entries_normalize_catalog_enums():
 
 
 async def test_worker_query_eager_bonuses_and_exclusions(async_session, vault):
-    from app.options.identity_modifiers import effective_stat
-    from app.services.catalog_service import load_outfits
-    from app.utils.item_factory import build_outfit, build_pet
-
     data = create_fake_room() | {
         "name": "Storage Room",
         "category": RoomTypeEnum.CAPACITY,
@@ -220,8 +214,6 @@ async def test_due_query_works_with_raw_sqlalchemy_session(async_session, vault)
 
 
 async def test_pause_resume_shifts_clock_preserving_remainder(async_session, vault):
-    from app.services.game_loop_service import game_loop_service
-
     _, state, weapon = await setup_inventory(async_session, vault)
     now = utcnow()
     state.is_paused = True

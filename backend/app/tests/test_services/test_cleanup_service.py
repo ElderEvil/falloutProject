@@ -1,7 +1,6 @@
 from datetime import UTC, datetime, timedelta
 from typing import cast
 
-import pytest
 from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -15,36 +14,37 @@ from app.models.user import User
 from app.models.vault import Vault
 from app.services.cleanup_service import cleanup_service
 
+NOW = datetime.now(UTC).replace(tzinfo=None)
 
-@pytest.mark.asyncio
-async def test_cleanup_old_incidents(
-    async_session: AsyncSession,
-    room_with_dwellers: dict[str, object],
-) -> None:
+
+def _days_ago(days: int) -> datetime:
+    return NOW - timedelta(days=days)
+
+
+async def _incident(
+    async_session: AsyncSession, room: Room, incident_type, difficulty: int, *, age_days: int
+) -> Incident:
+    incident = await crud.incident_crud.create(
+        async_session, vault_id=room.vault_id, room_id=room.id, incident_type=incident_type, difficulty=difficulty
+    )
+    incident.resolve(success=True)
+    incident.end_time = _days_ago(age_days)
+    async_session.add(incident)
+    return incident
+
+
+async def _notify_cleanup(
+    async_session: AsyncSession, *, read_days: int, unread_days: int, batch_size: int = 100
+) -> int:
+    return await cleanup_service.cleanup_old_notifications(
+        async_session, read_retention_days=read_days, unread_retention_days=unread_days, batch_size=batch_size
+    )
+
+
+async def test_cleanup_old_incidents(async_session: AsyncSession, room_with_dwellers: dict[str, object]) -> None:
     room = cast("Room", room_with_dwellers["room"])
-
-    old_incident = await crud.incident_crud.create(
-        async_session,
-        vault_id=room.vault_id,
-        room_id=room.id,
-        incident_type=IncidentType.FIRE,
-        difficulty=3,
-    )
-    old_incident.resolve(success=True)
-    old_incident.end_time = datetime.now(UTC).replace(tzinfo=None) - timedelta(days=10)
-    async_session.add(old_incident)
-
-    recent_incident = await crud.incident_crud.create(
-        async_session,
-        vault_id=room.vault_id,
-        room_id=room.id,
-        incident_type=IncidentType.RAIDER_ATTACK,
-        difficulty=4,
-    )
-    recent_incident.resolve(success=False)
-    recent_incident.end_time = datetime.now(UTC).replace(tzinfo=None) - timedelta(days=1)
-    async_session.add(recent_incident)
-
+    old_incident = await _incident(async_session, room, IncidentType.FIRE, 3, age_days=10)
+    recent_incident = await _incident(async_session, room, IncidentType.RAIDER_ATTACK, 4, age_days=1)
     active_incident = await crud.incident_crud.create(
         async_session,
         vault_id=room.vault_id,
@@ -54,32 +54,17 @@ async def test_cleanup_old_incidents(
     )
     active_incident.status = IncidentStatus.ACTIVE
     async_session.add(active_incident)
-
     await async_session.commit()
-
-    deleted_count = await cleanup_service.cleanup_old_incidents(
-        async_session,
-        retention_days=7,
-        batch_size=100,
-    )
-
+    deleted_count = await cleanup_service.cleanup_old_incidents(async_session, retention_days=7, batch_size=100)
     assert deleted_count == 1
-
-    remaining = (await async_session.execute(select(Incident))).scalars().all()
-    remaining_ids = {incident.id for incident in remaining}
-
+    remaining_ids = {incident.id for incident in (await async_session.execute(select(Incident))).scalars().all()}
     assert old_incident.id not in remaining_ids
     assert recent_incident.id in remaining_ids
     assert active_incident.id in remaining_ids
 
 
-@pytest.mark.asyncio
-async def test_cleanup_old_notifications(
-    async_session: AsyncSession,
-    user_with_vault: tuple[User, Vault],
-) -> None:
+async def test_cleanup_old_notifications(async_session: AsyncSession, user_with_vault: tuple[User, Vault]) -> None:
     user, vault = user_with_vault
-
     old_notification = Notification(
         user_id=user.id,
         vault_id=vault.id,
@@ -89,9 +74,8 @@ async def test_cleanup_old_notifications(
         message="This should be deleted",
         is_read=True,
         is_dismissed=True,
-        created_at=datetime.now(UTC).replace(tzinfo=None) - timedelta(days=12),
+        created_at=_days_ago(12),
     )
-
     recent_notification = Notification(
         user_id=user.id,
         vault_id=vault.id,
@@ -101,25 +85,12 @@ async def test_cleanup_old_notifications(
         message="This should stay",
         is_read=False,
         is_dismissed=False,
-        created_at=datetime.now(UTC).replace(tzinfo=None) - timedelta(days=2),
+        created_at=_days_ago(2),
     )
-
-    async_session.add(old_notification)
-    async_session.add(recent_notification)
+    async_session.add_all([old_notification, recent_notification])
     await async_session.commit()
-
-    deleted_count = await cleanup_service.cleanup_old_notifications(
-        async_session,
-        read_retention_days=7,
-        unread_retention_days=30,
-        batch_size=100,
-    )
-
-    assert deleted_count == 1
-
-    remaining = (await async_session.execute(select(Notification))).scalars().all()
-    remaining_ids = {notification.id for notification in remaining}
-
+    assert await _notify_cleanup(async_session, read_days=7, unread_days=30) == 1
+    remaining_ids = {row.id for row in (await async_session.execute(select(Notification))).scalars().all()}
     assert old_notification.id not in remaining_ids
     assert recent_notification.id in remaining_ids
 
@@ -136,17 +107,14 @@ def _notification(
         message="retention",
         is_read=is_read,
         is_dismissed=is_dismissed,
-        created_at=datetime.now(UTC).replace(tzinfo=None) - timedelta(days=created_days_ago),
+        created_at=_days_ago(created_days_ago),
     )
 
 
-@pytest.mark.asyncio
 async def test_cleanup_notifications_respects_read_unread_and_dismissed_retention(
-    async_session: AsyncSession,
-    user_with_vault: tuple[User, Vault],
+    async_session: AsyncSession, user_with_vault: tuple[User, Vault]
 ) -> None:
     user, vault = user_with_vault
-
     old_read = _notification(user, vault, created_days_ago=40, is_read=True, is_dismissed=False)
     old_dismissed_unread = _notification(user, vault, created_days_ago=40, is_read=False, is_dismissed=True)
     old_unread_kept = _notification(user, vault, created_days_ago=40, is_read=False, is_dismissed=False)
@@ -154,90 +122,50 @@ async def test_cleanup_notifications_respects_read_unread_and_dismissed_retentio
     recent_read_kept = _notification(user, vault, created_days_ago=10, is_read=True, is_dismissed=False)
     recent_dismissed_kept = _notification(user, vault, created_days_ago=10, is_read=False, is_dismissed=True)
     async_session.add_all(
-        [
-            old_read,
-            old_dismissed_unread,
-            old_unread_kept,
-            old_unread_expired,
-            recent_read_kept,
-            recent_dismissed_kept,
-        ]
+        [old_read, old_dismissed_unread, old_unread_kept, old_unread_expired, recent_read_kept, recent_dismissed_kept]
     )
     await async_session.commit()
-
-    deleted_count = await cleanup_service.cleanup_old_notifications(
-        async_session,
-        read_retention_days=30,
-        unread_retention_days=90,
-        batch_size=100,
-    )
-
-    assert deleted_count == 3
+    assert await _notify_cleanup(async_session, read_days=30, unread_days=90) == 3
     remaining_ids = {row.id for row in (await async_session.execute(select(Notification))).scalars().all()}
     assert remaining_ids == {old_unread_kept.id, recent_read_kept.id, recent_dismissed_kept.id}
 
 
-@pytest.mark.asyncio
 async def test_cleanup_notifications_batches_expired_rows(
-    async_session: AsyncSession,
-    user_with_vault: tuple[User, Vault],
+    async_session: AsyncSession, user_with_vault: tuple[User, Vault]
 ) -> None:
     user, vault = user_with_vault
     expired = [_notification(user, vault, created_days_ago=40, is_read=True, is_dismissed=False) for _ in range(5)]
     async_session.add_all(expired)
     await async_session.commit()
-
-    now = datetime.now(UTC).replace(tzinfo=None)
     first_batch = await crud.notification.get_expired_batch(
-        async_session,
-        read_cutoff=now - timedelta(days=30),
-        unread_cutoff=now - timedelta(days=90),
-        limit=2,
+        async_session, read_cutoff=_days_ago(30), unread_cutoff=_days_ago(90), limit=2
     )
     assert len(first_batch) == 2
-
-    deleted_count = await cleanup_service.cleanup_old_notifications(
-        async_session,
-        read_retention_days=30,
-        unread_retention_days=90,
-        batch_size=2,
-    )
-
-    assert deleted_count == 5
+    assert await _notify_cleanup(async_session, read_days=30, unread_days=90, batch_size=2) == 5
     assert (await async_session.execute(select(Notification))).scalars().all() == []
 
 
-@pytest.mark.asyncio
 async def test_cleanup_prunes_the_incidents_responder_team(
-    async_session: AsyncSession,
-    room_with_dwellers: dict[str, object],
+    async_session: AsyncSession, room_with_dwellers: dict[str, object]
 ) -> None:
     room = cast("Room", room_with_dwellers["room"])
     dwellers = cast("list", room_with_dwellers["dwellers"])
-
     incident = await crud.incident_crud.create(
-        async_session,
-        vault_id=room.vault_id,
-        room_id=room.id,
-        incident_type=IncidentType.FIRE,
-        difficulty=3,
+        async_session, vault_id=room.vault_id, room_id=room.id, incident_type=IncidentType.FIRE, difficulty=3
     )
     await crud.team_crud.add_incident_team_members(
         async_session, incident.id, room.vault_id, [dweller.id for dweller in dwellers]
     )
     incident.resolve(success=True)
-    incident.end_time = datetime.now(UTC).replace(tzinfo=None) - timedelta(days=10)
+    incident.end_time = _days_ago(10)
     async_session.add(incident)
     await async_session.commit()
-
     team = await crud.team_crud.get_incident_team_row(async_session, incident.id, room.vault_id)
     assert team is not None
     team_id = team.id
     member_ids = {member.id for member in team.members}
     assert member_ids
-
     assert await cleanup_service.cleanup_old_incidents(async_session, retention_days=7, batch_size=100) == 1
-
     assert (await async_session.execute(select(Team).where(Team.id == team_id))).scalars().all() == []
     remaining_members = (
         (await async_session.execute(select(TeamMember).where(col(TeamMember.id).in_(member_ids)))).scalars().all()

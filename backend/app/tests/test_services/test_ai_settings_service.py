@@ -78,7 +78,6 @@ class TestApply:
             patch("app.agents.dweller_chat_agent.ModelCache.get_model", return_value=fresh_model),
         ):
             await ai_settings_service.apply(async_session)
-
         assert dweller_chat_agent.model is fresh_model
         for content_agent in (
             dweller_agents.backstory_agent,

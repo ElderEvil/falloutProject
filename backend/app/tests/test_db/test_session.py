@@ -13,9 +13,7 @@ from app.models.world_snapshot import WorldSnapshot
 async def test_cached_world_payload_leaves_generation_paths_unseeded(
     async_session: AsyncSession, default_world_snapshot_payload: str
 ) -> None:
-    """Building the shared payload must not leave a world for unrelated tests."""
     snapshot = WorldSnapshot.model_validate_json(default_world_snapshot_payload)
-
     assert (
         await snapshot_crud.get_version(
             async_session, world_id=snapshot.world_id, generator_version=snapshot.generator_version
@@ -24,7 +22,6 @@ async def test_cached_world_payload_leaves_generation_paths_unseeded(
     )
 
 
-@pytest.mark.asyncio
 @pytest.mark.integration
 async def test_get_async_session_shields_close_from_cancellation(
     pg_session_maker, monkeypatch: pytest.MonkeyPatch
@@ -35,7 +32,6 @@ async def test_get_async_session_shields_close_from_cancellation(
             await connection.execute(text("SELECT 1"))
     except Exception as exc:
         pytest.skip(f"PostgreSQL unavailable: {exc}")
-
     close_started = asyncio.Event()
 
     class SlowClosingSession(AsyncSession):
@@ -46,21 +42,17 @@ async def test_get_async_session_shields_close_from_cancellation(
 
     maker = async_sessionmaker(engine, class_=SlowClosingSession, expire_on_commit=False)
     monkeypatch.setattr(session_module, "async_session_maker", maker)
-
     generator = session_module.get_async_session()
     session = await anext(generator)
     await session.execute(text("SELECT 1"))
     assert engine.pool.checkedout() == 1
-
     close_task = asyncio.create_task(generator.aclose())
     await asyncio.wait_for(close_started.wait(), timeout=5)
     close_task.cancel()
     with pytest.raises(asyncio.CancelledError):
         await close_task
-
     for _ in range(200):
         if engine.pool.checkedout() == 0:
             break
         await asyncio.sleep(0.01)
-
     assert engine.pool.checkedout() == 0

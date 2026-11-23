@@ -23,7 +23,6 @@ def test_extract_no_bio_returns_none_empty() -> None:
 # BioPlaceBackfillService integration tests
 
 
-@pytest.mark.asyncio
 async def test_backfill_bio_places_for_vault_respects_max_dwellers(async_session: AsyncSession, vault: Vault) -> None:
     from app.core.enums import GenderEnum, RarityEnum
     from app.schemas.dweller import DwellerCreate
@@ -38,13 +37,10 @@ async def test_backfill_bio_places_for_vault_respects_max_dwellers(async_session
             "bio": "Originally from Megaton, they scavenged the Capital Wasteland.",
         }
         await crud.dweller.create(async_session, obj_in=DwellerCreate(**data, vault_id=vault.id))
-
     processed = await bio_place_backfill_service.backfill_bio_places_for_vault(async_session, vault.id, max_dwellers=2)
-
     assert processed == 2
 
 
-@pytest.mark.asyncio
 async def test_backfill_bio_places_for_active_vaults_skips_deleted(async_session: AsyncSession) -> None:
     from faker import Faker
 
@@ -79,7 +75,6 @@ async def test_backfill_bio_places_for_active_vaults_skips_deleted(async_session
 
     active_vault = await _make_vault(100, deleted=False)
     deleted_vault = await _make_vault(101, deleted=True)
-
     for target_vault in (active_vault, deleted_vault):
         data = {
             "first_name": "Backfill",
@@ -90,10 +85,7 @@ async def test_backfill_bio_places_for_active_vaults_skips_deleted(async_session
             "bio": "Originally from Megaton, they scavenged the Capital Wasteland.",
         }
         await crud.dweller.create(async_session, obj_in=DwellerCreate(**data, vault_id=target_vault.id))
-
     counts = await bio_place_backfill_service.backfill_bio_places_for_active_vaults(async_session)
-
     assert counts == {active_vault.id: 1}
-
     rows = (await async_session.execute(select(VaultLocationState))).scalars().all()
     assert all(r.vault_id == active_vault.id for r in rows)

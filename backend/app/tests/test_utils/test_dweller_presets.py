@@ -1,15 +1,12 @@
-"""Extended presets validation.
-
-Checks that ``app.options.presets.archetypes`` entries have appearance pools
-that are subsets of the canonical lists, every race has at least two entries,
-weights are positive, and all personality lines start with "I " (first-person).
-"""
-
+import ast
+import inspect
 import random
 
 import pytest
 
 from app.core.enums import AgeGroupEnum, GenderEnum
+from app.core.game_config import game_config
+from app.options import bios, presets
 from app.options.appearance import (
     body_type_options,
     expression_options,
@@ -17,9 +14,26 @@ from app.options.appearance import (
     haircuts,
     skin_tone_options,
 )
+from app.options.bios import ZONE_RUMORS
 from app.options.presets import archetypes
 from app.options.races import RaceOption
-from app.utils.appearance_roll import roll_appearance
+from app.utils.appearance_roll import describe_appearance, roll_appearance
+from app.utils.dwellers import create_random_common_dweller
+
+POOL_SOURCES = {
+    "skin_tone": lambda race: skin_tone_options.get(race, []),
+    "hair_color": lambda race: hair_color_options,
+    "hair_style": lambda race: haircuts.get(race, []),
+    "build": lambda race: body_type_options.get(race, []),
+    "expression": lambda race: expression_options,
+}
+
+
+def _pools():
+    for name, entry in archetypes.items():
+        pools = entry.get("appearance_pools")
+        if pools is not None:
+            yield name, entry.get("race") or RaceOption.HUMAN, pools
 
 
 def test_presets_importable_with_core_entries():
@@ -29,44 +43,22 @@ def test_presets_importable_with_core_entries():
 
 
 def test_every_pool_subset_of_canonical():
-    """Every appearance_pool value must exist in the canonical lists."""
-    for name, entry in archetypes.items():
-        pools = entry.get("appearance_pools")
-        if pools is None:
-            continue
-        race = entry.get("race") or RaceOption.HUMAN
-
-        # skin_tone
-        if pools.get("skin_tone"):
-            opts = skin_tone_options.get(race, [])
-            for v in pools["skin_tone"]:
-                assert v in opts, f"{name}: skin_tone {v!r} not in canonical list for {race}"
-
-        # hair_color (None means unconstrained — skip; explicit list must be subset)
-        if pools.get("hair_color") is not None:
-            for v in pools["hair_color"]:
-                assert v in hair_color_options, f"{name}: hair_color {v!r} not in canonical list"
-
-        # hair_style
-        if pools.get("hair_style"):
-            opts = haircuts.get(race, [])
-            for v in pools["hair_style"]:
-                assert v in opts, f"{name}: hair_style {v!r} not in canonical list for {race}"
-
-        # build
-        if pools.get("build"):
-            opts = body_type_options.get(race, [])
-            for v in pools["build"]:
-                assert v in opts, f"{name}: build {v!r} not in canonical list for {race}"
-
-        # expression
-        if pools.get("expression"):
-            for v in pools["expression"]:
-                assert v in expression_options, f"{name}: expression {v!r} not in canonical expression keys"
+    for name, race, pools in _pools():
+        for key, canonical in POOL_SOURCES.items():
+            for value in pools.get(key) or ():
+                assert value in canonical(race), f"{name}: {key} {value!r} not canonical for {race}"
 
 
-def test_every_race_has_at_least_two_entries():
-    """Each race should have at least two archetype options."""
+def test_archetype_pools_constrain_to_pool_values():
+    for name, race, pools in _pools():
+        for seed in range(10):
+            rolled = roll_appearance(
+                race, GenderEnum.MALE, random.Random(seed), AgeGroupEnum.ADULT, appearance_pools=pools
+            )
+            for key in POOL_SOURCES:
+                values = pools.get(key)
+                if values:
+                    assert rolled[key] in values, f"{name}: {key} {rolled[key]!r} not in pool"
     counts: dict[RaceOption, int] = dict.fromkeys(RaceOption, 0)
     for entry in archetypes.values():
         race = entry.get("race")
@@ -76,67 +68,28 @@ def test_every_race_has_at_least_two_entries():
         assert count >= 2, f"Race {race.value} has only {count} archetypes (need >=2)"
 
 
-def test_all_weights_positive():
-    """Every archetype entry with a weight must have weight > 0."""
+def test_weights_and_personality_lines():
     for name, entry in archetypes.items():
         weight = entry.get("weight", 0)
         assert weight > 0, f"{name}: weight {weight} must be positive"
-
-
-def test_personality_lines_non_empty_and_first_person():
-    """Every personality_line must be non-empty and start with 'I '."""
     for name, entry in archetypes.items():
         lines = entry.get("personality_lines", ())
         assert lines, f"{name}: personality_lines must be non-empty"
         for line in lines:
             assert line.startswith("I "), f"{name}: personality line does not start with 'I ': {line!r}"
             assert len(line) > 0, f"{name}: empty personality line"
-
-
-def test_archetype_pools_constrain_to_pool_values():
-    """When appearance_pools are provided, rolls must stay within the pool values."""
-    for name, entry in archetypes.items():
-        pools = entry.get("appearance_pools")
-        if pools is None:
-            continue
-        race = entry.get("race") or RaceOption.HUMAN
-
-        for seed in range(10):
-            rolled = roll_appearance(
-                race,
-                GenderEnum.MALE,
-                random.Random(seed),
-                AgeGroupEnum.ADULT,
-                appearance_pools=pools,
-            )
-            # Check constrained traits stay in pool
-            if pools.get("skin_tone"):
-                assert rolled["skin_tone"] in pools["skin_tone"], (
-                    f"{name}: skin_tone {rolled['skin_tone']!r} not in pool"
-                )
-            if pools.get("hair_color") is not None:
-                assert rolled["hair_color"] in pools["hair_color"], (
-                    f"{name}: hair_color {rolled['hair_color']!r} not in pool"
-                )
-            if pools.get("hair_style"):
-                assert rolled["hair_style"] in pools["hair_style"], (
-                    f"{name}: hair_style {rolled['hair_style']!r} not in pool"
-                )
-            if pools.get("build"):
-                assert rolled["build"] in pools["build"], f"{name}: build {rolled['build']!r} not in pool"
-            if pools.get("expression"):
-                assert rolled["expression"] in pools["expression"], (
-                    f"{name}: expression {rolled['expression']!r} not in pool"
-                )
+    for catalog in (bios, presets):
+        tree = ast.parse(inspect.getsource(catalog))
+        definitions = [
+            node.name
+            for node in ast.walk(tree)
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef))
+        ]
+        assert not definitions, f"{catalog.__name__} contains behavior: {definitions}"
 
 
 @pytest.mark.parametrize("race", list(RaceOption))
 def test_generated_bio_matches_identity_and_keeps_rumor_last(monkeypatch, race):
-    from app.core.game_config import game_config
-    from app.options.bios import ZONE_RUMORS
-    from app.utils.appearance_roll import describe_appearance
-    from app.utils.dwellers import create_random_common_dweller
-
     monkeypatch.setattr(
         game_config.dweller, "race_weights", {option.value: int(option == race) for option in RaceOption}
     )
@@ -152,19 +105,3 @@ def test_generated_bio_matches_identity_and_keeps_rumor_last(monkeypatch, race):
         )
         assert any(line in dweller["bio"] for line in personalities)
         assert dweller["bio"].endswith(ZONE_RUMORS)
-
-
-def test_dweller_catalogs_contain_data_without_behavior():
-    import ast
-    import inspect
-
-    from app.options import bios, presets
-
-    for catalog in (bios, presets):
-        tree = ast.parse(inspect.getsource(catalog))
-        definitions = [
-            node.name
-            for node in ast.walk(tree)
-            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef))
-        ]
-        assert not definitions, f"{catalog.__name__} contains behavior: {definitions}"

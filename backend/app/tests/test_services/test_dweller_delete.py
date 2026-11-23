@@ -17,7 +17,6 @@ from app.services.exploration.event_service import event_service
 from app.services.exploration_service import exploration_service
 
 
-@pytest.mark.asyncio
 async def test_delete_dweller_closes_active_exploration(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
 ) -> None:
@@ -35,9 +34,7 @@ async def test_delete_dweller_closes_active_exploration(
         vault_id=vault.id,
         site_id="gloomwater_bog",
     )
-
     await dweller_service.delete_dweller(async_session, dweller.id, soft=True)
-
     fresh_exploration = await crud.exploration.get(async_session, exploration.id)
     assert fresh_exploration is not None
     assert fresh_exploration.status == ExplorationStatus.RECALLED
@@ -46,19 +43,16 @@ async def test_delete_dweller_closes_active_exploration(
     assert fresh_exploration.return_completes_at is None
     assert fresh_exploration.paused_at is None
     assert fresh_exploration.unclaimed_loot == []
-
     fresh_run = await crud.expedition_run.get(async_session, run.id)
     assert fresh_run is not None
     assert fresh_run.status == ExpeditionRunStatus.RETREATED
     assert fresh_run.finished_at is not None
-
     fresh_dweller = await crud.dweller.get(async_session, dweller.id, include_deleted=True)
     assert fresh_dweller is not None
     assert fresh_dweller.is_deleted is True
     assert await crud.exploration.get_by_dweller(async_session, dweller_id=dweller.id) is None
 
 
-@pytest.mark.asyncio
 async def test_delete_dweller_rolls_back_journey_state_and_delivery_when_persist_fails(
     async_session: AsyncSession, vault: Vault, dweller: Dweller, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -92,7 +86,6 @@ async def test_delete_dweller_rolls_back_journey_state_and_delivery_when_persist
     await crud.dweller.update(async_session, partner.id, {"status": DwellerStatusEnum.EXPLORING}, commit=False)
     await async_session.commit()
     exploration_id, run_id, partner_id = exploration.id, run.id, partner.id
-
     published = AsyncMock()
     monkeypatch.setattr(event_service, "publish_sse", published)
 
@@ -106,9 +99,7 @@ async def test_delete_dweller_rolls_back_journey_state_and_delivery_when_persist
             await dweller_service.delete_dweller(async_session, partner_id, soft=True)
     finally:
         event.remove(async_session.sync_session, "before_flush", fail_on_dweller_soft_delete)
-
     await async_session.rollback()
-
     fresh_exploration = await crud.exploration.get(async_session, exploration_id)
     assert fresh_exploration is not None
     assert fresh_exploration.status == ExplorationStatus.ACTIVE
@@ -116,7 +107,6 @@ async def test_delete_dweller_rolls_back_journey_state_and_delivery_when_persist
     assert fresh_run is not None
     assert fresh_run.status == ExpeditionRunStatus.IN_ROOM
     assert await team_crud.get_exploration_team(async_session, exploration_id) is not None
-
     fresh_partner = await crud.dweller.get(async_session, partner_id)
     assert fresh_partner is not None
     assert fresh_partner.is_deleted is False
@@ -127,7 +117,6 @@ async def test_delete_dweller_rolls_back_journey_state_and_delivery_when_persist
     published.assert_not_awaited()
 
 
-@pytest.mark.asyncio
 async def test_delete_party_member_restores_survivors_and_roster(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
 ) -> None:
@@ -155,14 +144,11 @@ async def test_delete_party_member_restores_survivors_and_roster(
     await async_session.commit()
     teammate_id = teammate.id
     exploration_id = exploration.id
-
     await dweller_service.delete_dweller(async_session, teammate_id, soft=True)
-
     fresh_exploration = await crud.exploration.get(async_session, exploration_id)
     assert fresh_exploration is not None
     assert fresh_exploration.status == ExplorationStatus.RECALLED
     assert await team_crud.get_exploration_team(async_session, exploration_id) is None
-
     survivor = await crud.dweller.get(async_session, dweller.id)
     assert survivor is not None
     assert survivor.status == DwellerStatusEnum.IDLE

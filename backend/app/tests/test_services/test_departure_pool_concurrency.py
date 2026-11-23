@@ -72,7 +72,6 @@ async def two_buyers(live_pg_engine: AsyncEngine) -> tuple[UUID, UUID, UUID]:
             session.add(vault)
             await session.flush()
             wallets[label] = vault
-
         dweller = await crud.dweller.create(
             db_session=session,
             obj_in=DwellerCreate(
@@ -101,9 +100,7 @@ async def two_buyers(live_pg_engine: AsyncEngine) -> tuple[UUID, UUID, UUID]:
         dweller.departure_eligible_at = now - timedelta(days=1)
         session.add(dweller)
         await session.commit()
-
         yield dweller.id, wallets["a"].id, wallets["b"].id
-
     async with maker() as session:
         await session.execute(text("DELETE FROM dweller WHERE id = :id"), {"id": str(dweller.id)})
         for vault in wallets.values():
@@ -112,7 +109,6 @@ async def two_buyers(live_pg_engine: AsyncEngine) -> tuple[UUID, UUID, UUID]:
         await session.commit()
 
 
-@pytest.mark.asyncio
 async def test_two_vaults_cannot_claim_the_same_departure(
     live_pg_engine: AsyncEngine, two_buyers: tuple[UUID, UUID, UUID]
 ) -> None:
@@ -131,9 +127,7 @@ async def test_two_vaults_cannot_claim_the_same_departure(
                 return "claimed"
 
     outcomes = await asyncio.gather(_claim(buyer_a), _claim(buyer_b))
-
     assert sorted(outcomes) == ["claimed", "conflict"]
-
     async with maker() as session:
         winner = await session.get(Dweller, dweller_id)
         assert winner.vault_id in {buyer_a, buyer_b}

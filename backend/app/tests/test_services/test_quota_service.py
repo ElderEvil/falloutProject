@@ -14,7 +14,6 @@ from app.services.quota_service import DEFAULT_QUOTA_LIMIT, quota_service
 from app.utils.exceptions import ResourceNotFoundException
 
 
-@pytest.mark.asyncio
 async def test_check_quota_admin_with_no_usage(async_session: AsyncSession) -> None:
     # Create admin user
     user_in = UserCreate(
@@ -24,10 +23,8 @@ async def test_check_quota_admin_with_no_usage(async_session: AsyncSession) -> N
         is_superuser=True,
     )
     user = await crud.user.create(async_session, obj_in=user_in)
-
     # Check quota - admin should be allowed with default values
     result = await quota_service.check_quota(user.id, async_session)
-
     assert result.allowed is True
     assert result.remaining == 500000
     assert result.limit == 500000
@@ -36,7 +33,6 @@ async def test_check_quota_admin_with_no_usage(async_session: AsyncSession) -> N
     assert result.used == 0
 
 
-@pytest.mark.asyncio
 async def test_check_quota_normal_user_warning_threshold(async_session: AsyncSession) -> None:
     # Create normal user with default quota (500000)
     user_in = UserCreate(
@@ -46,7 +42,6 @@ async def test_check_quota_normal_user_warning_threshold(async_session: AsyncSes
         is_superuser=False,
     )
     user = await crud.user.create(async_session, obj_in=user_in)
-
     # Create usage at exactly 80% threshold (400K of 500K)
     interaction = LLMInteraction(
         parameters=None,
@@ -59,10 +54,8 @@ async def test_check_quota_normal_user_warning_threshold(async_session: AsyncSes
     )
     async_session.add(interaction)
     await async_session.commit()
-
     # Check quota - should have warning=True
     result = await quota_service.check_quota(user.id, async_session)
-
     assert result.allowed is True  # Still under limit
     assert result.warning is True  # At 80% threshold
     assert result.percentage == 80.0
@@ -135,7 +128,6 @@ async def test_quota_raw_session_owns_usage_transaction(db_connection, async_ses
         assert (await quota_service.check_quota(user_id, db)).used == 0
 
 
-@pytest.mark.asyncio
 async def test_check_quota_disabled_allows_a_regular_user(
     async_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -144,9 +136,7 @@ async def test_check_quota_disabled_allows_a_regular_user(
         async_session,
         obj_in=UserCreate(username="quota_disabled", email="quota_disabled@example.com", password="quotapass123"),
     )
-
     result = await quota_service.check_quota(user.id, async_session)
-
     assert result.allowed is True
     assert result.remaining == DEFAULT_QUOTA_LIMIT
     assert result.limit == DEFAULT_QUOTA_LIMIT
@@ -155,17 +145,13 @@ async def test_check_quota_disabled_allows_a_regular_user(
     assert result.used == 0
 
 
-@pytest.mark.asyncio
 async def test_check_quota_unknown_user_raises_not_found(async_session: AsyncSession) -> None:
     missing_id = uuid4()
-
     with pytest.raises(ResourceNotFoundException) as exc_info:
         await quota_service.check_quota(missing_id, async_session)
-
     assert str(missing_id) in str(exc_info.value)
 
 
-@pytest.mark.asyncio
 async def test_record_usage_survives_cache_failure(async_session: AsyncSession) -> None:
     """A Redis failure while invalidating the usage cache must not abort the usage write."""
     user = await crud.user.create(
@@ -174,8 +160,6 @@ async def test_record_usage_survives_cache_failure(async_session: AsyncSession) 
     )
     broken_redis = AsyncMock()
     broken_redis.delete.side_effect = RedisError("connection lost")
-
     await quota_service.record_usage(user.id, 100, async_session, broken_redis)
-
     persisted = await async_session.execute(select(LLMInteraction).where(LLMInteraction.user_id == user.id))
     assert persisted.scalars().all() != []

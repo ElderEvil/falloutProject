@@ -148,6 +148,17 @@ class NotificationService:
             logger.exception(f"Failed to send SSE notification {payload['notification']['id']} to user {user_id}")
 
     @staticmethod
+    async def _commit_and_deliver_transaction(db: AsyncSession) -> None:
+        """Commit the staged notification rows once, then push every parked delivery."""
+        try:
+            await db.commit()
+        except Exception:
+            NotificationService.discard_deferred_notifications(db)
+            await db.rollback()
+            raise
+        await NotificationService.deliver_deferred_notifications(db)
+
+    @staticmethod
     def discard_deferred_notifications(db: AsyncSession) -> None:
         """Drop queued deliveries for a transaction that rolled back."""
         db.info.pop("deferred_notification_deliveries", None)
@@ -313,9 +324,19 @@ class NotificationService:
 
     @staticmethod
     async def notify_room_unlocks(
-        db: AsyncSession, user_id: UUID, vault_id: UUID, *, previous_population: int | None = None
+        db: AsyncSession,
+        user_id: UUID,
+        vault_id: UUID,
+        *,
+        previous_population: int | None = None,
+        commit: bool = True,
     ) -> None:
-        """Summarize crossed room thresholds, or the current threshold for a single arrival."""
+        """Summarize crossed room thresholds, or the current threshold for a single arrival.
+
+        ``commit=False`` stages the row in the caller's transaction and parks its delivery, so a
+        multi-row notification event (for example a recruit announcement plus this summary) can
+        commit once and push afterwards.
+        """
         population = await dweller_crud.count_alive_in_vault(db, vault_id)
         game_data = await get_static_game_data()
         built = {room.name.lower() for room in await room_crud.get_all_by_vault(db, vault_id)}
@@ -336,7 +357,10 @@ class NotificationService:
             f"Population {population} unlocked: {names}.",
             vault_id=vault_id,
             priority=NotificationPriority.NORMAL,
+            commit=False,
         )
+        if commit:
+            await NotificationService._commit_and_deliver_transaction(db)
 
     @staticmethod
     async def notify_baby_born(
@@ -389,8 +413,15 @@ class NotificationService:
         vault_id: UUID,
         dweller_name: str,
         meta_data: dict[str, Any] | None = None,
+        *,
+        commit: bool = True,
     ):
-        """Notify user that a new dweller arrived via radio."""
+        """Announce a recruit and the room thresholds it crossed in one transaction.
+
+        The recruit row and the room-unlock summary are one event: both are staged through CRUD,
+        committed once here, and only then pushed. A failure while building the summary must not
+        leave an announcement delivered for a recruit the caller may still roll back.
+        """
         notification = await NotificationService.create_and_send(
             db,
             user_id=user_id,
@@ -400,8 +431,11 @@ class NotificationService:
             title="New Dweller Arrived!",
             message=f"{dweller_name} heard your radio broadcast and joined the vault!",
             meta_data=meta_data,
+            commit=False,
         )
-        await NotificationService.notify_room_unlocks(db, user_id, vault_id)
+        await NotificationService.notify_room_unlocks(db, user_id, vault_id, commit=False)
+        if commit:
+            await NotificationService._commit_and_deliver_transaction(db)
         return notification
 
     @staticmethod

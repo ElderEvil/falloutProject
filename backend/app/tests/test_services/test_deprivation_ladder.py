@@ -243,9 +243,25 @@ async def test_a_partly_dry_window_charges_only_its_dry_part(async_session, vaul
 
 
 @pytest.mark.asyncio
+async def test_dry_minutes_survive_a_refill_before_the_window_ends(async_session, vault, dweller) -> None:
+    """A refill inside the window does not undo the minute it was empty: the increment applies, then the reset."""
+    _arm(vault, dweller, food=50, water=50, health=100)
+    state = await _state(async_session, vault, food_minutes=79)
+    async_session.add_all([vault, dweller])
+    await async_session.commit()
+
+    await apply_deprivation(async_session, vault, state, [dweller], 600_000, dry_ms={"food": 60_000, "water": 0})
+    await async_session.commit()
+    await async_session.refresh(dweller)
+
+    assert dweller.health == 99  # 79 eligible minutes to 80: one whole HP, applied before the reset
+    assert state.food_deprived_ms == 0  # refilled, so the ladder restarts
+
+
+@pytest.mark.asyncio
 async def test_a_window_that_never_ran_dry_charges_no_time(async_session, vault, dweller) -> None:
-    """The stock recovered inside the window, so nothing was starving."""
-    _arm(vault, dweller, food=0, water=0, health=100)
+    """The stock recovered inside the window and no step ended empty, so nothing was starving."""
+    _arm(vault, dweller, food=50, water=50, health=100)
     state = await _state(async_session, vault)
     async_session.add_all([vault, dweller])
     await async_session.commit()

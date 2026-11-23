@@ -159,11 +159,13 @@ class GameLoopService:
         }
 
         boundary_advanced = True
+        dry_seconds: dict[str, int] | None = None
         try:
             with tick_phase("resources"):
                 resource_update, resource_events = await self.resource_manager.process_vault_resources(
                     db_session, vault_id, seconds_passed
                 )
+                dry_seconds = resource_events.dry_seconds
                 with tick_phase("resources.persist"):
                     await vault_crud.update(db_session, vault_id, resource_update)
 
@@ -194,8 +196,9 @@ class GameLoopService:
             results["updates"]["resources"] = {"error": str(e)}
             game_state = await self._get_or_create_game_state(db_session, vault_id)
             # The tick boundary rolled back with the resource window, so the next tick replays this interval.
-            # Deprivation must not charge it twice.
+            # Deprivation must not charge it twice, and a window that never committed measured nothing.
             boundary_advanced = False
+            dry_seconds = None
 
         # Incident combat runs on its own fast cadence (incident_tick actor), not here.
 
@@ -204,7 +207,11 @@ class GameLoopService:
 
         with tick_phase("dwellers"):
             results["updates"]["dwellers"] = await self._process_dwellers(
-                db_session, vault_id, seconds_passed, boundary_advanced=boundary_advanced
+                db_session,
+                vault_id,
+                seconds_passed,
+                boundary_advanced=boundary_advanced,
+                dry_seconds=dry_seconds,
             )
 
         with tick_phase("apprenticeships"):
@@ -411,10 +418,15 @@ class GameLoopService:
         seconds_passed: int | None = None,
         *,
         boundary_advanced: bool = True,
+        dry_seconds: dict[str, int] | None = None,
     ) -> DwellersStats:
         """Process dweller updates for a vault."""
         return await dwellers_tick.process_dwellers(
-            db_session, vault_id, seconds_passed, boundary_advanced=boundary_advanced
+            db_session,
+            vault_id,
+            seconds_passed,
+            boundary_advanced=boundary_advanced,
+            dry_seconds=dry_seconds,
         )
 
     async def _process_apprenticeships(self, db_session: AsyncSession, vault_id: UUID) -> ApprenticeStats:

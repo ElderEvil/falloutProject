@@ -241,6 +241,7 @@ async def process_dwellers(
     seconds_passed: int | None = None,
     *,
     boundary_advanced: bool = True,
+    dry_seconds: dict[str, int] | None = None,
 ) -> DwellersStats:
     """Process dweller updates for a vault.
 
@@ -248,7 +249,8 @@ async def process_dwellers(
     rooms, level-up checks, death checks (health <= 0).
 
     ``boundary_advanced`` is False when the resource phase rolled back: the next tick replays that same interval,
-    so deprivation must not charge it now as well as then.
+    so deprivation must not charge it now as well as then. ``dry_seconds`` is what the resource window measured
+    each resource empty for; without it the whole elapsed window counts.
     """
     from app.core.enums import DeathCauseEnum, DwellerStatusEnum
     from app.services.exit_request_service import exit_request_service
@@ -271,7 +273,14 @@ async def process_dwellers(
         state = await game_state_crud.get_by_vault_id(db_session, vault_id)
         if vault is not None and state is not None:
             window_ms = (seconds_passed or game_config.game_loop.tick_interval) * 1000 if boundary_advanced else 0
-            deprivation = await apply_deprivation(db_session, vault, state, dwellers, window_ms)
+            deprivation = await apply_deprivation(
+                db_session,
+                vault,
+                state,
+                dwellers,
+                window_ms,
+                dry_ms=None if dry_seconds is None else {key: value * 1000 for key, value in dry_seconds.items()},
+            )
             stats["deprived"] += deprivation.affected
             await _announce_deprivation(db_session, vault_id, deprivation)
 

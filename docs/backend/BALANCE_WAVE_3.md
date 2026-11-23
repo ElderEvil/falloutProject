@@ -69,6 +69,13 @@ Config lives in `HealthConfig`; logic in `app/services/game_tick/deprivation.py`
 `cumulative(after) − cumulative(before)`, and only then resets on refill. Reversing that order makes the
 increment negative and heals the dweller — this was caught in review before implementation.
 
+**Dry time, not elapsed time.** The resource window already steps minute by minute, so it reports the seconds
+each of food and water ended a step empty (`ResourceTickEvents.dry_seconds`, tick-internal and excluded from the
+wire). Deprivation charges those seconds rather than the whole window: a catch-up window that ends dry no longer
+charges the hours the vault was fed, and a stock that dipped and recovered inside one tick charges nothing. The
+dweller phase falls back to the full elapsed window when a caller has no measurement (the simulator, direct
+tests). The steady-state bands are unaffected — a vault that is dry for the whole window still charges all of it.
+
 **Immunity.** Non-humans keep radiation immunity; outfit resistance is deliberately not applied because
 the radiation enters through drinking. The pass writes radiation directly, so it gates immunity itself
 and never touches the `pet` relationship (a lazy load there would break the tick's async session).
@@ -123,13 +130,10 @@ Floor arrival is a multi-hour property and belongs in scratch verification, neve
 - The tick commits per phase by design. Unifying the resource window under one owner is optional future work; the
   dweller phase already stages counters, health and warnings together, and it is now the only commit point in the
   phase (a death and the exit-request sync no longer publish ahead of it).
-- **Deprivation is charged per tick window, not per dry second.** The vault's stock at the end of the window
-  decides whether the window counted, so a stock that dips and recovers inside a window accrues nothing, and a
-  catch-up window (hours) that ends dry charges the whole thing at once. The simulator already steps minute by
-  minute, so the honest fix is to return per-resource dry seconds from `calculate_resource_window` and hand those
-  to `apply_deprivation` instead of `seconds_passed`. That shifts the measured bands and needs a re-measure, so it
-  is deliberately not in this wave. The boundary guard above already removes the one case where the error compounds
-  (a rolled-back tick replaying the same interval).
+- **Deprivation is charged per tick window, not per dry second.** Resolved: the resource window reports
+  `dry_seconds` per resource and the dweller phase charges those. What remains is a modelling choice, not a gap —
+  a step counts as dry when the resource ends it empty, so a vault that refills inside the minute is not charged
+  for it. Revisit only if playtesting says a within-minute dip should count.
 - `GameState.water_empty_since` is now write-free: the persisted counters replaced its only reader. Drop the column
   in the next schema migration.
 - Legacy dead knobs (`starvation_threshold`, `dehydration_threshold`, `regen_per_tick`) remain for a cleanup

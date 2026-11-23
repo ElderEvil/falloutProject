@@ -71,6 +71,9 @@ class ResourceTickEvents(SQLModel):
     production: ResourceProduction = Field(default_factory=ResourceProduction)
     consumption: PrimaryResourceAmounts = Field(default_factory=PrimaryResourceAmounts)
     objective_production: ResourceProduction | None = Field(default=None, exclude=True)
+    # Tick-internal like objective_production: the seconds each resource actually spent empty inside the window,
+    # so deprivation charges dry time rather than the whole window. Excluded from the wire.
+    dry_seconds: dict[str, int] = Field(default_factory=dict, exclude=True)
 
 
 class VaultRead(VaultBase):

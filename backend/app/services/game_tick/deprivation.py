@@ -76,17 +76,32 @@ async def apply_deprivation(
     state: GameState,
     dwellers: Sequence[Dweller],
     window_ms: int,
+    *,
+    dry_ms: dict[str, int] | None = None,
 ) -> DeprivationResult:
-    """Accumulate deprived time, apply its increment, then reset on refill."""
+    """Accumulate deprived time, apply its increment, then reset on refill.
+
+    ``dry_ms`` carries the milliseconds each resource actually spent empty inside the window, so a window that
+    only ran dry for part of its length charges only that part. Without it the whole window counts when the stock
+    ends empty, which is the right answer for a direct caller that only knows the elapsed time.
+    """
     health = game_config.health
     food_before, water_before = state.food_deprived_ms, state.water_deprived_ms
     food_grace, water_grace = health.hunger_grace_minutes, health.thirst_grace_minutes
     water_enabled = health.water_deprivation_enabled
 
-    if vault.food <= 0:
-        state.food_deprived_ms += window_ms
-    if water_enabled and vault.water <= 0:
-        state.water_deprived_ms += window_ms
+    if dry_ms is None:
+        # No measurement: the end-of-window stock decides whether the window counted at all.
+        food_ms = window_ms if vault.food <= 0 else 0
+        water_ms = window_ms if water_enabled and vault.water <= 0 else 0
+    else:
+        # A measured window is authoritative: a refill inside it does not undo the minutes it was empty, and the
+        # reset on refill below still runs only after this pass's increment is applied.
+        food_ms = dry_ms.get("food", 0)
+        water_ms = dry_ms.get("water", 0) if water_enabled else 0
+
+    state.food_deprived_ms += food_ms
+    state.water_deprived_ms += water_ms
 
     food_before_eligible = eligible_ms(food_before, food_grace)
     food_after_eligible = eligible_ms(state.food_deprived_ms, food_grace)

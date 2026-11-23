@@ -152,8 +152,7 @@ const close = () => {
       <div class="training-start-modal">
         <p class="description">
           Select a SPECIAL stat to improve for
-          <span class="dweller-name">{{ getDwellerDisplayName(dweller) }}</span
-          >.
+          <span class="dweller-name">{{ getDwellerDisplayName(dweller) }}</span>.
         </p>
 
         <Alert

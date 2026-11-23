@@ -159,9 +159,9 @@ const wastelandModalOpen = ctx.wastelandModalOpen
     >
       <div class="flex-1 overflow-y-auto px-5 pt-5 pb-5">
         <p class="soft-delete-text">
-          Soft-delete <strong>{{ getDwellerDisplayName(dweller) }}</strong
-          >? They will leave the vault and become tradable at the Trading Post. You can restore them
-          later while they remain listed.
+          Soft-delete <strong>{{ getDwellerDisplayName(dweller) }}</strong>? They will leave the
+          vault and become tradable at the Trading Post. You can restore them later while they
+          remain listed.
         </p>
       </div>
       <template #footer>

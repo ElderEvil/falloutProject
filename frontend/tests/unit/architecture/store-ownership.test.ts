@@ -101,15 +101,51 @@ interface AliasBinding {
 }
 
 /**
+ * 1 where a character is code, 0 inside a string, template literal or comment.
+ * Brace counting must ignore those bodies: a literal `}` otherwise looks like
+ * the end of the enclosing block.
+ */
+function codeMask(content: string): Uint8Array {
+  const mask = new Uint8Array(content.length).fill(1)
+  let i = 0
+  while (i < content.length) {
+    const ch = content[i]
+    if (ch === '/' && content[i + 1] === '/') {
+      while (i < content.length && content[i] !== '\n') mask[i++] = 0
+    } else if (ch === '/' && content[i + 1] === '*') {
+      const close = content.indexOf('*/', i + 2)
+      const end = close === -1 ? content.length : close + 2
+      while (i < end) mask[i++] = 0
+    } else if (ch === "'" || ch === '"' || ch === '`') {
+      const quote = ch
+      mask[i++] = 0
+      while (i < content.length) {
+        const current = content[i]
+        mask[i++] = 0
+        if (current === '\\') {
+          if (i < content.length) mask[i++] = 0
+          continue
+        }
+        if (current === quote) break
+      }
+    } else {
+      i += 1
+    }
+  }
+  return mask
+}
+
+/**
  * Innermost block enclosing `index`: the span between the nearest unbalanced
  * `{` before it and its matching `}`. Falls back to the whole file when the
  * declaration sits at module scope, which keeps module-level aliases visible
  * everywhere (and keeps the ratchet conservative).
  */
-function enclosingScope(content: string, index: number): { start: number; end: number } {
+function enclosingScope(content: string, index: number, mask: Uint8Array): { start: number; end: number } {
   let depth = 0
   let open = -1
   for (let i = index - 1; i >= 0; i -= 1) {
+    if (!mask[i]) continue
     const ch = content[i]
     if (ch === '}') {
       depth += 1
@@ -124,6 +160,7 @@ function enclosingScope(content: string, index: number): { start: number; end: n
   if (open === -1) return { start: 0, end: content.length }
   depth = 0
   for (let i = open; i < content.length; i += 1) {
+    if (!mask[i]) continue
     const ch = content[i]
     if (ch === '{') {
       depth += 1
@@ -155,9 +192,10 @@ function destructuredLocals(list: string): string[] {
 function collectAliases(content: string, binding: string): AliasBinding[] {
   const aliases: AliasBinding[] = []
   const seen = new Set<string>()
+  const mask = codeMask(content)
   const add = (name: string, index: number): boolean => {
     if (!/^[A-Za-z_$][\w$]*$/.test(name)) return false
-    const scope = enclosingScope(content, index)
+    const scope = enclosingScope(content, index, mask)
     const key = `${name}@${scope.start}:${scope.end}`
     if (seen.has(key)) return false
     seen.add(key)
@@ -487,6 +525,55 @@ describe('scanCrossStoreWrites fixtures', () => {
     ])
 
     expect([...found]).toEqual([])
+  })
+
+  it('does not widen a scope across a brace inside a string', () => {
+    const found = scanCrossStoreWrites([
+      {
+        path: 'src/modules/profile/components/RoomLabel.vue',
+        content: `
+          <script setup lang="ts">
+          import { useRoomStore } from '@/modules/rooms/stores/room'
+
+          export function roomName(roomId: string) {
+            const note = '}'
+            const store = useRoomStore()
+            return store.rooms.find((r) => r.id === roomId)?.name ?? note
+          }
+
+          export function clearLocalSelection() {
+            const store = { selectedRoom: null as string | null }
+            store.selectedRoom = null
+          }
+          </script>
+        `,
+      },
+    ])
+
+    expect([...found]).toEqual([])
+  })
+
+  it('flags a write in a scope that also holds a brace-bearing string', () => {
+    const found = scanCrossStoreWrites([
+      {
+        path: 'src/modules/profile/components/RoomLabel.vue',
+        content: `
+          <script setup lang="ts">
+          import { useRoomStore } from '@/modules/rooms/stores/room'
+
+          export function selectRoom(roomId: string) {
+            // A comment with an unbalanced { must not open a scope.
+            const label = \`room \${roomId} {\`
+            const store = useRoomStore()
+            store.selectedRoom = label
+            return label
+          }
+          </script>
+        `,
+      },
+    ])
+
+    expect([...found]).toEqual([['src/modules/profile/components/RoomLabel.vue -> useRoomStore', 1]])
   })
 
   it('flags bare destructured array mutations', () => {

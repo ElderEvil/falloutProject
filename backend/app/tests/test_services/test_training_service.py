@@ -1,361 +1,37 @@
+from datetime import timedelta
 from unittest.mock import AsyncMock, patch
 
 import pytest
+from sqlalchemy import event
+from sqlalchemy.ext.asyncio import AsyncSession as RawSession
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.core.enums import DwellerStatusEnum, RoomTypeEnum, SPECIALEnum
-from app.core.event_bus import GameEvent, event_bus
+from app import crud
+from app.core.enums import AgeGroupEnum, DwellerStatusEnum, NotificationType, RoomTypeEnum, SPECIALEnum
 from app.core.game_config import game_config
 from app.crud import training as training_crud
+from app.crud.notification import notification as notification_crud
 from app.crud.room import room as room_crud
 from app.crud.vault import vault as vault_crud
 from app.models.dweller import Dweller
 from app.models.pet import Pet
+from app.models.room import Room
 from app.models.training import Training
 from app.models.vault import Vault
 from app.schemas.room import RoomCreate
-from app.schemas.vault import VaultCreate
+from app.schemas.vault import VaultCreate, VaultUpdate
+from app.services.room_service import room_service
 from app.services.training_service import TrainingService
 from app.utils.exceptions import InvalidVaultTransferException, VaultOperationException
 from app.utils.time import utcnow
 
 
 @pytest.fixture
-def training_service():
-    """Get training service instance."""
+def training_service() -> TrainingService:
     return TrainingService()
 
 
-@pytest.mark.asyncio
-async def test_can_start_training_not_training_room(
-    async_session: AsyncSession,
-    vault: Vault,
-    dweller: Dweller,
-    training_service: TrainingService,
-):
-    # Create a production room
-    room_data = {
-        "name": "Power Generator",
-        "category": RoomTypeEnum.PRODUCTION,
-        "tier": 1,
-        "size": 2,
-        "capacity": 6,
-        "ability": None,
-        "base_cost": 1000,
-        "t2_upgrade_cost": 2500,
-        "t3_upgrade_cost": 5000,
-        "size_min": 1,
-        "size_max": 3,
-    }
-    room_in = RoomCreate(**room_data, vault_id=vault.id)
-    room = await room_crud.create(async_session, room_in)
-
-    can_train, reason = await training_service.can_start_training(async_session, dweller, room)
-
-    assert can_train is False
-    assert "not a training room" in reason.lower()
-
-
-@pytest.mark.asyncio
-async def test_can_start_training_stat_maxed(
-    async_session: AsyncSession,
-    vault: Vault,
-    dweller: Dweller,
-    training_service: TrainingService,
-):
-    # Create a training room
-    room_data = {
-        "name": "Weight Room",
-        "category": RoomTypeEnum.TRAINING,
-        "tier": 1,
-        "size": 2,
-        "capacity": 6,
-        "ability": SPECIALEnum.STRENGTH,
-        "base_cost": 1000,
-        "t2_upgrade_cost": 2500,
-        "t3_upgrade_cost": 5000,
-        "size_min": 1,
-        "size_max": 3,
-    }
-    room_in = RoomCreate(**room_data, vault_id=vault.id)
-    room = await room_crud.create(async_session, room_in)
-
-    # Max out dweller's strength
-    dweller.status = DwellerStatusEnum.IDLE
-    dweller.strength = game_config.training.special_stat_max
-    async_session.add(dweller)
-    await async_session.commit()
-    await async_session.refresh(dweller)
-
-    can_train, reason = await training_service.can_start_training(async_session, dweller, room)
-
-    assert can_train is False
-    assert "already at maximum" in reason.lower()
-
-
-@pytest.mark.asyncio
-async def test_can_start_training_dweller_not_idle(
-    async_session: AsyncSession,
-    vault: Vault,
-    dweller: Dweller,
-    training_service: TrainingService,
-):
-    # Create a training room
-    room_data = {
-        "name": "Weight Room",
-        "category": RoomTypeEnum.TRAINING,
-        "tier": 1,
-        "size": 2,
-        "capacity": 6,
-        "ability": SPECIALEnum.STRENGTH,
-        "base_cost": 1000,
-        "t2_upgrade_cost": 2500,
-        "t3_upgrade_cost": 5000,
-        "size_min": 1,
-        "size_max": 3,
-    }
-    room_in = RoomCreate(**room_data, vault_id=vault.id)
-    room = await room_crud.create(async_session, room_in)
-
-    # Set dweller to EXPLORING
-    dweller.status = DwellerStatusEnum.EXPLORING
-    async_session.add(dweller)
-    await async_session.commit()
-    await async_session.refresh(dweller)
-
-    can_train, reason = await training_service.can_start_training(async_session, dweller, room)
-
-    assert can_train is False
-    assert "exploring" in reason.lower()
-
-
-@pytest.mark.asyncio
-async def test_can_start_training_rejects_feral_ghoul(
-    async_session: AsyncSession,
-    vault: Vault,
-    dweller: Dweller,
-    training_service: TrainingService,
-):
-    room = await room_crud.create(
-        async_session,
-        RoomCreate(
-            name="Weight Room",
-            category=RoomTypeEnum.TRAINING,
-            tier=1,
-            size=2,
-            capacity=6,
-            ability=SPECIALEnum.STRENGTH,
-            base_cost=1000,
-            t2_upgrade_cost=2500,
-            t3_upgrade_cost=5000,
-            size_min=1,
-            size_max=3,
-            vault_id=vault.id,
-        ),
-    )
-    dweller.visual_attributes = {"race": "ghoul", "state_of_being": "feral"}
-    dweller.status = DwellerStatusEnum.IDLE
-    async_session.add(dweller)
-    await async_session.commit()
-    await async_session.refresh(dweller)
-
-    can_train, reason = await training_service.can_start_training(async_session, dweller, room)
-
-    assert can_train is False
-    assert "state prevents purposeful training" in reason.lower()
-
-
-@pytest.mark.asyncio
-async def test_start_training_rejects_room_from_another_vault(
-    async_session: AsyncSession,
-    vault: Vault,
-    dweller: Dweller,
-    training_service: TrainingService,
-):
-    foreign_vault = await vault_crud.create_with_user_id(
-        db_session=async_session,
-        obj_in=VaultCreate(number=202, name="Foreign Vault"),
-        user_id=vault.user_id,
-    )
-    room_data = {
-        "name": "Foreign Weight Room",
-        "category": RoomTypeEnum.TRAINING,
-        "tier": 3,
-        "size": 2,
-        "capacity": 6,
-        "ability": SPECIALEnum.STRENGTH,
-        "base_cost": 1000,
-        "t2_upgrade_cost": 2500,
-        "t3_upgrade_cost": 5000,
-        "size_min": 1,
-        "size_max": 3,
-    }
-    foreign_room = await room_crud.create(async_session, RoomCreate(**room_data, vault_id=foreign_vault.id))
-
-    dweller.status = DwellerStatusEnum.IDLE
-    original_room_id = dweller.room_id
-    async_session.add(dweller)
-    await async_session.commit()
-
-    with pytest.raises(InvalidVaultTransferException):
-        await training_service.start_training(async_session, dweller.id, foreign_room.id)
-
-    await async_session.refresh(dweller)
-    assert dweller.room_id == original_room_id
-    assert dweller.status == DwellerStatusEnum.IDLE
-    assert await training_crud.training.get_active_by_dweller(async_session, dweller.id) is None
-
-
-@pytest.mark.asyncio
-async def test_continuous_training_does_not_renew_a_foreign_room_session(
-    async_session: AsyncSession,
-    vault: Vault,
-    dweller: Dweller,
-    training_service: TrainingService,
-):
-    """A legacy session pointing at a foreign room completes but is never renewed."""
-    from datetime import timedelta
-
-    foreign_vault = await vault_crud.create_with_user_id(
-        db_session=async_session,
-        obj_in=VaultCreate(number=203, name="Foreign Vault"),
-        user_id=vault.user_id,
-    )
-    foreign_room = await room_crud.create(async_session, _training_room(foreign_vault.id))
-
-    vault.continuous_training = True
-    dweller.age_group = "adult"
-    dweller.health = 100
-    dweller.status = DwellerStatusEnum.TRAINING
-    dweller.strength = 5
-    dweller.room_id = foreign_room.id
-    async_session.add(vault)
-    async_session.add(dweller)
-    await async_session.commit()
-
-    # Pre-guard row shape: dweller's vault_id, foreign room — only a vault check stops renewal.
-    training = Training(
-        dweller_id=dweller.id,
-        room_id=foreign_room.id,
-        vault_id=dweller.vault_id,
-        stat_being_trained=SPECIALEnum.STRENGTH,
-        current_stat_value=5,
-        target_stat_value=6,
-        goal_stat_value=10,
-        started_at=utcnow() - timedelta(minutes=30),
-        estimated_completion_at=utcnow() - timedelta(seconds=1),
-    )
-    async_session.add(training)
-    await async_session.commit()
-
-    completed = await training_service.complete_training(async_session, training.id)
-
-    assert completed.is_completed()
-    await async_session.refresh(dweller)
-    assert dweller.strength == 6
-    assert dweller.status == DwellerStatusEnum.IDLE
-    assert dweller.room_id is None
-    assert await training_crud.training.get_active_by_dweller(async_session, dweller.id) is None
-
-
-@pytest.mark.asyncio
-async def test_complete_training(
-    async_session: AsyncSession,
-    vault: Vault,
-    dweller: Dweller,
-    training_service: TrainingService,
-):
-    # Create a training room
-    room_data = {
-        "name": "Weight Room",
-        "category": RoomTypeEnum.TRAINING,
-        "tier": 1,
-        "size": 2,
-        "capacity": 6,
-        "ability": SPECIALEnum.STRENGTH,
-        "base_cost": 1000,
-        "t2_upgrade_cost": 2500,
-        "t3_upgrade_cost": 5000,
-        "size_min": 1,
-        "size_max": 3,
-    }
-    room_in = RoomCreate(**room_data, vault_id=vault.id)
-    room = await room_crud.create(async_session, room_in)
-
-    # Set dweller to IDLE and reasonable strength
-    dweller.status = DwellerStatusEnum.IDLE
-    initial_strength = 5
-    dweller.strength = initial_strength
-    async_session.add(dweller)
-    await async_session.commit()
-
-    # Start training
-    training = await training_service.start_training(async_session, dweller.id, room.id)
-
-    # Complete training
-    completed_training = await training_service.complete_training(async_session, training.id)
-
-    assert completed_training.is_completed()
-    assert completed_training.progress == 1.0
-    assert completed_training.completed_at is not None
-
-    # Verify dweller's strength increased
-    await async_session.refresh(dweller)
-    assert dweller.strength == initial_strength + 1
-    assert dweller.status == DwellerStatusEnum.IDLE
-
-
-@pytest.mark.asyncio
-async def test_cancel_training(
-    async_session: AsyncSession,
-    vault: Vault,
-    dweller: Dweller,
-    training_service: TrainingService,
-):
-    # Create a training room
-    room_data = {
-        "name": "Weight Room",
-        "category": RoomTypeEnum.TRAINING,
-        "tier": 1,
-        "size": 2,
-        "capacity": 6,
-        "ability": SPECIALEnum.STRENGTH,
-        "base_cost": 1000,
-        "t2_upgrade_cost": 2500,
-        "t3_upgrade_cost": 5000,
-        "size_min": 1,
-        "size_max": 3,
-    }
-    room_in = RoomCreate(**room_data, vault_id=vault.id)
-    room = await room_crud.create(async_session, room_in)
-
-    # Set dweller to IDLE and reasonable strength
-    dweller.status = DwellerStatusEnum.IDLE
-    initial_strength = 5
-    dweller.strength = initial_strength
-    async_session.add(dweller)
-    await async_session.commit()
-
-    # Start training
-    training = await training_service.start_training(async_session, dweller.id, room.id)
-
-    # Cancel training
-    cancelled_training = await training_service.cancel_training(async_session, training.id)
-
-    assert cancelled_training.is_cancelled()
-    assert cancelled_training.completed_at is not None
-
-    # Verify dweller's strength did NOT increase
-    await async_session.refresh(dweller)
-    assert dweller.strength == initial_strength
-    assert dweller.status == DwellerStatusEnum.IDLE
-
-
-# Single-transaction contract (AUDIT.md: one commit per state transition)
-
-
 def _training_room(vault_id) -> RoomCreate:
-    """A tier-1 STRENGTH training room."""
     return RoomCreate(
         name="Weight Room",
         category=RoomTypeEnum.TRAINING,
@@ -372,6 +48,10 @@ def _training_room(vault_id) -> RoomCreate:
     )
 
 
+async def _room(async_session: AsyncSession, vault_id, **overrides) -> Room:
+    return await room_crud.create(async_session, _training_room(vault_id).model_copy(update=overrides))
+
+
 async def _idle_dweller(async_session: AsyncSession, dweller: Dweller) -> None:
     dweller.status = DwellerStatusEnum.IDLE
     dweller.strength = 5
@@ -379,15 +59,140 @@ async def _idle_dweller(async_session: AsyncSession, dweller: Dweller) -> None:
     await async_session.commit()
 
 
+@pytest.mark.parametrize(
+    ("room_kind", "prep", "expected"),
+    [
+        ("production", None, "not a training room"),
+        ("training", "maxed", "already at maximum"),
+        ("training", "exploring", "exploring"),
+        ("training", "feral", "state prevents purposeful training"),
+    ],
+)
+@pytest.mark.asyncio
+async def test_can_start_training_rejections(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller, training_service, room_kind, prep, expected
+):
+    if room_kind == "production":
+        room = await _room(
+            async_session, vault.id, name="Power Generator", category=RoomTypeEnum.PRODUCTION, ability=None
+        )
+    else:
+        room = await _room(async_session, vault.id)
+    if prep == "maxed":
+        dweller.status = DwellerStatusEnum.IDLE
+        dweller.strength = game_config.training.special_stat_max
+    elif prep == "exploring":
+        dweller.status = DwellerStatusEnum.EXPLORING
+    elif prep == "feral":
+        dweller.visual_attributes = {"race": "ghoul", "state_of_being": "feral"}
+        dweller.status = DwellerStatusEnum.IDLE
+    if prep:
+        async_session.add(dweller)
+        await async_session.commit()
+        await async_session.refresh(dweller)
+    can_train, reason = await training_service.can_start_training(async_session, dweller, room)
+    assert can_train is False
+    assert expected in reason.lower()
+
+
+@pytest.mark.asyncio
+async def test_start_training_rejects_room_from_another_vault(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller, training_service
+):
+    foreign_vault = await vault_crud.create_with_user_id(
+        db_session=async_session, obj_in=VaultCreate(number=202, name="Foreign Vault"), user_id=vault.user_id
+    )
+    foreign_room = await _room(async_session, foreign_vault.id, name="Foreign Weight Room", tier=3)
+    dweller.status = DwellerStatusEnum.IDLE
+    original_room_id = dweller.room_id
+    async_session.add(dweller)
+    await async_session.commit()
+    with pytest.raises(InvalidVaultTransferException):
+        await training_service.start_training(async_session, dweller.id, foreign_room.id)
+    await async_session.refresh(dweller)
+    assert dweller.room_id == original_room_id
+    assert dweller.status == DwellerStatusEnum.IDLE
+    assert await training_crud.training.get_active_by_dweller(async_session, dweller.id) is None
+
+
+@pytest.mark.asyncio
+async def test_continuous_training_does_not_renew_a_foreign_room_session(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller, training_service
+):
+    # A legacy session pointing at a foreign room completes but is never renewed.
+    foreign_vault = await vault_crud.create_with_user_id(
+        db_session=async_session, obj_in=VaultCreate(number=203, name="Foreign Vault"), user_id=vault.user_id
+    )
+    foreign_room = await _room(async_session, foreign_vault.id)
+    vault.continuous_training = True
+    dweller.age_group = "adult"
+    dweller.health = 100
+    dweller.status = DwellerStatusEnum.TRAINING
+    dweller.strength = 5
+    dweller.room_id = foreign_room.id
+    async_session.add_all([vault, dweller])
+    await async_session.commit()
+    # Pre-guard row shape: dweller's vault_id, foreign room — only a vault check stops renewal.
+    training = Training(
+        dweller_id=dweller.id,
+        room_id=foreign_room.id,
+        vault_id=dweller.vault_id,
+        stat_being_trained=SPECIALEnum.STRENGTH,
+        current_stat_value=5,
+        target_stat_value=6,
+        goal_stat_value=10,
+        started_at=utcnow() - timedelta(minutes=30),
+        estimated_completion_at=utcnow() - timedelta(seconds=1),
+    )
+    async_session.add(training)
+    await async_session.commit()
+    completed = await training_service.complete_training(async_session, training.id)
+    assert completed.is_completed()
+    await async_session.refresh(dweller)
+    assert dweller.strength == 6
+    assert dweller.status == DwellerStatusEnum.IDLE
+    assert dweller.room_id is None
+    assert await training_crud.training.get_active_by_dweller(async_session, dweller.id) is None
+
+
+@pytest.mark.parametrize(
+    ("action", "state_check", "expected_strength"),
+    [("complete_training", "is_completed", 6), ("cancel_training", "is_cancelled", 5)],
+)
+@pytest.mark.asyncio
+async def test_training_round_outcome(
+    async_session: AsyncSession,
+    vault: Vault,
+    dweller: Dweller,
+    training_service,
+    action,
+    state_check,
+    expected_strength,
+):
+    room = await _room(async_session, vault.id)
+    await _idle_dweller(async_session, dweller)
+    training = await training_service.start_training(async_session, dweller.id, room.id)
+    result = await getattr(training_service, action)(async_session, training.id)
+    assert getattr(result, state_check)()
+    assert result.completed_at is not None
+    if action == "complete_training":
+        assert result.progress == 1.0
+    await async_session.refresh(dweller)
+    assert dweller.strength == expected_strength
+    assert dweller.status == DwellerStatusEnum.IDLE
+
+
+# Single-transaction contract (AUDIT.md: one commit per state transition)
+
+
 @pytest.fixture
 async def continuous_trainee(async_session, vault, dweller, training_service):
-    """A real, assigned trainee in a vault that opted into repeat training."""
     vault.continuous_training = True
     dweller.age_group = "adult"
     dweller.health = 100
     async_session.add(vault)
     await _idle_dweller(async_session, dweller)
-    room = await room_crud.create(async_session, _training_room(vault.id))
+    room = await _room(async_session, vault.id)
     training = await training_service.start_training(async_session, dweller.id, room.id)
     return training, room
 
@@ -395,8 +200,6 @@ async def continuous_trainee(async_session, vault, dweller, training_service):
 async def test_continuous_training_starts_next_round_atomically(
     async_session, vault, dweller, training_service, continuous_trainee
 ):
-    from datetime import datetime, timedelta
-
     training, room = continuous_trainee
     training.estimated_completion_at = utcnow() - timedelta(seconds=1)
     async_session.add(training)
@@ -457,8 +260,6 @@ async def test_continuous_training_can_be_stopped(
 ):
     training, _ = continuous_trainee
     if action == "disable":
-        from app.schemas.vault import VaultUpdate
-
         await vault_crud.update(async_session, vault.id, VaultUpdate(continuous_training=False))
     elif action == "reassign":
         dweller.room_id = None
@@ -482,8 +283,6 @@ async def test_continuous_training_can_be_stopped(
 async def test_continuous_training_supports_raw_tick_session(
     async_session, db_connection, dweller, training_service, continuous_trainee
 ):
-    from sqlalchemy.ext.asyncio import AsyncSession as RawSession
-
     training_id = continuous_trainee[0].id
     dweller_id = dweller.id
     async with RawSession(bind=db_connection, expire_on_commit=False, join_transaction_mode="create_savepoint") as raw:
@@ -495,8 +294,6 @@ async def test_continuous_training_supports_raw_tick_session(
 
 
 async def test_continuous_training_uses_current_pet_bonus(async_session, dweller, training_service, continuous_trainee):
-    from app import crud
-
     training, room = continuous_trainee
     pet = await crud.pet.create(async_session, obj_in={"name": "Vault-Tec Parrot", "rarity": "Legendary", "value": 500})
     await crud.pet.equip(db_session=async_session, item_id=pet.id, dweller_id=dweller.id)
@@ -511,8 +308,6 @@ async def test_continuous_training_uses_current_pet_bonus(async_session, dweller
 async def test_continuous_training_rolls_back_if_next_round_cannot_persist(
     async_session, dweller, training_service, continuous_trainee
 ):
-    from sqlalchemy import event
-
     training, _ = continuous_trainee
 
     def fail_successor(_mapper, _connection, target):
@@ -534,15 +329,9 @@ async def test_continuous_training_rolls_back_if_next_round_cannot_persist(
 
 
 @pytest.mark.asyncio
-async def test_start_training_commits_once(
-    async_session: AsyncSession,
-    vault: Vault,
-    dweller: Dweller,
-    training_service: TrainingService,
-):
-    room = await room_crud.create(async_session, _training_room(vault.id))
+async def test_start_training_commits_once(async_session: AsyncSession, vault: Vault, dweller, training_service):
+    room = await _room(async_session, vault.id)
     await _idle_dweller(async_session, dweller)
-
     original_commit = async_session.commit
     commits: list[int] = []
 
@@ -552,27 +341,18 @@ async def test_start_training_commits_once(
 
     with patch.object(async_session, "commit", new=counting_commit):
         training = await training_service.start_training(async_session, dweller.id, room.id)
-
     assert len(commits) == 1
     assert training.is_active()
 
 
 @pytest.mark.asyncio
 async def test_start_training_leaves_no_partial_state_when_the_second_write_fails(
-    async_session: AsyncSession,
-    vault: Vault,
-    dweller: Dweller,
-    training_service: TrainingService,
+    async_session: AsyncSession, vault: Vault, dweller, training_service
 ):
-    """A failure between the two writes must not persist a training row without the assignment.
-
-    Before the fix the training row was committed on its own first, so it survived
-    the later failure; now nothing is committed until both writes are staged.
-    """
-    room = await room_crud.create(async_session, _training_room(vault.id))
+    # A failure between the two writes must not persist a training row without the assignment.
+    room = await _room(async_session, vault.id)
     await _idle_dweller(async_session, dweller)
     vault_id = vault.id
-
     with (
         patch(
             "app.services.training_service.dweller_crud.update",
@@ -581,9 +361,7 @@ async def test_start_training_leaves_no_partial_state_when_the_second_write_fail
         pytest.raises(RuntimeError),
     ):
         await training_service.start_training(async_session, dweller.id, room.id)
-
     await async_session.rollback()
-
     assert await training_crud.training.get_active_by_vault(async_session, vault_id) == []
     await async_session.refresh(dweller)
     assert dweller.status == DwellerStatusEnum.IDLE
@@ -591,28 +369,18 @@ async def test_start_training_leaves_no_partial_state_when_the_second_write_fail
 
 @pytest.mark.asyncio
 async def test_start_training_duration_reduced_by_pet_training_speed_bonus(
-    async_session: AsyncSession,
-    vault: Vault,
-    dweller: Dweller,
-    training_service: TrainingService,
+    async_session: AsyncSession, vault: Vault, dweller, training_service
 ):
-    room = await room_crud.create(async_session, _training_room(vault.id))
+    room = await _room(async_session, vault.id)
     await _idle_dweller(async_session, dweller)
-
-    # Simulate the B7 eager-load: the pet sits in the dweller's __dict__.
-    # refresh() is no-op'd so it does not wipe the untracked __dict__ entry
-    # (a real selectinload pet survives refresh by being re-loaded).
+    # Simulate the eager-load: the pet sits in the dweller's __dict__; refresh() is no-op'd
+    # so it does not wipe the untracked entry (a selectinload pet survives refresh).
     dweller.__dict__["pet"] = Pet(name="Vault-Tec Parrot", rarity="Legendary")
-
     with (
-        patch(
-            "app.services.training_service.dweller_crud.get",
-            new=AsyncMock(return_value=dweller),
-        ),
+        patch("app.services.training_service.dweller_crud.get", new=AsyncMock(return_value=dweller)),
         patch.object(async_session, "refresh", new=AsyncMock()),
     ):
         training = await training_service.start_training(async_session, dweller.id, room.id)
-
     base_duration = training_service.calculate_training_duration(5, 1)
     expected = int(base_duration * (1 - 0.25))
     actual = (training.estimated_completion_at - training.started_at).total_seconds()
@@ -620,67 +388,38 @@ async def test_start_training_duration_reduced_by_pet_training_speed_bonus(
     assert actual < base_duration
 
 
+@pytest.mark.parametrize("with_pet", [True, False])
 @pytest.mark.asyncio
-async def test_start_training_duration_reduced_by_pet_real_path(
-    async_session: AsyncSession,
-    vault: Vault,
-    dweller: Dweller,
-    training_service: TrainingService,
+async def test_start_training_duration_via_equip_path(
+    async_session: AsyncSession, vault: Vault, dweller, training_service, with_pet
 ):
-    """A pet equipped via crud.pet.equip shortens the duration through the real path.
-
-    start_training reads the dweller via dweller_crud.get, which eager-loads the
-    pet (Phase A); no __dict__ hand-set and no mocks, so this proves the B7
-    eager-load reaches the training-speed snapshot.
-    """
-    room = await room_crud.create(async_session, _training_room(vault.id))
+    # A pet equipped via crud.pet.equip shortens the duration through the real path.
+    room = await _room(async_session, vault.id)
     await _idle_dweller(async_session, dweller)
-
-    from app import crud
-
-    pet = await crud.pet.create(
-        async_session,
-        obj_in={"name": "Vault-Tec Parrot", "rarity": "Legendary", "value": 500},
-    )
-    await crud.pet.equip(db_session=async_session, item_id=pet.id, dweller_id=dweller.id)
-
+    if with_pet:
+        pet = await crud.pet.create(
+            async_session, obj_in={"name": "Vault-Tec Parrot", "rarity": "Legendary", "value": 500}
+        )
+        await crud.pet.equip(db_session=async_session, item_id=pet.id, dweller_id=dweller.id)
     training = await training_service.start_training(async_session, dweller.id, room.id)
-
     base_duration = training_service.calculate_training_duration(5, 1)
-    expected = int(base_duration * (1 - 0.25))
+    expected = int(base_duration * (1 - 0.25)) if with_pet else base_duration
     actual = (training.estimated_completion_at - training.started_at).total_seconds()
     assert actual == expected
-    assert actual < base_duration
+    if with_pet:
+        assert actual < base_duration
 
 
+@pytest.mark.parametrize(
+    ("action", "state_check"), [("complete_training", "is_completed"), ("cancel_training", "is_cancelled")]
+)
 @pytest.mark.asyncio
-async def test_start_training_duration_unchanged_without_pet(
-    async_session: AsyncSession,
-    vault: Vault,
-    dweller: Dweller,
-    training_service: TrainingService,
+async def test_round_end_persists_state_and_release_in_first_commit(
+    async_session: AsyncSession, vault: Vault, dweller, training_service, action, state_check
 ):
-    room = await room_crud.create(async_session, _training_room(vault.id))
-    await _idle_dweller(async_session, dweller)
-
-    training = await training_service.start_training(async_session, dweller.id, room.id)
-
-    expected = training_service.calculate_training_duration(5, 1)
-    actual = (training.estimated_completion_at - training.started_at).total_seconds()
-    assert actual == expected
-
-
-@pytest.mark.asyncio
-async def test_complete_training_persists_stat_and_release_in_the_first_commit(
-    async_session: AsyncSession,
-    vault: Vault,
-    dweller: Dweller,
-    training_service: TrainingService,
-):
-    room = await room_crud.create(async_session, _training_room(vault.id))
+    room = await _room(async_session, vault.id)
     await _idle_dweller(async_session, dweller)
     training = await training_service.start_training(async_session, dweller.id, room.id)
-
     original_commit = async_session.commit
     observations: list[str] = []
 
@@ -690,72 +429,21 @@ async def test_complete_training_persists_stat_and_release_in_the_first_commit(
             observations.append("first")
             await async_session.refresh(training)
             await async_session.refresh(dweller)
-            assert training.is_completed()
+            assert getattr(training, state_check)()
             assert dweller.status == DwellerStatusEnum.IDLE
         return result
 
     with patch.object(async_session, "commit", new=first_commit):
-        completed = await training_service.complete_training(async_session, training.id)
-
+        result = await getattr(training_service, action)(async_session, training.id)
     assert observations == ["first"]
-    assert completed.is_completed()
+    assert getattr(result, state_check)()
 
 
-@pytest.mark.asyncio
-async def test_cancel_training_persists_status_and_release_in_the_first_commit(
-    async_session: AsyncSession,
-    vault: Vault,
-    dweller: Dweller,
-    training_service: TrainingService,
-):
-    room = await room_crud.create(async_session, _training_room(vault.id))
-    await _idle_dweller(async_session, dweller)
-    training = await training_service.start_training(async_session, dweller.id, room.id)
-
-    original_commit = async_session.commit
-    observations: list[str] = []
-
-    async def first_commit(*args, **kwargs):
-        result = await original_commit(*args, **kwargs)
-        if not observations:
-            observations.append("first")
-            await async_session.refresh(training)
-            await async_session.refresh(dweller)
-            assert training.is_cancelled()
-            assert dweller.status == DwellerStatusEnum.IDLE
-        return result
-
-    with patch.object(async_session, "commit", new=first_commit):
-        cancelled = await training_service.cancel_training(async_session, training.id)
-
-    assert observations == ["first"]
-    assert cancelled.is_cancelled()
-
-
-@pytest.mark.asyncio
 @pytest.mark.parametrize("age_group", ["child", "teen"])
 async def test_youth_cannot_start_training(async_session, vault, dweller, training_service, age_group):
-    from app.core.enums import AgeGroupEnum
-
     dweller.age_group = AgeGroupEnum(age_group)
     async_session.add(dweller)
-    room = await room_crud.create(
-        async_session,
-        RoomCreate(
-            name="Weight Room",
-            category=RoomTypeEnum.TRAINING,
-            ability=SPECIALEnum.STRENGTH,
-            tier=1,
-            size=1,
-            capacity=2,
-            base_cost=1000,
-            t2_upgrade_cost=2500,
-            t3_upgrade_cost=5000,
-            size_min=1,
-            size_max=3,
-            vault_id=vault.id,
-        ),
-    )
+    room = await _room(async_session, vault.id, size=1, capacity=2)
     with pytest.raises(VaultOperationException, match="adult"):
         await training_service.start_training(async_session, dweller.id, room.id)
     assert await training_crud.training.get_active_by_dweller(async_session, dweller.id) is None
@@ -825,11 +513,6 @@ async def test_roomless_training_cancels_without_stat_gain(
 async def test_failed_demolition_rolls_back_training_cancellation(
     async_session, dweller, training_service, continuous_trainee
 ):
-    from sqlalchemy import event
-
-    from app.models.room import Room
-    from app.services.room_service import room_service
-
     training, room = continuous_trainee
     room_id = room.id
 
@@ -859,9 +542,6 @@ async def test_failed_demolition_rolls_back_training_cancellation(
 async def test_training_notification_explains_round_outcome(
     async_session, vault, dweller, training_service, continuous_trainee, repeat, goal, outcome
 ):
-    from app.core.enums import NotificationType
-    from app.crud.notification import notification as notification_crud
-
     training, _ = continuous_trainee
     vault.continuous_training = repeat
     async_session.add(vault)

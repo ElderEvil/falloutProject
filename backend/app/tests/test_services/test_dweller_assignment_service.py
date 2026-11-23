@@ -1,4 +1,6 @@
 import uuid
+from collections.abc import Callable
+from contextlib import ExitStack, contextmanager
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import UUID
 
@@ -15,32 +17,40 @@ from app.services.dweller_assignment_service import (
     RADIO_ABILITIES,
     TRAINING_ABILITIES,
     DwellerAssignmentService,
+    dweller_assignment_service,
 )
 
-# Stable UUIDs for deterministic test IDs
+SVC = "app.services.dweller_assignment_service"
 
-_D1 = uuid.UUID("15a0766e-8c61-4e42-a7bb-fed34ed0a7ee")
-_D2 = uuid.UUID("e5cf820c-e7e6-4e4a-95f0-c12a9f96984a")
-_D3 = uuid.UUID("77ba2369-f980-4523-84b8-5e7d7f48d9cf")
-_D4 = uuid.UUID("4c3436ea-1daa-4689-858c-a5c7292bf1ae")
-_D5 = uuid.UUID("85286379-3647-4e62-b926-1a0d21a7f550")
-_DSTRONG = uuid.UUID("50a1f0ba-b512-44b9-8e40-91762d652baf")
-_DWEAK = uuid.UUID("49d03e23-72e1-485f-aa62-7959ed2dd63a")
-
-_R1 = uuid.UUID("b378c18e-3e8f-4203-9537-46c13d0ec7bc")
-_R2 = uuid.UUID("c0a89001-25a9-4787-a406-e86b162bc942")
-_R3 = uuid.UUID("9792b400-42ee-4110-98fb-365901d1788f")
-_R4 = uuid.UUID("d912e26c-4665-4258-9771-dc802d89f6b4")
-_R_STR = uuid.UUID("ca4d8588-ce0a-487b-bbc3-c2e0cc4db770")
-_R_AGI = uuid.UUID("e8add549-6c49-4ba5-b64a-7029698d6745")
-_R_PROD = uuid.UUID("7b847537-b55b-4b6e-940c-b468f7d4e02f")
-_R_TRAIN = uuid.UUID("39856d32-88de-4138-b2e1-1355cb753cba")
-_R_MED = uuid.UUID("0a00b469-9e82-427b-944b-b8c0c04b5e03")
-_R_RADIO = uuid.UUID("d78c2ead-faef-4c77-b4d5-37094526be31")
-_R_CRAFT = uuid.UUID("5f2a1c3e-9b4d-4e6f-8a1b-2c3d4e5f6a7b")
-
-
-# Helpers
+# Stable UUIDs keep assignment ordering deterministic across runs.
+_D1, _D2, _D3, _D4, _D5, _DSTRONG, _DWEAK = (
+    uuid.UUID(n)
+    for n in (
+        "15a0766e-8c61-4e42-a7bb-fed34ed0a7ee",
+        "e5cf820c-e7e6-4e4a-95f0-c12a9f96984a",
+        "77ba2369-f980-4523-84b8-5e7d7f48d9cf",
+        "4c3436ea-1daa-4689-858c-a5c7292bf1ae",
+        "85286379-3647-4e62-b926-1a0d21a7f550",
+        "50a1f0ba-b512-44b9-8e40-91762d652baf",
+        "49d03e23-72e1-485f-aa62-7959ed2dd63a",
+    )
+)
+_R1, _R2, _R3, _R4, _R_STR, _R_AGI, _R_PROD, _R_TRAIN, _R_MED, _R_RADIO, _R_CRAFT = (
+    uuid.UUID(n)
+    for n in (
+        "b378c18e-3e8f-4203-9537-46c13d0ec7bc",
+        "c0a89001-25a9-4787-a406-e86b162bc942",
+        "9792b400-42ee-4110-98fb-365901d1788f",
+        "d912e26c-4665-4258-9771-dc802d89f6b4",
+        "ca4d8588-ce0a-487b-bbc3-c2e0cc4db770",
+        "e8add549-6c49-4ba5-b64a-7029698d6745",
+        "7b847537-b55b-4b6e-940c-b468f7d4e02f",
+        "39856d32-88de-4138-b2e1-1355cb753cba",
+        "0a00b469-9e82-427b-944b-b8c0c04b5e03",
+        "d78c2ead-faef-4c77-b4d5-37094526be31",
+        "5f2a1c3e-9b4d-4e6f-8a1b-2c3d4e5f6a7b",
+    )
+)
 
 
 def _make_dweller(
@@ -58,7 +68,6 @@ def _make_dweller(
     is_deleted: bool = False,
     is_dead: bool = False,
 ) -> MagicMock:
-    """Create a MagicMock dweller with SPECIAL stats."""
     d = MagicMock(spec=Dweller)
     d.id = _id
     d.strength = strength
@@ -86,7 +95,6 @@ def _make_room(
     size_max: int = 6,
     vault_id: UUID | None = None,
 ) -> MagicMock:
-    """Create a MagicMock room."""
     r = MagicMock(spec=Room)
     r.id = _id
     r.name = name
@@ -100,7 +108,6 @@ def _make_room(
 
 
 def _make_exec_result(items: list) -> MagicMock:
-    """Build a mock db execute result returning scalars().all() = items."""
     mock_scalars = MagicMock()
     mock_scalars.all.return_value = list(items)
     mock_result = MagicMock()
@@ -108,134 +115,109 @@ def _make_exec_result(items: list) -> MagicMock:
     return mock_result
 
 
-# Fixtures
+@contextmanager
+def _assignment_env(
+    *, rooms, adults=(), youth=None, occupants: int | Callable = 0, room_getter="get_by_category", with_update=True
+):
+    """Patch the CRUD surface an assignment pass touches; yields the mocks tests assert on."""
+    mocks: dict[str, MagicMock] = {}
+    with ExitStack() as stack:
+
+        def p(path: str, **kwargs):
+            return stack.enter_context(patch(f"{SVC}.crud.{path}", **kwargs))
+
+        p(f"room.{room_getter}", new_callable=AsyncMock, return_value=list(rooms))
+        mocks["adults"] = p("dweller.get_unassigned_adults", new_callable=AsyncMock, return_value=list(adults))
+        if youth is None:
+            mocks["youth"] = p("dweller.get_unassigned_youth")
+        else:
+            mocks["youth"] = p("dweller.get_unassigned_youth", new_callable=AsyncMock, return_value=list(youth))
+        count = p("dweller.count_in_room", new_callable=AsyncMock)
+        if callable(occupants):
+            count.side_effect = occupants
+        else:
+            count.return_value = occupants
+        mocks["count"] = count
+        mocks["lock"] = p("dweller.lock_vault", new_callable=AsyncMock)
+        if with_update:
+            mocks["update"] = p("dweller.update")
+        yield mocks
 
 
 @pytest.fixture
 def svc() -> DwellerAssignmentService:
-    """Return a fresh service instance."""
     return DwellerAssignmentService()
 
 
 @pytest.fixture
 def mock_db() -> AsyncMock:
-    """AsyncMock for AsyncSession."""
     return AsyncMock(spec=AsyncSession)
-
-
-# _calculate_room_capacity
-
-
-# _filter_rooms_by_abilities
-
-
-# _get_available_slots
-
-
-# _assign_dweller_to_room
-
-
-# _calculate_total_slots
-
-
-# _assign_ability_dwellers
 
 
 class TestAssignAbilityDwellers:
     @pytest.mark.asyncio
     async def test_no_ability_specific_rooms_returns_unchanged(self, svc, mock_db):
-        r1 = _make_room(_id=_R1, ability=SPECIALEnum.AGILITY)
-        dwellers = [_make_dweller(_id=_D1, strength=7)]
-        result = await svc._assign_ability_dwellers(SPECIALEnum.STRENGTH, [r1], mock_db, dwellers, [], set(), 1)
+        r1 = _make_room(ability=SPECIALEnum.AGILITY)
+        result = await svc._assign_ability_dwellers(
+            SPECIALEnum.STRENGTH, [r1], mock_db, [_make_dweller(strength=7)], [], set(), 1
+        )
         assert len(result) == 1
         assert result[0].id == _D1
 
     @pytest.mark.asyncio
     async def test_no_available_slots_returns_unchanged(self, svc, mock_db):
-        r1 = _make_room(_id=_R1, ability=SPECIALEnum.STRENGTH, size=3)
-        dwellers = [_make_dweller(_id=_D1, strength=7)]
-        with patch(
-            "app.services.dweller_assignment_service.crud.dweller.count_in_room",
-            new_callable=AsyncMock,
-            return_value=2,
-        ):
-            result = await svc._assign_ability_dwellers(SPECIALEnum.STRENGTH, [r1], mock_db, dwellers, [], set(), 1)
+        r1 = _make_room(size=3)
+        with _assignment_env(rooms=[r1], occupants=2):
+            result = await svc._assign_ability_dwellers(
+                SPECIALEnum.STRENGTH, [r1], mock_db, [_make_dweller(strength=7)], [], set(), 1
+            )
         assert len(result) == 1
 
     @pytest.mark.asyncio
     async def test_skips_dwellers_at_training_stat_maximum(self, svc, mock_db):
-        room = _make_room(
-            _id=_R_TRAIN,
-            category=RoomTypeEnum.TRAINING,
-            ability=SPECIALEnum.PERCEPTION,
-            size=3,
-        )
-        capped_dweller = _make_dweller(_id=_D1, perception=10)
+        room = _make_room(_id=_R_TRAIN, category=RoomTypeEnum.TRAINING, ability=SPECIALEnum.PERCEPTION, size=3)
+        capped_dweller = _make_dweller(perception=10)
         assignments: list[dict[str, str]] = []
-
         mock_db.execute = AsyncMock(return_value=_make_exec_result([]))
-
-        with patch(
-            "app.services.dweller_assignment_service.training_service.start_training", new_callable=AsyncMock
-        ) as mock_start_training:
+        with patch(f"{SVC}.training_service.start_training", new_callable=AsyncMock) as mock_start_training:
             result = await svc._assign_ability_dwellers(
-                SPECIALEnum.PERCEPTION,
-                [room],
-                mock_db,
-                [capped_dweller],
-                assignments,
-                set(),
-                1,
+                SPECIALEnum.PERCEPTION, [room], mock_db, [capped_dweller], assignments, set(), 1
             )
-
         assert result == [capped_dweller]
         assert assignments == []
         mock_start_training.assert_not_awaited()
 
 
-# _assign_to_rooms_proportional
-
-
 class TestAssignToRoomsProportional:
     @pytest.mark.asyncio
     async def test_no_matching_ability_rooms_returns_unchanged(self, svc, mock_db):
-        r1 = _make_room(_id=_R1, ability=SPECIALEnum.CHARISMA)
-        dwellers = [_make_dweller(_id=_D1, strength=5)]
-        result = await svc._assign_to_rooms_proportional([r1], MEDSCI_ABILITIES, mock_db, dwellers, [], set())
+        r1 = _make_room(ability=SPECIALEnum.CHARISMA)
+        result = await svc._assign_to_rooms_proportional(
+            [r1], MEDSCI_ABILITIES, mock_db, [_make_dweller(strength=5)], [], set()
+        )
         assert len(result) == 1
 
     @pytest.mark.asyncio
     async def test_zero_total_slots_returns_unchanged(self, svc, mock_db):
-        r1 = _make_room(_id=_R1, ability=SPECIALEnum.STRENGTH, size=3)
-        dwellers = [_make_dweller(_id=_D1, strength=5)]
-        with patch(
-            "app.services.dweller_assignment_service.crud.dweller.count_in_room",
-            new_callable=AsyncMock,
-            return_value=2,
-        ):
-            result = await svc._assign_to_rooms_proportional([r1], PRODUCTION_ABILITIES, mock_db, dwellers, [], set())
+        r1 = _make_room(size=3)
+        with _assignment_env(rooms=[r1], occupants=2):
+            result = await svc._assign_to_rooms_proportional(
+                [r1], PRODUCTION_ABILITIES, mock_db, [_make_dweller(strength=5)], [], set()
+            )
         assert len(result) == 1
-
-
-# unassign_all_dwellers
 
 
 class TestUnassignAllDwellers:
     @pytest.mark.asyncio
     async def test_updates_to_idle_status(self, svc, mock_db):
-        d = _make_dweller(_id=_D1, room_id=_R1)
+        d = _make_dweller(room_id=_R1)
         with (
-            patch("app.services.dweller_assignment_service.crud.dweller.get_multi_by_vault") as mock_get,
-            patch("app.services.dweller_assignment_service.crud.dweller.update") as mock_update,
-            patch(
-                "app.services.dweller_assignment_service.crud.room.get_by_category",
-                new_callable=AsyncMock,
-                return_value=[],
-            ),
+            patch(f"{SVC}.crud.dweller.get_multi_by_vault") as mock_get,
+            patch(f"{SVC}.crud.dweller.update") as mock_update,
+            patch(f"{SVC}.crud.room.get_by_category", new_callable=AsyncMock, return_value=[]),
         ):
             mock_get.return_value = [d]
             await svc.unassign_all_dwellers(mock_db, "v1")
-
         call_args = mock_update.call_args
         assert call_args[0][0] is mock_db
         assert call_args[0][1] == _D1
@@ -244,516 +226,178 @@ class TestUnassignAllDwellers:
         assert update_schema.status == DwellerStatusEnum.IDLE
 
 
-# auto_assign_production_rooms
-
-
 class TestAutoAssignProductionRooms:
     @pytest.mark.asyncio
     async def test_apprentice_does_not_consume_production_worker_capacity(self, svc, mock_db):
-        room = _make_room(_id=_R_STR, ability=SPECIALEnum.STRENGTH, size=3)  # 2 worker slots
-        dweller = _make_dweller(_id=_D1, strength=5)
+        room = _make_room(_id=_R_STR, size=3)  # 2 worker slots
+        dweller = _make_dweller(strength=5)
+        # One worker and one apprentice occupy the room.
 
         def count_room_occupants(_db, _room_id, *, include_apprentices=True):
-            return 2 if include_apprentices else 1  # one worker and one apprentice
+            return 2 if include_apprentices else 1
 
-        with (
-            patch(
-                "app.services.dweller_assignment_service.crud.room.get_by_category",
-                new_callable=AsyncMock,
-                return_value=[room],
-            ),
-            patch(
-                "app.services.dweller_assignment_service.crud.dweller.get_unassigned_adults",
-                new_callable=AsyncMock,
-                return_value=[dweller],
-            ),
-            patch(
-                "app.services.dweller_assignment_service.crud.dweller.get_unassigned_youth",
-                new_callable=AsyncMock,
-                return_value=[],
-            ),
-            patch(
-                "app.services.dweller_assignment_service.crud.dweller.count_in_room",
-                new_callable=AsyncMock,
-                side_effect=count_room_occupants,
-            ),
-            patch("app.services.dweller_assignment_service.crud.dweller.update") as mock_update,
-        ):
+        with _assignment_env(rooms=[room], adults=[dweller], occupants=count_room_occupants) as env:
             result = await svc.auto_assign_production_rooms(mock_db, "v1")
-
         assert result["assigned_count"] == 1
-        mock_update.assert_called_once()
+        env["update"].assert_called_once()
 
     @pytest.mark.asyncio
     async def test_apprentice_fills_vacant_slot_without_taking_worker_slot(self, svc, mock_db):
-        room = _make_room(_id=_R_STR, ability=SPECIALEnum.STRENGTH, size=3)  # 2 worker slots
-        youth = _make_dweller(_id=_D1, strength=4)
+        room = _make_room(_id=_R_STR, size=3)  # 2 worker slots
+        youth = _make_dweller(strength=4)
         youth.is_mature = False
-
-        def count_room_occupants(_db, _room_id, *, include_apprentices=True):
-            return 2  # two workers, no apprentice
-
-        with (
-            patch(
-                "app.services.dweller_assignment_service.crud.room.get_by_category",
-                new_callable=AsyncMock,
-                return_value=[room],
-            ),
-            patch(
-                "app.services.dweller_assignment_service.crud.dweller.get_unassigned_adults",
-                new_callable=AsyncMock,
-                return_value=[],
-            ),
-            patch(
-                "app.services.dweller_assignment_service.crud.dweller.get_unassigned_youth",
-                new_callable=AsyncMock,
-                return_value=[youth],
-            ),
-            patch(
-                "app.services.dweller_assignment_service.crud.dweller.count_in_room",
-                new_callable=AsyncMock,
-                side_effect=count_room_occupants,
-            ),
-            patch("app.services.dweller_assignment_service.crud.dweller.update") as mock_update,
-        ):
+        # Two workers, no apprentice.
+        with _assignment_env(rooms=[room], youth=[youth], occupants=2) as env:
             result = await svc.auto_assign_production_rooms(mock_db, "v1")
-
         assert result["assigned_count"] == 1
-        mock_update.assert_called_once()
-        youth_update = mock_update.call_args[0][2]
+        env["update"].assert_called_once()
+        youth_update = env["update"].call_args[0][2]
         assert youth_update["room_id"] == _R_STR
         assert youth_update["apprentice_stat"] == SPECIALEnum.STRENGTH
         assert youth_update["apprentice_started_at"] is not None
 
     @pytest.mark.asyncio
     async def test_room_with_apprentice_gets_no_third_dweller(self, svc, mock_db):
-        room = _make_room(_id=_R_STR, ability=SPECIALEnum.STRENGTH, size=3)  # 2 worker slots
-        adult = _make_dweller(_id=_D1, strength=5)
+        room = _make_room(_id=_R_STR, size=3)  # 2 worker slots
+        adult = _make_dweller(strength=5)
         youth = _make_dweller(_id=_D2, strength=4)
         youth.is_mature = False
+        # Two workers and one apprentice.
 
         def count_room_occupants(_db, _room_id, *, include_apprentices=True):
-            return 3 if include_apprentices else 2  # two workers and one apprentice
+            return 3 if include_apprentices else 2
 
-        with (
-            patch(
-                "app.services.dweller_assignment_service.crud.room.get_by_category",
-                new_callable=AsyncMock,
-                return_value=[room],
-            ),
-            patch(
-                "app.services.dweller_assignment_service.crud.dweller.get_unassigned_adults",
-                new_callable=AsyncMock,
-                return_value=[adult],
-            ),
-            patch(
-                "app.services.dweller_assignment_service.crud.dweller.get_unassigned_youth",
-                new_callable=AsyncMock,
-                return_value=[youth],
-            ),
-            patch(
-                "app.services.dweller_assignment_service.crud.dweller.count_in_room",
-                new_callable=AsyncMock,
-                side_effect=count_room_occupants,
-            ),
-            patch("app.services.dweller_assignment_service.crud.dweller.update") as mock_update,
-        ):
+        with _assignment_env(rooms=[room], adults=[adult], youth=[youth], occupants=count_room_occupants) as env:
             result = await svc.auto_assign_production_rooms(mock_db, "v1")
-
         assert result["assigned_count"] == 0
-        mock_update.assert_not_called()
+        env["update"].assert_not_called()
 
     @pytest.mark.asyncio
     async def test_no_youth_available_assigns_nothing_extra(self, svc, mock_db):
-        room = _make_room(_id=_R_STR, ability=SPECIALEnum.STRENGTH, size=3)  # 2 worker slots
-
-        def count_room_occupants(_db, _room_id, *, include_apprentices=True):
-            return 2  # two workers, no apprentice
-
-        with (
-            patch(
-                "app.services.dweller_assignment_service.crud.room.get_by_category",
-                new_callable=AsyncMock,
-                return_value=[room],
-            ),
-            patch(
-                "app.services.dweller_assignment_service.crud.dweller.get_unassigned_adults",
-                new_callable=AsyncMock,
-                return_value=[],
-            ),
-            patch(
-                "app.services.dweller_assignment_service.crud.dweller.get_unassigned_youth",
-                new_callable=AsyncMock,
-                return_value=[],
-            ),
-            patch(
-                "app.services.dweller_assignment_service.crud.dweller.count_in_room",
-                new_callable=AsyncMock,
-                side_effect=count_room_occupants,
-            ),
-            patch("app.services.dweller_assignment_service.crud.dweller.update") as mock_update,
-        ):
+        room = _make_room(_id=_R_STR, size=3)  # 2 worker slots, two workers, no apprentice
+        with _assignment_env(rooms=[room], occupants=2) as env:
             result = await svc.auto_assign_production_rooms(mock_db, "v1")
-
         assert result["assigned_count"] == 0
-        mock_update.assert_not_called()
+        env["update"].assert_not_called()
 
     @pytest.mark.asyncio
     async def test_adult_age_group_filter_assigns_no_apprentices(self, svc, mock_db):
-        room = _make_room(_id=_R_STR, ability=SPECIALEnum.STRENGTH, size=3)
-
-        with (
-            patch(
-                "app.services.dweller_assignment_service.crud.room.get_by_category",
-                new_callable=AsyncMock,
-                return_value=[room],
-            ),
-            patch(
-                "app.services.dweller_assignment_service.crud.dweller.get_unassigned_adults",
-                new_callable=AsyncMock,
-                return_value=[],
-            ),
-            patch("app.services.dweller_assignment_service.crud.dweller.get_unassigned_youth") as mock_youth,
-            patch("app.services.dweller_assignment_service.crud.dweller.count_in_room", new_callable=AsyncMock),
-            patch("app.services.dweller_assignment_service.crud.dweller.update") as mock_update,
-        ):
+        room = _make_room(_id=_R_STR, size=3)
+        with _assignment_env(rooms=[room], youth=None, occupants=0) as env:
             result = await svc.auto_assign_production_rooms(mock_db, "v1", age_group=AgeGroupEnum.ADULT)
-
         assert result["assigned_count"] == 0
-        mock_youth.assert_not_awaited()
-        mock_update.assert_not_called()
+        env["youth"].assert_not_awaited()
+        env["update"].assert_not_called()
 
     @pytest.mark.asyncio
     async def test_teen_age_group_filter_only_fills_teen_apprentices(self, svc, mock_db):
-        room = _make_room(_id=_R_STR, ability=SPECIALEnum.STRENGTH, size=3)
-        teen = _make_dweller(_id=_D1, strength=4)
+        room = _make_room(_id=_R_STR, size=3)
+        teen = _make_dweller(strength=4)
         teen.is_mature = False
         teen.age_group = AgeGroupEnum.TEEN
-
-        with (
-            patch(
-                "app.services.dweller_assignment_service.crud.room.get_by_category",
-                new_callable=AsyncMock,
-                return_value=[room],
-            ),
-            patch(
-                "app.services.dweller_assignment_service.crud.dweller.get_unassigned_adults",
-                new_callable=AsyncMock,
-                return_value=[],
-            ),
-            patch(
-                "app.services.dweller_assignment_service.crud.dweller.get_unassigned_youth",
-                new_callable=AsyncMock,
-                return_value=[teen],
-            ),
-            patch(
-                "app.services.dweller_assignment_service.crud.dweller.count_in_room",
-                new_callable=AsyncMock,
-                return_value=0,
-            ),
-            patch("app.services.dweller_assignment_service.crud.dweller.update") as mock_update,
-        ):
+        with _assignment_env(rooms=[room], youth=[teen], occupants=0) as env:
             result = await svc.auto_assign_production_rooms(mock_db, "v1", age_group=AgeGroupEnum.TEEN)
-
         assert result["assigned_count"] == 1
-        mock_update.assert_called_once()
+        env["update"].assert_called_once()
 
     @pytest.mark.asyncio
     async def test_apprentice_pass_locks_vault_and_commits_once(self, svc, mock_db):
-        """Concurrent runs cannot both see the same vacant slot: the vault row is
-        locked for the pass and claims are written without intermediate commits."""
-        room = _make_room(_id=_R_STR, ability=SPECIALEnum.STRENGTH, size=3)
-        youth = _make_dweller(_id=_D1, strength=4)
+        # The vault row is locked for the pass, so two runs cannot both see the same vacant slot.
+        room = _make_room(_id=_R_STR, size=3)
+        youth = _make_dweller(strength=4)
         youth.is_mature = False
-
-        with (
-            patch(
-                "app.services.dweller_assignment_service.crud.room.get_by_category",
-                new_callable=AsyncMock,
-                return_value=[room],
-            ),
-            patch(
-                "app.services.dweller_assignment_service.crud.dweller.get_unassigned_adults",
-                new_callable=AsyncMock,
-                return_value=[],
-            ),
-            patch(
-                "app.services.dweller_assignment_service.crud.dweller.get_unassigned_youth",
-                new_callable=AsyncMock,
-                return_value=[youth],
-            ),
-            patch(
-                "app.services.dweller_assignment_service.crud.dweller.count_in_room",
-                new_callable=AsyncMock,
-                return_value=0,
-            ),
-            patch(
-                "app.services.dweller_assignment_service.crud.dweller.lock_vault",
-                new_callable=AsyncMock,
-            ) as mock_lock,
-            patch("app.services.dweller_assignment_service.crud.dweller.update") as mock_update,
-        ):
+        with _assignment_env(rooms=[room], youth=[youth], occupants=0) as env:
             await svc.auto_assign_production_rooms(mock_db, "v1")
-
-        mock_lock.assert_awaited_once_with(mock_db, "v1")
-        assert mock_update.call_args.kwargs["commit"] is False
+        env["lock"].assert_awaited_once_with(mock_db, "v1")
+        assert env["update"].call_args.kwargs["commit"] is False
         mock_db.commit.assert_awaited_once()
 
     @pytest.mark.asyncio
     async def test_full_rooms_skipped(self, svc, mock_db):
-        r_str = _make_room(_id=_R_STR, ability=SPECIALEnum.STRENGTH, size=3)  # cap 2
-        d1 = _make_dweller(_id=_D1, strength=5)
-
-        with (
-            patch(
-                "app.services.dweller_assignment_service.crud.room.get_by_category",
-                new_callable=AsyncMock,
-                return_value=[r_str],
-            ),
-            patch(
-                "app.services.dweller_assignment_service.crud.dweller.get_unassigned_adults",
-                new_callable=AsyncMock,
-                return_value=[d1],
-            ),
-            patch(
-                "app.services.dweller_assignment_service.crud.dweller.count_in_room",
-                new_callable=AsyncMock,
-                return_value=2,
-            ),
-            patch(
-                "app.services.dweller_assignment_service.crud.dweller.get_unassigned_youth",
-                new_callable=AsyncMock,
-                return_value=[],
-            ),
-            patch("app.services.dweller_assignment_service.crud.dweller.update") as mock_update,
-        ):
+        r_str = _make_room(_id=_R_STR, size=3)  # cap 2
+        with _assignment_env(rooms=[r_str], adults=[_make_dweller(strength=5)], occupants=2) as env:
             result = await svc.auto_assign_production_rooms(mock_db, "v1")
-
         assert result["assigned_count"] == 0
-        mock_update.assert_not_called()
+        env["update"].assert_not_called()
 
     @pytest.mark.asyncio
     async def test_respects_ability_priority_order(self, svc, mock_db):
-        r_str = _make_room(_id=_R_STR, ability=SPECIALEnum.STRENGTH, size=3)
+        r_str = _make_room(_id=_R_STR, size=3)
         r_agi = _make_room(_id=_R_AGI, ability=SPECIALEnum.AGILITY, size=3)
-
         d_weak = _make_dweller(_id=_DWEAK, strength=2, agility=9)
-
-        with (
-            patch(
-                "app.services.dweller_assignment_service.crud.room.get_by_category",
-                new_callable=AsyncMock,
-                return_value=[r_str, r_agi],
-            ),
-            patch(
-                "app.services.dweller_assignment_service.crud.dweller.get_unassigned_adults",
-                new_callable=AsyncMock,
-                return_value=[d_weak],
-            ),
-            patch(
-                "app.services.dweller_assignment_service.crud.dweller.get_unassigned_youth",
-                new_callable=AsyncMock,
-                return_value=[],
-            ),
-            patch(
-                "app.services.dweller_assignment_service.crud.dweller.count_in_room",
-                new_callable=AsyncMock,
-                return_value=0,
-            ),
-            patch("app.services.dweller_assignment_service.crud.dweller.update") as mock_update,
-        ):
+        with _assignment_env(rooms=[r_str, r_agi], adults=[d_weak], occupants=0) as env:
             result = await svc.auto_assign_production_rooms(mock_db, "v1")
-
         assert result["assigned_count"] == 1
-        last_call_args = mock_update.call_args
+        last_call_args = env["update"].call_args
         assert last_call_args[0][1] == _DWEAK
-        update_schema = last_call_args[0][2]
-        assert update_schema.room_id == _R_STR  # assigned to first-priority room
-
-
-# auto_assign_training_rooms
+        assert last_call_args[0][2].room_id == _R_STR  # assigned to first-priority room
 
 
 class TestAutoAssignTrainingRooms:
     @pytest.mark.asyncio
     async def test_assigns_lowest_eligible_stat_first(self, svc, mock_db):
-        room = _make_room(
-            _id=_R_TRAIN,
-            category=RoomTypeEnum.TRAINING,
-            ability=SPECIALEnum.STRENGTH,
-            size=3,
-        )
-        strong_dweller = _make_dweller(_id=_DSTRONG, strength=8)
-        weak_dweller = _make_dweller(_id=_DWEAK, strength=2)
-
+        room = _make_room(_id=_R_TRAIN, category=RoomTypeEnum.TRAINING, size=3)
+        strong = _make_dweller(_id=_DSTRONG, strength=8)
+        weak = _make_dweller(_id=_DWEAK, strength=2)
         with (
-            patch(
-                "app.services.dweller_assignment_service.crud.room.get_by_category",
-                new_callable=AsyncMock,
-                return_value=[room],
-            ),
-            patch(
-                "app.services.dweller_assignment_service.crud.dweller.get_unassigned_adults",
-                new_callable=AsyncMock,
-                return_value=[strong_dweller, weak_dweller],
-            ),
-            patch(
-                "app.services.dweller_assignment_service.crud.dweller.count_in_room",
-                new_callable=AsyncMock,
-                return_value=0,
-            ),
-            patch(
-                "app.services.dweller_assignment_service.training_service.start_training", new_callable=AsyncMock
-            ) as mock_start_training,
+            _assignment_env(rooms=[room], adults=[strong, weak], occupants=0, with_update=False),
+            patch(f"{SVC}.training_service.start_training", new_callable=AsyncMock) as mock_start_training,
         ):
             result = await svc.auto_assign_training_rooms(mock_db, "v1")
-
         assert result["assigned_count"] == 2
         assert [call.args[1] for call in mock_start_training.await_args_list] == [_DWEAK, _DSTRONG]
 
     @pytest.mark.asyncio
     async def test_skips_dwellers_ineligible_for_work(self, svc, mock_db):
-        """Feral dwellers never reach the training service."""
-        room = _make_room(
-            _id=_R_TRAIN,
-            category=RoomTypeEnum.TRAINING,
-            ability=SPECIALEnum.STRENGTH,
-            size=3,
-        )
-        feral = _make_dweller(_id=_D1, strength=8)
+        # Feral dwellers never reach the training service.
+        room = _make_room(_id=_R_TRAIN, category=RoomTypeEnum.TRAINING, size=3)
+        feral = _make_dweller(strength=8)
         feral.visual_attributes = {"race": "ghoul", "state_of_being": "feral"}
         adult = _make_dweller(_id=_D2, strength=2)
-
         with (
-            patch(
-                "app.services.dweller_assignment_service.crud.room.get_by_category",
-                new_callable=AsyncMock,
-                return_value=[room],
-            ),
-            patch(
-                "app.services.dweller_assignment_service.crud.dweller.get_unassigned_adults",
-                new_callable=AsyncMock,
-                return_value=[feral, adult],
-            ),
-            patch(
-                "app.services.dweller_assignment_service.crud.dweller.count_in_room",
-                new_callable=AsyncMock,
-                return_value=0,
-            ),
-            patch(
-                "app.services.dweller_assignment_service.training_service.start_training", new_callable=AsyncMock
-            ) as mock_start_training,
+            _assignment_env(rooms=[room], adults=[feral, adult], occupants=0, with_update=False),
+            patch(f"{SVC}.training_service.start_training", new_callable=AsyncMock) as mock_start_training,
         ):
             result = await svc.auto_assign_training_rooms(mock_db, "v1")
-
         assert result["assigned_count"] == 1
         assert [call.args[1] for call in mock_start_training.await_args_list] == [_D2]
 
 
-# _total_special
-
-
 class TestTotalSpecial:
     def test_sums_all_seven_stats(self):
-        d = _make_dweller(
-            _id=_D1,
-            strength=1,
-            perception=2,
-            endurance=3,
-            charisma=4,
-            intelligence=5,
-            agility=6,
-            luck=7,
-        )
+        d = _make_dweller(strength=1, perception=2, endurance=3, charisma=4, intelligence=5, agility=6, luck=7)
         assert DwellerAssignmentService._total_special(d) == 28
 
     def test_guards_none_stats(self):
-        d = _make_dweller(_id=_D1, strength=5)
+        d = _make_dweller(strength=5)
         d.perception = None
         assert DwellerAssignmentService._total_special(d) == 30  # 5 * 6 remaining stats
-
-
-# auto_assign_crafting_rooms
 
 
 class TestAutoAssignCraftingRooms:
     @pytest.mark.asyncio
     async def test_fills_crafting_rooms_by_descending_total_special(self, svc, mock_db):
         room = _make_room(_id=_R_CRAFT, category=RoomTypeEnum.CRAFTING, ability=None, size=9)
-        high = _make_dweller(
-            _id=_D1,
-            strength=7,
-            perception=7,
-            endurance=7,
-            charisma=7,
-            intelligence=7,
-            agility=7,
-            luck=7,
-        )  # total 49
+        high = _make_dweller(strength=7, perception=7, endurance=7, charisma=7, intelligence=7, agility=7, luck=7)
         low = _make_dweller(
-            _id=_D2,
-            strength=1,
-            perception=1,
-            endurance=1,
-            charisma=1,
-            intelligence=1,
-            agility=1,
-            luck=1,
-        )  # total 7
-
-        with (
-            patch(
-                "app.services.dweller_assignment_service.crud.room.get_by_category",
-                new_callable=AsyncMock,
-                return_value=[room],
-            ),
-            patch(
-                "app.services.dweller_assignment_service.crud.dweller.get_unassigned_adults",
-                new_callable=AsyncMock,
-                return_value=[low, high],
-            ),
-            patch(
-                "app.services.dweller_assignment_service.crud.dweller.count_in_room",
-                new_callable=AsyncMock,
-                return_value=0,
-            ),
-            patch("app.services.dweller_assignment_service.crud.dweller.update") as mock_update,
-        ):
+            _id=_D2, strength=1, perception=1, endurance=1, charisma=1, intelligence=1, agility=1, luck=1
+        )
+        with _assignment_env(rooms=[room], adults=[low, high], occupants=0) as env:
             result = await svc.auto_assign_crafting_rooms(mock_db, "v1")
-
         assert result["assigned_count"] == 2
-        assert [call.args[1] for call in mock_update.call_args_list] == [_D1, _D2]
+        assert [call.args[1] for call in env["update"].call_args_list] == [_D1, _D2]
         assert result["assignments"][0]["room_id"] == str(_R_CRAFT)
 
     @pytest.mark.asyncio
     async def test_skips_dwellers_ineligible_for_work(self, svc, mock_db):
         room = _make_room(_id=_R_CRAFT, category=RoomTypeEnum.CRAFTING, ability=None, size=9)
-        feral = _make_dweller(_id=_D1)
+        feral = _make_dweller()
         feral.visual_attributes = {"race": "ghoul", "state_of_being": "feral"}
         adult = _make_dweller(_id=_D2)
-
-        with (
-            patch(
-                "app.services.dweller_assignment_service.crud.room.get_by_category",
-                new_callable=AsyncMock,
-                return_value=[room],
-            ),
-            patch(
-                "app.services.dweller_assignment_service.crud.dweller.get_unassigned_adults",
-                new_callable=AsyncMock,
-                return_value=[feral, adult],
-            ),
-            patch(
-                "app.services.dweller_assignment_service.crud.dweller.count_in_room",
-                new_callable=AsyncMock,
-                return_value=0,
-            ),
-            patch("app.services.dweller_assignment_service.crud.dweller.update") as mock_update,
-        ):
+        with _assignment_env(rooms=[room], adults=[feral, adult], occupants=0) as env:
             result = await svc.auto_assign_crafting_rooms(mock_db, "v1")
-
         assert result["assigned_count"] == 1
-        assert [call.args[1] for call in mock_update.call_args_list] == [_D2]
+        assert [call.args[1] for call in env["update"].call_args_list] == [_D2]
 
     @pytest.mark.asyncio
     async def test_crafting_room_capacity_respected(self, svc, mock_db):
@@ -771,134 +415,45 @@ class TestAutoAssignCraftingRooms:
             )
             for i in range(8)
         ]
-
-        with (
-            patch(
-                "app.services.dweller_assignment_service.crud.room.get_by_category",
-                new_callable=AsyncMock,
-                return_value=[room],
-            ),
-            patch(
-                "app.services.dweller_assignment_service.crud.dweller.get_unassigned_adults",
-                new_callable=AsyncMock,
-                return_value=dwellers,
-            ),
-            patch(
-                "app.services.dweller_assignment_service.crud.dweller.count_in_room",
-                new_callable=AsyncMock,
-                return_value=0,
-            ),
-            patch("app.services.dweller_assignment_service.crud.dweller.update") as mock_update,
-        ):
+        with _assignment_env(rooms=[room], adults=dwellers, occupants=0) as env:
             result = await svc.auto_assign_crafting_rooms(mock_db, "v1")
-
         assert result["assigned_count"] == 6
-        assert mock_update.call_count == 6
+        assert env["update"].call_count == 6
 
     @pytest.mark.asyncio
     async def test_age_group_filter_passed_to_crud(self, svc, mock_db):
         room = _make_room(_id=_R_CRAFT, category=RoomTypeEnum.CRAFTING, ability=None, size=9)
-
-        with (
-            patch(
-                "app.services.dweller_assignment_service.crud.room.get_by_category",
-                new_callable=AsyncMock,
-                return_value=[room],
-            ),
-            patch(
-                "app.services.dweller_assignment_service.crud.dweller.get_unassigned_adults",
-                new_callable=AsyncMock,
-                return_value=[],
-            ) as mock_adults,
-            patch(
-                "app.services.dweller_assignment_service.crud.dweller.count_in_room",
-                new_callable=AsyncMock,
-                return_value=0,
-            ),
-            patch("app.services.dweller_assignment_service.crud.dweller.update") as mock_update,
-        ):
+        with _assignment_env(rooms=[room], adults=[], occupants=0) as env:
             result = await svc.auto_assign_crafting_rooms(mock_db, "v1", age_group=AgeGroupEnum.ADULT)
-
         assert result["assigned_count"] == 0
-        mock_adults.assert_awaited_once_with(mock_db, "v1", AgeGroupEnum.ADULT)
-        mock_update.assert_not_called()
+        env["adults"].assert_awaited_once_with(mock_db, "v1", AgeGroupEnum.ADULT)
+        env["update"].assert_not_called()
 
     @pytest.mark.asyncio
     async def test_no_apprentice_pass_for_crafting(self, svc, mock_db):
         room = _make_room(_id=_R_CRAFT, category=RoomTypeEnum.CRAFTING, ability=None, size=9)
-        adult = _make_dweller(
-            _id=_D1,
-            strength=5,
-            perception=5,
-            endurance=5,
-            charisma=5,
-            intelligence=5,
-            agility=5,
-            luck=5,
-        )
-
-        with (
-            patch(
-                "app.services.dweller_assignment_service.crud.room.get_by_category",
-                new_callable=AsyncMock,
-                return_value=[room],
-            ),
-            patch(
-                "app.services.dweller_assignment_service.crud.dweller.get_unassigned_adults",
-                new_callable=AsyncMock,
-                return_value=[adult],
-            ),
-            patch(
-                "app.services.dweller_assignment_service.crud.dweller.get_unassigned_youth",
-                new_callable=AsyncMock,
-            ) as mock_youth,
-            patch(
-                "app.services.dweller_assignment_service.crud.dweller.count_in_room",
-                new_callable=AsyncMock,
-                return_value=0,
-            ),
-            patch("app.services.dweller_assignment_service.crud.dweller.update") as mock_update,
-        ):
+        adult = _make_dweller(strength=5, perception=5, endurance=5, charisma=5, intelligence=5, agility=5, luck=5)
+        with _assignment_env(rooms=[room], adults=[adult], youth=None, occupants=0) as env:
             result = await svc.auto_assign_crafting_rooms(mock_db, "v1")
-
         assert result["assigned_count"] == 1
-        mock_youth.assert_not_awaited()
-
-
-# auto_assign_all_rooms
+        env["youth"].assert_not_awaited()
 
 
 class TestAutoAssignAllRooms:
     @pytest.mark.asyncio
     async def test_unassigned_dwellers_cascade_across_tiers(self, svc, mock_db):
-        r_prod = _make_room(_id=_R1, category=RoomTypeEnum.PRODUCTION, ability=SPECIALEnum.STRENGTH, size=3)
-        r_train = _make_room(_id=_R2, category=RoomTypeEnum.TRAINING, ability=SPECIALEnum.STRENGTH, size=3)
-        d1 = _make_dweller(_id=_D1, strength=5)
-
+        r_prod = _make_room(_id=_R1, size=3)
+        r_train = _make_room(_id=_R2, category=RoomTypeEnum.TRAINING, size=3)
+        d1 = _make_dweller(strength=5)
         with (
             patch.object(svc, "_assign_to_rooms_proportional") as mock_assign,
-            patch(
-                "app.services.dweller_assignment_service.crud.dweller.get_unassigned_youth",
-                new_callable=AsyncMock,
-                return_value=[],
-            ),
-            patch(
-                "app.services.dweller_assignment_service.crud.dweller.lock_vault",
-                new_callable=AsyncMock,
-            ),
+            patch(f"{SVC}.crud.dweller.get_unassigned_youth", new_callable=AsyncMock, return_value=[]),
+            patch(f"{SVC}.crud.dweller.lock_vault", new_callable=AsyncMock),
         ):
-            # Call 1 (production) → returns d1 (not assigned)
-            # Call 2 (medsci, no rooms) → returns d1
-            # Call 3 (radio, no rooms) → returns d1
-            # Call 4 (training) → returns [] (assigned)
+            # production → d1 unassigned, medsci and radio have no rooms, training takes d1.
             mock_assign.side_effect = [[d1], [d1], [d1], []]
-
-            rooms_resp = _make_exec_result([r_prod, r_train])
-            dwellers_resp = _make_exec_result([d1])
-            mock_db.execute = AsyncMock(side_effect=[rooms_resp, dwellers_resp])
-
+            mock_db.execute = AsyncMock(side_effect=[_make_exec_result([r_prod, r_train]), _make_exec_result([d1])])
             await svc.auto_assign_all_rooms(mock_db, "v1")
-
         assert mock_assign.call_count == 4
         assert mock_assign.call_args_list[1][0][3] == [d1]  # medsci receives d1
         assert mock_assign.call_args_list[3][0][3] == [d1]  # training receives d1
@@ -906,54 +461,15 @@ class TestAutoAssignAllRooms:
     @pytest.mark.asyncio
     async def test_crafting_rooms_filled_after_training_tier(self, svc, mock_db):
         r_craft = _make_room(_id=_R_CRAFT, category=RoomTypeEnum.CRAFTING, ability=None, size=9)
-        d1 = _make_dweller(
-            _id=_D1,
-            strength=5,
-            perception=5,
-            endurance=5,
-            charisma=5,
-            intelligence=5,
-            agility=5,
-            luck=5,
-        )
-
+        d1 = _make_dweller(strength=5, perception=5, endurance=5, charisma=5, intelligence=5, agility=5, luck=5)
         with (
-            patch(
-                "app.services.dweller_assignment_service.crud.room.get_by_categories",
-                new_callable=AsyncMock,
-                return_value=[r_craft],
-            ),
-            patch(
-                "app.services.dweller_assignment_service.crud.dweller.get_unassigned_adults",
-                new_callable=AsyncMock,
-                return_value=[d1],
-            ),
-            patch.object(svc, "_assign_to_rooms_proportional") as mock_assign,
-            patch(
-                "app.services.dweller_assignment_service.crud.dweller.get_unassigned_youth",
-                new_callable=AsyncMock,
-                return_value=[],
-            ),
-            patch(
-                "app.services.dweller_assignment_service.crud.dweller.lock_vault",
-                new_callable=AsyncMock,
-            ),
-            patch(
-                "app.services.dweller_assignment_service.crud.dweller.count_in_room",
-                new_callable=AsyncMock,
-                return_value=0,
-            ),
-            patch("app.services.dweller_assignment_service.crud.dweller.update") as mock_update,
+            patch.object(svc, "_assign_to_rooms_proportional", return_value=[d1]),
+            _assignment_env(rooms=[r_craft], adults=[d1], occupants=0, room_getter="get_by_categories") as env,
         ):
-            mock_assign.return_value = [d1]  # earlier tiers assign nothing
             result = await svc.auto_assign_all_rooms(mock_db, "v1")
-
         assert result["assigned_count"] == 1
         assert result["assignments"][0]["room_id"] == str(_R_CRAFT)
-        mock_update.assert_called_once()
-
-
-# Module-level constants
+        env["update"].assert_called_once()
 
 
 class TestModuleConstants:
@@ -963,11 +479,7 @@ class TestModuleConstants:
             assert ABILITY_TO_STAT_MAP[stat] == stat.value
 
     def test_production_abilities_order(self):
-        assert PRODUCTION_ABILITIES == [
-            SPECIALEnum.STRENGTH,
-            SPECIALEnum.AGILITY,
-            SPECIALEnum.PERCEPTION,
-        ]
+        assert PRODUCTION_ABILITIES == [SPECIALEnum.STRENGTH, SPECIALEnum.AGILITY, SPECIALEnum.PERCEPTION]
 
     def test_medsci_abilities(self):
         assert MEDSCI_ABILITIES == [SPECIALEnum.INTELLIGENCE]
@@ -979,11 +491,6 @@ class TestModuleConstants:
         assert set(TRAINING_ABILITIES) == set(SPECIALEnum)
 
 
-# Singleton
-
-
 class TestServiceSingleton:
     def test_singleton_exists(self):
-        from app.services.dweller_assignment_service import dweller_assignment_service
-
         assert isinstance(dweller_assignment_service, DwellerAssignmentService)

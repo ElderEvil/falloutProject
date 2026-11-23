@@ -1,5 +1,3 @@
-"""Tests for outfit hazard resistance: the fire column and the radiation override."""
-
 from unittest.mock import patch
 
 import pytest
@@ -8,7 +6,9 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app import crud
 from app.core.enums import IncidentType
 from app.schemas.outfit import OutfitCreate
+from app.services.catalog_service import load_outfits
 from app.services.combat.incident_service import incident_service
+from app.tests.test_services._hazard_team_helpers import full_health
 from app.utils.hazard_resist import outfit_fire_resist, outfit_radiation_resist
 
 
@@ -31,121 +31,89 @@ def test_radiation_resist_column_overrides_the_type_table():
     assert outfit_radiation_resist(inherited) == 0.75
 
 
-async def _equip_fire_suit(async_session: AsyncSession, dweller_id, fire_resist: float = 0.5):
-    """Create a fire-rated suit and equip it through the real equip path."""
+async def _equip_suit(async_session, dweller_id, name="Firefighter suit", **fields):
     suit = await crud.outfit.create(
         async_session,
-        obj_in=OutfitCreate(
-            name="Firefighter suit",
-            rarity="Rare",
-            value=100,
-            outfit_type="rare_outfit",
-            fire_resist=fire_resist,
-        ),
+        obj_in=OutfitCreate(name=name, rarity="Rare", value=100, outfit_type="rare_outfit", **fields),
     )
     return await crud.outfit.equip(db_session=async_session, item_id=suit.id, dweller_id=dweller_id)
 
 
-@pytest.mark.asyncio
-async def test_fire_suit_reduces_fire_damage(async_session: AsyncSession, room_with_dwellers: dict):
-    room = room_with_dwellers["room"]
-    dwellers = room_with_dwellers["dwellers"]
-    for dweller in dwellers:
-        dweller.health = 100
-        dweller.max_health = 100
-        async_session.add(dweller)
-    await _equip_fire_suit(async_session, dwellers[0].id)
+async def _fire_incident(async_session, room, incident_type=IncidentType.FIRE):
     incident = await crud.incident_crud.create(
-        async_session, vault_id=room.vault_id, room_id=room.id, incident_type=IncidentType.FIRE, difficulty=2
+        async_session, vault_id=room.vault_id, room_id=room.id, incident_type=incident_type, difficulty=2
     )
     await async_session.commit()
-
-    with patch("app.services.combat.incident_math.containment_damage", return_value=20.0):
-        await incident_service.process_incident(async_session, incident, 2)
-
-    await async_session.refresh(dwellers[0])
-    await async_session.refresh(dwellers[1])
-    assert dwellers[0].health == 95
-    assert dwellers[1].health == 90
+    return incident
 
 
-@pytest.mark.asyncio
-async def test_equip_refreshes_the_wearers_cached_outfit(async_session: AsyncSession, room_with_dwellers: dict):
-    """Equipping must invalidate the dweller's cached relationship.
+async def _wear(wearer_id, room, async_session):
+    loaded = list(await crud.dweller.get_healthy_adults_in_room(async_session, room.id))
+    return next(row for row in loaded if row.id == wearer_id), loaded
 
-    Equip writes only the item's FK, so a dweller instance already held by the
-    session kept serving its old value (None on a first equip) and every
-    outfit-derived stat silently read as absent.
-    """
-    room = room_with_dwellers["room"]
-    dweller = room_with_dwellers["dwellers"][0]
+
+@pytest.mark.parametrize(
+    ("incident_type", "containment", "expected"),
+    [(IncidentType.FIRE, True, {0: 95, 1: 90}), (IncidentType.RADROACH_INFESTATION, False, {0: 90})],
+)
+async def test_fire_suit_only_reduces_fire_damage(
+    async_session, room_with_dwellers, incident_type, containment, expected
+):
+    room, dwellers = room_with_dwellers["room"], room_with_dwellers["dwellers"]
+    await full_health(async_session, dwellers)
+    await _equip_suit(async_session, dwellers[0].id, fire_resist=0.5)
+    incident = await _fire_incident(async_session, room, incident_type)
+
+    if containment:
+        with patch("app.services.combat.incident_math.containment_damage", return_value=20.0):
+            await incident_service.process_incident(async_session, incident, 2)
+    else:
+        with (
+            patch("app.services.combat.incident_math.damage_to_dwellers", return_value=20.0),
+            patch("app.services.combat.incident_math.damage_to_raiders", return_value=0.0),
+        ):
+            await incident_service.process_incident(async_session, incident, 2)
+
+    for index, health in expected.items():
+        await async_session.refresh(dwellers[index])
+        assert dwellers[index].health == health
+
+
+async def test_equip_refreshes_the_wearers_cached_outfit(async_session, room_with_dwellers):
+    # Equip writes only the item's FK, so a session-held dweller kept serving a stale None.
+    room, dweller = room_with_dwellers["room"], room_with_dwellers["dwellers"][0]
     assert dweller.__dict__.get("outfit") is None
 
-    suit = await _equip_fire_suit(async_session, dweller.id)
+    suit = await _equip_suit(async_session, dweller.id, fire_resist=0.5)
 
-    loaded = list(await crud.dweller.get_healthy_adults_in_room(async_session, room.id))
-    wearer = next(row for row in loaded if row.id == dweller.id)
+    wearer = (await _wear(dweller.id, room, async_session))[0]
     assert wearer.__dict__.get("outfit") is not None
     assert wearer.__dict__["outfit"].id == suit.id
 
 
-@pytest.mark.asyncio
-async def test_hazmat_suit_blocks_radiation_once_equipped(async_session: AsyncSession, room_with_dwellers: dict):
-    room = room_with_dwellers["room"]
-    dweller = room_with_dwellers["dwellers"][0]
-    suit = await crud.outfit.create(
-        async_session,
-        obj_in=OutfitCreate(
-            name="Hazmat suit",
-            rarity="Rare",
-            value=100,
-            outfit_type="rare_outfit",
-            radiation_resist=1.0,
-        ),
-    )
-    await crud.outfit.equip(db_session=async_session, item_id=suit.id, dweller_id=dweller.id)
+async def test_hazmat_suit_blocks_radiation_once_equipped(async_session, room_with_dwellers):
+    room, dweller = room_with_dwellers["room"], room_with_dwellers["dwellers"][0]
+    await _equip_suit(async_session, dweller.id, name="Hazmat suit", radiation_resist=1.0)
 
-    loaded = list(await crud.dweller.get_healthy_adults_in_room(async_session, room.id))
-    wearer = next(row for row in loaded if row.id == dweller.id)
+    wearer = (await _wear(dweller.id, room, async_session))[0]
     assert outfit_radiation_resist(wearer.__dict__.get("outfit")) == 1.0
 
 
-@pytest.mark.asyncio
-async def test_both_hazard_outfit_protects_against_fire_and_radiation(
-    async_session: AsyncSession, room_with_dwellers: dict
-):
-    roles = {row["name"]: row for row in _legendary_catalog()}
-    entry = roles["Firefighter suit, rad helmet"]
+async def test_both_hazard_outfit_protects_against_fire_and_radiation(async_session, room_with_dwellers):
+    entry = {row["name"]: row for row in load_outfits() if row.get("rarity") == "Legendary"}[
+        "Firefighter suit, rad helmet"
+    ]
     assert entry["fire_resist"] > 0
     assert entry["radiation_resist"] == 1.0
 
-    room = room_with_dwellers["room"]
-    dweller = room_with_dwellers["dwellers"][0]
-    dweller.health = 100
-    dweller.max_health = 100
-    suit = await crud.outfit.create(
-        async_session,
-        obj_in=OutfitCreate(
-            name=entry["name"],
-            rarity=entry["rarity"],
-            value=entry["value"],
-            outfit_type=entry["outfit_type"],
-            fire_resist=entry["fire_resist"],
-            radiation_resist=entry["radiation_resist"],
-        ),
-    )
+    room, dweller = room_with_dwellers["room"], room_with_dwellers["dwellers"][0]
+    await full_health(async_session, [dweller])
+    keys = ("name", "rarity", "value", "outfit_type", "fire_resist", "radiation_resist")
+    suit = await crud.outfit.create(async_session, obj_in=OutfitCreate(**{key: entry[key] for key in keys}))
     await crud.outfit.equip(db_session=async_session, item_id=suit.id, dweller_id=dweller.id)
-    incident = await crud.incident_crud.create(
-        async_session,
-        vault_id=room.vault_id,
-        room_id=room.id,
-        incident_type=IncidentType.FIRE,
-        difficulty=2,
-    )
-    await async_session.commit()
+    incident = await _fire_incident(async_session, room)
 
-    loaded = list(await crud.dweller.get_healthy_adults_in_room(async_session, room.id))
-    wearer = next(row for row in loaded if row.id == dweller.id)
+    wearer, loaded = await _wear(dweller.id, room, async_session)
     assert outfit_fire_resist(wearer.__dict__.get("outfit")) == entry["fire_resist"]
     assert outfit_radiation_resist(wearer.__dict__.get("outfit")) == 1.0
 
@@ -155,37 +123,3 @@ async def test_both_hazard_outfit_protects_against_fire_and_radiation(
     await async_session.refresh(dweller)
     per_dweller = int(20.0) // len(loaded)
     assert dweller.health == 100 - int(per_dweller * (1 - entry["fire_resist"]))
-
-
-def _legendary_catalog() -> list[dict]:
-    from app.services.catalog_service import load_outfits
-
-    return [row for row in load_outfits() if row.get("rarity") == "Legendary"]
-
-
-@pytest.mark.asyncio
-async def test_fire_suit_does_not_help_against_intruders(async_session: AsyncSession, room_with_dwellers: dict):
-    room = room_with_dwellers["room"]
-    dwellers = room_with_dwellers["dwellers"]
-    for dweller in dwellers:
-        dweller.health = 100
-        dweller.max_health = 100
-        async_session.add(dweller)
-    await _equip_fire_suit(async_session, dwellers[0].id)
-    incident = await crud.incident_crud.create(
-        async_session,
-        vault_id=room.vault_id,
-        room_id=room.id,
-        incident_type=IncidentType.RADROACH_INFESTATION,
-        difficulty=2,
-    )
-    await async_session.commit()
-
-    with (
-        patch("app.services.combat.incident_math.damage_to_dwellers", return_value=20.0),
-        patch("app.services.combat.incident_math.damage_to_raiders", return_value=0.0),
-    ):
-        await incident_service.process_incident(async_session, incident, 2)
-
-    await async_session.refresh(dwellers[0])
-    assert dwellers[0].health == 90

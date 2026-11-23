@@ -1,11 +1,8 @@
 """Manual assignment must respect room worker capacity (issue #990).
 
-The automatic assignment path counts worker slots through
-``calculate_room_capacity`` (2 dwellers per 3 size units), but the manual
-``dweller_service.move_to_room`` path persists the move without checking
-capacity — so a full room accepts one more dweller, and two concurrent moves
-can both take the last slot. These tests pin the gap through the real
-assignment path before the service changes.
+Automatic assignment counts worker slots via calculate_room_capacity (2 dwellers per 3
+size units) while the manual move_to_room path persisted without a check, so a full room
+accepted one more dweller and two concurrent moves could both take the last slot.
 """
 
 from __future__ import annotations
@@ -39,13 +36,11 @@ from app.services.room_assignment_policy import calculate_room_capacity
 from app.tests.factory.vaults import random_vault_number
 from app.utils.exceptions import ResourceConflictException, ValidationException
 
-# Helpers
-
 
 def _production_room_create(
     vault_id: UUID, *, name: str, x: int, ability: SPECIALEnum = SPECIALEnum.STRENGTH
 ) -> RoomCreate:
-    """A size-3 production room payload: 2 adult worker slots plus one apprentice slot."""
+    """A size-3 production room: 2 adult worker slots plus one apprentice slot."""
     return RoomCreate(
         vault_id=vault_id,
         name=name,
@@ -70,8 +65,19 @@ def _production_room_create(
     )
 
 
-async def _create_room(session: AsyncSession, vault_id: UUID, *, name: str, x: int) -> Room:
-    return await crud.room.create(session, obj_in=_production_room_create(vault_id, name=name, x=x))
+async def _create_room(
+    session: AsyncSession,
+    vault_id: UUID,
+    *,
+    name: str,
+    x: int,
+    category: RoomTypeEnum = RoomTypeEnum.PRODUCTION,
+    ability: SPECIALEnum = SPECIALEnum.STRENGTH,
+) -> Room:
+    payload = _production_room_create(vault_id, name=name, x=x, ability=ability).model_copy(
+        update={"category": category}
+    )
+    return await crud.room.create(session, obj_in=payload)
 
 
 def _dweller_create(vault_id: UUID, surname: str, age_group: AgeGroupEnum) -> DwellerCreate:
@@ -110,25 +116,22 @@ async def _occupants(session: AsyncSession, room: Room) -> int:
     return await crud.dweller.count_in_room(session, room.id)
 
 
-# The gap: manual moves ignore worker capacity
+async def _fill_room(session: AsyncSession, room: Room, vault_id: UUID, *surnames: str) -> list[Dweller]:
+    dwellers = [await _create_adult(session, vault_id, name) for name in surnames]
+    for dweller in dwellers:
+        await dweller_service.move_to_room(session, dweller.id, room.id)
+    return dwellers
 
 
 @pytest.mark.asyncio
 async def test_full_production_room_rejects_manual_move(async_session: AsyncSession, vault: Vault) -> None:
     room = await _create_room(async_session, vault.id, name="Power Generator", x=10)
     assert calculate_room_capacity(room.size) == 2
-
-    first = await _create_adult(async_session, vault.id, "First")
-    second = await _create_adult(async_session, vault.id, "Second")
+    await _fill_room(async_session, room, vault.id, "First", "Second")
     third = await _create_adult(async_session, vault.id, "Third")
-
-    await dweller_service.move_to_room(async_session, first.id, room.id)
-    await dweller_service.move_to_room(async_session, second.id, room.id)
     assert await _occupants(async_session, room) == 2
-
     with pytest.raises(ResourceConflictException, match="full capacity"):
         await dweller_service.move_to_room(async_session, third.id, room.id)
-
     assert await _occupants(async_session, room) == 2
 
 
@@ -136,15 +139,9 @@ async def test_full_production_room_rejects_manual_move(async_session: AsyncSess
 async def test_moving_between_rooms_frees_and_uses_slots(async_session: AsyncSession, vault: Vault) -> None:
     full_room = await _create_room(async_session, vault.id, name="Power Generator", x=10)
     spare_room = await _create_room(async_session, vault.id, name="Water Treatment", x=13)
-
-    first = await _create_adult(async_session, vault.id, "First")
-    second = await _create_adult(async_session, vault.id, "Second")
-    await dweller_service.move_to_room(async_session, first.id, full_room.id)
-    await dweller_service.move_to_room(async_session, second.id, full_room.id)
-
+    first, _ = await _fill_room(async_session, full_room, vault.id, "First", "Second")
     await dweller_service.move_to_room(async_session, first.id, spare_room.id)
     assert await _occupants(async_session, full_room) == 1
-
     third = await _create_adult(async_session, vault.id, "Third")
     await dweller_service.move_to_room(async_session, third.id, full_room.id)
     assert await _occupants(async_session, full_room) == 2
@@ -158,10 +155,8 @@ async def test_manual_assignment_rejects_feral_ghoul_worker(async_session: Async
     async_session.add(feral)
     await async_session.commit()
     await async_session.refresh(feral)
-
     with pytest.raises(ValidationException, match="purposeful"):
         await dweller_service.move_to_room(async_session, feral.id, room.id)
-
     await async_session.refresh(feral)
     assert feral.room_id is None
 
@@ -169,17 +164,11 @@ async def test_manual_assignment_rejects_feral_ghoul_worker(async_session: Async
 @pytest.mark.asyncio
 async def test_junior_slot_sits_outside_full_worker_capacity(async_session: AsyncSession, vault: Vault) -> None:
     room = await _create_room(async_session, vault.id, name="Power Generator", x=10)
-
-    first = await _create_adult(async_session, vault.id, "First")
-    second = await _create_adult(async_session, vault.id, "Second")
-    await dweller_service.move_to_room(async_session, first.id, room.id)
-    await dweller_service.move_to_room(async_session, second.id, room.id)
-
+    await _fill_room(async_session, room, vault.id, "First", "Second")
     youth = await _create_youth(async_session, vault.id, "Junior")
     await dweller_service.move_to_room(async_session, youth.id, room.id)
     placed = await crud.dweller.get(async_session, youth.id)
     assert placed.apprentice_stat == SPECIALEnum.STRENGTH
-
     extra_youth = await _create_youth(async_session, vault.id, "Extra")
     with pytest.raises(ValidationException, match="already has an apprentice"):
         await dweller_service.move_to_room(async_session, extra_youth.id, room.id)
@@ -187,22 +176,13 @@ async def test_junior_slot_sits_outside_full_worker_capacity(async_session: Asyn
 
 @pytest.mark.asyncio
 async def test_bulk_assignment_does_not_overfill_a_stale_slot(async_session: AsyncSession, vault: Vault) -> None:
-    """Bulk auto-assign re-checks capacity at persist time.
-
-    The slot count is computed up front; a room that filled after selection
-    must not be overfilled by the persist pass — the leftover dweller stays
-    unassigned even if the caller selected the room from an earlier snapshot.
-    """
+    # Bulk auto-assign re-checks capacity at persist time. The slot count is computed up front; a
+    # room that filled after selection must not be overfilled by the persist pass — the leftover
+    # dweller stays unassigned.
     room = await _create_room(async_session, vault.id, name="Power Generator", x=10)
-
-    first = await _create_adult(async_session, vault.id, "First")
-    second = await _create_adult(async_session, vault.id, "Second")
-    await dweller_service.move_to_room(async_session, first.id, room.id)
-    await dweller_service.move_to_room(async_session, second.id, room.id)
+    await _fill_room(async_session, room, vault.id, "First", "Second")
     leftover = await _create_adult(async_session, vault.id, "Leftover")
-
     result = await dweller_assignment_service._persist_room_assignment(async_session, leftover.id, room)
-
     assert await _occupants(async_session, room) == 2
     assert result is False
     assert (await crud.dweller.get(async_session, leftover.id)).room_id is None
@@ -213,23 +193,15 @@ async def test_bulk_assignment_does_not_overfill_a_stale_slot(async_session: Asy
 async def test_bulk_retries_candidate_in_next_room_when_first_is_busy(
     async_session: AsyncSession, vault: Vault, category: RoomTypeEnum
 ) -> None:
-    rooms = [
-        await crud.room.create(
-            async_session,
-            obj_in=_production_room_create(vault.id, name=f"Room {x}", x=x).model_copy(update={"category": category}),
-        )
-        for x in (10, 13)
-    ]
+    rooms = [await _create_room(async_session, vault.id, name=f"Room {x}", x=x, category=category) for x in (10, 13)]
     candidate = await _create_adult(async_session, vault.id, "Retry")
     assignments: list[dict[str, str]] = []
     with patch(
-        "app.services.room_assignment_policy.db_locks.try_advisory_xact_lock",
-        new=AsyncMock(side_effect=[False, True]),
+        "app.services.room_assignment_policy.db_locks.try_advisory_xact_lock", new=AsyncMock(side_effect=[False, True])
     ):
         remaining = await dweller_assignment_service._assign_ability_dwellers(
             SPECIALEnum.STRENGTH, rooms, async_session, [candidate], assignments, set(), 1
         )
-
     await async_session.refresh(candidate)
     assert candidate.room_id == rooms[1].id
     assert remaining == []
@@ -242,11 +214,9 @@ async def test_bulk_retries_candidate_in_next_room_when_first_is_busy(
 
 @pytest_asyncio.fixture(scope="module")
 async def live_pg_engine() -> AsyncIterator[AsyncEngine]:
-    """Connect to the live PostgreSQL database, skipping when unavailable."""
     uri = str(settings.ASYNC_DATABASE_URI)
     if make_url(uri).get_backend_name() != "postgresql":
         pytest.skip("ASYNC_DATABASE_URI is not PostgreSQL; skipping the capacity race check")
-
     engine = create_async_engine(uri, poolclass=NullPool)
     try:
         async with engine.connect() as conn:
@@ -263,24 +233,18 @@ async def production_ctx(live_pg_engine: AsyncEngine) -> AsyncIterator[dict]:
     """One vault with a size-3 production room and adult dwellers, removed afterwards."""
     maker = async_sessionmaker(live_pg_engine, class_=AsyncSession, expire_on_commit=False)
     suffix = uuid4().hex[:8]
-
     async with maker() as session:
         user = await crud.user.create(
             session,
-            obj_in=UserCreate(
-                username=f"capacity-{suffix}", email=f"capacity-{suffix}@example.com", password="secret-password-123"
-            ),
+            obj_in=UserCreate(username=f"capacity-{suffix}", email=f"capacity-{suffix}@example.com", password="***"),
         )
         vault = await crud.vault.create(
             session,
             obj_in=VaultCreateWithUserID(
-                number=random_vault_number(),
-                bottle_caps=100_000,
-                population_max=200,
-                user_id=user.id,
+                number=random_vault_number(), bottle_caps=100_000, population_max=200, user_id=user.id
             ),
         )
-        room = await crud.room.create(session, obj_in=_production_room_create(vault.id, name="Power Generator", x=10))
+        room = await _create_room(session, vault.id, name="Power Generator", x=10)
         dwellers = [
             await crud.dweller.create(session, obj_in=_dweller_create(vault.id, f"Racer{i}", AgeGroupEnum.ADULT))
             for i in range(3)
@@ -292,7 +256,6 @@ async def production_ctx(live_pg_engine: AsyncEngine) -> AsyncIterator[dict]:
             "dweller_ids": [dweller.id for dweller in dwellers],
             "user_id": user.id,
         }
-
     try:
         yield ids
     finally:
@@ -311,10 +274,9 @@ async def production_ctx(live_pg_engine: AsyncEngine) -> AsyncIterator[dict]:
 @pytest.mark.integration
 @pytest.mark.asyncio
 async def test_two_concurrent_production_moves_admit_only_one(production_ctx: dict) -> None:
-    """Real two-request race on the last worker slot: one succeeds, one conflicts."""
+    # Real two-request race on the last worker slot: one succeeds, one conflicts.
     room_id = production_ctx["room_id"]
     dweller_ids = production_ctx["dweller_ids"]
-
     async with production_ctx["maker"]() as session:
         await dweller_service.move_to_room(session, dweller_ids[0], room_id)
 
@@ -325,10 +287,8 @@ async def test_two_concurrent_production_moves_admit_only_one(production_ctx: di
     results = await asyncio.gather(assign(dweller_ids[1]), assign(dweller_ids[2]), return_exceptions=True)
     successes = [r for r in results if not isinstance(r, BaseException)]
     conflicts = [r for r in results if isinstance(r, ResourceConflictException)]
-
     async with production_ctx["maker"]() as reader:
         occupants = await crud.dweller.count_in_room(reader, room_id)
-
     assert len(successes) == 1, results
     assert len(conflicts) == 1, results
     assert occupants == 2
@@ -340,36 +300,18 @@ async def test_bulk_and_manual_race_for_last_slot(production_ctx: dict) -> None:
     maker = production_ctx["maker"]
     vault_id = production_ctx["vault_id"]
     room_id = production_ctx["room_id"]
-    prefill_id, bulk_id, manual_id = production_ctx["dweller_ids"]
-
+    prefill_id, _, manual_id = production_ctx["dweller_ids"]
     async with maker() as session:
-        spare = await crud.room.create(
+        spare = await _create_room(
             session,
-            obj_in=RoomCreate(
-                vault_id=vault_id,
-                name="Athletics Room",
-                category=RoomTypeEnum.TRAINING,
-                ability=SPECIALEnum.INTELLIGENCE,
-                population_required=None,
-                base_cost=100,
-                incremental_cost=25,
-                t2_upgrade_cost=500,
-                t3_upgrade_cost=1500,
-                capacity=None,
-                output=None,
-                size_min=3,
-                size_max=9,
-                size=3,
-                tier=1,
-                coordinate_x=16,
-                coordinate_y=1,
-                image_url=None,
-                capacity_formula=None,
-                output_formula=None,
-            ),
+            vault_id,
+            name="Athletics Room",
+            x=16,
+            category=RoomTypeEnum.TRAINING,
+            ability=SPECIALEnum.INTELLIGENCE,
         )
-        # Prefill one of the two target slots; park the manual mover in the
-        # training room so the bulk production flow cannot take it itself.
+        # Prefill one of the two target slots; park the manual mover in the training room
+        # so the bulk production flow cannot take it itself.
         await dweller_service.move_to_room(session, prefill_id, room_id)
         await dweller_service.move_to_room(session, manual_id, spare.id)
 
@@ -386,10 +328,8 @@ async def test_bulk_and_manual_race_for_last_slot(production_ctx: dict) -> None:
     bulk_took_target = isinstance(bulk_res, dict) and any(
         entry["room_id"] == str(room_id) for entry in bulk_res["assignments"]
     )
-
     async with maker() as reader:
         occupants = await crud.dweller.count_in_room(reader, room_id)
-
     assert manual_ok ^ bulk_took_target
     if not manual_ok:
         assert isinstance(manual_res, ResourceConflictException)

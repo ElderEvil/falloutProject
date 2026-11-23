@@ -1,12 +1,3 @@
-"""Reward contract tests — one wire shape shared by settlement, API, and presentation.
-
-Red-phase targets (all fail before the contract lands):
-- granted payloads validate against the GrantedReward union;
-- a LUNCHBOX quest reward mints one unopened Item row instead of auto-rolling;
-- QuestCompleteResponse rejects unshaped grant dicts;
-- a single format_reward_summary() helper renders every variant.
-"""
-
 from unittest.mock import AsyncMock, patch
 from uuid import UUID, uuid4
 
@@ -33,36 +24,25 @@ from app.utils.reward_delivery import defer_reward_delivery
 _contract = granted_reward_adapter
 
 
-async def _vault_with_storage(async_session: AsyncSession):
+async def _vault_with_storage(async_session: AsyncSession, max_space: int = 100):
     user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
-    vault = await crud.vault.create(
-        async_session,
-        obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id),
-    )
-    async_session.add(Storage(vault_id=vault.id, max_space=100))
+    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id))
+    async_session.add(Storage(vault_id=vault.id, max_space=max_space))
     await async_session.commit()
     return vault
 
 
-@pytest.mark.asyncio
 async def test_caps_grant_matches_contract(async_session: AsyncSession) -> None:
     vault = await _vault_with_storage(async_session)
-
     granted = _contract.validate_python(await reward_service.grant_caps(async_session, vault.id, 50))
-
-    assert granted.reward_type == "caps"
-    assert granted.amount == 50
+    assert (granted.reward_type, granted.amount) == ("caps", 50)
 
 
-@pytest.mark.asyncio
 async def test_generic_lunchbox_item_grant_matches_contract(async_session: AsyncSession) -> None:
-    """The unopened-lunchbox mint path (grant_item) already yields a contract-shaped payload."""
     vault = await _vault_with_storage(async_session)
-
     granted = _contract.validate_python(
         await reward_service.grant_item(async_session, vault.id, {"item_type": "lunchbox", "name": "Lunchbox"})
     )
-
     assert granted.reward_type == "item"
     assert granted.item_id is not None
     item = await async_session.get(Item, UUID(granted.item_id))
@@ -70,34 +50,25 @@ async def test_generic_lunchbox_item_grant_matches_contract(async_session: Async
     assert item.item_type == "lunchbox"
 
 
-@pytest.mark.asyncio
 async def test_lunchbox_reward_mints_unopened_item(async_session: AsyncSession) -> None:
-    """LUNCHBOX settlement must mint one unopened Item, not auto-roll contents."""
     vault = await _vault_with_storage(async_session)
-
     result = await reward_service.grant_lunchbox(async_session, vault.id)
-
-    granted = _contract.validate_python(result)
-    assert granted.reward_type == "item"
+    assert _contract.validate_python(result).reward_type == "item"
     rows = (await async_session.execute(select(Item))).scalars().all()
     assert [item.item_type for item in rows] == ["lunchbox"]
     assert "dweller" not in result
 
 
-@pytest.mark.asyncio
-async def test_complete_response_rejects_unshaped_grant(async_session: AsyncSession) -> None:
-    vault = await _vault_with_storage(async_session)
-
+async def test_complete_response_rejects_unshaped_grant() -> None:
     with pytest.raises(ValidationError):
         QuestCompleteResponse(
-            quest_id=vault.id,
+            quest_id=uuid4(),
             quest_title="Shapeless",
             is_completed=True,
             granted_rewards=[{"reward_type": "caps"}],
         )
 
 
-@pytest.mark.asyncio
 async def test_format_reward_summary_covers_variants(async_session: AsyncSession) -> None:
     vault = await _vault_with_storage(async_session)
     caps = _contract.validate_python(await reward_service.grant_caps(async_session, vault.id, 25))
@@ -105,87 +76,50 @@ async def test_format_reward_summary_covers_variants(async_session: AsyncSession
     box = _contract.validate_python(
         await reward_service.grant_item(async_session, vault.id, {"item_type": "lunchbox", "name": "Lunchbox"})
     )
-
     assert format_reward_summary(caps) == "25 caps"
     assert format_reward_summary(food) == "10 food"
     assert format_reward_summary(box) == "Lunchbox"
     assert format_reward_summary([caps, food, box]) == "25 caps, 10 food, Lunchbox"
 
 
-@pytest.mark.asyncio
-async def test_open_lunchbox_unknown_item_404(async_session: AsyncSession) -> None:
-    vault = await _vault_with_storage(async_session)
-
-    with pytest.raises(ResourceNotFoundException):
-        await reward_service.open_lunchbox(async_session, vault.id, uuid4())
-
-
-@pytest.mark.asyncio
-async def test_open_lunchbox_foreign_vault_404(async_session: AsyncSession) -> None:
+async def test_open_lunchbox_rejects_unknown_foreign_and_non_lunchbox_items(async_session: AsyncSession) -> None:
     vault = await _vault_with_storage(async_session)
     other = await _vault_with_storage(async_session)
     minted = await reward_service.grant_lunchbox(async_session, vault.id)
-
+    nuka = await reward_service.grant_item(async_session, vault.id, {"item_type": "consumable", "name": "Nuka-Cola"})
+    with pytest.raises(ResourceNotFoundException):
+        await reward_service.open_lunchbox(async_session, vault.id, uuid4())
     with pytest.raises(ResourceNotFoundException):
         await reward_service.open_lunchbox(async_session, other.id, UUID(minted["item_id"]))
-
-
-@pytest.mark.asyncio
-async def test_open_non_lunchbox_item_404(async_session: AsyncSession) -> None:
-    vault = await _vault_with_storage(async_session)
-    minted = await reward_service.grant_item(async_session, vault.id, {"item_type": "consumable", "name": "Nuka-Cola"})
-
     with pytest.raises(ResourceNotFoundException):
-        await reward_service.open_lunchbox(async_session, vault.id, UUID(minted["item_id"]))
+        await reward_service.open_lunchbox(async_session, vault.id, UUID(nuka["item_id"]))
 
 
-@pytest.mark.asyncio
 async def test_open_lunchbox_full_storage_409(async_session: AsyncSession) -> None:
-    user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
-    vault = await crud.vault.create(
-        async_session,
-        obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id),
-    )
-    async_session.add(Storage(vault_id=vault.id, max_space=1))
-    await async_session.commit()
+    vault = await _vault_with_storage(async_session, max_space=1)
     minted = await reward_service.grant_lunchbox(async_session, vault.id)
-
     with pytest.raises(ResourceConflictException):
         await reward_service.open_lunchbox(async_session, vault.id, UUID(minted["item_id"]))
-
     remaining = (await async_session.execute(select(Item))).scalars().all()
     assert [item.item_type for item in remaining] == ["lunchbox"]
 
 
-@pytest.mark.asyncio
 async def test_open_lunchbox_twice_second_404(async_session: AsyncSession) -> None:
     vault = await _vault_with_storage(async_session)
     minted = await reward_service.grant_lunchbox(async_session, vault.id)
-
     opened = await reward_service.open_lunchbox(async_session, vault.id, UUID(minted["item_id"]))
     assert len(opened["items"]) == 3
-
     with pytest.raises(ResourceNotFoundException):
         await reward_service.open_lunchbox(async_session, vault.id, UUID(minted["item_id"]))
 
 
-@pytest.mark.asyncio
 async def test_open_lunchbox_needs_only_net_two_slots(async_session: AsyncSession) -> None:
-    user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
-    vault = await crud.vault.create(
-        async_session,
-        obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id),
-    )
-    async_session.add(Storage(vault_id=vault.id, max_space=3))
-    await async_session.commit()
+    vault = await _vault_with_storage(async_session, max_space=3)
     minted = await reward_service.grant_lunchbox(async_session, vault.id)
-
     opened = await reward_service.open_lunchbox(async_session, vault.id, UUID(minted["item_id"]))
-
     assert len(opened["items"]) == 3
 
 
-@pytest.mark.asyncio
 async def test_rarity_junk_placeholders_settle_into_catalog_valuables(async_session: AsyncSession) -> None:
     vault = await _vault_with_storage(async_session)
     for name, rarity, canonical in (("Rare junk", "rare", "Globe"), ("Legendary junk", "legendary", "Gold watch")):
@@ -199,30 +133,24 @@ async def test_rarity_junk_placeholders_settle_into_catalog_valuables(async_sess
         assert junk.value is not None
         assert junk.image_url is not None
         assert granted["name"] == name  # The claim response keeps the authored reward text.
-
     desk_fan = await reward_service.grant_item(
         async_session, vault.id, {"item_type": "junk", "name": "Desk fan", "rarity": "common"}
     )
     fan = await async_session.get(Junk, UUID(desk_fan["item_id"]))
     assert fan is not None
-    assert fan.junk_type.value == "steel"
-    assert fan.value == 2
+    assert (fan.junk_type.value, fan.value) == ("steel", 2)
 
 
-@pytest.mark.asyncio
 async def test_deferred_junk_grant_emits_no_collection_event(async_session: AsyncSession) -> None:
-    """Junk granted by an objective or quest reward must never credit a collection objective."""
+    # Junk granted by an objective or quest reward must never credit a collection objective.
     vault = await _vault_with_storage(async_session)
     junk = {"item_type": "junk", "name": "Duct tape", "rarity": "common", "quantity": 2}
-
     with patch("app.core.event_bus.event_bus.emit", new_callable=AsyncMock) as emit:
         async with defer_reward_delivery(async_session):
             await reward_service.grant_item(async_session, vault.id, junk)
         assert [call for call in emit.await_args_list if call.args and call.args[0] == GameEvent.ITEM_COLLECTED] == []
-
     with patch("app.core.event_bus.event_bus.emit", new_callable=AsyncMock) as emit:
         await reward_service.grant_item(async_session, vault.id, junk)
-
     collected = [
         call.args[2] for call in emit.await_args_list if call.args and call.args[0] == GameEvent.ITEM_COLLECTED
     ]

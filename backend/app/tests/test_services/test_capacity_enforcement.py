@@ -1,7 +1,7 @@
 """Strict vault-capacity enforcement: every living dweller counts, assigned or not.
 
-Regression tests for the assigned-only counting loophole that let vaults
-overflow their population_max (e.g. a vault at 23/8 capacity).
+Regression tests for the assigned-only counting loophole that let vaults overflow
+their population_max (e.g. a vault at 23/8 capacity).
 """
 
 import pytest
@@ -23,34 +23,21 @@ async def _set_population_max(async_session: AsyncSession, vault, population_max
 
 
 @pytest.mark.asyncio
-async def test_unassigned_dweller_counts_toward_capacity(
-    async_session: AsyncSession,
-    vault,
-    dweller,
-) -> None:
-    """The old assigned-only counting ignored unassigned dwellers; the cap must not."""
+async def test_unassigned_dweller_counts_toward_capacity(async_session: AsyncSession, vault, dweller) -> None:
     dweller.room_id = None
     async_session.add(dweller)
     await async_session.commit()
-
     await _set_population_max(async_session, vault, population_max=1)
     assert not await vault_service.is_enough_population_space(
         db_session=async_session, vault_id=vault.id, space_required=1
     ), "A full vault must refuse another dweller even if the resident is unassigned"
-
     await _set_population_max(async_session, vault, population_max=2)
     assert await vault_service.is_enough_population_space(db_session=async_session, vault_id=vault.id, space_required=1)
 
 
 @pytest.mark.asyncio
-async def test_create_dweller_raises_at_capacity(
-    async_session: AsyncSession,
-    vault,
-    dweller,
-    dweller_data: dict,
-) -> None:
+async def test_create_dweller_raises_at_capacity(async_session: AsyncSession, vault, dweller, dweller_data) -> None:
     await _set_population_max(async_session, vault, population_max=1)
-
     with pytest.raises(NoLivingSpaceError, match="population capacity reached"):
         await dweller_service.create_dweller(
             async_session, DwellerCreate(**dweller_data, vault_id=vault.id), commit=False
@@ -58,30 +45,19 @@ async def test_create_dweller_raises_at_capacity(
 
 
 @pytest.mark.asyncio
-async def test_create_random_dweller_bypasses_for_bootstrap(
-    async_session: AsyncSession,
-    vault,
-    dweller,
-) -> None:
+async def test_create_random_dweller_bypasses_for_bootstrap(async_session: AsyncSession, vault, dweller) -> None:
     """Seeding/pregen run at vault bootstrap and must be able to fill a fresh vault."""
     await _set_population_max(async_session, vault, population_max=1)
-
     bootstrap_dweller = await dweller_service.create_random_dweller(async_session, vault.id, enforce_capacity=False)
     assert bootstrap_dweller.vault_id == vault.id
-
     with pytest.raises(NoLivingSpaceError, match="population capacity reached"):
         await dweller_service.create_random_dweller(async_session, vault.id)
 
 
 @pytest.mark.asyncio
-async def test_work_assignment_allowed_when_vault_full(
-    async_session: AsyncSession,
-    vault,
-    dweller,
-) -> None:
-    """Assigning a resident to a work room never changes population: no capacity gate."""
+async def test_work_assignment_allowed_when_vault_full(async_session: AsyncSession, vault, dweller) -> None:
+    # Assigning a resident to a work room never changes population: no capacity gate.
     await _set_population_max(async_session, vault, population_max=1)
-
     room = await crud.room.create(
         db_session=async_session,
         obj_in=RoomCreate(
@@ -103,24 +79,20 @@ async def test_work_assignment_allowed_when_vault_full(
             coordinate_y=1,
         ),
     )
-
     assigned = await dweller_service.move_to_room(async_session, dweller.id, room.id)
     assert assigned.room_id == room.id
 
 
 @pytest.mark.asyncio
-async def test_concurrent_creation_serializes_on_vault_row_lock(
-    pg_session_maker,
-    dweller_data: dict,
-) -> None:
-    """Two concurrent creations cannot both pass a plain read and overflow.
-
-    Session A inserts a dweller uncommitted (holding the vault row lock);
-    session B's gate blocks on that lock, and after A commits it sees the
-    new population and refuses. The old read-then-insert let both through.
-    """
+async def test_concurrent_creation_serializes_on_vault_row_lock(pg_session_maker, dweller_data) -> None:
+    # Two concurrent creations cannot both pass a plain read and overflow. Session A inserts a
+    # dweller uncommitted (holding the vault row lock); session B's gate blocks on that lock, and
+    # after A commits it sees the new population and refuses. The old read-then-insert let both
+    # through.
     import asyncio
+    import random
 
+    from faker import Faker
     from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
     from app import crud as root_crud
@@ -132,14 +104,9 @@ async def test_concurrent_creation_serializes_on_vault_row_lock(
     uri = str(settings.ASYNC_DATABASE_URI)
     engine_b = create_async_engine(uri, pool_size=1, max_overflow=0)
     maker_b = async_sessionmaker(engine_b, class_=AsyncSession, expire_on_commit=False)
-
     session_a = maker()
     session_b = maker_b()
     try:
-        import random as _random
-
-        from faker import Faker
-
         fake = Faker()
         user = await root_crud.user.create(
             db_session=session_a,
@@ -148,7 +115,7 @@ async def test_concurrent_creation_serializes_on_vault_row_lock(
         vault = await root_crud.vault.create(
             db_session=session_a,
             obj_in=VaultCreateWithUserID(
-                number=_random.randint(100, 999),
+                number=random.randint(100, 999),
                 bottle_caps=100,
                 happiness=50,
                 power=10,
@@ -159,25 +126,16 @@ async def test_concurrent_creation_serializes_on_vault_row_lock(
             ),
         )
         await session_a.commit()
-
         # A fills one slot uncommitted, keeping the vault row locked.
         await dweller_service.create_random_dweller(session_a, vault.id)
-
-        pending = await dweller_service.create_dweller(
-            session_a,
-            DwellerCreate(**dweller_data, vault_id=vault.id),
-            commit=False,
-        )
-
+        await dweller_service.create_dweller(session_a, DwellerCreate(**dweller_data, vault_id=vault.id), commit=False)
         # B races in: its gate must block on A's row lock, not read a stale count.
         task = asyncio.create_task(dweller_service.create_random_dweller(session_b, vault.id))
         await asyncio.sleep(0.3)
         assert not task.done(), "B passed the gate while A's insert was uncommitted"
-
         await session_a.commit()
         with pytest.raises(NoLivingSpaceError, match="population capacity reached"):
             await task
-
         population = await root_crud.vault.get_population(db_session=session_b, vault_id=vault.id)
         assert population == 2, f"Vault overflowed: {population}/2"
     finally:

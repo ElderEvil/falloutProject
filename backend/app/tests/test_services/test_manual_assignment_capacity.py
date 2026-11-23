@@ -237,7 +237,7 @@ async def production_ctx(live_pg_engine: AsyncEngine) -> AsyncIterator[dict]:
         user = await crud.user.create(
             session,
             obj_in=UserCreate(
-                username=f"capacity-{suffix}", email=f"capacity-{suffix}@example.com", password="testpass123"
+                username=f"capacity-{suffix}", email=f"capacity-{suffix}@example.com", password="secret-password-123"
             ),
         )
         vault = await crud.vault.create(

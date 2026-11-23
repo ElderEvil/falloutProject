@@ -125,7 +125,7 @@ async def station_ctx(live_pg_engine: AsyncEngine, dweller_data: dict) -> AsyncI
         user = await crud.user.create(
             session,
             obj_in=UserCreate(
-                username=f"station-{suffix}", email=f"station-{suffix}@example.com", password="testpass123"
+                username=f"station-{suffix}", email=f"station-{suffix}@example.com", password="secret-password-123"
             ),
         )
         vault = await crud.vault.create(

@@ -4,12 +4,11 @@ from app.core.profile_preferences import validate_profile_preferences
 from app.schemas.user_profile import ProfileUpdate
 
 
-def test_setup_preference_accepts_a_complete_record() -> None:
-    validate_profile_preferences({"setup": {"version": 1, "completed": True, "skipped": False}})
-
-
-def test_setup_preference_accepts_a_record_without_skipped() -> None:
-    validate_profile_preferences({"setup": {"version": 1, "completed": True}})
+@pytest.mark.parametrize(
+    "setup", [{"version": 1, "completed": True, "skipped": False}, {"version": 1, "completed": True}]
+)
+def test_setup_preference_accepts_a_complete_record(setup: dict) -> None:
+    validate_profile_preferences({"setup": setup})
 
 
 @pytest.mark.parametrize(

@@ -1,18 +1,6 @@
-"""Regression coverage for the pet domain migration (plan §5.5).
+from app.tests.test_alembic._support import load_migration
 
-Pins the revision chain, the idempotent legacy Item→Pet backfill guard, and the
-downgrade that re-inserts legacy ``item`` rows.
-"""
-
-import importlib.util
-from pathlib import Path
-
-MIGRATION_PATH = Path(__file__).parents[2] / "alembic/versions/2026_10_01_0001-c19031dc6b22_add_pet_domain.py"
-MIGRATION_SPEC = importlib.util.spec_from_file_location("add_pet_domain", MIGRATION_PATH)
-assert MIGRATION_SPEC
-assert MIGRATION_SPEC.loader
-MIGRATION = importlib.util.module_from_spec(MIGRATION_SPEC)
-MIGRATION_SPEC.loader.exec_module(MIGRATION)
+MIGRATION = load_migration("2026_10_01_0001-c19031dc6b22_add_pet_domain.py", "add_pet_domain")
 
 
 def test_revision_chain() -> None:

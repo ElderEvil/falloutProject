@@ -1,5 +1,3 @@
-"""Incident spawn-rate tier validation (game balance config)."""
-
 import pytest
 from pydantic import ValidationError
 
@@ -8,7 +6,6 @@ from app.core.game_config import IncidentConfig
 
 
 def test_default_tiers_cover_a_starter_vault() -> None:
-    """Shipped tiers: starter vaults spawn hourly, developed ones every quarter."""
     rate = IncidentConfig().get_spawn_rate
 
     assert rate(0) == 1.0
@@ -31,35 +28,31 @@ def test_malformed_tier_is_rejected(tier) -> None:
     assert exc.value.errors()[0]["loc"] == ("room_rate_tiers", 0)
 
 
-def test_descending_caps_are_rejected() -> None:
-    with pytest.raises(ValidationError, match="caps must ascend"):
-        IncidentConfig(room_rate_tiers=[[30, 1.0], [15, 2.0]])
+@pytest.mark.parametrize(
+    ("tiers", "message"),
+    [
+        ([[30, 1.0], [15, 2.0]], "caps must ascend"),
+        ([[15, -1.0]], "rates must be non-negative"),
+    ],
+)
+def test_invalid_tiers_are_rejected(tiers, message) -> None:
+    with pytest.raises(ValidationError, match=message):
+        IncidentConfig(room_rate_tiers=tiers)
 
 
-def test_negative_rate_is_rejected() -> None:
-    with pytest.raises(ValidationError, match="rates must be non-negative"):
-        IncidentConfig(room_rate_tiers=[[15, -1.0]])
-
-
-def test_deathclaw_gate_standard_uses_60_boundary() -> None:
+@pytest.mark.parametrize(
+    ("population", "mode", "present"),
+    [
+        (59, VaultModeEnum.STANDARD.value, False),
+        (60, VaultModeEnum.STANDARD.value, True),
+        (34, VaultModeEnum.SURVIVAL.value, False),
+        (35, VaultModeEnum.SURVIVAL.value, True),
+        (35, VaultModeEnum.STANDARD.value, False),
+    ],
+)
+def test_deathclaw_gate_uses_population_and_mode_boundaries(population: int, mode: str, present: bool) -> None:
     weights = IncidentConfig().get_spawn_weights
-
-    assert IncidentType.DEATHCLAW_ATTACK not in weights(59, VaultModeEnum.STANDARD.value)
-    assert IncidentType.DEATHCLAW_ATTACK in weights(60, VaultModeEnum.STANDARD.value)
-
-
-def test_deathclaw_gate_survival_uses_35_boundary() -> None:
-    weights = IncidentConfig().get_spawn_weights
-
-    assert IncidentType.DEATHCLAW_ATTACK not in weights(34, VaultModeEnum.SURVIVAL.value)
-    assert IncidentType.DEATHCLAW_ATTACK in weights(35, VaultModeEnum.SURVIVAL.value)
-
-
-def test_survival_gate_is_reached_before_standard() -> None:
-    weights = IncidentConfig().get_spawn_weights
-
-    assert IncidentType.DEATHCLAW_ATTACK not in weights(35, VaultModeEnum.STANDARD.value)
-    assert IncidentType.DEATHCLAW_ATTACK in weights(35, VaultModeEnum.SURVIVAL.value)
+    assert (IncidentType.DEATHCLAW_ATTACK in weights(population, mode)) is present
 
 
 def test_only_deathclaw_is_population_gated() -> None:

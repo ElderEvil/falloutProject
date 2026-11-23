@@ -1,8 +1,8 @@
-"""Unit tests for the exploration rewards calculator."""
-
 from types import SimpleNamespace
 from unittest.mock import patch
 from uuid import uuid4
+
+import pytest
 
 from app.core.enums import RarityEnum
 from app.models.exploration import Exploration
@@ -10,21 +10,21 @@ from app.models.pet import Pet
 from app.options.pet_modifiers import MAX_PCT_BONUS, PetEffect
 from app.services.exploration.rewards_calculator import rewards_calculator
 
+_cache = [{"type": "random", "description": "Found a cache"}]
 
-def _exploration(events: list[dict]) -> Exploration:
-    return Exploration(
+
+def _exploration(events: list[dict], distance: int = 0, location_xp: int | None = None) -> Exploration:
+    special = {"strength": 5, "perception": 5, "endurance": 5, "charisma": 5, "intelligence": 5, "agility": 5}
+    exploration = Exploration(
         vault_id=uuid4(),
         dweller_id=uuid4(),
         duration=4,
-        dweller_strength=5,
-        dweller_perception=5,
-        dweller_endurance=5,
-        dweller_charisma=5,
-        dweller_intelligence=5,
-        dweller_agility=5,
-        dweller_luck=5,
         events=events,
+        dweller_luck=5,
+        **{f"dweller_{key}": value for key, value in special.items()},
     )
+    exploration.total_distance, exploration.location_xp = distance, location_xp
+    return exploration
 
 
 def _dweller(pet: Pet | None = None) -> SimpleNamespace:
@@ -36,69 +36,49 @@ def _pet(name: str) -> Pet:
 
 
 def test_site_events_excluded_from_event_xp():
-    """Site events are journey-log noise; only non-site events earn event XP."""
-    dweller = SimpleNamespace(health=100, effective_max_health=100)
-    base = _exploration(events=[{"type": "random", "description": "Found a cache"}])
+    base = _exploration(_cache)
     with_site = _exploration(
-        events=[
-            {"type": "random", "description": "Found a cache"},
+        [
+            *_cache,
             {"type": "site", "description": "Entered Red Rocket"},
             {"type": "site", "description": "Garage: Overpowered by Mole Rat pack!"},
         ]
     )
-    assert rewards_calculator.calculate_exploration_xp(
-        with_site, dweller
-    ) == rewards_calculator.calculate_exploration_xp(base, dweller)
+    assert rewards_calculator.calculate_exploration_xp(with_site, _dweller()) == (
+        rewards_calculator.calculate_exploration_xp(base, _dweller())
+    )
 
 
 def test_pet_xp_bonus_included():
-    """A pet with xp_pct adds an additive percentage of base XP."""
-    exploration = _exploration(events=[{"type": "random", "description": "Found a cache"}])
-    exploration.total_distance = 100
-
+    exploration = _exploration(_cache, distance=100)
     base = rewards_calculator.calculate_exploration_xp(exploration, _dweller())
     with_pet = rewards_calculator.calculate_exploration_xp(exploration, _dweller(_pet("CX404")))
-
     # cx404 grants +25% of base XP (100 miles * 10 + 1 event * 20 = 1020).
     assert with_pet - base == int(1020 * 0.25)
 
 
 def test_pet_xp_bonus_capped_at_max_pct():
-    """xp_pct above MAX_PCT_BONUS is clamped to the cap."""
-    exploration = _exploration(events=[{"type": "random", "description": "Found a cache"}])
-    exploration.total_distance = 100
-
+    exploration = _exploration(_cache, distance=100)
     with patch(
         "app.services.exploration.rewards_calculator.pet_modifiers_for",
         return_value=PetEffect(xp_pct=0.8),
     ):
         capped = rewards_calculator.calculate_exploration_xp(exploration, _dweller())
-
     base = rewards_calculator.calculate_exploration_xp(exploration, _dweller())
     assert capped - base == int(1020 * MAX_PCT_BONUS)
 
 
-def test_no_pet_xp_unchanged():
-    """A dweller without an equipped pet earns the same XP as before pets."""
-    exploration = _exploration(events=[{"type": "random", "description": "Found a cache"}])
-    exploration.total_distance = 100
-
-    # base 1020 + survival 204 + luck 102 (5 luck * 2%) — no pet term.
-    assert rewards_calculator.calculate_exploration_xp(exploration, _dweller()) == 1326
-
-
-def test_location_xp_is_additive_and_bonus_scaled():
-    """A cleared location adds base XP before the survival and luck bonuses."""
-    exploration = _exploration(events=[])
-    exploration.location_xp = 100
-
-    # base 100 + survival 20 + luck 10 (5 luck * 2%) — no pet term.
-    assert rewards_calculator.calculate_exploration_xp(exploration, _dweller()) == 130
-
-
-def test_missing_location_xp_adds_nothing():
-    """An uncleared run carries NULL and earns no location XP."""
-    exploration = _exploration(events=[])
-    exploration.location_xp = None
-
-    assert rewards_calculator.calculate_exploration_xp(exploration, _dweller()) == 0
+@pytest.mark.parametrize(
+    ("distance", "location_xp", "expected"),
+    [
+        pytest.param(100, None, 1326, id="distance-and-event"),
+        pytest.param(0, 100, 130, id="location-xp"),
+        pytest.param(0, None, 0, id="no-xp-sources"),
+    ],
+)
+def test_no_pet_xp_is_additive_and_bonus_scaled(distance: int, location_xp: int | None, expected: int):
+    # Base + survival 20% + luck 10% (5 luck * 2%); no pet term.
+    events = _cache if distance else []
+    assert (
+        rewards_calculator.calculate_exploration_xp(_exploration(events, distance, location_xp), _dweller()) == expected
+    )

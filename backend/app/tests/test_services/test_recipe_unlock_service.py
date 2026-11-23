@@ -18,9 +18,11 @@ from app.services.recipe_unlock_service import (
     catalog_entry,
     is_gated,
     recipe_description,
-    recipe_unlock_service,
     scrap_unlock_count,
     unlock_hint,
+)
+from app.services.recipe_unlock_service import (
+    recipe_unlock_service as svc,
 )
 from app.tests.test_services.test_crafting_service import _add_junk, _add_workshop, _make_storage
 from app.utils.exceptions import InsufficientResourcesException, ValidationException
@@ -31,10 +33,18 @@ RARE_WEAPON = "Baseball bat"
 
 
 class _NoCurrentSession:
-    """Forces the handler to fall back to the patched ``async_session_maker``."""
-
     def get(self) -> None:
         return None
+
+
+async def _scrap(session: AsyncSession, vault: Vault, name: str, item_type: str = "weapon"):
+    result = await svc.record_scrap(session, vault_id=vault.id, item_type=item_type, item_name=name)
+    await session.commit()
+    return result
+
+
+async def _recipes(session: AsyncSession, vault: Vault) -> dict:
+    return {r.name: r for r in await crafting_service.list_recipes(session, vault.id, "weapon")}
 
 
 def test_rare_and_legendary_recipes_are_gated_by_default():
@@ -42,12 +52,10 @@ def test_rare_and_legendary_recipes_are_gated_by_default():
     assert rare is not None
     assert scrap_unlock_count(rare) == game_config.crafting.scrap_unlock_count("rare") == 1
     assert is_gated(rare) is True
-
     legendary = catalog_entry("weapon", LEGENDARY_WEAPON)
     assert legendary is not None
     assert scrap_unlock_count(legendary) == game_config.crafting.scrap_unlock_count("legendary") == 1
     assert is_gated(legendary) is True
-
     assert is_gated(catalog_entry("weapon", COMMON_WEAPON)) is False
 
 
@@ -89,70 +97,40 @@ def test_catalog_entry_matching_ignores_case_and_whitespace():
     assert is_gated(None) is False
 
 
-@pytest.mark.asyncio
 async def test_recipe_unlock_advisory_lock_is_portable(async_session: AsyncSession) -> None:
     """The cross-worker counter lock must be a no-op on SQLite-backed tests."""
     assert await db_locks.advisory_xact_lock(async_session, "recipe_unlock:v:t:r") is None
     assert await db_locks.try_advisory_xact_lock(async_session, "recipe_unlock:v:t:r") is True
 
 
-@pytest.mark.asyncio
 async def test_scrapping_a_gated_item_unlocks_its_recipe(async_session: AsyncSession, vault: Vault) -> None:
     entry = catalog_entry("weapon", RARE_WEAPON)
-    assert not await recipe_unlock_service.is_unlocked(
-        async_session, vault_id=vault.id, item_type="weapon", entry=entry
-    )
-
-    unlocked = await recipe_unlock_service.record_scrap(
-        async_session, vault_id=vault.id, item_type="weapon", item_name=RARE_WEAPON
-    )
-    await async_session.commit()
-
+    assert not await svc.is_unlocked(async_session, vault_id=vault.id, item_type="weapon", entry=entry)
+    unlocked = await _scrap(async_session, vault, RARE_WEAPON)
     assert unlocked == {"item_type": "weapon", "recipe_name": RARE_WEAPON}
-    assert await recipe_unlock_service.is_unlocked(async_session, vault_id=vault.id, item_type="weapon", entry=entry)
+    assert await svc.is_unlocked(async_session, vault_id=vault.id, item_type="weapon", entry=entry)
     # An ungated recipe is unlocked for every vault without a lookup.
-    assert await recipe_unlock_service.is_unlocked(
-        async_session,
-        vault_id=vault.id,
-        item_type="weapon",
-        entry=catalog_entry("weapon", COMMON_WEAPON),
-    )
+    common = catalog_entry("weapon", COMMON_WEAPON)
+    assert await svc.is_unlocked(async_session, vault_id=vault.id, item_type="weapon", entry=common)
 
 
-@pytest.mark.asyncio
 async def test_scrapping_ungated_items_does_nothing(async_session: AsyncSession, vault: Vault) -> None:
-    assert (
-        await recipe_unlock_service.record_scrap(
-            async_session, vault_id=vault.id, item_type="weapon", item_name=COMMON_WEAPON
-        )
-        is None
-    )
+    assert await _scrap(async_session, vault, COMMON_WEAPON) is None
 
 
-@pytest.mark.asyncio
 async def test_a_second_scrap_does_not_re_unlock(async_session: AsyncSession, vault: Vault) -> None:
-    await recipe_unlock_service.record_scrap(
-        async_session, vault_id=vault.id, item_type="weapon", item_name=RARE_WEAPON
-    )
-    await async_session.commit()
-
-    again = await recipe_unlock_service.record_scrap(
-        async_session, vault_id=vault.id, item_type="weapon", item_name=RARE_WEAPON
-    )
-    assert again is None
+    await _scrap(async_session, vault, RARE_WEAPON)
+    assert await _scrap(async_session, vault, RARE_WEAPON) is None
 
 
-@pytest.mark.asyncio
 async def test_handler_persists_below_threshold_progress(
     vault: Vault,
     db_connection: AsyncConnection,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """A two-scrap recipe unlocks through the event handler, not just record_scrap.
-
-    The handler opens its own savepoint-joined session, so a below-threshold scrap only
-    counts if the handler commits it — otherwise the session closes over the increment
-    and the threshold is never reached.
+    The handler opens its own savepoint-joined session, so a below-threshold scrap only counts if the handler commits
+    it — otherwise the session closes over the increment and the threshold is never reached.
     """
     entry = {"name": RARE_WEAPON, "rarity": "rare", "craft": {"unlock": {"scrap": {"count": 2}}}}
     handler_sessions = sessionmaker(
@@ -165,7 +143,6 @@ async def test_handler_persists_below_threshold_progress(
     monkeypatch.setattr(recipe_unlock_module, "catalog_entry", lambda _item_type, _name: entry)
     monkeypatch.setattr(recipe_unlock_module, "async_session_maker", handler_sessions)
     monkeypatch.setattr(evaluators_module, "current_session_maker", _NoCurrentSession())
-
     vault_id = vault.id
     payload = {"item_type": "weapon", "item_name": RARE_WEAPON}
 
@@ -176,47 +153,29 @@ async def test_handler_persists_below_threshold_progress(
 
     await recipe_unlock_module._on_item_scrapped(GameEvent.ITEM_SCRAPPED, vault_id, payload)
     assert await scrap_progress() == (1, False)
-
     await recipe_unlock_module._on_item_scrapped(GameEvent.ITEM_SCRAPPED, vault_id, payload)
     assert await scrap_progress() == (2, True)
 
 
-@pytest.mark.asyncio
 async def test_list_recipes_lists_locked_schematics_with_hint(async_session: AsyncSession, vault: Vault) -> None:
-    recipes = {recipe.name: recipe for recipe in await crafting_service.list_recipes(async_session, vault.id, "weapon")}
-
-    assert COMMON_WEAPON in recipes
-    common = recipes[COMMON_WEAPON]
+    recipes = await _recipes(async_session, vault)
+    common, legendary, rare = recipes[COMMON_WEAPON], recipes[LEGENDARY_WEAPON], recipes[RARE_WEAPON]
     assert common.unlocked is True
     assert common.unlock_hint is None
-
-    assert LEGENDARY_WEAPON in recipes
-    legendary = recipes[LEGENDARY_WEAPON]
     assert legendary.unlocked is False
     assert legendary.unlock_hint is not None
     assert "learn" in legendary.unlock_hint
-
-    assert RARE_WEAPON in recipes
-    rare = recipes[RARE_WEAPON]
     assert rare.unlocked is False
     assert rare.unlock_hint == "Scrap a Baseball bat to learn it"
 
 
-@pytest.mark.asyncio
 async def test_list_recipes_shows_a_legendary_once_learned(async_session: AsyncSession, vault: Vault) -> None:
-    await recipe_unlock_service.record_scrap(
-        async_session, vault_id=vault.id, item_type="weapon", item_name=LEGENDARY_WEAPON
-    )
-    await async_session.commit()
-
-    recipes = {recipe.name: recipe for recipe in await crafting_service.list_recipes(async_session, vault.id, "weapon")}
-
-    learned = recipes[LEGENDARY_WEAPON]
+    await _scrap(async_session, vault, LEGENDARY_WEAPON)
+    learned = (await _recipes(async_session, vault))[LEGENDARY_WEAPON]
     assert learned.unlocked is True
     assert learned.unlock_hint is None
 
 
-@pytest.mark.asyncio
 async def test_list_recipes_separates_having_junk_from_being_affordable(
     async_session: AsyncSession, vault: Vault
 ) -> None:
@@ -226,35 +185,23 @@ async def test_list_recipes_separates_having_junk_from_being_affordable(
     await _add_junk(async_session, storage, RarityEnum.RARE, 10)
     vault.bottle_caps = 0
     await async_session.commit()
-
-    recipes = {r.name: r for r in await crafting_service.list_recipes(async_session, vault.id, "weapon")}
-    rare = recipes[RARE_WEAPON]
-
-    # Enough junk to craft, but no caps: the "Craftable now" filter keeps it while
-    # the Start button stays disabled.
+    rare = (await _recipes(async_session, vault))[RARE_WEAPON]
+    # Enough junk to craft, but no caps: the "Craftable now" filter keeps it while the Start button stays disabled.
     assert rare.has_junk is True
     assert rare.can_craft is False
 
 
-@pytest.mark.asyncio
 async def test_start_order_refuses_a_locked_recipe(async_session: AsyncSession, vault: Vault) -> None:
     await _make_storage(async_session, vault)
     await _add_workshop(async_session, vault, "Weapon workshop")
-
     with pytest.raises(ValidationException, match="learn"):
         await crafting_service.start_order(async_session, vault.id, LEGENDARY_WEAPON, "weapon")
 
 
-@pytest.mark.asyncio
 async def test_start_order_allows_an_unlocked_recipe(async_session: AsyncSession, vault: Vault) -> None:
     await _make_storage(async_session, vault)
     await _add_workshop(async_session, vault, "Weapon workshop")
-    await recipe_unlock_service.record_scrap(
-        async_session, vault_id=vault.id, item_type="weapon", item_name=LEGENDARY_WEAPON
-    )
-    await async_session.commit()
-
-    # The lock gate no longer fires; the order fails only on materials, which is not
-    # a lock error.
+    await _scrap(async_session, vault, LEGENDARY_WEAPON)
+    # The lock gate no longer fires; the order fails only on materials, which is not a lock error.
     with pytest.raises(InsufficientResourcesException):
         await crafting_service.start_order(async_session, vault.id, LEGENDARY_WEAPON, "weapon")

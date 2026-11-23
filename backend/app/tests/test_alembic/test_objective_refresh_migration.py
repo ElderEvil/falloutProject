@@ -1,26 +1,15 @@
-"""Existing assignments are adopted for the current UTC periods on deployment."""
-
-import importlib.util
 from datetime import datetime, timedelta
-from pathlib import Path
 
-import sqlalchemy as sa
-from alembic.migration import MigrationContext
-from alembic.operations import Operations
-
+from app.tests.test_alembic._support import bind_op, column_names, load_migration, sqlite_db
 from app.utils.time import as_naive_utc, utcnow
 
 
-def test_refresh_migration_adopts_periods_and_downgrades(monkeypatch):
-    path = Path(__file__).parents[2] / "alembic/versions/2026_10_18_0001-a8c41e06d925_objective_refresh_periods.py"
-    spec = importlib.util.spec_from_file_location("objective_refresh_migration", path)
-    migration = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(migration)
-    engine = sa.create_engine("sqlite://")
-    with engine.begin() as db:
-        db.exec_driver_sql("CREATE TABLE gamestate (id INTEGER PRIMARY KEY)")
-        db.exec_driver_sql("INSERT INTO gamestate VALUES (1)")
-        monkeypatch.setattr(migration, "op", Operations(MigrationContext.configure(db)))
+def test_refresh_migration_adopts_periods_and_downgrades():
+    migration = load_migration(
+        "2026_10_18_0001-a8c41e06d925_objective_refresh_periods.py", "objective_refresh_migration"
+    )
+    with sqlite_db("CREATE TABLE gamestate (id INTEGER PRIMARY KEY)", "INSERT INTO gamestate VALUES (1)") as db:
+        bind_op(migration, db)
         before = as_naive_utc(utcnow()).replace(hour=0, minute=0, second=0, microsecond=0)
         migration.upgrade()
         daily, weekly = db.exec_driver_sql(
@@ -30,5 +19,4 @@ def test_refresh_migration_adopts_periods_and_downgrades(monkeypatch):
         assert daily == before
         assert weekly == before - timedelta(days=before.weekday())
         migration.downgrade()
-        assert [column[1] for column in db.exec_driver_sql("PRAGMA table_info(gamestate)")] == ["id"]
-    engine.dispose()
+        assert column_names(db, "gamestate") == ["id"]

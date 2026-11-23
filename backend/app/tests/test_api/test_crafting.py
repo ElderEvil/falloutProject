@@ -1,10 +1,6 @@
-"""Tests for the crafting API — recipes and the workshop order queue."""
-
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 import pytest
-from httpx import AsyncClient
-from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
@@ -22,6 +18,7 @@ from app.utils.time import utcnow
 pytestmark = pytest.mark.asyncio(scope="module")
 
 COMMON_WEAPON = "Pipe pistol"
+ORDER = {"item_name": COMMON_WEAPON, "item_type": "weapon"}
 
 
 async def _superuser_vault(async_session: AsyncSession):
@@ -32,11 +29,7 @@ async def _superuser_vault(async_session: AsyncSession):
 
 
 async def _seed_crafting(
-    async_session: AsyncSession,
-    vault_id,
-    *,
-    workshop: str | None = "Weapon workshop",
-    junk_count: int | None = None,
+    async_session: AsyncSession, vault_id, *, workshop: str | None = "Weapon workshop", junk_count: int | None = None
 ) -> Storage:
     storage = Storage(vault_id=vault_id, max_space=100)
     async_session.add(storage)
@@ -63,7 +56,6 @@ async def _seed_crafting(
         )
     await async_session.commit()
     await async_session.refresh(storage)
-
     count = junk_count if junk_count is not None else game_config.crafting.junk_cost("common")
     for index in range(count):
         async_session.add(
@@ -89,20 +81,10 @@ async def _finish_queue(async_session: AsyncSession, vault_id) -> None:
     await crafting_service.advance_orders(async_session, vault_id)
 
 
-@pytest.mark.asyncio
-async def test_list_recipes_returns_costs(
-    async_client: AsyncClient,
-    async_session: AsyncSession,
-    superuser_token_headers: dict[str, str],
-) -> None:
+async def test_list_recipes_returns_costs(async_client, async_session, superuser_token_headers):
     vault = await _superuser_vault(async_session)
     await _seed_crafting(async_session, vault.id)
-
-    response = await async_client.get(
-        f"/crafting/vault/{vault.id}/recipes/weapon",
-        headers=superuser_token_headers,
-    )
-
+    response = await async_client.get(f"/crafting/vault/{vault.id}/recipes/weapon", headers=superuser_token_headers)
     assert response.status_code == 200
     recipes = response.json()["recipes"]
     pipe_pistol = next(recipe for recipe in recipes if recipe["name"] == COMMON_WEAPON)
@@ -111,21 +93,12 @@ async def test_list_recipes_returns_costs(
     assert pipe_pistol["caps_cost"] == game_config.crafting.caps_cost("common")
 
 
-@pytest.mark.asyncio
-async def test_start_order_returns_the_queued_order(
-    async_client: AsyncClient,
-    async_session: AsyncSession,
-    superuser_token_headers: dict[str, str],
-) -> None:
+async def test_start_order_returns_the_queued_order(async_client, async_session, superuser_token_headers):
     vault = await _superuser_vault(async_session)
     await _seed_crafting(async_session, vault.id)
-
     response = await async_client.post(
-        f"/crafting/vault/{vault.id}/orders",
-        json={"item_name": COMMON_WEAPON, "item_type": "weapon"},
-        headers=superuser_token_headers,
+        f"/crafting/vault/{vault.id}/orders", json=ORDER, headers=superuser_token_headers
     )
-
     assert response.status_code == 201
     body = response.json()
     assert body["item_name"] == COMMON_WEAPON
@@ -134,119 +107,57 @@ async def test_start_order_returns_the_queued_order(
     assert body["progress"] == 0.0
 
 
-@pytest.mark.asyncio
-async def test_list_orders_returns_the_queue(
-    async_client: AsyncClient,
-    async_session: AsyncSession,
-    superuser_token_headers: dict[str, str],
-) -> None:
+async def test_list_orders_returns_the_queue(async_client, async_session, superuser_token_headers):
     vault = await _superuser_vault(async_session)
     await _seed_crafting(async_session, vault.id)
     await crafting_service.start_order(async_session, vault.id, COMMON_WEAPON, "weapon")
-
-    response = await async_client.get(
-        f"/crafting/vault/{vault.id}/orders",
-        headers=superuser_token_headers,
-    )
-
+    response = await async_client.get(f"/crafting/vault/{vault.id}/orders", headers=superuser_token_headers)
     assert response.status_code == 200
     assert [order["item_name"] for order in response.json()["orders"]] == [COMMON_WEAPON]
 
 
-@pytest.mark.asyncio
-async def test_collect_order_grants_the_item(
-    async_client: AsyncClient,
-    async_session: AsyncSession,
-    superuser_token_headers: dict[str, str],
-) -> None:
+async def test_collect_order_grants_the_item(async_client, async_session, superuser_token_headers):
     vault = await _superuser_vault(async_session)
     await _seed_crafting(async_session, vault.id)
     order = await crafting_service.start_order(async_session, vault.id, COMMON_WEAPON, "weapon")
     await _finish_queue(async_session, vault.id)
-
     response = await async_client.post(
-        f"/crafting/vault/{vault.id}/orders/{order.id}/collect",
-        headers=superuser_token_headers,
+        f"/crafting/vault/{vault.id}/orders/{order.id}/collect", headers=superuser_token_headers
     )
-
     assert response.status_code == 200
     assert response.json()["name"] == COMMON_WEAPON
 
 
-@pytest.mark.asyncio
-async def test_collect_before_completion_returns_400(
-    async_client: AsyncClient,
-    async_session: AsyncSession,
-    superuser_token_headers: dict[str, str],
-) -> None:
+async def test_collect_before_completion_returns_400(async_client, async_session, superuser_token_headers):
     vault = await _superuser_vault(async_session)
     await _seed_crafting(async_session, vault.id)
     order = await crafting_service.start_order(async_session, vault.id, COMMON_WEAPON, "weapon")
-
     response = await async_client.post(
-        f"/crafting/vault/{vault.id}/orders/{order.id}/collect",
-        headers=superuser_token_headers,
+        f"/crafting/vault/{vault.id}/orders/{order.id}/collect", headers=superuser_token_headers
     )
-
     assert response.status_code == 400
 
 
-@pytest.mark.asyncio
-async def test_start_without_workshop_returns_400(
-    async_client: AsyncClient,
-    async_session: AsyncSession,
-    superuser_token_headers: dict[str, str],
-) -> None:
+@pytest.mark.parametrize(("workshop", "junk_count"), [(None, None), ("Weapon workshop", 0)])
+async def test_start_rejected_without_workshop_or_materials(
+    async_client, async_session, superuser_token_headers, workshop, junk_count
+):
     vault = await _superuser_vault(async_session)
-    await _seed_crafting(async_session, vault.id, workshop=None)
-
+    await _seed_crafting(async_session, vault.id, workshop=workshop, junk_count=junk_count)
     response = await async_client.post(
-        f"/crafting/vault/{vault.id}/orders",
-        json={"item_name": COMMON_WEAPON, "item_type": "weapon"},
-        headers=superuser_token_headers,
+        f"/crafting/vault/{vault.id}/orders", json=ORDER, headers=superuser_token_headers
     )
-
     assert response.status_code == 400
 
 
-@pytest.mark.asyncio
-async def test_start_without_materials_returns_400(
-    async_client: AsyncClient,
-    async_session: AsyncSession,
-    superuser_token_headers: dict[str, str],
-) -> None:
-    vault = await _superuser_vault(async_session)
-    await _seed_crafting(async_session, vault.id, junk_count=0)
-
-    response = await async_client.post(
-        f"/crafting/vault/{vault.id}/orders",
-        json={"item_name": COMMON_WEAPON, "item_type": "weapon"},
-        headers=superuser_token_headers,
-    )
-
-    assert response.status_code == 400
-
-
-@pytest.mark.asyncio
-async def test_cancel_order_returns_the_cancelled_order(
-    async_client: AsyncClient,
-    async_session: AsyncSession,
-    superuser_token_headers: dict[str, str],
-) -> None:
+async def test_cancel_order_returns_the_cancelled_order(async_client, async_session, superuser_token_headers):
     vault = await _superuser_vault(async_session)
     await _seed_crafting(async_session, vault.id)
-    created = await async_client.post(
-        f"/crafting/vault/{vault.id}/orders",
-        json={"item_name": COMMON_WEAPON, "item_type": "weapon"},
-        headers=superuser_token_headers,
-    )
+    created = await async_client.post(f"/crafting/vault/{vault.id}/orders", json=ORDER, headers=superuser_token_headers)
     order_id = created.json()["id"]
-
     response = await async_client.post(
-        f"/crafting/vault/{vault.id}/orders/{order_id}/cancel",
-        headers=superuser_token_headers,
+        f"/crafting/vault/{vault.id}/orders/{order_id}/cancel", headers=superuser_token_headers
     )
-
     assert response.status_code == 200
     assert response.json()["status"] == "cancelled"
     assert response.json()["cancelled_at"] is not None

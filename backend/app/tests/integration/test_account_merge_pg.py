@@ -1,9 +1,7 @@
 """PostgreSQL concurrency coverage for the account merge service.
 
 Each test owns one event loop via ``asyncio.run`` so the asyncpg pool is never
-shared across pytest-asyncio's fixture/test loops. Schema comes from Alembic:
-the harness fails loudly when the ``account_merge`` table has not been migrated
-instead of creating it on the shared database.
+shared; schema comes from Alembic, never ``create_all``.
 """
 
 import asyncio
@@ -41,7 +39,7 @@ def _postgres_uri() -> str:
         pytest.skip("ASYNC_DATABASE_URI is not configured")
     try:
         url = make_url(uri)
-    except Exception as exc:  # pragma: no cover - malformed configuration is not an optional DB
+    except Exception as exc:  # pragma: no cover - malformed config is not an optional DB
         pytest.fail(f"ASYNC_DATABASE_URI is malformed: {exc}")
     if url.drivername not in {"postgresql+asyncpg", "postgresql+psycopg"}:
         pytest.skip(f"PostgreSQL-only concurrency test; ASYNC_DATABASE_URI uses {url.drivername}")
@@ -70,60 +68,42 @@ async def _sessions():
 
 
 def _vault_number(used: set[int]) -> int:
-    while True:
+    number = random_vault_number()
+    while number in used:
         number = random_vault_number()
-        if number not in used:
-            used.add(number)
-            return number
+    used.add(number)
+    return number
 
 
-async def _seed(
-    maker, *, sources: int, targets: int, user_ids: list, vault_ids: list
-) -> tuple[list[User], list[User], User, list[Vault]]:
-    """Create an active superuser actor, source/target users, and one vault per source.
+async def _make_user(session: AsyncSession, tag: str, suffix: str) -> User:
+    return await crud.user.create(
+        session,
+        UserCreate(username=f"mergepg{tag}{suffix}", email=f"mergepg{tag}{suffix}@example.com", password="Secret123!"),
+    )
 
-    IDs are recorded as rows are committed so a mid-setup failure still cleans up.
-    """
+
+async def _seed(maker, *, sources: int, targets: int, user_ids: list, vault_ids: list):
+    """Create a superuser actor, source/target users, and one vault per source."""
     suffix = uuid4().hex[:10]
     async with maker() as session:
-        actor = await crud.user.create(
-            session,
-            UserCreate(username=f"mergepgact{suffix}", email=f"mergepgact{suffix}@example.com", password="Secret123!"),
-        )
+        actor = await _make_user(session, "act", suffix)
         user_ids.append(actor.id)
         actor.is_superuser = True
         await session.commit()
-
-        source_users = []
-        for i in range(sources):
-            source_user = await crud.user.create(
-                session,
-                UserCreate(
-                    username=f"mergepgsrc{i}{suffix}",
-                    email=f"mergepgsrc{i}{suffix}@example.com",
-                    password="Secret123!",
-                ),
-            )
-            user_ids.append(source_user.id)
-            source_users.append(source_user)
-        target_users = []
-        for i in range(targets):
-            target_user = await crud.user.create(
-                session,
-                UserCreate(
-                    username=f"mergepgtgt{i}{suffix}",
-                    email=f"mergepgtgt{i}{suffix}@example.com",
-                    password="Secret123!",
-                ),
-            )
-            user_ids.append(target_user.id)
-            target_users.append(target_user)
-        used_numbers: set[int] = set()
-        vaults = [Vault(user_id=source_user.id, number=_vault_number(used_numbers)) for source_user in source_users]
+        source_users = [await _make_user(session, f"src{i}", suffix) for i in range(sources)]
+        target_users = [await _make_user(session, f"tgt{i}", suffix) for i in range(targets)]
+        user_ids.extend(user.id for user in source_users + target_users)
+        used: set[int] = set()
+        vaults = [Vault(user_id=user.id, number=_vault_number(used)) for user in source_users]
         session.add_all(vaults)
         await session.commit()
         vault_ids.extend(vault.id for vault in vaults)
     return source_users, target_users, actor, vaults
+
+
+async def _race(*calls):
+    """Run concurrent merge attempts, collecting exceptions as results."""
+    return await asyncio.wait_for(asyncio.gather(*calls, return_exceptions=True), timeout=20)
 
 
 async def _attempt(session: AsyncSession, source_id, target_id, actor_id):
@@ -147,36 +127,33 @@ async def _cleanup(maker, user_ids: list, vault_ids: list) -> None:
     """Delete audit rows first: their user FKs are ON DELETE RESTRICT."""
     if not user_ids and not vault_ids:
         return
+    statements = [
+        delete(AccountMerge).where(
+            or_(
+                col(AccountMerge.source_user_id).in_(user_ids),
+                col(AccountMerge.target_user_id).in_(user_ids),
+                col(AccountMerge.actor_user_id).in_(user_ids),
+            )
+        ),
+        delete(Notification).where(
+            or_(col(Notification.user_id).in_(user_ids), col(Notification.vault_id).in_(vault_ids))
+        ),
+        delete(ChatMessage).where(
+            or_(
+                col(ChatMessage.from_user_id).in_(user_ids),
+                col(ChatMessage.to_user_id).in_(user_ids),
+                col(ChatMessage.vault_id).in_(vault_ids),
+            )
+        ),
+        delete(LLMInteraction).where(col(LLMInteraction.user_id).in_(user_ids)),
+        delete(OAuthAccount).where(col(OAuthAccount.user_id).in_(user_ids)),
+        delete(Vault).where(or_(col(Vault.id).in_(vault_ids), col(Vault.user_id).in_(user_ids))),
+        delete(UserProfile).where(col(UserProfile.user_id).in_(user_ids)),
+        delete(User).where(col(User.id).in_(user_ids)),
+    ]
     async with maker() as session:
-        if user_ids:
-            await session.execute(
-                delete(AccountMerge).where(
-                    or_(
-                        col(AccountMerge.source_user_id).in_(user_ids),
-                        col(AccountMerge.target_user_id).in_(user_ids),
-                        col(AccountMerge.actor_user_id).in_(user_ids),
-                    )
-                )
-            )
-            await session.execute(delete(Notification).where(col(Notification.user_id).in_(user_ids)))
-            await session.execute(
-                delete(ChatMessage).where(
-                    or_(
-                        col(ChatMessage.from_user_id).in_(user_ids),
-                        col(ChatMessage.to_user_id).in_(user_ids),
-                    )
-                )
-            )
-            await session.execute(delete(LLMInteraction).where(col(LLMInteraction.user_id).in_(user_ids)))
-            await session.execute(delete(OAuthAccount).where(col(OAuthAccount.user_id).in_(user_ids)))
-        if vault_ids:
-            await session.execute(delete(Notification).where(col(Notification.vault_id).in_(vault_ids)))
-            await session.execute(delete(ChatMessage).where(col(ChatMessage.vault_id).in_(vault_ids)))
-            await session.execute(delete(Vault).where(col(Vault.id).in_(vault_ids)))
-        if user_ids:
-            await session.execute(delete(Vault).where(col(Vault.user_id).in_(user_ids)))
-            await session.execute(delete(UserProfile).where(col(UserProfile.user_id).in_(user_ids)))
-            await session.execute(delete(User).where(col(User.id).in_(user_ids)))
+        for statement in statements:
+            await session.execute(statement)
         await session.commit()
 
 
@@ -187,128 +164,103 @@ async def _audit_count(session: AsyncSession, source_ids: list) -> int:
     return int(result.scalar_one())
 
 
-async def _same_source_different_targets() -> None:
+async def _vaults(session: AsyncSession, vault_ids: list) -> list[Vault]:
+    return (await session.execute(select(Vault).where(col(Vault.id).in_(vault_ids)))).scalars().all()
+
+
+async def _verify_landed(maker, source_id, winner_id, vault_ids, losing_id=None) -> None:
+    """A single merge won: one audit row, source tombstoned, vaults moved."""
+    async with maker() as session:
+        assert await _audit_count(session, [source_id]) == 1
+        audit = (
+            await session.execute(select(AccountMerge).where(AccountMerge.source_user_id == source_id))
+        ).scalar_one()
+        assert audit.target_user_id == winner_id
+        fresh_source = await crud.user.get(session, source_id, include_deleted=True)
+        assert fresh_source.is_deleted is True
+        assert fresh_source.is_active is False
+        assert await crud.vault.count_by_user(session, source_id) == 0
+        moved_vault = (await _vaults(session, vault_ids))[0]
+        assert moved_vault.user_id == winner_id
+        assert await crud.vault.count_by_user(session, winner_id) == 1
+        if losing_id is not None:
+            assert await crud.vault.count_by_user(session, losing_id) == 0
+
+
+@asynccontextmanager
+async def _merge_context():
+    """Own the engine, both racing sessions, and the ids cleanup needs."""
     async with _sessions() as (maker, first, second):
         user_ids: list = []
         vault_ids: list = []
         try:
-            sources, targets, actor, vaults = await _seed(
-                maker, sources=1, targets=2, user_ids=user_ids, vault_ids=vault_ids
-            )
-            source, target_a, target_b = sources[0], targets[0], targets[1]
-            results = await asyncio.wait_for(
-                asyncio.gather(
-                    _attempt(first, source.id, target_a.id, actor.id),
-                    _attempt(second, source.id, target_b.id, actor.id),
-                    return_exceptions=True,
-                ),
-                timeout=20,
-            )
-            applied = [result for result in results if not isinstance(result, BaseException) and result.applied]
-            conflicts = [result for result in results if isinstance(result, ResourceConflictException)]
-            assert len(applied) == 1, results
-            assert len(conflicts) == 1, results
-            assert len(applied) + len(conflicts) == len(results), results
-            winner_target_id = applied[0].target_id
-            losing_target_id = target_b.id if winner_target_id == target_a.id else target_a.id
-
-            async with maker() as session:
-                assert await _audit_count(session, [source.id]) == 1
-                audit = (
-                    await session.execute(select(AccountMerge).where(AccountMerge.source_user_id == source.id))
-                ).scalar_one()
-                assert audit.target_user_id == winner_target_id
-
-                fresh_source = await crud.user.get(session, source.id, include_deleted=True)
-                assert fresh_source.is_deleted is True
-                assert fresh_source.is_active is False
-                assert await crud.vault.count_by_user(session, source.id) == 0
-
-                moved_vault = (await session.execute(select(Vault).where(col(Vault.id).in_(vault_ids)))).scalar_one()
-                assert moved_vault.user_id == winner_target_id
-                assert await crud.vault.count_by_user(session, winner_target_id) == 1
-                assert await crud.vault.count_by_user(session, losing_target_id) == 0
+            yield maker, first, second, user_ids, vault_ids
         finally:
             await _cleanup(maker, user_ids, vault_ids)
+
+
+async def _same_source_different_targets() -> None:
+    async with _merge_context() as (maker, first, second, user_ids, vault_ids):
+        sources, targets, actor, _ = await _seed(maker, sources=1, targets=2, user_ids=user_ids, vault_ids=vault_ids)
+        source, target_a, target_b = sources[0], targets[0], targets[1]
+        results = await _race(
+            _attempt(first, source.id, target_a.id, actor.id),
+            _attempt(second, source.id, target_b.id, actor.id),
+        )
+        applied = [result for result in results if not isinstance(result, BaseException) and result.applied]
+        conflicts = [result for result in results if isinstance(result, ResourceConflictException)]
+        assert len(applied) == 1, results
+        assert len(conflicts) == 1, results
+        assert len(applied) + len(conflicts) == len(results), results
+        winner_target_id = applied[0].target_id
+        losing_target_id = target_b.id if winner_target_id == target_a.id else target_a.id
+        await _verify_landed(maker, source.id, winner_target_id, vault_ids, losing_target_id)
 
 
 async def _same_source_same_target() -> None:
-    async with _sessions() as (maker, first, second):
-        user_ids: list = []
-        vault_ids: list = []
-        try:
-            sources, targets, actor, vaults = await _seed(
-                maker, sources=1, targets=1, user_ids=user_ids, vault_ids=vault_ids
-            )
-            source, target = sources[0], targets[0]
-            results = await asyncio.wait_for(
-                asyncio.gather(
-                    _attempt(first, source.id, target.id, actor.id),
-                    _attempt(second, source.id, target.id, actor.id),
-                    return_exceptions=True,
-                ),
-                timeout=20,
-            )
-            assert [result for result in results if isinstance(result, BaseException)] == [], results
-            applied = [result for result in results if result.applied]
-            idempotent = [result for result in results if result.already_merged and not result.applied]
-            assert len(applied) == 1, results
-            assert len(idempotent) == 1, results
-
-            async with maker() as session:
-                assert await _audit_count(session, [source.id]) == 1
-                fresh_source = await crud.user.get(session, source.id, include_deleted=True)
-                assert fresh_source.is_deleted is True
-                assert fresh_source.is_active is False
-
-                moved_vault = (await session.execute(select(Vault).where(col(Vault.id).in_(vault_ids)))).scalar_one()
-                assert moved_vault.user_id == target.id
-                assert await crud.vault.count_by_user(session, source.id) == 0
-                assert await crud.vault.count_by_user(session, target.id) == 1
-        finally:
-            await _cleanup(maker, user_ids, vault_ids)
+    async with _merge_context() as (maker, first, second, user_ids, vault_ids):
+        sources, targets, actor, _ = await _seed(maker, sources=1, targets=1, user_ids=user_ids, vault_ids=vault_ids)
+        source, target = sources[0], targets[0]
+        results = await _race(
+            _attempt(first, source.id, target.id, actor.id),
+            _attempt(second, source.id, target.id, actor.id),
+        )
+        assert [result for result in results if isinstance(result, BaseException)] == [], results
+        applied = [result for result in results if result.applied]
+        idempotent = [result for result in results if result.already_merged and not result.applied]
+        assert len(applied) == 1, results
+        assert len(idempotent) == 1, results
+        await _verify_landed(maker, source.id, target.id, vault_ids)
 
 
 async def _opposite_directions() -> None:
-    async with _sessions() as (maker, first, second):
-        user_ids: list = []
-        vault_ids: list = []
-        try:
-            sources, _, actor, vaults = await _seed(maker, sources=2, targets=0, user_ids=user_ids, vault_ids=vault_ids)
-            first_user, second_user = sources
-            results = await asyncio.wait_for(
-                asyncio.gather(
-                    _attempt(first, first_user.id, second_user.id, actor.id),
-                    _attempt(second, second_user.id, first_user.id, actor.id),
-                    return_exceptions=True,
-                ),
-                timeout=20,
-            )
-            applied = [result for result in results if not isinstance(result, BaseException) and result.applied]
-            errors = [result for result in results if isinstance(result, BaseException)]
-            assert len(applied) == 1, results
-            assert len(errors) == 1, results
-            assert isinstance(errors[0], DomainError), results
-
-            async with maker() as session:
-                assert await _audit_count(session, [first_user.id, second_user.id]) == 1
-
-                fresh_ids = [first_user.id, second_user.id]
-                fresh_users = [await crud.user.get(session, user_id, include_deleted=True) for user_id in fresh_ids]
-                tombstoned = [user for user in fresh_users if user.is_deleted and not user.is_active]
-                survivors = [user for user in fresh_users if not user.is_deleted and user.is_active]
-                assert len(tombstoned) == 1, fresh_users
-                assert len(survivors) == 1, fresh_users
-
-                surviving_user = survivors[0]
-                surviving_vaults = (
-                    (await session.execute(select(Vault).where(col(Vault.id).in_(vault_ids)))).scalars().all()
-                )
-                assert {vault.user_id for vault in surviving_vaults} == {surviving_user.id}
-                assert await crud.vault.count_by_user(session, tombstoned[0].id) == 0
-                assert await crud.vault.count_by_user(session, surviving_user.id) == len(vault_ids)
-        finally:
-            await _cleanup(maker, user_ids, vault_ids)
+    async with _merge_context() as (maker, first, second, user_ids, vault_ids):
+        sources, _, actor, _ = await _seed(maker, sources=2, targets=0, user_ids=user_ids, vault_ids=vault_ids)
+        first_user, second_user = sources
+        results = await _race(
+            _attempt(first, first_user.id, second_user.id, actor.id),
+            _attempt(second, second_user.id, first_user.id, actor.id),
+        )
+        applied = [result for result in results if not isinstance(result, BaseException) and result.applied]
+        errors = [result for result in results if isinstance(result, BaseException)]
+        assert len(applied) == 1, results
+        assert len(errors) == 1, results
+        assert isinstance(errors[0], DomainError), results
+        async with maker() as session:
+            assert await _audit_count(session, [first_user.id, second_user.id]) == 1
+            fresh_users = [
+                await crud.user.get(session, user_id, include_deleted=True)
+                for user_id in (first_user.id, second_user.id)
+            ]
+            tombstoned = [user for user in fresh_users if user.is_deleted and not user.is_active]
+            survivors = [user for user in fresh_users if not user.is_deleted and user.is_active]
+            assert len(tombstoned) == 1, fresh_users
+            assert len(survivors) == 1, fresh_users
+            surviving_user = survivors[0]
+            surviving_vaults = await _vaults(session, vault_ids)
+            assert {vault.user_id for vault in surviving_vaults} == {surviving_user.id}
+            assert await crud.vault.count_by_user(session, tombstoned[0].id) == 0
+            assert await crud.vault.count_by_user(session, surviving_user.id) == len(vault_ids)
 
 
 def test_same_source_different_targets_concurrently() -> None:

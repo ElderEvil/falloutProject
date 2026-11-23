@@ -1,5 +1,3 @@
-"""Tests for objective constants and validation."""
-
 import pytest
 
 from app.utils.objective_constants import (
@@ -12,104 +10,53 @@ from app.utils.objective_constants import (
     validate_target_entity,
 )
 
-
-class TestNormalizeRoomType:
-    """Tests for normalize_room_type function."""
-
-    def test_normalize_invalid(self):
-        assert normalize_room_type("invalid_room") is None
-        assert normalize_room_type("") is None
-        assert normalize_room_type(None) is None
-
-
-class TestValidateTargetEntity:
-    """Tests for validate_target_entity function."""
-
-    def test_validate_build_room_type_valid(self):
-        errors = validate_target_entity("build", {"room_type": "living_room"})
-        assert errors == []
-
-    def test_validate_build_room_type_invalid(self):
-        errors = validate_target_entity("build", {"room_type": "invalid_room"})
-        assert len(errors) == 1
-        assert "Invalid room_type" in errors[0]
-
-    def test_validate_collect_resource_invalid(self):
-        errors = validate_target_entity("collect", {"resource_type": "invalid_resource"})
-        assert len(errors) == 1
-        assert "Invalid resource_type" in errors[0]
-
-    def test_validate_collect_item_valid(self):
-        errors = validate_target_entity("collect", {"item_type": "weapon"})
-        assert errors == []
-        errors = validate_target_entity("collect", {"item_type": "outfit"})
-        assert errors == []
-
-    def test_validate_collect_item_invalid(self):
-        errors = validate_target_entity("collect", {"item_type": "invalid_item"})
-        assert len(errors) == 1
-        assert "Invalid item_type" in errors[0]
-
-    def test_validate_item_type_wildcards_valid(self):
-        assert validate_target_entity("collect", {"item_type": "any"}) == []
-        assert validate_target_entity("collect", {"item_type": "*"}) == []
-
-    def test_validate_scrap_valid(self):
-        assert validate_target_entity("scrap", {"item_type": "weapon", "rarity": "rare"}) == []
-        assert validate_target_entity("scrap", {"rarity": "legendary"}) == []
-
-    def test_validate_scrap_wildcards_valid(self):
-        assert validate_target_entity("scrap", {"item_type": "any", "rarity": "rare"}) == []
-        assert validate_target_entity("scrap", {"item_type": "*", "rarity": "any"}) == []
-
-    def test_validate_scrap_invalid(self):
-        errors = validate_target_entity("scrap", {"item_type": "invalid_item"})
-        assert len(errors) == 1
-        assert "Invalid item_type" in errors[0]
-
-        errors = validate_target_entity("scrap", {"rarity": "invalid"})
-        assert len(errors) == 1
-        assert "Invalid rarity" in errors[0]
-
-    def test_validate_reach_valid(self):
-        errors = validate_target_entity("reach", {"reach_type": "dweller_count"})
-        assert errors == []
-        errors = validate_target_entity("reach", {"reach_type": "population"})
-        assert errors == []
-        errors = validate_target_entity("reach", {"reach_type": "level"})
-        assert errors == []
-
-    def test_validate_reach_invalid(self):
-        errors = validate_target_entity("reach", {"reach_type": "invalid"})
-        assert len(errors) == 1
-        assert "Invalid reach_type" in errors[0]
+VALID_TARGETS = [
+    ("build", {"room_type": "living_room"}),
+    ("collect", {"item_type": "weapon"}),
+    ("collect", {"item_type": "outfit"}),
+    ("collect", {"item_type": "any"}),
+    ("collect", {"item_type": "*"}),
+    ("scrap", {"item_type": "weapon", "rarity": "rare"}),
+    ("scrap", {"rarity": "legendary"}),
+    ("scrap", {"item_type": "any", "rarity": "rare"}),
+    ("scrap", {"item_type": "*", "rarity": "any"}),
+    ("reach", {"reach_type": "dweller_count"}),
+    ("reach", {"reach_type": "population"}),
+    ("reach", {"reach_type": "level"}),
+]
+INVALID_TARGETS = [
+    ("build", {"room_type": "invalid_room"}, "Invalid room_type"),
+    ("collect", {"resource_type": "invalid_resource"}, "Invalid resource_type"),
+    ("collect", {"item_type": "invalid_item"}, "Invalid item_type"),
+    ("scrap", {"item_type": "invalid_item"}, "Invalid item_type"),
+    ("scrap", {"rarity": "invalid"}, "Invalid rarity"),
+    ("reach", {"reach_type": "invalid"}, "Invalid reach_type"),
+]
 
 
-class TestValidConstants:
-    """Tests that constants are properly defined."""
+@pytest.mark.parametrize(("action", "target"), VALID_TARGETS)
+def test_validate_target_entity_accepts(action: str, target: dict) -> None:
+    assert validate_target_entity(action, target) == []
 
-    def test_valid_room_types_not_empty(self):
-        assert len(VALID_ROOM_TYPES) > 0
 
-    def test_living_room_in_valid(self):
-        assert "living_room" in VALID_ROOM_TYPES
+@pytest.mark.parametrize(("action", "target", "message"), INVALID_TARGETS)
+def test_validate_target_entity_rejects(action: str, target: dict, message: str) -> None:
+    errors = validate_target_entity(action, target)
+    assert len(errors) == 1
+    assert message in errors[0]
 
-    def test_storage_room_in_valid(self):
-        assert "storage_room" in VALID_ROOM_TYPES
 
-    def test_valid_resource_types_not_empty(self):
-        assert len(VALID_RESOURCE_TYPES) > 0
-
-    def test_valid_item_types_not_empty(self):
-        assert len(VALID_ITEM_TYPES) > 0
-
-    def test_room_type_aliases_not_empty(self):
-        assert len(ROOM_TYPE_ALIASES) > 0
-
-    def test_valid_reach_types_not_empty(self):
-        assert len(VALID_REACH_TYPES) > 0
-
-    def test_reach_types_contains_expected(self):
-        assert "dweller_count" in VALID_REACH_TYPES
-        assert "population" in VALID_REACH_TYPES
-        assert "level" in VALID_REACH_TYPES
+@pytest.mark.parametrize(
+    ("collection", "member"),
+    [(VALID_ROOM_TYPES, "living_room"), (VALID_ROOM_TYPES, "storage_room")]
+    + [(VALID_REACH_TYPES, reach) for reach in ("dweller_count", "population", "level")],
+)
+def test_valid_collections_include_expected(collection, member: str) -> None:
+    for values in (VALID_ROOM_TYPES, VALID_RESOURCE_TYPES, VALID_ITEM_TYPES, ROOM_TYPE_ALIASES, VALID_REACH_TYPES):
+        assert len(values) > 0
+    assert member in collection
+    assert (normalize_room_type("invalid_room"), normalize_room_type(""), normalize_room_type(None)) == (
+        None,
+        None,
+        None,
+    )

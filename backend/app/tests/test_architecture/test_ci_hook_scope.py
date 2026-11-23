@@ -1,5 +1,3 @@
-"""Run the backend CI hook command against committed changes in a disposable repo."""
-
 import os
 import shutil
 import subprocess
@@ -21,7 +19,6 @@ def _git(repo: Path, *args: str) -> str:
 
 @pytest.mark.parametrize("invalid_change", [True, False])
 def test_ci_checks_committed_changes_without_gating_legacy_files(tmp_path: Path, invalid_change: bool) -> None:
-    """A clean index must not hide new failures or pull unrelated legacy debt into the gate."""
     workflow = yaml.safe_load((REPO_ROOT / ".github/workflows/backend-ci.yml").read_text())
     step = next(step for step in workflow["jobs"]["backend-ci"]["steps"] if step.get("name") == "Run linter (prek)")
     # Run the real prek binary from the test environment, without uv project discovery in the fixture repo.

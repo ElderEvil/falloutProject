@@ -70,11 +70,43 @@ async def _set_human(
     await db_session.refresh(dweller)
 
 
+async def _change(session: AsyncSession, room: Room, dweller: Dweller, skin_tone: str, hair_color: str):
+    return await barbershop_service.change_appearance(
+        session,
+        room=room,
+        dweller_id=dweller.id,
+        request=BarbershopChangeRequest(skin_tone=skin_tone, hair_color=hair_color),
+    )
+
+
+async def _fund(session: AsyncSession, vault: Vault, caps: int) -> Vault:
+    vault.bottle_caps = caps
+    session.add(vault)
+    await session.commit()
+    return vault
+
+
+@pytest.fixture
+async def shop(async_session: AsyncSession, vault: Vault, dweller: Dweller) -> Room:
+    room = await _make_barbershop(async_session, vault)
+    await _staff(async_session, room, dweller)
+    return room
+
+
+@pytest.fixture
+async def human(async_session: AsyncSession, shop: Room, dweller: Dweller) -> Dweller:
+    await _set_human(async_session, dweller)
+    return dweller
+
+
+@pytest.fixture
+async def funded(async_session: AsyncSession, vault: Vault) -> Vault:
+    return await _fund(async_session, vault, 500)
+
+
 async def test_status_reports_built_unstaffed_barbershop(async_session: AsyncSession, vault: Vault) -> None:
     await _make_barbershop(async_session, vault)
-
     status = await barbershop_service.get_status(async_session, vault.id)
-
     assert status.built is True
     assert status.staffed is False
     assert status.fee == 350
@@ -91,29 +123,15 @@ async def test_require_available_rejects_missing_barbershop(async_session: Async
 
 async def test_require_available_rejects_unstaffed_barbershop(async_session: AsyncSession, vault: Vault) -> None:
     await _make_barbershop(async_session, vault)
-
     with pytest.raises(BarbershopRequiredException, match="Assign at least one dweller"):
         await barbershop_service.require_available(async_session, vault.id)
 
 
 async def test_change_appearance_deducts_fee_and_swaps_default_portrait(
-    async_session: AsyncSession, vault: Vault, dweller: Dweller
+    async_session: AsyncSession, vault: Vault, dweller: Dweller, shop: Room, human: Dweller, funded: Vault
 ) -> None:
-    room = await _make_barbershop(async_session, vault)
-    await _staff(async_session, room, dweller)
-    await _set_human(async_session, dweller)
-    vault.bottle_caps = 500
-    async_session.add(vault)
-    await async_session.commit()
-
     before_image = dweller.image_url
-    response = await barbershop_service.change_appearance(
-        async_session,
-        room=room,
-        dweller_id=dweller.id,
-        request=BarbershopChangeRequest(skin_tone="Tan", hair_color="black"),
-    )
-
+    response = await _change(async_session, shop, dweller, "Tan", "black")
     assert response.portrait_updated is True
     assert response.fee == 350
     assert response.remaining_caps == 150
@@ -126,59 +144,24 @@ async def test_change_appearance_deducts_fee_and_swaps_default_portrait(
 
 
 async def test_change_appearance_charges_only_for_the_changed_attribute(
-    async_session: AsyncSession, vault: Vault, dweller: Dweller
+    async_session: AsyncSession, dweller: Dweller, shop: Room, human: Dweller, funded: Vault
 ) -> None:
-    room = await _make_barbershop(async_session, vault)
-    await _staff(async_session, room, dweller)
-    await _set_human(async_session, dweller)
-    vault.bottle_caps = 500
-    async_session.add(vault)
-    await async_session.commit()
-
-    skin_response = await barbershop_service.change_appearance(
-        async_session,
-        room=room,
-        dweller_id=dweller.id,
-        request=BarbershopChangeRequest(skin_tone="Tan", hair_color="blonde"),
-    )
+    skin_response = await _change(async_session, shop, dweller, "Tan", "blonde")
     assert skin_response.fee == 200
     assert skin_response.remaining_caps == 300
-
     await async_session.refresh(dweller)
-    hair_response = await barbershop_service.change_appearance(
-        async_session,
-        room=room,
-        dweller_id=dweller.id,
-        request=BarbershopChangeRequest(skin_tone="Tan", hair_color="black"),
-    )
+    hair_response = await _change(async_session, shop, dweller, "Tan", "black")
     assert hair_response.fee == 150
     assert hair_response.remaining_caps == 150
 
 
 async def test_change_appearance_preserves_custom_art(
-    async_session: AsyncSession, vault: Vault, dweller: Dweller
+    async_session: AsyncSession, dweller: Dweller, shop: Room, funded: Vault
 ) -> None:
-    room = await _make_barbershop(async_session, vault)
-    await _staff(async_session, room, dweller)
     custom_image = "https://cdn.example.com/custom-portrait.png"
     custom_thumbnail = "https://cdn.example.com/custom-thumb.png"
-    await _set_human(
-        async_session,
-        dweller,
-        image_url=custom_image,
-        thumbnail_url=custom_thumbnail,
-    )
-    vault.bottle_caps = 500
-    async_session.add(vault)
-    await async_session.commit()
-
-    response = await barbershop_service.change_appearance(
-        async_session,
-        room=room,
-        dweller_id=dweller.id,
-        request=BarbershopChangeRequest(skin_tone="Ebony", hair_color="red"),
-    )
-
+    await _set_human(async_session, dweller, image_url=custom_image, thumbnail_url=custom_thumbnail)
+    response = await _change(async_session, shop, dweller, "Ebony", "red")
     assert response.portrait_updated is False
     assert response.dweller.image_url == custom_image
     assert response.dweller.thumbnail_url == custom_thumbnail
@@ -187,117 +170,64 @@ async def test_change_appearance_preserves_custom_art(
 
 
 async def test_change_appearance_rejects_insufficient_caps(
-    async_session: AsyncSession, vault: Vault, dweller: Dweller
+    async_session: AsyncSession, vault: Vault, dweller: Dweller, shop: Room, human: Dweller
 ) -> None:
-    room = await _make_barbershop(async_session, vault)
-    await _staff(async_session, room, dweller)
-    await _set_human(async_session, dweller)
-    vault.bottle_caps = 50
-    async_session.add(vault)
-    await async_session.commit()
-
+    await _fund(async_session, vault, 50)
     with pytest.raises(InsufficientResourcesException):
-        await barbershop_service.change_appearance(
-            async_session,
-            room=room,
-            dweller_id=dweller.id,
-            request=BarbershopChangeRequest(skin_tone="Tan", hair_color="black"),
-        )
-
+        await _change(async_session, shop, dweller, "Tan", "black")
     await async_session.refresh(dweller)
     await async_session.refresh(vault)
     assert dweller.visual_attributes["skin_tone"] == "Pale"
     assert vault.bottle_caps == 50
 
 
-async def test_change_appearance_rejects_non_human(async_session: AsyncSession, vault: Vault, dweller: Dweller) -> None:
-    room = await _make_barbershop(async_session, vault)
-    await _staff(async_session, room, dweller)
+async def test_change_appearance_rejects_non_human(async_session: AsyncSession, dweller: Dweller, shop: Room) -> None:
     dweller.visual_attributes = {"race": "ghoul", "state_of_being": "sane", "skin_tone": "Pale", "hair_color": "gray"}
     async_session.add(dweller)
     await async_session.commit()
-
     with pytest.raises(ValidationException, match="Only human"):
-        await barbershop_service.change_appearance(
-            async_session,
-            room=room,
-            dweller_id=dweller.id,
-            request=BarbershopChangeRequest(skin_tone="Tan", hair_color="black"),
-        )
+        await _change(async_session, shop, dweller, "Tan", "black")
 
 
 async def test_change_appearance_allows_gen_3_synth(
-    async_session: AsyncSession, vault: Vault, dweller: Dweller
+    async_session: AsyncSession, vault: Vault, dweller: Dweller, shop: Room
 ) -> None:
-    """Gen-3 synths pass as human and can use the human-only Barbershop."""
-    room = await _make_barbershop(async_session, vault)
-    await _staff(async_session, room, dweller)
     dweller.visual_attributes = {
         "race": "synth",
         "state_of_being": "gen_3",
         "skin_tone": "Pale",
         "hair_color": "blonde",
     }
-    vault.bottle_caps = 500
-    async_session.add_all([dweller, vault])
+    await _fund(async_session, vault, 500)
+    async_session.add(dweller)
     await async_session.commit()
-
-    response = await barbershop_service.change_appearance(
-        async_session,
-        room=room,
-        dweller_id=dweller.id,
-        request=BarbershopChangeRequest(skin_tone="Tan", hair_color="black"),
-    )
-
+    response = await _change(async_session, shop, dweller, "Tan", "black")
     assert response.dweller.visual_attributes["skin_tone"] == "Tan"
     assert response.dweller.visual_attributes["hair_color"] == "black"
 
 
-async def test_change_appearance_rejects_child(async_session: AsyncSession, vault: Vault, dweller: Dweller) -> None:
-    room = await _make_barbershop(async_session, vault)
-    await _staff(async_session, room, dweller)
-    await _set_human(async_session, dweller)
+async def test_change_appearance_rejects_child(
+    async_session: AsyncSession, dweller: Dweller, shop: Room, human: Dweller
+) -> None:
     dweller.age_group = AgeGroupEnum.CHILD
     async_session.add(dweller)
     await async_session.commit()
-
     with pytest.raises(ValidationException, match="adult or elder"):
-        await barbershop_service.change_appearance(
-            async_session,
-            room=room,
-            dweller_id=dweller.id,
-            request=BarbershopChangeRequest(skin_tone="Tan", hair_color="black"),
-        )
+        await _change(async_session, shop, dweller, "Tan", "black")
 
 
 async def test_change_appearance_rejects_unknown_preset(
-    async_session: AsyncSession, vault: Vault, dweller: Dweller
+    async_session: AsyncSession, dweller: Dweller, shop: Room, human: Dweller
 ) -> None:
-    room = await _make_barbershop(async_session, vault)
-    await _staff(async_session, room, dweller)
-    await _set_human(async_session, dweller)
-
     with pytest.raises(ValidationException, match="valid skin tone"):
-        await barbershop_service.change_appearance(
-            async_session,
-            room=room,
-            dweller_id=dweller.id,
-            request=BarbershopChangeRequest(skin_tone="Light", hair_color="black"),
-        )
+        await _change(async_session, shop, dweller, "Light", "black")
 
 
-async def test_change_appearance_rejects_no_change(async_session: AsyncSession, vault: Vault, dweller: Dweller) -> None:
-    room = await _make_barbershop(async_session, vault)
-    await _staff(async_session, room, dweller)
-    await _set_human(async_session, dweller)
-
+async def test_change_appearance_rejects_no_change(
+    async_session: AsyncSession, dweller: Dweller, shop: Room, human: Dweller
+) -> None:
     with pytest.raises(ContentNoChangeException):
-        await barbershop_service.change_appearance(
-            async_session,
-            room=room,
-            dweller_id=dweller.id,
-            request=BarbershopChangeRequest(skin_tone="Pale", hair_color="blonde"),
-        )
+        await _change(async_session, shop, dweller, "Pale", "blonde")
 
 
 async def test_change_appearance_requires_the_room_to_be_staffed(
@@ -305,11 +235,5 @@ async def test_change_appearance_requires_the_room_to_be_staffed(
 ) -> None:
     room = await _make_barbershop(async_session, vault)
     await _set_human(async_session, dweller)
-
     with pytest.raises(BarbershopRequiredException, match="this Barbershop"):
-        await barbershop_service.change_appearance(
-            async_session,
-            room=room,
-            dweller_id=dweller.id,
-            request=BarbershopChangeRequest(skin_tone="Tan", hair_color="black"),
-        )
+        await _change(async_session, room, dweller, "Tan", "black")

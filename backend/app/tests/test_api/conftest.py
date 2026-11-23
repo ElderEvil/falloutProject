@@ -101,8 +101,7 @@ def dweller_data_fixture():
 
 @pytest.fixture(name="junk_data")
 def junk_fixture():
-    item_data = get_generic_items_data()
-    return item_data | {
+    return get_generic_items_data() | {
         "junk_type": random.choice(list(JunkTypeEnum)),
         "description": fake.sentence(),
     }
@@ -110,14 +109,15 @@ def junk_fixture():
 
 @pytest.fixture(name="outfit_data")
 def outfit_fixture():
-    item_data = get_generic_items_data()
-    return item_data | {"description": fake.sentence(), "outfit_type": random.choice(list(OutfitTypeEnum))}
+    return get_generic_items_data() | {
+        "description": fake.sentence(),
+        "outfit_type": random.choice(list(OutfitTypeEnum)),
+    }
 
 
 @pytest.fixture(name="weapon_data")
 def weapon_fixture():
-    item_data = get_generic_items_data()
-    return item_data | {
+    return get_generic_items_data() | {
         "description": fake.sentence(),
         "weapon_type": random.choice(list(WeaponTypeEnum)),
         "weapon_subtype": random.choice(list(WeaponSubtypeEnum)),
@@ -135,25 +135,23 @@ async def user_fixture(async_session: AsyncSession) -> User:
 
 @pytest_asyncio.fixture(name="vault")
 async def vault_fixture(async_session: AsyncSession, user: User, vault_data: dict) -> Vault:
-    vault_in = VaultCreateWithUserID(**vault_data, user_id=user.id)
-    return await crud.vault.create(db_session=async_session, obj_in=vault_in)
+    return await crud.vault.create(
+        db_session=async_session, obj_in=VaultCreateWithUserID(**vault_data, user_id=user.id)
+    )
 
 
 @pytest_asyncio.fixture(name="room")
 async def room_fixture(async_session: AsyncSession, vault: Vault, room_data: dict) -> Room:
-    room_in = RoomCreate(**room_data, vault_id=vault.id)
-    return await crud.room.create(db_session=async_session, obj_in=room_in)
+    return await crud.room.create(db_session=async_session, obj_in=RoomCreate(**room_data, vault_id=vault.id))
 
 
 @pytest_asyncio.fixture(name="dweller")
 async def dweller_fixture(async_session: AsyncSession, vault: Vault, dweller_data: dict) -> Dweller:
-    dweller_in = DwellerCreate(**dweller_data, vault_id=vault.id)
-    return await crud.dweller.create(db_session=async_session, obj_in=dweller_in)
+    return await crud.dweller.create(db_session=async_session, obj_in=DwellerCreate(**dweller_data, vault_id=vault.id))
 
 
 @pytest_asyncio.fixture(name="staffed_barbershop")
 async def staffed_barbershop_fixture(async_session: AsyncSession, vault: Vault, dweller: Dweller) -> Room:
-    """A Barbershop with the fixture dweller assigned as its worker."""
     room_in = RoomCreate(
         name="Barbershop",
         category=RoomTypeEnum.MISC,
@@ -178,13 +176,8 @@ async def staffed_barbershop_fixture(async_session: AsyncSession, vault: Vault, 
 
 @pytest_asyncio.fixture(name="vault_with_caps")
 async def vault_with_caps_fixture(async_session: AsyncSession) -> Vault:
-    user_in = UserCreate(
-        username=fake.user_name(),
-        email=fake.email(),
-        password=fake.password(),
-    )
+    user_in = UserCreate(username=fake.user_name(), email=fake.email(), password=fake.password())
     user = await crud.user.create(db_session=async_session, obj_in=user_in)
-
     vault_in = VaultCreateWithUserID(
         number=random_vault_number(),
         bottle_caps=10000,

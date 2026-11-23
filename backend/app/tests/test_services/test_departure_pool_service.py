@@ -1,5 +1,3 @@
-"""Shared recruitment pool: listing and atomic identity-preserving claims."""
-
 from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
@@ -76,7 +74,6 @@ async def _depart(
     return dweller
 
 
-@pytest.mark.asyncio
 async def test_list_pool_excludes_own_departures_and_ineligible(async_session: AsyncSession, vault: Vault) -> None:
     source_id = uuid4()
     claimable = await _depart(async_session, await _create(async_session, vault), source_vault_id=source_id)
@@ -89,21 +86,16 @@ async def test_list_pool_excludes_own_departures_and_ineligible(async_session: A
         consent=None,
     )
     await _depart(async_session, await _create(async_session, vault), source_vault_id=vault.id)
-
     pool = await departure_pool_service.list_pool(async_session, vault)
-
     assert [d.id for d in pool] == [claimable.id]
 
 
-@pytest.mark.asyncio
 async def test_claim_transfers_ownership_and_preserves_identity(async_session: AsyncSession, vault: Vault) -> None:
     await crud.vault.update(db_session=async_session, id=vault.id, obj_in={"bottle_caps": 100_000})
     dweller = await _depart(
         async_session, await _create(async_session, vault, level=7, experience=420), source_vault_id=uuid4()
     )
-
     claimed = await departure_pool_service.claim(async_session, vault, dweller.id)
-
     assert claimed.id == dweller.id
     assert claimed.level == 7
     assert claimed.experience == 420
@@ -117,23 +109,17 @@ async def test_claim_transfers_ownership_and_preserves_identity(async_session: A
     assert vault.bottle_caps == 100_000 - trade_value(dweller)
 
 
-@pytest.mark.asyncio
 async def test_claim_rejects_a_vault_at_population_capacity(async_session: AsyncSession, vault: Vault) -> None:
-    """A buyer at its population cap is refused before any caps are charged."""
     await crud.vault.update(db_session=async_session, id=vault.id, obj_in={"bottle_caps": 100_000, "population_max": 1})
     dweller = await _depart(async_session, await _create(async_session, vault), source_vault_id=uuid4())
     await _create(async_session, vault, first_name="Filler", last_name="Dweller")
-
     with pytest.raises(ResourceConflictException, match="population capacity"):
         await departure_pool_service.claim(async_session, vault, dweller.id)
-
     await async_session.refresh(vault)
     assert vault.bottle_caps == 100_000
 
 
-@pytest.mark.asyncio
 async def test_claim_rejects_a_duplicate_active_identity(async_session: AsyncSession, vault: Vault) -> None:
-    """A curated name that is already active in the buyer vault is refused, like templates."""
     await crud.vault.update(db_session=async_session, id=vault.id, obj_in={"bottle_caps": 100_000})
     dweller = await _depart(
         async_session,
@@ -141,31 +127,24 @@ async def test_claim_rejects_a_duplicate_active_identity(async_session: AsyncSes
         source_vault_id=uuid4(),
     )
     await _create(async_session, vault, first_name="Sarah", last_name="Lyons")
-
     with pytest.raises(ResourceConflictException, match="already has an active"):
         await departure_pool_service.claim(async_session, vault, dweller.id)
-
     await async_session.refresh(vault)
     assert vault.bottle_caps == 100_000
 
 
-@pytest.mark.asyncio
 async def test_claim_rejects_your_own_departure(async_session: AsyncSession, vault: Vault) -> None:
     dweller = await _depart(async_session, await _create(async_session, vault), source_vault_id=vault.id)
-
     with pytest.raises(VaultOperationException, match="your own departure"):
         await departure_pool_service.claim(async_session, vault, dweller.id)
 
 
-@pytest.mark.asyncio
 async def test_claim_rejects_a_not_yet_eligible_departure(async_session: AsyncSession, vault: Vault) -> None:
     dweller = await _depart(async_session, await _create(async_session, vault), source_vault_id=uuid4(), eligible=False)
-
     with pytest.raises(ResourceConflictException, match="not yet eligible"):
         await departure_pool_service.claim(async_session, vault, dweller.id)
 
 
-@pytest.mark.asyncio
 async def test_claim_rejects_unshared_player_content(async_session: AsyncSession, vault: Vault) -> None:
     dweller = await _depart(
         async_session,
@@ -174,23 +153,18 @@ async def test_claim_rejects_unshared_player_content(async_session: AsyncSession
         provenance=ContentProvenanceEnum.PLAYER_EDITED,
         consent=None,
     )
-
     with pytest.raises(ResourceConflictException, match="not shared"):
         await departure_pool_service.claim(async_session, vault, dweller.id)
 
 
-@pytest.mark.asyncio
 async def test_claim_rejects_a_person_already_taken(async_session: AsyncSession, vault: Vault) -> None:
     await crud.vault.update(db_session=async_session, id=vault.id, obj_in={"bottle_caps": 100_000})
     dweller = await _depart(async_session, await _create(async_session, vault), source_vault_id=uuid4())
-
     await departure_pool_service.claim(async_session, vault, dweller.id)
-
     with pytest.raises(ResourceConflictException, match="no longer available"):
         await departure_pool_service.claim(async_session, vault, dweller.id)
 
 
-@pytest.mark.asyncio
 async def test_claim_rejects_an_unknown_dweller(async_session: AsyncSession, vault: Vault) -> None:
     with pytest.raises(ResourceNotFoundException):
         await departure_pool_service.claim(async_session, vault, uuid4())

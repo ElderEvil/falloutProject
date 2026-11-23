@@ -1,13 +1,27 @@
-import random
-
 import pytest
 
-from app.core.enums import RarityEnum
-from app.core.game_config import game_config
 from app.schemas.dweller import DwellerTemplate
 from app.utils.dwellers import create_dweller_from_template
-from app.utils.places import GENERIC_ORIGIN_SKIP, normalize_place_name
 from app.utils.static_data import game_data_store
+
+PAYLOAD = {
+    "first_name": "Test",
+    "last_name": "Vault",
+    "template_id": "test-vault",
+    "gender": "Male",
+    "rarity": "Rare",
+    "strength": 5,
+    "perception": 5,
+    "endurance": 5,
+    "charisma": 5,
+    "intelligence": 5,
+    "agility": 5,
+    "luck": 5,
+    "origin_place": "Rivet City",
+    "visited_places": ["Megaton"],
+    "bio": "Grew up in Rivet City.",
+    "visual_attributes": {"race": "human", "faction": "vault_dweller"},
+}
 
 
 def test_pick_template_exhaustion_returns_none() -> None:
@@ -15,53 +29,28 @@ def test_pick_template_exhaustion_returns_none() -> None:
     assert game_data_store.pick_template("rare", exclude_names=names) is None
 
 
-def _template_payload(**overrides: object) -> dict[str, object]:
-    base: dict[str, object] = {
-        "first_name": "Test",
-        "last_name": "Vault",
-        "template_id": "test-vault",
-        "gender": "Male",
-        "rarity": "Rare",
-        "strength": 5,
-        "perception": 5,
-        "endurance": 5,
-        "charisma": 5,
-        "intelligence": 5,
-        "agility": 5,
-        "luck": 5,
-        "origin_place": "Rivet City",
-        "visited_places": ["Megaton"],
-        "bio": "Grew up in Rivet City.",
-        "visual_attributes": {"race": "human", "faction": "vault_dweller"},
-    }
-    base.update(overrides)
-    return base
-
-
-def test_template_rejects_duplicate_normalized_visited() -> None:
-    with pytest.raises(ValueError, match="duplicate"):
-        DwellerTemplate.model_validate(_template_payload(visited_places=["Megaton", "megaton"]))
-
-
-def test_template_rejects_visited_matching_origin() -> None:
-    with pytest.raises(ValueError, match="origin"):
-        DwellerTemplate.model_validate(_template_payload(visited_places=["rivet city"]))
-
-
-def test_template_rejects_blank_origin() -> None:
-    with pytest.raises(ValueError, match="origin_place"):
-        DwellerTemplate.model_validate(_template_payload(origin_place="   "))
+@pytest.mark.parametrize(
+    ("overrides", "match"),
+    [
+        ({"visited_places": ["Megaton", "megaton"]}, "duplicate"),
+        ({"visited_places": ["rivet city"]}, "origin"),
+        ({"origin_place": "   "}, "origin_place"),
+        ({"visual_attributes": {"race": "human", "faction": "super_mutant_tribe"}}, "not valid for race"),
+    ],
+)
+def test_template_rejects_invalid_payload(overrides: dict, match: str) -> None:
+    with pytest.raises(ValueError, match=match):
+        DwellerTemplate.model_validate(PAYLOAD | overrides)
 
 
 def test_companion_template_allows_null_visuals_and_generates_defaults() -> None:
-    t = DwellerTemplate.model_validate(
-        {
+    template = DwellerTemplate.model_validate(
+        PAYLOAD
+        | {
             "first_name": "Snip Snip",
             "last_name": "",
             "template_id": "snip-snip",
-            "gender": "Male",
             "rarity": "Legendary",
-            "strength": 5,
             "perception": 7,
             "endurance": 7,
             "charisma": 6,
@@ -74,32 +63,7 @@ def test_companion_template_allows_null_visuals_and_generates_defaults() -> None
             "bio": "A loyal canine companion.",
         }
     )
-    assert t.visual_attributes is None
-    data = create_dweller_from_template(t)
+    assert template.visual_attributes is None
+    data = create_dweller_from_template(template)
     assert data["visual_attributes"]["race"] == "human"
     assert data["visual_attributes"]["hair_style"]
-
-
-def test_template_rejects_invalid_visual_identity() -> None:
-    with pytest.raises(ValueError, match="not valid for race"):
-        DwellerTemplate.model_validate(
-            {
-                "first_name": "Invalid",
-                "last_name": "Identity",
-                "template_id": "invalid-identity",
-                "gender": "Male",
-                "rarity": "Rare",
-                "strength": 5,
-                "perception": 5,
-                "endurance": 5,
-                "charisma": 5,
-                "intelligence": 5,
-                "agility": 5,
-                "luck": 5,
-                "origin_place": "Megaton",
-                "visited_places": [],
-                "visual_attributes": {"race": "human", "faction": "super_mutant_tribe"},
-            }
-        )
-
-        # DwellerTemplate already validates race/faction combo via DwellerVisualAttributes

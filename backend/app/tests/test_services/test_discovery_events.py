@@ -1,7 +1,5 @@
-"""Tests for discovery event generation (procedural, no LLM)."""
-
 import sys
-from datetime import datetime, timedelta
+from datetime import timedelta
 from unittest.mock import AsyncMock, patch
 
 import pydantic
@@ -23,39 +21,34 @@ from app.services.exploration_service import exploration_service
 from app.services.map_service import map_service
 from app.utils.time import utcnow
 
+_CRATER = "Glowing Crater"
 
-def _make_expired_exploration(exploration: Exploration) -> None:
-    """Set exploration start_time far enough in the past to allow event generation."""
+
+def _expire(exploration):
+    # Far enough in the past to allow event generation.
     exploration.start_time = utcnow() - timedelta(minutes=15)
 
 
-@pytest.mark.asyncio
-async def test_map_routes_preserve_repeated_discoveries_from_event_history(
-    async_session: AsyncSession,
-    vault: Vault,
-    dweller: Dweller,
-) -> None:
-    """The map route comes from events, not the de-duplicated location row."""
+async def _exploration(async_session, vault, dweller):
     exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
+    await async_session.refresh(exploration)
+    return exploration
+
+
+async def test_map_routes_preserve_repeated_discoveries_from_event_history(async_session, vault, dweller):
+    exploration = await _exploration(async_session, vault, dweller)
     location = await map_service.register_discovery(async_session, vault.id, exploration.id, dweller.id, "Rusty Depot")
     assert location is not None
 
-    exploration.add_event(
-        "discovery",
-        "First discovery.",
-        location_name=location.name,
-        location_id=location.id,
-        coord_x=location.coord_x,
-        coord_y=location.coord_y,
-    )
-    exploration.add_event(
-        "discovery",
-        "Rediscovered on a later leg.",
-        location_name=location.name,
-        location_id=location.id,
-        coord_x=location.coord_x,
-        coord_y=location.coord_y,
-    )
+    for description in ("First discovery.", "Rediscovered on a later leg."):
+        exploration.add_event(
+            "discovery",
+            description,
+            location_name=location.name,
+            location_id=location.id,
+            coord_x=location.coord_x,
+            coord_y=location.coord_y,
+        )
     async_session.add(exploration)
     await async_session.commit()
 
@@ -67,122 +60,65 @@ async def test_map_routes_preserve_repeated_discoveries_from_event_history(
     assert route.points[0].coord_x == round(location.coord_x * 1.6, 1)
 
 
-@pytest.mark.asyncio
-async def test_discovery_dict_parses_through_union():
-    """A discovery dict parses through the ExplorationEvent union."""
+async def test_discovery_schema_and_existing_event_weights_untouched():
     discovery_dict = {
         "type": "discovery",
         "description": "Your dweller has discovered Rusty Depot in the wasteland.",
         "location_name": "Rusty Depot",
     }
-    adapter = pydantic.TypeAdapter(ExplorationEvent)
-    parsed = adapter.validate_python(discovery_dict)
+    parsed = pydantic.TypeAdapter(ExplorationEvent).validate_python(discovery_dict)
     assert isinstance(parsed, DiscoveryEventSchema)
     assert parsed.type == "discovery"
     assert parsed.location_name == "Rusty Depot"
 
-
-@pytest.mark.asyncio
-async def test_existing_event_weights_untouched():
-    """Failure: combat/loot/danger/rest config weights are unchanged from defaults."""
-    assert game_config.exploration.event_weight_combat == 35
-    assert game_config.exploration.event_weight_loot == 35
-    assert game_config.exploration.event_weight_danger == 20
-    assert game_config.exploration.event_weight_rest == 10
+    exploration = game_config.exploration
+    assert (exploration.event_weight_combat, exploration.event_weight_loot) == (35, 35)
+    assert (exploration.event_weight_danger, exploration.event_weight_rest) == (20, 10)
 
 
-@pytest.mark.asyncio
-async def test_process_event_register_discovery_failure_does_not_break_event(
-    async_session: AsyncSession,
-    vault: Vault,
-    dweller: Dweller,
-):
-    """Failure: register_discovery raises → event still persisted, no exception propagates."""
-    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
-    await async_session.refresh(exploration)
-    _make_expired_exploration(exploration)
-
+@pytest.mark.parametrize("mode", ["raise", "import"])
+async def test_process_event_survives_map_service_failure(async_session, vault, dweller, mode):
+    exploration = await _exploration(async_session, vault, dweller)
+    _expire(exploration)
     mock_event = DiscoveryEventSchema(
-        description="Discovery event that will fail map registration.",
-        location_name="Glowing Crater",
+        description=f"Discovery event ({mode}) that must not break the round.", location_name=_CRATER
     )
-
-    with (
-        patch.object(event_generator, "generate_event", return_value=mock_event),
+    failure = (
         patch(
             "app.services.map_service.map_service.register_discovery",
             AsyncMock(side_effect=RuntimeError("DB connection lost")),
-        ),
-    ):
-        result = await exploration_service.process_event(async_session, exploration)
-
-    # Event still persisted despite map_service failure
-    await async_session.refresh(result)
-    assert len(result.events) == 1
-    assert result.events[0]["location_name"] == "Glowing Crater"
-
-    # No DISCOVERY state row (register_discovery failed)
-    location_stmt = select(VaultLocationState).where(
-        VaultLocationState.type == LocationTypeEnum.DISCOVERY,
-        VaultLocationState.vault_id == vault.id,
-    )
-    locations = (await async_session.execute(location_stmt)).scalars().all()
-    assert len(locations) == 0
-
-    # No LLMInteraction rows created
-    llm_count_stmt = select(LLMInteraction)
-    llm_rows = (await async_session.execute(llm_count_stmt)).scalars().all()
-    assert len(llm_rows) == 0
-
-
-@pytest.mark.asyncio
-async def test_process_event_map_service_import_failure_does_not_break_event(
-    async_session: AsyncSession,
-    vault: Vault,
-    dweller: Dweller,
-):
-    """Failure: a failed map_service import is swallowed and the event still persists."""
-    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
-    await async_session.refresh(exploration)
-    _make_expired_exploration(exploration)
-
-    mock_event = DiscoveryEventSchema(
-        description="Discovery event whose map service cannot be imported.",
-        location_name="Glowing Crater",
+        )
+        if mode == "raise"
+        else patch.dict(sys.modules, {"app.services.map_service": None})
     )
 
-    with (
-        patch.object(event_generator, "generate_event", return_value=mock_event),
-        patch.dict(sys.modules, {"app.services.map_service": None}),
-    ):
+    with patch.object(event_generator, "generate_event", return_value=mock_event), failure:
         result = await exploration_service.process_event(async_session, exploration)
 
+    # The event is persisted and the failure never propagates.
     await async_session.refresh(result)
     assert len(result.events) == 1
-    assert result.events[0]["location_name"] == "Glowing Crater"
+    assert result.events[0]["location_name"] == _CRATER
+
+    if mode == "raise":
+        location_stmt = select(VaultLocationState).where(
+            VaultLocationState.type == LocationTypeEnum.DISCOVERY, VaultLocationState.vault_id == vault.id
+        )
+        assert len((await async_session.execute(location_stmt)).scalars().all()) == 0
+        assert len((await async_session.execute(select(LLMInteraction))).scalars().all()) == 0
 
 
-@pytest.mark.asyncio
-async def test_discovery_records_one_bio_visit(
-    async_session: AsyncSession,
-    vault: Vault,
-    dweller: Dweller,
-) -> None:
-    """A discovery narrates into the explorer's bio; rediscovery does not duplicate it."""
-    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
-    await async_session.refresh(exploration)
-
+async def test_discovery_records_one_bio_visit(async_session, vault, dweller):
+    exploration = await _exploration(async_session, vault, dweller)
     mock_event = DiscoveryEventSchema(
-        description="Your dweller has discovered Rusty Depot in the wasteland.",
-        location_name="Rusty Depot",
+        description="Your dweller has discovered Rusty Depot in the wasteland.", location_name="Rusty Depot"
     )
 
     with patch.object(event_generator, "generate_event", return_value=mock_event):
-        _make_expired_exploration(exploration)
-        await exploration_service.process_event(async_session, exploration)
-        await async_session.refresh(exploration)
-        _make_expired_exploration(exploration)
-        await exploration_service.process_event(async_session, exploration)
+        for _ in range(2):
+            _expire(exploration)
+            await exploration_service.process_event(async_session, exploration)
+            await async_session.refresh(exploration)
 
     refreshed = await crud.dweller.get(async_session, dweller.id)
     visits = [entry for entry in refreshed.bio_entries if entry["source"] == "exploration"]

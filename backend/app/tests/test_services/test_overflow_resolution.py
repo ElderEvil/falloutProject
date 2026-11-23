@@ -1,7 +1,5 @@
-"""Tests for overflow take/sell/abandon resolution."""
-
 from collections.abc import Awaitable, Callable
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 import pytest
 import pytest_asyncio
@@ -26,13 +24,18 @@ from app.utils.exceptions import ResourceConflictException, ResourceNotFoundExce
 from app.utils.time import utcnow
 
 
+def _loot(name: str, quantity: int = 1, rarity: str = "Common", item_type: str = "junk") -> dict:
+    return {"item_name": name, "quantity": quantity, "rarity": rarity, "item_type": item_type}
+
+
+RELICS = _loot("Nonexistent Relic", 1, item_type="weapon")
+TWO_ITEMS = [_loot("Item A", 1), _loot("Item B", 1)]
+
+
 async def _ensure_vault_storage(async_session: AsyncSession, vault_id) -> Storage:
-    """Ensure storage exists for a vault, create if missing."""
     result = await async_session.execute(select(Storage).where(Storage.vault_id == vault_id))
     storage = result.scalar_one_or_none()
-    if storage is None:
-        storage = await vault_crud.create_storage(db_session=async_session, vault_id=vault_id)
-    return storage
+    return storage or await vault_crud.create_storage(db_session=async_session, vault_id=vault_id)
 
 
 @pytest_asyncio.fixture
@@ -41,8 +44,7 @@ async def make_vault_storage(async_session: AsyncSession, vault: Vault) -> Calla
 
     async def _make(max_space: int = 10) -> Storage:
         storage = await _ensure_vault_storage(async_session, vault.id)
-        storage.max_space = max_space
-        storage.used_space = 0
+        storage.max_space, storage.used_space = max_space, 0
         async_session.add(storage)
         await async_session.flush()
         return storage
@@ -69,24 +71,18 @@ async def _completed_with_overflow(async_session, vault, dweller, loots=None):
     return exploration, rewards
 
 
+async def _wide_storage(async_session, storage, max_space: int) -> None:
+    storage.max_space = max_space
+    async_session.add(storage)
+    await async_session.flush()
+
+
 @pytest.mark.asyncio
 async def test_pending_overflow_is_available_after_returning_to_exploration(
-    async_session: AsyncSession,
-    vault: Vault,
-    dweller: Dweller,
-    make_vault_storage,
+    async_session: AsyncSession, vault: Vault, dweller: Dweller, make_vault_storage
 ):
-    """Pending overflow remains discoverable after the completion modal is closed."""
     await make_vault_storage(1)
-    exploration, _ = await _completed_with_overflow(
-        async_session,
-        vault,
-        dweller,
-        loots=[
-            {"item_name": "Item A", "quantity": 1, "rarity": "Common", "item_type": "junk"},
-            {"item_name": "Item B", "quantity": 1, "rarity": "Common", "item_type": "junk"},
-        ],
-    )
+    exploration, _ = await _completed_with_overflow(async_session, vault, dweller, loots=TWO_ITEMS)
 
     pending = await rewards_service.get_pending_overflow(async_session, vault.id)
 
@@ -96,27 +92,20 @@ async def test_pending_overflow_is_available_after_returning_to_exploration(
 
 
 @pytest.mark.asyncio
-async def test_take_unclaimed_item_preserves_every_stacked_unit(
-    async_session: AsyncSession,
-    vault: Vault,
-    dweller: Dweller,
-    make_vault_storage,
+async def test_take_unclaimed_item_stacks_units_but_conflicts_when_full(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller, make_vault_storage
 ):
-    """Taking stacked overflow creates one storage row for every unit."""
     storage = await make_vault_storage(1)
     exploration, _ = await _completed_with_overflow(
-        async_session,
-        vault,
-        dweller,
-        loots=[
-            {"item_name": "Item A", "quantity": 1, "rarity": "Common", "item_type": "junk"},
-            {"item_name": "Item B", "quantity": 2, "rarity": "Common", "item_type": "junk"},
-        ],
+        async_session, vault, dweller, loots=[_loot("Item A", 1), _loot("Item B", 2)]
     )
-    storage.max_space = 3
-    async_session.add(storage)
-    await async_session.flush()
 
+    with pytest.raises(ResourceConflictException):
+        await rewards_service.take_unclaimed_item(async_session, exploration.id, 0)
+    await async_session.refresh(exploration)
+    assert len(exploration.unclaimed_loot or []) == 1
+
+    await _wide_storage(async_session, storage, 3)
     remaining = await rewards_service.take_unclaimed_item(async_session, exploration.id, 0)
 
     assert remaining == []
@@ -125,50 +114,14 @@ async def test_take_unclaimed_item_preserves_every_stacked_unit(
 
 
 @pytest.mark.asyncio
-async def test_take_unclaimed_item_conflicts_when_full(
-    async_session: AsyncSession,
-    vault: Vault,
-    dweller: Dweller,
-    make_vault_storage,
-):
-    """Taking with no space raises 409 and keeps the list intact."""
-    await make_vault_storage(1)
-    exploration, _ = await _completed_with_overflow(
-        async_session,
-        vault,
-        dweller,
-        loots=[
-            {"item_name": "Item A", "quantity": 1, "rarity": "Common", "item_type": "junk"},
-            {"item_name": "Item B", "quantity": 1, "rarity": "Common", "item_type": "junk"},
-        ],
-    )
-
-    with pytest.raises(ResourceConflictException):
-        await rewards_service.take_unclaimed_item(async_session, exploration.id, 0)
-
-    await async_session.refresh(exploration)
-    assert len(exploration.unclaimed_loot or []) == 1
-
-
-@pytest.mark.asyncio
 async def test_sell_unclaimed_item_grants_caps_without_space(
-    async_session: AsyncSession,
-    vault: Vault,
-    dweller: Dweller,
-    make_vault_storage,
+    async_session: AsyncSession, vault: Vault, dweller: Dweller, make_vault_storage
 ):
-    """Selling overflow junk grants quantity-aware caps even when storage is full."""
     await make_vault_storage(1)
     await async_session.refresh(vault)
     caps_before = vault.bottle_caps
     exploration, _ = await _completed_with_overflow(
-        async_session,
-        vault,
-        dweller,
-        loots=[
-            {"item_name": "Item A", "quantity": 1, "rarity": "Common", "item_type": "junk"},
-            {"item_name": "Item B", "quantity": 2, "rarity": "Common", "item_type": "junk"},
-        ],
+        async_session, vault, dweller, loots=[_loot("Item A", 1), _loot("Item B", 2)]
     )
 
     caps, remaining = await rewards_service.sell_unclaimed_item(async_session, exploration.id, 0)
@@ -181,22 +134,10 @@ async def test_sell_unclaimed_item_grants_caps_without_space(
 
 @pytest.mark.asyncio
 async def test_unclaimed_rejects_bad_index_and_active_exploration(
-    async_session: AsyncSession,
-    vault: Vault,
-    dweller: Dweller,
-    make_vault_storage,
+    async_session: AsyncSession, vault: Vault, dweller: Dweller, make_vault_storage
 ):
-    """Out-of-range index 404s; active explorations cannot be resolved."""
     await make_vault_storage(1)
-    exploration, _ = await _completed_with_overflow(
-        async_session,
-        vault,
-        dweller,
-        loots=[
-            {"item_name": "Item A", "quantity": 1, "rarity": "Common", "item_type": "junk"},
-            {"item_name": "Item B", "quantity": 1, "rarity": "Common", "item_type": "junk"},
-        ],
-    )
+    exploration, _ = await _completed_with_overflow(async_session, vault, dweller, loots=TWO_ITEMS)
 
     with pytest.raises(ResourceNotFoundException):
         await rewards_service.take_unclaimed_item(async_session, exploration.id, 5)
@@ -208,14 +149,10 @@ async def test_unclaimed_rejects_bad_index_and_active_exploration(
 
 @pytest.mark.asyncio
 async def test_require_space_locks_the_shared_storage_row(
-    async_session: AsyncSession,
-    vault: Vault,
-    make_vault_storage,
-    monkeypatch: pytest.MonkeyPatch,
+    async_session: AsyncSession, vault: Vault, make_vault_storage, monkeypatch: pytest.MonkeyPatch
 ):
     """Two claims must not both read the same free slot, so the check takes a row lock."""
     await make_vault_storage(5)
-
     locked_vaults: list = []
     original = crud_storage.get_storage_by_vault_for_update
 
@@ -225,9 +162,7 @@ async def test_require_space_locks_the_shared_storage_row(
 
     monkeypatch.setattr(crud_storage, "get_storage_by_vault_for_update", spy)
 
-    storage = await loot_overflow_service.require_space(async_session, vault.id, 1)
-
-    assert storage is not None
+    assert await loot_overflow_service.require_space(async_session, vault.id, 1) is not None
     assert locked_vaults == [vault.id]
 
 
@@ -237,13 +172,7 @@ async def test_overflow_sale_emits_only_committed_caps(
 ):
     await make_vault_storage(1)
     exploration, _ = await _completed_with_overflow(
-        async_session,
-        vault,
-        dweller,
-        loots=[
-            {"item_name": "Item A", "quantity": 1, "rarity": "Common", "item_type": "junk"},
-            {"item_name": "Item B", "quantity": 2, "rarity": "Common", "item_type": "junk"},
-        ],
+        async_session, vault, dweller, loots=[_loot("Item A", 1), _loot("Item B", 2)]
     )
     vault_id, exploration_id = vault.id, exploration.id
     vault.bottle_caps = starting_caps
@@ -270,15 +199,7 @@ async def test_failed_overflow_sale_does_not_emit_caps(async_session, vault, dwe
     from sqlalchemy import event
 
     await make_vault_storage(1)
-    exploration, _ = await _completed_with_overflow(
-        async_session,
-        vault,
-        dweller,
-        loots=[
-            {"item_name": "Item A", "quantity": 1, "rarity": "Common", "item_type": "junk"},
-            {"item_name": "Item B", "quantity": 1, "rarity": "Common", "item_type": "junk"},
-        ],
-    )
+    exploration, _ = await _completed_with_overflow(async_session, vault, dweller, loots=TWO_ITEMS)
     exploration_id, vault_id = exploration.id, vault.id
     observed = []
 
@@ -304,68 +225,32 @@ async def test_failed_overflow_sale_does_not_emit_caps(async_session, vault, dwe
 
 
 @pytest.mark.asyncio
-async def test_taking_loot_with_no_catalog_row_is_rejected_and_kept(
-    async_session: AsyncSession,
-    vault: Vault,
-    dweller: Dweller,
-    make_vault_storage,
+async def test_catalog_miss_loot_is_held_but_never_minted(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller, make_vault_storage
 ):
     """A weapon the catalog does not know must never mint a defaulted row, and must stay held."""
     storage = await make_vault_storage(0)
-    exploration, _ = await _completed_with_overflow(
-        async_session,
-        vault,
-        dweller,
-        loots=[{"item_name": "Nonexistent Relic", "quantity": 1, "rarity": "Common", "item_type": "weapon"}],
-    )
-    storage.max_space = 1
-    async_session.add(storage)
-    await async_session.flush()
-
-    with pytest.raises(ValidationException):
-        await rewards_service.take_unclaimed_item(async_session, exploration.id, 0)
-
-    await async_session.refresh(exploration)
-    assert len(exploration.unclaimed_loot or []) == 1
-    stored = (await async_session.execute(select(Weapon).where(Weapon.storage_id == storage.id))).scalars().all()
-    assert stored == []
-
-
-@pytest.mark.asyncio
-async def test_settlement_holds_catalog_miss_loot_instead_of_dropping(
-    async_session: AsyncSession,
-    vault: Vault,
-    dweller: Dweller,
-    make_vault_storage,
-):
-    """A granted weapon with no catalog row falls back to overflow instead of vanishing."""
-    await make_vault_storage(10)
-    exploration, rewards = await _completed_with_overflow(
-        async_session,
-        vault,
-        dweller,
-        loots=[{"item_name": "Nonexistent Relic", "quantity": 1, "rarity": "Common", "item_type": "weapon"}],
-    )
+    exploration, rewards = await _completed_with_overflow(async_session, vault, dweller, loots=[RELICS])
 
     await async_session.refresh(exploration)
     assert rewards.items == []
     assert [entry["item_name"] for entry in exploration.unclaimed_loot or []] == ["Nonexistent Relic"]
 
+    await _wide_storage(async_session, storage, 1)
+    with pytest.raises(ValidationException):
+        await rewards_service.take_unclaimed_item(async_session, exploration.id, 0)
+    await async_session.refresh(exploration)
+    assert len(exploration.unclaimed_loot or []) == 1
+    assert (await async_session.execute(select(Weapon).where(Weapon.storage_id == storage.id))).scalars().all() == []
+
 
 @pytest.mark.asyncio
 async def test_sell_catalog_miss_loot_clears_the_entry(
-    async_session: AsyncSession,
-    vault: Vault,
-    dweller: Dweller,
-    make_vault_storage,
+    async_session: AsyncSession, vault: Vault, dweller: Dweller, make_vault_storage
 ):
-    """A catalog-miss overflow entry can be salvaged at its rarity value and cleared."""
     await make_vault_storage(0)
     exploration, _ = await _completed_with_overflow(
-        async_session,
-        vault,
-        dweller,
-        loots=[{"item_name": "Nonexistent Relic", "quantity": 1, "rarity": "Legendary", "item_type": "weapon"}],
+        async_session, vault, dweller, loots=[_loot("Nonexistent Relic", 1, "Legendary", "weapon")]
     )
     await async_session.refresh(vault)
     caps_before = vault.bottle_caps
@@ -380,22 +265,13 @@ async def test_sell_catalog_miss_loot_clears_the_entry(
 
 @pytest.mark.asyncio
 async def test_take_weapon_emits_item_collected_after_commit(
-    async_session: AsyncSession,
-    vault: Vault,
-    dweller: Dweller,
-    make_vault_storage,
+    async_session: AsyncSession, vault: Vault, dweller: Dweller, make_vault_storage
 ):
-    """Taking a held weapon credits collect objectives once the take is committed."""
     storage = await make_vault_storage(0)
     exploration, _ = await _completed_with_overflow(
-        async_session,
-        vault,
-        dweller,
-        loots=[{"item_name": "Laser pistol", "quantity": 1, "rarity": "Rare", "item_type": "weapon"}],
+        async_session, vault, dweller, loots=[_loot("Laser pistol", 1, "Rare", "weapon")]
     )
-    storage.max_space = 1
-    async_session.add(storage)
-    await async_session.flush()
+    await _wide_storage(async_session, storage, 1)
     vault_id = vault.id
     observed = []
 
@@ -414,22 +290,11 @@ async def test_take_weapon_emits_item_collected_after_commit(
 
 @pytest.mark.asyncio
 async def test_take_junk_emits_its_catalog_material(
-    async_session: AsyncSession,
-    vault: Vault,
-    dweller: Dweller,
-    make_vault_storage,
+    async_session: AsyncSession, vault: Vault, dweller: Dweller, make_vault_storage
 ):
-    """A taken junk entry credits collection with its catalog material and wasteland source."""
     storage = await make_vault_storage(0)
-    exploration, _ = await _completed_with_overflow(
-        async_session,
-        vault,
-        dweller,
-        loots=[{"item_name": "Wonderglue", "quantity": 1, "rarity": "Common", "item_type": "junk"}],
-    )
-    storage.max_space = 1
-    async_session.add(storage)
-    await async_session.flush()
+    exploration, _ = await _completed_with_overflow(async_session, vault, dweller, loots=[_loot("Wonderglue")])
+    await _wide_storage(async_session, storage, 1)
     vault_id = vault.id
     observed = []
 

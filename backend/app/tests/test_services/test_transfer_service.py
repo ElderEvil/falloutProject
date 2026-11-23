@@ -1,5 +1,3 @@
-"""Transfer population-capacity accounting."""
-
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -36,7 +34,6 @@ async def _dweller(async_session: AsyncSession, vault_id, **overrides):
 
 @pytest.mark.asyncio
 async def test_transfer_of_dead_dweller_is_not_blocked_by_a_full_destination(async_session: AsyncSession) -> None:
-    """A dead dweller adds no living population, so a full destination still accepts it."""
     source = await _vault(async_session, population_max=8)
     dest = await _vault(async_session, population_max=1)
     await _dweller(async_session, dest.id)
@@ -49,7 +46,6 @@ async def test_transfer_of_dead_dweller_is_not_blocked_by_a_full_destination(asy
 
 @pytest.mark.asyncio
 async def test_transfer_of_living_dweller_is_rejected_by_a_full_destination(async_session: AsyncSession) -> None:
-    """A living arrival needs a free slot; a full destination refuses it."""
     source = await _vault(async_session, population_max=8)
     dest = await _vault(async_session, population_max=1)
     await _dweller(async_session, dest.id)

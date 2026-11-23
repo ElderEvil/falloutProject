@@ -12,18 +12,22 @@ from uuid import UUID
 
 import pytest
 import pytest_asyncio
-from sqlalchemy import delete, select
+from sqlalchemy import delete, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 
 from app.core.config import settings
 from app.core.enums import GenderEnum, RarityEnum
+from app.core.game_config import game_config
 from app.models.dweller import Dweller
+from app.models.storage import Storage
 from app.models.user import User
 from app.models.vault import Vault
-from app.services import medical_service
+from app.services import medical_service as med
+from app.tests.factory.dwellers import create_random_common_dweller
 from app.utils.exceptions import ContentNoChangeException, ResourceConflictException
+from app.utils.radiation import radiation_removal_amount
 
 pytestmark = pytest.mark.integration
 
@@ -34,12 +38,9 @@ async def live_pg_engine() -> AsyncEngine:
     uri = str(settings.ASYNC_DATABASE_URI)
     if make_url(uri).get_backend_name() != "postgresql":
         pytest.skip("ASYNC_DATABASE_URI is not PostgreSQL; skipping medical concurrency check")
-
     engine = create_async_engine(uri, poolclass=NullPool)
     try:
         async with engine.connect() as conn:
-            from sqlalchemy import text
-
             await conn.execute(text("SELECT 1"))
     except Exception as exc:
         await engine.dispose()
@@ -87,10 +88,15 @@ def _sessions(engine: AsyncEngine) -> async_sessionmaker[AsyncSession]:
     return async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
 
-@pytest.mark.asyncio
+async def _race(engine: AsyncEngine, fn, first_id: UUID, second_id: UUID | None = None) -> list:
+    """Run two concurrent supply uses on separate sessions."""
+    maker = _sessions(engine)
+    async with maker() as first, maker() as second:
+        return await asyncio.gather(fn(first, first_id), fn(second, second_id or first_id), return_exceptions=True)
+
+
 async def test_concurrent_spend_is_rejected(live_pg_engine: AsyncEngine, radiated_dweller: tuple[UUID, int]) -> None:
     """A use racing an uncommitted spend of the last supply must be rejected, not double-spend.
-
     Without row locking the racing read validates against the pre-image and
     heals anyway (the UPDATE then merely blocks behind the open transaction).
     """
@@ -102,29 +108,19 @@ async def test_concurrent_spend_is_rejected(live_pg_engine: AsyncEngine, radiate
             assert held is not None
             held.stimpack = 0
             await holder.flush()
-            task = asyncio.create_task(medical_service.use_stimpack(actor, dweller_id))
+            task = asyncio.create_task(med.use_stimpack(actor, dweller_id))
             await asyncio.sleep(0.5)
             assert not task.done(), "racing use validated against a stale pre-image"
         with pytest.raises(ResourceConflictException):
             await asyncio.wait_for(task, timeout=10)
 
 
-@pytest.mark.asyncio
 async def test_concurrent_use_stimpack_spends_once(
     live_pg_engine: AsyncEngine, radiated_dweller: tuple[UUID, int]
 ) -> None:
-    """Two simultaneous uses with one stimpack: exactly one heals, the other is rejected."""
-    from app.core.game_config import game_config
-
     dweller_id: UUID = radiated_dweller[0]
     ceiling: int = radiated_dweller[1]
-    maker = _sessions(live_pg_engine)
-    async with maker() as first, maker() as second:
-        results = await asyncio.gather(
-            medical_service.use_stimpack(first, dweller_id),
-            medical_service.use_stimpack(second, dweller_id),
-            return_exceptions=True,
-        )
+    results = await _race(live_pg_engine, med.use_stimpack, dweller_id)
     successes = [r for r in results if isinstance(r, Dweller)]
     failures = [r for r in results if isinstance(r, (ContentNoChangeException, ResourceConflictException))]
     assert len(successes) == 1, f"expected exactly one heal, got {results!r}"
@@ -134,21 +130,11 @@ async def test_concurrent_use_stimpack_spends_once(
     assert successes[0].stimpack == 0
 
 
-@pytest.mark.asyncio
 async def test_concurrent_use_radaway_spends_once(
     live_pg_engine: AsyncEngine, radiated_dweller: tuple[UUID, int]
 ) -> None:
-    """Two simultaneous uses with one RadAway: exactly one treats, the other is rejected."""
-    from app.utils.radiation import radiation_removal_amount
-
     dweller_id: UUID = radiated_dweller[0]
-    maker = _sessions(live_pg_engine)
-    async with maker() as first, maker() as second:
-        results = await asyncio.gather(
-            medical_service.use_radaway(first, dweller_id),
-            medical_service.use_radaway(second, dweller_id),
-            return_exceptions=True,
-        )
+    results = await _race(live_pg_engine, med.use_radaway, dweller_id)
     successes = [r for r in results if isinstance(r, Dweller)]
     failures = [r for r in results if isinstance(r, (ContentNoChangeException, ResourceConflictException))]
     assert len(successes) == 1, f"expected exactly one treatment, got {results!r}"
@@ -161,9 +147,6 @@ async def test_concurrent_use_radaway_spends_once(
 @pytest_asyncio.fixture
 async def vault_stimpack_stock(live_pg_engine: AsyncEngine, radiated_dweller: tuple[UUID, int]):
     """Two injured dwellers sharing the last vault stimpack."""
-    from app.models.storage import Storage
-    from app.tests.factory.dwellers import create_random_common_dweller
-
     maker = _sessions(live_pg_engine)
     async with maker() as session:
         first = await session.get(Dweller, radiated_dweller[0])
@@ -181,32 +164,20 @@ async def vault_stimpack_stock(live_pg_engine: AsyncEngine, radiated_dweller: tu
         await session.commit()
 
 
-@pytest.mark.asyncio
 async def test_two_dwellers_cannot_spend_the_same_vault_stimpack(live_pg_engine: AsyncEngine, vault_stimpack_stock):
-    """Separate fighter requests sharing one dose heal exactly one fighter."""
-    from app.models.storage import Storage
-
     first_id, second_id, stock_id = vault_stimpack_stock
-    maker = _sessions(live_pg_engine)
-    async with maker() as first, maker() as second:
-        results = await asyncio.gather(
-            medical_service.use_stimpack(first, first_id),
-            medical_service.use_stimpack(second, second_id),
-            return_exceptions=True,
-        )
+    results = await _race(live_pg_engine, med.use_stimpack, first_id, second_id)
     assert sum(isinstance(result, Dweller) for result in results) == 1, results
     assert sum(isinstance(result, ResourceConflictException) for result in results) == 1, results
+    maker = _sessions(live_pg_engine)
     async with maker() as session:
         stock = await session.get(Storage, stock_id)
         assert stock is not None
         assert stock.stimpack == 0
 
 
-@pytest.mark.asyncio
 async def test_vault_stimpack_use_waits_for_pending_stock_spend(live_pg_engine: AsyncEngine, vault_stimpack_stock):
     """A pending stock deduction must be seen even when the actor has cached the old row."""
-    from app.models.storage import Storage
-
     first_id, _, stock_id = vault_stimpack_stock
     maker = _sessions(live_pg_engine)
     async with maker() as holder, maker() as actor:
@@ -218,7 +189,7 @@ async def test_vault_stimpack_use_waits_for_pending_stock_spend(live_pg_engine: 
             assert stock is not None
             stock.stimpack = 0
             await holder.flush()
-            task = asyncio.create_task(medical_service.use_stimpack(actor, first_id))
+            task = asyncio.create_task(med.use_stimpack(actor, first_id))
             await asyncio.sleep(0.5)
             assert not task.done(), "healing did not wait for the stock mutation"
         with pytest.raises(ResourceConflictException):

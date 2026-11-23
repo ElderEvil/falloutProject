@@ -1,29 +1,20 @@
-"""Regression tests for youth production apprenticeships."""
-
-from datetime import datetime, timedelta
-from uuid import uuid4
+from datetime import timedelta
 
 import pytest
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from sqlalchemy.pool import StaticPool
-from sqlmodel import SQLModel
 
 from app import crud
 from app.core.enums import AgeGroupEnum, GenderEnum, RarityEnum, RoomTypeEnum, SPECIALEnum
-from app.models.dweller import Dweller
-from app.models.vault import Vault
 from app.schemas.dweller import DwellerCreate
 from app.schemas.room import RoomCreate
 from app.services.dweller_service import dweller_service
 from app.services.family.apprentice_scenario_service import apprentice_scenario_service
-from app.services.family.breeding_service import BreedingService
 from app.services.game_loop_service import game_loop_service
 from app.services.training_service import TrainingService
 from app.utils.exceptions import ValidationException
 from app.utils.time import utcnow
 
 
-async def _create_youth(async_session: AsyncSession, vault: Vault, first_name: str) -> Dweller:
+async def _create_youth(async_session, vault, first_name: str):
     return await crud.dweller.create(
         async_session,
         DwellerCreate(
@@ -38,7 +29,7 @@ async def _create_youth(async_session: AsyncSession, vault: Vault, first_name: s
     )
 
 
-async def _create_production_room(async_session: AsyncSession, vault: Vault):
+async def _create_production_room(async_session, vault):
     return await crud.room.create(
         async_session,
         RoomCreate(
@@ -59,20 +50,17 @@ async def _create_production_room(async_session: AsyncSession, vault: Vault):
     )
 
 
-@pytest.mark.asyncio
-async def test_only_one_youth_can_apprentice_in_a_production_room(async_session: AsyncSession, vault: Vault) -> None:
+async def test_only_one_youth_can_apprentice_in_a_production_room(async_session, vault) -> None:
     first_youth = await _create_youth(async_session, vault, "Ada")
     second_youth = await _create_youth(async_session, vault, "Bea")
     room = await _create_production_room(async_session, vault)
-
     await dweller_service.move_to_room(async_session, first_youth.id, room.id)
 
     with pytest.raises(ValidationException, match="already has an apprentice"):
         await dweller_service.move_to_room(async_session, second_youth.id, room.id)
 
 
-@pytest.mark.asyncio
-async def test_deleted_apprentice_frees_slot_and_does_not_progress(async_session: AsyncSession, vault: Vault) -> None:
+async def test_deleted_apprentice_frees_slot_and_does_not_progress(async_session, vault) -> None:
     deleted_youth = await _create_youth(async_session, vault, "Ada")
     replacement_youth = await _create_youth(async_session, vault, "Bea")
     room = await _create_production_room(async_session, vault)
@@ -90,10 +78,7 @@ async def test_deleted_apprentice_frees_slot_and_does_not_progress(async_session
     assert deleted_youth.strength == 2
 
 
-@pytest.mark.asyncio
-async def test_overdue_apprenticeship_awards_once_and_resets_started_at(
-    async_session: AsyncSession, vault: Vault
-) -> None:
+async def test_overdue_apprenticeship_awards_once_and_resets_started_at(async_session, vault) -> None:
     youth = await _create_youth(async_session, vault, "Ada")
     room = await _create_production_room(async_session, vault)
     await dweller_service.move_to_room(async_session, youth.id, room.id)
@@ -111,10 +96,7 @@ async def test_overdue_apprenticeship_awards_once_and_resets_started_at(
     assert youth.apprentice_started_at > utcnow() - timedelta(seconds=5)
 
 
-@pytest.mark.asyncio
-async def test_apprentice_scenario_setup_creates_one_teen_and_is_idempotent(
-    async_session: AsyncSession, vault: Vault
-) -> None:
+async def test_apprentice_scenario_setup_creates_one_teen_and_is_idempotent(async_session, vault) -> None:
     room = await _create_production_room(async_session, vault)
     bottle_caps_before = vault.bottle_caps
 
@@ -132,10 +114,7 @@ async def test_apprentice_scenario_setup_creates_one_teen_and_is_idempotent(
     assert vault.bottle_caps == bottle_caps_before
 
 
-@pytest.mark.asyncio
-async def test_apprentice_scenario_ready_backdates_once_and_reports_status(
-    async_session: AsyncSession, vault: Vault
-) -> None:
+async def test_apprentice_scenario_ready_backdates_once_and_reports_status(async_session, vault) -> None:
     await _create_production_room(async_session, vault)
 
     result = await apprentice_scenario_service.setup(async_session, vault.id, ready=True)
@@ -151,7 +130,6 @@ async def test_apprentice_scenario_ready_backdates_once_and_reports_status(
     assert repeated.apprentice.apprentice_started_at == started_at
 
 
-@pytest.mark.asyncio
-async def test_apprentice_scenario_requires_existing_production_room(async_session: AsyncSession, vault: Vault) -> None:
+async def test_apprentice_scenario_requires_existing_production_room(async_session, vault) -> None:
     with pytest.raises(ValueError, match="no production room"):
         await apprentice_scenario_service.setup(async_session, vault.id)

@@ -1,5 +1,3 @@
-"""Redis notification fan-out across independent transport instances."""
-
 import asyncio
 import json
 from uuid import uuid4
@@ -31,6 +29,22 @@ def transport_socket(send) -> WebSocket:
     return WebSocket({"type": "websocket", "path": "/", "headers": []}, receive, send)
 
 
+async def _teardown(tasks, streams=(), managers=()) -> None:
+    for task in tasks:
+        task.cancel()
+    await asyncio.gather(*tasks, return_exceptions=True)
+    for stream in streams:
+        if stream is not None:
+            await stream.aclose()
+    for manager in managers:
+        await manager.stop_redis()
+    await sse_manager.close()
+
+
+def _notification() -> dict:
+    return {"type": "notification", "notification": {"id": str(uuid4())}}
+
+
 @pytest.mark.parametrize("kind", ["personal", "chat"])
 @pytest.mark.parametrize("failure", ["disconnect", "stall"])
 async def test_failed_socket_does_not_block_other_connections_or_redis_events(
@@ -56,7 +70,7 @@ async def test_failed_socket_does_not_block_other_connections_or_redis_events(
     user_id, other_id, dweller_id = uuid4(), uuid4(), uuid4()
     stream = sse_manager.subscribe(other_id, "notifications")
     pending = asyncio.create_task(anext(stream))
-    event = {"type": "notification", "notification": {"id": str(uuid4())}}
+    event = _notification()
     try:
         if kind == "personal":
             await api.connect(failed, user_id)
@@ -78,12 +92,7 @@ async def test_failed_socket_does_not_block_other_connections_or_redis_events(
         assert api.listener_task is not None
         assert not api.listener_task.done()
     finally:
-        pending.cancel()
-        await asyncio.gather(pending, return_exceptions=True)
-        await stream.aclose()
-        await api.stop_redis()
-        await worker.stop_redis()
-        await sse_manager.close()
+        await _teardown([pending], [stream], [api, worker])
 
 
 async def test_worker_notification_reaches_api_sse_without_a_websocket(redis_server) -> None:
@@ -99,18 +108,13 @@ async def test_worker_notification_reaches_api_sse_without_a_websocket(redis_ser
         assert await asyncio.wait_for(pending, 1) == event
         assert api.active_connections == {}
     finally:
-        pending.cancel()
-        await asyncio.gather(pending, return_exceptions=True)
-        await stream.aclose()
-        await api.stop_redis()
-        await worker.stop_redis()
-        await sse_manager.close()
+        await _teardown([pending], [stream], [api, worker])
 
 
 async def test_local_notification_is_not_echoed_back_from_redis(redis_server) -> None:
     api = ConnectionManager()
     user_id = uuid4()
-    event = {"type": "notification", "notification": {"id": str(uuid4())}}
+    event = _notification()
     stream = sse_manager.subscribe(user_id, "notifications")
     pending = asyncio.create_task(anext(stream))
     try:
@@ -121,11 +125,7 @@ async def test_local_notification_is_not_echoed_back_from_redis(redis_server) ->
         with pytest.raises(TimeoutError):
             await asyncio.wait_for(anext(stream), 0.05)
     finally:
-        pending.cancel()
-        await asyncio.gather(pending, return_exceptions=True)
-        await stream.aclose()
-        await api.stop_redis()
-        await sse_manager.close()
+        await _teardown([pending], [stream], [api])
 
 
 async def test_invalid_or_unrelated_messages_do_not_leak_or_break_delivery(redis_server) -> None:
@@ -135,7 +135,7 @@ async def test_invalid_or_unrelated_messages_do_not_leak_or_break_delivery(redis
     other_stream = sse_manager.subscribe(other_id, "notifications")
     pending = asyncio.create_task(anext(stream))
     other_pending = asyncio.create_task(anext(other_stream))
-    event = {"type": "notification", "notification": {"id": str(uuid4())}}
+    event = _notification()
     worker = ConnectionManager()
     try:
         await api.start_redis()
@@ -153,14 +153,7 @@ async def test_invalid_or_unrelated_messages_do_not_leak_or_break_delivery(redis
         assert await asyncio.wait_for(pending, 1) == event
         assert not other_pending.done()
     finally:
-        for task in (pending, other_pending):
-            task.cancel()
-        await asyncio.gather(pending, other_pending, return_exceptions=True)
-        await stream.aclose()
-        await other_stream.aclose()
-        await api.stop_redis()
-        await worker.stop_redis()
-        await sse_manager.close()
+        await _teardown([pending, other_pending], [stream, other_stream], [api, worker])
 
 
 @pytest.mark.slow
@@ -201,25 +194,17 @@ async def test_disconnect_closes_only_notification_streams_then_recovers(redis_s
             await asyncio.wait_for(pending, 1)
         next_stream = sse_manager.subscribe(user_id, "notifications")
         pending = asyncio.create_task(anext(next_stream))
-        event = {"type": "notification", "notification": {"id": str(uuid4())}}
+        event = _notification()
         await worker.send_personal_message(event, user_id)
         assert await asyncio.wait_for(pending, 1) == event
     finally:
-        pending.cancel()
-        tick_pending.cancel()
-        await asyncio.gather(pending, tick_pending, return_exceptions=True)
-        for iterator in (stream, ticks, next_stream):
-            if iterator is not None:
-                await iterator.aclose()
         listener = api.listener_task
-        await api.stop_redis()
+        await _teardown([pending, tick_pending], [stream, ticks, next_stream], [api, worker])
         assert listener is not None
         assert listener.done()
         assert api.redis is None
         async with fakeredis.aioredis.FakeRedis(server=redis_server) as redis:
             assert (await redis.pubsub_numsub(api.redis_channel))[0][1] == 0
-        await worker.stop_redis()
-        await sse_manager.close()
 
 
 async def test_sustained_outage_keeps_sse_open_and_backs_off_until_recovery(redis_server, monkeypatch) -> None:
@@ -273,9 +258,4 @@ async def test_sustained_outage_keeps_sse_open_and_backs_off_until_recovery(redi
         assert await asyncio.wait_for(delays.get(), 1) == 1, "Successful subscription must reset backoff"
         assert not pending.done(), "A later outage must keep the recovered SSE stream open"
     finally:
-        pending.cancel()
-        await asyncio.gather(pending, return_exceptions=True)
-        await stream.aclose()
-        await api.stop_redis()
-        await worker.stop_redis()
-        await sse_manager.close()
+        await _teardown([pending], [stream], [api, worker])

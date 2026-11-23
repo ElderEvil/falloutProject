@@ -1,5 +1,3 @@
-"""Tests for EventBus."""
-
 import asyncio
 from unittest.mock import AsyncMock
 from uuid import uuid4
@@ -19,7 +17,6 @@ def fresh_event_bus():
 
 @pytest.mark.asyncio
 async def test_unsubscribe_not_subscribed(fresh_event_bus: EventBus) -> None:
-    """Test no error when unsubscribing not-subscribed handler."""
     handler = AsyncMock()
 
     # Should not raise
@@ -28,7 +25,6 @@ async def test_unsubscribe_not_subscribed(fresh_event_bus: EventBus) -> None:
 
 @pytest.mark.asyncio
 async def test_event_bus_singleton() -> None:
-    """Test singleton instance."""
     from app.core.event_bus import event_bus as bus1
     from app.core.event_bus import event_bus as bus2
 

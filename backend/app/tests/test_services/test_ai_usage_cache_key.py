@@ -12,7 +12,6 @@ from app.services.user_service import UserService
 
 @pytest.mark.asyncio
 async def test_ai_usage_services_use_the_shared_cache_key() -> None:
-    """Read, write, and invalidate the same user-scoped usage cache entry."""
     user_id = uuid4()
     cache_key = AI_USAGE_CACHE_KEY.format(user_id=user_id)
     redis_client = MagicMock(get=AsyncMock(return_value=None), setex=AsyncMock(), delete=AsyncMock())

@@ -1,7 +1,5 @@
-"""Recover legacy parties without releasing missions still in flight."""
-
 import asyncio
-from datetime import datetime, timedelta
+from datetime import timedelta
 from uuid import UUID, uuid4
 
 import pytest
@@ -20,8 +18,7 @@ harness = legacy.harness
 REVISION = "d9e2f4a6b801"
 PARENT = "b6d8f0a2c913"
 
-#: Every dweller column without a server default at this revision. Explicit columns keep the
-#: legacy seed independent of columns added to the current ORM model after PARENT.
+#: Every dweller column without a server default at this revision.
 _INSERT_QUEST_DWELLER = (
     "INSERT INTO dweller ("
     "id, vault_id, first_name, age_group, gender, rarity, level, experience, max_health, health, "
@@ -33,6 +30,8 @@ _INSERT_QUEST_DWELLER = (
     "false, false, false, :room_id, 1, 1, 1, 1, 1, 1, 1, '[]', false, '{}'"
     ")"
 )
+
+STATES = ("orphan", "unlinked", "unstarted", "outbound", "returning", "ready", "completed", "exploring")
 
 
 @pytest.mark.integration
@@ -70,16 +69,7 @@ def test_recovers_orphaned_questing_dwellers_and_preserves_active_parties(harnes
         ids = {}
         try:
             async with async_sessionmaker(engine, expire_on_commit=False)() as db:
-                for state in (
-                    "orphan",
-                    "unlinked",
-                    "unstarted",
-                    "outbound",
-                    "returning",
-                    "ready",
-                    "completed",
-                    "exploring",
-                ):
+                for state in STATES:
                     dweller_id = str(uuid4())
                     await db.execute(
                         text(_INSERT_QUEST_DWELLER),
@@ -120,11 +110,11 @@ def test_recovers_orphaned_questing_dwellers_and_preserves_active_parties(harnes
                             )
                         )
                 await db.commit()
-            return ids, room_id
+            return ids
         finally:
             await engine.dispose()
 
-    ids, room_id = asyncio.run(seed())
+    ids = asyncio.run(seed())
     harness.upgrade(REVISION)
 
     def assert_recovered():

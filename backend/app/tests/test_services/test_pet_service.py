@@ -1,5 +1,3 @@
-"""PetService tests (Phase A): vault-scoped list, equip, unequip."""
-
 from uuid import uuid4
 
 import pytest

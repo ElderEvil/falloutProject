@@ -35,7 +35,6 @@ STATEMENTS_PER_TICK_UPPER_BOUND = 250
 @pytest.mark.slow
 @pytest.mark.parametrize("is_boosted", [False, True], ids=["normal", "boosted"])
 async def test_vault_tick_wall_time(async_session: AsyncSession, is_boosted: bool) -> None:
-    """Time full vault ticks over a really seeded vault; fail only on extreme blowup."""
     user = await crud.user.create(
         db_session=async_session,
         obj_in=UserCreate(

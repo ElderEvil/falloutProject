@@ -10,10 +10,11 @@ from app.agents.dweller_agents import visual_attributes_instructions
 from app.core.enums import RaceEnum, SynthTypeEnum
 from app.options.races import passes_as_human
 
+SYNTHETIC_MARKERS = ("metallic_silver", "exposed_component", "synthetic_fair")
+
 
 @pytest.mark.parametrize("state", ["gen_3", None, "unknown"])
 def test_passing_synth_models_present_as_human(state: str | None) -> None:
-    """An unknown synth model fails toward concealment rather than exposure."""
     assert passes_as_human(RaceEnum.SYNTH, state) is True
     assert passes_as_human("synth", state) is True
 
@@ -35,26 +36,12 @@ def _portrait_instructions(race: str | None) -> str:
 
 @pytest.mark.parametrize("state", ["gen_3", None, "unknown"])
 def test_passing_synths_are_presented_to_the_portrait_agent_as_human(state: str | None) -> None:
-    """The routing condition selects the human branch, which offers no synthetic descriptors.
-
-    dweller_ai feeds `passes_as_human` into the portrait race, so the branch asserted below is
-    the one a passing synth actually reaches.
-    """
+    # dweller_ai feeds passes_as_human into the portrait race, so this is the branch a passing synth reaches.
     assert passes_as_human("synth", state) is True
     human_branch = _portrait_instructions("human")
-
-    assert "metallic_silver" not in human_branch
-    assert "exposed_component" not in human_branch
-    assert "synthetic_fair" not in human_branch
-
-
-def test_human_portrait_branch_offers_no_synthetic_options() -> None:
-    """Where a passing synth lands: the human branch."""
-    instructions = _portrait_instructions("human")
-    assert "natural skin tones" in instructions
-    assert "metallic_silver" not in instructions
-    assert "exposed_component" not in instructions
-    assert "synthetic_fair" not in instructions
+    assert "natural skin tones" in human_branch
+    for marker in SYNTHETIC_MARKERS:
+        assert marker not in human_branch
 
 
 def test_visible_synth_portrait_keeps_synthetic_options() -> None:
@@ -66,7 +53,5 @@ def test_ghoul_portrait_is_unaffected() -> None:
 
 
 def test_gen3_dialogue_identity_stays_hidden() -> None:
-    """The chat prompt must not even hint at the species for a passing synth."""
     dweller = SimpleNamespace(visual_attributes={"race": "synth", "state_of_being": "gen_3"})
-
     assert identity_line(dweller) == ""

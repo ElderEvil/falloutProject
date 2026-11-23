@@ -1,63 +1,24 @@
-"""Tests for DwellerAIService covering quota, edge cases, photo/audio/avatar generation, and pipeline."""
+"""DwellerAIService: quota, edge cases, photo/audio/avatar generation and the pipeline."""
 
 import uuid
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from app.schemas.dweller import DwellerVisualAttributes
+from app.schemas.dweller_ai import DwellerBackstory
 from app.services.dweller_ai_service import BIO_MAX_LENGTH, dweller_ai
+from app.services.quota_service import QuotaCheckResult
+from app.tests.test_services.test_dweller_ai_helpers import SVC, ai_env, fake_db, make_dweller, make_user
+from app.utils.exceptions import (
+    AIAudioException,
+    AIProviderException,
+    AIStorageException,
+    ContentNoChangeException,
+    QuotaExceededException,
+)
 
-pytestmark = pytest.mark.asyncio
-
-
-def _make_dweller_mock(
-    *,
-    bio: str | None = None,
-    first_name: str = "Test",
-    last_name: str = "Dweller",
-    gender: str = "male",
-    image_url: str | None = None,
-    visual_attributes: dict | None = None,
-    rarity: str = "common",
-) -> MagicMock:
-    """Return a MagicMock with the minimum DwellerReadFull shape needed."""
-    dweller = MagicMock()
-    dweller.bio = bio
-    dweller.first_name = first_name
-    dweller.last_name = last_name
-    dweller.gender = gender
-    dweller.image_url = image_url
-    dweller.visual_attributes = visual_attributes
-    dweller.rarity = rarity
-    dweller.id = uuid.uuid4()
-    dweller.vault_id = uuid.uuid4()
-    dweller.weapon = None
-    dweller.outfit = None
-    # SPECIAL stats (used by format_special_stats)
-    dweller.strength = 5
-    dweller.perception = 5
-    dweller.endurance = 5
-    dweller.charisma = 5
-    dweller.intelligence = 5
-    dweller.agility = 5
-    dweller.luck = 5
-    return dweller
-
-
-def _make_user_mock() -> MagicMock:
-    user = MagicMock()
-    user.id = uuid.uuid4()
-    return user
-
-
-def _make_agent_result(output, input_tokens=50, output_tokens=30, total_tokens=80) -> MagicMock:
-    """Return a mock agent result with usage info."""
-    result = MagicMock()
-    result.output = output
-    result.usage.return_value = MagicMock(
-        input_tokens=input_tokens, output_tokens=output_tokens, total_tokens=total_tokens
-    )
-    return result
+DEFAULT_PORTRAIT = "/static/dweller_images/base/FOS_Dw_Default_Human_Male.webp"
 
 
 @pytest.mark.parametrize(
@@ -68,592 +29,261 @@ def _make_agent_result(output, input_tokens=50, output_tokens=30, total_tokens=8
         ("generate_visual_attributes", {"dweller_id": None}),
     ],
 )
-@patch("app.services.dweller_ai_service.quota_service")
-@patch("app.services.dweller_ai_service.dweller_crud")
-async def test_quota_exceeded_raises(
-    mock_crud: MagicMock, mock_quota: MagicMock, method_name: str, method_kwargs: dict
-) -> None:
-    """QuotaExceededException should be raised when monthly tokens are exhausted."""
-    from app.utils.exceptions import QuotaExceededException
-
-    mock_quota.check_quota = AsyncMock(return_value=MagicMock(allowed=False, used=500000, limit=500000))
-
-    mock_dweller = _make_dweller_mock(bio="A story." if method_name == "extend_bio" else None)
-    mock_crud.get_full_info = AsyncMock(return_value=mock_dweller)
-    mock_crud.update = AsyncMock()
-
-    user = _make_user_mock()
-    kwargs = {"user": user, "db_session": MagicMock(), **method_kwargs}
-    if method_name in ("generate_backstory", "generate_visual_attributes"):
-        kwargs["dweller_info"] = mock_dweller
-
-    with pytest.raises(QuotaExceededException):
-        await getattr(dweller_ai, method_name)(**kwargs)
+async def test_quota_exceeded_raises(method_name, method_kwargs) -> None:
+    with ai_env() as d:
+        d.quota.check_quota = AsyncMock(
+            return_value=QuotaCheckResult(
+                allowed=False, remaining=0, limit=500_000, percentage=100.0, warning=True, used=500_000
+            )
+        )
+        dweller = make_dweller("A story." if method_name == "extend_bio" else None)
+        d.crud.get_full_info = AsyncMock(return_value=dweller)
+        kwargs = {"user": make_user(), "db_session": MagicMock(), **method_kwargs}
+        if method_name in ("generate_backstory", "generate_visual_attributes"):
+            kwargs["dweller_info"] = dweller
+        with pytest.raises(QuotaExceededException):
+            await getattr(dweller_ai, method_name)(**kwargs)
 
 
-@patch("app.services.dweller_ai_service.llm_interaction_crud")
-@patch("app.services.dweller_ai_service.map_service")
-@patch("app.services.dweller_ai_service.dweller_crud")
-@patch("app.services.dweller_ai_service.backstory_agent")
-@patch("app.services.dweller_ai_service.quota_service")
-async def test_generate_backstory_truncates_long_bio(
-    mock_quota: MagicMock,
-    mock_agent: MagicMock,
-    mock_crud: MagicMock,
-    mock_map: MagicMock,
-    mock_llm: MagicMock,
-) -> None:
-    """Backstory exceeding BIO_MAX_LENGTH should be truncated with ellipsis."""
-    from app.schemas.dweller_ai import DwellerBackstory
-
-    mock_quota.check_quota = AsyncMock(return_value=MagicMock(allowed=True))
-    mock_crud.update = AsyncMock()
-    mock_llm.create = AsyncMock()
-    mock_map.register_bio_places = AsyncMock()
-
-    mock_dweller = _make_dweller_mock(bio=None)
-
-    # Generate a bio that's way too long (twice the max)
-    long_bio = "X" * (BIO_MAX_LENGTH * 2)
-    output = DwellerBackstory(bio=long_bio, origin_place="Megaton", visited_places=[])
-    mock_agent.run = AsyncMock(return_value=_make_agent_result(output))
-
-    await dweller_ai.generate_backstory(
-        user=_make_user_mock(), db_session=MagicMock(commit=AsyncMock()), dweller_info=mock_dweller
-    )
-
-    mock_llm.create.call_args.args[0].commit.assert_awaited_once()
-
+async def test_generate_backstory_truncates_long_bio() -> None:
+    output = DwellerBackstory(bio="X" * (BIO_MAX_LENGTH * 2), origin_place="Megaton", visited_places=[])
+    with ai_env("backstory_agent", output) as d:
+        await dweller_ai.generate_backstory(user=make_user(), db_session=fake_db(), dweller_info=make_dweller())
+    d.llm.create.call_args.args[0].commit.assert_awaited_once()
     # Rendered bios must stay within the prompt's 900-character upper bound.
-    mock_crud.update.assert_called_once()
-    stored_bio = mock_crud.update.call_args[0][2].bio
+    d.crud.update.assert_called_once()
+    stored_bio = d.crud.update.call_args[0][2].bio
     assert len(stored_bio) <= 900
     assert stored_bio.endswith("...")
 
 
-# ── extend_bio edge cases ───────────────────────────────────────────────
+async def test_extend_bio_no_existing_bio() -> None:
+    dweller = make_dweller()
+    with ai_env() as d:
+        d.crud.get_full_info = AsyncMock(return_value=dweller)
+        with pytest.raises(ContentNoChangeException, match="doesn't have a bio to extend"):
+            await dweller_ai.extend_bio(db_session=fake_db(), dweller_id=dweller.id, user=make_user())
 
 
-@patch("app.services.dweller_ai_service.quota_service")
-@patch("app.services.dweller_ai_service.dweller_crud")
-async def test_extend_bio_no_existing_bio(mock_crud: MagicMock, mock_quota: MagicMock) -> None:
-    """Should raise ContentNoChangeException if dweller has no bio to extend."""
-    from app.utils.exceptions import ContentNoChangeException
-
-    mock_quota.check_quota = AsyncMock(return_value=MagicMock(allowed=True))
-
-    mock_dweller = _make_dweller_mock(bio=None)
-    mock_crud.get_full_info = AsyncMock(return_value=mock_dweller)
-    mock_crud.update = AsyncMock()
-
-    with pytest.raises(ContentNoChangeException, match="doesn't have a bio to extend"):
-        await dweller_ai.extend_bio(
-            db_session=MagicMock(commit=AsyncMock()),
-            dweller_id=mock_dweller.id,
-            user=_make_user_mock(),
+async def test_generate_visual_usage_extraction_fails() -> None:
+    output = DwellerVisualAttributes(height="tall", hair_color="brown")
+    with ai_env("visual_attributes_agent", output) as d:
+        d.agent.run.return_value.usage = MagicMock(side_effect=Exception("Usage failure"))
+        dweller = make_dweller(visual_attributes={})
+        d.crud.get_full_info = AsyncMock(return_value=dweller)
+        result = await dweller_ai.generate_visual_attributes(
+            user=make_user(), db_session=fake_db(), dweller_info=dweller
         )
-
-
-# ── generate_visual_attributes edge cases ────────────────────────────────
-
-
-@patch("app.services.dweller_ai_service.llm_interaction_crud")
-@patch("app.services.dweller_ai_service.visual_attributes_agent")
-@patch("app.services.dweller_ai_service.dweller_crud")
-@patch("app.services.dweller_ai_service.quota_service")
-async def test_generate_visual_usage_extraction_fails(
-    mock_quota: MagicMock,
-    mock_crud: MagicMock,
-    mock_agent: MagicMock,
-    mock_llm: MagicMock,
-) -> None:
-    """When usage() raises, visual attr generation should still succeed with None tokens."""
-    import app.schemas.dweller as dweller_schemas
-
-    mock_quota.check_quota = AsyncMock(return_value=MagicMock(allowed=True))
-    mock_crud.update = AsyncMock()
-    mock_llm.create = AsyncMock()
-
-    mock_dweller = _make_dweller_mock(bio=None, visual_attributes={})
-    mock_crud.get_full_info = AsyncMock(return_value=mock_dweller)
-    mock_output = dweller_schemas.DwellerVisualAttributes(height="tall", hair_color="brown")
-    mock_result = MagicMock()
-    mock_result.output = mock_output
-    mock_result.usage = MagicMock(side_effect=Exception("Usage failure"))
-    mock_agent.run = AsyncMock(return_value=mock_result)
-
-    user = _make_user_mock()
-
-    result = await dweller_ai.generate_visual_attributes(
-        user=user, db_session=MagicMock(commit=AsyncMock()), dweller_info=mock_dweller
-    )
-
-    assert result is mock_dweller
-    mock_crud.update.assert_called_once()
-    mock_llm.create.assert_called_once()
-    llm_kwargs = mock_llm.create.call_args[1]["obj_in"]
+    assert result is dweller
+    d.crud.update.assert_called_once()
+    d.llm.create.assert_called_once()
+    llm_kwargs = d.llm.create.call_args[1]["obj_in"]
     assert llm_kwargs.prompt_tokens is None
     assert llm_kwargs.completion_tokens is None
     assert llm_kwargs.total_tokens is None
 
 
-# ── _has_substantial_visual_attributes ──────────────────────────────────
-
-
 def test_has_substantial_non_dict() -> None:
-    """Non-dict values should be considered substantial."""
     assert dweller_ai._has_substantial_visual_attributes(42) is True  # type: ignore[arg-type]
     assert dweller_ai._has_substantial_visual_attributes("some string") is True  # type: ignore[arg-type]
     assert dweller_ai._has_substantial_visual_attributes(["list"]) is True  # type: ignore[arg-type]
 
 
-# ── generate_photo ──────────────────────────────────────────────────────
+@pytest.mark.parametrize(
+    ("method", "kwargs", "match"),
+    [
+        ("generate_photo", {}, "already has a photo"),
+        ("generate_audio", {"text": "Hello"}, "already has an audio line"),
+    ],
+)
+async def test_generation_guard_rejects_completed_assets(method, kwargs, match) -> None:
+    dweller = make_dweller(
+        image_url="http://example.com/photo.png",
+        visual_attributes={"voice_line_url": "http://cdn.example.com/audio.mp3"},
+    )
+    with ai_env(), pytest.raises(ContentNoChangeException, match=match):
+        await getattr(dweller_ai, method)(user=make_user(), db_session=fake_db(), dweller_info=dweller, **kwargs)
 
 
-@patch("app.services.dweller_ai_service.llm_interaction_crud")
-@patch("app.services.dweller_ai_service.dweller_crud")
-async def test_generate_photo_already_has_image(mock_crud: MagicMock, mock_llm: MagicMock) -> None:
-    """Should raise ContentNoChangeException if dweller already has a photo."""
-    from app.utils.exceptions import ContentNoChangeException
-
-    mock_crud.update = AsyncMock()
-    mock_llm.create = AsyncMock()
-
-    mock_dweller = _make_dweller_mock(image_url="http://example.com/photo.png")
-
-    with pytest.raises(ContentNoChangeException, match="already has a photo"):
-        await dweller_ai.generate_photo(
-            user=_make_user_mock(), db_session=MagicMock(commit=AsyncMock()), dweller_info=mock_dweller
-        )
-
-
-@patch("app.services.dweller_ai_service.llm_interaction_crud")
-@patch("app.services.dweller_ai_service.dweller_crud")
-async def test_generate_photo_allows_regeneration_of_default_portrait(
-    mock_crud: MagicMock, mock_llm: MagicMock
-) -> None:
-    """A curated default does not count as a custom photo, so generation may replace it."""
-    from app.utils.exceptions import AIStorageException
-
-    mock_crud.update = AsyncMock()
-    mock_llm.create = AsyncMock()
-
-    mock_dweller = _make_dweller_mock(image_url="/static/dweller_images/base/FOS_Dw_Default_Human_Male.webp")
-
-    with patch.object(dweller_ai, "storage_service", None), pytest.raises(AIStorageException):
-        await dweller_ai.generate_photo(
-            user=_make_user_mock(), db_session=MagicMock(commit=AsyncMock()), dweller_info=mock_dweller
-        )
+@pytest.mark.parametrize(
+    ("method", "kwargs", "disabled"),
+    [
+        ("generate_photo", {"image_url": None}, False),
+        ("generate_photo", {"image_url": DEFAULT_PORTRAIT}, False),
+        ("generate_audio", {"text": "Hello"}, True),
+    ],
+    ids=["photo", "photo-default-portrait-regenerable", "audio"],
+)
+async def test_storage_unavailable_maps_to_a_503(method, kwargs, disabled) -> None:
+    call_kwargs = dict(kwargs)
+    storage = MagicMock(enabled=False) if disabled else None
+    dweller = make_dweller(image_url=call_kwargs.pop("image_url", None), visual_attributes=None)
+    with ai_env() as d, patch.object(dweller_ai, "storage_service", storage):
+        d.crud.get_full_info = AsyncMock(return_value=dweller)
+        with pytest.raises(AIStorageException) as exc:
+            await getattr(dweller_ai, method)(
+                user=make_user(), db_session=fake_db(), dweller_info=dweller, **call_kwargs
+            )
+    assert exc.value.status_code == 503
+    assert "not available" in exc.value.detail
 
 
-@patch("app.services.dweller_ai_service.llm_interaction_crud")
-@patch("app.services.dweller_ai_service.dweller_crud")
-async def test_generate_photo_no_storage_service(mock_crud: MagicMock, mock_llm: MagicMock) -> None:
-    """Should raise AIStorageException (503) if storage service is not available."""
-    from app.utils.exceptions import AIStorageException
-
-    mock_crud.update = AsyncMock()
-    mock_llm.create = AsyncMock()
-
-    mock_dweller = _make_dweller_mock(image_url=None)
-
-    with patch.object(dweller_ai, "storage_service", None), pytest.raises(AIStorageException) as exc_info:
-        await dweller_ai.generate_photo(
-            user=_make_user_mock(), db_session=MagicMock(commit=AsyncMock()), dweller_info=mock_dweller
-        )
-    assert exc_info.value.status_code == 503
-    assert "not available" in exc_info.value.detail
-
-
-@patch("app.services.dweller_ai_service.llm_interaction_crud")
-@patch("app.services.dweller_ai_service.dweller_crud")
-async def test_generate_photo_maps_provider_failures_to_a_safe_error(mock_crud: MagicMock, mock_llm: MagicMock) -> None:
-    """Portrait provider failures must not reach the client as an unstructured 500."""
-    from app.utils.exceptions import AIProviderException
-
-    mock_dweller = _make_dweller_mock(image_url=None)
-    mock_storage = MagicMock()
-    mock_ai_service = MagicMock()
-    mock_ai_service.generate_image = AsyncMock(side_effect=RuntimeError("OpenAI client not available"))
-
-    with (
-        patch.object(dweller_ai, "storage_service", mock_storage),
-        patch.object(dweller_ai, "ai_service", mock_ai_service),
-        pytest.raises(AIProviderException) as exc_info,
-    ):
-        await dweller_ai.generate_photo(
-            user=_make_user_mock(), db_session=MagicMock(commit=AsyncMock()), dweller_info=mock_dweller
-        )
-
+async def test_generate_photo_maps_provider_failures_to_a_safe_error() -> None:
+    # Portrait provider failures must not reach the client as an unstructured 500.
+    storage = MagicMock()
+    ai = MagicMock(generate_image=AsyncMock(side_effect=RuntimeError("OpenAI client not available")))
+    dweller = make_dweller(image_url=None)
+    with ai_env(storage=storage, ai=ai), pytest.raises(AIProviderException) as exc_info:
+        await dweller_ai.generate_photo(user=make_user(), db_session=fake_db(), dweller_info=dweller)
     assert exc_info.value.status_code == 502
     assert exc_info.value.detail == "Portrait generation failed. Please try again."
 
 
-# ── generate_audio ──────────────────────────────────────────────────────
-
-
-@patch("app.services.dweller_ai_service.llm_interaction_crud")
-@patch("app.services.dweller_ai_service.dweller_crud")
-async def test_generate_audio_already_has_voice_line(mock_crud: MagicMock, mock_llm: MagicMock) -> None:
-    """Should raise ContentNoChangeException if dweller already has voice_line_url."""
-    from app.utils.exceptions import ContentNoChangeException
-
-    mock_crud.update = AsyncMock()
-    mock_llm.create = AsyncMock()
-
-    mock_dweller = _make_dweller_mock(visual_attributes={"voice_line_url": "http://cdn.example.com/audio.mp3"})
-
-    with pytest.raises(ContentNoChangeException, match="already has an audio line"):
-        await dweller_ai.generate_audio(
-            text="Hello", user=_make_user_mock(), db_session=MagicMock(commit=AsyncMock()), dweller_info=mock_dweller
+async def test_generate_audio_quota_exceeded() -> None:
+    storage = MagicMock(enabled=True)
+    storage.file_exists.return_value = False  # no cache hit
+    dweller = make_dweller(visual_attributes=None)
+    with ai_env(storage=storage) as d:
+        d.quota.check_quota = AsyncMock(
+            return_value=QuotaCheckResult(
+                allowed=False, remaining=0, limit=500_000, percentage=100.0, warning=True, used=500_000
+            )
         )
+        with pytest.raises(QuotaExceededException):
+            await dweller_ai.generate_audio(
+                text="Hello world test audio", user=make_user(), db_session=fake_db(), dweller_info=dweller
+            )
+    assert storage.file_exists.call_count == 1
 
 
-@patch("app.services.dweller_ai_service.llm_interaction_crud")
-@patch("app.services.dweller_ai_service.dweller_crud")
-async def test_generate_audio_storage_disabled(mock_crud: MagicMock, mock_llm: MagicMock) -> None:
-    """Should raise AIStorageException (503) if storage service is disabled."""
-    from app.utils.exceptions import AIStorageException
-
-    mock_crud.update = AsyncMock()
-    mock_llm.create = AsyncMock()
-
-    mock_dweller = _make_dweller_mock(visual_attributes=None)
-
-    mock_storage = MagicMock()
-    mock_storage.enabled = False
-
-    with patch.object(dweller_ai, "storage_service", mock_storage), pytest.raises(AIStorageException) as exc_info:
-        await dweller_ai.generate_audio(
-            text="Hello", user=_make_user_mock(), db_session=MagicMock(commit=AsyncMock()), dweller_info=mock_dweller
-        )
-    assert exc_info.value.status_code == 503
-    assert "not available" in exc_info.value.detail
-
-
-@patch("app.services.dweller_ai_service.quota_service")
-@patch("app.services.dweller_ai_service.llm_interaction_crud")
-@patch("app.services.dweller_ai_service.dweller_crud")
-async def test_generate_audio_quota_exceeded(mock_crud: MagicMock, mock_llm: MagicMock, mock_quota: MagicMock) -> None:
-    """Should raise QuotaExceededException if token estimate exceeds remaining quota."""
-    from app.utils.exceptions import QuotaExceededException
-
-    mock_quota.check_quota = AsyncMock(return_value=MagicMock(allowed=False, remaining=0, used=500000, limit=500000))
-    mock_crud.update = AsyncMock()
-    mock_llm.create = AsyncMock()
-
-    mock_dweller = _make_dweller_mock(visual_attributes=None)
-
-    mock_storage = MagicMock()
-    mock_storage.enabled = True
-    mock_storage.file_exists.return_value = False  # no cache hit
-
-    with (
-        patch.object(dweller_ai, "storage_service", mock_storage),
-        pytest.raises(QuotaExceededException),
-    ):
-        await dweller_ai.generate_audio(
-            text="Hello world test audio",
-            user=_make_user_mock(),
-            db_session=MagicMock(commit=AsyncMock()),
-            dweller_info=mock_dweller,
-        )
-
-    assert mock_storage.file_exists.call_count == 1
-
-
-@patch("app.services.dweller_ai_service.quota_service")
-@patch("app.services.dweller_ai_service.llm_interaction_crud")
-@patch("app.services.dweller_ai_service.dweller_crud")
-async def test_generate_audio_openai_error(mock_crud: MagicMock, mock_llm: MagicMock, mock_quota: MagicMock) -> None:
-    """Should raise AIAudioException (500) if OpenAI TTS call fails."""
-    from app.utils.exceptions import AIAudioException
-
-    mock_quota.check_quota = AsyncMock(return_value=MagicMock(allowed=True, remaining=500000))
-    mock_crud.update = AsyncMock()
-    mock_crud.get_full_info = AsyncMock()
-    mock_llm.create = AsyncMock()
-
-    mock_dweller = _make_dweller_mock(visual_attributes=None)
-
-    mock_storage = MagicMock()
-    mock_storage.enabled = True
-    mock_storage.file_exists.return_value = False  # no cache hit
-
-    mock_openai = MagicMock()
-    mock_openai.generate_audio = AsyncMock(side_effect=ValueError("Invalid voice"))
-
-    with (
-        patch.object(dweller_ai, "storage_service", mock_storage),
-        patch.object(dweller_ai, "ai_service", mock_openai),
-        pytest.raises(AIAudioException) as exc_info,
-    ):
-        await dweller_ai.generate_audio(
-            text="Hello", user=_make_user_mock(), db_session=MagicMock(commit=AsyncMock()), dweller_info=mock_dweller
-        )
+async def test_generate_audio_openai_error() -> None:
+    storage = MagicMock(enabled=True)
+    storage.file_exists.return_value = False  # no cache hit
+    ai = MagicMock(generate_audio=AsyncMock(side_effect=ValueError("Invalid voice")))
+    dweller = make_dweller(visual_attributes=None)
+    with ai_env(storage=storage, ai=ai), pytest.raises(AIAudioException) as exc_info:
+        await dweller_ai.generate_audio(text="Hello", user=make_user(), db_session=fake_db(), dweller_info=dweller)
     assert exc_info.value.status_code == 500
     assert "generate audio" in exc_info.value.detail
 
 
-@patch("app.services.dweller_ai_service.quota_service")
-@patch("app.services.dweller_ai_service.llm_interaction_crud")
-@patch("app.services.dweller_ai_service.dweller_crud")
-async def test_generate_audio_empty_bytes_warning(
-    mock_crud: MagicMock, mock_llm: MagicMock, mock_quota: MagicMock
-) -> None:
-    """Empty audio bytes from OpenAI should still proceed (logger.warning, no exception)."""
-    mock_quota.check_quota = AsyncMock(return_value=MagicMock(allowed=True, remaining=500000))
-    mock_crud.update = AsyncMock()
-    mock_crud.get_full_info = AsyncMock()
-    mock_llm.create = AsyncMock()
+async def test_generate_audio_empty_bytes_warning() -> None:
+    storage = MagicMock(enabled=True)
+    storage.file_exists.return_value = False  # no cache hit
+    storage.upload_file.return_value = "http://cdn.example.com/silent.mp3"
+    ai = MagicMock(generate_audio=AsyncMock(return_value=b""))  # empty bytes
+    dweller = make_dweller(visual_attributes=None)
+    with ai_env(storage=storage, ai=ai) as d:
+        d.crud.get_full_info = AsyncMock(return_value=dweller)
+        result = await dweller_ai.generate_audio(text="", user=make_user(), db_session=fake_db(), dweller_info=dweller)
+    assert result is dweller
+    # Empty bytes still get uploaded and stored.
+    storage.upload_file.assert_called_once()
+    d.crud.update.assert_called_once()
 
-    mock_dweller = _make_dweller_mock(visual_attributes=None)
-    mock_crud.get_full_info = AsyncMock(return_value=mock_dweller)
 
-    mock_storage = MagicMock()
-    mock_storage.enabled = True
-    mock_storage.file_exists.return_value = False  # no cache hit
-    mock_storage.upload_file.return_value = "http://cdn.example.com/silent.mp3"
-
-    mock_openai = MagicMock()
-    mock_openai.generate_audio = AsyncMock(return_value=b"")  # empty bytes
-
+async def test_generate_avatar_updates_and_generates_photo() -> None:
+    dweller = make_dweller()
+    storage = MagicMock()
+    storage.upload_file.return_value = "http://cdn.example.com/photo.png"
+    storage.upload_thumbnail.return_value = "http://cdn.example.com/thumb.png"
+    ai = MagicMock(generate_image=AsyncMock(return_value=b"\x89PNG\r\n\x1a\n"))
+    attrs = DwellerVisualAttributes(height="tall", hair_color="black")
     with (
-        patch.object(dweller_ai, "storage_service", mock_storage),
-        patch.object(dweller_ai, "ai_service", mock_openai),
+        ai_env(storage=storage, ai=ai) as d,
+        patch(f"{SVC}.dweller_service.update_dweller", new_callable=AsyncMock) as update,
     ):
-        result = await dweller_ai.generate_audio(
-            text="",
-            user=_make_user_mock(),
-            db_session=MagicMock(commit=AsyncMock()),
-            dweller_info=mock_dweller,
-        )
-
-    assert result is mock_dweller
-    # Should still upload and store even with empty bytes
-    mock_storage.upload_file.assert_called_once()
-    mock_crud.update.assert_called_once()
-
-
-# ── generate_dweller_avatar ─────────────────────────────────────────────
-
-
-@patch("app.services.dweller_ai_service.dweller_crud")
-async def test_generate_avatar_updates_and_generates_photo(
-    mock_crud: MagicMock,
-) -> None:
-    """generate_dweller_avatar should update attributes then generate photo (no audio)."""
-    import app.schemas.dweller as dweller_schemas
-
-    mock_dweller = _make_dweller_mock()
-    # Return a fresh mock after update (simulating the cascading update)
-    mock_crud.update = AsyncMock(return_value=mock_dweller)
-    mock_crud.get_full_info = AsyncMock(return_value=mock_dweller)
-
-    fake_image_bytes = b"\x89PNG\r\n\x1a\n"
-
-    mock_storage = MagicMock()
-    mock_storage.upload_file.return_value = "http://cdn.example.com/photo.png"
-    mock_storage.upload_thumbnail.return_value = "http://cdn.example.com/thumb.png"
-
-    mock_openai = MagicMock()
-    mock_openai.generate_image = AsyncMock(return_value=fake_image_bytes)
-
-    mock_llm = MagicMock()
-    mock_llm.create = AsyncMock()
-
-    vis_attrs = dweller_schemas.DwellerVisualAttributes(height="tall", hair_color="black")
-
-    with (
-        patch.object(dweller_ai, "storage_service", mock_storage),
-        patch.object(dweller_ai, "ai_service", mock_openai),
-        patch("app.services.dweller_ai_service.llm_interaction_crud", mock_llm),
-        patch("app.services.dweller_ai_service.dweller_service.update_dweller", new_callable=AsyncMock) as mock_update,
-    ):
-        mock_update.return_value = mock_dweller
+        update.return_value = dweller
+        d.crud.get_full_info = AsyncMock(return_value=dweller)
         result = await dweller_ai.generate_dweller_avatar(
-            dweller_id=mock_dweller.id,
+            dweller_id=dweller.id,
             dweller_first_name="Jane",
             dweller_last_name="Doe",
-            visual_attributes_input=vis_attrs,
-            db_session=MagicMock(commit=AsyncMock()),
-            user=_make_user_mock(),
+            visual_attributes_input=attrs,
+            db_session=fake_db(),
+            user=make_user(),
         )
-
-    assert result is mock_dweller
-    # First update: name + visual attributes
-    mock_update.assert_called_once()
-    first_update_call = mock_update.call_args
-    assert first_update_call[0][2].first_name == "Jane"
-    assert first_update_call[0][2].last_name == "Doe"
-
-    # Photo generated
-    mock_openai.generate_image.assert_called_once()
-
-    # LLM interaction logged for photo (not for avatar separately)
-    assert mock_llm.create.call_count >= 1
+    assert result is dweller
+    # First update: name + visual attributes.
+    update.assert_called_once()
+    assert update.call_args[0][2].first_name == "Jane"
+    assert update.call_args[0][2].last_name == "Doe"
+    # Photo generated; LLM interaction logged for the photo (not for the avatar separately).
+    ai.generate_image.assert_called_once()
+    assert d.llm.create.call_count >= 1
 
 
-@patch("app.services.dweller_ai_service.dweller_crud")
-async def test_generate_avatar_with_voice_line(mock_crud: MagicMock) -> None:
-    """generate_dweller_avatar with voice_line_text should also generate audio."""
-    import app.schemas.dweller as dweller_schemas
-
-    mock_dweller = _make_dweller_mock()
-    mock_crud.update = AsyncMock(return_value=mock_dweller)
-    mock_crud.get_full_info = AsyncMock(return_value=mock_dweller)
-
-    fake_image_bytes = b"\x89PNG\r\n\x1a\n"
-    fake_audio_bytes = b"mp3_bytes"
-
-    mock_storage = MagicMock()
-    mock_storage.enabled = True
-    mock_storage.file_exists.return_value = False  # no cache hit
-    mock_storage.upload_file.side_effect = [
+async def test_generate_avatar_with_voice_line() -> None:
+    dweller = make_dweller()
+    storage = MagicMock(enabled=True)
+    storage.file_exists.return_value = False  # no cache hit
+    storage.upload_file.side_effect = [
         "http://cdn.example.com/photo.png",  # image upload
         "http://cdn.example.com/voice.mp3",  # audio upload
     ]
-    mock_storage.upload_thumbnail.return_value = "http://cdn.example.com/thumb.png"
-
-    mock_openai = MagicMock()
-    mock_openai.generate_image = AsyncMock(return_value=fake_image_bytes)
-    mock_openai.generate_audio = AsyncMock(return_value=fake_audio_bytes)
-
-    mock_quota = MagicMock()
-    mock_quota.check_quota = AsyncMock(return_value=MagicMock(allowed=True, remaining=500000))
-
-    mock_llm = MagicMock()
-    mock_llm.create = AsyncMock()
-
-    vis_attrs = dweller_schemas.DwellerVisualAttributes(
-        height="average", hair_color="blonde", voice_line_text="I'm ready for duty!"
+    storage.upload_thumbnail.return_value = "http://cdn.example.com/thumb.png"
+    ai = MagicMock(
+        generate_image=AsyncMock(return_value=b"\x89PNG\r\n\x1a\n"), generate_audio=AsyncMock(return_value=b"mp3_bytes")
     )
-
+    attrs = DwellerVisualAttributes(height="average", hair_color="blonde", voice_line_text="I'm ready for duty!")
     with (
-        patch.object(dweller_ai, "storage_service", mock_storage),
-        patch.object(dweller_ai, "ai_service", mock_openai),
-        patch("app.services.dweller_ai_service.llm_interaction_crud", mock_llm),
-        patch("app.services.dweller_ai_service.quota_service", mock_quota),
-        patch("app.services.dweller_ai_service.dweller_service.update_dweller", new_callable=AsyncMock) as mock_update,
+        ai_env(storage=storage, ai=ai) as d,
+        patch(f"{SVC}.dweller_service.update_dweller", new_callable=AsyncMock) as update,
     ):
-        mock_update.return_value = mock_dweller
+        update.return_value = dweller
+        d.crud.get_full_info = AsyncMock(return_value=dweller)
         result = await dweller_ai.generate_dweller_avatar(
-            dweller_id=mock_dweller.id,
+            dweller_id=dweller.id,
             dweller_first_name="Jane",
             dweller_last_name="Doe",
-            visual_attributes_input=vis_attrs,
-            db_session=MagicMock(commit=AsyncMock()),
-            user=_make_user_mock(),
+            visual_attributes_input=attrs,
+            db_session=fake_db(),
+            user=make_user(),
         )
-
-    assert result is mock_dweller
-    # Both image and audio generated
-    mock_openai.generate_image.assert_called_once()
-    mock_openai.generate_audio.assert_called_once()
-    assert mock_storage.upload_file.call_count == 2  # image + audio
-
-
-# ── dweller_generate_pipeline ────────────────────────────────────────────
+    assert result is dweller
+    # Both image and audio generated.
+    ai.generate_image.assert_called_once()
+    ai.generate_audio.assert_called_once()
+    assert storage.upload_file.call_count == 2  # image + audio
 
 
-@patch("app.services.dweller_ai_service.dweller_crud")
-async def test_pipeline_dweller_already_complete(mock_crud: MagicMock) -> None:
-    """Pipeline should raise ContentNoChangeException if dweller has bio, VA, and image."""
-    from app.utils.exceptions import ContentNoChangeException
-
-    mock_dweller = _make_dweller_mock(
-        bio="Full bio.",
-        image_url="http://example.com/photo.png",
-        visual_attributes={"race": "human", "height": "tall", "hair_color": "brown"},
-    )
-    mock_crud.get_full_info = AsyncMock(return_value=mock_dweller)
-
-    with pytest.raises(ContentNoChangeException, match="already has"):
-        await dweller_ai.dweller_generate_pipeline(
-            db_session=MagicMock(commit=AsyncMock()), dweller_id=mock_dweller.id, user=_make_user_mock()
-        )
-
-
-@patch("app.services.dweller_ai_service.dweller_crud")
-async def test_pipeline_regenerates_default_portrait(mock_crud: MagicMock) -> None:
-    """A curated default must not make the dossier complete; the pipeline still generates a custom photo."""
-    mock_dweller = _make_dweller_mock(
-        bio="Full bio.",
-        image_url="/static/dweller_images/base/FOS_Dw_Default_Human_Male.webp",
-        visual_attributes={"race": "human", "height": "tall", "hair_color": "brown"},
-    )
-    mock_crud.get_full_info = AsyncMock(return_value=mock_dweller)
-
-    with patch.object(dweller_ai, "generate_photo", new=AsyncMock(return_value=mock_dweller)) as generate:
-        result = await dweller_ai.dweller_generate_pipeline(
-            db_session=MagicMock(commit=AsyncMock()), dweller_id=mock_dweller.id, user=_make_user_mock()
-        )
-
+async def test_pipeline_completeness_and_default_portrait() -> None:
+    dossier = {"race": "human", "height": "tall", "hair_color": "brown"}
+    complete = make_dweller("Full bio.", image_url="http://example.com/photo.png", visual_attributes=dossier)
+    with ai_env() as d:
+        d.crud.get_full_info = AsyncMock(return_value=complete)
+        with pytest.raises(ContentNoChangeException, match="already has"):
+            await dweller_ai.dweller_generate_pipeline(db_session=fake_db(), dweller_id=complete.id, user=make_user())
+    # A curated default must not make the dossier complete; the pipeline still generates a custom photo.
+    defaulted = make_dweller("Full bio.", image_url=DEFAULT_PORTRAIT, visual_attributes=dossier)
+    with ai_env() as d:
+        d.crud.get_full_info = AsyncMock(return_value=defaulted)
+        with patch.object(dweller_ai, "generate_photo", new=AsyncMock(return_value=defaulted)) as generate:
+            result = await dweller_ai.dweller_generate_pipeline(
+                db_session=fake_db(), dweller_id=defaulted.id, user=make_user()
+            )
     generate.assert_awaited_once()
-    assert result is mock_dweller
+    assert result is defaulted
 
 
-@patch("app.services.dweller_ai_service.dweller_crud")
-async def test_pipeline_generates_all_from_scratch(mock_crud: MagicMock) -> None:
-    """Pipeline should generate bio, VA, and photo when all are missing."""
-    import app.schemas.dweller as dweller_schemas
-
-    mock_dweller = _make_dweller_mock(
-        bio=None,
-        image_url=None,
-        visual_attributes=None,
-    )
-    mock_crud.get_full_info = AsyncMock(return_value=mock_dweller)
-    mock_crud.update = AsyncMock()
-
-    # Mock backstory agent
-    from app.schemas.dweller_ai import DwellerBackstory
-
-    mock_quota = MagicMock()
-    mock_quota.check_quota = AsyncMock(return_value=MagicMock(allowed=True))
-
-    mock_bio_agent = MagicMock()
+async def test_pipeline_generates_all_from_scratch() -> None:
+    dweller = make_dweller(bio=None, image_url=None, visual_attributes=None)
+    storage = MagicMock()
+    storage.upload_file.return_value = "http://cdn.example.com/photo.png"
+    storage.upload_thumbnail.return_value = "http://cdn.example.com/thumb.png"
+    ai = MagicMock(generate_image=AsyncMock(return_value=b"\x89PNG\r\n\x1a\n"))
     bio_output = DwellerBackstory(bio="Generated bio.", origin_place="Megaton", visited_places=[])
-    mock_bio_agent.run = AsyncMock(return_value=_make_agent_result(bio_output))
-
-    # Mock visual attributes agent
-    mock_va_agent = MagicMock()
-    va_output = dweller_schemas.DwellerVisualAttributes(height="tall", hair_color="brown")
-    mock_va_agent.run = AsyncMock(return_value=_make_agent_result(va_output))
-
-    # Mock storage / OpenAI for photo
-    mock_storage = MagicMock()
-    mock_storage.upload_file.return_value = "http://cdn.example.com/photo.png"
-    mock_storage.upload_thumbnail.return_value = "http://cdn.example.com/thumb.png"
-
-    mock_openai = MagicMock()
-    mock_openai.generate_image = AsyncMock(return_value=b"\x89PNG\r\n\x1a\n")
-
-    mock_map = MagicMock()
-    mock_map.register_bio_places = AsyncMock()
-
-    mock_llm = MagicMock()
-    mock_llm.create = AsyncMock()
-
-    with (
-        patch("app.services.dweller_ai_service.quota_service", mock_quota),
-        patch("app.services.dweller_ai_service.backstory_agent", mock_bio_agent),
-        patch("app.services.dweller_ai_service.visual_attributes_agent", mock_va_agent),
-        patch("app.services.dweller_ai_service.map_service", mock_map),
-        patch("app.services.dweller_ai_service.llm_interaction_crud", mock_llm),
-        patch.object(dweller_ai, "storage_service", mock_storage),
-        patch.object(dweller_ai, "ai_service", mock_openai),
-    ):
+    va_output = DwellerVisualAttributes(height="tall", hair_color="brown")
+    with ai_env(
+        agents={"backstory_agent": bio_output, "visual_attributes_agent": va_output}, storage=storage, ai=ai
+    ) as d:
+        d.crud.get_full_info = AsyncMock(return_value=dweller)
         result = await dweller_ai.dweller_generate_pipeline(
-            db_session=MagicMock(commit=AsyncMock()),
-            dweller_id=mock_dweller.id,
-            user=_make_user_mock(),
-            origin="Vault 111",
+            db_session=fake_db(), dweller_id=dweller.id, user=make_user(), origin="Vault 111"
         )
-
-    assert result is mock_dweller
-    # All three agents called
-    mock_bio_agent.run.assert_called_once()
-    mock_va_agent.run.assert_called_once()
-    mock_openai.generate_image.assert_called_once()
-    assert mock_llm.create.call_count == 3
+    assert result is dweller
+    # All three generation steps ran.
+    d.backstory_agent.run.assert_called_once()
+    d.visual_attributes_agent.run.assert_called_once()
+    ai.generate_image.assert_called_once()
+    assert d.llm.create.call_count == 3

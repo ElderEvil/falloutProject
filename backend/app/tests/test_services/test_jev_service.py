@@ -1,5 +1,3 @@
-"""Jev decision-service tests (no live API needed)."""
-
 from typing import Annotated, Literal
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
@@ -14,16 +12,12 @@ from app.utils.exceptions import FeatureDisabledException
 
 
 class Triage(BaseModel):
-    """Should the dweller keep exploring?"""
-
     model_config = ConfigDict(use_attribute_docstrings=True)
-
     continue_run: Annotated[
         bool,
         BoolCriteria(true="The dweller can keep going safely.", false="The dweller should return now."),
     ]
     """Should the dweller continue exploring?"""
-
     risk: Literal["low", "medium", "high"]
     """How risky is continuing?"""
 
@@ -42,36 +36,28 @@ def _run_result(output: BaseModel, confidence: dict[str, float], model_name: str
     return result
 
 
-@pytest.mark.asyncio
 async def test_decide_returns_typed_output_and_confidence(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr("app.services.jev_service.is_configured", lambda: True)
     expected = Triage(continue_run=False, risk="high")
     result = _run_result(expected, {"continue_run": 0.84, "risk": 0.98}, "jev-1.13.0")
-
     with patch.object(jev_service, "_build_agent", return_value=_fake_agent(result)):
         decision = await jev_service.decide("low health, no supplies", Triage)
-
     assert isinstance(decision, JevDecision)
     assert decision.output == expected
     assert decision.confidence_for("risk") == 0.98
     assert decision.model_name == "jev-1.13.0"
 
 
-@pytest.mark.asyncio
 async def test_decide_missing_confidence_field_reads_zero(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr("app.services.jev_service.is_configured", lambda: True)
     result = _run_result(Triage(continue_run=True, risk="low"), {}, "jev-1.13.0")
-
     with patch.object(jev_service, "_build_agent", return_value=_fake_agent(result)):
         decision = await jev_service.decide("all good", Triage)
-
     assert decision.confidence_for("continue_run") == 0.0
 
 
-@pytest.mark.asyncio
 async def test_decide_raises_when_not_configured(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr("app.services.jev_service.is_configured", lambda: False)
-
     with pytest.raises(FeatureDisabledException):
         await jev_service.decide("anything", Triage)
 
@@ -80,14 +66,12 @@ def test_is_configured_requires_both_flag_and_key(monkeypatch: pytest.MonkeyPatc
     monkeypatch.setattr("app.services.jev_service.settings.JEV_ENABLED", True)
     monkeypatch.setattr("app.services.jev_service.settings.TYPESAFE_API_KEY", "k")
     assert is_configured() is True
-
     monkeypatch.setattr("app.services.jev_service.settings.JEV_ENABLED", False)
     assert is_configured() is False
 
 
 def test_built_agent_reads_the_key_from_settings(monkeypatch: pytest.MonkeyPatch) -> None:
     """The provider must be built from settings.TYPESAFE_API_KEY, not the process env.
-
     The spent-by-name path Agent(typesafe:...) reads the OS environment; settings loads
     .env, so that path has no key and fails auth in-app. Assert the provider is
     constructed with the settings value while the env var is absent.
@@ -97,7 +81,6 @@ def test_built_agent_reads_the_key_from_settings(monkeypatch: pytest.MonkeyPatch
 
     monkeypatch.delenv("TYPESAFE_API_KEY", raising=False)
     monkeypatch.setattr("app.services.jev_service.settings.TYPESAFE_API_KEY", "settings-only-key")
-
     real_provider = TypeSafeProvider
 
     class SpyProvider(real_provider):  # type: ignore[misc, valid-type]
@@ -108,9 +91,7 @@ def test_built_agent_reads_the_key_from_settings(monkeypatch: pytest.MonkeyPatch
             super().__init__(api_key=api_key, **kwargs)
 
     monkeypatch.setattr("pydantic_ai.providers.typesafe.TypeSafeProvider", SpyProvider)
-
     jev_service._build_agent(Triage, instructions=None, model=None)
-
     assert SpyProvider.seen_key == "settings-only-key"
 
 
@@ -129,7 +110,6 @@ def test_agent_carries_the_decision_timeout(monkeypatch: pytest.MonkeyPatch) -> 
         asyncio.run(jev_service.decide("anything", Triage))
 
 
-@pytest.mark.asyncio
 async def test_record_usage_swallows_a_failed_write(async_session) -> None:
     """A real flush failure must not raise and must leave the session usable."""
     from sqlalchemy import text
@@ -143,7 +123,6 @@ async def test_record_usage_swallows_a_failed_write(async_session) -> None:
         model_name="jev-1.13.0",
         total_tokens=5,
     )
-
     sentinel = LLMInteraction(usage="sentinel")
     async_session.add(sentinel)
     await async_session.flush()
@@ -154,5 +133,4 @@ async def test_record_usage_swallows_a_failed_write(async_session) -> None:
 
     with patch.object(llm_interaction_crud, "create", new=duplicate_key):
         await jev_service.record_usage(async_session, uuid4(), decision, output_type_name="Triage")
-
     assert (await async_session.execute(text("SELECT 1"))).scalar_one() == 1

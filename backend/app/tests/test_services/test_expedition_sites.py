@@ -1,30 +1,66 @@
-"""Unit tests for expedition site definitions and loading."""
+import json
+from pathlib import Path
 
 import pytest
+from PIL import Image
 from pydantic import ValidationError
 
-from app.schemas.expedition import SiteDefinition
+from app.models.dweller import Dweller
+from app.schemas.expedition import ExpeditionSiteList, SiteDefinition, TriviaOption, TriviaQuestion
 from app.services import catalog_service as data_loader
+from app.services.catalog_service import load_pets, load_weapons, validate_site_content
+from app.services.exploration.site_combat_service import initial_combat, resolve_turn
+from app.tests.factory.dwellers import create_rush_dweller_payload
+from app.utils.exceptions import ValidationException
+from app.utils.item_factory import build_pet, build_weapon
+
+SITE_IDS = (
+    "red_rocket",
+    "super_duper_mart",
+    "abandoned_campsite",
+    "roadside_supply_truck",
+    "forgotten_shack",
+    "collapsed_subway",
+    "rusted_midway",
+    "frozen_research_outpost",
+    "raider_tollbooth",
+    "gloomwater_bog",
+    "gloomwater_bog_night",
+    "outskirts_interchange",
+    "vault_68",
+    "vault_69",
+)
+LEVELS = (5, 10, 15, 20)
+WEAPON_TYPES = (None, "melee", "gun", "energy", "heavy")
+
+
+def _site(site_id: str):
+    return data_loader.get_expedition_site(site_id)
+
+
+def _fight(site, dweller, max_turns: int = 200):
+    state = initial_combat(site)
+    won = lost = False
+    turns = 0
+    for _ in range(max_turns):
+        state, won, lost, _ = resolve_turn(state, dweller, use_skill=False)
+        turns += 1
+        if won or lost:
+            break
+    return state, won, lost, turns
+
+
+def _sites_for(level: int):
+    return [
+        site
+        for site in data_loader.load_expedition_sites()
+        if not site.scenario_only and site.encounter is not None and site.min_dweller_level <= level
+    ]
 
 
 def test_sites_load_and_validate():
     sites = data_loader.load_expedition_sites()
-    assert {site.id for site in sites} == {
-        "red_rocket",
-        "super_duper_mart",
-        "abandoned_campsite",
-        "roadside_supply_truck",
-        "forgotten_shack",
-        "collapsed_subway",
-        "rusted_midway",
-        "frozen_research_outpost",
-        "raider_tollbooth",
-        "gloomwater_bog",
-        "gloomwater_bog_night",
-        "outskirts_interchange",
-        "vault_68",
-        "vault_69",
-    }
+    assert {site.id for site in sites} == set(SITE_IDS)
     for site in sites:
         assert isinstance(site, SiteDefinition)
         assert site.rooms or site.encounter
@@ -38,40 +74,24 @@ def test_sites_load_and_validate():
             assert site.rooms[-1].node.kind == "finale"
 
 
-def test_raider_tollbooth_offer_weight_is_boosted():
-    tollbooth = data_loader.get_expedition_site("raider_tollbooth")
-    assert tollbooth is not None
-    assert tollbooth.offer_weight == 2.0
-    assert data_loader.get_expedition_site("super_duper_mart").offer_weight == 1.0
-
-
-def test_red_rocket_shape():
-    site = data_loader.get_expedition_site("red_rocket")
+def test_site_shapes_and_offer_weights():
+    assert _site("no_such_site") is None
+    assert (_site("raider_tollbooth").offer_weight, _site("super_duper_mart").offer_weight) == (2.0, 1.0)
+    site = _site("red_rocket")
     assert site is not None
-    assert site.min_dweller_level == 3
-    assert [room.id for room in site.rooms] == ["forecourt", "garage", "bunker"]
-    assert site.rooms[0].node.kind == "trap"
-    assert site.rooms[1].node.kind == "combat"
-    assert site.reward_vault.caps_min == 80
-
-
-def test_super_duper_mart_shape():
-    site = data_loader.get_expedition_site("super_duper_mart")
+    assert (site.min_dweller_level, [room.id for room in site.rooms]) == (3, ["forecourt", "garage", "bunker"])
+    assert (site.rooms[0].node.kind, site.rooms[1].node.kind, site.reward_vault.caps_min) == ("trap", "combat", 80)
+    site = _site("super_duper_mart")
     assert site is not None
     assert site.min_dweller_level == 5
     boss = site.rooms[2].node.enemies[0]
-    assert boss.name == "Raider Boss"
-    assert boss.min_damage == 25
+    assert (boss.name, boss.min_damage) == ("Raider Boss", 25)
     assert site.reward_vault.item is not None
     assert site.reward_vault.item.floor == "rare"
 
 
-def test_unknown_site_returns_none():
-    assert data_loader.get_expedition_site("no_such_site") is None
-
-
 def test_raider_tollbooth_shape():
-    site = data_loader.get_expedition_site("raider_tollbooth")
+    site = _site("raider_tollbooth")
     assert site is not None
     assert site.encounter is not None
     node = site.encounter.node
@@ -90,35 +110,25 @@ def test_raider_tollbooth_shape():
 
 
 @pytest.mark.parametrize(
-    ("site_id", "minimum_questions"),
-    [
-        ("raider_tollbooth", 18),
-        ("outskirts_interchange", 12),
-        ("rusted_midway", 12),
-    ],
+    ("site_id", "minimum_questions"), [("raider_tollbooth", 18), ("outskirts_interchange", 12), ("rusted_midway", 12)]
 )
 def test_trivia_sites_have_expanded_question_pools(site_id: str, minimum_questions: int):
-    site = data_loader.get_expedition_site(site_id)
+    site = _site(site_id)
     assert site is not None
     assert site.encounter is not None
     node = site.encounter.node
+    questions = node.trivia_questions
     assert node.kind == "trivia"
-    assert len(node.trivia_questions) >= minimum_questions
-    assert len({question.id for question in node.trivia_questions}) == len(node.trivia_questions)
-    assert all(len(question.options) >= 3 for question in node.trivia_questions)
-    assert all(
-        question.correct_option_id in {option.id for option in question.options} for question in node.trivia_questions
-    )
-    assert all(1 <= question.difficulty <= 5 for question in node.trivia_questions)
+    assert len(questions) >= minimum_questions
+    assert len({question.id for question in questions}) == len(questions)
+    assert all(len(question.options) >= 3 for question in questions)
+    assert all(question.correct_option_id in {option.id for option in question.options} for question in questions)
+    assert all(1 <= question.difficulty <= 5 for question in questions)
 
 
 def test_raider_variant_assets_are_shipped_and_transparent():
-    from pathlib import Path
-
-    from PIL import Image
-
     static = Path(__file__).resolve().parents[2] / "static"
-    site = data_loader.get_expedition_site("raider_tollbooth")
+    site = _site("raider_tollbooth")
     assert site is not None
     assert site.encounter is not None
     for raider in data_loader.load_trivia_raiders():
@@ -135,9 +145,7 @@ def test_raider_variant_assets_are_shipped_and_transparent():
     assert not (static / "creature_images/assembled/raider.webp").exists()
 
 
-def test_trivia_question_rejects_unknown_answer():
-    from app.schemas.expedition import TriviaOption, TriviaQuestion
-
+def test_schema_rejections():
     with pytest.raises(ValidationError, match="answer is not one of its options"):
         TriviaQuestion(
             id="q",
@@ -146,27 +154,13 @@ def test_trivia_question_rejects_unknown_answer():
             options=[TriviaOption(id="a", label="A"), TriviaOption(id="b", label="B")],
             correct_option_id="c",
         )
-
-
-def test_trivia_encounter_needs_questions():
-    from app.services.catalog_service import validate_site_content
-    from app.utils.exceptions import ValidationException
-
-    site = data_loader.get_expedition_site("raider_tollbooth").model_copy(deep=True)
+    site = _site("raider_tollbooth").model_copy(deep=True)
     site.encounter.node.trivia_questions = []
     with pytest.raises(ValidationException, match="needs trivia questions"):
         validate_site_content(site)
-
-
-def test_shared_trivia_raiders_are_unique():
-    from app.schemas.expedition import ExpeditionSiteList
-
     raiders = data_loader.load_trivia_raiders()
     with pytest.raises(ValidationError, match="unique ids and names"):
         ExpeditionSiteList(sites=[], trivia_raiders=[raiders[0], raiders[0]])
-
-
-def test_invalid_site_definition_rejected():
     with pytest.raises(ValidationError) as exc_info:
         SiteDefinition(
             id="bad",
@@ -182,44 +176,32 @@ def test_invalid_site_definition_rejected():
 
 
 @pytest.mark.parametrize(
-    "site",
-    [site for site in data_loader.load_expedition_sites() if not site.scenario_only],
-    ids=lambda site: site.id,
+    "site", [site for site in data_loader.load_expedition_sites() if not site.scenario_only], ids=lambda s: s.id
 )
 def test_scene_rosters_and_intro_balance(site):
-    from app.models.dweller import Dweller
-    from app.services.exploration.site_combat_service import initial_combat, resolve_turn
-    from app.tests.factory.dwellers import create_rush_dweller_payload
-
     # A modest unarmed dweller is a deliberately conservative first-release baseline.
     dweller = Dweller(**create_rush_dweller_payload(strength=3), level=site.min_dweller_level, radiation=0)
-    state = initial_combat(site)
-    won = lost = False
-    for _ in range(160):
-        state, won, lost, _ = resolve_turn(state, dweller, use_skill=False)
-        if won or lost:
-            break
+    _, won, lost, _turns = _fight(site, dweller, max_turns=160)
     assert won
     assert not lost
     assert dweller.health >= 60
 
 
-def test_desert_wildlife_rejected_in_arctic_scene():
-    from app.services.catalog_service import validate_site_content
-    from app.utils.exceptions import ValidationException
-
-    desert = data_loader.get_expedition_site("roadside_supply_truck")
-    with pytest.raises(ValidationException, match="does not belong"):
-        validate_site_content(desert.model_copy(update={"scene_id": "arctic_research_station"}))
-
-
-@pytest.mark.parametrize("problem", ["missing_scene", "choice_encounter", "empty_roster", "wrong_pool"])
-def test_encounter_authoring_errors_are_rejected_at_validation(problem):
-    from app.services.catalog_service import validate_site_content
-    from app.utils.exceptions import ValidationException
-
-    site = data_loader.get_expedition_site("roadside_supply_truck").model_copy(deep=True)
-    if problem == "missing_scene":
+@pytest.mark.parametrize(
+    ("problem", "error"),
+    [
+        ("desert", "does not belong"),
+        ("missing_scene", None),
+        ("choice_encounter", None),
+        ("empty_roster", None),
+        ("wrong_pool", None),
+    ],
+)
+def test_encounter_authoring_errors_are_rejected_at_validation(problem, error):
+    site = _site("roadside_supply_truck").model_copy(deep=True)
+    if problem == "desert":
+        site = _site("roadside_supply_truck").model_copy(update={"scene_id": "arctic_research_station"})
+    elif problem == "missing_scene":
         site.scene_id = None
     elif problem == "choice_encounter":
         site.encounter.node.kind = "choice"
@@ -227,16 +209,16 @@ def test_encounter_authoring_errors_are_rejected_at_validation(problem):
         site.encounter.node.enemies = []
     else:
         site.scene_id = "arctic_research_station"
-    with pytest.raises(ValidationException):
-        validate_site_content(site)
+    if error is None:
+        with pytest.raises(ValidationException):
+            validate_site_content(site)
+    else:
+        with pytest.raises(ValidationException, match=error):
+            validate_site_content(site)
 
 
 def test_catalog_rejects_invalid_encounter_before_returning_sites(tmp_path, monkeypatch):
-    import json
-
-    from app.utils.exceptions import ValidationException
-
-    site = data_loader.get_expedition_site("roadside_supply_truck").model_dump(mode="json")
+    site = _site("roadside_supply_truck").model_dump(mode="json")
     site["scene_id"] = "arctic_research_station"
     (tmp_path / "expedition_sites.json").write_text(json.dumps({"sites": [site]}))
     with monkeypatch.context() as patch:
@@ -249,20 +231,12 @@ def test_catalog_rejects_invalid_encounter_before_returning_sites(tmp_path, monk
             data_loader.load_expedition_sites.cache_clear()
 
 
-LEVELS = (5, 10, 15, 20)
-WEAPON_TYPES = (None, "melee", "gun", "energy", "heavy")
-
-
 def _matrix_dweller(level: int, weapon_type: str | None):
-    from app.models.dweller import Dweller
-    from app.services.catalog_service import load_weapons
-    from app.tests.factory.dwellers import create_rush_dweller_payload
-    from app.utils.item_factory import build_weapon
-
+    hp = 100 + 5 * (level - 1)
     payload = create_rush_dweller_payload(strength=5, luck=5, intelligence=5) | {
         "level": level,
-        "max_health": 100 + 5 * (level - 1),
-        "health": 100 + 5 * (level - 1),
+        "max_health": hp,
+        "health": hp,
         "radiation": 0,
         "perception": 5,
         "endurance": 5,
@@ -271,7 +245,7 @@ def _matrix_dweller(level: int, weapon_type: str | None):
     }
     dweller = Dweller(**payload)
     if weapon_type is not None:
-        candidates = [weapon for weapon in load_weapons() if str(weapon.get("weapon_type", "")).lower() == weapon_type]
+        candidates = [w for w in load_weapons() if str(w.get("weapon_type", "")).lower() == weapon_type]
         data = candidates[len(candidates) // 2]
         dweller.weapon = build_weapon(data, data["rarity"])
     return dweller
@@ -280,21 +254,10 @@ def _matrix_dweller(level: int, weapon_type: str | None):
 @pytest.mark.parametrize("level", LEVELS)
 @pytest.mark.parametrize("weapon_type", WEAPON_TYPES)
 def test_scene_balance_matrix(level, weapon_type):
-    from app.services.exploration.site_combat_service import initial_combat, resolve_turn
-
     dweller = _matrix_dweller(level, weapon_type)
-    for site in data_loader.load_expedition_sites():
-        if site.scenario_only or site.encounter is None or site.min_dweller_level > level:
-            continue
+    for site in _sites_for(level):
         dweller.health = dweller.effective_max_health
-        state = initial_combat(site)
-        won = lost = False
-        turns = 0
-        for _ in range(200):
-            state, won, lost, _ = resolve_turn(state, dweller, use_skill=False)
-            turns += 1
-            if won or lost:
-                break
+        state, won, lost, turns = _fight(site, dweller)
         label = f"{site.id} level={level} weapon={weapon_type}"
         assert won, f"{label}: lost"
         assert dweller.health >= 0.6 * dweller.max_health, f"{label}: health {dweller.health}"
@@ -307,23 +270,12 @@ def test_scene_balance_matrix(level, weapon_type):
 
 @pytest.mark.parametrize("level", [5, 20])
 def test_scene_balance_with_equipped_pet(level):
-    from app.services.catalog_service import load_pets
-    from app.services.exploration.site_combat_service import initial_combat, resolve_turn
-    from app.utils.item_factory import build_pet
-
     dweller = _matrix_dweller(level, "gun")
     data = load_pets()[0]
     dweller.pet = build_pet(data, data["rarity"])
-    for site in data_loader.load_expedition_sites():
-        if site.scenario_only or site.encounter is None or site.min_dweller_level > level:
-            continue
+    for site in _sites_for(level):
         dweller.health = dweller.effective_max_health
-        state = initial_combat(site)
-        won = lost = False
-        for _ in range(200):
-            state, won, lost, _ = resolve_turn(state, dweller, use_skill=False)
-            if won or lost:
-                break
+        _, won, lost, _turns = _fight(site, dweller)
         assert won
         assert not lost
         assert dweller.health >= 0.6 * dweller.max_health

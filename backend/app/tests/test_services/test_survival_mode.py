@@ -1,5 +1,3 @@
-"""Survival-mode vault behavior: immediate permanent death, standard mode unchanged."""
-
 import pytest
 import pytest_asyncio
 from sqlmodel.ext.asyncio.session import AsyncSession

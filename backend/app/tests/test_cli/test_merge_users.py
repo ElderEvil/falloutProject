@@ -1,5 +1,3 @@
-"""Tests for the flat merge-users CLI command."""
-
 from __future__ import annotations
 
 import re
@@ -42,7 +40,6 @@ def preview() -> MergePreview:
 
 @contextmanager
 def _patched_cli(preview_value: MergePreview | None = None, side_effect: Exception | None = None):
-    """Patch the session maker and the merge service, mirroring the other CLI tests."""
     session = AsyncMock()
     with (
         patch("app.cli.main.async_session_maker") as session_maker,
@@ -55,6 +52,10 @@ def _patched_cli(preview_value: MergePreview | None = None, side_effect: Excepti
         yield merge_mock
 
 
+def _invoke(*extra: str):
+    return runner.invoke(cli, ["merge-users", "--source", "old@example.com", "--target", "new@example.com", *extra])
+
+
 def test_merge_users_help_lists_options():
     result = runner.invoke(cli, ["merge-users", "--help"])
 
@@ -64,15 +65,13 @@ def test_merge_users_help_lists_options():
         assert option in plain_output
 
 
-def test_merge_users_defaults_to_dry_run(preview):
-    with (
-        _patched_cli(preview) as merge_mock,
-        patch("app.cli.main.Redis.from_url") as from_url,
-    ):
-        result = runner.invoke(
-            cli,
-            ["merge-users", "--source", "old@example.com", "--target", "new@example.com"],
-        )
+@pytest.mark.parametrize(
+    ("extra", "actor"),
+    [((), str(settings.FIRST_SUPERUSER_EMAIL)), (("--actor", "admin@example.com", "--dry-run"), "admin@example.com")],
+)
+def test_merge_users_defaults_to_dry_run(preview, extra, actor):
+    with _patched_cli(preview) as merge_mock, patch("app.cli.main.Redis.from_url") as from_url:
+        result = _invoke(*extra)
 
     assert result.exit_code == 0, result.output
     merge_mock.assert_awaited_once()
@@ -80,71 +79,33 @@ def test_merge_users_defaults_to_dry_run(preview):
     assert call.args[1:] == ("old@example.com", "new@example.com")
     assert call.kwargs["dry_run"] is True
     assert call.kwargs["redis_client"] is None
-    assert call.kwargs["reason"] == "dry-run preview"
-    assert call.kwargs["actor"] == str(settings.FIRST_SUPERUSER_EMAIL)
-    from_url.assert_not_called()
-    assert "old_user" in result.output
-    assert "new_user" in result.output
-    # Moved counts print in sorted key order.
-    assert result.output.index("notifications:") < result.output.index("vaults:")
-    assert "Vault numbers: 4, 9" in result.output
-    assert "Duplicate vault numbers: 9" in result.output
-    assert "OAuth conflicts: google" in result.output
-    assert "Tokens this month: source=120 target=80" in result.output
-    assert "Dry run" in result.output
-
-
-def test_merge_users_explicit_dry_run_and_actor_override(preview):
-    with (
-        _patched_cli(preview) as merge_mock,
-        patch("app.cli.main.Redis.from_url") as from_url,
-    ):
-        result = runner.invoke(
-            cli,
-            [
-                "merge-users",
-                "--source",
-                "old@example.com",
-                "--target",
-                "new@example.com",
-                "--actor",
-                "admin@example.com",
-                "--dry-run",
-            ],
-        )
-
-    assert result.exit_code == 0, result.output
-    call = merge_mock.call_args
-    assert call.kwargs["dry_run"] is True
-    assert call.kwargs["redis_client"] is None
-    assert call.kwargs["actor"] == "admin@example.com"
+    assert call.kwargs["actor"] == actor
     from_url.assert_not_called()
     assert "Dry run" in result.output
+    if not extra:
+        assert call.kwargs["reason"] == "dry-run preview"
+        assert "old_user" in result.output
+        assert "new_user" in result.output
+        # Moved counts print in sorted key order.
+        assert result.output.index("notifications:") < result.output.index("vaults:")
+        assert "Vault numbers: 4, 9" in result.output
+        assert "Duplicate vault numbers: 9" in result.output
+        assert "OAuth conflicts: google" in result.output
+        assert "Tokens this month: source=120 target=80" in result.output
 
 
-def test_merge_users_apply_persists_and_closes_redis(preview):
+@pytest.mark.parametrize("close_error", [False, True])
+def test_merge_users_apply_persists_and_closes_redis(preview, close_error):
     audit_id = uuid4()
     applied = replace(preview, applied=True, audit_id=audit_id)
     redis = MagicMock()
-    redis.aclose = AsyncMock()
+    redis.aclose = AsyncMock(side_effect=RuntimeError("close failed") if close_error else None)
 
     with (
         _patched_cli(applied) as merge_mock,
         patch("app.cli.main.Redis.from_url", return_value=redis) as from_url,
     ):
-        result = runner.invoke(
-            cli,
-            [
-                "merge-users",
-                "--source",
-                "old@example.com",
-                "--target",
-                "new@example.com",
-                "--apply",
-                "--reason",
-                "duplicate account",
-            ],
-        )
+        result = _invoke("--apply", "--reason", "duplicate account")
 
     assert result.exit_code == 0, result.output
     call = merge_mock.call_args
@@ -155,70 +116,23 @@ def test_merge_users_apply_persists_and_closes_redis(preview):
     redis.aclose.assert_awaited_once()
     assert f"Audit: {audit_id}" in result.output
     assert "Applied." in result.output
+    if close_error:
+        assert "merge-users failed" not in result.output
 
 
-def test_merge_users_redis_cleanup_failure_keeps_successful_result(preview):
-    audit_id = uuid4()
-    applied = replace(preview, applied=True, audit_id=audit_id)
-    redis = MagicMock()
-    redis.aclose = AsyncMock(side_effect=RuntimeError("close failed"))
-
-    with (
-        _patched_cli(applied),
-        patch("app.cli.main.Redis.from_url", return_value=redis),
-    ):
-        result = runner.invoke(
-            cli,
-            [
-                "merge-users",
-                "--source",
-                "old@example.com",
-                "--target",
-                "new@example.com",
-                "--apply",
-                "--reason",
-                "duplicate account",
-            ],
-        )
-
-    assert result.exit_code == 0, result.output
-    assert f"Audit: {audit_id}" in result.output
-    assert "Applied." in result.output
-    assert "merge-users failed" not in result.output
-    redis.aclose.assert_awaited_once()
-
-
-def test_merge_users_apply_requires_reason():
+@pytest.mark.parametrize(
+    ("extra", "message"),
+    [
+        (("--apply",), "--apply requires a non-empty --reason"),
+        (("--apply", "--dry-run", "--reason", "duplicate account"), "cannot be used together"),
+    ],
+)
+def test_merge_users_rejects_invalid_apply_combinations(extra, message):
     with _patched_cli() as merge_mock:
-        result = runner.invoke(
-            cli,
-            ["merge-users", "--source", "old@example.com", "--target", "new@example.com", "--apply"],
-        )
+        result = _invoke(*extra)
 
     assert result.exit_code == 1
-    assert "--apply requires a non-empty --reason" in result.output
-    merge_mock.assert_not_awaited()
-
-
-def test_merge_users_rejects_apply_with_dry_run():
-    with _patched_cli() as merge_mock:
-        result = runner.invoke(
-            cli,
-            [
-                "merge-users",
-                "--source",
-                "old@example.com",
-                "--target",
-                "new@example.com",
-                "--apply",
-                "--dry-run",
-                "--reason",
-                "duplicate account",
-            ],
-        )
-
-    assert result.exit_code == 1
-    assert "cannot be used together" in result.output
+    assert message in result.output
     merge_mock.assert_not_awaited()
 
 
@@ -227,10 +141,7 @@ def test_merge_users_reports_already_merged(preview):
     already_merged = replace(preview, already_merged=True, audit_id=audit_id)
 
     with _patched_cli(already_merged):
-        result = runner.invoke(
-            cli,
-            ["merge-users", "--source", "old@example.com", "--target", "new@example.com"],
-        )
+        result = _invoke()
 
     assert result.exit_code == 0, result.output
     assert f"Already merged (audit {audit_id})." in result.output
@@ -238,10 +149,7 @@ def test_merge_users_reports_already_merged(preview):
 
 def test_merge_users_prints_domain_error():
     with _patched_cli(side_effect=ResourceConflictException("Source account was already merged.")):
-        result = runner.invoke(
-            cli,
-            ["merge-users", "--source", "old@example.com", "--target", "new@example.com"],
-        )
+        result = _invoke()
 
     assert result.exit_code == 1
     assert "Error: Source account was already merged." in result.output

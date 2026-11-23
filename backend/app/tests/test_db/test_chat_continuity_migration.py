@@ -1,49 +1,24 @@
-"""Chat continuity migration: thread + message link + memory tables, pair-grouped backfill.
-
-Runs the real upgrade/downgrade on SQLite with a minimal legacy ``chatmessage`` (the
-fragment-test pattern); the PostgreSQL chain is verified separately with ``alembic heads``
-and offline ``--sql`` generation.
-"""
-
-import importlib.util
 import re
 from datetime import datetime
 from pathlib import Path
 from types import SimpleNamespace
 from uuid import UUID, uuid7
 
-import pytest
 import sqlalchemy as sa
 from alembic.config import Config
 from alembic.migration import MigrationContext
 from alembic.operations import Operations
 from alembic.script import ScriptDirectory
 
+from app.tests.test_alembic._support import load_migration
+
 BACKEND = Path(__file__).resolve().parents[3]
 REVISION = "a80944c56929"
 MIGRATIONS_DIR = BACKEND / "app/alembic/baseline_versions"
-
-
-def _load_migration():
-    matches = sorted(MIGRATIONS_DIR.glob(f"*-{REVISION}_*.py"))
-    if len(matches) != 1:
-        raise AssertionError(f"Expected one migration for {REVISION}, found {matches}")
-    spec = importlib.util.spec_from_file_location("chat_continuity", matches[0])
-    if spec is None or spec.loader is None:
-        raise AssertionError(f"cannot load {matches[0]}")
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
-
-
-MIGRATION = _load_migration()
+MIGRATION = load_migration(REVISION, "chat_continuity", directory=MIGRATIONS_DIR)
 
 U1, U2, D1, D2, V1 = uuid7(), uuid7(), uuid7(), uuid7(), uuid7()
-T1 = datetime(2026, 11, 19, 10, 0)
-T2 = datetime(2026, 11, 19, 11, 0)
-T3 = datetime(2026, 11, 19, 12, 0)
-T4 = datetime(2026, 11, 19, 13, 0)
-T5 = datetime(2026, 11, 19, 14, 0)
+T1, T2, T3, T4, T5 = (datetime(2026, 11, 19, hour) for hour in (10, 11, 12, 13, 14))
 
 _INSERT_MESSAGE = sa.text(
     "INSERT INTO chatmessage (id, vault_id, from_user_id, from_dweller_id, to_user_id, to_dweller_id,"
@@ -84,7 +59,7 @@ def _seed_legacy(connection) -> dict[str, UUID]:
         (U2, None, None, D1, T5),
     ]
     ids = {}
-    for i, (fu, fd, tu, td, at) in enumerate(rows):
+    for i, (from_user, from_dweller, to_user, to_dweller, at) in enumerate(rows):
         message_id = uuid7()
         ids[f"m{i}"] = message_id
         connection.execute(
@@ -92,10 +67,10 @@ def _seed_legacy(connection) -> dict[str, UUID]:
             {
                 "id": message_id,
                 "vault_id": V1,
-                "from_user_id": fu,
-                "from_dweller_id": fd,
-                "to_user_id": tu,
-                "to_dweller_id": td,
+                "from_user_id": from_user,
+                "from_dweller_id": from_dweller,
+                "to_user_id": to_user,
+                "to_dweller_id": to_dweller,
                 "message_text": f"message {i}",
                 "created_at": at,
             },
@@ -103,9 +78,19 @@ def _seed_legacy(connection) -> dict[str, UUID]:
     return ids
 
 
-def _install(monkeypatch, connection, *, offline: bool = False) -> None:
-    monkeypatch.setattr(MIGRATION, "op", Operations(MigrationContext.configure(connection)))
-    monkeypatch.setattr(MIGRATION, "context", SimpleNamespace(is_offline_mode=lambda: offline))
+def _install(connection, *, offline: bool = False) -> None:
+    MIGRATION.op = Operations(MigrationContext.configure(connection))
+    MIGRATION.context = SimpleNamespace(is_offline_mode=lambda: offline)
+
+
+def _upgraded(offline: bool = False):
+    engine = sa.create_engine("sqlite://")
+    connection = engine.connect()
+    transaction = connection.begin()
+    ids = _seed_legacy(connection)
+    _install(connection, offline=offline)
+    MIGRATION.upgrade()
+    return engine, connection, transaction, ids
 
 
 def test_revision_chain_and_single_head() -> None:
@@ -116,16 +101,11 @@ def test_revision_chain_and_single_head() -> None:
     heads = script.get_heads()
     assert len(heads) == 1, f"expected one head, got {heads}"
     assert REVISION in {rev.revision for rev in script.walk_revisions()}
-    assert REVISION in {rev.revision for rev in script.walk_revisions()}
 
 
-def test_upgrade_backfills_one_conversation_per_pair(monkeypatch) -> None:
-    engine = sa.create_engine("sqlite://")
-    with engine.begin() as connection:
-        ids = _seed_legacy(connection)
-        _install(monkeypatch, connection)
-        MIGRATION.upgrade()
-
+def test_upgrade_backfills_one_conversation_per_pair() -> None:
+    engine, connection, transaction, ids = _upgraded()
+    try:
         conversations = connection.exec_driver_sql(
             "SELECT id, vault_id, user_id, dweller_id, message_count, last_message_at, context FROM conversation"
         ).all()
@@ -139,7 +119,6 @@ def test_upgrade_backfills_one_conversation_per_pair(monkeypatch) -> None:
         assert all(row[1] == V1.hex for row in conversations)
         assert all(row[6] is None for row in conversations)
         assert all(UUID(row[0]).version == 7 for row in conversations)
-
         links = dict(connection.exec_driver_sql("SELECT id, conversation_id FROM chatmessage").all())
         assert links[ids["m0"].hex] == by_pair[U1.hex, D1.hex][0]
         assert links[ids["m1"].hex] == by_pair[U1.hex, D1.hex][0]
@@ -147,7 +126,6 @@ def test_upgrade_backfills_one_conversation_per_pair(monkeypatch) -> None:
         assert links[ids["m3"].hex] == by_pair[U1.hex, D2.hex][0]
         assert links[ids["m4"].hex] is None
         assert links[ids["m5"].hex] == by_pair[U2.hex, D1.hex][0]
-
         memory_columns = {row[1] for row in connection.exec_driver_sql("PRAGMA table_info(dweller_memory)")}
         assert {
             "id",
@@ -158,47 +136,47 @@ def test_upgrade_backfills_one_conversation_per_pair(monkeypatch) -> None:
             "created_at",
             "updated_at",
         } <= memory_columns
-
         MIGRATION.downgrade()
         tables = {row[0] for row in connection.exec_driver_sql("SELECT name FROM sqlite_master WHERE type='table'")}
         assert "conversation" not in tables
         assert "dweller_memory" not in tables
         chat_columns = {row[1] for row in connection.exec_driver_sql("PRAGMA table_info(chatmessage)")}
         assert "conversation_id" not in chat_columns
-    engine.dispose()
+    finally:
+        transaction.rollback()
+        connection.close()
+        engine.dispose()
 
 
-def test_upgrade_empty_history_creates_no_conversations(monkeypatch) -> None:
+def test_upgrade_empty_history_creates_no_conversations() -> None:
     engine = sa.create_engine("sqlite://")
-    with engine.begin() as connection:
-        _create_legacy_tables(connection)
-        _install(monkeypatch, connection)
-        MIGRATION.upgrade()
-        assert connection.exec_driver_sql("SELECT COUNT(*) FROM conversation").scalar_one() == 0
-    engine.dispose()
+    try:
+        with engine.begin() as connection:
+            _create_legacy_tables(connection)
+            _install(connection)
+            MIGRATION.upgrade()
+            assert connection.exec_driver_sql("SELECT COUNT(*) FROM conversation").scalar_one() == 0
+    finally:
+        engine.dispose()
 
 
 def test_backfill_never_aggregates_a_uuid_column() -> None:
-    """PostgreSQL has no ``min(uuid)``/``max(uuid)``; SQLite accepts both.
-
-    The SQLite fragment tests therefore cannot catch this class of bug, so the migration's
-    SQL is checked directly: uuid columns are grouped by, never aggregated.
-    """
+    # PostgreSQL has no min(uuid)/max(uuid) while SQLite accepts both, so read the SQL directly.
     source = next(MIGRATIONS_DIR.glob(f"*-{REVISION}_*.py")).read_text()
     aggregates = re.findall(r"\b(?:MIN|MAX|SUM|AVG)\s*\(\s*([a-z_]+)\s*\)", source)
     offenders = [column for column in aggregates if column == "id" or column.endswith("_id")]
     assert not offenders, f"aggregate over a uuid column fails on PostgreSQL: {offenders}"
 
 
-def test_offline_mode_skips_backfill(monkeypatch) -> None:
-    engine = sa.create_engine("sqlite://")
-    with engine.begin() as connection:
-        _seed_legacy(connection)
-        _install(monkeypatch, connection, offline=True)
-        MIGRATION.upgrade()
+def test_offline_mode_skips_backfill() -> None:
+    engine, connection, transaction, _ids = _upgraded(offline=True)
+    try:
         assert connection.exec_driver_sql("SELECT COUNT(*) FROM conversation").scalar_one() == 0
         linked = connection.exec_driver_sql(
             "SELECT COUNT(*) FROM chatmessage WHERE conversation_id IS NOT NULL"
         ).scalar_one()
         assert linked == 0
-    engine.dispose()
+    finally:
+        transaction.rollback()
+        connection.close()
+        engine.dispose()

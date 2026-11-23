@@ -1,5 +1,3 @@
-"""Hazard auto-dispatch: standing teams respond to matching incidents and return to work."""
-
 from unittest.mock import patch
 from uuid import UUID
 
@@ -8,6 +6,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
 from app.core.enums import DwellerStatusEnum, HazardTeam, IncidentType, RoomTypeEnum, SPECIALEnum
+from app.models.game_state import GameState
 from app.models.team import ACTIVE_STATUS, DISPATCHED_STATUS, RESERVE_STATUS, TeamMember
 from app.schemas.dweller import DwellerCreate
 from app.schemas.room import RoomCreate
@@ -19,61 +18,78 @@ from app.services.room_assignment_policy import get_highest_special
 from app.services.room_service import room_service
 from app.tests.test_services._hazard_team_helpers import make_member
 
+# Production room with capacity, so auto-assign can land a dweller there.
+_PRODUCTION = {
+    "category": RoomTypeEnum.PRODUCTION,
+    "base_cost": 100,
+    "incremental_cost": 50,
+    "t2_upgrade_cost": 500,
+    "t3_upgrade_cost": 1500,
+    "size_min": 3,
+    "size_max": 6,
+}
+# The unique Response Station catalog payload (null incremental cost, 3..9 footprint).
+_STATION = {
+    "category": RoomTypeEnum.RESPONSE,
+    "ability": SPECIALEnum.ENDURANCE,
+    "base_cost": 600,
+    "size_min": 3,
+    "size_max": 9,
+    "incremental_cost": None,
+    "t2_upgrade_cost": None,
+    "t3_upgrade_cost": None,
+}
 
-def _work_room(vault_id: UUID, name: str, ability, x: int, y: int) -> RoomCreate:
-    """A production room with capacity, so auto-assign can land a dweller there."""
+
+def _work_room(vault_id, name, ability, x, y, size=3):
     return RoomCreate(
-        name=name,
-        category=RoomTypeEnum.PRODUCTION,
-        ability=ability,
-        base_cost=100,
-        incremental_cost=50,
-        t2_upgrade_cost=500,
-        t3_upgrade_cost=1500,
-        size_min=3,
-        size_max=6,
-        size=3,
-        tier=1,
-        coordinate_x=x,
-        coordinate_y=y,
-        vault_id=vault_id,
+        **_PRODUCTION, name=name, ability=ability, size=size, coordinate_x=x, coordinate_y=y, vault_id=vault_id
     )
 
 
-@pytest.mark.asyncio
-async def test_fire_spawn_dispatches_active_team(
-    async_session: AsyncSession, room_with_dwellers: dict, dweller_data: dict
-):
-    """A fire spawn moves the vault's active Fire team into the incident room, marked dispatched."""
-    room = room_with_dwellers["room"]
-    vault = room_with_dwellers["vault"]
+def _response_station(vault_id, *, x=20, size=3):
+    return RoomCreate(**_STATION, name="Response Station", size=size, coordinate_x=x, coordinate_y=1, vault_id=vault_id)
+
+
+async def _posted_team(session, vault, dwellers, *, post_to=None, prefix="Work Room", activate=True):
+    """Create one work room per dweller, post and activate them (or post all to `post_to`)."""
+    rooms = [
+        await crud.room.create(session, _work_room(vault.id, f"{prefix} {i}", get_highest_special(d), i + 1, 9))
+        for i, d in enumerate(dwellers)
+    ]
+    for index, dweller in enumerate(dwellers):
+        await dweller_service.move_to_room(session, dweller.id, (post_to or rooms[index]).id)
+        if activate:
+            await make_member(session, vault.id, dweller.id, HazardTeam.FIRE, ACTIVE_STATUS)
+    await session.commit()
+    return rooms
+
+
+async def _fire_incident(session, vault, room):
+    return await crud.incident_crud.create(
+        session, vault_id=vault.id, room_id=room.id, incident_type=IncidentType.FIRE, difficulty=2
+    )
+
+
+async def _team_ids(session, incident, vault):
+    return [member.dweller_id for member in await crud.team_crud.get_incident_team(session, incident.id, vault.id)]
+
+
+async def _finish(session, incident, *, success=True):
+    await crud.incident_crud.resolve(session, incident.id, success=success)
+    return await hazard_team_service.return_dispatched_responders(session, incident)
+
+
+async def test_fire_spawn_dispatches_active_team(async_session, room_with_dwellers, dweller_data):
+    room, vault = room_with_dwellers["room"], room_with_dwellers["vault"]
     dwellers = room_with_dwellers["dwellers"]
-    # A second occupied room so the spawn target is controllable.
-    room_b = await crud.room.create(
-        async_session,
-        RoomCreate(
-            name="Diner",
-            category=RoomTypeEnum.PRODUCTION,
-            ability=None,
-            base_cost=100,
-            incremental_cost=50,
-            t2_upgrade_cost=500,
-            t3_upgrade_cost=1500,
-            size_min=3,
-            size_max=6,
-            # Size 6 (4 worker slots): the setup parks extra plus both team
-            # members here, which a size-3 room could not hold under the
-            # manual-assignment worker cap.
-            size=6,
-            tier=1,
-            coordinate_x=5,
-            coordinate_y=5,
-            vault_id=vault.id,
-        ),
-    )
+    payload = _work_room(vault.id, "Diner", None, 5, 5)
+    # Size 6 (4 worker slots): the setup parks the extra plus both team members here,
+    # which a size-3 room could not hold under the manual-assignment worker cap.
+    payload.size = 6
+    room_b = await crud.room.create(async_session, payload)
     extra = await crud.dweller.create(async_session, obj_in=DwellerCreate(**dweller_data, vault_id=vault.id))
     await dweller_service.move_to_room(async_session, extra.id, room_b.id)
-    # Move the team members away from the incident room.
     for dweller in dwellers:
         await dweller_service.move_to_room(async_session, dweller.id, room_b.id)
     await async_session.commit()
@@ -88,68 +104,39 @@ async def test_fire_spawn_dispatches_active_team(
     for dweller in dwellers:
         await async_session.refresh(dweller)
         assert dweller.room_id == room.id
+    assert sorted(await _team_ids(async_session, incident, vault)) == sorted(d.id for d in dwellers)
     members = await crud.team_crud.get_incident_team(async_session, incident.id, vault.id)
-    assert sorted(member.dweller_id for member in members) == sorted(d.id for d in dwellers)
     assert all(member.status == DISPATCHED_STATUS for member in members)
 
 
-@pytest.mark.asyncio
-async def test_non_hazard_incident_does_not_dispatch(async_session: AsyncSession, room_with_dwellers: dict):
-    """A raider attack leaves the Fire team untouched and nobody moves."""
-    room = room_with_dwellers["room"]
+async def test_dispatch_ignores_non_hazard_incidents_and_teams_without_active_members(
+    async_session, room_with_dwellers
+):
+    room, vault = room_with_dwellers["room"], room_with_dwellers["vault"]
     dwellers = room_with_dwellers["dwellers"]
-    for dweller in dwellers:
-        await make_member(async_session, room.vault_id, dweller.id, HazardTeam.FIRE, ACTIVE_STATUS)
     original_rooms = {dweller.id: dweller.room_id for dweller in dwellers}
 
     incident = await crud.incident_crud.create(
-        async_session,
-        vault_id=room.vault_id,
-        room_id=room.id,
-        incident_type=IncidentType.RAIDER_ATTACK,
-        difficulty=2,
+        async_session, vault_id=vault.id, room_id=room.id, incident_type=IncidentType.RAIDER_ATTACK, difficulty=2
     )
-    dispatched = await hazard_team_service.dispatch_to_incident(async_session, incident)
-
-    assert dispatched == []
-    assert await crud.team_crud.get_incident_team_row(async_session, incident.id, room.vault_id) is None
+    assert await hazard_team_service.dispatch_to_incident(async_session, incident) == []
+    assert await crud.team_crud.get_incident_team_row(async_session, incident.id, vault.id) is None
     for dweller in dwellers:
         await async_session.refresh(dweller)
         assert dweller.room_id == original_rooms[dweller.id]
 
-
-@pytest.mark.asyncio
-async def test_no_active_team_is_a_noop(async_session: AsyncSession, room_with_dwellers: dict):
-    """No team, or a bench-only team, dispatches nobody and writes no roster."""
-    room = room_with_dwellers["room"]
-    dwellers = room_with_dwellers["dwellers"]
-
-    incident = await crud.incident_crud.create(
-        async_session, vault_id=room.vault_id, room_id=room.id, incident_type=IncidentType.FIRE, difficulty=2
-    )
-    assert await hazard_team_service.dispatch_to_incident(async_session, incident) == []
-    assert await crud.team_crud.get_incident_team_row(async_session, incident.id, room.vault_id) is None
-
+    # Reserve-only roster is still a no-op for a hazard incident.
     for dweller in dwellers:
-        await make_member(async_session, room.vault_id, dweller.id, HazardTeam.FIRE, RESERVE_STATUS)
-    incident = await crud.incident_crud.create(
-        async_session, vault_id=room.vault_id, room_id=room.id, incident_type=IncidentType.FIRE, difficulty=2
-    )
+        await make_member(async_session, vault.id, dweller.id, HazardTeam.FIRE, RESERVE_STATUS)
+    incident = await _fire_incident(async_session, vault, room)
     assert await hazard_team_service.dispatch_to_incident(async_session, incident) == []
-    assert await crud.team_crud.get_incident_team_row(async_session, incident.id, room.vault_id) is None
+    assert await crud.team_crud.get_incident_team_row(async_session, incident.id, vault.id) is None
 
 
-@pytest.mark.asyncio
-async def test_dispatch_respects_responder_cap(
-    async_session: AsyncSession, room_with_dwellers: dict, dweller_data: dict
-):
-    """An incident roster already at the cap dispatches nothing."""
-    room = room_with_dwellers["room"]
-    vault = room_with_dwellers["vault"]
+async def test_dispatch_respects_responder_cap(async_session, room_with_dwellers, dweller_data):
+    room, vault = room_with_dwellers["room"], room_with_dwellers["vault"]
     dwellers = room_with_dwellers["dwellers"]
-    incident = await crud.incident_crud.create(
-        async_session, vault_id=vault.id, room_id=room.id, incident_type=IncidentType.FIRE, difficulty=2
-    )
+    incident = await _fire_incident(async_session, vault, room)
     filler_ids = [
         (await crud.dweller.create(async_session, obj_in=DwellerCreate(**dweller_data, vault_id=vault.id))).id
         for _ in range(MAX_INCIDENT_RESPONDERS)
@@ -165,14 +152,11 @@ async def test_dispatch_respects_responder_cap(
     assert all(member.status == "assigned" for member in members)
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(("health", "status"), [(0, DwellerStatusEnum.IDLE), (100, DwellerStatusEnum.FIGHTING)])
 async def test_unavailable_member_skipped_others_dispatched(
-    async_session: AsyncSession, room_with_dwellers: dict, dweller_data: dict, health: int, status: DwellerStatusEnum
+    async_session, room_with_dwellers, dweller_data, health, status
 ):
-    """Wounded members and Arena fighters stay put; available members respond."""
-    room = room_with_dwellers["room"]
-    vault = room_with_dwellers["vault"]
+    room, vault = room_with_dwellers["room"], room_with_dwellers["vault"]
     dwellers = room_with_dwellers["dwellers"]
     for dweller in dwellers:
         await dweller_service.update_dweller(async_session, dweller.id, {"room_id": None})
@@ -184,44 +168,19 @@ async def test_unavailable_member_skipped_others_dispatched(
     for dweller in [*dwellers, wounded]:
         await make_member(async_session, vault.id, dweller.id, HazardTeam.FIRE, ACTIVE_STATUS)
 
-    incident = await crud.incident_crud.create(
-        async_session, vault_id=vault.id, room_id=room.id, incident_type=IncidentType.FIRE, difficulty=2
-    )
+    incident = await _fire_incident(async_session, vault, room)
     dispatched = await hazard_team_service.dispatch_to_incident(async_session, incident)
 
     assert sorted(dispatched) == sorted(d.id for d in dwellers)
+    assert sorted(await _team_ids(async_session, incident, vault)) == sorted(d.id for d in dwellers)
     members = await crud.team_crud.get_incident_team(async_session, incident.id, vault.id)
-    assert sorted(member.dweller_id for member in members) == sorted(d.id for d in dwellers)
     assert all(member.status == DISPATCHED_STATUS for member in members)
 
 
-@pytest.mark.asyncio
-async def test_dispatch_skips_responder_committed_to_another_incident(
-    async_session: AsyncSession, room_with_dwellers: dict, dweller_data: dict
-):
-    """A hazard-team member already rostered on another active incident is skipped and named in the event."""
-    room = room_with_dwellers["room"]
-    vault = room_with_dwellers["vault"]
+async def test_dispatch_skips_responder_committed_to_another_incident(async_session, room_with_dwellers):
+    room, vault = room_with_dwellers["room"], room_with_dwellers["vault"]
     dwellers = room_with_dwellers["dwellers"]
-    room_b = await crud.room.create(
-        async_session,
-        RoomCreate(
-            name="Diner",
-            category=RoomTypeEnum.PRODUCTION,
-            ability=None,
-            base_cost=100,
-            incremental_cost=50,
-            t2_upgrade_cost=500,
-            t3_upgrade_cost=1500,
-            size_min=3,
-            size_max=6,
-            size=3,
-            tier=1,
-            coordinate_x=5,
-            coordinate_y=5,
-            vault_id=vault.id,
-        ),
-    )
+    room_b = await crud.room.create(async_session, _work_room(vault.id, "Diner", None, 5, 5))
     for dweller in dwellers:
         await dweller_service.move_to_room(async_session, dweller.id, room_b.id)
     await async_session.commit()
@@ -229,23 +188,18 @@ async def test_dispatch_skips_responder_committed_to_another_incident(
         await make_member(async_session, vault.id, dweller.id, HazardTeam.FIRE, ACTIVE_STATUS)
 
     # The first incident commits one team member via manual assignment.
-    first = await crud.incident_crud.create(
-        async_session, vault_id=vault.id, room_id=room.id, incident_type=IncidentType.FIRE, difficulty=2
-    )
+    first = await _fire_incident(async_session, vault, room)
     committed = dwellers[0]
     await incident_service.assign_responders(async_session, first, [committed.id])
 
     room_c = await crud.room.create(async_session, _work_room(vault.id, "Other Incident", SPECIALEnum.STRENGTH, 10, 9))
-    # Auto-dispatch to a second incident must skip the committed member.
-    second = await crud.incident_crud.create(
-        async_session, vault_id=vault.id, room_id=room_c.id, incident_type=IncidentType.FIRE, difficulty=2
-    )
+    second = await _fire_incident(async_session, vault, room_c)
     dispatched = await hazard_team_service.dispatch_to_incident(async_session, second)
 
     assert committed.id not in dispatched
     assert sorted(dispatched) == sorted(d.id for d in dwellers[1:])
+    assert sorted(await _team_ids(async_session, second, vault)) == sorted(d.id for d in dwellers[1:])
     members = await crud.team_crud.get_incident_team(async_session, second.id, vault.id)
-    assert sorted(member.dweller_id for member in members) == sorted(d.id for d in dwellers[1:])
     assert all(member.status == DISPATCHED_STATUS for member in members)
 
     events = await crud.incident_crud.get_recent_events(async_session, second.id)
@@ -253,256 +207,108 @@ async def test_dispatch_skips_responder_committed_to_another_incident(
     assert dispatch_event.data == {"skipped": [committed.first_name]}
 
 
-def _response_station(vault_id: UUID, *, x: int = 20, size: int = 3) -> RoomCreate:
-    """The unique Response Station catalog payload (null incremental cost, 3..9 footprint)."""
-    return RoomCreate(
-        name="Response Station",
-        category=RoomTypeEnum.RESPONSE,
-        ability=SPECIALEnum.ENDURANCE,
-        base_cost=600,
-        incremental_cost=None,
-        t2_upgrade_cost=None,
-        t3_upgrade_cost=None,
-        size_min=3,
-        size_max=9,
-        size=size,
-        tier=1,
-        coordinate_x=x,
-        coordinate_y=1,
-        vault_id=vault_id,
-    )
-
-
-@pytest.mark.asyncio
-async def test_stationed_responder_returns_to_station_after_dispatch(
-    async_session: AsyncSession, room_with_dwellers: dict
-):
-    """A responder stationed in the Response Station returns to the station, not to production.
-
-    Reproduction for issue #997 task 6: the return-to-work pass must restore a
-    stationed responder's station posting instead of silently auto-assigning them
-    to a production room.
-    """
-    vault = room_with_dwellers["vault"]
-    dwellers = room_with_dwellers["dwellers"]
+@pytest.mark.parametrize("mode", ["return", "already_back", "dead"])
+async def test_stationed_responder_returns_to_station_after_dispatch(async_session, room_with_dwellers, mode):
+    # A stationed responder returns to the station, not to production; already-returned and
+    # dead dwellers still close the ledger instead of staying "dispatched".
+    vault, dwellers = room_with_dwellers["vault"], room_with_dwellers["dwellers"]
     station = await crud.room.create(async_session, _response_station(vault.id))
-    for index, dweller in enumerate(dwellers):
-        await crud.room.create(
-            async_session,
-            _work_room(vault.id, f"Work Room {index}", get_highest_special(dweller), index + 1, 9),
-        )
-    await async_session.commit()
-    for dweller in dwellers:
-        await dweller_service.move_to_room(async_session, dweller.id, station.id)
-        await make_member(async_session, vault.id, dweller.id, HazardTeam.FIRE, ACTIVE_STATUS)
+    await _posted_team(async_session, vault, dwellers, post_to=station)
 
-    incident = await crud.incident_crud.create(
-        async_session,
-        vault_id=vault.id,
-        room_id=room_with_dwellers["room"].id,
-        incident_type=IncidentType.FIRE,
-        difficulty=2,
+    incident = await _fire_incident(async_session, vault, room_with_dwellers["room"])
+    assert sorted(await hazard_team_service.dispatch_to_incident(async_session, incident)) == sorted(
+        d.id for d in dwellers
     )
-    dispatched = await hazard_team_service.dispatch_to_incident(async_session, incident)
-    assert sorted(dispatched) == sorted(d.id for d in dwellers)
+    if mode == "dead":
+        fallen = dwellers[0]
+        fallen.is_dead = True
+        fallen.health = 0
+        async_session.add(fallen)
+        await async_session.commit()
+        assert await _finish(async_session, incident, success=False) == len(dwellers) - 1
+        members = await crud.team_crud.get_incident_team(async_session, incident.id, vault.id)
+        assert all(member.status == "completed" for member in members)
+        return
+    if mode == "already_back":
+        for dweller in dwellers:
+            await dweller_service.move_to_room(async_session, dweller.id, station.id)
+        await crud.incident_crud.resolve(async_session, incident.id, success=True)
+        assert await hazard_team_service.return_dispatched_responders(async_session, incident) == len(dwellers)
+        roster = await crud.team_crud.get_incident_team(async_session, incident.id, vault.id)
+        assert roster
+        assert all(member.status == "completed" for member in roster)
+        return
+
     for dweller in dwellers:
         await async_session.refresh(dweller)
         assert dweller.room_id == incident.room_id
-
-    await crud.incident_crud.resolve(async_session, incident.id, success=True)
-    await hazard_team_service.return_dispatched_responders(async_session, incident)
-
+    await _finish(async_session, incident)
     for dweller in dwellers:
         await async_session.refresh(dweller)
         assert dweller.room_id == station.id
 
 
-@pytest.mark.asyncio
-async def test_already_returned_responder_closes_the_ledger_idempotently(
-    async_session: AsyncSession, room_with_dwellers: dict
-):
-    """A responder already back at the station closes the ledger instead of staying dispatched.
-
-    Reproduction for the review finding: ``move_to_room`` refuses a dweller who is
-    already in the target room, which left the roster row stuck on "dispatched".
-    """
-    vault = room_with_dwellers["vault"]
-    dwellers = room_with_dwellers["dwellers"]
-    station = await crud.room.create(async_session, _response_station(vault.id))
-    for index, dweller in enumerate(dwellers):
-        await crud.room.create(
-            async_session,
-            _work_room(vault.id, f"Work Room {index}", get_highest_special(dweller), index + 1, 9),
-        )
-    await async_session.commit()
-    for dweller in dwellers:
-        await dweller_service.move_to_room(async_session, dweller.id, station.id)
-        await make_member(async_session, vault.id, dweller.id, HazardTeam.FIRE, ACTIVE_STATUS)
-
-    incident = await crud.incident_crud.create(
-        async_session,
-        vault_id=vault.id,
-        room_id=room_with_dwellers["room"].id,
-        incident_type=IncidentType.FIRE,
-        difficulty=2,
-    )
-    await hazard_team_service.dispatch_to_incident(async_session, incident)
-    for dweller in dwellers:
-        await dweller_service.move_to_room(async_session, dweller.id, station.id)
-    await crud.incident_crud.resolve(async_session, incident.id, success=True)
-
-    returned = await hazard_team_service.return_dispatched_responders(async_session, incident)
-
-    assert returned == len(dwellers)
-    roster = await crud.team_crud.get_incident_team(async_session, incident.id, vault.id)
-    assert roster
-    assert all(member.status == "completed" for member in roster)
-
-
-def test_origin_room_foreign_key_declares_set_null() -> None:
-    """The origin_room_id FK clears itself when the referenced room is demolished.
-
-    This is the schema guarantee behind the behaviour below: a deleted station
-    leaves no posting to restore, so the return pass leaves the responder unassigned.
-    """
+def test_origin_room_foreign_key_declares_set_null():
+    # A deleted station leaves no posting to restore (SET NULL on the origin FK).
     foreign_key = next(iter(TeamMember.__table__.c.origin_room_id.foreign_keys))
     assert foreign_key.ondelete == "SET NULL"
     assert foreign_key.column.table.name == "room"
 
 
-@pytest.mark.asyncio
-async def test_demolished_origin_leaves_helpers_unassigned(async_session: AsyncSession, room_with_dwellers: dict):
-    """Demolishing the station while its team is dispatched must not strand the return pass.
-
-    The room deletion clears each responder's origin (SET NULL), so the finished
-    incident still sends them back to work instead of raising on a vanished room.
-    """
-    vault = room_with_dwellers["vault"]
-    dwellers = room_with_dwellers["dwellers"]
+@pytest.mark.parametrize("rebuild", [False, True])
+async def test_station_demolition_and_rebuild_handles_dispatch_returns(async_session, room_with_dwellers, rebuild):
+    vault, dwellers = room_with_dwellers["vault"], room_with_dwellers["dwellers"]
     station = await crud.room.create(async_session, _response_station(vault.id))
-    work_rooms = [
-        await crud.room.create(
-            async_session,
-            _work_room(vault.id, f"Work Room {index}", get_highest_special(dweller), index + 1, 9),
-        )
-        for index, dweller in enumerate(dwellers)
-    ]
-    await async_session.commit()
-    for dweller in dwellers:
-        await dweller_service.move_to_room(async_session, dweller.id, station.id)
-        await make_member(async_session, vault.id, dweller.id, HazardTeam.FIRE, ACTIVE_STATUS)
+    if rebuild:
+        work_rooms = await _posted_team(async_session, vault, dwellers, activate=False)
+        await room_service.destroy_room(async_session, station.id)
+        rebuilt = await crud.room.create(async_session, _response_station(vault.id))
+        assert rebuilt.id != station.id
+        for dweller in dwellers:
+            await dweller_service.move_to_room(async_session, dweller.id, rebuilt.id)
+            await make_member(async_session, vault.id, dweller.id, HazardTeam.FIRE, ACTIVE_STATUS)
+        expected_origin, expected_room = rebuilt.id, rebuilt.id
+    else:
+        work_rooms = await _posted_team(async_session, vault, dwellers, post_to=station)
+        expected_origin, expected_room = station.id, None
 
-    incident = await crud.incident_crud.create(
-        async_session,
-        vault_id=vault.id,
-        room_id=room_with_dwellers["room"].id,
-        incident_type=IncidentType.FIRE,
-        difficulty=2,
-    )
+    incident = await _fire_incident(async_session, vault, room_with_dwellers["room"])
     assert sorted(await hazard_team_service.dispatch_to_incident(async_session, incident)) == sorted(
-        dweller.id for dweller in dwellers
+        d.id for d in dwellers
     )
     members = await crud.team_crud.get_incident_team(async_session, incident.id, vault.id)
-    assert all(member.origin_room_id == station.id for member in members)
+    assert all(member.origin_room_id == expected_origin for member in members)
 
-    # The station comes down while its responders are out on the incident.
-    await room_service.destroy_room(async_session, station.id)
+    if not rebuild:
+        # The station comes down while its responders are out on the incident.
+        await room_service.destroy_room(async_session, station.id)
+        members = await crud.team_crud.get_incident_team(async_session, incident.id, vault.id)
+        assert all(member.origin_room_id is None for member in members)
 
-    members = await crud.team_crud.get_incident_team(async_session, incident.id, vault.id)
-    assert all(member.origin_room_id is None for member in members)
-
-    await crud.incident_crud.resolve(async_session, incident.id, success=True)
-    returned = await hazard_team_service.return_dispatched_responders(async_session, incident)
-
-    assert returned == len(dwellers)
-    assert work_rooms
+    assert await _finish(async_session, incident) == len(dwellers)
     for dweller in dwellers:
         await async_session.refresh(dweller)
-        assert dweller.room_id is None
-        assert dweller.room_id != incident.room_id
-    members = await crud.team_crud.get_incident_team(async_session, incident.id, vault.id)
-    assert all(member.status == "completed" for member in members)
+        assert dweller.room_id == expected_room
+        if not rebuild:
+            assert work_rooms
+            assert dweller.room_id != incident.room_id
+    if not rebuild:
+        members = await crud.team_crud.get_incident_team(async_session, incident.id, vault.id)
+        assert all(member.status == "completed" for member in members)
 
 
-@pytest.mark.asyncio
-async def test_dispatch_and_return_after_station_rebuilt_targets_rebuilt_station(
-    async_session: AsyncSession, room_with_dwellers: dict
-):
-    """A rebuilt station is a normal posting again: the next dispatch returns to the new room."""
-    vault = room_with_dwellers["vault"]
-    dwellers = room_with_dwellers["dwellers"]
+async def test_responder_posted_elsewhere_keeps_production_return(async_session, room_with_dwellers):
+    # The responder's own posting decides the destination even when a station exists;
+    # a second return pass is a no-op.
+    vault, dwellers = room_with_dwellers["vault"], room_with_dwellers["dwellers"]
     station = await crud.room.create(async_session, _response_station(vault.id))
-    for index, dweller in enumerate(dwellers):
-        await crud.room.create(
-            async_session,
-            _work_room(vault.id, f"Work Room {index}", get_highest_special(dweller), index + 1, 9),
-        )
-    await async_session.commit()
+    await _posted_team(async_session, vault, dwellers)
 
-    await room_service.destroy_room(async_session, station.id)
-    rebuilt = await crud.room.create(async_session, _response_station(vault.id))
-    assert rebuilt.id != station.id
-
-    for dweller in dwellers:
-        await dweller_service.move_to_room(async_session, dweller.id, rebuilt.id)
-        await make_member(async_session, vault.id, dweller.id, HazardTeam.FIRE, ACTIVE_STATUS)
-
-    incident = await crud.incident_crud.create(
-        async_session,
-        vault_id=vault.id,
-        room_id=room_with_dwellers["room"].id,
-        incident_type=IncidentType.FIRE,
-        difficulty=2,
-    )
-    assert sorted(await hazard_team_service.dispatch_to_incident(async_session, incident)) == sorted(
-        dweller.id for dweller in dwellers
-    )
-    await crud.incident_crud.resolve(async_session, incident.id, success=True)
-    returned = await hazard_team_service.return_dispatched_responders(async_session, incident)
-
-    assert returned == len(dwellers)
-    for dweller in dwellers:
-        await async_session.refresh(dweller)
-        assert dweller.room_id == rebuilt.id
-
-
-@pytest.mark.asyncio
-async def test_responder_posted_elsewhere_keeps_production_return(
-    async_session: AsyncSession, room_with_dwellers: dict
-):
-    """A responder posted in production still returns there, not to the Response Station.
-
-    The station exists, so a station-preferring return would be possible — the
-    responder's own posting is what decides the destination, preserving the
-    pre-existing return-to-work behaviour for everyone not stationed.
-    """
-    vault = room_with_dwellers["vault"]
-    dwellers = room_with_dwellers["dwellers"]
-    station = await crud.room.create(async_session, _response_station(vault.id))
-    work_rooms = [
-        await crud.room.create(
-            async_session,
-            _work_room(vault.id, f"Work Room {index}", get_highest_special(dweller), index + 1, 9),
-        )
-        for index, dweller in enumerate(dwellers)
-    ]
-    await async_session.commit()
-    for dweller, work_room in zip(dwellers, work_rooms, strict=True):
-        await dweller_service.move_to_room(async_session, dweller.id, work_room.id)
-        await make_member(async_session, vault.id, dweller.id, HazardTeam.FIRE, ACTIVE_STATUS)
-
-    incident = await crud.incident_crud.create(
-        async_session,
-        vault_id=vault.id,
-        room_id=room_with_dwellers["room"].id,
-        incident_type=IncidentType.FIRE,
-        difficulty=2,
-    )
+    incident = await _fire_incident(async_session, vault, room_with_dwellers["room"])
     await hazard_team_service.dispatch_to_incident(async_session, incident)
-    await crud.incident_crud.resolve(async_session, incident.id, success=True)
-    returned = await hazard_team_service.return_dispatched_responders(async_session, incident)
+    assert await _finish(async_session, incident) == len(dwellers)
+    assert await hazard_team_service.return_dispatched_responders(async_session, incident) == 0
 
-    assert returned == len(dwellers)
     for dweller in dwellers:
         await async_session.refresh(dweller)
         room = await crud.room.get(async_session, dweller.room_id)
@@ -512,11 +318,7 @@ async def test_responder_posted_elsewhere_keeps_production_return(
         assert dweller.room_id != incident.room_id
 
 
-@pytest.mark.asyncio
-async def test_roomless_responder_returns_to_unassigned(
-    async_session: AsyncSession, room_with_dwellers: dict, dweller_data: dict
-):
-    """A responder with no posting returns idle, even when work rooms are available."""
+async def test_roomless_responder_returns_to_unassigned(async_session, room_with_dwellers, dweller_data):
     vault = room_with_dwellers["vault"]
     await crud.room.create(async_session, _response_station(vault.id))
     nomad = await crud.dweller.create(async_session, obj_in=DwellerCreate(**dweller_data, vault_id=vault.id))
@@ -525,44 +327,30 @@ async def test_roomless_responder_returns_to_unassigned(
     assert nomad.room_id is None
     await make_member(async_session, vault.id, nomad.id, HazardTeam.FIRE, ACTIVE_STATUS)
 
-    incident = await crud.incident_crud.create(
-        async_session,
-        vault_id=vault.id,
-        room_id=room_with_dwellers["room"].id,
-        incident_type=IncidentType.FIRE,
-        difficulty=2,
-    )
+    incident = await _fire_incident(async_session, vault, room_with_dwellers["room"])
     assert await hazard_team_service.dispatch_to_incident(async_session, incident) == [nomad.id]
-    await crud.incident_crud.resolve(async_session, incident.id, success=True)
-    returned = await hazard_team_service.return_dispatched_responders(async_session, incident)
+    assert await _finish(async_session, incident) == 1
 
-    assert returned == 1
     await async_session.refresh(nomad)
     assert nomad.room_id is None
     assert nomad.status.value == "idle"
 
 
-@pytest.mark.asyncio
-async def test_resident_responders_keep_their_original_room_after_resolution(
-    async_session: AsyncSession, room_with_dwellers: dict
-):
-    """Responders originally posted in the incident room stay there and close their ledger."""
-    vault = room_with_dwellers["vault"]
-    dwellers = room_with_dwellers["dwellers"]
+async def test_resident_responders_keep_their_original_room_after_resolution(async_session, room_with_dwellers):
+    vault, dwellers = room_with_dwellers["vault"], room_with_dwellers["dwellers"]
     for dweller in dwellers:
         await make_member(async_session, vault.id, dweller.id, HazardTeam.FIRE, ACTIVE_STATUS)
 
     incident = await incident_service.spawn_incident(async_session, vault.id, IncidentType.FIRE)
     assert incident is not None
-    members = await crud.team_crud.get_incident_team(async_session, incident.id, vault.id)
-    assert members == []  # Residents never consume helper slots or need returns.
+    # Residents never consume helper slots or need returns.
+    assert await crud.team_crud.get_incident_team(async_session, incident.id, vault.id) == []
 
     await crud.incident_crud.resolve(async_session, incident.id, success=True)
     await async_session.refresh(incident)
     assert incident.status.value == "resolved"
 
-    returned = await hazard_team_service.return_dispatched_responders(async_session, incident)
-    assert returned == 0
+    assert await hazard_team_service.return_dispatched_responders(async_session, incident) == 0
     for dweller in dwellers:
         await async_session.refresh(dweller)
         assert dweller.room_id == incident.room_id
@@ -570,102 +358,11 @@ async def test_resident_responders_keep_their_original_room_after_resolution(
     assert all(member.status == "completed" for member in members)
 
 
-@pytest.mark.asyncio
-async def test_return_dispatched_responders_is_idempotent(async_session: AsyncSession, room_with_dwellers: dict):
-    """A second return pass finds nobody left to return."""
-    vault = room_with_dwellers["vault"]
-    dwellers = room_with_dwellers["dwellers"]
-    for index, dweller in enumerate(dwellers):
-        work_room = await crud.room.create(
-            async_session,
-            _work_room(vault.id, f"Work Room {index}", get_highest_special(dweller), index + 1, 9),
-        )
-        await dweller_service.move_to_room(async_session, dweller.id, work_room.id)
-    await async_session.commit()
-    for dweller in dwellers:
-        await make_member(async_session, vault.id, dweller.id, HazardTeam.FIRE, ACTIVE_STATUS)
-
-    incident = await crud.incident_crud.create(
-        async_session,
-        vault_id=vault.id,
-        room_id=room_with_dwellers["room"].id,
-        incident_type=IncidentType.FIRE,
-        difficulty=2,
-    )
-    assert len(await hazard_team_service.dispatch_to_incident(async_session, incident)) == len(dwellers)
-    await crud.incident_crud.resolve(async_session, incident.id, success=True)
-
-    first = await hazard_team_service.return_dispatched_responders(async_session, incident)
-    second = await hazard_team_service.return_dispatched_responders(async_session, incident)
-
-    assert first == len(dwellers)
-    assert second == 0
-
-
-@pytest.mark.asyncio
-async def test_return_marks_dead_dispatched_completed_without_returning(
-    async_session: AsyncSession, room_with_dwellers: dict
-):
-    """A dispatched responder who died still closes the ledger: completed, not re-assigned."""
-    vault = room_with_dwellers["vault"]
-    dwellers = room_with_dwellers["dwellers"]
-    for index, dweller in enumerate(dwellers):
-        work_room = await crud.room.create(
-            async_session,
-            _work_room(vault.id, f"Work Room {index}", get_highest_special(dweller), index + 1, 9),
-        )
-        await dweller_service.move_to_room(async_session, dweller.id, work_room.id)
-    await async_session.commit()
-    for dweller in dwellers:
-        await make_member(async_session, vault.id, dweller.id, HazardTeam.FIRE, ACTIVE_STATUS)
-
-    incident = await crud.incident_crud.create(
-        async_session,
-        vault_id=vault.id,
-        room_id=room_with_dwellers["room"].id,
-        incident_type=IncidentType.FIRE,
-        difficulty=2,
-    )
-    assert len(await hazard_team_service.dispatch_to_incident(async_session, incident)) == len(dwellers)
-
-    fallen = dwellers[0]
-    fallen.is_dead = True
-    fallen.health = 0
-    async_session.add(fallen)
-    await async_session.commit()
-
-    await crud.incident_crud.resolve(async_session, incident.id, success=False)
-    returned = await hazard_team_service.return_dispatched_responders(async_session, incident)
-
-    assert returned == len(dwellers) - 1
-    members = await crud.team_crud.get_incident_team(async_session, incident.id, vault.id)
-    assert all(member.status == "completed" for member in members)
-
-
 @pytest.mark.parametrize("success", [True, False])
-async def test_tick_retries_returns_for_finished_incident(
-    async_session: AsyncSession, room_with_dwellers: dict, dweller_data: dict, success: bool
-):
-    """Real full-room conflicts retry on later ticks after capacity becomes available."""
-    from app.models.game_state import GameState
-
-    vault = room_with_dwellers["vault"]
-    dwellers = room_with_dwellers["dwellers"]
-    origins = []
-    for index, dweller in enumerate(dwellers):
-        origin = await crud.room.create(
-            async_session, _work_room(vault.id, f"Retry Work {index}", get_highest_special(dweller), index + 1, 9)
-        )
-        await dweller_service.move_to_room(async_session, dweller.id, origin.id)
-        origins.append(origin)
-        await make_member(async_session, vault.id, dweller.id, HazardTeam.FIRE, ACTIVE_STATUS)
-    incident = await crud.incident_crud.create(
-        async_session,
-        vault_id=vault.id,
-        room_id=room_with_dwellers["room"].id,
-        incident_type=IncidentType.FIRE,
-        difficulty=2,
-    )
+async def test_tick_retries_returns_for_finished_incident(async_session, room_with_dwellers, dweller_data, success):
+    vault, dwellers = room_with_dwellers["vault"], room_with_dwellers["dwellers"]
+    origins = await _posted_team(async_session, vault, dwellers, prefix="Retry Work")
+    incident = await _fire_incident(async_session, vault, room_with_dwellers["room"])
     await hazard_team_service.dispatch_to_incident(async_session, incident)
     blockers = []
     for origin in origins:
@@ -687,38 +384,42 @@ async def test_tick_retries_returns_for_finished_incident(
         assert dweller.room_id == origin.id
 
 
-@pytest.mark.parametrize("success", [True, False])
+@pytest.mark.parametrize(("success", "post_origin"), [(True, True), (False, True), (True, False), (False, False)])
 async def test_manual_responder_returns_to_original_posting(
-    async_session: AsyncSession, room_with_dwellers: dict, success: bool
+    async_session, room_with_dwellers, dweller_data, success, post_origin
 ):
-    vault = room_with_dwellers["vault"]
-    target = room_with_dwellers["room"]
-    responder = room_with_dwellers["dwellers"][0]
+    vault, target = room_with_dwellers["vault"], room_with_dwellers["room"]
     origin = await crud.room.create(async_session, _work_room(vault.id, "Original Work", SPECIALEnum.STRENGTH, 10, 9))
-    await dweller_service.move_to_room(async_session, responder.id, origin.id)
-    incident = await crud.incident_crud.create(
-        async_session, vault_id=vault.id, room_id=target.id, incident_type=IncidentType.FIRE, difficulty=2
-    )
+    if post_origin:
+        responder = room_with_dwellers["dwellers"][0]
+        await dweller_service.move_to_room(async_session, responder.id, origin.id)
+    else:
+        responder = await crud.dweller.create(async_session, obj_in=DwellerCreate(**dweller_data, vault_id=vault.id))
+    incident = await _fire_incident(async_session, vault, target)
     await incident_service.assign_responders(async_session, incident, [responder.id])
-    roster = await incident_service.get_incident_team_read(async_session, incident.id, vault.id)
-    assert roster[0].origin_room_id == origin.id
-    # Re-selecting an existing responder must not overwrite their original posting.
-    await incident_service.assign_responders(async_session, incident, [responder.id])
-    await crud.incident_crud.resolve(async_session, incident.id, success=success)
-    await hazard_team_service.return_dispatched_responders(async_session, incident)
+    if post_origin:
+        roster = await incident_service.get_incident_team_read(async_session, incident.id, vault.id)
+        assert roster[0].origin_room_id == origin.id
+        # Re-selecting an existing responder must not overwrite their original posting.
+        await incident_service.assign_responders(async_session, incident, [responder.id])
+    await _finish(async_session, incident, success=success)
     await async_session.refresh(responder)
-    assert responder.room_id == origin.id
-    members = await crud.team_crud.get_incident_team(async_session, incident.id, vault.id)
-    assert members[0].origin_room_id == origin.id
-    assert members[0].status == "completed"
+    member = (await crud.team_crud.get_incident_team(async_session, incident.id, vault.id))[0]
+    assert member.status == "completed"
+    if post_origin:
+        assert responder.room_id == origin.id
+        assert member.origin_room_id == origin.id
+    else:
+        assert responder.room_id is None
+        assert responder.status.value == "idle"
+        assert member.origin_room_id is None
 
 
 @pytest.mark.parametrize("record_origin", [True, False])
 async def test_auto_return_does_not_leave_incident_room_over_capacity(
-    async_session: AsyncSession, room_with_dwellers: dict, dweller_data: dict, record_origin: bool
+    async_session, room_with_dwellers, dweller_data, record_origin
 ):
-    vault = room_with_dwellers["vault"]
-    target = room_with_dwellers["room"]
+    vault, target = room_with_dwellers["vault"], room_with_dwellers["room"]
     target.ability = SPECIALEnum.STRENGTH
     target.size = 3
     async_session.add(target)
@@ -735,17 +436,14 @@ async def test_auto_return_does_not_leave_incident_room_over_capacity(
         await dweller_service.move_to_room(async_session, responder.id, origin.id)
         await make_member(async_session, vault.id, responder.id, HazardTeam.FIRE, ACTIVE_STATUS)
         responders.append(responder)
-    incident = await crud.incident_crud.create(
-        async_session, vault_id=vault.id, room_id=target.id, incident_type=IncidentType.FIRE, difficulty=2
-    )
+    incident = await _fire_incident(async_session, vault, target)
     assert len(await hazard_team_service.dispatch_to_incident(async_session, incident)) == 2
     if not record_origin:
         for member in await crud.team_crud.get_incident_team(async_session, incident.id, vault.id):
             member.origin_room_id = None
             async_session.add(member)
         await async_session.commit()
-    await crud.incident_crud.resolve(async_session, incident.id, success=True)
-    assert await hazard_team_service.return_dispatched_responders(async_session, incident) == 2
+    assert await _finish(async_session, incident) == 2
     assert await crud.dweller.count_in_room(async_session, target.id, include_apprentices=False) == 2
     for responder in responders:
         await async_session.refresh(responder)
@@ -754,19 +452,12 @@ async def test_auto_return_does_not_leave_incident_room_over_capacity(
 
 @pytest.mark.parametrize("population_full", [False, True])
 async def test_full_original_room_leaves_manual_responder_idle_until_retry(
-    async_session: AsyncSession, room_with_dwellers: dict, dweller_data: dict, population_full: bool
+    async_session, room_with_dwellers, dweller_data, population_full
 ):
-    vault = room_with_dwellers["vault"]
-    responder = room_with_dwellers["dwellers"][0]
+    vault, responder = room_with_dwellers["vault"], room_with_dwellers["dwellers"][0]
     origin = await crud.room.create(async_session, _work_room(vault.id, "Original Work", SPECIALEnum.STRENGTH, 10, 9))
     await dweller_service.move_to_room(async_session, responder.id, origin.id)
-    incident = await crud.incident_crud.create(
-        async_session,
-        vault_id=vault.id,
-        room_id=room_with_dwellers["room"].id,
-        incident_type=IncidentType.FIRE,
-        difficulty=2,
-    )
+    incident = await _fire_incident(async_session, vault, room_with_dwellers["room"])
     await incident_service.assign_responders(async_session, incident, [responder.id])
     blockers = []
     for _ in range(2):
@@ -785,18 +476,12 @@ async def test_full_original_room_leaves_manual_responder_idle_until_retry(
     assert await crud.dweller.count_in_room(async_session, origin.id) == 2
 
     if population_full:
-        # Under strict total-population capacity the responder is already
-        # counted while dispatched; population full no longer blocks the
-        # return. Only the origin-room slot matters.
+        # Under strict total-population capacity the responder is already counted while
+        # dispatched; only the origin-room slot matters.
         await crud.vault.update(async_session, vault.id, VaultUpdate(population_max=3))
         await dweller_service.move_to_room(async_session, blockers[0].id, room_with_dwellers["room"].id)
-        assert await hazard_team_service.return_dispatched_responders(async_session, incident) == 1
-        await async_session.refresh(responder)
-        assert responder.room_id == origin.id
-        assert await crud.incident_crud.get_pending_responder_returns(async_session, vault.id) == []
-        return
-
-    await dweller_service.update_dweller(async_session, blockers[0].id, {"room_id": None})
+    else:
+        await dweller_service.update_dweller(async_session, blockers[0].id, {"room_id": None})
     assert await hazard_team_service.return_dispatched_responders(async_session, incident) == 1
     await async_session.refresh(responder)
     assert responder.room_id == origin.id
@@ -804,27 +489,16 @@ async def test_full_original_room_leaves_manual_responder_idle_until_retry(
 
 
 @pytest.mark.parametrize("new_incident", [False, True])
-async def test_finished_return_does_not_override_new_assignment(
-    async_session: AsyncSession, room_with_dwellers: dict, new_incident: bool
-):
-    vault = room_with_dwellers["vault"]
-    responder = room_with_dwellers["dwellers"][0]
+async def test_finished_return_does_not_override_new_assignment(async_session, room_with_dwellers, new_incident):
+    vault, responder = room_with_dwellers["vault"], room_with_dwellers["dwellers"][0]
     origin = await crud.room.create(async_session, _work_room(vault.id, "Original Work", SPECIALEnum.STRENGTH, 10, 9))
     new_room = await crud.room.create(async_session, _work_room(vault.id, "New Posting", SPECIALEnum.STRENGTH, 12, 9))
     await dweller_service.move_to_room(async_session, responder.id, origin.id)
-    incident = await crud.incident_crud.create(
-        async_session,
-        vault_id=vault.id,
-        room_id=room_with_dwellers["room"].id,
-        incident_type=IncidentType.FIRE,
-        difficulty=2,
-    )
+    incident = await _fire_incident(async_session, vault, room_with_dwellers["room"])
     await incident_service.assign_responders(async_session, incident, [responder.id])
     await crud.incident_crud.resolve(async_session, incident.id, success=True)
     if new_incident:
-        next_incident = await crud.incident_crud.create(
-            async_session, vault_id=vault.id, room_id=new_room.id, incident_type=IncidentType.FIRE, difficulty=2
-        )
+        next_incident = await _fire_incident(async_session, vault, new_room)
         await incident_service.assign_responders(async_session, next_incident, [responder.id])
     else:
         await dweller_service.move_to_room(async_session, responder.id, new_room.id)
@@ -836,39 +510,15 @@ async def test_finished_return_does_not_override_new_assignment(
     assert members[0].status == "completed"
 
 
-@pytest.mark.parametrize("success", [True, False])
-async def test_manual_unassigned_helper_returns_to_idle(async_session, room_with_dwellers, dweller_data, success):
-    vault = room_with_dwellers["vault"]
-    target = room_with_dwellers["room"]
-    helper = await crud.dweller.create(async_session, obj_in=DwellerCreate(**dweller_data, vault_id=vault.id))
-    incident = await crud.incident_crud.create(
-        async_session, vault_id=vault.id, room_id=target.id, incident_type=IncidentType.FIRE, difficulty=2
-    )
-    await incident_service.assign_responders(async_session, incident, [helper.id])
-    await crud.incident_crud.resolve(async_session, incident.id, success=success)
-    assert await hazard_team_service.return_dispatched_responders(async_session, incident) == 1
-    await async_session.refresh(helper)
-    assert helper.room_id is None
-    assert helper.status.value == "idle"
-    member = (await crud.team_crud.get_incident_team(async_session, incident.id, vault.id))[0]
-    assert member.origin_room_id is None
-    assert member.status == "completed"
-
-
 async def test_new_incident_in_temporary_room_defers_original_return(async_session, room_with_dwellers):
-    vault = room_with_dwellers["vault"]
-    target = room_with_dwellers["room"]
+    vault, target = room_with_dwellers["vault"], room_with_dwellers["room"]
     responder = room_with_dwellers["dwellers"][0]
     origin = await crud.room.create(async_session, _work_room(vault.id, "Original Work", SPECIALEnum.STRENGTH, 10, 9))
     await dweller_service.move_to_room(async_session, responder.id, origin.id)
-    first = await crud.incident_crud.create(
-        async_session, vault_id=vault.id, room_id=target.id, incident_type=IncidentType.FIRE, difficulty=2
-    )
+    first = await _fire_incident(async_session, vault, target)
     await incident_service.assign_responders(async_session, first, [responder.id])
     await crud.incident_crud.resolve(async_session, first.id, success=True)
-    second = await crud.incident_crud.create(
-        async_session, vault_id=vault.id, room_id=target.id, incident_type=IncidentType.FIRE, difficulty=2
-    )
+    second = await _fire_incident(async_session, vault, target)
     assert await hazard_team_service.return_dispatched_responders(async_session, first) == 0
     members = await crud.team_crud.get_incident_team(async_session, first.id, vault.id)
     assert members[0].status == "assigned"

@@ -113,7 +113,6 @@ def test_cleanup_keeps_ingress_closed_after_migration_started(tmp_path: Path) ->
     ],
 )
 def test_maintenance_backup_verification_and_failure_recovery(tmp_path: Path, scenario: str) -> None:
-    """Run the real maintenance shell against fake cluster and PostgreSQL commands."""
     block = WORKFLOW.read_text().split("      - name: Prepare maintenance and database backup\n", 1)[1]
     script = textwrap.dedent(block.split("<< 'SHELL'\n", 1)[1].split("          SHELL\n", 1)[0])
     for expression, value in {
@@ -279,9 +278,6 @@ def test_dev_backend_starts_only_after_successful_migration(tmp_path: Path, migr
 def test_manifest_apply_pins_images_and_keeps_maintenance_writers_stopped(
     tmp_path: Path, maintenance: bool, fail_apply: bool
 ) -> None:
-    """Capture actual apply payloads, including a late failure before image updates."""
-    import yaml
-
     workflow = yaml.safe_load(WORKFLOW.read_text())
     step = next(step for step in workflow["jobs"]["deploy"]["steps"] if step["name"] == "Apply deployment manifests")
     script = step["run"]

@@ -1,5 +1,3 @@
-"""Tests for the place-loot table catalog."""
-
 import json
 
 import pytest
@@ -10,7 +8,6 @@ from app.utils.place_loot import LOOT_FILE, load_place_loot, loot_table
 
 
 def test_catalog_keeps_the_risk_tables_and_adds_themed_tables() -> None:
-    """The risk tables remain as fallbacks; themed tables carry the material filters."""
     tables = load_place_loot()["tables"]
     assert {"low", "medium", "high"} <= set(tables)
     assert {"automotive", "household", "tech", "medical", "military"} <= set(tables)
@@ -20,7 +17,6 @@ def test_catalog_keeps_the_risk_tables_and_adds_themed_tables() -> None:
 
 
 def test_every_clearable_group_loot_table_resolves() -> None:
-    """Every clearable group points at a table that exists in the catalog."""
     tables = load_place_loot()["tables"]
     for group in load_place_groups():
         if group["clearable"]:
@@ -28,7 +24,6 @@ def test_every_clearable_group_loot_table_resolves() -> None:
 
 
 def test_every_loot_entry_resolves_to_a_real_catalog_item() -> None:
-    """A valid category can still match an empty pool; catch it here, not mid-resolution."""
     for table_key, table in load_place_loot()["tables"].items():
         for entry in table["items"]:
             item = loot_calculator.roll_item(
@@ -42,7 +37,6 @@ def test_every_loot_entry_resolves_to_a_real_catalog_item() -> None:
 
 
 def test_each_themed_table_starts_with_a_single_category_signature() -> None:
-    """The first entry owns one material family, so every clear promises that material."""
     tables = load_place_loot()["tables"]
     for key in ("automotive", "household", "tech", "medical"):
         assert len(tables[key]["items"][0]["junk_types"]) == 1
@@ -55,7 +49,6 @@ def test_loot_table_returns_none_for_unknown_key() -> None:
 
 
 def _write_loot(tmp_path, data: dict) -> pytest.MonkeyPatch:
-    """Point the loader at a scratch catalog and reset its cache."""
     scratch = tmp_path / "place_loot.json"
     scratch.write_text(json.dumps(data), encoding="utf-8")
     load_place_loot.cache_clear()
@@ -65,96 +58,25 @@ def _write_loot(tmp_path, data: dict) -> pytest.MonkeyPatch:
     return monkeypatch
 
 
-def test_bad_item_type_is_rejected(tmp_path) -> None:
+MUTATIONS = [
+    (lambda d: d["tables"]["low"]["items"][0].update(type="medicine"), "unknown type"),
+    (lambda d: d["tables"]["low"]["items"][0].update(rarity="epic"), "unknown rarity"),
+    (lambda d: d["tables"]["automotive"]["items"][0].update(junk_types=["unobtainium"]), "unknown values"),
+    (lambda d: d["tables"]["automotive"]["items"][2].update(weapon_types=["gun"]), "only applies to weapon entries"),
+    (lambda d: d["tables"]["automotive"]["items"][0].update(junk_types=[]), "non-empty list"),
+    (lambda d: d["tables"]["low"].update(caps={"min": 50, "max": 10}), r"0 <= min <= max"),
+    (lambda d: d["tables"]["low"].update(caps={"min": True, "max": 10}), "integer caps"),
+    (lambda d: d.clear() or d.update(tables={}), "non-empty 'tables'"),
+]
+
+
+@pytest.mark.parametrize(("mutate", "match"), MUTATIONS)
+def test_bad_loot_catalog_is_rejected(tmp_path, mutate, match: str) -> None:
     data = json.loads(LOOT_FILE.read_text(encoding="utf-8"))
-    data["tables"]["low"]["items"][0]["type"] = "medicine"
+    mutate(data)
     monkeypatch = _write_loot(tmp_path, data)
     try:
-        with pytest.raises(ValueError, match="unknown type"):
-            load_place_loot()
-    finally:
-        monkeypatch.undo()
-        load_place_loot.cache_clear()
-
-
-def test_bad_item_rarity_is_rejected(tmp_path) -> None:
-    data = json.loads(LOOT_FILE.read_text(encoding="utf-8"))
-    data["tables"]["low"]["items"][0]["rarity"] = "epic"
-    monkeypatch = _write_loot(tmp_path, data)
-    try:
-        with pytest.raises(ValueError, match="unknown rarity"):
-            load_place_loot()
-    finally:
-        monkeypatch.undo()
-        load_place_loot.cache_clear()
-
-
-def test_unknown_junk_type_filter_is_rejected(tmp_path) -> None:
-    data = json.loads(LOOT_FILE.read_text(encoding="utf-8"))
-    data["tables"]["automotive"]["items"][0]["junk_types"] = ["unobtainium"]
-    monkeypatch = _write_loot(tmp_path, data)
-    try:
-        with pytest.raises(ValueError, match="unknown values"):
-            load_place_loot()
-    finally:
-        monkeypatch.undo()
-        load_place_loot.cache_clear()
-
-
-def test_category_filter_on_the_wrong_item_type_is_rejected(tmp_path) -> None:
-    """A weapon filter on an outfit entry would be silently ignored, so it fails authoring instead."""
-    data = json.loads(LOOT_FILE.read_text(encoding="utf-8"))
-    data["tables"]["automotive"]["items"][2]["weapon_types"] = ["gun"]
-    monkeypatch = _write_loot(tmp_path, data)
-    try:
-        with pytest.raises(ValueError, match="only applies to weapon entries"):
-            load_place_loot()
-    finally:
-        monkeypatch.undo()
-        load_place_loot.cache_clear()
-
-
-def test_empty_category_filter_is_rejected(tmp_path) -> None:
-    data = json.loads(LOOT_FILE.read_text(encoding="utf-8"))
-    data["tables"]["automotive"]["items"][0]["junk_types"] = []
-    monkeypatch = _write_loot(tmp_path, data)
-    try:
-        with pytest.raises(ValueError, match="non-empty list"):
-            load_place_loot()
-    finally:
-        monkeypatch.undo()
-        load_place_loot.cache_clear()
-
-
-def test_inverted_caps_range_is_rejected(tmp_path) -> None:
-    data = json.loads(LOOT_FILE.read_text(encoding="utf-8"))
-    data["tables"]["low"]["caps"] = {"min": 50, "max": 10}
-    monkeypatch = _write_loot(tmp_path, data)
-    try:
-        with pytest.raises(ValueError, match="0 <= min <= max"):
-            load_place_loot()
-    finally:
-        monkeypatch.undo()
-        load_place_loot.cache_clear()
-
-
-def test_boolean_cap_is_rejected(tmp_path) -> None:
-    """A bool is an int in Python, but a boolean cap is an authoring error, not 1/0."""
-    data = json.loads(LOOT_FILE.read_text(encoding="utf-8"))
-    data["tables"]["low"]["caps"] = {"min": True, "max": 10}
-    monkeypatch = _write_loot(tmp_path, data)
-    try:
-        with pytest.raises(ValueError, match="integer caps"):
-            load_place_loot()
-    finally:
-        monkeypatch.undo()
-        load_place_loot.cache_clear()
-
-
-def test_empty_tables_object_is_rejected(tmp_path) -> None:
-    monkeypatch = _write_loot(tmp_path, {"tables": {}})
-    try:
-        with pytest.raises(ValueError, match="non-empty 'tables'"):
+        with pytest.raises(ValueError, match=match):
             load_place_loot()
     finally:
         monkeypatch.undo()

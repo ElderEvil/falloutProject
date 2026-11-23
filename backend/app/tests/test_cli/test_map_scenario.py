@@ -1,5 +1,3 @@
-"""Tests for the map-scenario CLI (per-group icon population)."""
-
 from __future__ import annotations
 
 import json
@@ -19,11 +17,6 @@ runner = CliRunner()
 
 
 def test_every_group_is_covered_by_the_scenario():
-    """Every catalog group must resolve to a marker so each icon is exercised.
-
-    Groups are name-derived, so a group with no seeded place cannot appear on the
-    map at all; the fallback archetype is reached via an ungrouped place.
-    """
     seeded = _seed_name_by_group()
     covered = set(seeded) | {"wasteland_site"}
     assert covered == {group["key"] for group in load_place_groups()}

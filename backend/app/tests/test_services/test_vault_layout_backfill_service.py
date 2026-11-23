@@ -1,5 +1,3 @@
-"""Tests for the vault layout backfill service summary and dry-run behavior."""
-
 from __future__ import annotations
 
 from uuid import UUID, uuid4
@@ -17,40 +15,27 @@ from app.utils.room_rules import is_elevator
 FIXED_ROOMS = {"Vault Door", "Elevator"}
 
 
-def _room_payload(
-    vault_id: UUID,
-    *,
-    name: str,
-    coordinate_x: int,
-    coordinate_y: int,
-    size: int = 3,
-) -> RoomCreate:
+def _room_payload(vault_id: UUID, *, name: str, coordinate_x: int, coordinate_y: int, size: int = 3) -> RoomCreate:
     is_fixed = name in FIXED_ROOMS
     return RoomCreate(
         vault_id=vault_id,
         name=name,
         category=RoomTypeEnum.MISC if is_fixed else RoomTypeEnum.PRODUCTION,
         ability=None,
-        population_required=None,
         base_cost=100,
         incremental_cost=None if is_fixed else 25,
         t2_upgrade_cost=None,
         t3_upgrade_cost=None,
         capacity=None,
-        output=None,
         size_min=size,
         size_max=size,
         size=size,
-        tier=1,
         coordinate_x=coordinate_x,
         coordinate_y=coordinate_y,
-        image_url=None,
     )
 
 
-@pytest.mark.asyncio
 async def test_relayout_empty_vault_reports_floor_width(async_session: AsyncSession):
-    """An empty vault still returns the full summary shape the CLI reads."""
     summary = await vault_layout_backfill_service.relayout(async_session, uuid4(), dry_run=True)
 
     assert summary == {
@@ -63,30 +48,19 @@ async def test_relayout_empty_vault_reports_floor_width(async_session: AsyncSess
     }
 
 
-@pytest.mark.asyncio
 async def test_relayout_does_not_flag_a_lone_elevator_as_floating(async_session: AsyncSession, vault: Vault):
-    """A level holding only the shaft elevator is anchored vertically, not floating."""
-    await crud.room.create(
-        async_session,
-        obj_in=_room_payload(vault.id, name="Vault Door", coordinate_x=0, coordinate_y=0, size=6),
-    )
-    await crud.room.create(
-        async_session,
-        obj_in=_room_payload(vault.id, name="Elevator", coordinate_x=6, coordinate_y=0, size=1),
-    )
-    await crud.room.create(
-        async_session,
-        obj_in=_room_payload(vault.id, name="Elevator", coordinate_x=6, coordinate_y=1, size=1),
-    )
+    specs = (("Vault Door", 0, 0, 6), ("Elevator", 6, 0, 1), ("Elevator", 6, 1, 1))
+    for name, x, y, size in specs:
+        await crud.room.create(
+            async_session, obj_in=_room_payload(vault.id, name=name, coordinate_x=x, coordinate_y=y, size=size)
+        )
 
     summary = await vault_layout_backfill_service.relayout(async_session, vault.id, dry_run=True)
 
     assert summary["floating"] == 0
 
 
-@pytest.mark.asyncio
 async def test_relayout_dry_run_does_not_move_the_door(async_session: AsyncSession, vault: Vault):
-    """A dry run leaves the vault door where it is while still reporting it as moved."""
     door = await crud.room.create(
         async_session,
         obj_in=_room_payload(vault.id, name="Vault Door", coordinate_x=3, coordinate_y=2, size=6),
@@ -99,9 +73,7 @@ async def test_relayout_dry_run_does_not_move_the_door(async_session: AsyncSessi
     assert summary["moved"] >= 1
 
 
-@pytest.mark.asyncio
 async def test_relayout_apply_creates_the_elevator_through_the_room_schema(async_session: AsyncSession, vault: Vault):
-    """An apply run builds the missing shaft elevator from the catalog template."""
     for name, x, y, size in (("Vault Door", 0, 0, 6), ("Elevator", 6, 0, 1), ("Diner", 0, 1, 3)):
         await crud.room.create(
             async_session, obj_in=_room_payload(vault.id, name=name, coordinate_x=x, coordinate_y=y, size=size)

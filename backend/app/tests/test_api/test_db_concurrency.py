@@ -1,5 +1,3 @@
-"""Exercise the shared production dependency with real pooled sessions and ASGI requests."""
-
 import asyncio
 from typing import Annotated
 from uuid import uuid4
@@ -12,7 +10,9 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.api.deps import DBSession
+from app.api.v1.endpoints import stream
 from app.core.config import settings
+from app.core.security import create_access_token
 from app.db.session import get_async_session
 
 
@@ -22,12 +22,8 @@ async def test_shared_session_cap_queues_across_routes_and_releases_after_cleanu
     limit = settings.API_DB_SESSION_CONCURRENCY
     application_name = f"concurrency-test-{uuid4()}"
     uri = str(settings.ASYNC_DATABASE_URI) if database == "postgresql" else f"sqlite+aiosqlite:///{tmp_path}/cap.db"
-    engine = create_async_engine(
-        uri,
-        pool_size=limit + 2,
-        max_overflow=0,
-        connect_args={"server_settings": {"application_name": application_name}} if database == "postgresql" else {},
-    )
+    connect_args = {"server_settings": {"application_name": application_name}} if database == "postgresql" else {}
+    engine = create_async_engine(uri, pool_size=limit + 2, max_overflow=0, connect_args=connect_args)
     if database == "postgresql":
         try:
             async with engine.connect():
@@ -38,15 +34,10 @@ async def test_shared_session_cap_queues_across_routes_and_releases_after_cleanu
 
     async def idle_transactions():
         async with engine.connect() as connection:
-            return (
-                await connection.execute(
-                    text(
-                        "SELECT count(*) FROM pg_stat_activity "
-                        "WHERE application_name = :name AND state = 'idle in transaction'"
-                    ),
-                    {"name": application_name},
-                )
-            ).scalar_one()
+            query = text(
+                "SELECT count(*) FROM pg_stat_activity WHERE application_name = :name AND state = 'idle in transaction'"
+            )
+            return (await connection.execute(query, {"name": application_name})).scalar_one()
 
     if database == "postgresql":
         assert await idle_transactions() == 0
@@ -99,7 +90,6 @@ async def test_shared_session_cap_queues_across_routes_and_releases_after_cleanu
             assert engine.pool.checkedout() == limit
             if database == "postgresql":
                 assert await idle_transactions() == limit
-
             # A cancelled waiter must neither open a session nor consume a permit.
             queued.cancel()
             with pytest.raises(asyncio.CancelledError):
@@ -142,9 +132,6 @@ async def test_shared_session_cap_queues_across_routes_and_releases_after_cleanu
 async def test_open_streams_do_not_consume_api_permits_or_hold_sessions(
     path, user_with_vault, async_session, monkeypatch
 ):
-    from app.api.v1.endpoints import stream
-    from app.core.security import create_access_token
-
     user, vault = user_with_vault
     app = FastAPI()
     app.include_router(stream.router)
@@ -213,8 +200,6 @@ async def test_open_streams_do_not_consume_api_permits_or_hold_sessions(
 async def test_stream_access_rejections_are_preserved(
     case, path, async_client, async_session, user_with_vault, superuser
 ):
-    from app.core.security import create_access_token
-
     user, vault = user_with_vault
     if case == "inactive":
         user.is_active = False
@@ -225,8 +210,7 @@ async def test_stream_access_rejections_are_preserved(
     await async_session.commit()
     token = "invalid" if case == "invalid_token" else create_access_token(user.id)
     response = await async_client.get(
-        "/stream/" + path.format(vault_id=vault.id),
-        headers={"Authorization": f"Bearer {token}"},
+        "/stream/" + path.format(vault_id=vault.id), headers={"Authorization": f"Bearer {token}"}
     )
     assert response.status_code == (401 if case == "invalid_token" else 403)
 
@@ -235,9 +219,6 @@ async def test_stream_access_rejections_are_preserved(
 async def test_notification_stream_preserves_current_user_policy(
     case, async_client, async_session, user_with_vault, monkeypatch
 ):
-    from app.api.v1.endpoints import stream
-    from app.core.security import create_access_token
-
     user, _vault = user_with_vault
     user.is_active = False
     async_session.add(user)

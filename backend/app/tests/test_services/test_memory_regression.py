@@ -37,7 +37,6 @@ def get_rss_mb() -> float:
 @pytest.fixture(scope="module")
 def _app_and_client() -> tuple:
     """Build a FastAPI app with a large dependency graph and return a TestClient.
-
     Captures RSS baseline before/after the app is built and asserts that
     constructing the dependency graph does not balloon memory.
     """
@@ -45,9 +44,7 @@ def _app_and_client() -> tuple:
     from fastapi.testclient import TestClient
 
     rss_before = get_rss_mb()
-
     app = FastAPI(title="MemRegression", version="0.1.0")
-
     # ── 50 endpoints with 3-deep dependency chains ──────────────────
     for i in range(50):
 
@@ -61,7 +58,6 @@ def _app_and_client() -> tuple:
             return d
 
         app.get(f"/chain-{i}")(final_handler)
-
     # ── 20 simple endpoints (no deps) ───────────────────────────────
     for i in range(20):
 
@@ -69,7 +65,6 @@ def _app_and_client() -> tuple:
             return {"no_dep": i}
 
         app.get(f"/simple-{i}")(no_dep_handler)
-
     rss_after = get_rss_mb()
     growth = rss_after - rss_before
     # App build should add at most 10 MB (typical overhead is <1 MB standalone,
@@ -77,7 +72,6 @@ def _app_and_client() -> tuple:
     assert growth < 10.0, (
         f"App build RSS grew {growth:.1f} MB ({rss_before:.1f} → {rss_after:.1f}), exceeds 10 MB limit"
     )
-
     return app, TestClient(app)
 
 
@@ -91,10 +85,8 @@ class TestMemoryRegression:
     RSS_GROWTH_MAX = 15.0  # MB — request handling should not balloon
 
     def test_rss_growth_after_requests(self, _app_and_client):
-        """RSS should not grow excessively after handling 200+ requests."""
         _app, client = _app_and_client
         rss_before = get_rss_mb()
-
         # Hit each endpoint 3 times = 210 requests
         for _ in range(3):
             for i in range(50):
@@ -103,32 +95,26 @@ class TestMemoryRegression:
             for i in range(20):
                 r = client.get(f"/simple-{i}")
                 assert r.status_code == 200
-
         rss_after = get_rss_mb()
         growth = rss_after - rss_before
-
         assert growth < self.RSS_GROWTH_MAX, (
             f"RSS grew {growth:.1f} MB ({rss_before:.1f} → {rss_after:.1f}), exceeds limit {self.RSS_GROWTH_MAX} MB"
         )
 
     def test_dependency_endpoints_respond_correctly(self, _app_and_client):
-        """Verify dependency-chained endpoints return correct values."""
         _, client = _app_and_client
         r = client.get("/chain-0")
         assert r.status_code == 200
         assert r.json() == {"l1": 0, "l2": 0}
-
         r = client.get("/chain-49")
         assert r.status_code == 200
         assert r.json() == {"l1": 49, "l2": 49}
 
     def test_simple_endpoints_respond_correctly(self, _app_and_client):
-        """Verify simple endpoints work."""
         _, client = _app_and_client
         r = client.get("/simple-0")
         assert r.status_code == 200
         assert r.json() == {"no_dep": 0}
-
         r = client.get("/simple-19")
         assert r.status_code == 200
         assert r.json() == {"no_dep": 19}

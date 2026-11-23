@@ -1,18 +1,7 @@
-"""API regression tests for the notification authorization fix (AUDIT.md P0).
-
-The public ``POST /notifications`` route accepted a client-supplied
-``NotificationCreate`` (including ``user_id``) behind only
-``CurrentActiveUser``, so any signed-in player could persist notifications for
-another user. The route is removed: server-side callers create notifications
-exclusively through ``NotificationService.create_and_send()``. These tests pin
-the forbidden paths (regular user rejected, no recipient selection) and the
-permitted paths (read endpoints unchanged, service path still works).
-"""
+"""Regression tests for the notification authorization fix (AUDIT.md P0): the public POST
+/notifications route is gone, reads are unchanged, and the service path still creates rows."""
 
 from unittest.mock import patch
-
-from httpx import AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import crud
 from app.core.config import settings
@@ -24,8 +13,7 @@ from app.services.notification_service import NotificationService
 from app.utils.serialize import serialize_utc_datetime
 
 
-def _notification_payload(user_id) -> dict:
-    """A body shaped like the old NotificationCreate the route used to accept."""
+def _payload(user_id) -> dict:
     return {
         "user_id": str(user_id),
         "notification_type": NotificationType.LEVEL_UP.value,
@@ -35,133 +23,72 @@ def _notification_payload(user_id) -> dict:
     }
 
 
-async def _normal_user(async_session: AsyncSession):
+async def _normal_user(session):
     """The user behind the normal_user_token_headers fixture."""
-    return await crud.user.get_by_email(async_session, email=settings.EMAIL_TEST_USER)
+    return await crud.user.get_by_email(session, email=settings.EMAIL_TEST_USER)
 
 
-async def test_regular_user_cannot_create_notification(
-    async_client: AsyncClient,
-    async_session: AsyncSession,
-    normal_user_token_headers: dict[str, str],
-) -> None:
-    """A regular authenticated user can no longer POST a notification."""
-    user = await _normal_user(async_session)
-
-    response = await async_client.post(
-        "/notifications/",
-        headers=normal_user_token_headers,
-        json=_notification_payload(user.id),
+async def _create_notification(session, user_id, title="Level Up", message="You reached level 2!", **extra):
+    return await notification_crud.create(
+        session,
+        obj_in=NotificationCreate(
+            user_id=user_id,
+            notification_type=NotificationType.LEVEL_UP,
+            title=title,
+            message=message,
+            **extra,
+        ),
     )
 
+
+async def test_regular_user_cannot_create_notification(async_client, async_session, normal_user_token_headers):
+    user = await _normal_user(async_session)
+    response = await async_client.post("/notifications/", headers=normal_user_token_headers, json=_payload(user.id))
     assert response.status_code == 405
-    rows = await notification_crud.get_user_notifications(async_session, user_id=user.id)
-    assert rows == []
+    assert await notification_crud.get_user_notifications(async_session, user_id=user.id) == []
 
 
-async def test_cannot_create_notification_for_another_user(
-    async_client: AsyncClient,
-    async_session: AsyncSession,
-    normal_user_token_headers: dict[str, str],
-) -> None:
-    """Selecting another user as the recipient is impossible: the route is gone."""
+async def test_cannot_create_notification_for_another_user(async_client, async_session, normal_user_token_headers):
     target = await crud.user.create(
         async_session,
         obj_in=UserCreate(username="target_user", email="target@example.com", password="testpass123"),
     )
-
-    response = await async_client.post(
-        "/notifications/",
-        headers=normal_user_token_headers,
-        json=_notification_payload(target.id),
-    )
-
+    response = await async_client.post("/notifications/", headers=normal_user_token_headers, json=_payload(target.id))
     assert response.status_code == 405
-    rows = await notification_crud.get_user_notifications(async_session, user_id=target.id)
-    assert rows == []
+    assert await notification_crud.get_user_notifications(async_session, user_id=target.id) == []
 
 
-async def test_get_notifications_still_works(
-    async_client: AsyncClient,
-    async_session: AsyncSession,
-    normal_user_token_headers: dict[str, str],
-) -> None:
-    """GET /notifications/ remains the permitted read path for the current user."""
+async def test_get_notifications_still_works(async_client, async_session, normal_user_token_headers):
     user = await _normal_user(async_session)
-    await notification_crud.create(
-        async_session,
-        obj_in=NotificationCreate(
-            user_id=user.id,
-            notification_type=NotificationType.LEVEL_UP,
-            title="Level Up",
-            message="You reached level 2!",
-        ),
-    )
-
+    await _create_notification(async_session, user.id)
     response = await async_client.get("/notifications/", headers=normal_user_token_headers)
-
     assert response.status_code == 200
     data = response.json()
     assert len(data) == 1
     assert data[0]["user_id"] == str(user.id)
 
 
-async def test_unread_count_still_works(
-    async_client: AsyncClient,
-    async_session: AsyncSession,
-    normal_user_token_headers: dict[str, str],
-) -> None:
-    """GET /notifications/unread-count remains permitted."""
+async def test_unread_count_still_works(async_client, async_session, normal_user_token_headers):
     user = await _normal_user(async_session)
-    await notification_crud.create(
-        async_session,
-        obj_in=NotificationCreate(
-            user_id=user.id,
-            notification_type=NotificationType.LEVEL_UP,
-            title="Level Up",
-            message="You reached level 2!",
-        ),
-    )
-
+    await _create_notification(async_session, user.id)
     response = await async_client.get("/notifications/unread-count", headers=normal_user_token_headers)
-
     assert response.status_code == 200
     assert response.json()["count"] == 1
 
 
-async def test_mark_as_read_still_works(
-    async_client: AsyncClient,
-    async_session: AsyncSession,
-    normal_user_token_headers: dict[str, str],
-) -> None:
-    """PATCH /notifications/{id}/read remains permitted for the owner."""
+async def test_mark_as_read_still_works(async_client, async_session, normal_user_token_headers):
     user = await _normal_user(async_session)
-    notification = await notification_crud.create(
-        async_session,
-        obj_in=NotificationCreate(
-            user_id=user.id,
-            notification_type=NotificationType.LEVEL_UP,
-            title="Level Up",
-            message="You reached level 2!",
-        ),
-    )
-
-    response = await async_client.patch(
-        f"/notifications/{notification.id}/read",
-        headers=normal_user_token_headers,
-    )
-
+    notification = await _create_notification(async_session, user.id)
+    response = await async_client.patch(f"/notifications/{notification.id}/read", headers=normal_user_token_headers)
     assert response.status_code == 200
     assert response.json()["is_read"] is True
 
 
-async def test_create_and_send_is_the_permitted_path(async_session: AsyncSession) -> None:
-    """Server-side callers keep working: create_and_send persists for the target user."""
+async def test_create_and_send_is_the_permitted_path(async_session):
     user = await crud.user.create(
         async_session,
         obj_in=UserCreate(username="service_target", email="service_target@example.com", password="testpass123"),
     )
-
     with (
         patch("app.services.notification_service.manager") as mock_ws,
         patch("app.services.notification_service.sse_manager") as mock_sse,
@@ -173,21 +100,15 @@ async def test_create_and_send_is_the_permitted_path(async_session: AsyncSession
             title="Level Up",
             message="You reached level 2!",
         )
-
     assert notification.user_id == user.id
     mock_ws.send_personal_message.assert_called_once()
     mock_sse.publish.assert_called_once()
-
     rows = await notification_crud.get_user_notifications(async_session, user_id=user.id)
     assert any(row.id == notification.id for row in rows)
 
 
-async def test_live_notification_payload_includes_routing_context(
-    async_session: AsyncSession, user_with_vault: tuple, dweller_in_vault
-) -> None:
-    """SSE clients receive routing context and a UTC ``Z`` timestamp."""
+async def test_live_notification_payload_includes_routing_context(async_session, user_with_vault, dweller_in_vault):
     user, vault = user_with_vault
-
     with (
         patch("app.services.notification_service.manager") as mock_ws,
         patch("app.services.notification_service.sse_manager") as mock_sse,
@@ -201,78 +122,39 @@ async def test_live_notification_payload_includes_routing_context(
             title="Level Up",
             message="You reached level 2!",
         )
-
-    ws_payload = mock_ws.send_personal_message.call_args.args[0]
-    sse_payload = mock_sse.publish.call_args.args[2]
-    for payload in (ws_payload, sse_payload):
+    for payload in (mock_ws.send_personal_message.call_args.args[0], mock_sse.publish.call_args.args[2]):
         assert payload["notification"]["vault_id"] == str(vault.id)
         assert payload["notification"]["from_dweller_id"] == str(dweller_in_vault.id)
         assert payload["notification"]["created_at"] == serialize_utc_datetime(notification.created_at)
         assert payload["notification"]["created_at"].endswith("Z")
 
 
-# =============================================================================
-# Read-state behavior (AUDIT.md P3): dismissed rows must not be counted or
-# marked read, and the reads must not be row-oriented.
-# =============================================================================
-
-
-async def _create_notification(async_session: AsyncSession, user_id, title: str):
-    return await notification_crud.create(
-        async_session,
-        obj_in=NotificationCreate(
-            user_id=user_id,
-            notification_type=NotificationType.LEVEL_UP,
-            title=title,
-            message=f"{title} message",
-        ),
-    )
-
-
-async def test_mark_all_read_excludes_dismissed(
-    async_client: AsyncClient,
-    async_session: AsyncSession,
-    normal_user_token_headers: dict[str, str],
-) -> None:
-    """Dismissing a notification takes it out of the mark-all-read sweep.
-
-    A dismissed-but-unread row used to be marked read and counted, so the
-    response over-reported and a dismissed notification silently flipped state.
-    """
+async def test_mark_all_read_excludes_dismissed(async_client, async_session, normal_user_token_headers):
+    """A dismissed-but-unread row used to be marked read and counted in the sweep."""
     user = await _normal_user(async_session)
-    visible = await _create_notification(async_session, user.id, "Visible")
-    dismissed = await _create_notification(async_session, user.id, "Dismissed")
+    visible = await _create_notification(async_session, user.id, "Visible", "Visible message")
+    dismissed = await _create_notification(async_session, user.id, "Dismissed", "Dismissed message")
     await notification_crud.dismiss(async_session, notification_id=dismissed.id, user_id=user.id)
-
     response = await async_client.post("/notifications/mark-all-read", headers=normal_user_token_headers)
-
     assert response.status_code == 200
     assert response.json()["marked_read"] == 1
-
     await async_session.refresh(visible)
     await async_session.refresh(dismissed)
     assert visible.is_read is True
     assert dismissed.is_read is False
 
 
-async def test_unread_count_excludes_dismissed(
-    async_client: AsyncClient,
-    async_session: AsyncSession,
-    normal_user_token_headers: dict[str, str],
-) -> None:
-    """The unread badge counts only visible unread notifications."""
+async def test_unread_count_excludes_dismissed(async_client, async_session, normal_user_token_headers):
     user = await _normal_user(async_session)
-    await _create_notification(async_session, user.id, "Visible")
-    dismissed = await _create_notification(async_session, user.id, "Dismissed")
+    await _create_notification(async_session, user.id, "Visible", "Visible message")
+    dismissed = await _create_notification(async_session, user.id, "Dismissed", "Dismissed message")
     await notification_crud.dismiss(async_session, notification_id=dismissed.id, user_id=user.id)
-
     response = await async_client.get("/notifications/unread-count", headers=normal_user_token_headers)
-
     assert response.status_code == 200
     assert response.json()["count"] == 1
 
 
-async def _inbox_other_user_and_vault(async_session: AsyncSession):
+async def _inbox_other_user_and_vault(async_session):
     from app.schemas.vault import VaultCreate
 
     other_user = await crud.user.create(
@@ -280,18 +162,12 @@ async def _inbox_other_user_and_vault(async_session: AsyncSession):
         obj_in=UserCreate(username="inbox_other", email="inbox_other@example.com", password="testpass123"),
     )
     vault = await crud.vault.create_with_user_id(
-        db_session=async_session,
-        obj_in=VaultCreate(number=102, name="Other Vault"),
-        user_id=other_user.id,
+        db_session=async_session, obj_in=VaultCreate(number=102, name="Other Vault"), user_id=other_user.id
     )
     return other_user, vault
 
 
-async def test_notification_inbox_filters_before_pagination(
-    async_client: AsyncClient,
-    async_session: AsyncSession,
-    normal_user_token_headers: dict[str, str],
-) -> None:
+async def test_notification_inbox_filters_before_pagination(async_client, async_session, normal_user_token_headers):
     """Vault/read filters combine and never expose another user's notifications."""
     user = await _normal_user(async_session)
     other_user, vault = await _inbox_other_user_and_vault(async_session)
@@ -301,18 +177,7 @@ async def test_notification_inbox_filters_before_pagination(
         (user, None, True, "System read"),
         (other_user, vault.id, True, "Other user's read"),
     ]:
-        await notification_crud.create(
-            async_session,
-            obj_in=NotificationCreate(
-                user_id=owner.id,
-                vault_id=vault_id,
-                is_read=is_read,
-                notification_type=NotificationType.LEVEL_UP,
-                title=title,
-                message="Test",
-            ),
-        )
-
+        await _create_notification(async_session, owner.id, title, "Test", vault_id=vault_id, is_read=is_read)
     for params, expected in [
         ({"vault_id": str(vault.id), "is_read": True, "limit": 1}, ["Read in vault"]),
         ({"vault_id": str(vault.id), "is_read": False}, ["Unread in vault"]),
@@ -325,28 +190,13 @@ async def test_notification_inbox_filters_before_pagination(
         assert [item["title"] for item in response.json()] == expected
 
 
-async def test_mark_all_read_is_scoped_to_selected_vault(
-    async_client: AsyncClient,
-    async_session: AsyncSession,
-    normal_user_token_headers: dict[str, str],
-) -> None:
+async def test_mark_all_read_is_scoped_to_selected_vault(async_client, async_session, normal_user_token_headers):
     user = await _normal_user(async_session)
     other_user, vault = await _inbox_other_user_and_vault(async_session)
-    rows = []
-    for owner, vault_id in [(user, vault.id), (user, None), (other_user, vault.id)]:
-        rows.append(
-            await notification_crud.create(
-                async_session,
-                obj_in=NotificationCreate(
-                    user_id=owner.id,
-                    vault_id=vault_id,
-                    notification_type=NotificationType.LEVEL_UP,
-                    title="Unread",
-                    message="Test",
-                ),
-            )
-        )
-
+    rows = [
+        await _create_notification(async_session, owner.id, "Unread", "Test", vault_id=vault_id)
+        for owner, vault_id in [(user, vault.id), (user, None), (other_user, vault.id)]
+    ]
     response = await async_client.post(
         "/notifications/mark-all-read", headers=normal_user_token_headers, params={"vault_id": str(vault.id)}
     )

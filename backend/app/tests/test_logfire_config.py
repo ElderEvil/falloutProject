@@ -16,11 +16,9 @@ def _reset_logfire_state():
 class TestLogfireConfig:
     def test_configure_logfire_with_token_sets_enabled(self, monkeypatch):
         monkeypatch.setattr(settings, "LOGFIRE_TOKEN", "test_token_for_testing")
-
         mock_logfire = MagicMock()
         with patch.dict(sys.modules, {"logfire": mock_logfire}):
             configure_logfire()
-
             mock_logfire.configure.assert_called_once_with(
                 send_to_logfire="if-token-present",
                 token="test_token_for_testing",

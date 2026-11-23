@@ -1,15 +1,3 @@
-"""Runtime coverage for data migrations: seed legacy rows, migrate for real, assert the shape.
-
-The fragment tests in ``test_db`` pin what a migration *says*; these run it. Two migrations
-shipped with defects that only review caught - a roster backfill that handed out a fourth
-active place and left slot-less active rows, and an outfit backfill whose guard was never
-exercised - so each case seeds the legacy state, upgrades, and asserts the migrated shape
-before reversing the migration and asserting the inverse.
-
-Every case runs in its own scratch database: a real upgrade chain is destructive, and the
-application database must never be the subject.
-"""
-
 import asyncio
 import uuid
 from collections.abc import Iterator
@@ -73,8 +61,6 @@ async def _run_sql(url: str, sql: str) -> None:
 
 
 class MigrationHarness:
-    """Apply real migrations against a scratch database and read the result."""
-
     def __init__(self, url: str) -> None:
         self.url = url
 
@@ -82,14 +68,12 @@ class MigrationHarness:
         self._alembic(command.upgrade, revision)
 
     def upgrade_current(self) -> None:
-        """Apply the live graph to a fresh scratch database or a replayed legacy head."""
         database = make_url(self.url).database
         assert database is not None
         asyncio.run(baseline_tools.prepare_database(database, apply=True))
         command.upgrade(Config(str(ALEMBIC_DIR.parents[1] / "alembic.ini")), "head")
 
     def restore_legacy_marker(self) -> None:
-        """Return a scratch database to the legacy graph for historical downgrade checks."""
         backend = ALEMBIC_DIR.parents[1]
         live_config = Config(str(backend / "alembic.ini"))
         (baseline,) = ScriptDirectory.from_config(live_config).get_bases()
@@ -127,22 +111,18 @@ class MigrationHarness:
 
 @pytest.fixture
 def harness(monkeypatch: pytest.MonkeyPatch) -> Iterator[MigrationHarness]:
-    """A scratch database with the app's own credentials; dropped afterwards."""
     if make_url(str(settings.ASYNC_DATABASE_URI)).get_backend_name() != "postgresql":
         pytest.skip("ASYNC_DATABASE_URI is not PostgreSQL; skipping the migration harness")
-
     app_url = str(settings.ASYNC_DATABASE_URI)
     base_url = make_url(app_url)
     name = f"fallout_migration_test_{uuid.uuid4().hex[:12]}"
     # str(URL) renders the password as ***, which authenticates as the literal password.
     scratch_url = base_url.set(database=name).render_as_string(hide_password=False)
-
     try:
         asyncio.run(_run_sql(app_url, f'DROP DATABASE IF EXISTS "{name}" WITH (FORCE)'))
         asyncio.run(_run_sql(app_url, f'CREATE DATABASE "{name}"'))
     except Exception as exc:  # broad by design: any connection problem means "no database here"
         pytest.skip(f"PostgreSQL unavailable: {exc}")
-
     monkeypatch.setattr(settings, "ASYNC_DATABASE_URI", scratch_url)
     try:
         yield MigrationHarness(scratch_url)
@@ -172,11 +152,7 @@ def _seed_vault(harness: MigrationHarness, *, number: int) -> str:
 def _seed_dweller(harness: MigrationHarness, *, vault_id: str, first_name: str, is_dead: bool) -> str:
     dweller_id = str(uuid.uuid4())
     harness.execute(
-        _INSERT_DWELLER,
-        id=dweller_id,
-        vault_id=vault_id,
-        first_name=first_name,
-        status="DEAD" if is_dead else "IDLE",
+        _INSERT_DWELLER, id=dweller_id, vault_id=vault_id, first_name=first_name, status="DEAD" if is_dead else "IDLE"
     )
     return dweller_id
 
@@ -208,7 +184,6 @@ def _seed_lifecycle_dweller(
     is_deleted: bool = False,
     last_name: str | None = None,
 ) -> str:
-    """Seed one pre-lifecycle dweller with explicit death/soft-delete state."""
     dweller_id = str(uuid.uuid4())
     harness.execute(
         _INSERT_LIFECYCLE_DWELLER,
@@ -235,7 +210,6 @@ def _seed_relationship(
     updated_at: datetime,
     affinity: int = 50,
 ) -> str:
-    """Insert a relationship row; the enum value is cast from a bound parameter."""
     relationship_id = str(uuid.uuid4())
     harness.execute(
         "INSERT INTO relationship "
@@ -261,17 +235,12 @@ def _set_partner(harness: MigrationHarness, *, dweller_id: str, partner_id: str 
 
 
 class TestHazardConsolidationMigration:
-    """The earned rosters move onto team/team_member without breaking the roster invariant."""
-
     def test_backfills_without_exceeding_the_roster_or_stranding_a_slot(self, harness: MigrationHarness) -> None:
         harness.upgrade(HAZARD_PARENT)
         vault_id = _seed_vault(harness, number=901)
-
         living = [_seed_dweller(harness, vault_id=vault_id, first_name=f"Living{i}", is_dead=False) for i in range(4)]
         fallen = _seed_dweller(harness, vault_id=vault_id, first_name="Fallen", is_dead=True)
-
-        # Four living active members exceed the three-place roster, and the fallen one holds
-        # an active place that a revival would count as a responder.
+        # Four living actives exceed the three-place roster; the fallen one holds an active place.
         for index, dweller_id in enumerate([*living, fallen]):
             harness.execute(
                 "INSERT INTO hazard_team_member (id, vault_id, dweller_id, team, status, created_at, updated_at) "
@@ -281,9 +250,7 @@ class TestHazardConsolidationMigration:
                 dweller_id=dweller_id,
                 created_at=datetime(2026, 1, index + 1),
             )
-
         harness.upgrade(HAZARD_REVISION)
-
         rows = harness.fetch(
             "SELECT tm.dweller_id::text, tm.slot_number, tm.status FROM team_member tm "
             "JOIN team t ON t.id = tm.team_id WHERE t.vault_id = :vault_id AND t.hazard_team = 'FIRE'",
@@ -291,15 +258,11 @@ class TestHazardConsolidationMigration:
         )
         by_dweller = {row[0]: (row[1], row[2]) for row in rows}
         assert len(by_dweller) == 5
-
-        # The three most senior living members hold the places; the fourth is benched.
         assert by_dweller[living[0]] == (1, "active")
         assert by_dweller[living[1]] == (2, "active")
         assert by_dweller[living[2]] == (3, "active")
         assert by_dweller[living[3]] == (None, "reserve")
-        # A fallen member must not keep an active place either.
         assert by_dweller[fallen] == (None, "reserve")
-
         assert (
             harness.scalar(
                 "SELECT count(*) FROM team_member tm JOIN team t ON t.id = tm.team_id "
@@ -313,7 +276,6 @@ class TestHazardConsolidationMigration:
             )
             == 1
         )
-        # Seniority and history survive the move.
         assert harness.scalar(
             "SELECT min(tm.created_at)::text FROM team_member tm JOIN team t ON t.id = tm.team_id WHERE t.vault_id = :vault_id",
             vault_id=vault_id,
@@ -330,16 +292,13 @@ class TestHazardConsolidationMigration:
             vault_id=vault_id,
             dweller_id=dweller_id,
         )
-
         harness.upgrade(HAZARD_REVISION)
         harness.downgrade(HAZARD_PARENT)
-
         assert harness.fetch(
             "SELECT team::text, status, dweller_id::text FROM hazard_team_member WHERE vault_id = :vault_id",
             vault_id=vault_id,
         ) == [("RADIATION", "reserve", dweller_id)]
-        # hazard_team no longer exists at this revision; the hazard teams must be gone,
-        # so every remaining team row still carries one of the two older purposes.
+        # hazard_team no longer exists here, so every remaining team row carries an older purpose.
         assert (
             harness.scalar(
                 "SELECT count(*) FROM team WHERE vault_id = :vault_id AND quest_id IS NULL AND incident_id IS NULL",
@@ -350,106 +309,66 @@ class TestHazardConsolidationMigration:
 
 
 class TestOutfitSpecialBackfillMigration:
-    """The SPECIAL backfill fills only rows still at the all-zero default."""
-
     def test_fills_defaulted_rows_and_leaves_populated_ones_alone(self, harness: MigrationHarness) -> None:
         harness.upgrade(OUTFIT_PARENT)
-        empty_id = str(uuid.uuid4())
-        populated_id = str(uuid.uuid4())
+        empty_id, populated_id = str(uuid.uuid4()), str(uuid.uuid4())
         harness.execute(
             "INSERT INTO outfit (id, name, rarity, strength, perception, endurance, intelligence, agility, luck, charisma) "
             "VALUES (:id, 'T-51b Power Armor', 'LEGENDARY', 0, 0, 0, 0, 0, 0, 0)",
             id=empty_id,
         )
         harness.execute(
-            "INSERT INTO outfit (id, name, rarity, strength) VALUES (:id, 'Metal Armor', 'RARE', 9)",
-            id=populated_id,
+            "INSERT INTO outfit (id, name, rarity, strength) VALUES (:id, 'Metal Armor', 'RARE', 9)", id=populated_id
         )
-
         harness.upgrade(OUTFIT_REVISION)
-
         assert harness.fetch(
             "SELECT strength, perception, endurance, luck FROM outfit WHERE id = :id", id=empty_id
         ) == [(3, 1, 2, 0)]
-        # The all-zero guard: a row that already carries a bonus is never overwritten.
         assert harness.scalar("SELECT strength FROM outfit WHERE id = :id", id=populated_id) == 9
-
         harness.downgrade(OUTFIT_PARENT)
-
         assert harness.scalar("SELECT strength FROM outfit WHERE id = :id", id=empty_id) == 3
         assert harness.scalar("SELECT strength FROM outfit WHERE id = :id", id=populated_id) == 9
 
 
 class TestOutfitHazardResistBackfillMigration:
-    """The hazard-resistance backfill fills only rows at each column's own default."""
-
     def test_fills_defaulted_rows_and_leaves_populated_ones_alone(self, harness: MigrationHarness) -> None:
         harness.upgrade(OUTFIT_RESIST_PARENT)
+        firefighter_id, legendary_id, hazmat_id, populated_id = (str(uuid.uuid4()) for _ in range(4))
         # Mixed case and padding prove the LOWER(TRIM(name)) match.
-        firefighter_id = str(uuid.uuid4())
-        legendary_id = str(uuid.uuid4())
-        hazmat_id = str(uuid.uuid4())
-        populated_id = str(uuid.uuid4())
-        harness.execute(
-            "INSERT INTO outfit (id, name, rarity, fire_resist, radiation_resist) "
-            "VALUES (:id, '  FIREFIGHTER SUIT  ', 'RARE', 0, NULL)",
-            id=firefighter_id,
-        )
-        harness.execute(
-            "INSERT INTO outfit (id, name, rarity, fire_resist, radiation_resist) "
-            "VALUES (:id, 'Firefighter Suit, Rad Helmet', 'LEGENDARY', 0, NULL)",
-            id=legendary_id,
-        )
-        harness.execute(
-            "INSERT INTO outfit (id, name, rarity, fire_resist, radiation_resist) "
-            "VALUES (:id, 'Hazmat suit', 'RARE', 0, NULL)",
-            id=hazmat_id,
-        )
-        # Already carries values under a backfilled name: both guards must skip it.
-        harness.execute(
-            "INSERT INTO outfit (id, name, rarity, fire_resist, radiation_resist) "
-            "VALUES (:id, 'Firefighter suit', 'RARE', 0.9, 0.5)",
-            id=populated_id,
-        )
-
+        for identifier, values in (
+            (firefighter_id, "'  FIREFIGHTER SUIT  ', 'RARE', 0, NULL"),
+            (legendary_id, "'Firefighter Suit, Rad Helmet', 'LEGENDARY', 0, NULL"),
+            (hazmat_id, "'Hazmat suit', 'RARE', 0, NULL"),
+            # Already carries values under a backfilled name: both guards must skip it.
+            (populated_id, "'Firefighter suit', 'RARE', 0.9, 0.5"),
+        ):
+            harness.execute(
+                f"INSERT INTO outfit (id, name, rarity, fire_resist, radiation_resist) VALUES (:id, {values})",  # ruff: ignore[hardcoded-sql-expression]
+                id=identifier,
+            )
         harness.upgrade(OUTFIT_RESIST_REVISION)
 
-        assert harness.fetch("SELECT fire_resist, radiation_resist FROM outfit WHERE id = :id", id=firefighter_id) == [
-            (0.5, 0.0)
-        ]
-        assert harness.fetch("SELECT fire_resist, radiation_resist FROM outfit WHERE id = :id", id=legendary_id) == [
-            (0.75, 1.0)
-        ]
+        def resist(identifier: str) -> list[tuple]:
+            return harness.fetch("SELECT fire_resist, radiation_resist FROM outfit WHERE id = :id", id=identifier)
+
+        assert resist(firefighter_id) == [(0.5, 0.0)]
+        assert resist(legendary_id) == [(0.75, 1.0)]
         # Hazmat declares no fire resistance, so its fire column stays at the default.
-        assert harness.fetch("SELECT fire_resist, radiation_resist FROM outfit WHERE id = :id", id=hazmat_id) == [
-            (0.0, 1.0)
-        ]
-        assert harness.fetch("SELECT fire_resist, radiation_resist FROM outfit WHERE id = :id", id=populated_id) == [
-            (0.9, 0.5)
-        ]
-
+        assert resist(hazmat_id) == [(0.0, 1.0)]
+        assert resist(populated_id) == [(0.9, 0.5)]
         harness.downgrade(OUTFIT_RESIST_PARENT)
-
         # downgrade() is a documented no-op: enrichment is never reverted.
-        assert harness.fetch("SELECT fire_resist, radiation_resist FROM outfit WHERE id = :id", id=firefighter_id) == [
-            (0.5, 0.0)
-        ]
-        assert harness.fetch("SELECT fire_resist, radiation_resist FROM outfit WHERE id = :id", id=populated_id) == [
-            (0.9, 0.5)
-        ]
+        assert resist(firefighter_id) == [(0.5, 0.0)]
+        assert resist(populated_id) == [(0.9, 0.5)]
 
 
 class TestRepairDuplicateCommittedRelationshipsMigration:
-    """The repair keeps one committed link per dweller and syncs partner_id."""
-
     def test_keeps_healthy_pair_demotes_duplicates_and_clears_stale_partner(self, harness: MigrationHarness) -> None:
         harness.upgrade(RELATIONSHIP_REPAIR_PARENT)
         vault_id = _seed_vault(harness, number=903)
         dwellers = [
             _seed_dweller(harness, vault_id=vault_id, first_name=f"Dweller{i}", is_dead=False) for i in range(7)
         ]
-
-        # A healthy committed pair whose partner_id already points both ways.
         _seed_relationship(
             harness,
             dweller_1_id=dwellers[0],
@@ -459,7 +378,6 @@ class TestRepairDuplicateCommittedRelationshipsMigration:
         )
         _set_partner(harness, dweller_id=dwellers[0], partner_id=dwellers[1])
         _set_partner(harness, dweller_id=dwellers[1], partner_id=dwellers[0])
-
         # A star: dwellers[2] is committed to both [3] and [4]. The newer link wins.
         star_kept = _seed_relationship(
             harness,
@@ -475,16 +393,12 @@ class TestRepairDuplicateCommittedRelationshipsMigration:
             relationship_type="PARTNER",
             updated_at=datetime(2026, 2, 1),
         )
-
-        # A stale partner_id with no committed link at all.
         _set_partner(harness, dweller_id=dwellers[5], partner_id=dwellers[6])
-
         harness.upgrade(RELATIONSHIP_REPAIR_REVISION)
 
         def rel_type(relationship_id: str) -> str:
             return str(harness.scalar("SELECT relationship_type FROM relationship WHERE id = :id", id=relationship_id))
 
-        # One side of the star is kept, the duplicate is demoted to EX.
         assert rel_type(star_kept) == "PARTNER"
         assert rel_type(star_demoted) == "EX"
         assert (
@@ -496,15 +410,10 @@ class TestRepairDuplicateCommittedRelationshipsMigration:
         )
         assert harness.scalar("SELECT partner_id::text FROM dweller WHERE id = :id", id=dwellers[0]) == dwellers[1]
         assert harness.scalar("SELECT partner_id::text FROM dweller WHERE id = :id", id=dwellers[1]) == dwellers[0]
-
-        # partner_id is synced to the surviving committed link, cleared for the demoted side.
         assert harness.scalar("SELECT partner_id::text FROM dweller WHERE id = :id", id=dwellers[2]) == dwellers[3]
         assert harness.scalar("SELECT partner_id::text FROM dweller WHERE id = :id", id=dwellers[3]) == dwellers[2]
         assert harness.scalar("SELECT partner_id FROM dweller WHERE id = :id", id=dwellers[4]) is None
-
-        # The stale partner_id is cleared.
         assert harness.scalar("SELECT partner_id FROM dweller WHERE id = :id", id=dwellers[5]) is None
-
         # The invariant holds: nobody keeps more than one committed link.
         assert (
             harness.scalar(
@@ -518,16 +427,12 @@ class TestRepairDuplicateCommittedRelationshipsMigration:
             )
             == 0
         )
-
         harness.downgrade(RELATIONSHIP_REPAIR_PARENT)
-
         # downgrade() is a documented no-op: demoted rows stay demoted.
         assert rel_type(star_demoted) == "EX"
 
 
 class TestQuestCompletionDetailsMigration:
-    """The completion-detail columns are nullable and preserve legacy NULLs."""
-
     def test_adds_nullable_columns_and_downgrade_drops_them(self, harness: MigrationHarness) -> None:
         harness.upgrade(QUEST_RETURN_PARENT)
         vault_id = _seed_vault(harness, number=904)
@@ -536,9 +441,8 @@ class TestQuestCompletionDetailsMigration:
             "INSERT INTO quest (id, title, short_description, long_description, requirements, rewards, "
             "quest_type, chain_order, created_at, updated_at) "
             "VALUES (:id, 'Legacy Quest', 'Legacy', 'A pre-migration quest.', 'None', 'None', "
-            "CAST(:quest_type AS questtype), 0, now(), now())",
+            "CAST('SIDE' AS questtype), 0, now(), now())",
             id=quest_id,
-            quest_type="SIDE",
         )
         harness.execute(
             "INSERT INTO vaultquestcompletionlink (vault_id, quest_id, is_completed, is_reward_ready, is_visible) "
@@ -546,18 +450,13 @@ class TestQuestCompletionDetailsMigration:
             vault_id=vault_id,
             quest_id=quest_id,
         )
-
         harness.upgrade(QUEST_COMPLETION_REVISION)
-
-        # NULL is the correct state for pre-existing rows: completed_at is not
-        # derivable from return_completes_at and granted rewards were never stored.
+        # NULL is correct for pre-existing rows: completed_at is not derivable, rewards were never stored.
         assert harness.fetch(
             "SELECT completed_at, granted_rewards FROM vaultquestcompletionlink WHERE quest_id = :quest_id",
             quest_id=quest_id,
         ) == [(None, None)]
-
         harness.downgrade(QUEST_RETURN_PARENT)
-
         assert (
             harness.scalar(
                 "SELECT count(*) FROM information_schema.columns "
@@ -569,8 +468,6 @@ class TestQuestCompletionDetailsMigration:
 
 
 class TestPetMigration:
-    """Legacy pet Items move onto the pet table and back on downgrade."""
-
     def test_backfills_legacy_pet_items_and_downgrade_restores_them(self, harness: MigrationHarness) -> None:
         harness.upgrade(PET_PARENT)
         vault_id = _seed_vault(harness, number=905)
@@ -585,40 +482,25 @@ class TestPetMigration:
         for index, legacy_id in enumerate(legacy_ids):
             harness.execute(
                 "INSERT INTO item (id, name, rarity, value, image_url, item_type, storage_id) "
-                "VALUES (:id, :name, 'RARE', :value, NULL, 'pet', :storage_id)",
+                "VALUES (:id, :name, 'RARE', 100, NULL, 'pet', :storage_id)",
                 id=legacy_id,
                 name=f"Legacy Pet {index}",
-                value=100,
                 storage_id=storage_id,
             )
-
         harness.upgrade(PET_REVISION)
-
+        expected = [(legacy_ids[0], "Legacy Pet 0", storage_id), (legacy_ids[1], "Legacy Pet 1", storage_id)]
         rows = harness.fetch("SELECT legacy_item_id::text, name, storage_id::text FROM pet ORDER BY name")
-        assert [(row[0], row[1], row[2]) for row in rows] == [
-            (legacy_ids[0], "Legacy Pet 0", storage_id),
-            (legacy_ids[1], "Legacy Pet 1", storage_id),
-        ]
+        assert [tuple(row) for row in rows] == expected
         assert harness.scalar("SELECT count(*) FROM item WHERE item_type = 'pet'") == 0
-
         harness.downgrade(PET_PARENT)
-
-        restored = harness.fetch(
-            "SELECT id::text, name, storage_id::text FROM item WHERE item_type = 'pet' ORDER BY name"
-        )
-        assert [(row[0], row[1], row[2]) for row in restored] == [
-            (legacy_ids[0], "Legacy Pet 0", storage_id),
-            (legacy_ids[1], "Legacy Pet 1", storage_id),
-        ]
+        rows = harness.fetch("SELECT id::text, name, storage_id::text FROM item WHERE item_type = 'pet' ORDER BY name")
+        assert [tuple(row) for row in rows] == expected
 
 
 class TestDwellerLifecycleMigration:
-    """The lifecycle backfill classifies legacy rows and repairs the EXILE tombstone."""
-
     def test_reclassifies_exile_and_keeps_genuine_deaths(self, harness: MigrationHarness) -> None:
         harness.upgrade(LIFECYCLE_PARENT)
         vault_id = _seed_vault(harness, number=906)
-
         exiled = _seed_lifecycle_dweller(
             harness,
             vault_id=vault_id,
@@ -662,7 +544,6 @@ class TestDwellerLifecycleMigration:
             death_cause="EXILE",
             is_deleted=True,
         )
-
         harness.upgrade(LIFECYCLE_REVISION)
 
         def lifecycle(dweller_id: str) -> tuple:
@@ -676,7 +557,6 @@ class TestDwellerLifecycleMigration:
         assert lifecycle(listing) == ("ALIVE", "MARKET")
         assert lifecycle(active) == ("ALIVE", "VAULT")
         assert lifecycle(quarantined) == (None, None)
-
         provenance = harness.fetch(
             "SELECT previous_vault_id::text, vault_id, departed_at IS NOT NULL, content_provenance, sharing_consent "
             "FROM dweller WHERE id = :id",
@@ -684,9 +564,7 @@ class TestDwellerLifecycleMigration:
         )[0]
         assert provenance == (vault_id, None, True, None, None)
         assert harness.scalar("SELECT vault_id::text FROM dweller WHERE id = :id", id=genuine) == vault_id
-
-        # A reclassified exile keeps no death state: a surviving is_dead flag would hide
-        # the person from every living-roster query once another vault recruits them.
+        # A surviving is_dead flag would hide the exile from every living-roster query.
         assert harness.fetch(
             "SELECT is_dead, is_permanently_dead, death_cause, death_timestamp, status::text "
             "FROM dweller WHERE id = :id",
@@ -695,7 +573,6 @@ class TestDwellerLifecycleMigration:
         assert harness.fetch(
             "SELECT is_dead, is_permanently_dead, death_cause::text FROM dweller WHERE id = :id", id=genuine
         )[0] == (True, True, "COMBAT")
-
         harness.downgrade(LIFECYCLE_PARENT)
         # downgrade() is a documented no-op: canonical state is never reverted.
         assert lifecycle(exiled) == ("WASTELAND", "DEPARTURE")
@@ -704,12 +581,7 @@ class TestDwellerLifecycleMigration:
         harness.upgrade(LIFECYCLE_PARENT)
         vault_id = _seed_vault(harness, number=907)
         curated = _seed_lifecycle_dweller(
-            harness,
-            vault_id=vault_id,
-            first_name="Sarah",
-            last_name="Lyons",
-            is_dead=False,
-            is_permanently_dead=False,
+            harness, vault_id=vault_id, first_name="Sarah", last_name="Lyons", is_dead=False, is_permanently_dead=False
         )
         unknown = _seed_lifecycle_dweller(
             harness,
@@ -719,16 +591,12 @@ class TestDwellerLifecycleMigration:
             is_dead=False,
             is_permanently_dead=False,
         )
-
         harness.upgrade(LIFECYCLE_REVISION)
-
         assert harness.scalar("SELECT content_provenance FROM dweller WHERE id = :id", id=curated) == "curated"
         assert harness.scalar("SELECT content_provenance FROM dweller WHERE id = :id", id=unknown) is None
 
 
 class TestDeadDwellerStateMigration:
-    """Legacy corpses display as dead and have no remaining happiness."""
-
     def test_normalizes_dead_status_and_happiness(self, harness: MigrationHarness) -> None:
         harness.upgrade(DEAD_DWELLER_STATE_PARENT)
         vault_id = _seed_vault(harness, number=908)
@@ -741,9 +609,7 @@ class TestDeadDwellerStateMigration:
             death_cause="HEALTH",
         )
         harness.execute("UPDATE dweller SET status = 'IDLE', happiness = 10 WHERE id = :id", id=dweller_id)
-
         harness.upgrade(DEAD_DWELLER_STATE_REVISION)
-
         assert harness.fetch("SELECT status::text, happiness FROM dweller WHERE id = :id", id=dweller_id)[0] == (
             "DEAD",
             0,

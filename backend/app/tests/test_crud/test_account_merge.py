@@ -1,6 +1,3 @@
-"""Focused coverage for the CRUD helpers the account-merge service calls."""
-
-import pytest
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -22,10 +19,7 @@ from app.tests.utils.utils import random_lower_string
 
 
 async def _make_user(async_session: AsyncSession) -> User:
-    user = build_user_model(
-        username=f"u{random_lower_string(10)}",
-        email=f"{random_lower_string(10)}@example.com",
-    )
+    user = build_user_model(username=f"u{random_lower_string(10)}", email=f"{random_lower_string(10)}@example.com")
     async_session.add(user)
     await async_session.commit()
     await async_session.refresh(user)
@@ -39,7 +33,21 @@ def _vault_number(*used: int) -> int:
     return number
 
 
-@pytest.mark.asyncio
+async def _audit(async_session, source, target, actor, **kw):
+    return await crud.account_merge.create(
+        async_session,
+        source_user_id=source.id,
+        target_user_id=target.id,
+        actor_user_id=actor.id,
+        source_username=source.username,
+        source_email=str(source.email),
+        target_username=target.username,
+        target_email=str(target.email),
+        reason="duplicate account",
+        **kw,
+    )
+
+
 async def test_resolve_identity_by_uuid_email_and_username(async_session: AsyncSession) -> None:
     user = await _make_user(async_session)
 
@@ -48,10 +56,6 @@ async def test_resolve_identity_by_uuid_email_and_username(async_session: AsyncS
     assert (await crud.user.resolve_identity(async_session, user.username)).id == user.id
     assert await crud.user.resolve_identity(async_session, "missing-identity") is None
 
-
-@pytest.mark.asyncio
-async def test_resolve_identity_excludes_deleted_unless_requested(async_session: AsyncSession) -> None:
-    user = await _make_user(async_session)
     user.soft_delete()
     await async_session.commit()
 
@@ -61,7 +65,6 @@ async def test_resolve_identity_excludes_deleted_unless_requested(async_session:
     assert resolved.id == user.id
 
 
-@pytest.mark.asyncio
 async def test_lock_users_for_merge_locks_soft_deleted_source(async_session: AsyncSession) -> None:
     source = await _make_user(async_session)
     target = await _make_user(async_session)
@@ -75,49 +78,23 @@ async def test_lock_users_for_merge_locks_soft_deleted_source(async_session: Asy
     assert locked[source.id].is_deleted is True
 
 
-@pytest.mark.asyncio
 async def test_account_merge_create_stages_until_rollback(async_session: AsyncSession) -> None:
     source, target, actor = [await _make_user(async_session) for _ in range(3)]
     source_id = source.id
 
-    audit = await crud.account_merge.create(
-        async_session,
-        source_user_id=source.id,
-        target_user_id=target.id,
-        actor_user_id=actor.id,
-        source_username=source.username,
-        source_email=str(source.email),
-        target_username=target.username,
-        target_email=str(target.email),
-        reason="duplicate account",
-        moved_counts={"vaults": 1},
-        commit=False,
-    )
+    audit = await _audit(async_session, source, target, actor, moved_counts={"vaults": 1}, commit=False)
 
     staged = await crud.account_merge.get_by_source(async_session, source_id)
     assert staged is not None
     assert staged.id == audit.id
-
     await async_session.rollback()
     assert await crud.account_merge.get_by_source(async_session, source_id) is None
 
 
-@pytest.mark.asyncio
 async def test_account_merge_create_commits_and_round_trips_counts(async_session: AsyncSession) -> None:
     source, target, actor = [await _make_user(async_session) for _ in range(3)]
 
-    audit = await crud.account_merge.create(
-        async_session,
-        source_user_id=source.id,
-        target_user_id=target.id,
-        actor_user_id=actor.id,
-        source_username=source.username,
-        source_email=str(source.email),
-        target_username=target.username,
-        target_email=str(target.email),
-        reason="duplicate account",
-        moved_counts={"vaults": 2, "notifications": 5},
-    )
+    audit = await _audit(async_session, source, target, actor, moved_counts={"vaults": 2, "notifications": 5})
 
     found = await crud.account_merge.get_by_source(async_session, source.id)
     assert found is not None
@@ -127,7 +104,6 @@ async def test_account_merge_create_commits_and_round_trips_counts(async_session
     assert found.created_at is not None
 
 
-@pytest.mark.asyncio
 async def test_vault_reassign_moves_soft_deleted_vaults(async_session: AsyncSession) -> None:
     source = await _make_user(async_session)
     target = await _make_user(async_session)
@@ -150,7 +126,6 @@ async def test_vault_reassign_moves_soft_deleted_vaults(async_session: AsyncSess
     assert await crud.vault.count_by_user(async_session, target.id) == 2
 
 
-@pytest.mark.asyncio
 async def test_chat_reassign_updates_both_directions_and_counts_once(async_session: AsyncSession) -> None:
     source = await _make_user(async_session)
     target = await _make_user(async_session)
@@ -167,9 +142,7 @@ async def test_chat_reassign_updates_both_directions_and_counts_once(async_sessi
     async_session.add_all(messages)
     await async_session.commit()
     message_ids = [message.id for message in messages]
-    source_id = source.id
-    target_id = target.id
-    other_id = other.id
+    source_id, target_id, other_id = source.id, target.id, other.id
 
     assert await chat_message_crud.count_by_user(async_session, source_id) == 3
 
@@ -185,7 +158,6 @@ async def test_chat_reassign_updates_both_directions_and_counts_once(async_sessi
     assert {row.to_user_id for row in rows if row.to_user_id is not None} == {target_id, other_id}
 
 
-@pytest.mark.asyncio
 async def test_notification_llm_and_oauth_helpers_move_owned_rows(async_session: AsyncSession) -> None:
     source = await _make_user(async_session)
     target = await _make_user(async_session)
@@ -218,12 +190,13 @@ async def test_notification_llm_and_oauth_helpers_move_owned_rows(async_session:
     assert await crud.oauth_account.count_by_user(async_session, target.id) == 1
 
 
-@pytest.mark.asyncio
-async def test_profile_helpers_lock_and_reassign(async_session: AsyncSession) -> None:
+async def test_profile_helpers_lock_reassign_and_delete(async_session: AsyncSession) -> None:
     source = await _make_user(async_session)
     target = await _make_user(async_session)
+    discarded = await _make_user(async_session)
 
     source_profile = await profile_crud.create_staged(async_session, source.id)
+    await profile_crud.create_staged(async_session, discarded.id)
     await async_session.commit()
 
     locked = await profile_crud.lock_by_user_ids(async_session, [source.id, target.id])
@@ -236,17 +209,7 @@ async def test_profile_helpers_lock_and_reassign(async_session: AsyncSession) ->
     assert await profile_crud.get_by_user_id(async_session, source.id) is None
     assert (await profile_crud.get_by_user_id(async_session, target.id)).id == source_profile.id
 
-
-@pytest.mark.asyncio
-async def test_profile_delete_for_user_only_removes_requested_profile(async_session: AsyncSession) -> None:
-    survivor = await _make_user(async_session)
-    discarded = await _make_user(async_session)
-    survivor_profile = await profile_crud.create_staged(async_session, survivor.id)
-    await profile_crud.create_staged(async_session, discarded.id)
-    await async_session.commit()
-
     deleted = await profile_crud.delete_for_user(async_session, discarded.id, commit=True)
-
     assert deleted == 1
     assert await profile_crud.get_by_user_id(async_session, discarded.id) is None
-    assert (await profile_crud.get_by_user_id(async_session, survivor.id)).id == survivor_profile.id
+    assert (await profile_crud.get_by_user_id(async_session, target.id)).id == source_profile.id

@@ -1,5 +1,3 @@
-"""Pet carrier grant, open, and rarity-roll behavior."""
-
 import operator
 from unittest.mock import patch
 from uuid import UUID, uuid4
@@ -33,27 +31,19 @@ async def _carrier(async_session: AsyncSession, vault: Vault) -> UUID:
     return UUID(granted["item_id"])
 
 
-@pytest.mark.asyncio
 async def test_grant_pet_carrier_creates_a_carrier_item(async_session: AsyncSession, vault: Vault) -> None:
-    """The carrier is a generic Item with the dedicated type."""
     await _storage(async_session, vault)
-
     carrier_id = await _carrier(async_session, vault)
     item = await async_session.get(Item, carrier_id)
-
     assert item is not None
     assert item.item_type == ItemTypeEnum.PET_CARRIER
     assert item.name == "Pet Carrier"
 
 
-@pytest.mark.asyncio
 async def test_open_pet_carrier_consumes_carrier_and_stores_one_pet(async_session: AsyncSession, vault: Vault) -> None:
-    """Opening swaps the carrier for exactly one stored pet."""
     storage = await _storage(async_session, vault)
     carrier_id = await _carrier(async_session, vault)
-
     opened = await pet_carrier.open_pet_carrier(async_session, vault.id, carrier_id)
-
     assert opened["reward_type"] == "pet_carrier"
     assert opened["pet"].name
     assert await async_session.get(Item, carrier_id) is None
@@ -61,50 +51,38 @@ async def test_open_pet_carrier_consumes_carrier_and_stores_one_pet(async_sessio
     assert [pet.name for pet in stored] == [opened["pet"].name]
 
 
-@pytest.mark.asyncio
 async def test_open_pet_carrier_works_when_storage_is_full(async_session: AsyncSession, vault: Vault) -> None:
-    """The carrier frees the slot the pet takes, so a full vault still opens."""
     storage = await _storage(async_session, vault)
     carrier_id = await _carrier(async_session, vault)
     storage.max_space = 1
     async_session.add(storage)
     await async_session.flush()
-
     opened = await pet_carrier.open_pet_carrier(async_session, vault.id, carrier_id)
-
     assert opened["pet"].name
     assert await async_session.get(Item, carrier_id) is None
 
 
-@pytest.mark.asyncio
 async def test_open_pet_carrier_rejects_unknown_item(async_session: AsyncSession, vault: Vault) -> None:
-    """Unknown, foreign-vault, and wrong-type rows all surface as not found."""
     await _storage(async_session, vault)
-
     with pytest.raises(ResourceNotFoundException):
         await pet_carrier.open_pet_carrier(async_session, vault.id, uuid4())
 
 
-@pytest.mark.asyncio
 async def test_open_pet_carrier_keeps_the_carrier_when_the_pool_is_empty(
     async_session: AsyncSession, vault: Vault
 ) -> None:
     """A failed roll must not consume the item."""
     await _storage(async_session, vault)
     carrier_id = await _carrier(async_session, vault)
-
     with (
         patch("app.services.catalog_service.load_pets", return_value=[]),
         pytest.raises(ValidationException),
     ):
         await pet_carrier.open_pet_carrier(async_session, vault.id, carrier_id)
-
     assert await async_session.get(Item, carrier_id) is not None
 
 
-@pytest.mark.asyncio
 async def test_open_pet_carrier_rolls_back_when_commit_fails(async_session: AsyncSession, vault: Vault) -> None:
-    """A late failure leaves the carrier in place and adds no pet."""
     from sqlalchemy import event
 
     storage = await _storage(async_session, vault)
@@ -121,14 +99,12 @@ async def test_open_pet_carrier_rolls_back_when_commit_fails(async_session: Asyn
     finally:
         event.remove(async_session.sync_session, "before_commit", fail_commit)
         await async_session.rollback()
-
     assert await async_session.get(Item, carrier_id) is not None
     pets = (await async_session.execute(select(Pet).where(Pet.storage_id == storage_id))).scalars().all()
     assert pets == []
 
 
 def test_roll_pet_uses_the_rolled_rarity() -> None:
-    """The roll picks from the rarity bucket returned by the weighted choice."""
     with (
         patch("app.services.rewards.pet_carrier.random.choices", return_value=[RarityEnum.RARE]),
         patch(
@@ -140,7 +116,6 @@ def test_roll_pet_uses_the_rolled_rarity() -> None:
 
 
 def test_roll_pet_falls_back_when_the_rolled_rarity_is_empty() -> None:
-    """An empty legendary bucket falls back to the next populated rarity."""
     with (
         patch(
             "app.services.catalog_service.load_pets",
@@ -159,8 +134,6 @@ def test_container_weights_require_a_positive_total() -> None:
 
 
 def test_item_type_constraint_covers_every_enum_value() -> None:
-    """The DB CHECK cannot drift from ItemTypeEnum."""
     constraint = next(c for c in Item.__table__.constraints if c.name == "ck_item_item_type")
     sql = str(constraint.sqltext)
-
     assert all(value.value in sql for value in ItemTypeEnum)

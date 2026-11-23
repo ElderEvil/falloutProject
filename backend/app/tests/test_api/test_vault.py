@@ -2,8 +2,6 @@ from uuid import UUID
 
 import pytest
 import pytest_asyncio
-from httpx import AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import crud
 from app.core.config import settings
@@ -16,9 +14,7 @@ from app.core.enums import (
     SPECIALEnum,
 )
 from app.crud.objective import objective_crud
-from app.models.dweller import Dweller
 from app.models.room import Room
-from app.models.vault import Vault
 from app.schemas.dweller import DwellerCreate
 from app.schemas.room import RoomCreate
 from app.schemas.vault import VaultCreateWithUserID
@@ -30,175 +26,97 @@ from app.utils.seed_objectives import seed_objectives_from_json
 pytestmark = pytest.mark.asyncio(scope="module")
 
 
-@pytest.mark.smoke
-@pytest.mark.asyncio
-async def test_create_vault(
-    async_client: AsyncClient,
-    async_session: AsyncSession,
-    superuser_token_headers: dict[str, str],
+async def _owner_id(session) -> str:
+    user = await crud.user.get_by_email(session, email=settings.FIRST_SUPERUSER_EMAIL)
+    return str(user.id)
+
+
+async def _initiate(async_client, headers, **payload):
+    return await async_client.post("/vaults/initiate", headers=headers, json=payload)
+
+
+async def _auto_room(session, vault, name, category, ability=None, size=3, size_max=9) -> Room:
+    spec = {"name": name, "category": category, "ability": ability, "tier": 1, "vault_id": vault.id}
+    spec.update(population_required=12, base_cost=100, t2_upgrade_cost=500, t3_upgrade_cost=1500)
+    spec.update(size=size, size_min=size, size_max=size_max)
+    return await crud.room.create(session, RoomCreate(**spec))
+
+
+async def _auto_dweller(
+    session, vault, first_name, last_name="Worker", gender="male", strength=5, special=3, age_group="adult"
 ):
-    user = await crud.user.get_by_email(async_session, email=settings.FIRST_SUPERUSER_EMAIL)
+    # `special` fills the six non-strength SPECIAL stats.
+    stats = dict.fromkeys(("perception", "endurance", "charisma", "intelligence", "agility", "luck"), special)
+    spec = {"first_name": first_name, "last_name": last_name, "gender": gender, "rarity": "common"}
+    spec.update(vault_id=vault.id, strength=strength, status=DwellerStatusEnum.IDLE, age_group=age_group)
+    return await crud.dweller.create(session, DwellerCreate(**stats, **spec))
+
+
+@pytest_asyncio.fixture(name="auto_assign_vault")
+async def auto_assign_vault_fixture(async_session):
+    data = create_fake_vault()
+    data["user_id"] = await _owner_id(async_session)
+    return await crud.vault.create(async_session, VaultCreateWithUserID(**data))
+
+
+@pytest.mark.smoke
+async def test_create_vault(async_client, async_session, superuser_token_headers) -> None:
     vault_data = create_fake_vault()
-    vault_data["user_id"] = str(user.id)
+    vault_data["user_id"] = await _owner_id(async_session)
     response = await async_client.post("/vaults/", headers=superuser_token_headers, json=vault_data)
     assert response.status_code == 201
-    response_data = response.json()
-    assert response_data["number"] == vault_data["number"]
-    assert response_data["bottle_caps"] == vault_data["bottle_caps"]
-    assert response_data["happiness"] == vault_data["happiness"]
-    assert response_data["user_id"] == vault_data["user_id"]
+    body = response.json()
+    for field in ("number", "bottle_caps", "happiness", "user_id"):
+        assert body[field] == vault_data[field]
 
 
 @pytest.mark.smoke
-@pytest.mark.asyncio
-async def test_read_vault_list(
-    async_client: AsyncClient,
-    async_session: AsyncSession,
-    superuser_token_headers: dict[str, str],
-):
-    user = await crud.user.get_by_email(db_session=async_session, email=settings.FIRST_SUPERUSER_EMAIL)
+async def test_read_vault_list(async_client, async_session, superuser_token_headers) -> None:
     vault_1_data, vault_2_data = create_fake_vault(), create_fake_vault()
     # Ensure unique numbers so the disambiguation swap (number-based) is deterministic
     while vault_2_data["number"] == vault_1_data["number"]:
         vault_2_data = create_fake_vault()
-    vault_1_data["user_id"] = vault_2_data["user_id"] = str(user.id)
+    owner = await _owner_id(async_session)
+    vault_1_data["user_id"] = vault_2_data["user_id"] = owner
     await crud.vault.create(async_session, VaultCreateWithUserID(**vault_1_data))
     await crud.vault.create(async_session, VaultCreateWithUserID(**vault_2_data))
     response = await async_client.get("/vaults/", headers=superuser_token_headers)
     assert response.status_code == 200
     response_data = response.json()
     assert len(response_data) == 2
-    response_vault_1, response_vault_2 = response_data
-    if response_vault_1["number"] == vault_2_data["number"]:
-        response_vault_2, response_vault_1 = response_data
-    assert response_vault_1["number"] == vault_1_data["number"]
-    assert response_vault_1["bottle_caps"] == vault_1_data["bottle_caps"]
-    assert response_vault_1["happiness"] == vault_1_data["happiness"]
-    assert response_vault_1["user_id"] == vault_1_data["user_id"]
-
-    assert response_vault_2["number"] == vault_2_data["number"]
-    assert response_vault_2["bottle_caps"] == vault_2_data["bottle_caps"]
-    assert response_vault_2["happiness"] == vault_2_data["happiness"]
-    assert response_vault_2["user_id"] == vault_2_data["user_id"]
+    vault_1, vault_2 = response_data
+    if vault_1["number"] == vault_2_data["number"]:
+        vault_2, vault_1 = response_data
+    for body, expected in ((vault_1, vault_1_data), (vault_2, vault_2_data)):
+        assert body["number"] == expected["number"]
+        assert body["bottle_caps"] == expected["bottle_caps"]
+        assert body["happiness"] == expected["happiness"]
+        assert body["user_id"] == expected["user_id"]
 
 
-@pytest.mark.asyncio
-async def test_delete_vault(
-    async_client: AsyncClient,
-    async_session: AsyncSession,
-    superuser_token_headers: dict[str, str],
-):
-    user = await crud.user.get_by_email(async_session, email=settings.FIRST_SUPERUSER_EMAIL)
+async def test_delete_vault(async_client, async_session, superuser_token_headers) -> None:
     vault_data = create_fake_vault()
-    vault_data["user_id"] = str(user.id)
-    vault_to_create = VaultCreateWithUserID(**vault_data)
-    created_vault = await crud.vault.create(async_session, vault_to_create)
-    delete_response = await async_client.delete(
-        f"/vaults/{created_vault.id}",
-        headers=superuser_token_headers,
-    )
+    vault_data["user_id"] = await _owner_id(async_session)
+    created = await crud.vault.create(async_session, VaultCreateWithUserID(**vault_data))
+    delete_response = await async_client.delete(f"/vaults/{created.id}", headers=superuser_token_headers)
     assert delete_response.status_code == 204
-    read_response = await async_client.get(f"/vaults/{created_vault.id}", headers=superuser_token_headers)
+    read_response = await async_client.get(f"/vaults/{created.id}", headers=superuser_token_headers)
     assert read_response.status_code == 404
 
 
-@pytest_asyncio.fixture
-async def auto_assign_vault(async_session: AsyncSession) -> Vault:
-    """Superuser-owned vault shared by the auto-assign endpoint tests."""
-    user = await crud.user.get_by_email(async_session, email=settings.FIRST_SUPERUSER_EMAIL)
-    vault_data = create_fake_vault()
-    vault_data["user_id"] = str(user.id)
-    return await crud.vault.create(async_session, VaultCreateWithUserID(**vault_data))
-
-
-async def create_auto_assign_room(
-    async_session: AsyncSession,
-    vault: Vault,
-    *,
-    name: str,
-    category: RoomTypeEnum,
-    ability: SPECIALEnum | None = None,
-    size: int = 3,
-    size_max: int = 9,
-) -> Room:
-    """Room with the shared auto-assign economics; size_min tracks size."""
-    return await crud.room.create(
-        async_session,
-        RoomCreate(
-            name=name,
-            vault_id=vault.id,
-            category=category,
-            ability=ability,
-            population_required=12,
-            base_cost=100,
-            t2_upgrade_cost=500,
-            t3_upgrade_cost=1500,
-            tier=1,
-            size=size,
-            size_min=size,
-            size_max=size_max,
-        ),
-    )
-
-
-async def create_auto_assign_dweller(
-    async_session: AsyncSession,
-    vault: Vault,
-    *,
-    first_name: str,
-    last_name: str = "Worker",
-    gender: str = "male",
-    strength: int = 5,
-    special: int = 3,
-    age_group: str = "adult",
-) -> Dweller:
-    """Idle common dweller; `special` fills the six non-strength SPECIAL stats."""
-    return await crud.dweller.create(
-        async_session,
-        DwellerCreate(
-            first_name=first_name,
-            last_name=last_name,
-            vault_id=vault.id,
-            gender=gender,
-            rarity="common",
-            strength=strength,
-            perception=special,
-            endurance=special,
-            charisma=special,
-            intelligence=special,
-            agility=special,
-            luck=special,
-            status=DwellerStatusEnum.IDLE,
-            age_group=age_group,
-        ),
-    )
-
-
-@pytest.mark.asyncio
 async def test_auto_assign_respects_age_group_filter(
-    async_client: AsyncClient,
-    async_session: AsyncSession,
-    superuser_token_headers: dict[str, str],
-    auto_assign_vault: Vault,
-):
-    """Auto-assign with age_group=adult must leave teen dwellers unassigned."""
+    async_client, async_session, superuser_token_headers, auto_assign_vault
+) -> None:
     vault = auto_assign_vault
-    room = await create_auto_assign_room(
-        async_session,
-        vault,
-        name="Power Generator",
-        category=RoomTypeEnum.PRODUCTION,
-        ability=SPECIALEnum.STRENGTH,
-    )
-    adult = await create_auto_assign_dweller(async_session, vault, first_name="Adult")
-    teen = await create_auto_assign_dweller(async_session, vault, first_name="Teen", gender="female", age_group="teen")
+    room = await _auto_room(async_session, vault, "Power Generator", RoomTypeEnum.PRODUCTION, SPECIALEnum.STRENGTH)
+    adult = await _auto_dweller(async_session, vault, "Adult")
+    teen = await _auto_dweller(async_session, vault, "Teen", gender="female", age_group="teen")
 
     response = await async_client.post(
         f"/vaults/{vault.id}/dwellers/auto-assign-all",
         params={"age_group": "adult"},
         headers=superuser_token_headers,
     )
-
     assert response.status_code == 200
     assert response.json()["assignments"] == [
         {"dweller_id": str(adult.id), "room_id": str(room.id), "room_name": room.name}
@@ -208,31 +126,15 @@ async def test_auto_assign_respects_age_group_filter(
     assert teen.status == DwellerStatusEnum.IDLE
 
 
-@pytest.mark.asyncio
 async def test_auto_assign_separates_eligible_pool_from_slot_cap(
-    async_client: AsyncClient,
-    async_session: AsyncSession,
-    superuser_token_headers: dict[str, str],
-    auto_assign_vault: Vault,
-):
-    """The payload keeps the candidate pool apart from what free room slots allowed."""
+    async_client, async_session, superuser_token_headers, auto_assign_vault
+) -> None:
     vault = auto_assign_vault
-    await create_auto_assign_room(
-        async_session,
-        vault,
-        name="Power Generator",
-        category=RoomTypeEnum.PRODUCTION,
-        ability=SPECIALEnum.STRENGTH,
-    )
-
+    await _auto_room(async_session, vault, "Power Generator", RoomTypeEnum.PRODUCTION, SPECIALEnum.STRENGTH)
     for index in range(3):
-        await create_auto_assign_dweller(async_session, vault, first_name=f"Pool{index}", strength=5 - index)
+        await _auto_dweller(async_session, vault, f"Pool{index}", strength=5 - index)
 
-    response = await async_client.post(
-        f"/vaults/{vault.id}/dwellers/auto-assign-all",
-        headers=superuser_token_headers,
-    )
-
+    response = await async_client.post(f"/vaults/{vault.id}/dwellers/auto-assign-all", headers=superuser_token_headers)
     assert response.status_code == 200
     payload = response.json()
     # size=3 holds two workers, so the third eligible adult has nowhere to go.
@@ -241,84 +143,40 @@ async def test_auto_assign_separates_eligible_pool_from_slot_cap(
     assert len(payload["assignments"]) == payload["assigned_count"]
 
 
-@pytest.mark.asyncio
 async def test_auto_assign_training_room_sets_training_status(
-    async_client: AsyncClient,
-    async_session: AsyncSession,
-    superuser_token_headers: dict[str, str],
-    auto_assign_vault: Vault,
-):
-    """Test that assigning dwellers to training rooms sets status to 'training'."""
+    async_client, async_session, superuser_token_headers, auto_assign_vault
+) -> None:
     vault = auto_assign_vault
-
-    # Create a training room
-    training_room = await create_auto_assign_room(
-        async_session,
-        vault,
-        name="Strength Training",
-        category=RoomTypeEnum.TRAINING,
-        ability=SPECIALEnum.STRENGTH,
+    training_room = await _auto_room(
+        async_session, vault, "Strength Training", RoomTypeEnum.TRAINING, SPECIALEnum.STRENGTH
     )
+    dwellers = [await _auto_dweller(async_session, vault, f"TrainingDweller{i}", last_name="Test") for i in range(2)]
 
-    # Create unassigned dwellers
-    dweller_ids = []
-    for i in range(2):
-        dweller = await create_auto_assign_dweller(
-            async_session, vault, first_name=f"TrainingDweller{i}", last_name="Test"
-        )
-        dweller_ids.append(dweller.id)
-
-    # Call auto-assign endpoint
-    response = await async_client.post(
-        f"/vaults/{vault.id}/dwellers/auto-assign-all",
-        headers=superuser_token_headers,
-    )
+    response = await async_client.post(f"/vaults/{vault.id}/dwellers/auto-assign-all", headers=superuser_token_headers)
     assert response.status_code == 200
-    result = response.json()
-    assert result["assigned_count"] > 0
+    assert response.json()["assigned_count"] > 0
 
-    # Verify dwellers assigned to training room have status "training" and active sessions.
-    for dweller_id in dweller_ids:
-        dweller = await crud.dweller.get(async_session, dweller_id)
+    # Training-room workers need a live session for the training queue.
+    for created in dwellers:
+        dweller = await crud.dweller.get(async_session, created.id)
         if dweller.room_id == training_room.id:
-            assert dweller.status == DwellerStatusEnum.TRAINING, (
-                f"Dweller {dweller_id} assigned to training room but has status {dweller.status}, "
-                f"expected {DwellerStatusEnum.TRAINING}"
-            )
-            training = await crud.training.training.get_active_by_dweller(async_session, dweller_id)
-            assert training is not None, "Training dwellers must have sessions for the training queue"
+            assert dweller.status == DwellerStatusEnum.TRAINING
+            training = await crud.training.training.get_active_by_dweller(async_session, created.id)
+            assert training is not None
             assert training.room_id == training_room.id
 
 
-@pytest.mark.asyncio
 async def test_auto_assign_crafting_rooms_endpoint(
-    async_client: AsyncClient,
-    async_session: AsyncSession,
-    superuser_token_headers: dict[str, str],
-    auto_assign_vault: Vault,
-):
-    """Crafting auto-assign endpoint fills workshops with highest-total-SPECIAL adults."""
+    async_client, async_session, superuser_token_headers, auto_assign_vault
+) -> None:
     vault = auto_assign_vault
-    workshop = await create_auto_assign_room(
-        async_session,
-        vault,
-        name="Weapon workshop",
-        category=RoomTypeEnum.CRAFTING,
-        size=9,
-        size_max=9,
-    )
-    high = await create_auto_assign_dweller(
-        async_session, vault, first_name="High", last_name="Crafter", strength=7, special=7
-    )
-    low = await create_auto_assign_dweller(
-        async_session, vault, first_name="Low", last_name="Crafter", gender="female", strength=1, special=1
-    )
+    workshop = await _auto_room(async_session, vault, "Weapon workshop", RoomTypeEnum.CRAFTING, size=9)
+    high = await _auto_dweller(async_session, vault, "High", last_name="Crafter", strength=7, special=7)
+    low = await _auto_dweller(async_session, vault, "Low", last_name="Crafter", gender="female", strength=1, special=1)
 
     response = await async_client.post(
-        f"/vaults/{vault.id}/dwellers/auto-assign-crafting",
-        headers=superuser_token_headers,
+        f"/vaults/{vault.id}/dwellers/auto-assign-crafting", headers=superuser_token_headers
     )
-
     assert response.status_code == 200
     result = response.json()
     assert result["assigned_count"] == 2
@@ -326,32 +184,18 @@ async def test_auto_assign_crafting_rooms_endpoint(
     assert all(a["room_id"] == str(workshop.id) for a in result["assignments"])
 
 
-@pytest.mark.asyncio
-async def test_auto_assign_crafting_rejects_foreign_vault(
-    async_client: AsyncClient,
-    normal_user_token_headers: dict[str, str],
-    vault,
-):
-    """An authenticated user cannot auto-assign crafting in another user's vault."""
+async def test_auto_assign_crafting_rejects_foreign_vault(async_client, normal_user_token_headers, vault) -> None:
     response = await async_client.post(
-        f"/vaults/{vault.id}/dwellers/auto-assign-crafting",
-        headers=normal_user_token_headers,
+        f"/vaults/{vault.id}/dwellers/auto-assign-crafting", headers=normal_user_token_headers
     )
-
     assert response.status_code == 403
 
 
 @pytest.mark.smoke
-@pytest.mark.asyncio
 async def test_vault_initiate_does_not_boost_superusers_by_default(
-    async_client: AsyncClient,
-    async_session: AsyncSession,
-    superuser_token_headers: dict[str, str],
-):
-    """A superuser is only boosted when the request asks for it, like any other user."""
-    from uuid import UUID
-
-    response = await async_client.post("/vaults/initiate", headers=superuser_token_headers, json={"number": 202})
+    async_client, async_session, superuser_token_headers
+) -> None:
+    response = await _initiate(async_client, superuser_token_headers, number=202)
     assert response.status_code == 201
     vault_id = UUID(response.json()["id"])
 
@@ -367,18 +211,10 @@ async def test_vault_initiate_does_not_boost_superusers_by_default(
 
 
 @pytest.mark.smoke
-@pytest.mark.asyncio
 async def test_vault_initiate_boosted_seeds_crafting_and_capacity(
-    async_client: AsyncClient,
-    async_session: AsyncSession,
-    superuser_token_headers: dict[str, str],
-):
-    """Boosted vaults seed staffed workshops, merged living space, and capacity to match."""
-    from uuid import UUID
-
-    response = await async_client.post(
-        "/vaults/initiate", headers=superuser_token_headers, json={"number": 203, "boosted": True}
-    )
+    async_client, async_session, superuser_token_headers
+) -> None:
+    response = await _initiate(async_client, superuser_token_headers, number=203, boosted=True)
     assert response.status_code == 201
     vault_id = UUID(response.json()["id"])
 
@@ -395,97 +231,52 @@ async def test_vault_initiate_boosted_seeds_crafting_and_capacity(
 
     # Living space is a merged (size 9) room plus the base room.
     assert [room.size for room in rooms if room.name == "Living room"].count(9) == 1
-
     # Adjacent seed storage rooms fuse into one merged room at seed time.
     storages = [room for room in rooms if room.name == "Storage room"]
     assert len(storages) == 1
     assert storages[0].size == 9
 
-    # More than 32 dwellers, with room to spare.
     assert len(dwellers) > 32
     assert vault.population_max >= len(dwellers)
 
     # Every junk type the craftable catalog accepts, across all three rarities.
-    assert {(item.junk_type.value, item.rarity.value) for item in junk} >= {
-        ("steel", "common"),
-        ("leather", "common"),
-        ("circuitry", "common"),
-        ("cloth", "common"),
-        ("steel", "rare"),
-        ("leather", "rare"),
-        ("circuitry", "rare"),
-        ("cloth", "rare"),
-        ("steel", "legendary"),
-        ("circuitry", "legendary"),
-    }
+    expected_junk = {
+        (junk_type, rarity)
+        for junk_type in ("steel", "leather", "circuitry", "cloth")
+        for rarity in ("common", "rare", "legendary")
+    } - {("leather", "legendary"), ("cloth", "legendary")}
+    assert {(item.junk_type.value, item.rarity.value) for item in junk} >= expected_junk
 
     used_space = await crud.storage.storage.count_items(async_session, storage.id)
     assert storage.max_space > used_space
 
 
-@pytest.mark.smoke
-@pytest.mark.asyncio
-async def test_vault_initiate_survival_mode(
-    async_client: AsyncClient,
-    superuser_token_headers: dict[str, str],
-):
-    """A survival vault is created and reports its mode back through the vault API."""
-    response = await async_client.post(
-        "/vaults/initiate",
-        headers=superuser_token_headers,
-        json={"number": 211, "vault_mode": "survival"},
-    )
-    assert response.status_code == 201
-    assert response.json()["vault_mode"] == "survival"
-
-    read = await async_client.get(f"/vaults/{response.json()['id']}", headers=superuser_token_headers)
-    assert read.status_code == 200
-    assert read.json()["vault_mode"] == "survival"
-
-
-@pytest.mark.asyncio
-async def test_vault_initiate_defaults_to_standard_mode(
-    async_client: AsyncClient,
-    superuser_token_headers: dict[str, str],
-):
-    response = await async_client.post("/vaults/initiate", headers=superuser_token_headers, json={"number": 212})
-    assert response.status_code == 201
-    assert response.json()["vault_mode"] == "standard"
+@pytest.mark.parametrize(
+    ("payload", "status", "mode", "detail"),
+    [
+        ({"number": 211, "vault_mode": "survival"}, 201, "survival", None),
+        ({"number": 212}, 201, "standard", None),
+        ({"number": 213, "vault_mode": "nightmare"}, 422, None, None),
+        ({"number": 215, "boosted": True, "vault_mode": "survival"}, 422, None, "survival"),
+        ({"number": 2, "scenario": "missing"}, 400, None, None),
+        ({"number": 2, "scenario": "vault_1_test"}, 400, None, None),
+    ],
+)
+async def test_vault_initiate_validates_payload(
+    async_client, superuser_token_headers, payload, status, mode, detail
+) -> None:
+    response = await _initiate(async_client, superuser_token_headers, **payload)
+    assert response.status_code == status
+    if detail:
+        assert detail in response.json()["detail"][0]["msg"].lower()
+    if mode:
+        read = await async_client.get(f"/vaults/{response.json()['id']}", headers=superuser_token_headers)
+        assert response.json()["vault_mode"] == mode
+        assert read.status_code == 200
+        assert read.json()["vault_mode"] == mode
 
 
-@pytest.mark.asyncio
-async def test_vault_initiate_rejects_unknown_mode(
-    async_client: AsyncClient,
-    superuser_token_headers: dict[str, str],
-):
-    response = await async_client.post(
-        "/vaults/initiate",
-        headers=superuser_token_headers,
-        json={"number": 213, "vault_mode": "nightmare"},
-    )
-    assert response.status_code == 422
-
-
-@pytest.mark.asyncio
-async def test_vault_initiate_rejects_boosted_survival(
-    async_client: AsyncClient,
-    superuser_token_headers: dict[str, str],
-):
-    """Boosted Start is incompatible with survival mode and is rejected at creation (issue 1031)."""
-    response = await async_client.post(
-        "/vaults/initiate",
-        headers=superuser_token_headers,
-        json={"number": 215, "boosted": True, "vault_mode": "survival"},
-    )
-    assert response.status_code == 422
-    assert "survival" in response.json()["detail"][0]["msg"].lower()
-
-
-@pytest.mark.asyncio
-async def test_vault_scenarios_list_vault_1(
-    async_client: AsyncClient,
-    superuser_token_headers: dict[str, str],
-):
+async def test_vault_scenarios_list_vault_1(async_client, superuser_token_headers) -> None:
     response = await async_client.get("/vaults/scenarios", headers=superuser_token_headers)
     assert response.status_code == 200
     scenarios = response.json()
@@ -503,17 +294,10 @@ async def test_vault_scenarios_list_vault_1(
     assert all(not scenario["requires_boosted"] and not scenario["expedition"] for scenario in experiments)
 
 
-@pytest.mark.asyncio
 async def test_vault_initiate_scenario_seeds_dwellers_scouting_every_site(
-    async_client: AsyncClient,
-    async_session: AsyncSession,
-    superuser_token_headers: dict[str, str],
-):
-    response = await async_client.post(
-        "/vaults/initiate",
-        headers=superuser_token_headers,
-        json={"number": 1, "scenario": "vault_1_test"},
-    )
+    async_client, async_session, superuser_token_headers
+) -> None:
+    response = await _initiate(async_client, superuser_token_headers, number=1, scenario="vault_1_test")
     assert response.status_code == 201
     vault_id = UUID(response.json()["id"])
 
@@ -543,28 +327,13 @@ async def test_vault_initiate_scenario_seeds_dwellers_scouting_every_site(
 
 
 @pytest.mark.parametrize(
-    ("number", "key", "expected_men", "expected_women"),
-    [
-        (68, "vault_68_test", 8, 1),
-        (69, "vault_69_test", 1, 8),
-    ],
+    ("number", "key", "expected_men", "expected_women"), [(68, "vault_68_test", 8, 1), (69, "vault_69_test", 1, 8)]
 )
-@pytest.mark.asyncio
 async def test_vault_initiate_ratio_scenario_keeps_the_starter_journey(
-    async_client: AsyncClient,
-    async_session: AsyncSession,
-    superuser_token_headers: dict[str, str],
-    number: int,
-    key: str,
-    expected_men: int,
-    expected_women: int,
-):
+    async_client, async_session, superuser_token_headers, number, key, expected_men, expected_women
+) -> None:
     await seed_objectives_from_json(async_session)
-    response = await async_client.post(
-        "/vaults/initiate",
-        headers=superuser_token_headers,
-        json={"number": number, "scenario": key},
-    )
+    response = await _initiate(async_client, superuser_token_headers, number=number, scenario=key)
     assert response.status_code == 201, response.text
     vault_id = UUID(response.json()["id"])
 
@@ -581,16 +350,10 @@ async def test_vault_initiate_ratio_scenario_keeps_the_starter_journey(
     assert any(objective.category is ObjectiveCategoryEnum.STARTER for objective in objectives)
 
 
-@pytest.mark.asyncio
-async def test_vault_67_starts_with_half_the_standard_food_and_water(
-    async_client: AsyncClient,
-    superuser_token_headers: dict[str, str],
-):
-    baseline = await async_client.post("/vaults/initiate", headers=superuser_token_headers, json={"number": 66})
-    challenge = await async_client.post(
-        "/vaults/initiate",
-        headers=superuser_token_headers,
-        json={"number": 67, "scenario": "vault_67_short_rations", "boosted": True},
+async def test_vault_67_starts_with_half_the_standard_food_and_water(async_client, superuser_token_headers) -> None:
+    baseline = await _initiate(async_client, superuser_token_headers, number=66)
+    challenge = await _initiate(
+        async_client, superuser_token_headers, number=67, scenario="vault_67_short_rations", boosted=True
     )
     assert baseline.status_code == challenge.status_code == 201
     standard, short_rations = baseline.json(), challenge.json()
@@ -600,61 +363,22 @@ async def test_vault_67_starts_with_half_the_standard_food_and_water(
         assert short_rations[field] == standard[field] // 2
 
 
-@pytest.mark.asyncio
 async def test_named_vault_without_scenario_uses_the_ordinary_start(
-    async_client: AsyncClient,
-    async_session: AsyncSession,
-    superuser_token_headers: dict[str, str],
-):
-    response = await async_client.post(
-        "/vaults/initiate",
-        headers=superuser_token_headers,
-        json={"number": 67},
-    )
+    async_client, async_session, superuser_token_headers
+) -> None:
+    response = await _initiate(async_client, superuser_token_headers, number=67)
     assert response.status_code == 201
-
     vault_id = UUID(response.json()["id"])
     assert await crud.exploration.get_by_vault(async_session, vault_id=vault_id, active_only=True) == []
 
 
-@pytest.mark.asyncio
-async def test_vault_initiate_rejects_unknown_or_mismatched_scenario(
-    async_client: AsyncClient,
-    superuser_token_headers: dict[str, str],
-):
-    unknown = await async_client.post(
-        "/vaults/initiate",
-        headers=superuser_token_headers,
-        json={"number": 2, "scenario": "missing"},
-    )
-    assert unknown.status_code == 400
-
-    mismatched = await async_client.post(
-        "/vaults/initiate",
-        headers=superuser_token_headers,
-        json={"number": 2, "scenario": "vault_1_test"},
-    )
-    assert mismatched.status_code == 400
-
-
-@pytest.mark.asyncio
-async def test_vault_mode_is_immutable_via_api(
-    async_client: AsyncClient,
-    superuser_token_headers: dict[str, str],
-):
-    """Attempting to change the mode through the update endpoint is rejected and takes no effect."""
-    created = await async_client.post(
-        "/vaults/initiate",
-        headers=superuser_token_headers,
-        json={"number": 214, "vault_mode": "survival"},
-    )
+async def test_vault_mode_is_immutable_via_api(async_client, superuser_token_headers) -> None:
+    created = await _initiate(async_client, superuser_token_headers, number=214, vault_mode="survival")
     assert created.status_code == 201
     vault_id = created.json()["id"]
 
     response = await async_client.put(
-        f"/vaults/{vault_id}",
-        headers=superuser_token_headers,
-        json={"vault_mode": "standard"},
+        f"/vaults/{vault_id}", headers=superuser_token_headers, json={"vault_mode": "standard"}
     )
     assert response.status_code == 422
 

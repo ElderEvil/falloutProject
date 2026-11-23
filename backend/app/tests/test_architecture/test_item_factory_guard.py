@@ -32,7 +32,6 @@ ITEM_CONSTRUCTION_BASELINE: dict[tuple[str, str], int] = {}
 
 
 def _direct_constructions(source: str) -> Counter[str]:
-    """How often each guarded model is constructed by a bare call in this module."""
     counts: Counter[str] = Counter()
     for node in ast.walk(ast.parse(source)):
         if not isinstance(node, ast.Call):
@@ -46,7 +45,6 @@ def _direct_constructions(source: str) -> Counter[str]:
 
 
 def _guarded_modules() -> list[Path]:
-    """Every app module that must build catalog-backed items through the factory."""
     modules: list[Path] = []
     for path in sorted(APP_DIR.rglob("*.py")):
         relative = path.relative_to(APP_DIR)
@@ -65,7 +63,6 @@ def _found_constructions() -> dict[tuple[str, str], int]:
 
 
 def test_catalog_backed_items_are_built_through_the_shared_factory() -> None:
-    """Only app/utils/item_factory.py may construct catalog-backed item models."""
     found = _found_constructions()
 
     messages = []

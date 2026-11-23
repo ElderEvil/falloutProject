@@ -1,14 +1,13 @@
-"""Transactional email rendering and MIME shape.
-
-The templates must survive clients that strip <style> blocks (Outlook's Word
-engine), so layout lives in tables with inline styles and there is no
-box-shadow/rgba/max-width to lose.
-"""
+import pytest
 
 from app.core import email as email_module
 
 RESET_URL = "https://app.test/reset-password?token=abc123"
 VERIFY_URL = "https://app.test/verify-email?token=def456"
+
+
+def _render(template: str, context: dict) -> str:
+    return email_module.render_email_template(template, context)
 
 
 def _assert_outlook_safe(html: str) -> None:
@@ -20,60 +19,43 @@ def _assert_outlook_safe(html: str) -> None:
 
 
 def _assert_terminal_theme(html: str) -> None:
-    """Dark card with the game's green accent, set with attributes and inline styles."""
+    # Dark card with the game's green accent, set with attributes and inline styles.
     assert 'bgcolor="#0b0f0a"' in html
     assert 'bgcolor="#101610"' in html
     assert "#00ff00" in html
 
 
-def test_reset_password_template_is_table_based_and_inline_styled() -> None:
-    html = email_module.render_email_template(
-        "reset_password.html",
-        {
-            "username": "Ada",
-            "reset_url": RESET_URL,
-            "project_name": "Fallout Shelter",
-            "expiry_hours": 1,
-        },
-    )
+@pytest.mark.parametrize(
+    ("template", "context", "expected"),
+    [
+        (
+            "reset_password.html",
+            {"username": "Ada", "reset_url": RESET_URL, "project_name": "Fallout Shelter", "expiry_hours": 1},
+            [RESET_URL, "Reset Password", "expire in 1 hour"],
+        ),
+        (
+            "verify_email.html",
+            {"username": "Ada", "verification_url": VERIFY_URL, "project_name": "Fallout Shelter"},
+            [VERIFY_URL, "Verify Email Address"],
+        ),
+        (
+            "password_changed.html",
+            {
+                "username": "Ada",
+                "project_name": "Fallout Shelter",
+                "support_email": "support@example.test",
+            },
+            ["support@example.test", "Password Changed Successfully"],
+        ),
+    ],
+)
+def test_templates_are_table_based_inline_styled_and_render_their_links(template, context, expected):
+    html = _render(template, context)
 
     _assert_outlook_safe(html)
     _assert_terminal_theme(html)
-    assert RESET_URL in html
-    assert "Reset Password" in html
-    assert "expire in 1 hour" in html
-
-
-def test_verify_email_template_renders_the_confirmation_link() -> None:
-    html = email_module.render_email_template(
-        "verify_email.html",
-        {
-            "username": "Ada",
-            "verification_url": VERIFY_URL,
-            "project_name": "Fallout Shelter",
-        },
-    )
-
-    _assert_outlook_safe(html)
-    _assert_terminal_theme(html)
-    assert VERIFY_URL in html
-    assert "Verify Email Address" in html
-
-
-def test_password_changed_template_renders_the_support_address() -> None:
-    html = email_module.render_email_template(
-        "password_changed.html",
-        {
-            "username": "Ada",
-            "project_name": "Fallout Shelter",
-            "support_email": "support@example.test",
-        },
-    )
-
-    _assert_outlook_safe(html)
-    _assert_terminal_theme(html)
-    assert "support@example.test" in html
-    assert "Password Changed Successfully" in html
+    for text in expected:
+        assert text in html
 
 
 async def test_send_email_attaches_text_and_html_alternatives(monkeypatch) -> None:
@@ -86,10 +68,7 @@ async def test_send_email_attaches_text_and_html_alternatives(monkeypatch) -> No
     monkeypatch.setattr(email_module.aiosmtplib, "send", fake_send)
 
     await email_module.send_email(
-        email_to="ada@example.test",
-        subject="Hello",
-        html_content="<p>Hello</p>",
-        text_content="Hello",
+        email_to="ada@example.test", subject="Hello", html_content="<p>Hello</p>", text_content="Hello"
     )
 
     message = captured["message"]

@@ -1,117 +1,80 @@
-import random
-from datetime import UTC, datetime
-
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import crud
-from app.core.enums import AgeGroupEnum, RoomTypeEnum, SPECIALEnum
-from app.core.game_config import game_config
-from app.crud.user_profile import profile_crud
-from app.options.factions import faction_restrictions
-from app.options.races import RaceOption
-from app.schemas.dweller import DwellerCreate, DwellerCreateCommonOverride, DwellerCreateWithoutVaultID
+from app.core.enums import AgeGroupEnum, DwellerStatusEnum, RoomTypeEnum, SPECIALEnum
+from app.models.dweller import Dweller
+from app.schemas.dweller import DwellerCreate, DwellerUpdate
 from app.schemas.room import RoomCreate
 from app.schemas.user import UserCreate
 from app.schemas.vault import VaultCreateWithUserID
 from app.services.dweller_service import dweller_service
+from app.tests.factory.dwellers import create_fake_adult_dweller, create_fake_dweller
 from app.tests.factory.rooms import create_fake_room
 from app.tests.factory.users import create_fake_user
 from app.tests.factory.vaults import create_fake_vault
-from app.utils.dwellers import create_random_common_dweller
 from app.utils.exceptions import (
     InvalidVaultTransferException,
     ResourceConflictException,
     ValidationException,
 )
-from backend.app.tests.factory.dwellers import create_fake_adult_dweller, create_fake_dweller
 
-RACE_VALUES = {race.value for race in RaceOption}
+_ARENA = {
+    "name": "Arena",
+    "category": RoomTypeEnum.ARENA,
+    "ability": SPECIALEnum.STRENGTH,
+    "base_cost": 800,
+    "t2_upgrade_cost": 3000,
+    "t3_upgrade_cost": 9000,
+    "size_min": 6,
+    "size_max": 6,
+}
 
 
-@pytest.mark.asyncio
+async def _user_vault(async_session: AsyncSession, **vault_overrides):
+    user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
+    return await crud.vault.create(
+        async_session, obj_in=VaultCreateWithUserID(**(create_fake_vault() | vault_overrides), user_id=user.id)
+    )
+
+
+async def _dweller(async_session, vault, factory=create_fake_dweller):
+    return await crud.dweller.create(async_session, obj_in=DwellerCreate(**factory(), vault_id=str(vault.id)))
+
+
+async def _room(async_session, vault, category=None):
+    data = create_fake_room() if category is None else create_fake_room() | {"category": category}
+    return await crud.room.create(async_session, obj_in=RoomCreate(**data, vault_id=vault.id))
+
+
 async def test_move_dweller_to_room(async_session: AsyncSession):
-    # Setup - create user, vault, and dweller
-    user_data = create_fake_user()
-    user_in = UserCreate(**user_data)
-    user = await crud.user.create(async_session, obj_in=user_in)
-
-    vault_data = create_fake_vault()
-    vault_in = VaultCreateWithUserID(**vault_data, user_id=user.id)
-    vault = await crud.vault.create(async_session, obj_in=vault_in)
-
-    dweller_data = create_fake_dweller()
-    dweller_in = DwellerCreate(**dweller_data, vault_id=str(vault.id))
-    dweller = await crud.dweller.create(async_session, obj_in=dweller_in)
-
-    # Create initial room and another room for the move
-    room_data_1 = create_fake_room()
-    room_data_1["category"] = RoomTypeEnum.PRODUCTION
-    room_1 = await crud.room.create(async_session, obj_in=RoomCreate(**room_data_1, vault_id=vault.id))
-
-    room_data_2 = create_fake_room()
-    room_data_2["category"] = RoomTypeEnum.PRODUCTION
-    room_2 = await crud.room.create(async_session, obj_in=RoomCreate(**room_data_2, vault_id=vault.id))
-
-    # Initially assign the dweller to room 1
+    vault = await _user_vault(async_session)
+    dweller = await _dweller(async_session, vault)
+    room_1 = await _room(async_session, vault, category=RoomTypeEnum.PRODUCTION)
+    room_2 = await _room(async_session, vault, category=RoomTypeEnum.PRODUCTION)
     dweller.room_id = room_1.id
     await async_session.commit()
-
-    # Test: Move dweller from room 1 to room 2
     await dweller_service.move_to_room(async_session, dweller_id=dweller.id, room_id=room_2.id)
     assert dweller.room_id == room_2.id, "Dweller should be moved to the new room"
-
-    # Test: Attempt to move dweller to the same room they are already in
     with pytest.raises(ResourceConflictException) as exc_info:
         await dweller_service.move_to_room(async_session, dweller_id=dweller.id, room_id=room_2.id)
     assert "Dweller is already in the room" in str(exc_info.value), "Should raise conflict when moving to the same room"
-
-    # Test: Try to move dweller to a room in a different vault
-    vault_data_2 = create_fake_vault()
-    vault_in_2 = VaultCreateWithUserID(**vault_data_2, user_id=user.id)
-    vault_2 = await crud.vault.create(async_session, obj_in=vault_in_2)
-    room_data_3 = create_fake_room()
-    room_3 = await crud.room.create(async_session, obj_in=RoomCreate(**room_data_3, vault_id=vault_2.id))
+    other_vault = await _user_vault(async_session)
+    room_3 = await _room(async_session, other_vault)
     with pytest.raises(InvalidVaultTransferException):
         await dweller_service.move_to_room(async_session, dweller_id=dweller.id, room_id=room_3.id)
 
 
-@pytest.mark.asyncio
 async def test_move_teen_to_arena_rejected(async_session: AsyncSession):
-    user_data = create_fake_user()
-    user_in = UserCreate(**user_data)
-    user = await crud.user.create(async_session, obj_in=user_in)
-
-    vault_data = create_fake_vault()
-    vault_in = VaultCreateWithUserID(**vault_data, user_id=user.id)
-    vault = await crud.vault.create(async_session, obj_in=vault_in)
-
-    dweller_data = create_fake_dweller()
-    dweller_in = DwellerCreate(**dweller_data, vault_id=str(vault.id))
-    dweller = await crud.dweller.create(async_session, obj_in=dweller_in)
+    vault = await _user_vault(async_session)
+    dweller = await _dweller(async_session, vault)
     dweller.age_group = AgeGroupEnum.TEEN
     await async_session.commit()
-
-    arena_room = await crud.room.create(
-        async_session,
-        obj_in=RoomCreate(
-            name="Arena",
-            category=RoomTypeEnum.ARENA,
-            ability=SPECIALEnum.STRENGTH,
-            base_cost=800,
-            t2_upgrade_cost=3000,
-            t3_upgrade_cost=9000,
-            size_min=6,
-            size_max=6,
-            vault_id=vault.id,
-        ),
-    )
-
+    arena_room = await crud.room.create(async_session, obj_in=RoomCreate(**_ARENA, vault_id=vault.id))
     with pytest.raises(ValidationException):
         await dweller_service.move_to_room(async_session, dweller_id=dweller.id, room_id=arena_room.id)
 
 
-@pytest.mark.asyncio
 async def test_move_child_to_training_room_rejected(
     async_session: AsyncSession,
     user_with_vault: tuple,
@@ -121,163 +84,57 @@ async def test_move_child_to_training_room_rejected(
     vault.population_max = 1
     dweller_in_vault.age_group = AgeGroupEnum.CHILD
     await async_session.commit()
-
-    room_data = create_fake_room()
-    room_data["category"] = RoomTypeEnum.TRAINING
-    training_room = await crud.room.create(async_session, RoomCreate(**room_data, vault_id=vault.id))
-
+    training_room = await _room(async_session, vault, category=RoomTypeEnum.TRAINING)
     with pytest.raises(ValidationException, match="only be assigned to production rooms"):
         await dweller_service.move_to_room(async_session, dweller_in_vault.id, training_room.id)
 
 
-@pytest.mark.asyncio
 async def test_move_adult_to_arena_sets_idle_status(async_session: AsyncSession):
-    from app.core.enums import DwellerStatusEnum
-
-    user_data = create_fake_user()
-    user_in = UserCreate(**user_data)
-    user = await crud.user.create(async_session, obj_in=user_in)
-
-    vault_data = create_fake_vault()
-    vault_in = VaultCreateWithUserID(**vault_data, user_id=user.id)
-    vault = await crud.vault.create(async_session, obj_in=vault_in)
-
-    dweller_data = create_fake_adult_dweller()
-    dweller_in = DwellerCreate(**dweller_data, vault_id=str(vault.id))
-    dweller = await crud.dweller.create(async_session, obj_in=dweller_in)
+    vault = await _user_vault(async_session)
+    dweller = await _dweller(async_session, vault, create_fake_adult_dweller)
     await async_session.commit()
-
-    starter_room = await crud.room.create(async_session, obj_in=RoomCreate(**create_fake_room(), vault_id=vault.id))
+    starter_room = await _room(async_session, vault)
     dweller.room_id = starter_room.id
     await async_session.commit()
-
-    arena_room = await crud.room.create(
-        async_session,
-        obj_in=RoomCreate(
-            name="Arena",
-            category=RoomTypeEnum.ARENA,
-            ability=SPECIALEnum.STRENGTH,
-            base_cost=800,
-            t2_upgrade_cost=3000,
-            t3_upgrade_cost=9000,
-            size_min=6,
-            size_max=6,
-            vault_id=vault.id,
-        ),
-    )
-
+    arena_room = await crud.room.create(async_session, obj_in=RoomCreate(**_ARENA, vault_id=vault.id))
     moved = await dweller_service.move_to_room(async_session, dweller_id=dweller.id, room_id=arena_room.id)
     assert moved.room_id == arena_room.id
     assert moved.status == DwellerStatusEnum.IDLE
 
 
-@pytest.mark.asyncio
 async def test_get_max_level(async_session: AsyncSession):
-    """get_max_level returns the highest dweller level in a vault, or None when empty."""
-    from app.models.dweller import Dweller
-    from app.tests.factory.dwellers import create_fake_dweller
-
-    user_data = create_fake_user()
-    user_in = UserCreate(**user_data)
-    user = await crud.user.create(async_session, obj_in=user_in)
-
-    vault_data = create_fake_vault()
-    vault_in = VaultCreateWithUserID(**vault_data, user_id=user.id)
-    vault = await crud.vault.create(async_session, obj_in=vault_in)
-
+    vault = await _user_vault(async_session)
     assert await crud.dweller.get_max_level(async_session, vault.id) is None
-
     for level in (5, 20, 12):
-        dweller_data = create_fake_dweller()
-        dweller_data["level"] = level
-        async_session.add(Dweller(**dweller_data, vault_id=vault.id))
+        async_session.add(Dweller(**(create_fake_dweller() | {"level": level}), vault_id=vault.id))
     await async_session.commit()
-
     assert await crud.dweller.get_max_level(async_session, vault.id) == 20
-
-    dead_data = create_fake_dweller()
-    dead_data["level"] = 50
-    dead_data["is_dead"] = True
-    async_session.add(Dweller(**dead_data, vault_id=vault.id))
+    async_session.add(Dweller(**(create_fake_dweller() | {"level": 50, "is_dead": True}), vault_id=vault.id))
     await async_session.commit()
-
     assert await crud.dweller.get_max_level(async_session, vault.id) == 20
 
 
-@pytest.mark.asyncio
 async def test_count_alive_in_vault_excludes_dead(async_session: AsyncSession):
-    """count_alive_in_vault counts living dwellers only, with an optional level floor."""
-    from app.models.dweller import Dweller
-    from app.tests.factory.dwellers import create_fake_dweller
-
-    user_data = create_fake_user()
-    user_in = UserCreate(**user_data)
-    user = await crud.user.create(async_session, obj_in=user_in)
-
-    vault_data = create_fake_vault()
-    vault_in = VaultCreateWithUserID(**vault_data, user_id=user.id)
-    vault = await crud.vault.create(async_session, obj_in=vault_in)
-
+    vault = await _user_vault(async_session)
     for level in (5, 20):
-        dweller_data = create_fake_dweller()
-        dweller_data["level"] = level
-        async_session.add(Dweller(**dweller_data, vault_id=vault.id))
-    dead_data = create_fake_dweller()
-    dead_data["level"] = 46
-    dead_data["is_dead"] = True
-    async_session.add(Dweller(**dead_data, vault_id=vault.id))
+        async_session.add(Dweller(**(create_fake_dweller() | {"level": level}), vault_id=vault.id))
+    async_session.add(Dweller(**(create_fake_dweller() | {"level": 46, "is_dead": True}), vault_id=vault.id))
     await async_session.commit()
-
     assert await crud.dweller.count_alive_in_vault(async_session, vault.id) == 2
     assert await crud.dweller.count_alive_in_vault(async_session, vault.id, min_level=20) == 1
     assert await crud.dweller.count_alive_in_vault(async_session, vault.id, min_level=46) == 0
 
 
-@pytest.mark.asyncio
 async def test_get_dwellers_by_status(async_session: AsyncSession):
-    """Test getting dwellers filtered by status."""
-    from app.core.enums import DwellerStatusEnum
-    from app.schemas.dweller import DwellerUpdate
-
-    # Setup - create user, vault, and multiple dwellers
-    user_data = create_fake_user()
-    user_in = UserCreate(**user_data)
-    user = await crud.user.create(async_session, obj_in=user_in)
-
-    vault_data = create_fake_vault()
-    vault_data["population_max"] = 200  # Ensure enough space
-    vault_in = VaultCreateWithUserID(**vault_data, user_id=user.id)
-    vault = await crud.vault.create(async_session, obj_in=vault_in)
-
-    # Create 3 dwellers with different statuses
-    dweller_1_data = create_fake_dweller()
-    dweller_1_in = DwellerCreate(**dweller_1_data, vault_id=str(vault.id))
-    dweller_1 = await crud.dweller.create(async_session, obj_in=dweller_1_in)
-
-    dweller_2_data = create_fake_dweller()
-    dweller_2_in = DwellerCreate(**dweller_2_data, vault_id=str(vault.id))
-    dweller_2 = await crud.dweller.create(async_session, obj_in=dweller_2_in)
-
-    dweller_3_data = create_fake_dweller()
-    dweller_3_in = DwellerCreate(**dweller_3_data, vault_id=str(vault.id))
-    dweller_3 = await crud.dweller.create(async_session, obj_in=dweller_3_in)
-
-    # Set different statuses
+    vault = await _user_vault(async_session, population_max=200)
+    dweller_1, dweller_2, dweller_3 = [await _dweller(async_session, vault) for _ in range(3)]
     await crud.dweller.update(async_session, dweller_1.id, DwellerUpdate(status=DwellerStatusEnum.WORKING))
     await crud.dweller.update(async_session, dweller_2.id, DwellerUpdate(status=DwellerStatusEnum.EXPLORING))
-    # dweller_3 stays IDLE
-
-    # Get only WORKING dwellers
-    working_dwellers = await crud.dweller.get_by_status(async_session, vault.id, DwellerStatusEnum.WORKING)
-    assert len(working_dwellers) == 1
-    assert working_dwellers[0].id == dweller_1.id
-
-    # Get only EXPLORING dwellers
-    exploring_dwellers = await crud.dweller.get_by_status(async_session, vault.id, DwellerStatusEnum.EXPLORING)
-    assert len(exploring_dwellers) == 1
-    assert exploring_dwellers[0].id == dweller_2.id
-
-    # Get only IDLE dwellers
-    idle_dwellers = await crud.dweller.get_by_status(async_session, vault.id, DwellerStatusEnum.IDLE)
-    assert len(idle_dwellers) == 1
-    assert idle_dwellers[0].id == dweller_3.id
+    for dweller, status in zip(
+        (dweller_1, dweller_2, dweller_3),
+        (DwellerStatusEnum.WORKING, DwellerStatusEnum.EXPLORING, DwellerStatusEnum.IDLE),
+        strict=True,
+    ):
+        found = await crud.dweller.get_by_status(async_session, vault.id, status)
+        assert len(found) == 1
+        assert found[0].id == dweller.id

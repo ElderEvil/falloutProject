@@ -1,5 +1,3 @@
-"""Shared helpers for the hazard-team service tests."""
-
 from uuid import UUID
 
 from sqlmodel.ext.asyncio.session import AsyncSession

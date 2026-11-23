@@ -2,13 +2,11 @@
 
 Held rows (Weapon/Outfit with ``exploration_id`` set, no storage/dweller) and
 ordinary loot share ONE rarity-first capacity budget at finalization. Entries
-already equipped mid-run (``equipped`` truthy) are skipped entirely. Fixtures
-build held rows directly through ``CRUDItem.equip(..., held_exploration_id=...)``
-so they do not depend on the mid-run equip workstream.
+already equipped mid-run (``equipped`` truthy) are skipped entirely.
 """
 
 from collections.abc import Awaitable, Callable
-from datetime import datetime, timedelta
+from datetime import timedelta
 from unittest.mock import AsyncMock, patch
 from uuid import uuid4
 
@@ -47,21 +45,24 @@ def _level_up_events(emit: AsyncMock, vault_id) -> list:
     ]
 
 
-async def _ensure_vault_storage(async_session: AsyncSession, vault_id) -> Storage:
-    """Ensure storage exists for a vault, create if missing."""
-    result = await async_session.execute(select(Storage).where(Storage.vault_id == vault_id))
-    storage = result.scalar_one_or_none()
-    if storage is None:
-        storage = await vault_crud.create_storage(db_session=async_session, vault_id=vault_id)
-    return storage
+def _junk_payloads(emit: AsyncMock) -> list[dict]:
+    """ITEM_COLLECTED payloads for junk from a patched emit."""
+    return [
+        call.args[2]
+        for call in emit.await_args_list
+        if call.args and call.args[0] == GameEvent.ITEM_COLLECTED and call.args[2].get("item_type") == "junk"
+    ]
 
 
 @pytest_asyncio.fixture
 async def make_vault_storage(async_session: AsyncSession, vault: Vault) -> Callable[[int], Awaitable[Storage]]:
     """Factory for the test vault's storage, emptied and sized via max_space."""
+    result = await async_session.execute(select(Storage).where(Storage.vault_id == vault.id))
+    storage = result.scalar_one_or_none() or await vault_crud.create_storage(
+        db_session=async_session, vault_id=vault.id
+    )
 
     async def _make(max_space: int = 10) -> Storage:
-        storage = await _ensure_vault_storage(async_session, vault.id)
         storage.max_space = max_space
         storage.used_space = 0
         async_session.add(storage)
@@ -97,7 +98,7 @@ async def _returning_exploration(
 async def _create_held_weapon(
     async_session: AsyncSession, dweller: Dweller, exploration_id, *, rarity: RarityEnum = RarityEnum.COMMON
 ) -> Weapon:
-    """Create a weapon row held by the exploration (displaced by a mid-run upgrade)."""
+    """A weapon row held by the exploration (displaced by a mid-run upgrade)."""
     data = create_fake_weapon()
     data["rarity"] = rarity
     old = await crud.weapon.create(async_session, obj_in=data)
@@ -112,7 +113,7 @@ async def _create_held_weapon(
 async def _create_held_outfit(
     async_session: AsyncSession, dweller: Dweller, exploration_id, *, rarity: RarityEnum = RarityEnum.COMMON
 ) -> Outfit:
-    """Create an outfit row held by the exploration (displaced by a mid-run upgrade)."""
+    """An outfit row held by the exploration (displaced by a mid-run upgrade)."""
     data = create_fake_outfit()
     data["rarity"] = rarity
     old = await crud.outfit.create(async_session, obj_in=data)
@@ -143,86 +144,76 @@ async def _assert_no_orphan_rows(async_session: AsyncSession) -> None:
         assert orphans == []
 
 
-@pytest.mark.asyncio
-async def test_free_space_settles_held_row_and_skips_equipped_entry(
-    async_session: AsyncSession,
-    vault: Vault,
-    dweller: Dweller,
-    make_vault_storage,
-):
-    """A held row moves into storage; an already-equipped loot entry creates nothing."""
-    storage = await make_vault_storage(10)
-    exploration = await _returning_exploration(async_session, vault, dweller)
-    held = await _create_held_weapon(async_session, dweller, exploration.id)
+def _flaky_update_used_space(monkeypatch: pytest.MonkeyPatch, exc: Exception) -> None:
+    """Fail the first storage-space update, then behave normally on the retry."""
+    calls = {"count": 0}
+    original = crud_storage.update_used_space
 
+    async def flaky(db_session, storage_id):
+        calls["count"] += 1
+        if calls["count"] == 1:
+            raise exc
+        return await original(db_session, storage_id)
+
+    monkeypatch.setattr(crud_storage, "update_used_space", flaky)
+
+
+async def _stored_weapons(async_session: AsyncSession, storage_id) -> list[str]:
+    rows = (await async_session.execute(select(Weapon).where(Weapon.storage_id == storage_id))).scalars().all()
+    return [weapon.name for weapon in rows]
+
+
+@pytest.mark.parametrize("recalled", [False, True])
+async def test_free_space_settles_held_row_and_skips_equipped_entry(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller, make_vault_storage, recalled: bool
+) -> None:
+    storage = await make_vault_storage(10)
+    exploration = await _returning_exploration(async_session, vault, dweller, recalled=recalled)
+    held = await _create_held_weapon(async_session, dweller, exploration.id)
     exploration.add_loot(item_name="Fire hydrant bat", quantity=1, rarity="Legendary", item_type="weapon")
     exploration.loot_collected[-1]["equipped"] = True
     exploration.loot_collected[-1]["equipped_item_id"] = str(uuid4())
     orm.attributes.flag_modified(exploration, "loot_collected")
     async_session.add(exploration)
     await async_session.commit()
-
     with patch("app.core.event_bus.event_bus.emit", new_callable=AsyncMock) as emit:
         await exploration_coordinator.finalize_return(async_session, exploration.id)
-
     await async_session.refresh(held)
     assert held.storage_id == storage.id
     assert held.exploration_id is None
     assert held.dweller_id is None
-
-    stored_weapons = (
-        (await async_session.execute(select(Weapon).where(Weapon.storage_id == storage.id))).scalars().all()
-    )
-    assert [w.name for w in stored_weapons] == [held.name]
+    assert await _stored_weapons(async_session, storage.id) == [held.name]
     assert not any(call.args[0] == GameEvent.ITEM_COLLECTED for call in emit.await_args_list)
-
     await async_session.refresh(storage)
     assert storage.used_space == 1
     await _assert_no_orphan_rows(async_session)
 
 
-@pytest.mark.asyncio
 async def test_tight_space_splits_held_and_loot_once(
-    async_session: AsyncSession,
-    vault: Vault,
-    dweller: Dweller,
-    make_vault_storage,
-):
-    """Held rows and loot share one rarity-first budget; overflow holds the excess once."""
+    async_session: AsyncSession, vault: Vault, dweller: Dweller, make_vault_storage
+) -> None:
+    # Held rows and loot share one rarity-first budget; overflow holds the excess once.
     storage = await make_vault_storage(1)
     exploration = await _returning_exploration(async_session, vault, dweller)
     held = await _create_held_weapon(async_session, dweller, exploration.id, rarity=RarityEnum.COMMON)
-
     exploration.add_loot(item_name="Fire hydrant bat", quantity=1, rarity="Legendary", item_type="weapon")
     async_session.add(exploration)
     await async_session.commit()
-
     await exploration_coordinator.finalize_return(async_session, exploration.id)
-
     await async_session.refresh(exploration)
     assert [entry["item_name"] for entry in exploration.unclaimed_loot] == [held.name]
     assert "held_row_id" not in exploration.unclaimed_loot[0]
     assert "held_model" not in exploration.unclaimed_loot[0]
-
     assert await crud.weapon.get_or_none(async_session, held.id) is None
     assert await crud.weapon.get_held_for_exploration(async_session, exploration.id) == []
     assert await crud.outfit.get_held_for_exploration(async_session, exploration.id) == []
-
-    stored_weapons = (
-        (await async_session.execute(select(Weapon).where(Weapon.storage_id == storage.id))).scalars().all()
-    )
-    assert [w.name for w in stored_weapons] == ["Fire hydrant bat"]
+    assert await _stored_weapons(async_session, storage.id) == ["Fire hydrant bat"]
     await _assert_no_orphan_rows(async_session)
 
 
-@pytest.mark.asyncio
 async def test_no_orphan_rows_after_settlement(
-    async_session: AsyncSession,
-    vault: Vault,
-    dweller: Dweller,
-    make_vault_storage,
-):
-    """Settling held rows plus loot leaves no row in the unassigned/unheld limbo state."""
+    async_session: AsyncSession, vault: Vault, dweller: Dweller, make_vault_storage
+) -> None:
     await make_vault_storage(10)
     exploration = await _returning_exploration(async_session, vault, dweller)
     await _create_held_weapon(async_session, dweller, exploration.id)
@@ -230,21 +221,13 @@ async def test_no_orphan_rows_after_settlement(
     exploration.add_loot(item_name="Fire hydrant bat", quantity=1, rarity="Legendary", item_type="weapon")
     async_session.add(exploration)
     await async_session.commit()
-
     await exploration_coordinator.finalize_return(async_session, exploration.id)
-
     await _assert_no_orphan_rows(async_session)
 
 
-@pytest.mark.asyncio
 async def test_failed_settlement_keeps_run_returning_and_held_rows_intact(
-    async_session: AsyncSession,
-    vault: Vault,
-    dweller: Dweller,
-    make_vault_storage,
-    monkeypatch: pytest.MonkeyPatch,
-):
-    """A failure after the held move rolls back; a retry then settles exactly once."""
+    async_session: AsyncSession, vault: Vault, dweller: Dweller, make_vault_storage, monkeypatch: pytest.MonkeyPatch
+) -> None:
     storage = await make_vault_storage(10)
     exploration = await _returning_exploration(async_session, vault, dweller)
     exploration.location_xp = 120
@@ -255,21 +238,9 @@ async def test_failed_settlement_keeps_run_returning_and_held_rows_intact(
     level_before = dweller.level
     xp_award = rewards_calculator.calculate_exploration_xp(exploration, dweller)
     held = await _create_held_weapon(async_session, dweller, exploration.id)
-
-    calls = {"count": 0}
-    original = crud_storage.update_used_space
-
-    async def flaky(db_session, storage_id):
-        calls["count"] += 1
-        if calls["count"] == 1:
-            raise RuntimeError("storage update exploded")
-        return await original(db_session, storage_id)
-
-    monkeypatch.setattr(crud_storage, "update_used_space", flaky)
-
+    _flaky_update_used_space(monkeypatch, RuntimeError("storage update exploded"))
     with pytest.raises(RuntimeError, match="storage update exploded"):
         await exploration_coordinator.finalize_return(async_session, exploration.id)
-
     await async_session.refresh(exploration)
     await async_session.refresh(held)
     await async_session.refresh(dweller)
@@ -280,9 +251,7 @@ async def test_failed_settlement_keeps_run_returning_and_held_rows_intact(
     assert held.exploration_id == exploration.id
     assert held.storage_id is None
     assert held.dweller_id is None
-
     await exploration_coordinator.finalize_return(async_session, exploration.id)
-
     await async_session.refresh(exploration)
     await async_session.refresh(held)
     await async_session.refresh(dweller)
@@ -293,15 +262,9 @@ async def test_failed_settlement_keeps_run_returning_and_held_rows_intact(
     await _assert_no_orphan_rows(async_session)
 
 
-@pytest.mark.asyncio
 async def test_failed_settlement_discards_level_up_and_retry_delivers_once(
-    async_session: AsyncSession,
-    vault: Vault,
-    dweller: Dweller,
-    make_vault_storage,
-    monkeypatch: pytest.MonkeyPatch,
-):
-    """A level-up queued by settlement is discarded on failure and delivered exactly once on retry."""
+    async_session: AsyncSession, vault: Vault, dweller: Dweller, make_vault_storage, monkeypatch: pytest.MonkeyPatch
+) -> None:
     vault_id = vault.id
     await make_vault_storage(10)
     exploration = await _returning_exploration(async_session, vault, dweller)
@@ -315,74 +278,34 @@ async def test_failed_settlement_discards_level_up_and_retry_delivers_once(
     await async_session.refresh(dweller)
     level_before = dweller.level
     await _create_held_weapon(async_session, dweller, exploration.id)
-
-    calls = {"count": 0}
-    original = crud_storage.update_used_space
-
-    async def flaky(db_session, storage_id):
-        calls["count"] += 1
-        if calls["count"] == 1:
-            raise IntegrityError("UPDATE storage", {}, RuntimeError("storage write failed"))
-        return await original(db_session, storage_id)
-
-    monkeypatch.setattr(crud_storage, "update_used_space", flaky)
-
+    _flaky_update_used_space(monkeypatch, IntegrityError("UPDATE storage", {}, RuntimeError("storage write failed")))
     with (
         patch("app.core.event_bus.event_bus.emit", new_callable=AsyncMock) as emit,
         patch(
-            "app.services.notification_service.NotificationService.notify_level_up",
-            new_callable=AsyncMock,
+            "app.services.notification_service.NotificationService.notify_level_up", new_callable=AsyncMock
         ) as notify,
         pytest.raises(IntegrityError),
     ):
         await exploration_coordinator.finalize_return(async_session, exploration_id)
-
     assert _level_up_events(emit, vault_id) == []
     notify.assert_not_awaited()
     await async_session.refresh(dweller)
     assert dweller.level == level_before
-
     with (
         patch("app.core.event_bus.event_bus.emit", new_callable=AsyncMock) as emit,
         patch(
-            "app.services.notification_service.NotificationService.notify_level_up",
-            new_callable=AsyncMock,
+            "app.services.notification_service.NotificationService.notify_level_up", new_callable=AsyncMock
         ) as notify,
     ):
         await exploration_coordinator.finalize_return(async_session, exploration_id)
-
     assert len(_level_up_events(emit, vault_id)) == 1
     notify.assert_awaited_once()
 
 
-@pytest.mark.asyncio
-async def test_recall_settles_held_rows_like_natural_completion(
-    async_session: AsyncSession,
-    vault: Vault,
-    dweller: Dweller,
-    make_vault_storage,
-):
-    """An early recall settles held rows into storage exactly like a natural finish."""
-    storage = await make_vault_storage(10)
-    exploration = await _returning_exploration(async_session, vault, dweller, recalled=True)
-    held = await _create_held_weapon(async_session, dweller, exploration.id)
-
-    await exploration_coordinator.finalize_return(async_session, exploration.id)
-
-    await async_session.refresh(held)
-    assert held.storage_id == storage.id
-    assert held.exploration_id is None
-    await _assert_no_orphan_rows(async_session)
-
-
-@pytest.mark.asyncio
 async def test_legacy_auto_equip_entry_settles_into_storage(
-    async_session: AsyncSession,
-    vault: Vault,
-    dweller: Dweller,
-    make_vault_storage,
-):
-    """A legacy auto_equip flag without an equipped marker settles the item normally."""
+    async_session: AsyncSession, vault: Vault, dweller: Dweller, make_vault_storage
+) -> None:
+    # A legacy auto_equip flag without an equipped marker settles the item normally.
     storage = await make_vault_storage(10)
     exploration = await _returning_exploration(async_session, vault, dweller)
     exploration.add_loot(item_name="Fire hydrant bat", quantity=1, rarity="Legendary", item_type="weapon")
@@ -390,31 +313,20 @@ async def test_legacy_auto_equip_entry_settles_into_storage(
     orm.attributes.flag_modified(exploration, "loot_collected")
     async_session.add(exploration)
     await async_session.commit()
-
     await exploration_coordinator.finalize_return(async_session, exploration.id)
-
-    stored_weapons = (
-        (await async_session.execute(select(Weapon).where(Weapon.storage_id == storage.id))).scalars().all()
-    )
-    assert [w.name for w in stored_weapons] == ["Fire hydrant bat"]
+    assert await _stored_weapons(async_session, storage.id) == ["Fire hydrant bat"]
     await _assert_no_orphan_rows(async_session)
 
 
-@pytest.mark.asyncio
 async def test_no_storage_holds_everything_including_held_rows(
-    async_session: AsyncSession,
-    vault: Vault,
-    dweller: Dweller,
-):
-    """Without a storage row every candidate lands in unclaimed_loot; held rows are deleted."""
+    async_session: AsyncSession, vault: Vault, dweller: Dweller
+) -> None:
     exploration = await _returning_exploration(async_session, vault, dweller)
     held = await _create_held_weapon(async_session, dweller, exploration.id)
     exploration.add_loot(item_name="Fire hydrant bat", quantity=1, rarity="Legendary", item_type="weapon")
     async_session.add(exploration)
     await async_session.commit()
-
     await exploration_coordinator.finalize_return(async_session, exploration.id)
-
     await async_session.refresh(exploration)
     assert [entry["item_name"] for entry in exploration.unclaimed_loot] == ["Fire hydrant bat", held.name]
     assert all("held_row_id" not in entry for entry in exploration.unclaimed_loot)
@@ -422,20 +334,9 @@ async def test_no_storage_holds_everything_including_held_rows(
     await _assert_no_orphan_rows(async_session)
 
 
-def _junk_payloads(emit: AsyncMock) -> list[dict]:
-    """ITEM_COLLECTED payloads for junk from a patched emit."""
-    return [
-        call.args[2]
-        for call in emit.await_args_list
-        if call.args and call.args[0] == GameEvent.ITEM_COLLECTED and call.args[2].get("item_type") == "junk"
-    ]
-
-
-@pytest.mark.asyncio
 async def test_junk_settlement_credits_each_material_once(
     async_session: AsyncSession, vault: Vault, dweller: Dweller, make_vault_storage
-):
-    """One ITEM_COLLECTED per material present, carrying the catalog junk type and wasteland source."""
+) -> None:
     await make_vault_storage(10)
     exploration = await _returning_exploration(async_session, vault, dweller)
     for name, rarity in (
@@ -447,10 +348,8 @@ async def test_junk_settlement_credits_each_material_once(
         exploration.add_loot(item_name=name, rarity=rarity, item_type="junk")
     async_session.add(exploration)
     await async_session.commit()
-
     with patch("app.core.event_bus.event_bus.emit", new_callable=AsyncMock) as emit:
         await exploration_coordinator.finalize_return(async_session, exploration.id)
-
     by_material = {payload.get("junk_type"): payload for payload in _junk_payloads(emit)}
     assert by_material["adhesive"]["amount"] == 2  # Duct tape + Wonderglue share the catalog type
     assert by_material["circuitry"]["amount"] == 1
@@ -458,11 +357,9 @@ async def test_junk_settlement_credits_each_material_once(
     assert all(payload["source"] == "wasteland" for payload in by_material.values())
 
 
-@pytest.mark.asyncio
 async def test_failed_settlement_discards_queued_junk_credit(
     async_session: AsyncSession, vault: Vault, dweller: Dweller, make_vault_storage
-):
-    """A failure after the junk credit is queued emits nothing and stores nothing; the retry credits once."""
+) -> None:
     storage = await make_vault_storage(10)
     exploration = await _returning_exploration(async_session, vault, dweller)
     exploration.add_loot(item_name="Duct tape", rarity="Common", item_type="junk")
@@ -481,51 +378,39 @@ async def test_failed_settlement_discards_queued_junk_credit(
             await exploration_coordinator.finalize_return(async_session, exploration.id)
     finally:
         event.remove(async_session.sync_session, "before_commit", fail_commit)
-
     assert _junk_payloads(emit) == []
     await async_session.refresh(exploration)
     await async_session.refresh(storage)
     assert exploration.status == ExplorationStatus.RETURNING
     assert storage.used_space == 0
-
     with patch("app.core.event_bus.event_bus.emit", new_callable=AsyncMock) as emit:
         await exploration_coordinator.finalize_return(async_session, exploration.id)
-
     credit = _junk_payloads(emit)
     assert len(credit) == 1
-    assert credit[0]["junk_type"] == "adhesive"
-    assert credit[0]["amount"] == 1
-    assert credit[0]["source"] == "wasteland"
+    assert (credit[0]["junk_type"], credit[0]["amount"], credit[0]["source"]) == ("adhesive", 1, "wasteland")
 
 
-@pytest.mark.asyncio
 async def test_overflow_junk_credits_its_material_when_taken(
     async_session: AsyncSession, vault: Vault, dweller: Dweller, make_vault_storage
-):
-    """Storage-full overflow earns nothing on settlement, then credits the material when taken."""
+) -> None:
     storage = await make_vault_storage(1)
     exploration = await _returning_exploration(async_session, vault, dweller)
     exploration.add_loot(item_name="Duct tape", rarity="Common", item_type="junk")
     exploration.add_loot(item_name="Wonderglue", rarity="Rare", item_type="junk")
     async_session.add(exploration)
     await async_session.commit()
-
     with patch("app.core.event_bus.event_bus.emit", new_callable=AsyncMock) as emit:
         await exploration_coordinator.finalize_return(async_session, exploration.id)
     first_credits = _junk_payloads(emit)
-
     await async_session.refresh(exploration)
     assert len(exploration.unclaimed_loot) == 1
-
     storage.max_space = 5
     async_session.add(storage)
     await async_session.commit()
     with patch("app.core.event_bus.event_bus.emit", new_callable=AsyncMock) as emit:
         await rewards_service.take_unclaimed_item(async_session, exploration.id, 0)
     taken_credits = _junk_payloads(emit)
-
     assert len(first_credits) == 1
     assert len(taken_credits) == 1
-    assert taken_credits[0]["junk_type"] == "adhesive"
-    assert taken_credits[0]["amount"] == 1
+    assert (taken_credits[0]["junk_type"], taken_credits[0]["amount"]) == ("adhesive", 1)
     assert first_credits[0]["amount"] + taken_credits[0]["amount"] == 2  # each stored unit credits once

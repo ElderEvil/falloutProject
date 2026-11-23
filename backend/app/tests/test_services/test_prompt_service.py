@@ -1,5 +1,3 @@
-"""Tests for resilient prompt and provider provenance lookups."""
-
 import pytest
 
 from app.models.prompt import Prompt
@@ -15,7 +13,6 @@ from app.services.prompt_service import (
 
 @pytest.mark.asyncio
 async def test_creating_a_prompt_version_replaces_the_active_row_and_invalidates_cache(async_session) -> None:
-    """Prompt changes are append-only and immediately visible to new agent calls."""
     original = Prompt(prompt_name="chat", description="v1", prompt_template="original")
     async_session.add(original)
     await async_session.commit()

@@ -9,22 +9,14 @@ import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
-from app.core.enums import (
-    AvailabilityEnum,
-    ContentProvenanceEnum,
-    DwellerStatusEnum,
-    GenderEnum,
-    RarityEnum,
-)
+from app.core.enums import AvailabilityEnum, ContentProvenanceEnum, DwellerStatusEnum, GenderEnum, RarityEnum
 from app.models.dweller import Dweller
 from app.models.vault import Vault
 from app.options.dweller_names import SUPER_MUTANT_NAMES, SYNTH_DESIGNATION_PREFIXES
 from app.options.races import RaceOption
 from app.schemas.dweller import DwellerCreate
-from app.services.dweller_name_backfill_service import (
-    dweller_name_backfill_service,
-    generate_backfill_name,
-)
+from app.services.dweller_name_backfill_service import dweller_name_backfill_service as svc
+from app.services.dweller_name_backfill_service import generate_backfill_name
 
 DESIGNATION = re.compile(rf"^[{''.join(SYNTH_DESIGNATION_PREFIXES)}]\d-\d{{2}}$")
 ALL_MUTANT_NAMES = {name for pool in SUPER_MUTANT_NAMES.values() for name in pool}
@@ -67,24 +59,27 @@ async def _make_dweller(
     return dweller
 
 
+async def _find_by_name(async_session: AsyncSession, vault_id: UUID, first_name: str) -> Dweller:
+    dwellers = await crud.dweller.get_multi_by_vault(async_session, vault_id, limit=100)
+    return next(dweller for dweller in dwellers if dweller.first_name == first_name)
+
+
+async def _backfill(session: AsyncSession, vault_id, *, dry_run: bool = True):
+    return await svc.backfill_names_for_vault(session, vault_id, dry_run=dry_run)
+
+
 async def test_dry_run_reports_without_writing(async_session: AsyncSession, vault: Vault) -> None:
     dweller = await _make_dweller(async_session, vault, first_name="Michael", last_name="Smith")
-
-    summary = await dweller_name_backfill_service.backfill_names_for_vault(async_session, vault.id)
-
+    summary = await _backfill(async_session, vault.id)
     await async_session.refresh(dweller)
-    assert summary["scanned"] == 1
-    assert summary["renamed"] == 1
-    assert len(summary["samples"]) == 1
+    assert (summary["scanned"], summary["renamed"], len(summary["samples"])) == (1, 1, 1)
     assert "Michael Smith" in summary["samples"][0]
     assert dweller.display_name == "Michael Smith"
 
 
 async def test_apply_renames_mutant_and_marks_it_generated(async_session: AsyncSession, vault: Vault) -> None:
     dweller = await _make_dweller(async_session, vault, first_name="Michael", last_name="Smith")
-
-    summary = await dweller_name_backfill_service.backfill_names_for_vault(async_session, vault.id, dry_run=False)
-
+    summary = await _backfill(async_session, vault.id, dry_run=False)
     renamed = await crud.dweller.get(async_session, dweller.id)
     assert summary["renamed"] == 1
     assert renamed.display_name != "Michael Smith"
@@ -95,63 +90,39 @@ async def test_apply_renames_mutant_and_marks_it_generated(async_session: AsyncS
 
 async def test_apply_is_idempotent(async_session: AsyncSession, vault: Vault) -> None:
     dweller = await _make_dweller(async_session, vault, first_name="Michael", last_name="Smith")
-
-    await dweller_name_backfill_service.backfill_names_for_vault(async_session, vault.id, dry_run=False)
+    await _backfill(async_session, vault.id, dry_run=False)
     first_run = await crud.dweller.get(async_session, dweller.id)
     first_name, first_last_name = first_run.first_name, first_run.last_name
-
-    second = await dweller_name_backfill_service.backfill_names_for_vault(async_session, vault.id, dry_run=False)
-
+    second = await _backfill(async_session, vault.id, dry_run=False)
     after_second = await crud.dweller.get(async_session, dweller.id)
-    assert second["scanned"] == 0
-    assert second["renamed"] == 0
+    assert (second["scanned"], second["renamed"]) == (0, 0)
     assert (after_second.first_name, after_second.last_name) == (first_name, first_last_name)
 
 
 async def test_generated_name_is_deterministic_from_the_id(async_session: AsyncSession, vault: Vault) -> None:
     dweller = await _make_dweller(async_session, vault, first_name="Michael", last_name="Smith")
-
     first = generate_backfill_name(dweller, RaceOption.SUPER_MUTANT, "average")
     second = generate_backfill_name(dweller, RaceOption.SUPER_MUTANT, "average")
-
     assert first == second
 
 
 async def test_curated_template_and_starter_names_are_skipped(async_session: AsyncSession, vault: Vault) -> None:
     await _make_dweller(async_session, vault, first_name="Sarah", last_name="Lyons")
     await _make_dweller(async_session, vault, first_name="Juno", last_name="Pike")
-
-    summary = await dweller_name_backfill_service.backfill_names_for_vault(async_session, vault.id, dry_run=False)
-
-    assert summary["renamed"] == 0
-    assert summary["skipped_curated"] == 2
+    summary = await _backfill(async_session, vault.id, dry_run=False)
+    assert (summary["renamed"], summary["skipped_curated"]) == (0, 2)
     sarah = await _find_by_name(async_session, vault.id, "Sarah")
     juno = await _find_by_name(async_session, vault.id, "Juno")
     assert sarah.display_name == "Sarah Lyons"
     assert juno.display_name == "Juno Pike"
 
 
-async def _find_by_name(async_session: AsyncSession, vault_id: UUID, first_name: str) -> Dweller:
-    dwellers = await crud.dweller.get_multi_by_vault(async_session, vault_id, limit=100)
-    return next(dweller for dweller in dwellers if dweller.first_name == first_name)
-
-
 async def test_classified_provenance_is_never_touched(async_session: AsyncSession, vault: Vault) -> None:
-    curated = await _make_dweller(
-        async_session,
-        vault,
-        first_name="Michael",
-        provenance=ContentProvenanceEnum.CURATED,
-    )
+    curated = await _make_dweller(async_session, vault, first_name="Michael", provenance=ContentProvenanceEnum.CURATED)
     player_edited = await _make_dweller(
-        async_session,
-        vault,
-        first_name="Ralph",
-        provenance=ContentProvenanceEnum.PLAYER_EDITED,
+        async_session, vault, first_name="Ralph", provenance=ContentProvenanceEnum.PLAYER_EDITED
     )
-
-    summary = await dweller_name_backfill_service.backfill_names_for_vault(async_session, vault.id, dry_run=False)
-
+    summary = await _backfill(async_session, vault.id, dry_run=False)
     assert summary["scanned"] == 0
     assert (await crud.dweller.get(async_session, curated.id)).display_name == "Michael Smith"
     assert (await crud.dweller.get(async_session, player_edited.id)).display_name == "Ralph Smith"
@@ -168,9 +139,7 @@ async def test_post_feature_generated_rows_are_never_touched(async_session: Asyn
         state="gen_2",
         provenance=ContentProvenanceEnum.GENERATED,
     )
-
-    summary = await dweller_name_backfill_service.backfill_names_for_vault(async_session, vault.id, dry_run=False)
-
+    summary = await _backfill(async_session, vault.id, dry_run=False)
     unchanged = await crud.dweller.get(async_session, dweller.id)
     assert summary["scanned"] == 0
     assert unchanged.display_name == "Alice Smith"
@@ -178,12 +147,8 @@ async def test_post_feature_generated_rows_are_never_touched(async_session: Asyn
 
 async def test_gen_three_synths_are_skipped(async_session: AsyncSession, vault: Vault) -> None:
     await _make_dweller(async_session, vault, first_name="Alice", last_name="Smith", race="synth", state="gen_3")
-
-    summary = await dweller_name_backfill_service.backfill_names_for_vault(async_session, vault.id, dry_run=False)
-
-    assert summary["scanned"] == 1
-    assert summary["renamed"] == 0
-    assert summary["skipped_other_synth"] == 1
+    summary = await _backfill(async_session, vault.id, dry_run=False)
+    assert (summary["scanned"], summary["renamed"], summary["skipped_other_synth"]) == (1, 0, 1)
 
 
 async def test_visible_synths_get_designations(async_session: AsyncSession, vault: Vault) -> None:
@@ -193,9 +158,7 @@ async def test_visible_synths_get_designations(async_session: AsyncSession, vaul
     gen_two = await _make_dweller(
         async_session, vault, first_name="Bob", last_name="Jones", race="synth", state="gen_2"
     )
-
-    summary = await dweller_name_backfill_service.backfill_names_for_vault(async_session, vault.id, dry_run=False)
-
+    summary = await _backfill(async_session, vault.id, dry_run=False)
     renamed_one = await crud.dweller.get(async_session, gen_one.id)
     renamed_two = await crud.dweller.get(async_session, gen_two.id)
     assert summary["renamed"] == 2
@@ -208,11 +171,8 @@ async def test_visible_synths_get_designations(async_session: AsyncSession, vaul
 async def test_already_shaped_names_are_skipped(async_session: AsyncSession, vault: Vault) -> None:
     await _make_dweller(async_session, vault, first_name="Grog", last_name=None)
     await _make_dweller(async_session, vault, first_name="S2-14", last_name=None, race="synth", state="gen_1")
-
-    summary = await dweller_name_backfill_service.backfill_names_for_vault(async_session, vault.id, dry_run=False)
-
-    assert summary["renamed"] == 0
-    assert summary["skipped_already_shaped"] == 2
+    summary = await _backfill(async_session, vault.id, dry_run=False)
+    assert (summary["renamed"], summary["skipped_already_shaped"]) == (0, 2)
 
 
 async def test_inactive_rows_are_not_candidates(async_session: AsyncSession, vault: Vault) -> None:
@@ -221,11 +181,8 @@ async def test_inactive_rows_are_not_candidates(async_session: AsyncSession, vau
     await _make_dweller(async_session, vault, first_name="Departed", availability=AvailabilityEnum.DEPARTURE)
     await _make_dweller(async_session, vault, first_name="Exploring", status=DwellerStatusEnum.EXPLORING)
     await _make_dweller(async_session, vault, first_name="Questing", status=DwellerStatusEnum.QUESTING)
-
-    summary = await dweller_name_backfill_service.backfill_names_for_vault(async_session, vault.id)
-
-    assert summary["scanned"] == 0
-    assert summary["renamed"] == 0
+    summary = await _backfill(async_session, vault.id)
+    assert (summary["scanned"], summary["renamed"]) == (0, 0)
 
 
 async def test_legacy_null_availability_excludes_exploring_and_questing(
@@ -240,11 +197,8 @@ async def test_legacy_null_availability_excludes_exploring_and_questing(
         availability=AvailabilityEnum.VAULT,
         status=DwellerStatusEnum.EXPLORING,
     )
-
-    summary = await dweller_name_backfill_service.backfill_names_for_vault(async_session, vault.id)
-
-    assert summary["scanned"] == 1
-    assert summary["renamed"] == 1
+    summary = await _backfill(async_session, vault.id)
+    assert (summary["scanned"], summary["renamed"]) == (1, 1)
 
 
 async def test_apply_locks_candidates_and_dry_run_does_not(
@@ -259,10 +213,8 @@ async def test_apply_locks_candidates_and_dry_run_does_not(
         return await original(*args, **kwargs)
 
     monkeypatch.setattr(crud.dweller, "get_name_backfill_candidates", spy)
-
-    await dweller_name_backfill_service.backfill_names_for_vault(async_session, vault.id, dry_run=True)
-    await dweller_name_backfill_service.backfill_names_for_vault(async_session, vault.id, dry_run=False)
-
+    await _backfill(async_session, vault.id, dry_run=True)
+    await _backfill(async_session, vault.id, dry_run=False)
     assert lock_flags == [False, True]
 
 
@@ -278,8 +230,6 @@ async def test_mutant_names_follow_the_state_pool(
     async_session: AsyncSession, vault: Vault, state: str, expected_pool: tuple[str, ...]
 ) -> None:
     dweller = await _make_dweller(async_session, vault, first_name="Michael", state=state)
-
-    await dweller_name_backfill_service.backfill_names_for_vault(async_session, vault.id, dry_run=False)
-
+    await _backfill(async_session, vault.id, dry_run=False)
     renamed = await crud.dweller.get(async_session, dweller.id)
     assert renamed.first_name.partition(" the ")[0] in expected_pool

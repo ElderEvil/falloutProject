@@ -106,7 +106,6 @@ async def test_starter_cohorts_reach_office_without_random_loot(
         assert expected_variants <= advertised_recruits
     production_seconds = 0
     granted_residents = 0
-
     while True:
         objectives = await read_objectives(async_session, vault.id)
         step = min(
@@ -116,7 +115,6 @@ async def test_starter_cohorts_reach_office_without_random_loot(
         target = step.target_entity or {}
         dwellers = await crud.dweller.get_living_in_vault(async_session, vault.id)
         rooms = await crud.room.get_all_by_vault(async_session, vault.id)
-
         if step.objective_type == "build":
             name, x, y = {
                 "living_room": ("Living room", 10, 1),
@@ -195,7 +193,6 @@ async def test_starter_cohorts_reach_office_without_random_loot(
                     worker,
                     leveling_service.calculate_xp_required(worker.level + 1) - worker.experience,
                 )
-
         before_population = await crud.dweller.count_living_in_vault(async_session, vault.id)
         link = await claim_objective_reward(async_session, step.id, vault.id)
         granted_residents += await crud.dweller.count_living_in_vault(async_session, vault.id) - before_population
@@ -204,7 +201,6 @@ async def test_starter_cohorts_reach_office_without_random_loot(
         assert link.is_completed
         if target.get("room_type") == "overseers_office":
             break
-
     await async_session.refresh(vault)
     assert granted_residents == (7 if cohort == "legacy" else 9)
     assert production_seconds <= 30 * 60
@@ -304,7 +300,6 @@ async def test_equipment_lessons_credit_only_the_matching_committed_action(
         assert link.progress == expected
         assert await current_state_progress(async_session, vault.id, objective) == expected
         assert not link.is_completed  # Equipment earns the reward; claiming still remains explicit.
-
     # Equipped items belonging to deceased residents cannot satisfy a state-based lesson.
     dweller.is_dead = True
     async_session.add(dweller)

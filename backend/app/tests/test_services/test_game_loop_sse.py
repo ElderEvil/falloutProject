@@ -1,12 +1,7 @@
-"""Tests for SSE publishing in the game loop.
-
-These tests verify that game tick SSE events are published exactly once
-per vault. See bug-report-duplicate-sse.md for context.
-"""
+"""Exactly-once SSE publishing for game ticks (see bug-report-duplicate-sse.md)."""
 
 from unittest.mock import MagicMock, patch
 
-import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.stream_manager import sse_manager
@@ -14,46 +9,21 @@ from app.models.vault import Vault
 from app.services.game_loop_service import game_loop_service
 
 
-@pytest.mark.asyncio
-async def test_process_game_tick_publishes_sse_once_per_vault(
-    async_session: AsyncSession,
-    session_factory,
-    vault: Vault,
-):
-    """process_game_tick publishes SSE exactly ONCE per vault (not twice).
-
-    Before the fix, process_game_tick published AFTER process_vault_tick
-    returned, and process_vault_tick ALSO published — causing 2 SSE events
-    per vault. This test pins the expected count to 1.
-    """
-    # Prime: create a GameState so the vault is "active"
+async def test_tick_publishes_sse_once_per_vault_and_never_when_paused(async_session, session_factory, vault):
+    # Priming the tick creates the GameState that makes the vault "active".
     await game_loop_service.process_vault_tick(async_session, vault.id)
 
     with patch.object(sse_manager, "publish", new_callable=MagicMock) as mock_publish:
         stats = await game_loop_service.process_game_tick(session_factory)
 
-        # This assertion FAILS before the fix (it's called twice)
         mock_publish.assert_called_once()
-        args, _kwargs = mock_publish.call_args
-        _vault_id, topic, data = args
+        _vault_id, topic, data = mock_publish.call_args.args
         assert topic == "game_ticks"
-        updates = data["results"]["updates"]
-        assert "resources" in updates
-        assert "dweller_snapshot" in updates
+        assert {"resources", "dweller_snapshot"} <= data["results"]["updates"].keys()
     assert stats["vaults_processed"] >= 1
 
-
-@pytest.mark.asyncio
-async def test_process_vault_tick_no_sse_when_paused(
-    async_session: AsyncSession,
-    vault: Vault,
-):
-    """paused vaults do NOT publish SSE."""
-    await game_loop_service.process_vault_tick(async_session, vault.id)
     await game_loop_service.pause_vault(async_session, vault.id)
-
     with patch.object(sse_manager, "publish", new_callable=MagicMock) as mock_publish:
         result = await game_loop_service.process_vault_tick(async_session, vault.id)
-
         assert result["status"] == "paused"
         mock_publish.assert_not_called()

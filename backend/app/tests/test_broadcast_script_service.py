@@ -1,507 +1,299 @@
-"""Tests for broadcast script renderer — pure function, no I/O."""
-
 from datetime import date, datetime, timedelta
+
+import pytest
 
 from app.utils.broadcast_script import build_daily_script
 
-
-class TestScriptWordCount:
-    """Ensure the script stays in the 120-180 word target range."""
-
-    def _baseline_data(self):
-        return {
-            "population": 25,
-            "population_max": 50,
-            "caps": 5000,
-            "happiness": 72,
-            "power": (80, 100),
-            "food": (200, 300),
-            "water": (150, 200),
-            "recent_notifications": [],
-            "vault_number": 13,
-        }
-
-    def test_default_script_word_count(self):
-        title, script = build_daily_script(**self._baseline_data())
-        words = len(script.split())
-        assert 100 <= words <= 220, f"Script word count {words} outside expected range"
-
-    def test_empty_notifications(self):
-        data = self._baseline_data()
-        data["recent_notifications"] = []
-        title, script = build_daily_script(**data)
-        words = len(script.split())
-        assert words > 0
-
-    def test_title_contains_date(self):
-        now = datetime(2026, 6, 15, 12, 0)
-        data = self._baseline_data()
-        data["recent_notifications"] = []
-        title, script = build_daily_script(**data, _now=now)
-        assert "June 15, 2026" in title
+COMMON = {
+    "population": 10,
+    "population_max": 20,
+    "caps": 1000,
+    "happiness": 70,
+    "power": (50, 100),
+    "food": (50, 100),
+    "water": (50, 100),
+    "recent_notifications": [],
+    "vault_number": 1,
+}
 
 
-class TestWordCountYearSweep:
-    """Regression: every day of 2026 must render inside the word bounds.
-
-    On 2026-11-19 the seeded phrase pools rendered only 95 words because the
-    script had a soft ceiling but no floor. Sweep the whole year across three
-    vaults, with and without variant_seed overrides, and check determinism.
-    """
-
-    def test_every_day_of_2026_stays_in_bounds_and_deterministic(self):
-        baseline = TestScriptWordCount()._baseline_data()
-        day = date(2026, 1, 1)
-        while day.year == 2026:
-            now = datetime(day.year, day.month, day.day, 12, 0)
-            for vault in (13, 42, 101):
-                for seed in (None, f"sweep-vault-{vault}"):
-                    data: dict = dict(baseline, vault_number=vault)
-                    if seed is not None:
-                        data["variant_seed"] = seed
-                    label = f"{day.isoformat()} vault={vault} variant_seed={seed!r}"
-                    title, script = build_daily_script(**data, _now=now)
-                    words = len(script.split())
-                    assert 100 <= words <= 220, f"{label}: word count {words} outside 100-220"
-                    assert (title, script) == build_daily_script(**data, _now=now), (
-                        f"{label}: repeated render is not byte-identical"
-                    )
-            day += timedelta(days=1)
+def _data(**overrides) -> dict:
+    return {**COMMON, **overrides}
 
 
-class TestGenderSplit:
-    """Gender split renders from the stored population counts."""
-
-    def test_gender_split_from_counts(self):
-        data = {
-            "population": 10,
-            "population_max": 20,
-            "caps": 1000,
-            "happiness": 60,
-            "power": (50, 100),
-            "food": (50, 100),
-            "water": (50, 100),
-            "recent_notifications": [],
-            "gender_counts": [("male", 2), ("female", 1)],
-            "vault_number": 7,
-        }
-        _, script = build_daily_script(**data)
-        assert "male" in script.lower()
-        assert "female" in script.lower()
+def _script(**overrides) -> str:
+    return build_daily_script(**_data(**overrides))[1]
 
 
-class TestResourceReporting:
-    """Resource percentages appear in the correct format."""
-
-    def test_resource_percentages(self):
-        data = {
-            "population": 5,
-            "population_max": 10,
-            "caps": 500,
-            "happiness": 80,
-            "power": (10, 20),
-            "food": (0, 50),
-            "water": (50, 50),
-            "recent_notifications": [],
-            "vault_number": 3,
-        }
-        _, script = build_daily_script(**data)
-        assert "50%" in script
-        assert "0%" in script
-        assert "100%" in script
-        # Percentages only - the raw "current of maximum" numbers are noise.
-        assert "of 50" not in script
-        assert "of 20" not in script
+def _n(kind: str, message: str = "", **extra: object) -> dict:
+    return {"notification_type": kind, "message": message, **extra}
 
 
-class TestNotificationBatching:
-    """Level-up and other notifications are batched into one line."""
-
-    def test_level_up_notification(self):
-        data = {
-            "population": 10,
-            "population_max": 20,
-            "caps": 1000,
-            "happiness": 70,
-            "power": (50, 100),
-            "food": (50, 100),
-            "water": (50, 100),
-            "recent_notifications": [
-                {"notification_type": "dweller_level_up", "name": "Max"},
-            ],
-            "vault_number": 1,
-        }
-        _, script = build_daily_script(**data)
-        assert "level" in script.lower()
-
-    def test_unnamed_level_up_keeps_fallback(self):
-        data = {
-            "population": 10,
-            "population_max": 20,
-            "caps": 1000,
-            "happiness": 70,
-            "power": (50, 100),
-            "food": (50, 100),
-            "water": (50, 100),
-            "recent_notifications": [
-                {"notification_type": "level_up", "message": "A dweller reached level 6."},
-            ],
-            "vault_number": 1,
-        }
-        _, script = build_daily_script(**data)
-        assert "level" in script.lower()
-
-    def test_level_ups_use_each_dwellers_name_once(self):
-        data = {
-            "population": 10,
-            "population_max": 20,
-            "caps": 1000,
-            "happiness": 70,
-            "power": (50, 100),
-            "food": (50, 100),
-            "water": (50, 100),
-            "recent_notifications": [
-                {
-                    "notification_type": "level_up",
-                    "title": "Alice Leveled Up!",
-                    "message": "Alice reached level 6!",
-                },
-                {
-                    "notification_type": "level_up",
-                    "title": "Bob Leveled Up!",
-                    "message": "Bob reached level 7!",
-                },
-            ],
-            "vault_number": 1,
-        }
-        _, script = build_daily_script(**data)
-        assert "Alice" in script
-        assert "Bob" in script
-        assert script.count("Alice") == 1
-        assert script.count("Bob") == 1
-
-    def test_vault_prefix_stripped_from_headlines(self):
-        """The "[Vault N]" notification prefix never reaches the broadcast."""
-        data = {
-            "population": 10,
-            "population_max": 20,
-            "caps": 1000,
-            "happiness": 70,
-            "power": (50, 100),
-            "food": (50, 100),
-            "water": (50, 100),
-            "recent_notifications": [
-                {
-                    "notification_type": "level_up",
-                    "title": "[Vault 666] Alice Leveled Up!",
-                    "message": "[Vault 666] Alice reached level 6!",
-                },
-                {
-                    "notification_type": "dweller_training_complete",
-                    "dweller_name": "[Vault 666] Bob",
-                    "message": "[Vault 666] Bob finished training Strength!",
-                },
-            ],
-            "vault_number": 666,
-        }
-        _, script = build_daily_script(**data)
-        assert "[Vault" not in script
-        assert "Alice" in script
-        assert "Bob" in script
-
-    def test_active_combat_alert_is_not_a_headline(self):
-        data = {
-            "population": 10,
-            "population_max": 20,
-            "caps": 1000,
-            "happiness": 70,
-            "power": (50, 100),
-            "food": (50, 100),
-            "water": (50, 100),
-            "recent_notifications": [
-                {
-                    "notification_type": "combat_started",
-                    "message": "[Vault 666] 🐀 Mole Rat Attack in Power Generator! Send dwellers to defend.",
-                },
-                {
-                    "notification_type": "combat_victory",
-                    "message": "[Vault 666] Your dwellers defeated the attackers, recovered 52 caps.",
-                },
-            ],
-            "vault_number": 666,
-        }
-        _, script = build_daily_script(**data)
-        assert "defeated the attackers" in script
-        assert "Send dwellers to defend" not in script
-
-    def test_multiple_notifications_batched(self):
-        data = {
-            "population": 10,
-            "population_max": 20,
-            "caps": 1000,
-            "happiness": 70,
-            "power": (50, 100),
-            "food": (50, 100),
-            "water": (50, 100),
-            "recent_notifications": [
-                {"message": "A radroach was spotted in the kitchen."},
-                {"message": "A dweller found some caps."},
-                {"message": "Power generator needs repair."},
-                {"message": "Extra notification should be truncated."},
-            ],
-            "vault_number": 1,
-        }
-        _, script = build_daily_script(**data)
-        # All 4 notifications but truncated to ~3 notable lines
-        assert "radroach" in script.lower() or "kitchen" in script.lower()
+def _baseline(**overrides) -> dict:
+    return (
+        _data(population=25, population_max=50, caps=5000, happiness=72, vault_number=13)
+        | {"power": (80, 100), "food": (200, 300), "water": (150, 200)}
+        | overrides
+    )
 
 
-class TestPhraseVariety:
-    """Deterministic phrase pools: stable per day, varied across days/seeds."""
-
-    def _data(self):
-        return {
-            "population": 23,
-            "population_max": 46,
-            "caps": 1852,
-            "happiness": 87,
+def _variety(**overrides) -> dict:
+    base = _data(population=23, population_max=46, caps=1852, happiness=87, vault_number=666)
+    return (
+        base
+        | {
             "power": (300, 300),
             "food": (300, 300),
             "water": (300, 300),
-            "recent_notifications": [],
             "gender_counts": [("male", 13), ("female", 10)],
-            "vault_number": 666,
         }
-
-    def test_same_seed_is_deterministic(self):
-        first = build_daily_script(**self._data(), variant_seed="seed-1")
-        second = build_daily_script(**self._data(), variant_seed="seed-1")
-        assert first == second
-
-    def test_seeds_produce_varied_greetings(self):
-        openings = {build_daily_script(**self._data(), variant_seed=f"s{n}")[1].split(". ")[0] for n in range(12)}
-        assert len(openings) > 1, "Greetings never rotate across seeds"
-
-    def test_seeds_produce_varied_sign_offs(self):
-        endings = {build_daily_script(**self._data(), variant_seed=f"s{n}")[1].rsplit(". ", 2)[-2] for n in range(20)}
-        assert len(endings) > 1, "Sign-offs never rotate across seeds"
-
-    def test_low_supplies_get_flavor(self):
-        data = self._data()
-        data["power"] = (5, 100)
-        _, script = build_daily_script(**data)
-        assert "Conserve those bulbs" in script
-        assert "Power is at 5%." in script
-
-    def test_morale_tiers_change_the_tone(self):
-        cases = {
-            95: ("splendid", "jukebox"),
-            72: ("steady", "comfortable"),
-            40: ("improvement", "dance"),
-            20: ("troubling", "grim"),
-        }
-        for happiness, expected_words in cases.items():
-            data = self._data()
-            data["happiness"] = happiness
-            _, script = build_daily_script(**data)
-            assert any(word in script for word in expected_words), (
-                f"happiness {happiness}: no tone marker from {expected_words}"
-            )
+        | overrides
+    )
 
 
-class TestRotatingSegments:
-    """One rotating segment per broadcast; different seeds, different segments."""
+def test_baseline_script_shape() -> None:
+    title, script = build_daily_script(**_baseline(recent_notifications=[]), _now=datetime(2026, 6, 15, 12, 0))
+    assert 100 <= len(script.split()) <= 220, f"Script word count {len(script.split())} outside expected range"
+    assert "June 15, 2026" in title
 
-    def _data(self):
-        return {
-            "population": 23,
-            "population_max": 46,
-            "caps": 1852,
-            "happiness": 87,
-            "power": (300, 300),
-            "food": (300, 300),
-            "water": (300, 300),
-            "recent_notifications": [],
-            "vault_number": 666,
-        }
 
-    def test_housing_segment_reflects_occupancy(self):
-        # s3 deterministically selects the housing segment (asserted in
-        # test_segment_rotates_across_seeds), so these hit the housing branch.
-        crowded = self._data() | {"population": 44, "population_max": 46}
-        _, script = build_daily_script(**crowded, variant_seed="s3")
-        assert "A note from housing: bunks are filling fast, 44 of 46 spoken for." in script
-        sparse = self._data() | {"population": 5, "population_max": 46}
-        _, script = build_daily_script(**sparse, variant_seed="s3")
-        assert "Housing reports plenty of open bunks, 5 of 46 occupied." in script
-        overflow = self._data() | {"population": 23, "population_max": 8}
-        _, script = build_daily_script(**overflow, variant_seed="s3")
-        assert "Housing reports 23 residents in a vault built for 8." in script
+def test_every_day_of_2026_stays_in_bounds_and_deterministic() -> None:
+    # Regression: on 2026-11-19 the phrase pools rendered only 95 words (soft ceiling, no floor).
+    day = date(2026, 1, 1)
+    while day.year == 2026:
+        now = datetime(day.year, day.month, day.day, 12, 0)
+        for vault in (13, 42, 101):
+            for seed in (None, f"sweep-vault-{vault}"):
+                data = _baseline(vault_number=vault) | ({"variant_seed": seed} if seed else {})
+                label = f"{day.isoformat()} vault={vault} variant_seed={seed!r}"
+                title, script = build_daily_script(**data, _now=now)
+                words = len(script.split())
+                assert 100 <= words <= 220, f"{label}: word count {words} outside 100-220"
+                assert (title, script) == build_daily_script(**data, _now=now), (
+                    f"{label}: repeated render is not byte-identical"
+                )
+        day += timedelta(days=1)
 
-    def test_segment_rotates_across_seeds(self):
-        _, script = build_daily_script(**self._data(), variant_seed="s3")
-        assert "Housing reports steady occupancy: 23 of 46 bunks in use, no complaints on file." in script
-        _, script = build_daily_script(**self._data(), variant_seed="s50")
-        assert "The wasteland reports: blazing sun, irritable mole rats" in script
 
-    def test_objectives_segment_counts_unclaimed_rewards(self):
-        # s9 selects the objectives segment; the count is the only detail.
-        _, script = build_daily_script(**self._data(), rewards_ready=2, variant_seed="s9")
-        assert "The objectives ledger shows 2 rewards unclaimed." in script
-        _, script = build_daily_script(**self._data(), rewards_ready=1, variant_seed="s9")
-        assert "The objectives ledger shows 1 reward unclaimed." in script
+def test_gender_split_from_counts() -> None:
+    script = _script(happiness=60, gender_counts=[("male", 2), ("female", 1)], vault_number=7)
+    assert "male" in script.lower()
+    assert "female" in script.lower()
 
-    def test_objectives_segment_zero_state_has_no_count(self):
-        # Nothing claimable: a filler line, never a "0 rewards" confession.
-        _, script = build_daily_script(**self._data(), variant_seed="s9")
-        assert "nothing pending" in script
-        assert "reward" not in script
 
-    def test_housing_dropped_by_budget_keeps_capacity_numbers(self, monkeypatch):
-        """When the budget drops the housing segment, the population line keeps its numbers."""
-        import app.utils.broadcast_script as bs
+def test_resource_percentages() -> None:
+    script = _script(
+        **_data(population=5, population_max=10, caps=500, happiness=80, vault_number=3)
+        | {"power": (10, 20), "food": (0, 50), "water": (50, 50)}
+    )
+    assert "50%" in script
+    assert "0%" in script
+    assert "100%" in script
+    # Percentages only - the raw "current of maximum" numbers are noise.
+    assert "of 50" not in script
+    assert "of 20" not in script
 
-        monkeypatch.setattr(bs, "_SEGMENT_WORD_BUDGET", 30)
-        crowded = self._data() | {"population": 44, "population_max": 46}
-        _, script = build_daily_script(**crowded, variant_seed="s3")
-        assert "A note from housing" not in script, "segment should be budget-dropped"
-        assert "44" in script, "capacity must not disappear with the segment"
-        assert "46" in script, "capacity must not disappear with the segment"
 
-    def test_long_headlines_keep_the_script_in_budget(self):
-        data = self._data()
-        data["recent_notifications"] = [
-            {
-                "notification_type": "dweller_died",
-                "dweller_name": f"Resident Number {n}",
-                "message": (
-                    f"Resident Number {n} lost their life in a catastrophic "
-                    "accident in the water treatment facility during the night shift."
-                ),
-            }
-            for n in range(4)
+@pytest.mark.parametrize(
+    "notification",
+    [_n("dweller_level_up", name="Max"), _n("level_up", "A dweller reached level 6.")],
+)
+def test_level_up_notification_keeps_level_wording(notification: dict) -> None:
+    assert "level" in _script(recent_notifications=[notification]).lower()
+
+
+def test_level_ups_use_each_dwellers_name_once() -> None:
+    script = _script(
+        recent_notifications=[
+            _n("level_up", "Alice reached level 6!", title="Alice Leveled Up!"),
+            _n("level_up", "Bob reached level 7!", title="Bob Leveled Up!"),
         ]
-        _, script = build_daily_script(**data, variant_seed="busy-day")
-        # Three somber headlines render; the script still respects the ceiling.
-        assert script.count("With heavy hearts") == 3
-        assert len(script.split()) <= 220
+    )
+    assert ("Alice" in script, "Bob" in script, script.count("Alice"), script.count("Bob")) == (True, True, 1, 1)
 
 
-class TestHeadlineTones:
-    """Headlines get tone-tinted wrappers by notification type."""
+def test_vault_prefix_stripped_from_headlines() -> None:
+    script = _script(
+        vault_number=666,
+        recent_notifications=[
+            _n("level_up", "[Vault 666] Alice reached level 6!", title="[Vault 666] Alice Leveled Up!"),
+            _n(
+                "dweller_training_complete",
+                "[Vault 666] Bob finished training Strength!",
+                dweller_name="[Vault 666] Bob",
+            ),
+        ],
+    )
+    assert "[Vault" not in script
+    assert "Alice" in script
+    assert "Bob" in script
 
-    def _data(self, notifications):
-        return {
-            "population": 10,
-            "population_max": 20,
-            "caps": 1000,
-            "happiness": 70,
-            "power": (50, 100),
-            "food": (50, 100),
-            "water": (50, 100),
-            "recent_notifications": notifications,
-            "vault_number": 666,
-        }
 
-    def test_death_headline_is_somber(self):
-        _, script = build_daily_script(
-            **self._data(
-                [
-                    {
-                        "notification_type": "dweller_died",
-                        "dweller_name": "Gerald Moon",
-                        "message": "Gerald Moon died in a fire in the Power Generator.",
-                    }
-                ]
-            )
+def test_active_combat_alert_is_not_a_headline() -> None:
+    script = _script(
+        vault_number=666,
+        recent_notifications=[
+            _n("combat_started", "[Vault 666] 🐀 Mole Rat Attack in Power Generator! Send dwellers to defend."),
+            _n("combat_victory", "[Vault 666] Your dwellers defeated the attackers, recovered 52 caps."),
+        ],
+    )
+    assert "defeated the attackers" in script
+    assert "Send dwellers to defend" not in script
+
+
+def test_multiple_notifications_batched() -> None:
+    script = _script(
+        recent_notifications=[
+            {"message": "A radroach was spotted in the kitchen."},
+            {"message": "A dweller found some caps."},
+            {"message": "Power generator needs repair."},
+            {"message": "Extra notification should be truncated."},
+        ]
+    )
+    assert "radroach" in script.lower() or "kitchen" in script.lower()
+
+
+def test_seeded_phrase_variety_is_deterministic() -> None:
+    assert build_daily_script(**_variety(), variant_seed="seed-1") == build_daily_script(
+        **_variety(), variant_seed="seed-1"
+    )
+    openings = {build_daily_script(**_variety(), variant_seed=f"s{n}")[1].split(". ")[0] for n in range(12)}
+    assert len(openings) > 1, "Greetings never rotate across seeds"
+    endings = {build_daily_script(**_variety(), variant_seed=f"s{n}")[1].rsplit(". ", 2)[-2] for n in range(20)}
+    assert len(endings) > 1, "Sign-offs never rotate across seeds"
+
+
+def test_low_supplies_and_morale_tiers_change_the_tone() -> None:
+    script = build_daily_script(**_variety(power=(5, 100)))[1]
+    assert "Conserve those bulbs" in script
+    assert "Power is at 5%." in script
+    cases = {
+        95: ("splendid", "jukebox"),
+        72: ("steady", "comfortable"),
+        40: ("improvement", "dance"),
+        20: ("troubling", "grim"),
+    }
+    for happiness, expected_words in cases.items():
+        script = build_daily_script(**_variety(happiness=happiness))[1]
+        assert any(word in script for word in expected_words), (
+            f"happiness {happiness}: no tone marker from {expected_words}"
         )
-        assert "With heavy hearts" in script
-        assert "Gerald Moon" in script
 
-    def test_victory_headline_celebrates(self):
-        _, script = build_daily_script(
-            **self._data(
-                [
-                    {
-                        "notification_type": "combat_victory",
-                        "message": "Your dwellers defeated the attackers, recovered 52 caps.",
-                    }
-                ]
-            )
+
+def test_segments_reflect_occupancy_and_rotate() -> None:
+    # s3 deterministically selects the housing segment; s50 selects the wasteland one.
+    assert "Housing reports steady occupancy: 23 of 46 bunks in use, no complaints on file." in _seg()
+    assert (
+        "The wasteland reports: blazing sun, irritable mole rats"
+        in build_daily_script(**_variety(), variant_seed="s50")[1]
+    )
+    crowded = build_daily_script(**_variety(population=44), variant_seed="s3")[1]
+    assert "A note from housing: bunks are filling fast, 44 of 46 spoken for." in crowded
+    sparse = build_daily_script(**_variety(population=5), variant_seed="s3")[1]
+    assert "Housing reports plenty of open bunks, 5 of 46 occupied." in sparse
+    overflow = build_daily_script(**_variety(population_max=8), variant_seed="s3")[1]
+    assert "Housing reports 23 residents in a vault built for 8." in overflow
+
+
+def test_objectives_segment_counts_unclaimed_rewards() -> None:
+    assert (
+        "The objectives ledger shows 2 rewards unclaimed."
+        in build_daily_script(**_variety(rewards_ready=2), variant_seed="s9")[1]
+    )
+    assert (
+        "The objectives ledger shows 1 reward unclaimed."
+        in build_daily_script(**_variety(rewards_ready=1), variant_seed="s9")[1]
+    )
+
+    # Nothing claimable: a filler line, never a "0 rewards" confession.
+    script = build_daily_script(**_variety(), variant_seed="s9")[1]
+    assert "nothing pending" in script
+    assert "reward" not in script
+
+
+def test_housing_dropped_by_budget_keeps_capacity_numbers(monkeypatch: pytest.MonkeyPatch) -> None:
+    import app.utils.broadcast_script as bs
+
+    monkeypatch.setattr(bs, "_SEGMENT_WORD_BUDGET", 30)
+    script = build_daily_script(**_variety(population=44), variant_seed="s3")[1]
+    assert "A note from housing" not in script, "segment should be budget-dropped"
+    assert "44" in script, "capacity must not disappear with the segment"
+    assert "46" in script, "capacity must not disappear with the segment"
+
+
+def _seg(seed: str = "s3") -> str:
+    return build_daily_script(**_variety(), variant_seed=seed)[1]
+
+
+def test_long_headlines_keep_the_script_in_budget() -> None:
+    notifications = [
+        _n(
+            "dweller_died",
+            f"Resident Number {n} lost their life in a catastrophic "
+            "accident in the water treatment facility during the night shift.",
+            dweller_name=f"Resident Number {n}",
         )
-        assert "A round of applause" in script
-        assert "defeated the attackers" in script
-
-    def test_birth_headline_celebrates_arrival(self):
-        _, script = build_daily_script(
-            **self._data(
-                [
-                    {
-                        "notification_type": "baby_born",
-                        "message": "A healthy baby was born in the living quarters!",
-                    }
-                ]
-            )
-        )
-        assert "A new dweller among us" in script
-
-    def test_untreated_types_stay_untouched(self):
-        message = "A radroach was spotted in the kitchen."
-        _, script = build_daily_script(**self._data([{"notification_type": "pest_spotted", "message": message}]))
-        assert message.rstrip(".") + "." in script or message in script
+        for n in range(4)
+    ]
+    script = build_daily_script(**_variety(recent_notifications=notifications), variant_seed="busy-day")[1]
+    assert script.count("With heavy hearts") == 3
+    assert len(script.split()) <= 220
 
 
-class TestSignOff:
-    """Every script ends with a 1950s-style sign-off."""
+@pytest.mark.parametrize(
+    ("notification", "expected"),
+    [
+        (
+            _n(
+                "dweller_died",
+                "Gerald Moon died in a fire in the Power Generator.",
+                dweller_name="Gerald Moon",
+            ),
+            ["With heavy hearts", "Gerald Moon"],
+        ),
+        (
+            _n("combat_victory", "Your dwellers defeated the attackers, recovered 52 caps."),
+            ["A round of applause", "defeated the attackers"],
+        ),
+        (_n("baby_born", "A healthy baby was born in the living quarters!"), ["A new dweller among us"]),
+    ],
+)
+def test_headline_tone_matches_the_event(notification: dict, expected: list[str]) -> None:
+    script = _script(recent_notifications=[notification], vault_number=666)
+    for phrase in expected:
+        assert phrase in script
 
-    def test_signoff_present(self):
-        data = {
-            "population": 5,
-            "population_max": 10,
-            "caps": 500,
-            "happiness": 50,
-            "power": (10, 10),
-            "food": (10, 10),
-            "water": (10, 10),
-            "recent_notifications": [],
-            "vault_number": 99,
-        }
-        _, script = build_daily_script(**data)
-        assert "Vault 099" in script or "Vault 99" in script
-        assert "peace" in script.lower() or "vault" in script.lower()
+
+def test_untreated_types_stay_untouched() -> None:
+    message = "A radroach was spotted in the kitchen."
+    script = _script(recent_notifications=[_n("pest_spotted", message)], vault_number=666)
+    assert message.rstrip(".") + "." in script or message in script
 
 
-class TestEdgeCases:
-    def test_no_max_population(self):
-        data = {
-            "population": 5,
-            "population_max": 0,
-            "caps": 500,
-            "happiness": 50,
-            "power": (10, 0),
-            "food": (10, 0),
-            "water": (10, 0),
-            "recent_notifications": [],
-            "vault_number": 1,
-        }
-        title, script = build_daily_script(**data)
-        assert title  # still returns valid output
-        assert "dwellers" in script.lower()
-        # Zero-maximum resources report unavailability, never raw quantities.
-        assert "readings are unavailable" in script
-        assert "stands at 10" not in script
+def test_signoff_present() -> None:
+    script = _script(
+        **_data(population=5, population_max=10, caps=500, happiness=50)
+        | {"power": (10, 10), "food": (10, 10), "water": (10, 10), "vault_number": 99}
+    )
+    assert "Vault 099" in script or "Vault 99" in script
+    assert "peace" in script.lower() or "vault" in script.lower()
 
-    def test_no_vault_number(self):
-        data = {
-            "population": 5,
-            "population_max": 10,
-            "caps": 500,
-            "happiness": 50,
-            "power": (10, 10),
-            "food": (10, 10),
-            "water": (10, 10),
-            "recent_notifications": [],
-            "vault_number": None,
-        }
-        title, script = build_daily_script(**data)
-        assert title  # still returns valid output
+
+def test_no_max_population() -> None:
+    title, script = build_daily_script(
+        **_data(population=5, population_max=0, caps=500, happiness=50)
+        | {"power": (10, 0), "food": (10, 0), "water": (10, 0)}
+    )
+    assert title  # still returns valid output
+    assert "dwellers" in script.lower()
+    # Zero-maximum resources report unavailability, never raw quantities.
+    assert "readings are unavailable" in script
+    assert "stands at 10" not in script
+
+
+def test_no_vault_number() -> None:
+    title, _ = build_daily_script(
+        **_data(population=5, population_max=10, caps=500, happiness=50)
+        | {"power": (10, 10), "food": (10, 10), "water": (10, 10), "vault_number": None}
+    )
+    assert title  # still returns valid output

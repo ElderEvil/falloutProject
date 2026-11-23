@@ -57,7 +57,6 @@ def test_factory_normalizes_a_raw_rarity_string() -> None:
 
 
 def test_build_junk_defaults_to_valuables_without_art() -> None:
-    """Bare junk keeps the exploration shape: valuables, no art, caller-owned value."""
     junk = build_junk("Bottle Cap", "Common", None, value=1, description="Found during wasteland exploration")
 
     assert (junk.junk_type, junk.value, junk.description, junk.image_url) == (
@@ -69,7 +68,6 @@ def test_build_junk_defaults_to_valuables_without_art() -> None:
 
 
 def test_build_junk_keeps_caller_type_value_prose_and_art() -> None:
-    """The widened factory forwards every caller-owned junk field unchanged."""
     junk = build_junk(
         "Desk Fan",
         "Rare",

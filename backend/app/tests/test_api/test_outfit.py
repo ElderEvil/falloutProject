@@ -1,6 +1,4 @@
 import pytest
-from httpx import AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import crud
 from app.core.config import settings
@@ -13,14 +11,20 @@ from app.tests.factory.vaults import create_fake_vault
 pytestmark = pytest.mark.asyncio(scope="module")
 
 
-@pytest.mark.asyncio
-async def test_read_outfit_list(
-    async_client: AsyncClient,
-    async_session: AsyncSession,
-    outfit_data: dict,
-    superuser_token_headers: dict[str, str],
-    vault,
-):
+async def _vault_with_storage(async_session, *, max_space: int | None = None):
+    user = await crud.user.get_by_email(async_session, email=settings.FIRST_SUPERUSER_EMAIL)
+    vault_data = create_fake_vault()
+    vault_data["user_id"] = str(user.id)
+    vault = await crud.vault.create(async_session, VaultCreateWithUserID(**vault_data))
+    storage = await vault_crud.create_storage(db_session=async_session, vault_id=vault.id)
+    if max_space is not None:
+        storage.max_space = max_space
+        async_session.add(storage)
+        await async_session.flush()
+    return vault, storage
+
+
+async def test_read_outfit_list(async_client, async_session, outfit_data, superuser_token_headers, vault) -> None:
     storage = await vault_crud.create_storage(db_session=async_session, vault_id=vault.id)
     outfit_2_data = create_fake_outfit()
     outfit_1 = OutfitCreate(**outfit_data)
@@ -39,7 +43,6 @@ async def test_read_outfit_list(
     assert response_outfit_1["value"] == outfit_1.value
     assert response_outfit_1["outfit_type"] == outfit_1.outfit_type
     assert response_outfit_1["gender"] == outfit_1.gender
-
     assert response_outfit_2["name"] == outfit_2.name
     assert response_outfit_2["rarity"] == outfit_2.rarity
     assert response_outfit_2["value"] == outfit_2.value
@@ -47,11 +50,9 @@ async def test_read_outfit_list(
     assert response_outfit_2["gender"] == outfit_2.gender
 
 
-@pytest.mark.asyncio
-async def test_update_outfit(async_client: AsyncClient, outfit_data: dict, superuser_token_headers: dict[str, str]):
+async def test_update_outfit(async_client, outfit_data, superuser_token_headers) -> None:
     response = await async_client.post("/outfits/", json=outfit_data, headers=superuser_token_headers)
-    outfit_response = response.json()
-    outfit_id = outfit_response["id"]
+    outfit_id = response.json()["id"]
     outfit_new_data = create_fake_outfit()
     update_response = await async_client.put(
         f"/outfits/{outfit_id}", json=outfit_new_data, headers=superuser_token_headers
@@ -66,8 +67,7 @@ async def test_update_outfit(async_client: AsyncClient, outfit_data: dict, super
     assert updated_outfit["gender"] == outfit_new_data["gender"]
 
 
-@pytest.mark.asyncio
-async def test_delete_outfit(async_client: AsyncClient, outfit_data: dict, superuser_token_headers: dict[str, str]):
+async def test_delete_outfit(async_client, outfit_data, superuser_token_headers) -> None:
     create_response = await async_client.post("/outfits/", json=outfit_data, headers=superuser_token_headers)
     created_outfit = create_response.json()
     delete_response = await async_client.delete(f"/outfits/{created_outfit['id']}", headers=superuser_token_headers)
@@ -76,51 +76,22 @@ async def test_delete_outfit(async_client: AsyncClient, outfit_data: dict, super
     assert read_response.status_code == 404
 
 
-@pytest.mark.asyncio
-async def test_scrap_outfit_success(
-    async_client: AsyncClient,
-    async_session: AsyncSession,
-    superuser_token_headers: dict[str, str],
-) -> None:
-    # Setup vault/storage and outfit
-    user = await crud.user.get_by_email(async_session, email=settings.FIRST_SUPERUSER_EMAIL)
-    vault_data = create_fake_vault()
-    vault_data["user_id"] = str(user.id)
-    vault_in = VaultCreateWithUserID(**vault_data)
-    vault = await crud.vault.create(async_session, vault_in)
-    storage = await vault_crud.create_storage(db_session=async_session, vault_id=vault.id)
-    storage.max_space = 5
-    async_session.add(storage)
-    await async_session.flush()
-    outfit_in = OutfitCreate(**create_fake_outfit(), storage_id=str(storage.id))
-    outfit = await crud.outfit.create(async_session, outfit_in)
-
+async def test_scrap_outfit_success(async_client, async_session, superuser_token_headers) -> None:
+    _vault, storage = await _vault_with_storage(async_session, max_space=5)
+    outfit = await crud.outfit.create(async_session, OutfitCreate(**create_fake_outfit(), storage_id=str(storage.id)))
     response = await async_client.post(f"/outfits/{outfit.id}/scrap/", headers=superuser_token_headers)
     assert response.status_code == 200
     data = response.json()
     assert "junk" in data
     assert isinstance(data["junk"], list)
-    # Outfit should be deleted as part of scrap
     read_response = await async_client.get(f"/outfits/{outfit.id}", headers=superuser_token_headers)
     assert read_response.status_code == 404
 
 
-@pytest.mark.asyncio
-async def test_sell_outfit_success(
-    async_client: AsyncClient,
-    async_session: AsyncSession,
-    superuser_token_headers: dict[str, str],
-) -> None:
-    user = await crud.user.get_by_email(async_session, email=settings.FIRST_SUPERUSER_EMAIL)
-    vault_data = create_fake_vault()
-    vault_data["user_id"] = str(user.id)
-    vault_in = VaultCreateWithUserID(**vault_data)
-    vault = await crud.vault.create(async_session, vault_in)
-    storage = await vault_crud.create_storage(db_session=async_session, vault_id=vault.id)
-    outfit_in = OutfitCreate(**create_fake_outfit(), storage_id=str(storage.id))
-    outfit = await crud.outfit.create(async_session, outfit_in)
-    vault_before = await crud.vault.get(async_session, id=vault.id)
-    pre_caps = vault_before.bottle_caps
+async def test_sell_outfit_success(async_client, async_session, superuser_token_headers) -> None:
+    vault, storage = await _vault_with_storage(async_session)
+    outfit = await crud.outfit.create(async_session, OutfitCreate(**create_fake_outfit(), storage_id=str(storage.id)))
+    pre_caps = (await crud.vault.get(async_session, id=vault.id)).bottle_caps
     response = await async_client.post(f"/outfits/{outfit.id}/sell/", headers=superuser_token_headers)
     assert response.status_code == 200
     read_response = await async_client.get(f"/outfits/{outfit.id}", headers=superuser_token_headers)

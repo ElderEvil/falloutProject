@@ -5,16 +5,19 @@ from uuid import uuid4
 
 import pytest
 from pydantic_ai.conversation import Conversation
-from pydantic_ai.exceptions import ModelRetry, UnexpectedModelBehavior
+from pydantic_ai.exceptions import ModelRetry, UsageLimitExceeded
 from pydantic_ai.models.test import TestModel
 
+from app.agents.chat_prompts import build_chat_instructions
 from app.agents.dweller_agents import backstory_agent, bio_extension_agent, visual_attributes_agent
 from app.agents.dweller_chat_agent import (
+    CHAT_REQUEST_LIMIT,
+    CHAT_TOOL_CALLS_LIMIT,
+    CHAT_USAGE_LIMITS,
     DwellerActivityBriefing,
     DwellerChatDeps,
     DwellerChatOutput,
     build_dweller_social_context,
-    chat_instructions,
     dweller_chat_agent,
     parse_action_suggestion,
     usage_limits_for,
@@ -34,44 +37,49 @@ from app.utils.exceptions import VaultOperationException
 
 
 def _make_dweller() -> MagicMock:
-    """Return the smallest realistic dweller shape required by dynamic instructions."""
-    dweller = MagicMock()
-    dweller.first_name = "Casey"
-    dweller.last_name = "Jones"
-    dweller.gender.value = "female"
-    dweller.age_group.value = "adult"
-    dweller.level = 7
-    dweller.rarity.value = "common"
-    dweller.vault.number = 13
-    dweller.vault.happiness = 75
+    dweller = MagicMock(
+        first_name="Casey",
+        last_name="Jones",
+        level=7,
+        health=100,
+        max_health=100,
+        radiation=0,
+        stimpack=2,
+        radaway=1,
+        happiness=75,
+        strength=6,
+        perception=5,
+        endurance=4,
+        charisma=7,
+        intelligence=5,
+        agility=6,
+        luck=4,
+        room=None,
+        outfit=None,
+        weapon=None,
+        bio="Casey keeps the water purifier running and avoids unnecessary risks.",
+    )
+    dweller.gender.value, dweller.age_group.value, dweller.rarity.value = "female", "adult", "common"
+    dweller.vault.number, dweller.vault.happiness = 13, 75
     dweller.vault.power = dweller.vault.power_max = 100
     dweller.vault.food = dweller.vault.food_max = 100
     dweller.vault.water = dweller.vault.water_max = 100
-    dweller.room = None
-    dweller.outfit = None
-    dweller.weapon = None
-    dweller.health = dweller.max_health = 100
-    dweller.radiation = 0
     # Property-backed so tests mutating max_health/radiation never read a stale cap.
     type(dweller).effective_max_health = PropertyMock(
         side_effect=lambda: max(1, dweller.max_health - dweller.radiation)
     )
-    dweller.stimpack = 2
-    dweller.radaway = 1
-    dweller.happiness = 75
-    dweller.bio = "Casey keeps the water purifier running and avoids unnecessary risks."
-    dweller.strength = 6
-    dweller.perception = 5
-    dweller.endurance = 4
-    dweller.charisma = 7
-    dweller.intelligence = 5
-    dweller.agility = 6
-    dweller.luck = 4
+    return dweller
+
+
+def _live(**overrides: object) -> MagicMock:
+    dweller = _make_dweller()
+    dweller.id, dweller.vault_id = uuid4(), uuid4()
+    for name, value in overrides.items():
+        setattr(dweller, name, value)
     return dweller
 
 
 def _output(**action_fields: object) -> DwellerChatOutput:
-    """Build a well-typed chat output and override its action fields as needed."""
     fields = {
         "response_text": "Ready when you are, Overseer.",
         "sentiment_score": 1,
@@ -84,374 +92,210 @@ def _output(**action_fields: object) -> DwellerChatOutput:
 
 
 def _medical_session(stimpack: int = 0, radaway: int = 0) -> MagicMock:
-    """Return an async session mock with deterministic vault medical stock."""
     storage_result = MagicMock()
     storage_result.scalar_one_or_none.return_value = MagicMock(stimpack=stimpack, radaway=radaway)
-    return MagicMock(execute=AsyncMock(return_value=storage_result))
+    return MagicMock(get=AsyncMock(return_value=None), execute=AsyncMock(return_value=storage_result))
 
 
 def _family_free_session() -> MagicMock:
-    """Return an async session mock whose family lookup finds no relatives."""
     family_result = MagicMock()
     family_result.scalars.return_value.all.return_value = []
     return MagicMock(get=AsyncMock(return_value=None), execute=AsyncMock(return_value=family_result))
 
 
+def _deps(*, session: MagicMock | None = None, dweller: MagicMock | None = None) -> DwellerChatDeps:
+    return DwellerChatDeps(
+        db_session=session or _family_free_session(), dweller=dweller or _make_dweller(), vault_id=uuid4()
+    )
+
+
+def _model(*call_tools: str, **output: object) -> TestModel:
+    defaults = {
+        "response_text": "ok",
+        "sentiment_score": 0,
+        "reason_text": "neutral",
+        "action_type": "no_action",
+        "action_reason": "none",
+    }
+    return TestModel(call_tools=list(call_tools), custom_output_args=defaults | output)
+
+
+BRIEFING = DwellerActivityBriefing(
+    exploration_active=False,
+    available_stimpaks=2,
+    available_radaways=1,
+    recommended_exploration_duration_hours=4,
+    recommended_stimpaks=2,
+    recommended_radaways=1,
+)
+SOCIAL_CONTEXT = {
+    "status": "Socializing",
+    "room_name": "Living Room",
+    "family": [{"name": "Sarah Jones", "relation": "partner"}],
+    "relationships": [{"name": "Sarah Jones", "relationship_type": "partner", "affinity": 80}],
+}
+
+
 def test_stateless_agents_use_instructions_not_system_prompts() -> None:
-    """Instructions avoid retaining obsolete context when no message history is passed."""
     for agent in (dweller_chat_agent, backstory_agent, bio_extension_agent, visual_attributes_agent):
         assert agent._instructions
-        assert agent._system_prompts == ()
-        assert agent._system_prompt_functions == []
-
-
-def test_instructions_name_irradiated_water_as_radiation_cause() -> None:
-    """Dwellers attribute drought sickness to drinking irradiated water, which no armor blocks."""
-    from app.agents.chat_prompts import build_chat_instructions
-
+        assert (agent._system_prompts, agent._system_prompt_functions) == ((), [])
     instructions = build_chat_instructions(_make_dweller())
     assert "irradiated water" in instructions
     assert "no armor stops that" in instructions
 
 
-def test_assignment_requires_complete_room_data() -> None:
-    """An assignment cannot reach gameplay handling without an ID and display name."""
-    output = _output(action_type="assign_to_room", action_room_id=uuid4())
-
-    with pytest.raises(ModelRetry, match="action_room_name"):
-        validate_dweller_chat_output(output)
-
-
-def test_no_action_rejects_gameplay_payload() -> None:
-    """No-action output may explain itself but cannot carry an executable action field."""
-    output = _output(action_room_id=uuid4())
-
-    with pytest.raises(ModelRetry, match="no_action must not include: action_room_id"):
-        validate_dweller_chat_output(output)
-
-
-def test_bio_addendum_requires_text() -> None:
-    """A bio addendum without text has nothing to record."""
-    output = _output(action_type="bio_addendum")
-
-    with pytest.raises(ModelRetry, match="action_bio_text"):
-        validate_dweller_chat_output(output)
+@pytest.mark.parametrize(
+    ("action", "match"),
+    [
+        ({"action_type": "assign_to_room", "action_room_id": uuid4()}, "action_room_name"),
+        ({"action_room_id": uuid4()}, "no_action must not include: action_room_id"),
+        ({"action_type": "bio_addendum"}, "action_bio_text"),
+        (
+            {
+                "action_type": "bio_addendum",
+                "action_bio_text": "I keep a lucky wrench under my bunk.",
+                "action_stat": SPECIALEnum.STRENGTH,
+            },
+            "must not include: action_stat",
+        ),
+    ],
+)
+def test_output_validation_rejects_malformed_actions(action: dict, match: str) -> None:
+    with pytest.raises(ModelRetry, match=match):
+        validate_dweller_chat_output(_output(**action))
 
 
-def test_bio_addendum_rejects_foreign_payload() -> None:
-    """A bio addendum is a narrative action and carries no gameplay fields."""
-    output = _output(
-        action_type="bio_addendum",
-        action_bio_text="I keep a lucky wrench under my bunk.",
-        action_stat=SPECIALEnum.STRENGTH,
-    )
-
-    with pytest.raises(ModelRetry, match="must not include: action_stat"):
-        validate_dweller_chat_output(output)
-
-
-@pytest.mark.asyncio
-async def test_bio_addendum_is_suggested_for_new_detail() -> None:
-    """A durable, previously unrecorded detail becomes an actionable card."""
-    output = _output(action_type="bio_addendum", action_bio_text="I keep a lucky wrench under my bunk.")
-
-    result = await parse_action_suggestion(output, _medical_session(), _make_dweller())
-
-    assert isinstance(result, BioAddendumAction)
-    assert result.bio_text == "I keep a lucky wrench under my bunk."
-
-
-@pytest.mark.asyncio
-async def test_bio_addendum_is_skipped_when_already_recorded() -> None:
-    """Restating the biography must not create a duplicate entry."""
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [("I keep a lucky wrench under my bunk.", BioAddendumAction), (None, NoAction), ("short", NoAction)],
+)
+async def test_bio_addendum_requires_a_new_substantive_detail(text: str | None, expected: type) -> None:
+    # None restates the recorded biography, which must not create a duplicate entry.
     dweller = _make_dweller()
-    output = _output(action_type="bio_addendum", action_bio_text=dweller.bio)
-
+    output = _output(action_type="bio_addendum", action_bio_text=dweller.bio if text is None else text)
     result = await parse_action_suggestion(output, _medical_session(), dweller)
-
-    assert isinstance(result, NoAction)
-
-
-@pytest.mark.asyncio
-async def test_bio_addendum_is_skipped_when_too_short() -> None:
-    output = _output(action_type="bio_addendum", action_bio_text="short")
-
-    result = await parse_action_suggestion(output, _medical_session(), _make_dweller())
-
-    assert isinstance(result, NoAction)
+    assert isinstance(result, expected)
+    if expected is BioAddendumAction:
+        assert result.bio_text == text
 
 
-@pytest.mark.asyncio
-async def test_request_exit_records_the_ask_without_committing() -> None:
-    """Chatting about leaving records the ask; it must not end the chat's own transaction."""
-    dweller = _make_dweller()
-    dweller.id = uuid4()
-    dweller.vault_id = uuid4()
-    output = _output(action_type="request_exit", action_reason="I want to see the sky.")
-    service = MagicMock(request_exit=AsyncMock())
-
+@pytest.mark.parametrize(
+    ("error", "expected", "reason"),
+    [
+        (None, RequestExitAction, "I want to see the sky."),
+        (VaultOperationException(detail="Only grown dwellers can leave"), NoAction, "Only grown dwellers can leave"),
+    ],
+)
+async def test_request_exit_records_the_ask_or_downgrades(error: Exception | None, expected: type, reason: str) -> None:
+    # Chatting about leaving records the ask; it must not end the chat's own transaction.
+    service = MagicMock(request_exit=AsyncMock(side_effect=error) if error else AsyncMock())
     with patch("app.agents.chat_tools.exit_request_service", service):
-        result = await parse_action_suggestion(output, _medical_session(), dweller)
-
-    assert isinstance(result, RequestExitAction)
-    assert result.reason == "I want to see the sky."
-    assert service.request_exit.await_args.kwargs["commit"] is False
-
-
-@pytest.mark.asyncio
-async def test_request_exit_is_downgraded_when_the_dweller_cannot_leave() -> None:
-    """An ineligible ask becomes a plain refusal, not an action card."""
-    dweller = _make_dweller()
-    dweller.id = uuid4()
-    dweller.vault_id = uuid4()
-    output = _output(action_type="request_exit", action_reason="I want out.")
-    service = MagicMock(
-        request_exit=AsyncMock(side_effect=VaultOperationException(detail="Only grown dwellers can leave"))
-    )
-
-    with patch("app.agents.chat_tools.exit_request_service", service):
-        result = await parse_action_suggestion(output, _medical_session(), dweller)
-
-    assert isinstance(result, NoAction)
-    assert result.reason == "Only grown dwellers can leave"
+        result = await parse_action_suggestion(
+            _output(action_type="request_exit", action_reason="I want to see the sky."), _medical_session(), _live()
+        )
+    assert isinstance(result, expected)
+    assert result.reason == reason
+    if error is None:
+        assert service.request_exit.await_args.kwargs["commit"] is False
 
 
-@pytest.mark.asyncio
 async def test_test_model_invokes_selected_room_recommendation_tool() -> None:
-    """A deterministic model can exercise the chat agent's registered decision tools."""
-    deps = DwellerChatDeps(db_session=_family_free_session(), dweller=_make_dweller(), vault_id=uuid4())
-    model = TestModel(
-        call_tools=["get_best_room_recommendation"],
-        custom_output_args={
-            "response_text": "I am ready to help.",
-            "sentiment_score": 1,
-            "reason_text": "The dweller wants to contribute.",
-            "action_type": "no_action",
-            "action_reason": "No action needed.",
-        },
-    )
-
-    with dweller_chat_agent.override(model=model):
-        result = await dweller_chat_agent.run("Where would I be useful?", deps=deps)
-
+    with dweller_chat_agent.override(model=_model("get_best_room_recommendation")):
+        result = await dweller_chat_agent.run("Where would I be useful?", deps=_deps())
     assert result.usage.tool_calls == 1
 
 
-@pytest.mark.asyncio
-async def test_test_model_invokes_activity_briefing_before_activity_suggestion() -> None:
-    """The model can query grounded training/exploration state without a provider or database."""
-    deps = DwellerChatDeps(db_session=_family_free_session(), dweller=_make_dweller(), vault_id=uuid4())
-    model = TestModel(
-        call_tools=["get_dweller_activity_briefing"],
-        custom_output_args={
-            "response_text": "I am ready to improve, Overseer.",
-            "sentiment_score": 1,
-            "reason_text": "The dweller wants a productive activity.",
-            "action_type": "no_action",
-            "action_reason": "Awaiting a grounded activity recommendation.",
-        },
-    )
-    briefing = DwellerActivityBriefing(
-        exploration_active=False,
-        available_stimpaks=2,
-        available_radaways=1,
-        recommended_exploration_duration_hours=4,
-        recommended_stimpaks=2,
-        recommended_radaways=1,
-    )
-
+@pytest.mark.parametrize(
+    ("tool", "builder", "payload"),
+    [
+        ("get_dweller_activity_briefing", "build_dweller_activity_briefing", BRIEFING),
+        ("get_dweller_social_context", "build_dweller_social_context", SOCIAL_CONTEXT),
+    ],
+)
+async def test_test_model_invokes_context_tools(tool: str, builder: str, payload: object) -> None:
+    deps = _deps()
+    model = _model(tool)
     with (
-        patch(
-            "app.agents.dweller_chat_agent.build_dweller_activity_briefing",
-            new_callable=AsyncMock,
-            return_value=briefing,
-        ) as mock_briefing,
-        dweller_chat_agent.override(model=model),
-    ):
-        result = await dweller_chat_agent.run("Can I train or explore?", deps=deps)
-
-    mock_briefing.assert_awaited_once_with(deps)
-    assert result.usage.tool_calls == 1
-
-
-@pytest.mark.asyncio
-async def test_medical_status_tool_reports_thresholds_and_supplies() -> None:
-    """The AI medical tool exposes live percentages and vault inventory."""
-    dweller = _make_dweller()
-    dweller.health = 40
-    dweller.radiation = 35  # effective max becomes 65
-    storage_result = MagicMock()
-    storage_result.scalar_one_or_none.return_value = MagicMock(stimpack=3, radaway=4)
-    session = MagicMock(get=AsyncMock(return_value=None), execute=AsyncMock(return_value=storage_result))
-    deps = DwellerChatDeps(db_session=session, dweller=dweller, vault_id=uuid4())
-
-    status = await get_dweller_medical_status(deps.db_session, deps.dweller, deps.vault_id)
-
-    assert isinstance(status, MedicalAidStatus)
-    assert status.health_percent == 61.5
-    assert status.radiation_percent == 35
-    assert status.available_stimpaks == 5
-    assert status.available_radaways == 5
-    assert status.recommended_action == "request_radaway"
-
-    model = TestModel(
-        call_tools=["get_dweller_medical_status"],
-        custom_output_args={
-            "response_text": "I need medical attention, Overseer.",
-            "sentiment_score": -1,
-            "reason_text": "The dweller needs medical care.",
-            "action_type": "request_stimpak",
-            "action_reason": "Health is below 50%.",
-        },
-    )
-    with dweller_chat_agent.override(model=model):
-        result = await dweller_chat_agent.run("I feel weak.", deps=deps)
-
-    assert result.usage.tool_calls == 1
-
-
-@pytest.mark.asyncio
-async def test_medical_action_requires_live_threshold_and_supply() -> None:
-    """Medical action cards are rejected when the live state no longer qualifies."""
-    dweller = _make_dweller()
-    dweller.id = uuid4()
-    dweller.vault_id = uuid4()
-    dweller.health = 50
-    output = _output(action_type="request_stimpak", action_reason="Please help.")
-    session = _medical_session(stimpack=1)
-
-    result = await parse_action_suggestion(output, session, dweller)
-
-    assert isinstance(result, NoAction)
-    assert result.reason == "Dweller does not currently need a Stimpak"
-
-
-@pytest.mark.asyncio
-@pytest.mark.parametrize(("race", "state"), [("ghoul", "feral"), ("super_mutant", "behemoth")])
-async def test_non_reasoning_dweller_cannot_request_purposeful_action(race: str, state: str) -> None:
-    dweller = _make_dweller()
-    dweller.visual_attributes = {"race": race, "state_of_being": state}
-    dweller.stimpack = 0
-    output = _output(action_type="request_exit", action_reason="I want to leave.")
-
-    result = await parse_action_suggestion(output, _medical_session(), dweller)
-
-    assert isinstance(result, NoAction)
-
-
-@pytest.mark.asyncio
-async def test_non_reasoning_dweller_still_gets_needed_stimpak() -> None:
-    dweller = _make_dweller()
-    dweller.visual_attributes = {"race": "ghoul", "state_of_being": "feral"}
-    dweller.health = 20
-    output = _output(action_type="request_exit", action_reason="I want to leave.")
-
-    result = await parse_action_suggestion(output, _medical_session(), dweller)
-
-    assert isinstance(result, RequestStimpakAction)
-
-
-@pytest.mark.asyncio
-async def test_visible_synth_cannot_get_radaway_action_from_model_output() -> None:
-    dweller = _make_dweller()
-    dweller.visual_attributes = {"race": "synth", "state_of_being": "gen_1"}
-    dweller.radiation = 35  # Legacy state before immunity migration.
-    dweller.health = 65
-    dweller.stimpack = 0
-    output = _output(action_type="request_radaway")
-
-    result = await parse_action_suggestion(output, _medical_session(radaway=5), dweller)
-
-    assert isinstance(result, NoAction)
-
-
-@pytest.mark.asyncio
-async def test_gen_3_synth_can_get_radaway_action_from_model_output() -> None:
-    dweller = _make_dweller()
-    dweller.visual_attributes = {"race": "synth", "state_of_being": "gen_3"}
-    dweller.radiation = 35
-    dweller.health = 65
-    dweller.stimpack = 0
-    output = _output(action_type="request_radaway")
-
-    result = await parse_action_suggestion(output, _medical_session(radaway=5), dweller)
-
-    assert isinstance(result, RequestRadawayAction)
-
-
-@pytest.mark.asyncio
-async def test_test_model_invokes_social_context_for_family_questions() -> None:
-    """The chat agent can ground status and family answers in current vault data."""
-    deps = DwellerChatDeps(db_session=_family_free_session(), dweller=_make_dweller(), vault_id=uuid4())
-    context = {
-        "status": "Socializing",
-        "room_name": "Living Room",
-        "family": [{"name": "Sarah Jones", "relation": "partner"}],
-        "relationships": [{"name": "Sarah Jones", "relationship_type": "partner", "affinity": 80}],
-    }
-    model = TestModel(
-        call_tools=["get_dweller_social_context"],
-        custom_output_args={
-            "response_text": "Sarah and I are enjoying some time together.",
-            "sentiment_score": 2,
-            "reason_text": "The dweller is content.",
-            "action_type": "no_action",
-            "action_reason": "No action needed.",
-        },
-    )
-
-    with (
-        patch(
-            "app.agents.dweller_chat_agent.build_dweller_social_context",
-            new_callable=AsyncMock,
-            return_value=context,
-        ) as mock_context,
+        patch(f"app.agents.dweller_chat_agent.{builder}", new_callable=AsyncMock, return_value=payload) as mock_builder,
         dweller_chat_agent.override(model=model),
     ):
         result = await dweller_chat_agent.run("Who is my family, and what am I doing?", deps=deps)
-
-    mock_context.assert_awaited_once_with(deps)
+    mock_builder.assert_awaited_once_with(deps)
     assert result.usage.tool_calls == 1
-    social_tool = next(
-        tool for tool in model.last_model_request_parameters.function_tools if tool.name == "get_dweller_social_context"
+    if tool == "get_dweller_social_context":
+        social_tool = next(
+            t for t in model.last_model_request_parameters.function_tools if t.name == "get_dweller_social_context"
+        )
+        assert social_tool.parameters_json_schema["properties"]["topic"]["default"] == "general"
+
+
+async def test_medical_status_tool_reports_thresholds_and_supplies() -> None:
+    dweller = _make_dweller()
+    dweller.health = 40
+    dweller.radiation = 35  # effective max becomes 65
+    session = _medical_session(stimpack=3, radaway=4)
+    deps = DwellerChatDeps(db_session=session, dweller=dweller, vault_id=uuid4())
+    status = await get_dweller_medical_status(deps.db_session, deps.dweller, deps.vault_id)
+    assert isinstance(status, MedicalAidStatus)
+    assert (
+        (status.health_percent, status.radiation_percent),
+        (status.available_stimpaks, status.available_radaways),
+    ) == ((61.5, 35), (5, 5))
+    assert status.recommended_action == "request_radaway"
+    with dweller_chat_agent.override(
+        model=_model(
+            "get_dweller_medical_status",
+            response_text="I need medical attention, Overseer.",
+            sentiment_score=-1,
+            reason_text="The dweller needs medical care.",
+            action_type="request_stimpak",
+            action_reason="Health is below 50%.",
+        )
+    ):
+        result = await dweller_chat_agent.run("I feel weak.", deps=deps)
+    assert result.usage.tool_calls == 1
+    gated = await parse_action_suggestion(
+        _output(action_type="request_stimpak", action_reason="Please help."),
+        _medical_session(stimpack=1),
+        _live(health=50),
     )
-    assert social_tool.parameters_json_schema["properties"]["topic"]["default"] == "general"
+    assert isinstance(gated, NoAction)
+    assert gated.reason == "Dweller does not currently need a Stimpak"
 
 
-@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("race", "state", "health", "stimpack", "radiation", "action", "radaway", "expected"),
+    [
+        ("ghoul", "feral", 100, 0, 0, "request_exit", 0, NoAction),
+        ("super_mutant", "behemoth", 100, 0, 0, "request_exit", 0, NoAction),
+        ("ghoul", "feral", 20, 2, 0, "request_exit", 0, RequestStimpakAction),
+        ("synth", "gen_1", 65, 0, 35, "request_radaway", 5, NoAction),
+        ("synth", "gen_3", 65, 0, 35, "request_radaway", 5, RequestRadawayAction),
+    ],
+)
+async def test_visual_attributes_gate_purposeful_actions(
+    race: str, state: str, health: int, stimpack: int, radiation: int, action: str, radaway: int, expected: type
+) -> None:
+    dweller = _make_dweller()
+    dweller.visual_attributes = {"race": race, "state_of_being": state}
+    dweller.health, dweller.stimpack, dweller.radiation = health, stimpack, radiation
+    result = await parse_action_suggestion(
+        _output(action_type=action, action_reason="I want to leave."), _medical_session(radaway=radaway), dweller
+    )
+    assert isinstance(result, expected)
+
+
 async def test_chat_agent_caps_runaway_tool_calls() -> None:
-    """A model that loops on one tool is capped instead of running away with the turn."""
-    from pydantic_ai.exceptions import UsageLimitExceeded
-
-    from app.agents.dweller_chat_agent import CHAT_USAGE_LIMITS
-
-    deps = DwellerChatDeps(db_session=_family_free_session(), dweller=_make_dweller(), vault_id=uuid4())
-    # A valid no_action output keeps the output validator happy, so the only thing
-    # that can stop the repeated tool calls is the tool-call limit.
-    model = TestModel(
-        call_tools=["get_dweller_social_context"] * 50,
-        custom_output_args={
-            "response_text": "ok",
-            "sentiment_score": 0,
-            "reason_text": "neutral",
-            "action_type": "no_action",
-            "action_reason": "none",
-        },
-    )
-
+    # A valid no_action output keeps the validator happy, so only the tool-call limit can stop the loop.
     with (
-        patch(
-            "app.agents.dweller_chat_agent.build_dweller_social_context",
-            new_callable=AsyncMock,
-            return_value={},
-        ),
-        dweller_chat_agent.override(model=model),
+        patch("app.agents.dweller_chat_agent.build_dweller_social_context", new_callable=AsyncMock, return_value={}),
+        dweller_chat_agent.override(model=_model(*["get_dweller_social_context"] * 50)),
         pytest.raises(UsageLimitExceeded),
     ):
-        await dweller_chat_agent.run("tell me about everyone", deps=deps, usage_limits=CHAT_USAGE_LIMITS)
+        await dweller_chat_agent.run("tell me about everyone", deps=_deps(), usage_limits=CHAT_USAGE_LIMITS)
 
 
-@pytest.mark.asyncio
 async def test_social_context_reports_live_status_family_and_affinity() -> None:
     dweller_id, partner_id, child_id = uuid4(), uuid4(), uuid4()
     dweller = MagicMock(id=dweller_id, room_id=uuid4(), partner_id=partner_id, parent_1_id=None, parent_2_id=None)
@@ -472,13 +316,10 @@ async def test_social_context_reports_live_status_family_and_affinity() -> None:
         get=AsyncMock(return_value=dweller),
         execute=AsyncMock(side_effect=[room_result, relationships_result, relatives_result]),
     )
-
     context = await build_dweller_social_context(
         DwellerChatDeps(db_session=session, dweller=MagicMock(id=dweller_id), vault_id=uuid4())
     )
-
-    assert context["status"] == "Socializing"
-    assert context["room_name"] == "Living Room"
+    assert (context["status"], context["room_name"]) == ("Socializing", "Living Room")
     assert context["family"] == [
         {"name": "Sarah Jones", "relation": "partner"},
         {"name": "Jamie Jones", "relation": "child"},
@@ -486,104 +327,54 @@ async def test_social_context_reports_live_status_family_and_affinity() -> None:
     assert context["relationships"] == [{"name": "Sarah Jones", "relationship_type": "partner", "affinity": 80}]
 
 
-@pytest.mark.asyncio
-async def test_activity_suggestion_is_rejected_when_fresh_state_conflicts() -> None:
-    """A stale model suggestion cannot emit a start-exploration card after exploration begins."""
-    dweller = _make_dweller()
-    dweller.id = uuid4()
-    dweller.vault_id = uuid4()
-    output = _output(action_type="start_exploration", action_duration_hours=4)
+@pytest.mark.parametrize(
+    ("action", "blocker", "message"),
+    [
+        (
+            {"action_type": "start_exploration", "action_duration_hours": 4},
+            "exploration_blocker",
+            "Already exploring; suggest recall instead of another expedition.",
+        ),
+        (
+            {"action_type": "start_training", "action_stat": SPECIALEnum.STRENGTH},
+            "training_blocker",
+            "No available training room can improve this dweller right now.",
+        ),
+    ],
+)
+async def test_activity_suggestion_is_rejected_when_fresh_state_conflicts(
+    action: dict, blocker: str, message: str
+) -> None:
     briefing = DwellerActivityBriefing(
-        exploration_active=True,
+        exploration_active=blocker == "exploration_blocker",
         available_stimpaks=2,
         available_radaways=1,
-        exploration_blocker="Already exploring; suggest recall instead of another expedition.",
+        **{blocker: message},
     )
-
-    with patch(
-        "app.agents.chat_tools.build_dweller_activity_briefing",
-        new_callable=AsyncMock,
-        return_value=briefing,
-    ):
-        result = await parse_action_suggestion(output, _medical_session(), dweller)
-
+    with patch("app.agents.chat_tools.build_dweller_activity_briefing", new_callable=AsyncMock, return_value=briefing):
+        result = await parse_action_suggestion(_output(**action), _medical_session(), _live())
     assert isinstance(result, NoAction)
-    assert result.reason == briefing.exploration_blocker
-
-
-@pytest.mark.asyncio
-async def test_training_suggestion_requires_a_fresh_matching_training_option() -> None:
-    """The server rejects a model-selected stat when no matching room remains available."""
-    dweller = _make_dweller()
-    dweller.id = uuid4()
-    dweller.vault_id = uuid4()
-    output = _output(action_type="start_training", action_stat=SPECIALEnum.STRENGTH)
-    briefing = DwellerActivityBriefing(
-        exploration_active=False,
-        available_stimpaks=2,
-        available_radaways=1,
-        training_blocker="No available training room can improve this dweller right now.",
-    )
-
-    with patch(
-        "app.agents.chat_tools.build_dweller_activity_briefing",
-        new_callable=AsyncMock,
-        return_value=briefing,
-    ):
-        result = await parse_action_suggestion(output, _medical_session(), dweller)
-
-    assert isinstance(result, NoAction)
-    assert result.reason == briefing.training_blocker
+    assert result.reason == message
 
 
 def test_usage_limits_offset_by_carried_usage() -> None:
-    """A continued thread gets its per-exchange budget on top of what it already spent."""
-    from app.agents.dweller_chat_agent import CHAT_REQUEST_LIMIT, CHAT_TOOL_CALLS_LIMIT
-
     conversation = Conversation()
     conversation.usage.requests = 40
     conversation.usage.tool_calls = 5
-
     limits = usage_limits_for(conversation)
-
-    assert limits.request_limit == 40 + CHAT_REQUEST_LIMIT
-    assert limits.tool_calls_limit == 5 + CHAT_TOOL_CALLS_LIMIT
+    assert (limits.request_limit, limits.tool_calls_limit) == (40 + CHAT_REQUEST_LIMIT, 5 + CHAT_TOOL_CALLS_LIMIT)
 
 
 def test_usage_limits_without_a_thread_are_the_exchange_caps() -> None:
-    from app.agents.dweller_chat_agent import CHAT_REQUEST_LIMIT, CHAT_TOOL_CALLS_LIMIT
-
     limits = usage_limits_for(None)
-
-    assert limits.request_limit == CHAT_REQUEST_LIMIT
-    assert limits.tool_calls_limit == CHAT_TOOL_CALLS_LIMIT
+    assert (limits.request_limit, limits.tool_calls_limit) == (CHAT_REQUEST_LIMIT, CHAT_TOOL_CALLS_LIMIT)
 
 
-@pytest.mark.asyncio
 async def test_a_thread_at_the_request_cap_can_still_talk() -> None:
-    """Carried usage counts toward the cap; the offset keeps the next exchange inside it."""
-    from app.agents.dweller_chat_agent import CHAT_REQUEST_LIMIT
-
     conversation = Conversation()
     conversation.usage.requests = CHAT_REQUEST_LIMIT
-    deps = DwellerChatDeps(db_session=_family_free_session(), dweller=_make_dweller(), vault_id=uuid4())
-    model = TestModel(
-        call_tools=[],
-        custom_output_args={
-            "response_text": "still here.",
-            "sentiment_score": 0,
-            "reason_text": "neutral",
-            "action_type": "no_action",
-            "action_reason": "none",
-        },
-    )
-
-    with dweller_chat_agent.override(model=model):
+    with dweller_chat_agent.override(model=_model(response_text="still here.")):
         result = await dweller_chat_agent.run(
-            "still there?",
-            deps=deps,
-            usage_limits=usage_limits_for(conversation),
-            conversation=conversation,
+            "still there?", deps=_deps(), usage_limits=usage_limits_for(conversation), conversation=conversation
         )
-
     assert result.conversation.usage.requests == CHAT_REQUEST_LIMIT + 1

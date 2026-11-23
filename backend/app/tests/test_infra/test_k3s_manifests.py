@@ -75,7 +75,6 @@ def test_worker_manifest_matches_the_release_deployment_contract() -> None:
 
 
 def test_exactly_one_workload_invokes_the_periodiq_scheduler() -> None:
-    """A second checked-in scheduler would enqueue periodic work twice."""
     invokers: list[tuple[str, str, str]] = []
     for filename, pod_spec in _pod_specs():
         for container in [*pod_spec.get("initContainers", []), *pod_spec.get("containers", [])]:
@@ -92,7 +91,6 @@ def test_exactly_one_workload_invokes_the_periodiq_scheduler() -> None:
 
 
 def test_postgres_observability_config_is_pinned() -> None:
-    """The production Postgres manifest must keep the live data path and enable profiling."""
     manifest = _load("postgres-deployment.yaml")
     container = _container(manifest)
 

@@ -15,10 +15,8 @@ async def test_lifespan_cleans_up_when_startup_fails(monkeypatch: pytest.MonkeyP
     stop_redis = AsyncMock()
     monkeypatch.setattr(main.evaluator_manager, "shutdown", shutdown)
     monkeypatch.setattr(main.manager, "stop_redis", stop_redis)
-
     with pytest.raises(RuntimeError, match="health check failed"):
         async with main.lifespan(main.app):
             pytest.fail("startup should fail before entering the lifespan")
-
     shutdown.assert_called_once_with()
     stop_redis.assert_awaited_once_with()

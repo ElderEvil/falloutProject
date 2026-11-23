@@ -1,5 +1,3 @@
-"""Tests for quest seeding utility."""
-
 import json
 import re
 from pathlib import Path
@@ -23,6 +21,73 @@ _LEVEL_GATE_RE = re.compile(r"level\s+(\d+)", re.IGNORECASE)
 _PREDECESSOR_RE = re.compile(r"complete\s+['\"](.+?)['\"]\s+quest", re.IGNORECASE)
 
 
+def _dir(tmp_path: Path, name: str = "quests") -> Path:
+    path = tmp_path / name
+    path.mkdir()
+    return path
+
+
+def _write(directory: Path, name: str, data) -> None:
+    (directory / name).write_text(json.dumps(data), encoding="utf-8")
+
+
+def _quest(name: str = "Test Quest", **overrides) -> dict:
+    base = {
+        "quest_name": name,
+        "long_description": "A test quest.",
+        "short_description": "Test",
+        "requirements": "Level 1",
+        "rewards": "10 caps",
+        "quest_objective": "Do it",
+    }
+    return base | overrides
+
+
+def _item_reward(item_name: str, **item_data) -> dict:
+    payload = {"reward_type": "ITEM", "reward_data": {"item_name": item_name, "quantity": 1}}
+    return payload | ({"item_data": item_data} if item_data else {})
+
+
+CHAIN = {
+    "chain_name": "Test chain",
+    "quests": [
+        _quest("Chain Starter", long_description="The first quest in a test chain.", short_description="Start"),
+        _quest(
+            "Chain Follow-up",
+            long_description="The second quest in a test chain.",
+            short_description="Continue",
+            rewards="20 caps",
+            quest_requirements=[
+                {"requirement_type": "QUEST_COMPLETED", "requirement_data": {"quest_name": "Chain Starter"}}
+            ],
+        ),
+    ],
+}
+
+
+def _seed_one(tmp_path: Path, quest: dict, name: str = "quests") -> Path:
+    directory = _dir(tmp_path, name)
+    _write(directory, "quests.json", {"quests": [quest]})
+    return directory
+
+
+async def _seed(session: AsyncSession, directory: Path) -> int:
+    return await seed_quests_from_json(session, quest_dir=directory)
+
+
+async def _quest_row(session: AsyncSession, title: str) -> Quest:
+    return (await session.execute(select(Quest).where(Quest.title == title))).scalar_one()
+
+
+async def _rewards(session: AsyncSession, quest: Quest) -> list[QuestReward]:
+    return list((await session.execute(select(QuestReward).where(QuestReward.quest_id == quest.id))).scalars().all())
+
+
+async def _requirements(session: AsyncSession, quest: Quest) -> list[QuestRequirement]:
+    rows = await session.execute(select(QuestRequirement).where(QuestRequirement.quest_id == quest.id))
+    return list(rows.scalars().all())
+
+
 @pytest.mark.parametrize("file_format", ["single", "list", "chain"])
 def test_quest_loader_preserves_supported_formats_and_filename_defaults(tmp_path, file_format):
     quest = {
@@ -35,39 +100,35 @@ def test_quest_loader_preserves_supported_formats_and_filename_defaults(tmp_path
     data = {"quests": [quest]} if file_format == "chain" else ([quest] if file_format == "list" else quest)
     path = tmp_path / "supply_runs.json"
     path.write_text(json.dumps(data), encoding="utf-8")
-
     chain = load_quest_chain_from_json(str(path))
-
     assert chain.title == "Supply Runs"
     assert chain.chain_id is None
     assert chain.chain_description is None
     assert len(chain.quests) == 1
+    if file_format == "chain":
+        _write(
+            tmp_path,
+            "supplies.json",
+            {
+                "chain_name": "The Supply Line",
+                "chain_id": "supply-line",
+                "chain_description": "A two-part expedition",
+                "quests": [{"quest_name": "First"}, {"quest_name": "Second"}],
+            },
+        )
+        meta = load_quest_chain_from_json(str(tmp_path / "supplies.json"))
+        assert (meta.title, meta.chain_id, meta.chain_description) == (
+            "The Supply Line",
+            "supply-line",
+            "A two-part expedition",
+        )
+        assert [quest.quest_name for quest in meta.quests] == ["First", "Second"]
     loaded = chain.quests[0]
     assert loaded.quest_name == "Supply Run"
     assert loaded.short_description == "Gather supplies"
     assert loaded.requirements == ["Level 1"]
     assert loaded.quest_objective == "Return safely"
     assert loaded.duration_minutes == 30
-
-
-def test_quest_loader_preserves_chain_metadata_and_quest_order(tmp_path):
-    data = {
-        "chain_name": "The Supply Line",
-        "chain_id": "supply-line",
-        "chain_description": "A two-part expedition",
-        "quests": [{"quest_name": "First"}, {"quest_name": "Second"}],
-    }
-    path = tmp_path / "supplies.json"
-    path.write_text(json.dumps(data), encoding="utf-8")
-
-    chain = load_quest_chain_from_json(str(path))
-
-    assert (chain.title, chain.chain_id, chain.chain_description) == (
-        "The Supply Line",
-        "supply-line",
-        "A two-part expedition",
-    )
-    assert [quest.quest_name for quest in chain.quests] == ["First", "Second"]
 
 
 @pytest.mark.parametrize("file_format", ["single", "list", "chain"])
@@ -99,31 +160,22 @@ def test_quest_json_accepts_both_aliases_and_prefers_snake_case(field, alias):
     assert snake.model_dump(by_alias=True)[alias] == "snake"
 
 
-@pytest.mark.parametrize(
-    ("names", "expected"),
-    [
-        ({}, "Legacy title"),
-        ({"Quest name": "Spaced"}, "Spaced"),
-        ({"quest_name": "Snake", "Quest name": "Spaced"}, "Snake"),
-        ({"quest_name": "", "Quest name": "Spaced"}, "Legacy title"),
-        ({"quest_name": None}, "Legacy title"),
-        ({"Quest name": ""}, "Legacy title"),
-    ],
-)
-def test_quest_json_preserves_legacy_title_fallback(names, expected):
-    data = {"title": "Legacy title", **names}
-    quest = QuestJSON.model_validate(data)
-    assert quest.quest_name == expected
+LEGACY_TITLES = [
+    ({}, "Legacy title"),
+    ({"Quest name": "Spaced"}, "Spaced"),
+    ({"quest_name": "Snake", "Quest name": "Spaced"}, "Snake"),
+    ({"quest_name": "", "Quest name": "Spaced"}, "Legacy title"),
+    ({"quest_name": None}, "Legacy title"),
+    ({"Quest name": ""}, "Legacy title"),
+]
+
+
+def test_quest_json_preserves_legacy_title_fallback():
+    for names, expected in LEGACY_TITLES:
+        assert QuestJSON.model_validate({"title": "Legacy title", **names}).quest_name == expected
 
 
 def test_quest_display_requirements_never_advertise_unenforced_gates() -> None:
-    """Display text must never advertise a gate the quest does not enforce.
-
-    Guards the P-B class of bug: a quest whose display "Requirements" text
-    advertises a "Level N" gate or a "Complete 'X' quest" predecessor while the
-    enforced quest_requirements rows are missing or disagree. Parses the quest
-    JSON the same way the seeder does (load_all_quest_chain_files).
-    """
     violations: list[str] = []
     for chain in load_all_quest_chain_files():
         for quest in chain.quests:
@@ -140,274 +192,136 @@ def test_quest_display_requirements_never_advertise_unenforced_gates() -> None:
             }
             for line in display_lines:
                 for match in _LEVEL_GATE_RE.finditer(line):
-                    advertised_level = int(match.group(1))
-                    if advertised_level not in enforced_levels:
+                    level = int(match.group(1))
+                    if level not in enforced_levels:
                         violations.append(
-                            f"{quest.quest_name}: advertises 'Level {advertised_level}' but has no "
-                            "matching enforced LEVEL requirement"
+                            f"{quest.quest_name}: advertises 'Level {level}' without an enforced LEVEL gate"
                         )
                 for match in _PREDECESSOR_RE.finditer(line):
-                    advertised_quest = match.group(1).strip()
-                    if advertised_quest not in enforced_predecessors:
-                        violations.append(
-                            f"{quest.quest_name}: advertises completing '{advertised_quest}' but has no "
-                            "matching enforced QUEST_COMPLETED requirement"
-                        )
+                    predecessor = match.group(1).strip()
+                    if predecessor not in enforced_predecessors:
+                        violations.append(f"{quest.quest_name}: advertises '{predecessor}' without an enforced gate")
     assert not violations, "Quest display text advertises gates that are not enforced:\n" + "\n".join(violations)
 
 
-def test_quest_item_reward_normalizes_quantity_to_integer() -> None:
+def test_quest_item_reward_validation() -> None:
     reward = QuestRewardJSON.model_validate(
         {"reward_type": "ITEM", "reward_data": {"item_name": "Nuka-Cola Quantum", "amount": "2"}}
     )
-
     assert reward.reward_data["quantity"] == 2
-
-
-def test_quest_item_reward_rejects_invalid_quantity() -> None:
-    with pytest.raises(ValidationError, match="quantity"):
-        QuestRewardJSON.model_validate(
-            {"reward_type": "ITEM", "reward_data": {"item_name": "Nuka-Cola Quantum", "quantity": "two"}}
-        )
-    with pytest.raises(ValidationError, match="quantity"):
-        QuestRewardJSON.model_validate(
-            {"reward_type": "ITEM", "reward_data": {"item_name": "Nuka-Cola Quantum", "quantity": 2.5}}
-        )
-
-
-def test_quest_item_reward_rejects_unknown_item_type() -> None:
+    for quantity in ("two", 2.5):
+        with pytest.raises(ValidationError, match="quantity"):
+            QuestRewardJSON.model_validate(
+                {"reward_type": "ITEM", "reward_data": {"item_name": "Nuka-Cola Quantum", "quantity": quantity}}
+            )
     with pytest.raises(ValidationError, match="item_type"):
-        QuestRewardJSON.model_validate(
-            {
-                "reward_type": "ITEM",
-                "reward_data": {"item_name": "Mystery Item"},
-                "item_data": {"item_type": "armor", "name": "Mystery Item"},
-            }
-        )
-
-
-def test_quest_item_reward_fills_catalog_art_at_parse() -> None:
-    """Weapon/outfit rewards gain the item factory's own art when parsed for seeding."""
-    weapon = QuestRewardJSON.model_validate(
-        {"reward_type": "ITEM", "reward_data": {"item_name": "Assault rifle", "quantity": 1}}
+        QuestRewardJSON.model_validate(_item_reward("Mystery Item", item_type="armor", name="Mystery Item"))
+    authored = QuestRewardJSON.model_validate(
+        _item_reward("Assault rifle", name="Assault rifle", item_type="weapon", image_url="/custom/art.png")
     )
-    outfit = QuestRewardJSON.model_validate(
-        {"reward_type": "ITEM", "reward_data": {"item_name": "Hazmat suit", "quantity": 1}}
-    )
-
-    assert weapon.item_data is not None
-    assert weapon.item_data.image_url == "/static/weapon_images/Assault Rifle FOS.png"
-    assert outfit.item_data is not None
-    assert outfit.item_data.image_url == "/static/apparel_images/FOS Rad Suit.png"
+    assert authored.item_data is not None
+    assert authored.item_data.image_url == "/custom/art.png"
+    for name in ("Nuka-Cola Quantum", "Lunchbox", "Legendary Dweller"):
+        photo_less = QuestRewardJSON.model_validate(_item_reward(name))
+        assert photo_less.item_data is not None
+        assert photo_less.item_data.image_url is None
 
 
-def test_quest_item_reward_fills_pet_and_junk_art() -> None:
-    """Pet and mapped-junk rewards resolve art just like the item factory does."""
-    pet = QuestRewardJSON.model_validate({"reward_type": "ITEM", "reward_data": {"item_name": "CX404", "quantity": 1}})
-    junk = QuestRewardJSON.model_validate(
-        {"reward_type": "ITEM", "reward_data": {"item_name": "Teddy bear", "quantity": 1}}
-    )
-
-    assert pet.item_data is not None
-    assert pet.item_data.item_type == "pet"
-    assert pet.item_data.image_url == "/static/pet_images/FOS CX404.png"
-    assert junk.item_data is not None
-    assert junk.item_data.item_type == "junk"
-    assert junk.item_data.image_url == "/static/junk_images/FOS Teddy bear.png"
-
-
-def test_quest_item_reward_preserves_author_provided_image_url() -> None:
-    """A hand-authored reward art must never be overwritten by the resolver."""
-    reward = QuestRewardJSON.model_validate(
-        {
-            "reward_type": "ITEM",
-            "reward_data": {"item_name": "Assault rifle", "quantity": 1},
-            "item_data": {"name": "Assault rifle", "item_type": "weapon", "image_url": "/custom/art.png"},
-        }
-    )
-
+@pytest.mark.parametrize(
+    ("name", "item_type", "image_url"),
+    [
+        ("Assault rifle", "weapon", "/static/weapon_images/Assault Rifle FOS.png"),
+        ("Hazmat suit", "outfit", "/static/apparel_images/FOS Rad Suit.png"),
+        ("CX404", "pet", "/static/pet_images/FOS CX404.png"),
+        ("Teddy bear", "junk", "/static/junk_images/FOS Teddy bear.png"),
+    ],
+)
+def test_quest_item_reward_fills_catalog_art_at_parse(name: str, item_type: str, image_url: str) -> None:
+    reward = QuestRewardJSON.model_validate(_item_reward(name))
     assert reward.item_data is not None
-    assert reward.item_data.image_url == "/custom/art.png"
+    assert reward.item_data.item_type == item_type
+    assert reward.item_data.image_url == image_url
 
 
-def test_quest_item_reward_leaves_photo_less_types_photo_less() -> None:
-    """Dweller, consumable and lunchbox rewards keep the themed icon fallback."""
-    for payload in (
-        {"reward_type": "ITEM", "reward_data": {"item_name": "Nuka-Cola Quantum", "quantity": 1}},
-        {"reward_type": "ITEM", "reward_data": {"item_name": "Lunchbox", "quantity": 1}},
-        {"reward_type": "ITEM", "reward_data": {"item_name": "Legendary Dweller", "quantity": 1}},
-    ):
-        reward = QuestRewardJSON.model_validate(payload)
-        assert reward.item_data is not None
-        assert reward.item_data.image_url is None
+REWARD_PAYLOAD_CASES = [
+    (
+        "Mutable Reward Quest",
+        lambda quests: quests[0]["quest_rewards"][0].update(reward_data={"amount": 250}),
+        [("caps", {"amount": 250})],
+    ),
+    (
+        "Expanding Reward Quest",
+        lambda quests: quests[0]["quest_rewards"].append({"reward_type": "STIMPAK", "reward_data": {"quantity": 2}}),
+        [("caps", {"amount": 100}), ("stimpak", {"quantity": 2})],
+    ),
+]
 
 
 @pytest.mark.asyncio
-async def test_seed_quests_backfills_reward_art_on_reseed(async_session: AsyncSession, tmp_path: Path) -> None:
-    """A legacy reward row lacking image_url gains it when the quest is re-seeded."""
-    quest_dir = tmp_path / "quests"
-    quest_dir.mkdir()
-    quest_data = [
-        {
-            "Quest name": "Backfill Art Quest",
-            "Long description": "A quest whose reward art was added later.",
-            "Short description": "Backfill reward art",
-            "Requirements": "Level 1",
-            "Rewards": "Assault rifle",
-            "quest_rewards": [{"reward_type": "ITEM", "reward_data": {"item_name": "Assault rifle", "quantity": 1}}],
-        }
-    ]
-    with (quest_dir / "rewards.json").open("w", encoding="utf-8") as file:
-        json.dump(quest_data, file)
-
-    await seed_quests_from_json(async_session, quest_dir=quest_dir)
-    quest = (await async_session.execute(select(Quest).where(Quest.title == "Backfill Art Quest"))).scalar_one()
-    reward = (await async_session.execute(select(QuestReward).where(QuestReward.quest_id == quest.id))).scalar_one()
-
+async def test_seed_quests_rewrites_reward_rows(async_session: AsyncSession, tmp_path: Path) -> None:
+    backfill_dir = _seed_one(
+        tmp_path,
+        _quest("Backfill Art Quest", rewards="Assault rifle", quest_rewards=[_item_reward("Assault rifle")]),
+        "backfill",
+    )
+    await _seed(async_session, backfill_dir)
+    backfill = await _quest_row(async_session, "Backfill Art Quest")
+    reward = (await _rewards(async_session, backfill))[0]
     # Simulate a row seeded before the enrichment existed.
     reward.item_data = {"name": "Assault rifle", "item_type": "weapon", "rarity": "common"}
     await async_session.commit()
+    assert await _seed(async_session, backfill_dir) == 0
+    assert ((await _rewards(async_session, backfill))[0].item_data or {})["image_url"] == (
+        "/static/weapon_images/Assault Rifle FOS.png"
+    )
 
-    assert await seed_quests_from_json(async_session, quest_dir=quest_dir) == 0
-
-    reward = (await async_session.execute(select(QuestReward).where(QuestReward.quest_id == quest.id))).scalar_one()
-    assert reward.item_data["image_url"] == "/static/weapon_images/Assault Rifle FOS.png"
-
-
-@pytest.mark.asyncio
-async def test_seed_quests_rejects_duplicate_names(async_session: AsyncSession, tmp_path: Path) -> None:
-    """A duplicate title cannot silently acquire another chain's metadata."""
-    quest_dir = tmp_path / "quests"
-    quest_dir.mkdir()
-    for chain_id in ("first", "second"):
-        with (quest_dir / f"{chain_id}.json").open("w", encoding="utf-8") as file:
-            json.dump(
-                {
-                    "chain_id": chain_id,
-                    "quests": [{"quest_name": "Duplicate Quest", "chain_order": 1}],
-                },
-                file,
-            )
-
-    with pytest.raises(ValueError, match="Duplicate quest_name 'Duplicate Quest'"):
-        await seed_quests_from_json(async_session, quest_dir=quest_dir)
-
-
-@pytest.mark.asyncio
-async def test_seed_quests_updates_existing_reward_payload(async_session: AsyncSession, tmp_path: Path) -> None:
-    """Re-seeding adds typed item data to an existing quest reward."""
-    quest_dir = tmp_path / "quests"
-    quest_dir.mkdir()
-    quest_data = [
-        {
-            "Quest name": "Existing Reward Quest",
-            "Long description": "A quest whose reward data was improved.",
-            "Short description": "Upgrade its reward",
-            "Requirements": "Level 1",
-            "Rewards": "Vault Suit",
-            "quest_rewards": [
-                {
-                    "reward_type": "ITEM",
-                    "reward_data": {"item_name": "Vault Suit", "quantity": 1},
-                    "item_data": {"item_type": "outfit", "name": "Vault Suit", "rarity": "rare"},
-                }
-            ],
-        }
-    ]
-    with (quest_dir / "rewards.json").open("w", encoding="utf-8") as file:
-        json.dump(quest_data, file)
-
-    existing_quest = Quest(
+    item_data = {"item_type": "outfit", "name": "Vault Suit", "rarity": "rare"}
+    item = {"reward_type": "ITEM", "reward_data": {"item_name": "Vault Suit", "quantity": 1}, "item_data": item_data}
+    update_dir = _seed_one(
+        tmp_path, _quest("Existing Reward Quest", rewards="Vault Suit", quest_rewards=[item]), "update"
+    )
+    existing = Quest(
         title="Existing Reward Quest",
-        short_description="Upgrade its reward",
-        long_description="A quest whose reward data was improved.",
+        short_description="Test",
+        long_description="A test quest.",
         requirements="Level 1",
         rewards="Vault Suit",
     )
-    async_session.add(existing_quest)
+    async_session.add(existing)
     await async_session.flush()
     async_session.add(
-        QuestReward(
-            quest_id=existing_quest.id,
-            reward_type="item",
-            reward_data={"item_name": "Vault Suit", "quantity": 1},
-        )
+        QuestReward(quest_id=existing.id, reward_type="item", reward_data={"item_name": "Vault Suit", "quantity": 1})
     )
     await async_session.commit()
+    assert await _seed(async_session, update_dir) == 0
+    assert (await _rewards(async_session, existing))[0].item_data == item_data
 
-    assert await seed_quests_from_json(async_session, quest_dir=quest_dir) == 0
-
-    reward = (
-        await async_session.execute(select(QuestReward).where(QuestReward.quest_id == existing_quest.id))
-    ).scalar_one()
-    assert reward.item_data == {"item_type": "outfit", "name": "Vault Suit", "rarity": "rare"}
-
-
-@pytest.mark.asyncio
-async def test_seed_quests_updates_changed_reward_data(async_session: AsyncSession, tmp_path: Path) -> None:
-    """Re-seeding matches a changed reward to its existing reward slot."""
-    quest_dir = tmp_path / "quests"
-    quest_dir.mkdir()
-    quest_file = quest_dir / "rewards.json"
-    quest_data = [
-        {
-            "Quest name": "Mutable Reward Quest",
-            "Long description": "A quest with a balance adjustment.",
-            "Short description": "Update reward",
-            "Requirements": "Level 1",
-            "Rewards": "100 caps",
-            "quest_rewards": [{"reward_type": "CAPS", "reward_data": {"amount": 100}}],
-        }
-    ]
-    with quest_file.open("w", encoding="utf-8") as file:
-        json.dump(quest_data, file)
-    await seed_quests_from_json(async_session, quest_dir=quest_dir)
-
-    quest_data[0]["quest_rewards"][0]["reward_data"] = {"amount": 250}
-    with quest_file.open("w", encoding="utf-8") as file:
-        json.dump(quest_data, file)
-    assert await seed_quests_from_json(async_session, quest_dir=quest_dir) == 0
-
-    quest = (await async_session.execute(select(Quest).where(Quest.title == "Mutable Reward Quest"))).scalar_one()
-    reward = (await async_session.execute(select(QuestReward).where(QuestReward.quest_id == quest.id))).scalar_one()
-    assert reward.reward_data == {"amount": 250}
-
-
-@pytest.mark.asyncio
-async def test_seed_quests_adds_new_rewards_to_existing_quest(async_session: AsyncSession, tmp_path: Path) -> None:
-    """Re-seeding creates a reward appended to an already-seeded quest."""
-    quest_dir = tmp_path / "quests"
-    quest_dir.mkdir()
-    quest_file = quest_dir / "rewards.json"
-    quest_data = [
-        {
-            "Quest name": "Expanding Reward Quest",
-            "Long description": "A quest whose reward list grows.",
-            "Short description": "Add a reward",
-            "Requirements": "Level 1",
-            "Rewards": "100 caps",
-            "quest_rewards": [{"reward_type": "CAPS", "reward_data": {"amount": 100}}],
-        }
-    ]
-    with quest_file.open("w", encoding="utf-8") as file:
-        json.dump(quest_data, file)
-    await seed_quests_from_json(async_session, quest_dir=quest_dir)
-
-    quest_data[0]["quest_rewards"].append({"reward_type": "STIMPAK", "reward_data": {"quantity": 2}})
-    with quest_file.open("w", encoding="utf-8") as file:
-        json.dump(quest_data, file)
-    assert await seed_quests_from_json(async_session, quest_dir=quest_dir) == 0
-
-    quest = (await async_session.execute(select(Quest).where(Quest.title == "Expanding Reward Quest"))).scalar_one()
-    rewards = (await async_session.execute(select(QuestReward).where(QuestReward.quest_id == quest.id))).scalars().all()
-    assert sorted((reward.reward_type.value, reward.reward_data) for reward in rewards) == [
-        ("caps", {"amount": 100}),
-        ("stimpak", {"quantity": 2}),
-    ]
+    for title, mutate, expected in REWARD_PAYLOAD_CASES:
+        quests = [
+            _quest(title, rewards="100 caps", quest_rewards=[{"reward_type": "CAPS", "reward_data": {"amount": 100}}])
+        ]
+        payload_dir = _seed_one(tmp_path, quests[0], title)
+        await _seed(async_session, payload_dir)
+        mutate(quests)
+        _write(payload_dir, "quests.json", {"quests": quests})
+        assert await _seed(async_session, payload_dir) == 0
+        quest = await _quest_row(async_session, title)
+        assert (
+            sorted((reward.reward_type.value, reward.reward_data) for reward in await _rewards(async_session, quest))
+            == expected
+        )
+    duplicate_dir = _dir(tmp_path, "duplicates")
+    for chain_id in ("first", "second"):
+        _write(
+            duplicate_dir,
+            f"{chain_id}.json",
+            {"chain_id": chain_id, "quests": [{**_quest("Duplicate Quest"), "chain_order": 1}]},
+        )
+    with pytest.raises(ValueError, match="Duplicate quest_name 'Duplicate Quest'"):
+        await _seed(async_session, duplicate_dir)
 
 
 def test_dweller_quest_rewards_reference_canonical_templates() -> None:
-    """Every static dweller reward must resolve to an owned template."""
     for chain in game_data_store.quests:
         for quest in chain.quests:
             for reward in quest.quest_rewards:
@@ -418,362 +332,91 @@ def test_dweller_quest_rewards_reference_canonical_templates() -> None:
 
 
 @pytest.mark.asyncio
-async def test_seed_quests_records_completed_quest_predecessor(async_session: AsyncSession, tmp_path: Path) -> None:
-    """Seeded quest-completion requirements also populate the chain predecessor."""
-    quest_dir = tmp_path / "quests"
-    quest_dir.mkdir()
-    quest_data = {
-        "chain_name": "Test chain",
-        "quests": [
-            {
-                "quest_name": "Chain Starter",
-                "long_description": "The first quest in a test chain.",
-                "short_description": "Start the chain",
-                "requirements": "Level 1",
-                "rewards": "10 caps",
-            },
-            {
-                "quest_name": "Chain Follow-up",
-                "long_description": "The second quest in a test chain.",
-                "short_description": "Continue the chain",
-                "requirements": "Level 1",
-                "rewards": "20 caps",
-                "quest_requirements": [
-                    {
-                        "requirement_type": "QUEST_COMPLETED",
-                        "requirement_data": {"quest_name": "Chain Starter"},
-                    }
-                ],
-            },
-        ],
-    }
-    with (quest_dir / "chain.json").open("w", encoding="utf-8") as file:
-        json.dump(quest_data, file)
-
-    assert await seed_quests_from_json(async_session, quest_dir=quest_dir) == 2
-
-    quests = (await async_session.execute(select(Quest))).scalars().all()
-    quests_by_title = {quest.title: quest for quest in quests}
-    assert quests_by_title["Chain Follow-up"].previous_quest_id == quests_by_title["Chain Starter"].id
-
-
-@pytest.mark.asyncio
-async def test_seed_quests_skips_requirement_with_invalid_predecessor_id(
-    async_session: AsyncSession, tmp_path: Path
-) -> None:
-    """Malformed predecessor IDs do not leave pending requirements to commit."""
-    quest_dir = tmp_path / "quests"
-    quest_dir.mkdir()
-    quest_data = {
-        "quests": [
-            {
-                "quest_name": "Malformed Predecessor",
-                "long_description": "A quest with a malformed predecessor.",
-                "short_description": "Invalid predecessor",
-                "requirements": "Level 1",
-                "rewards": "10 caps",
-                "quest_requirements": [
-                    {
-                        "requirement_type": "QUEST_COMPLETED",
-                        "requirement_data": {"quest_id": "not-a-uuid"},
-                    }
-                ],
-            }
-        ]
-    }
-    with (quest_dir / "malformed.json").open("w", encoding="utf-8") as file:
-        json.dump(quest_data, file)
-
-    assert await seed_quests_from_json(async_session, quest_dir=quest_dir) == 1
-
-    quest = (await async_session.execute(select(Quest).where(Quest.title == "Malformed Predecessor"))).scalar_one()
-    requirements = (
-        (await async_session.execute(select(QuestRequirement).where(QuestRequirement.quest_id == quest.id)))
-        .scalars()
-        .all()
+async def test_seed_quests_handles_input_edge_cases(async_session: AsyncSession, tmp_path: Path) -> None:
+    malformed = _quest(
+        "Malformed Predecessor",
+        quest_requirements=[{"requirement_type": "QUEST_COMPLETED", "requirement_data": {"quest_id": "not-a-uuid"}}],
     )
-    assert requirements == []
+    assert await _seed(async_session, _seed_one(tmp_path, malformed)) == 1
+    assert await _requirements(async_session, await _quest_row(async_session, "Malformed Predecessor")) == []
 
+    list_quest = _quest(
+        "Multi Requirement Quest", requirements=["Level 10 dwellers", "Lucy's vault suit", "The Ghoul's coat"]
+    )
+    assert await _seed(async_session, _seed_one(tmp_path, list_quest, "list")) == 1
+    joined = (await _quest_row(async_session, "Multi Requirement Quest")).requirements
+    assert "Level 10 dwellers" in joined
+    assert "Lucy's vault suit" in joined
+    assert "The Ghoul's coat" in joined
+    assert ", " in joined
 
-@pytest.mark.asyncio
-async def test_seed_quests_with_list_requirements(async_session: AsyncSession, tmp_path: Path) -> None:
-    """Test seeding quests with list-based requirements."""
-    quest_dir = tmp_path / "quests"
-    quest_dir.mkdir()
-
-    # Create quest with list requirements
-    quest_data = [
-        {
-            "Quest name": "Multi Requirement Quest",
-            "Long description": "Quest with multiple requirements",
-            "Short description": "Multi req quest",
-            "Requirements": ["Level 10 dwellers", "Lucy's vault suit", "The Ghoul's coat"],
-            "Rewards": "500 caps",
-            "Quest objective": "Complete all requirements",
-        }
-    ]
-
-    quest_file = quest_dir / "multi_req.json"
-    with quest_file.open("w", encoding="utf-8") as f:
-        json.dump(quest_data, f)
-
-    seeded_count = await seed_quests_from_json(async_session, quest_dir=quest_dir)
-    assert seeded_count == 1
-
-    # Verify requirements were joined properly
-    result = await async_session.execute(select(Quest).where(Quest.title == "Multi Requirement Quest"))
-    quest = result.scalar_one_or_none()
-
-    assert quest is not None
-    assert "Level 10 dwellers" in quest.requirements
-    assert "Lucy's vault suit" in quest.requirements
-    assert "The Ghoul's coat" in quest.requirements
-    assert ", " in quest.requirements  # Should be comma-separated
-
-
-@pytest.mark.asyncio
-async def test_seed_quests_handles_errors_gracefully(async_session: AsyncSession, tmp_path: Path) -> None:
-    """Test that seeding handles errors gracefully."""
-    quest_dir = tmp_path / "quests"
-    quest_dir.mkdir()
-
-    # Create an invalid JSON file
-    invalid_file = quest_dir / "invalid.json"
-    with invalid_file.open("w", encoding="utf-8") as f:
-        f.write("{ invalid json }")
-
-    # Create a valid JSON file
-    valid_data = [
-        {
-            "Quest name": "Valid Quest",
-            "Long description": "This quest is valid",
-            "Short description": "Valid",
-            "Requirements": "Level 1",
-            "Rewards": "5 caps",
-            "Quest objective": "Be valid",
-        }
-    ]
-    valid_file = quest_dir / "valid.json"
-    with valid_file.open("w", encoding="utf-8") as f:
-        json.dump(valid_data, f)
-
-    # Seeding should continue despite invalid file
-    seeded_count = await seed_quests_from_json(async_session, quest_dir=quest_dir)
-
-    # At least the valid quest should be seeded
-    assert seeded_count >= 1
-
-    # Verify valid quest exists
-    result = await async_session.execute(select(Quest).where(Quest.title == "Valid Quest"))
-    quest = result.scalar_one_or_none()
-    assert quest is not None
-
-
-@pytest.mark.asyncio
-async def test_seed_quests_nonexistent_directory(async_session: AsyncSession, tmp_path: Path) -> None:
-    """Test seeding with nonexistent quest directory."""
-    quest_dir = tmp_path / "nonexistent"
-
-    # Should handle gracefully and return 0
-    seeded_count = await seed_quests_from_json(async_session, quest_dir=quest_dir)
-    assert seeded_count == 0
+    errors_dir = _seed_one(tmp_path, _quest("Valid Quest"), "errors")
+    (errors_dir / "invalid.json").write_text("{ invalid json }", encoding="utf-8")
+    assert await _seed(async_session, errors_dir) >= 1
+    assert (await async_session.execute(select(Quest).where(Quest.title == "Valid Quest"))).scalar_one_or_none()
+    assert await seed_quests_from_json(async_session, quest_dir=tmp_path / "nonexistent") == 0
 
 
 @pytest.mark.asyncio
 async def test_seed_quests_rollback_on_error(async_session: AsyncSession, tmp_path: Path) -> None:
-    """Test that seeding rolls back on critical errors."""
-    quest_dir = tmp_path / "quests"
-    quest_dir.mkdir()
-
-    # Create quest data
-    quest_data = [
-        {
-            "Quest name": "Test Quest",
-            "Long description": "Test",
-            "Short description": "Test",
-            "Requirements": "Level 1",
-            "Rewards": "10 caps",
-            "Quest objective": "Test",
-        }
-    ]
-    with (quest_dir / "test.json").open("w", encoding="utf-8") as f:
-        json.dump(quest_data, f)
-
-    # Mock commit to raise an exception
+    quest_dir = _seed_one(tmp_path, _quest())
     with patch.object(async_session, "commit", side_effect=Exception("Database error")):
-        seeded_count = await seed_quests_from_json(async_session, quest_dir=quest_dir)
-        assert seeded_count == 0
-
-    # Verify no quests were added
-    result = await async_session.execute(select(Quest))
-    quests = result.scalars().all()
-    assert len(quests) == 0
+        assert await _seed(async_session, quest_dir) == 0
+    assert len((await async_session.execute(select(Quest))).scalars().all()) == 0
 
 
 @pytest.mark.asyncio
-async def test_seed_quests_reconciles_existing_requirements(async_session: AsyncSession, tmp_path: Path) -> None:
-    """Re-seeding restores an existing quest's gates to the JSON source of truth."""
-    quest_dir = tmp_path / "quests"
-    quest_dir.mkdir()
-    quest_data = [
-        {
-            "Quest name": "Reconciled Gates Quest",
-            "Long description": "A quest whose gates were re-authored.",
-            "Short description": "Reconcile gates",
-            "Requirements": "Level 5",
-            "Rewards": "10 caps",
-            "quest_requirements": [
-                {"requirement_type": "LEVEL", "requirement_data": {"level": 5}, "is_mandatory": True},
-                {"requirement_type": "ITEM", "requirement_data": {"item_name": "Stimpak"}, "is_mandatory": True},
-            ],
-        }
+async def test_seed_quests_reconciles_existing_state(async_session: AsyncSession, tmp_path: Path) -> None:
+    gates = [
+        {"requirement_type": "LEVEL", "requirement_data": {"level": 5}, "is_mandatory": True},
+        {"requirement_type": "ITEM", "requirement_data": {"item_name": "Stimpak"}, "is_mandatory": True},
     ]
-    with (quest_dir / "gates.json").open("w", encoding="utf-8") as file:
-        json.dump(quest_data, file)
-
-    assert await seed_quests_from_json(async_session, quest_dir=quest_dir) == 1
-
-    quest = (await async_session.execute(select(Quest).where(Quest.title == "Reconciled Gates Quest"))).scalar_one()
-    requirements = (
-        (await async_session.execute(select(QuestRequirement).where(QuestRequirement.quest_id == quest.id)))
-        .scalars()
-        .all()
-    )
-    for requirement in requirements:
+    quest_dir = _seed_one(tmp_path, _quest("Reconciled Gates Quest", requirements="Level 5", quest_requirements=gates))
+    assert await _seed(async_session, quest_dir) == 1
+    quest = await _quest_row(async_session, "Reconciled Gates Quest")
+    for requirement in await _requirements(async_session, quest):
         await async_session.delete(requirement)
     async_session.add(
         QuestRequirement(
-            quest_id=quest.id,
-            requirement_type=RequirementType.LEVEL,
-            requirement_data={"level": 99},
-            is_mandatory=True,
+            quest_id=quest.id, requirement_type=RequirementType.LEVEL, requirement_data={"level": 99}, is_mandatory=True
         )
     )
     await async_session.commit()
-
-    assert await seed_quests_from_json(async_session, quest_dir=quest_dir) == 0
-
-    requirements = (
-        (await async_session.execute(select(QuestRequirement).where(QuestRequirement.quest_id == quest.id)))
-        .scalars()
-        .all()
-    )
-    assert sorted((r.requirement_type.value, r.requirement_data) for r in requirements) == [
+    assert await _seed(async_session, quest_dir) == 0
+    assert sorted(
+        (r.requirement_type.value, r.requirement_data) for r in await _requirements(async_session, quest)
+    ) == [
         ("item", {"item_name": "Stimpak"}),
         ("level", {"level": 5}),
     ]
+    before_ids = {requirement.id for requirement in await _requirements(async_session, quest)}
+    assert await _seed(async_session, quest_dir) == 0
+    assert {requirement.id for requirement in await _requirements(async_session, quest)} == before_ids
 
-
-@pytest.mark.asyncio
-async def test_seed_quests_reconciles_existing_predecessor(async_session: AsyncSession, tmp_path: Path) -> None:
-    """Re-seeding resolves a QUEST_COMPLETED gate on an existing quest and restores previous_quest_id."""
-    quest_dir = tmp_path / "quests"
-    quest_dir.mkdir()
-    quest_data = {
-        "chain_name": "Test chain",
-        "quests": [
-            {
-                "quest_name": "Chain Starter",
-                "long_description": "The first quest in a test chain.",
-                "short_description": "Start the chain",
-                "requirements": "Level 1",
-                "rewards": "10 caps",
-            },
-            {
-                "quest_name": "Chain Follow-up",
-                "long_description": "The second quest in a test chain.",
-                "short_description": "Continue the chain",
-                "requirements": "Level 1",
-                "rewards": "20 caps",
-                "quest_requirements": [
-                    {
-                        "requirement_type": "QUEST_COMPLETED",
-                        "requirement_data": {"quest_name": "Chain Starter"},
-                    }
-                ],
-            },
-        ],
-    }
-    with (quest_dir / "chain.json").open("w", encoding="utf-8") as file:
-        json.dump(quest_data, file)
-
-    assert await seed_quests_from_json(async_session, quest_dir=quest_dir) == 2
-
-    quests = (await async_session.execute(select(Quest))).scalars().all()
-    quests_by_title = {quest.title: quest for quest in quests}
-    follow_up = quests_by_title["Chain Follow-up"]
-    starter = quests_by_title["Chain Starter"]
+    chain_dir = _dir(tmp_path, "chains")
+    _write(chain_dir, "chain.json", CHAIN)
+    assert await _seed(async_session, chain_dir) == 2
+    quests = {q.title: q for q in (await async_session.execute(select(Quest))).scalars().all()}
+    follow_up, starter = quests["Chain Follow-up"], quests["Chain Starter"]
     assert follow_up.previous_quest_id == starter.id
-
-    # Drop the gate and clear the predecessor link in the DB
-    requirements = (
-        (await async_session.execute(select(QuestRequirement).where(QuestRequirement.quest_id == follow_up.id)))
-        .scalars()
-        .all()
-    )
-    for requirement in requirements:
+    # Drop the gate and clear the predecessor link in the DB.
+    for requirement in await _requirements(async_session, follow_up):
         await async_session.delete(requirement)
     follow_up.previous_quest_id = None
     await async_session.commit()
-
-    assert await seed_quests_from_json(async_session, quest_dir=quest_dir) == 0
-
-    follow_up = (await async_session.execute(select(Quest).where(Quest.title == "Chain Follow-up"))).scalar_one()
-    requirements = (
-        (await async_session.execute(select(QuestRequirement).where(QuestRequirement.quest_id == follow_up.id)))
-        .scalars()
-        .all()
-    )
+    assert await _seed(async_session, chain_dir) == 0
+    follow_up = await _quest_row(async_session, "Chain Follow-up")
+    requirements = await _requirements(async_session, follow_up)
     assert len(requirements) == 1
     assert requirements[0].requirement_type == RequirementType.QUEST_COMPLETED
     assert requirements[0].requirement_data == {"quest_id": str(starter.id)}
     assert follow_up.previous_quest_id == starter.id
 
 
-@pytest.mark.asyncio
-async def test_seed_quests_requirement_sync_is_idempotent(async_session: AsyncSession, tmp_path: Path) -> None:
-    """Re-seeding with no JSON change leaves requirement rows untouched."""
-    quest_dir = tmp_path / "quests"
-    quest_dir.mkdir()
-    quest_data = [
-        {
-            "Quest name": "Idempotent Gates Quest",
-            "Long description": "A quest with stable gates.",
-            "Short description": "Stable gates",
-            "Requirements": "Level 3",
-            "Rewards": "10 caps",
-            "quest_requirements": [
-                {"requirement_type": "LEVEL", "requirement_data": {"level": 3}, "is_mandatory": True},
-            ],
-        }
-    ]
-    with (quest_dir / "gates.json").open("w", encoding="utf-8") as file:
-        json.dump(quest_data, file)
-
-    assert await seed_quests_from_json(async_session, quest_dir=quest_dir) == 1
-
-    quest = (await async_session.execute(select(Quest).where(Quest.title == "Idempotent Gates Quest"))).scalar_one()
-    before = (
-        (await async_session.execute(select(QuestRequirement).where(QuestRequirement.quest_id == quest.id)))
-        .scalars()
-        .all()
-    )
-    before_ids = {requirement.id for requirement in before}
-
-    assert await seed_quests_from_json(async_session, quest_dir=quest_dir) == 0
-
-    after = (
-        (await async_session.execute(select(QuestRequirement).where(QuestRequirement.quest_id == quest.id)))
-        .scalars()
-        .all()
-    )
-    assert {requirement.id for requirement in after} == before_ids
-
-
 def test_quest_gear_rewards_are_catalog_backed() -> None:
-    """Authored weapon/outfit rewards must name a real catalog item."""
     from app.schemas.quest import infer_item_type
     from app.services import catalog_service as data_loader
+    from app.services.rewards.items import _resolve_junk
     from app.utils.static_data import DATA_DIR
 
     catalog = {
@@ -792,14 +435,10 @@ def test_quest_gear_rewards_are_catalog_backed() -> None:
                 if item_type in catalog and item_type != "junk":
                     assert str(name).lower() in catalog[item_type], f"{name!r} is not a catalog {item_type}"
                 if item_type == "junk":
-                    # Settle the reward the way settlement.py will: the typed loader's
-                    # normalized payload merged as reward_data | item_data; every quest
-                    # junk reward must resolve to a priced row, never a valueless orphan.
-                    from app.schemas.quest import QuestRewardJSON
-                    from app.services.rewards.items import _resolve_junk
-
+                    # Settle as settlement.py will: normalized payload merged with item_data;
+                    # every quest junk reward must resolve to a priced row, never a valueless orphan.
                     parsed = QuestRewardJSON.model_validate(node)
-                    merged = parsed.reward_data | (parsed.item_data_json or {})  # computed field
+                    merged = parsed.reward_data | (parsed.item_data_json or {})
                     resolved = _resolve_junk(
                         str(merged.get("item_name") or merged.get("name") or name),
                         str(merged.get("rarity", "common")),
@@ -828,7 +467,6 @@ def test_quest_gear_rewards_are_catalog_backed() -> None:
 async def test_wasteland_chains_seed_unlock_and_grant_rewards(
     async_session: AsyncSession, vault, dweller, chain_id: str, quest_count: int, final_template: str
 ) -> None:
-    """Exercise authored chains through real seeding, availability and reward settlement."""
     from sqlalchemy.orm import selectinload
 
     from app import crud

@@ -1,25 +1,3 @@
-"""Architecture guards for the service-layer contract (docs/backend/SERVICE_LAYER.md).
-
-Services and CRUD stay transport-free: they may not import or raise ``HTTPException``.
-``app/utils/exceptions.py`` stays free of fastapi imports.
-
-Dependency direction is one-way: CRUD modules may only use the shared policy kernel
-``app.services.room_assignment_policy``; messaging lives in ``app.core.event_bus``,
-outside the service layer entirely. Every other CRUD -> service dependency is
-recorded in ``CRUD_SERVICE_BASELINE`` and must shrink as domain batches migrate; new entries fail the suite. The same ratchet
-applies to raw ``select()``/``exec()`` queries in ``app/services`` (``SERVICES_SELECT_BASELINE``)
-and to non-conforming top-level service module names (``SERVICE_NAME_GRANDFATHER``).
-A baseline entry with no remaining violations also fails, so the lists stay honest.
-
-Contracts live in ``app/schemas``: a module under ``app/services`` may not define a Pydantic
-``BaseModel`` subclass or be named ``models.py``/``schemas.py``, because that puts a schema where
-callers are told to look for behaviour.
-
-Commit ownership: a private helper may commit only when its name ends in ``_transaction``,
-marking a boundary that several entry points share. ``COMMIT_OWNERSHIP_BASELINE`` records
-the pre-existing exceptions and is shrink-only.
-"""
-
 import ast
 import re
 from pathlib import Path
@@ -67,26 +45,15 @@ SERVICE_BOUNDARY_IMPORTS = frozenset(
         "websockets",
     }
 )
-PURE_SERVICE_BASELINE = frozenset(
-    {
-        # Read-model and SMTP adapters: they own a boundary but touch no persistence
-        # or sibling service, so the role check cannot see it from imports alone.
-        "changelog_service.py",
-        "email_service.py",
-    }
-)
-PURE_POLICY_IMPORTS = frozenset(
-    {
-        # Role-classified pure modules: importing them is not orchestration.
-        "app.services.combat.weapon_skill",
-        "app.services.map.world_generation",
-    }
-)
+# Read-model and SMTP adapters: they own a boundary but touch no persistence or sibling
+# service, so the role check cannot see it from imports alone.
+PURE_SERVICE_BASELINE = frozenset({"changelog_service.py", "email_service.py"})
+# Role-classified pure modules: importing them is not orchestration.
+PURE_POLICY_IMPORTS = frozenset({"app.services.combat.weapon_skill", "app.services.map.world_generation"})
 SESSION_NAMES = frozenset({"db_session", "session", "async_session", "sess"})
 
 
 def _call_chains(tree: ast.AST) -> set[str]:
-    """Dotted names of every call expression, e.g. ``event_bus.emit``."""
     chains: set[str] = set()
     for node in ast.walk(tree):
         if not isinstance(node, ast.Call):
@@ -104,7 +71,6 @@ def _call_chains(tree: ast.AST) -> set[str]:
 
 
 def _service_boundary_signals(source: str) -> set[str]:
-    """Signals that a module under services/ owns an application boundary."""
     tree = ast.parse(source)
     imported: list[str] = []
     imported_names: set[str] = set()
@@ -155,7 +121,6 @@ def _service_boundary_signals(source: str) -> set[str]:
 
 
 def _committing_functions(source: str) -> dict[str, int]:
-    """Return {function name: commit() calls it contains} for every committing function."""
     found: dict[str, int] = {}
     for node in ast.walk(ast.parse(source)):
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
@@ -179,7 +144,6 @@ def _committing_functions(source: str) -> dict[str, int]:
 
 
 def _http_exception_violations(source: str) -> list[tuple[int, str]]:
-    """Return (line, description) for every HTTPException reference in a module."""
     tree = ast.parse(source)
     violations: list[tuple[int, str]] = []
     aliases: set[str] = set()
@@ -198,7 +162,6 @@ def _http_exception_violations(source: str) -> list[tuple[int, str]]:
 
 
 def _fastapi_import_lines(source: str) -> list[int]:
-    """Return line numbers of fastapi imports in a module."""
     lines: list[int] = []
     for node in ast.walk(ast.parse(source)):
         if isinstance(node, (ast.Import, ast.ImportFrom)):
@@ -209,7 +172,6 @@ def _fastapi_import_lines(source: str) -> list[int]:
 
 
 def test_services_and_crud_do_not_reference_http_exception() -> None:
-    """No transport exceptions below the API layer."""
     violations = []
     for dirname in GUARDED_DIRS:
         for path in sorted((APP_DIR / dirname).rglob("*.py")):
@@ -219,18 +181,11 @@ def test_services_and_crud_do_not_reference_http_exception() -> None:
 
 
 def test_exceptions_module_has_no_fastapi_imports() -> None:
-    """Domain exceptions are transport-free: fastapi must not be imported."""
     lines = _fastapi_import_lines(EXCEPTIONS_FILE.read_text(encoding="utf-8"))
     assert not lines, f"app/utils/exceptions.py imports fastapi at lines: {lines}"
 
 
 def _service_imports(source: str) -> set[str]:
-    """Return app.services modules imported anywhere in a module (including nested imports).
-
-    Level-two relative imports (``from ..services import X``) resolve against the
-    ``app`` package from inside ``app.crud``/``app.services``, so normalize them
-    to the corresponding ``app.services`` path instead of missing them.
-    """
     tree = ast.parse(source)
     modules = set()
     for node in ast.walk(tree):
@@ -250,7 +205,6 @@ def _service_imports(source: str) -> set[str]:
 
 
 def _select_call_lines(source: str) -> list[int]:
-    """Return sorted unique line numbers of raw select(), exec(), text(), and execute() calls in a module."""
     lines = []
     for node in ast.walk(ast.parse(source)):
         if isinstance(node, ast.Call):
@@ -266,7 +220,6 @@ _SESSION_GET_RECEIVERS = frozenset({"db_session", "session", "async_session"})
 
 
 def _session_get_call_lines(source: str) -> list[int]:
-    """Return sorted unique line numbers of <session>.get(...) direct PK loads (queries belong in CRUD)."""
     lines = []
     for node in ast.walk(ast.parse(source)):
         if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and node.func.attr == "get":
@@ -277,7 +230,6 @@ def _session_get_call_lines(source: str) -> list[int]:
 
 
 def _api_imports(source: str) -> set[str]:
-    """Return every app.api module imported by a source file (dependency-direction guard)."""
     modules = set()
     for node in ast.walk(ast.parse(source)):
         if isinstance(node, ast.ImportFrom):
@@ -301,7 +253,6 @@ def _api_imports(source: str) -> set[str]:
 
 
 def test_crud_does_not_depend_on_services() -> None:
-    """CRUD depends on services only via shared kernels; the baseline must shrink, never grow."""
     found = set()
     for path in sorted((APP_DIR / "crud").rglob("*.py")):
         for module in _service_imports(path.read_text(encoding="utf-8")):
@@ -315,7 +266,6 @@ def test_crud_does_not_depend_on_services() -> None:
 
 
 def test_lower_layers_do_not_depend_on_api() -> None:
-    """CRUD and services must never import from app.api; the API layer depends downward only."""
     offenders = []
     for layer in ("crud", "services"):
         for path in sorted((APP_DIR / layer).rglob("*.py")):
@@ -325,7 +275,6 @@ def test_lower_layers_do_not_depend_on_api() -> None:
 
 
 def test_services_do_not_query_directly() -> None:
-    """Raw select() stays in CRUD; services orchestrate. The baseline must shrink, never grow."""
     found = set()
     for path in sorted((APP_DIR / "services").rglob("*.py")):
         if _select_call_lines(path.read_text(encoding="utf-8")):
@@ -338,7 +287,6 @@ def test_services_do_not_query_directly() -> None:
 
 
 def test_services_do_not_load_rows_directly() -> None:
-    """Session .get() PK loads stay in CRUD; services orchestrate. No baseline: this class stays empty."""
     offenders = []
     for path in sorted((APP_DIR / "services").rglob("*.py")):
         lines = _session_get_call_lines(path.read_text(encoding="utf-8"))
@@ -351,7 +299,6 @@ PASSTHROUGH_MODULE_NAMES = frozenset({"models", "schemas"})
 
 
 def _pydantic_model_definitions(source: str) -> list[tuple[int, str]]:
-    """Find imported BaseModel subclasses, resolving bindings in source order per scope."""
     found: list[tuple[int, str]] = []
 
     def scan(node: ast.AST, class_aliases: set[str], module_aliases: set[str]) -> None:
@@ -402,13 +349,6 @@ def _pydantic_model_definitions(source: str) -> list[tuple[int, str]]:
 
 
 def test_services_do_not_define_pydantic_models() -> None:
-    """Schemas belong in app/schemas: a service carries behaviour, not wire/data contracts.
-
-    A Pydantic model inside a service forces every caller (routers, other services,
-    tests) to import the layer that must not own it, and hides a schema change in a
-    file whose docstring promises a client/orchestrator. Dataclasses for internal
-    run records stay allowed: they are not schemas and use ``dataclass``.
-    """
     offenders = []
     for path in sorted((APP_DIR / "services").rglob("*.py")):
         for line, name in _pydantic_model_definitions(path.read_text(encoding="utf-8")):
@@ -419,12 +359,6 @@ def test_services_do_not_define_pydantic_models() -> None:
 
 
 def test_services_have_no_passthrough_contract_modules() -> None:
-    """No ``models.py``/``schemas.py`` under app/services: that module name invites contracts back in.
-
-    Even dataclass-only today, a module named this way becomes the place to add the
-    next schema, so the file itself is the smell. Imported contracts come from
-    ``app.schemas``; service-owned result records live beside their producer.
-    """
     offenders = [
         path.relative_to(APP_DIR).as_posix()
         for path in sorted((APP_DIR / "services").rglob("*.py"))
@@ -436,7 +370,6 @@ def test_services_have_no_passthrough_contract_modules() -> None:
 
 
 def test_guard_detects_pydantic_model_forms() -> None:
-    """Self-test: direct, generic, aliased, and module-qualified bases are all reported."""
     source = (
         "from pydantic import BaseModel\n"
         "from pydantic import BaseModel as Model\n"
@@ -456,7 +389,6 @@ def test_guard_detects_pydantic_model_forms() -> None:
 
 
 def test_guard_ignores_non_pydantic_base_model() -> None:
-    """Self-test: a BaseModel name from another library, or shadowed locally, is not pydantic's."""
     source = (
         "from some_lib import BaseModel\n"
         "class FromElsewhere(BaseModel):\n"
@@ -506,7 +438,6 @@ def test_guard_keeps_nested_imports_in_their_scope() -> None:
 
 
 def test_guard_detects_api_import_forms() -> None:
-    """Self-test: absolute, package-attribute, and relative app.api imports are all caught."""
     source = (
         "from app.api.deps import x\n"
         "from app import api\n"
@@ -518,13 +449,6 @@ def test_guard_detects_api_import_forms() -> None:
 
 
 def test_committing_helpers_are_named_transactions() -> None:
-    """A private helper commits only when its name marks it as a shared transaction step.
-
-    ``*_transaction`` means: this method deliberately owns a boundary that several
-    entry points share. Everything else stages its writes and lets the public entry
-    point commit, so one operation cannot be split across two transactions. The
-    baseline is shrink-only, and a stale entry fails too.
-    """
     found = set()
     for path in sorted((APP_DIR / "services").rglob("*.py")):
         rel = path.relative_to(APP_DIR / "services").as_posix()
@@ -542,7 +466,6 @@ def test_committing_helpers_are_named_transactions() -> None:
 
 
 def test_guard_detects_commit_ownership_forms() -> None:
-    """Self-test: entry-point commits, helper commits, and transaction-named helpers are told apart."""
     source = (
         "async def entry(db):\n"
         "    await db.commit()\n"
@@ -557,7 +480,6 @@ def test_guard_detects_commit_ownership_forms() -> None:
 
 
 def test_commit_ownership_does_not_attribute_nested_transactions_to_outer_helpers() -> None:
-    """A nested transaction owns its commit; its staging caller does not."""
     source = (
         "async def _staged(db):\n"
         "    async def _save_transaction():\n"
@@ -568,7 +490,6 @@ def test_commit_ownership_does_not_attribute_nested_transactions_to_outer_helper
 
 
 def test_service_module_names_follow_convention() -> None:
-    """New top-level service modules are *_service.py; the grandfather list never grows."""
     found = {path.name for path in (APP_DIR / "services").glob("*.py") if not SERVICE_NAME_PATTERN.match(path.name)}
     new_names = found - SERVICE_NAME_GRANDFATHER
     stale_entries = SERVICE_NAME_GRANDFATHER - found
@@ -578,12 +499,6 @@ def test_service_module_names_follow_convention() -> None:
 
 
 def test_service_modules_own_a_boundary_or_are_baselined() -> None:
-    """A *_service.py module owns persistence, orchestration or an external boundary.
-
-    Pure decisions and generators use a role name inside their domain package
-    (``services/combat/weapon_skill.py``, ``services/map/world_generation.py``) or
-    live in ``app/utils`` (``utils/radiation.py``). The baseline is shrink-only.
-    """
     found = set()
     for path in sorted((APP_DIR / "services").rglob("*_service.py")):
         if not _service_boundary_signals(path.read_text(encoding="utf-8")):
@@ -600,7 +515,6 @@ def test_service_modules_own_a_boundary_or_are_baselined() -> None:
 
 
 def test_guard_detects_pure_service_module() -> None:
-    """Self-test: boundary signals come from syntax, not comments or docstrings."""
     assert _service_boundary_signals('"""Mentions db_session, crud and event_bus.emit."""\n') == set()
     assert _service_boundary_signals("def f() -> int:\n    return 1\n") == set()
     assert "crud" in _service_boundary_signals("from app import crud\n")
@@ -620,7 +534,6 @@ def test_guard_detects_pure_service_module() -> None:
 
 
 def test_crud_stays_flat_and_lowercase() -> None:
-    """CRUD modules stay flat lowercase files; no subpackages, no new naming styles."""
     problems = []
     for path in sorted((APP_DIR / "crud").rglob("*")):
         if any(part.startswith((".", "__")) for part in path.relative_to(APP_DIR / "crud").parts):
@@ -633,7 +546,6 @@ def test_crud_stays_flat_and_lowercase() -> None:
 
 
 def test_guard_detects_http_exception_violation() -> None:
-    """Self-test: the violation finder catches aliased imports, names, and attribute access."""
     source = (
         "from fastapi import HTTPException as HE\n"
         "import fastapi\n"
@@ -648,7 +560,6 @@ def test_guard_detects_http_exception_violation() -> None:
 
 
 def test_guard_detects_nested_service_import() -> None:
-    """Self-test: service imports are found even inside functions, with exact module names."""
     source = (
         "from app.crud.base import CRUDBase\n"
         "def f() -> None:\n"
@@ -659,7 +570,6 @@ def test_guard_detects_nested_service_import() -> None:
 
 
 def test_guard_detects_relative_service_import() -> None:
-    """Self-test: level-two relative imports normalize to app.services paths."""
     source = (
         "from ..services import vault_service\n"
         "from ..services.room_assignment_policy import validate\n"
@@ -669,7 +579,6 @@ def test_guard_detects_relative_service_import() -> None:
 
 
 def test_guard_detects_select_calls() -> None:
-    """Self-test: bare/attribute select(), exec(), text(), and execute() calls are reported with line numbers."""
     source = (
         "x = select(Model).where(Model.id == 1)\n"
         "y = session.execute(select(Model))\n"
@@ -681,7 +590,6 @@ def test_guard_detects_select_calls() -> None:
 
 
 def test_guard_detects_session_get_calls() -> None:
-    """Self-test: only session-receiver .get() loads are flagged; CRUD/redis/queue gets are ignored."""
     source = (
         "a = await db_session.get(Model, 1)\n"
         "b = await session.get(Model, 2)\n"
@@ -695,7 +603,6 @@ def test_guard_detects_session_get_calls() -> None:
 
 
 def test_service_name_pattern() -> None:
-    """Self-test: the naming pattern accepts services and rejects helpers."""
     assert SERVICE_NAME_PATTERN.match("vault_service.py")
     assert SERVICE_NAME_PATTERN.match("__init__.py")
     assert not SERVICE_NAME_PATTERN.match("vault_seed.py")

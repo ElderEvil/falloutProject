@@ -21,7 +21,6 @@ ENUM_BASES = frozenset({"StrEnum", "IntEnum"})
 
 
 def enum_class_names(source: str) -> set[str]:
-    """Top-level classes in ``source`` that subclass ``StrEnum`` or ``IntEnum``."""
     tree = ast.parse(source)
     return {
         node.name
@@ -31,17 +30,14 @@ def enum_class_names(source: str) -> set[str]:
 
 
 def _module_name(path: Path) -> str:
-    """Import-style module name for a file under ``app/`` (``app.core.foo``)."""
     return ".".join(path.relative_to(APP_DIR.parent).with_suffix("").parts)
 
 
 def _is_models_module(module: str) -> bool:
-    """Whether a resolved module name points at ``app.models`` or a submodule."""
     return module == "app.models" or module.startswith("app.models.")
 
 
 def _relative_base(module_name: str, level: int) -> list[str]:
-    """Package parts a relative import resolves from; empty for an invalid level."""
     package_parts = module_name.split(".")[:-1]
     up = level - 1
     if up > len(package_parts):
@@ -50,11 +46,6 @@ def _relative_base(module_name: str, level: int) -> list[str]:
 
 
 def core_model_imports(source: str, module_name: str) -> set[str]:
-    """Every ``app.models`` import in a core module, with its line number.
-
-    Handles absolute imports, relative imports resolved against ``module_name``,
-    and package-level forms such as ``from app import models``.
-    """
     tree = ast.parse(source)
     violations: set[str] = set()
     for node in ast.walk(tree):
@@ -88,7 +79,6 @@ def core_model_imports(source: str, module_name: str) -> set[str]:
 
 
 def core_enum_exports() -> set[str]:
-    """Top-level names defined in ``app/core/enums.py`` (enums plus their helper constants)."""
     tree = ast.parse(ENUMS_FILE.read_text(encoding="utf-8"))
     names = {node.name for node in tree.body if isinstance(node, ast.ClassDef)}
     for node in tree.body:
@@ -100,11 +90,6 @@ def core_enum_exports() -> set[str]:
 
 
 def compat_enum_imports(source: str, module_name: str, exports: set[str]) -> dict[str, set[str]]:
-    """Enum names imported from a non-canonical module, keyed by import target.
-
-    Model modules bind the enums they use for column types, so ``from app.models.incident
-    import IncidentType`` still resolves; that incidental re-export is not an import path.
-    """
     violations: dict[str, set[str]] = {}
     for node in ast.walk(ast.parse(source)):
         if not isinstance(node, ast.ImportFrom):

@@ -25,8 +25,6 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 @dataclass
 class StatementCounter:
-    """Mutable statement count for one ``count_sql_statements`` block."""
-
     value: int = 0
 
     def reset(self) -> None:

@@ -1,8 +1,7 @@
-"""Real PostgreSQL migration and concurrent trial regression."""
-
 import asyncio
-from datetime import datetime, timedelta
+from datetime import timedelta
 from unittest.mock import AsyncMock, Mock
+from uuid import UUID
 
 import pytest
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
@@ -40,8 +39,6 @@ def test_two_sessions_trial_one_weapon_once(harness, monkeypatch):
     rng = Mock(return_value=0.0)
 
     async def race():
-        from uuid import UUID
-
         engine = create_async_engine(harness.url)
         sessions = async_sessionmaker(engine, expire_on_commit=False)
         try:

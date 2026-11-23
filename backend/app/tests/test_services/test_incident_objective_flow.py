@@ -1,16 +1,23 @@
-"""Objective-driven incident flow: containment vs combat selection in the round engine."""
-
+from contextlib import contextmanager
 from unittest.mock import patch
 from uuid import UUID
 
 import pytest
+from sqlalchemy import event
+from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
 from app.core.enums import IncidentFamily, IncidentObjective, IncidentStatus, IncidentType
 from app.models.incident import INCIDENT_DEFINITIONS, IncidentDefinition
+from app.services.combat import incident_publishing
 from app.services.combat.incident_service import incident_service
 from app.tests.test_services._hazard_team_helpers import raise_incident
+
+CONTAIN_DMG = "app.services.combat.incident_math.containment_damage"
+CONTAIN_PROGRESS = "app.services.combat.incident_math.containment_progress"
+DMG_DWELLERS = "app.services.combat.incident_math.damage_to_dwellers"
+DMG_RAIDERS = "app.services.combat.incident_math.damage_to_raiders"
 
 
 def _containment_definition() -> IncidentDefinition:
@@ -23,14 +30,36 @@ def _containment_definition() -> IncidentDefinition:
     )
 
 
+@contextmanager
+def _containment_only(damage: float = 10.0, progress: float = 0.5):
+    """Containment maths only: any combat call is a bug."""
+    with (
+        patch(CONTAIN_DMG, return_value=damage),
+        patch(CONTAIN_PROGRESS, return_value=progress),
+        patch(DMG_DWELLERS, side_effect=AssertionError("combat damage used")),
+        patch(DMG_RAIDERS, side_effect=AssertionError("combat progress used")),
+    ):
+        yield
+
+
+@contextmanager
+def _combat_only(dwellers: float, raiders: float):
+    """Combat maths only: any containment call is a bug."""
+    with (
+        patch(DMG_DWELLERS, return_value=dwellers),
+        patch(DMG_RAIDERS, return_value=raiders),
+        patch(CONTAIN_DMG, side_effect=AssertionError("containment damage used")),
+        patch(CONTAIN_PROGRESS, side_effect=AssertionError("containment progress used")),
+    ):
+        yield
+
+
 async def test_combat_hits_identify_each_actor_and_target_for_playback(async_session, room_with_dwellers):
     room = room_with_dwellers["room"]
     incident = await raise_incident(async_session, room, IncidentType.RAIDER_ATTACK)
-
     await incident_service.process_incident(async_session, incident, 2)
     view = await incident_service.get_incident_read(async_session, incident, room.name)
     attacks = [event for event in view.events if event.kind == "hit"]
-
     assert attacks
     assert all(event.action is not None and event.action.skill is None for event in attacks)
     outgoing = [event.action for event in attacks if event.action.actor_id != "threat"]
@@ -46,11 +75,6 @@ async def test_combat_hits_identify_each_actor_and_target_for_playback(async_ses
 
 
 async def test_incident_late_failure_rolls_back_actions_and_health(async_session, room_with_dwellers, monkeypatch):
-    from sqlalchemy import event
-    from sqlalchemy.exc import SQLAlchemyError
-
-    from app.services.combat import incident_publishing
-
     room = room_with_dwellers["room"]
     incident = await raise_incident(async_session, room, IncidentType.RAIDER_ATTACK)
     incident_id = incident.id
@@ -89,63 +113,32 @@ async def test_incident_late_failure_rolls_back_actions_and_health(async_session
     assert not delivered
 
 
-@pytest.mark.asyncio
 async def test_containment_objective_uses_containment_flow(async_session: AsyncSession, room_with_dwellers: dict):
-    """A CONTAIN objective suppresses the hazard: containment formulas, no kill bookkeeping."""
     room = room_with_dwellers["room"]
     incident = await raise_incident(async_session, room, IncidentType.FIRE)
-
-    with (
-        patch("app.services.combat.incident_math.containment_damage", return_value=10.0),
-        patch("app.services.combat.incident_math.containment_progress", return_value=0.5),
-        patch("app.services.combat.incident_math.damage_to_dwellers", side_effect=AssertionError("combat damage used")),
-        patch(
-            "app.services.combat.incident_math.damage_to_raiders", side_effect=AssertionError("combat progress used")
-        ),
-    ):
+    with _containment_only():
         result = await incident_service.process_incident(async_session, incident, 2)
-
     await async_session.refresh(incident)
     events = await crud.incident_crud.get_recent_events(async_session, incident.id)
-
     assert result.damage_to_dwellers == 10.0
     assert result.damage_to_raiders == 0.0
     assert result.enemies_defeated == 0
     assert incident.enemies_defeated == 0
     assert incident.combat_progress == pytest.approx(0.5)
     assert events[-1].kind == "turn"
-    assert next(event for event in events if event.kind == "containment").data == {
-        "target": "hazard",
-        "amount": 0.5,
-    }
+    assert next(event for event in events if event.kind == "containment").data == {"target": "hazard", "amount": 0.5}
     hit_kinds = [event.kind for event in events if event.kind not in ("turn", "containment")]
     assert hit_kinds
     assert all(kind == "hit" for kind in hit_kinds)
 
 
-@pytest.mark.asyncio
 async def test_combat_objective_uses_combat_flow(async_session: AsyncSession, room_with_dwellers: dict):
-    """A DEFEAT objective fights enemies: combat formulas, kill bookkeeping, round events."""
     room = room_with_dwellers["room"]
     incident = await raise_incident(async_session, room, IncidentType.RAIDER_ATTACK)
-
-    with (
-        patch("app.services.combat.incident_math.damage_to_dwellers", return_value=10.0),
-        patch("app.services.combat.incident_math.damage_to_raiders", return_value=40.0),
-        patch(
-            "app.services.combat.incident_math.containment_damage",
-            side_effect=AssertionError("containment damage used"),
-        ),
-        patch(
-            "app.services.combat.incident_math.containment_progress",
-            side_effect=AssertionError("containment progress used"),
-        ),
-    ):
+    with _combat_only(10.0, 40.0):
         result = await incident_service.process_incident(async_session, incident, 2)
-
     await async_session.refresh(incident)
     events = await crud.incident_crud.get_recent_events(async_session, incident.id)
-
     assert result.damage_to_raiders == 40.0
     assert incident.enemies_defeated == 1  # 40.0 / (2 * 10 * 2.0) = one kill
     assert incident.combat_progress == pytest.approx(1.0)
@@ -159,96 +152,53 @@ async def test_combat_objective_uses_combat_flow(async_session: AsyncSession, ro
     assert any("hits the raiders" in event.message for event in threat_hits)
 
 
-@pytest.mark.asyncio
-async def test_non_fire_containment_definition_uses_containment_flow(
+async def test_non_fire_containment_flow_and_resolution(
     async_session: AsyncSession, room_with_dwellers: dict, monkeypatch: pytest.MonkeyPatch
 ):
-    """A non-fire hazard declaring CONTAIN follows the containment path, not combat."""
     monkeypatch.setitem(INCIDENT_DEFINITIONS, IncidentType.RADROACH_INFESTATION, _containment_definition())
     room = room_with_dwellers["room"]
     incident = await raise_incident(async_session, room, IncidentType.RADROACH_INFESTATION)
-
-    with (
-        patch("app.services.combat.incident_math.containment_damage", return_value=10.0),
-        patch("app.services.combat.incident_math.containment_progress", return_value=0.5),
-        patch("app.services.combat.incident_math.damage_to_dwellers", side_effect=AssertionError("combat damage used")),
-        patch(
-            "app.services.combat.incident_math.damage_to_raiders", side_effect=AssertionError("combat progress used")
-        ),
-    ):
+    with _containment_only():
         result = await incident_service.process_incident(async_session, incident, 2)
-
     await async_session.refresh(incident)
     events = await crud.incident_crud.get_recent_events(async_session, incident.id)
-
     assert result.damage_to_raiders == 0.0
     assert result.enemies_defeated == 0
     assert incident.enemies_defeated == 0
     assert incident.combat_progress == pytest.approx(0.5)
     assert events[-1].kind == "turn"
-    assert next(event for event in events if event.kind == "containment").data == {
-        "target": "hazard",
-        "amount": 0.5,
-    }
+    assert next(event for event in events if event.kind == "containment").data == {"target": "hazard", "amount": 0.5}
 
-
-@pytest.mark.asyncio
-async def test_non_fire_containment_resolves_on_full_progress(
-    async_session: AsyncSession, room_with_dwellers: dict, monkeypatch: pytest.MonkeyPatch
-):
-    """Containment resolution keys off combat_progress, whatever the incident type."""
-    monkeypatch.setitem(INCIDENT_DEFINITIONS, IncidentType.RADROACH_INFESTATION, _containment_definition())
-    room = room_with_dwellers["room"]
-    incident = await raise_incident(async_session, room, IncidentType.RADROACH_INFESTATION)
     incident.combat_progress = 0.99
     async_session.add(incident)
     await async_session.commit()
-
-    with (
-        patch("app.services.combat.incident_math.containment_damage", return_value=0.0),
-        patch("app.services.combat.incident_math.containment_progress", return_value=0.02),
-    ):
+    with patch(CONTAIN_DMG, return_value=0.0), patch(CONTAIN_PROGRESS, return_value=0.02):
         await incident_service.process_incident(async_session, incident, 2)
-
     await async_session.refresh(incident)
     assert incident.status == IncidentStatus.RESOLVED
 
 
-@pytest.mark.asyncio
 async def test_combat_objective_does_not_resolve_on_progress_alone(
     async_session: AsyncSession, room_with_dwellers: dict
 ):
-    """Combat resolution keys off kills, so full combat_progress alone is not a victory."""
     room = room_with_dwellers["room"]
     incident = await raise_incident(async_session, room, IncidentType.RAIDER_ATTACK)
     incident.combat_progress = 1.0
     async_session.add(incident)
     await async_session.commit()
-
-    with (
-        patch("app.services.combat.incident_math.damage_to_dwellers", return_value=0.0),
-        patch("app.services.combat.incident_math.damage_to_raiders", return_value=0.0),
-    ):
+    with patch(DMG_DWELLERS, return_value=0.0), patch(DMG_RAIDERS, return_value=0.0):
         await incident_service.process_incident(async_session, incident, 2)
-
     await async_session.refresh(incident)
     assert incident.status == IncidentStatus.ACTIVE
 
 
-@pytest.mark.asyncio
 async def test_containment_message_is_specific_per_hazard(
     async_session: AsyncSession, room_with_dwellers: dict, monkeypatch: pytest.MonkeyPatch
 ):
-    """Containment copy follows the hazard: fire, radiation, or neutral for the rest."""
     room = room_with_dwellers["room"]
     fire_incident = await raise_incident(async_session, room, IncidentType.FIRE)
-
-    with (
-        patch("app.services.combat.incident_math.containment_damage", return_value=10.0),
-        patch("app.services.combat.incident_math.containment_progress", return_value=0.5),
-    ):
+    with _containment_only():
         await incident_service.process_incident(async_session, fire_incident, 2)
-
     fire_events = await crud.incident_crud.get_recent_events(async_session, fire_incident.id)
     assert next(event.message for event in fire_events if event.kind == "containment") == (
         "Fire containment increased by 50%."
@@ -258,11 +208,7 @@ async def test_containment_message_is_specific_per_hazard(
     monkeypatch.setitem(INCIDENT_DEFINITIONS, IncidentType.RADSCORPION_ATTACK, _containment_definition())
     roach_incident = await raise_incident(async_session, room, IncidentType.RADROACH_INFESTATION)
     scorpion_incident = await raise_incident(async_session, room, IncidentType.RADSCORPION_ATTACK)
-
-    with (
-        patch("app.services.combat.incident_math.containment_damage", return_value=10.0),
-        patch("app.services.combat.incident_math.containment_progress", return_value=0.5),
-    ):
+    with _containment_only():
         await incident_service.process_incident(async_session, roach_incident, 2)
         await incident_service.process_incident(async_session, scorpion_incident, 2)
 
@@ -270,27 +216,23 @@ async def test_containment_message_is_specific_per_hazard(
     assert next(event.message for event in roach_events if event.kind == "containment") == (
         "Containment increased by 50%."
     )
-
     scorpion_events = await crud.incident_crud.get_recent_events(async_session, scorpion_incident.id)
     assert next(event.message for event in scorpion_events if event.kind == "containment") == (
         "Radiation containment increased by 50%."
     )
 
 
-@pytest.mark.asyncio
 async def test_non_fire_containment_read_reports_percentage_progress(
     async_session: AsyncSession, room_with_dwellers: dict, monkeypatch: pytest.MonkeyPatch
 ):
-    """The read contract reports containment as a percentage for any CONTAIN objective."""
+    # The read contract reports containment as a percentage for any CONTAIN objective.
     monkeypatch.setitem(INCIDENT_DEFINITIONS, IncidentType.RADROACH_INFESTATION, _containment_definition())
     room = room_with_dwellers["room"]
     incident = await raise_incident(async_session, room, IncidentType.RADROACH_INFESTATION)
     incident.combat_progress = 0.5
     async_session.add(incident)
     await async_session.commit()
-
     read = await incident_service.get_incident_read(async_session, incident, room.name)
-
     assert read.objective == IncidentObjective.CONTAIN
     assert read.progress.current == 50
     assert read.progress.target == 100

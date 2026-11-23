@@ -1,14 +1,12 @@
-"""Tests for ObjectiveEvaluators."""
-
 import asyncio
 import logging
 from unittest.mock import patch
 
 import pytest
+from sqlalchemy import event
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app import crud
-from app.core.enums import ObjectiveCategoryEnum
 from app.core.event_bus import GameEvent, event_bus
 from app.crud.storage import storage as storage_crud
 from app.models.dweller import Dweller
@@ -16,8 +14,10 @@ from app.models.objective import Objective
 from app.models.storage import Storage
 from app.models.vault import Vault
 from app.models.vault_objective import VaultObjectiveProgressLink
+from app.models.weapon import Weapon
 from app.schemas.user import UserCreate
 from app.schemas.vault import VaultCreateWithUserID
+from app.services.item_service import item_service
 from app.services.progression.objectives.evaluators import (
     AssignEvaluator,
     BuildEvaluator,
@@ -30,14 +30,17 @@ from app.services.progression.objectives.evaluators import (
     ScrapEvaluator,
     TrainEvaluator,
 )
+from app.services.recipe_unlock_service import catalog_entry
+from app.services.reward_service import reward_service
 from app.tests.factory.users import create_fake_user
 from app.tests.factory.vaults import create_fake_vault
 from app.tests.utils.query_counter import count_sql_statements
+from app.utils.exceptions import ResourceConflictException
+from app.utils.item_factory import build_weapon
 
 
 @pytest.fixture
 def fresh_event_bus():
-    """Clear event bus before each test."""
     event_bus.clear()
     yield event_bus
     event_bus.clear()
@@ -45,8 +48,6 @@ def fresh_event_bus():
 
 @pytest.fixture
 def patched_session_maker(async_session):
-    """Patch async_session_maker to use test session."""
-
     class MockSessionMaker:
         async def __aenter__(self):
             return async_session
@@ -58,61 +59,68 @@ def patched_session_maker(async_session):
         yield
 
 
-@pytest.mark.asyncio
-async def test_collect_evaluator_wrong_resource(
-    async_session: AsyncSession,
-    fresh_event_bus,
-    patched_session_maker,
-) -> None:
-    """Test CollectEvaluator ignores wrong resource type."""
-    user_data = create_fake_user()
-    user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))
-    vault_data = create_fake_vault()
-    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**vault_data, user_id=user.id))
+CAPS = {"resource_type": "caps"}
+REACH = {"reach_type": "dweller_count", "target": 10}
 
-    # Create objective for caps
-    objective = Objective(
-        challenge="Collect 100 caps",
-        reward="50 caps",
-        objective_type="collect",
-        target_entity={"resource_type": "caps"},
-        target_amount=100,
-        category=ObjectiveCategoryEnum.ACHIEVEMENT,
+
+async def _vault(db):
+    user = await crud.user.create(db, obj_in=UserCreate(**create_fake_user()))
+    return await crud.vault.create(db, obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id))
+
+
+def _obj(challenge, reward, objective_type, target_entity, amount, **kwargs):
+    return Objective(
+        challenge=challenge,
+        reward=reward,
+        objective_type=objective_type,
+        target_entity=target_entity,
+        target_amount=amount,
+        **kwargs,
     )
-    async_session.add(objective)
-    await async_session.commit()
-    await async_session.refresh(objective)
 
-    # Create progress link
-    link = VaultObjectiveProgressLink(
-        vault_id=vault.id, objective_id=objective.id, progress=0, total=100, is_completed=False
+
+async def _progress(
+    db,
+    vault,
+    objective_type,
+    target_entity,
+    target_amount,
+    challenge="Objective",
+    reward="10 caps",
+    category="achievement",
+    **kwargs,
+):
+    objective = _obj(challenge, reward, objective_type, target_entity, target_amount, category=category, **kwargs)
+    link = VaultObjectiveProgressLink(vault_id=vault.id, objective_id=objective.id, progress=0, total=target_amount)
+    db.add_all([objective, link])
+    await db.commit()
+    await db.refresh(link)
+    return objective, link
+
+
+async def _dwellers(db, vault, count, start=0):
+    db.add_all(
+        Dweller(first_name=f"Test{i}", gender="male", rarity="common", level=1, vault_id=vault.id)
+        for i in range(start, start + count)
     )
-    async_session.add(link)
-    await async_session.commit()
+    await db.commit()
 
-    # Create evaluator
+
+async def test_collect_evaluator_wrong_resource(async_session, fresh_event_bus, patched_session_maker):
+    vault = await _vault(async_session)
+    _, link = await _progress(
+        async_session, vault, "collect", {"resource_type": "caps"}, 100, challenge="Collect 100 caps"
+    )
     CollectEvaluator(fresh_event_bus)
 
-    # Emit wrong resource type event
     await fresh_event_bus.emit(GameEvent.RESOURCE_COLLECTED, vault.id, {"resource_type": "food", "amount": 50})
 
-    # Refresh and check progress unchanged
     await async_session.refresh(link)
     assert link.progress == 0
 
 
-@pytest.mark.asyncio
-async def test_collect_evaluator_credits_batched_resources(
-    async_session: AsyncSession,
-    fresh_event_bus,
-    patched_session_maker,
-) -> None:
-    """One batched event credits each matching objective, and a wildcard sums them."""
-    user_data = create_fake_user()
-    user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))
-    vault_data = create_fake_vault()
-    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**vault_data, user_id=user.id))
-
+async def test_collect_evaluator_credits_batched_resources(async_session, fresh_event_bus, patched_session_maker):
+    vault = await _vault(async_session)
     targets = {
         "power": {"resource_type": "power"},
         "food": {"resource_type": "food"},
@@ -120,33 +128,13 @@ async def test_collect_evaluator_credits_batched_resources(
         "production_only": {"resource_type": "power", "production_only": True},
         "any": {},
     }
-    objectives = {}
-    for label, target_entity in targets.items():
-        objective = Objective(
-            challenge=f"Collect from {label}",
-            reward="50 caps",
-            objective_type="collect",
-            target_entity=target_entity,
-            target_amount=100,
-            category=ObjectiveCategoryEnum.DAILY,
-        )
-        async_session.add(objective)
-        objectives[label] = objective
-    await async_session.commit()
-    for objective in objectives.values():
-        await async_session.refresh(objective)
-
     links = {}
-    for label, objective in objectives.items():
-        link = VaultObjectiveProgressLink(
-            vault_id=vault.id, objective_id=objective.id, progress=0, total=100, is_completed=False
+    for label, target_entity in targets.items():
+        _, links[label] = await _progress(
+            async_session, vault, "collect", target_entity, 100, challenge=f"Collect from {label}", category="daily"
         )
-        async_session.add(link)
-        links[label] = link
-    await async_session.commit()
 
     CollectEvaluator(fresh_event_bus)
-
     await fresh_event_bus.emit(
         GameEvent.RESOURCE_COLLECTED,
         vault.id,
@@ -162,18 +150,8 @@ async def test_collect_evaluator_credits_batched_resources(
     assert links["any"].progress == 22
 
 
-@pytest.mark.asyncio
-async def test_batched_production_uses_fewer_statements(
-    async_session: AsyncSession,
-    fresh_event_bus,
-    patched_session_maker,
-) -> None:
-    """One batch costs fewer statements than one emit per resource."""
-    user_data = create_fake_user()
-    user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))
-    vault_data = create_fake_vault()
-    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**vault_data, user_id=user.id))
-
+async def test_batched_production_uses_fewer_statements(async_session, fresh_event_bus, patched_session_maker):
+    vault = await _vault(async_session)
     links = {}
     for resource_type in ("power", "food"):
         objective = Objective(
@@ -182,14 +160,12 @@ async def test_batched_production_uses_fewer_statements(
             objective_type="collect",
             target_entity={"resource_type": resource_type},
             target_amount=100,
-            category=ObjectiveCategoryEnum.DAILY,
+            category="daily",
         )
         async_session.add(objective)
         await async_session.commit()
         await async_session.refresh(objective)
-        link = VaultObjectiveProgressLink(
-            vault_id=vault.id, objective_id=objective.id, progress=0, total=100, is_completed=False
-        )
+        link = VaultObjectiveProgressLink(vault_id=vault.id, objective_id=objective.id, progress=0, total=100)
         async_session.add(link)
         links[resource_type] = link
     await async_session.commit()
@@ -221,35 +197,13 @@ async def test_batched_production_uses_fewer_statements(
         assert link.progress == 1
 
 
-@pytest.mark.asyncio
 async def test_batched_production_continues_after_one_payload_fails(
-    async_session: AsyncSession,
-    fresh_event_bus,
-    patched_session_maker,
-) -> None:
-    """A failure crediting one resource must not skip the next resource in the batch."""
-    user_data = create_fake_user()
-    user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))
-    vault_data = create_fake_vault()
-    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**vault_data, user_id=user.id))
-
-    objective = Objective(
-        challenge="Collect any resource",
-        reward="50 caps",
-        objective_type="collect",
-        target_entity={},
-        target_amount=100,
-        category=ObjectiveCategoryEnum.DAILY,
+    async_session, fresh_event_bus, patched_session_maker
+):
+    vault = await _vault(async_session)
+    _, link = await _progress(
+        async_session, vault, "collect", {}, 100, challenge="Collect any resource", category="daily"
     )
-    async_session.add(objective)
-    await async_session.commit()
-    await async_session.refresh(objective)
-
-    link = VaultObjectiveProgressLink(
-        vault_id=vault.id, objective_id=objective.id, progress=0, total=100, is_completed=False
-    )
-    async_session.add(link)
-    await async_session.commit()
 
     CollectEvaluator(fresh_event_bus)
     original_credit = ObjectiveEvaluator._credit_event
@@ -270,320 +224,116 @@ async def test_batched_production_continues_after_one_payload_fails(
     assert link.progress == 5
 
 
-@pytest.mark.asyncio
-async def test_build_evaluator_room_built(
-    async_session: AsyncSession,
+@pytest.mark.parametrize(
+    ("evaluator_cls", "objective_type", "target_entity", "amount", "category", "kind", "payload"),
+    [
+        (
+            BuildEvaluator,
+            "build",
+            {"room_type": "*"},
+            3,
+            "achievement",
+            GameEvent.ROOM_BUILT,
+            {"room_type": "Power Generator", "tier": 1, "room_id": "test-id"},
+        ),
+        (ExploreEvaluator, "explore", {}, 1, "starter", GameEvent.DWELLER_DEPARTED, {"dweller_ids": ["d-1"]}),
+        (ExpeditionEvaluator, "expedition", {}, 3, "achievement", GameEvent.QUEST_COMPLETED, {"quest_type": "main"}),
+        (
+            LevelUpEvaluator,
+            "level_up",
+            {"min_level": 5},
+            2,
+            "achievement",
+            GameEvent.DWELLER_LEVEL_UP,
+            {"new_level": 5},
+        ),
+    ],
+    ids=["build", "explore", "expedition", "level_up"],
+)
+async def test_single_event_credits_progress(
+    async_session,
     fresh_event_bus,
     patched_session_maker,
-) -> None:
-    """Test BuildEvaluator updates progress on room built."""
-    user_data = create_fake_user()
-    user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))
-    vault_data = create_fake_vault()
-    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**vault_data, user_id=user.id))
+    evaluator_cls,
+    objective_type,
+    target_entity,
+    amount,
+    category,
+    kind,
+    payload,
+):
+    vault = await _vault(async_session)
+    _, link = await _progress(async_session, vault, objective_type, target_entity, amount, category=category)
+    evaluator_cls(fresh_event_bus)
 
-    # Create objective
-    objective = Objective(
-        challenge="Build 3 rooms",
-        reward="100 caps",
-        objective_type="build",
-        target_entity={"room_type": "*"},
-        target_amount=3,
-        category=ObjectiveCategoryEnum.ACHIEVEMENT,
-    )
-    async_session.add(objective)
-    await async_session.commit()
-    await async_session.refresh(objective)
+    await fresh_event_bus.emit(kind, vault.id, payload)
 
-    # Create progress link
-    link = VaultObjectiveProgressLink(
-        vault_id=vault.id, objective_id=objective.id, progress=0, total=3, is_completed=False
-    )
-    async_session.add(link)
-    await async_session.commit()
-
-    # Create evaluator
-    BuildEvaluator(fresh_event_bus)
-
-    # Emit room built event
-    await fresh_event_bus.emit(
-        GameEvent.ROOM_BUILT, vault.id, {"room_type": "Power Generator", "tier": 1, "room_id": "test-id"}
-    )
-
-    # Refresh and check progress
     await async_session.refresh(link)
     assert link.progress == 1
 
 
-@pytest.mark.asyncio
-async def test_train_evaluator_dweller_trained(
-    async_session: AsyncSession,
-    fresh_event_bus,
-    patched_session_maker,
-) -> None:
-    """Test TrainEvaluator updates progress on training complete."""
-    user_data = create_fake_user()
-    user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))
-    vault_data = create_fake_vault()
-    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**vault_data, user_id=user.id))
-
-    # Create objective
-    objective = Objective(
-        challenge="Train 5 dwellers",
-        reward="200 caps",
-        objective_type="train",
-        target_entity={},
-        target_amount=5,
-        category=ObjectiveCategoryEnum.ACHIEVEMENT,
-    )
-    async_session.add(objective)
-    await async_session.commit()
-    await async_session.refresh(objective)
-
-    # Create progress link
-    link = VaultObjectiveProgressLink(
-        vault_id=vault.id, objective_id=objective.id, progress=0, total=5, is_completed=False
-    )
-    async_session.add(link)
-    await async_session.commit()
-
-    # Create evaluator
-    TrainEvaluator(fresh_event_bus)
-
-    # Create dweller
+@pytest.mark.parametrize(
+    ("evaluator_cls", "objective_type", "challenge", "amount", "kind", "extra"),
+    [
+        (TrainEvaluator, "train", "Train 5 dwellers", 5, GameEvent.DWELLER_TRAINED, {"stat_trained": "strength"}),
+        (AssignEvaluator, "assign", "Assign 3 dwellers", 3, GameEvent.DWELLER_ASSIGNED, {"room_id": "test-room"}),
+    ],
+    ids=["train", "assign"],
+)
+async def test_dweller_event_evaluator_credits_progress(
+    async_session, fresh_event_bus, patched_session_maker, evaluator_cls, objective_type, challenge, amount, kind, extra
+):
+    vault = await _vault(async_session)
+    _, link = await _progress(async_session, vault, objective_type, {}, amount, challenge=challenge)
     dweller = Dweller(first_name="Test", gender="male", rarity="common", level=1, vault_id=vault.id)
     async_session.add(dweller)
     await async_session.commit()
     await async_session.refresh(dweller)
+    evaluator_cls(fresh_event_bus)
 
-    # Emit dweller trained event
-    await fresh_event_bus.emit(
-        GameEvent.DWELLER_TRAINED, vault.id, {"dweller_id": str(dweller.id), "stat_trained": "strength"}
-    )
-
-    # Refresh and check progress
-    await async_session.refresh(link)
-    assert link.progress == 1
-
-
-@pytest.mark.asyncio
-async def test_assign_evaluator_dweller_assigned(
-    async_session: AsyncSession,
-    fresh_event_bus,
-    patched_session_maker,
-) -> None:
-    """Test AssignEvaluator updates progress on dweller assignment."""
-    user_data = create_fake_user()
-    user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))
-    vault_data = create_fake_vault()
-    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**vault_data, user_id=user.id))
-
-    # Create objective
-    objective = Objective(
-        challenge="Assign 3 dwellers",
-        reward="150 caps",
-        objective_type="assign",
-        target_entity={},
-        target_amount=3,
-        category=ObjectiveCategoryEnum.ACHIEVEMENT,
-    )
-    async_session.add(objective)
-    await async_session.commit()
-    await async_session.refresh(objective)
-
-    # Create progress link
-    link = VaultObjectiveProgressLink(
-        vault_id=vault.id, objective_id=objective.id, progress=0, total=3, is_completed=False
-    )
-    async_session.add(link)
-    await async_session.commit()
-
-    # Create evaluator
-    AssignEvaluator(fresh_event_bus)
-
-    # Create dweller
-    dweller = Dweller(first_name="Test", gender="male", rarity="common", level=1, vault_id=vault.id)
-    async_session.add(dweller)
-    await async_session.commit()
-    await async_session.refresh(dweller)
-
-    # Emit dweller assigned event
-    await fresh_event_bus.emit(
-        GameEvent.DWELLER_ASSIGNED, vault.id, {"dweller_id": str(dweller.id), "room_id": "test-room"}
-    )
-
-    # Refresh and check progress
-    await async_session.refresh(link)
-    assert link.progress == 1
-
-
-@pytest.mark.asyncio
-async def test_explore_evaluator_credits_at_departure(
-    async_session: AsyncSession,
-    fresh_event_bus,
-    patched_session_maker,
-) -> None:
-    """An 'explore' objective advances on departure, not on the hour-scale return."""
-    user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
-    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id))
-
-    objective = Objective(
-        challenge="Send a dweller exploring",
-        reward="50 caps",
-        objective_type="explore",
-        target_entity={},
-        target_amount=1,
-        category=ObjectiveCategoryEnum.STARTER,
-    )
-    async_session.add(objective)
-    await async_session.commit()
-    await async_session.refresh(objective)
-
-    link = VaultObjectiveProgressLink(
-        vault_id=vault.id, objective_id=objective.id, progress=0, total=1, is_completed=False
-    )
-    async_session.add(link)
-    await async_session.commit()
-
-    ExploreEvaluator(fresh_event_bus)
-
-    await fresh_event_bus.emit(GameEvent.DWELLER_DEPARTED, vault.id, {"dweller_ids": ["d-1"]})
+    await fresh_event_bus.emit(kind, vault.id, {"dweller_id": str(dweller.id), **extra})
 
     await async_session.refresh(link)
     assert link.progress == 1
 
 
-@pytest.mark.asyncio
-async def test_reach_evaluator_population_reached(
-    async_session: AsyncSession,
-    fresh_event_bus,
-    patched_session_maker,
-) -> None:
-    """Test ReachEvaluator completes when population target met."""
-    user_data = create_fake_user()
-    user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))
-    vault_data = create_fake_vault()
-    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**vault_data, user_id=user.id))
-
-    # Create objective
-    objective = Objective(
-        challenge="Reach 10 dwellers",
-        reward="500 caps",
-        objective_type="reach",
-        target_entity={"reach_type": "dweller_count", "target": 10},
-        target_amount=10,
-        category=ObjectiveCategoryEnum.ACHIEVEMENT,
-    )
-    async_session.add(objective)
-    await async_session.commit()
-    await async_session.refresh(objective)
-
-    # Create progress link
-    link = VaultObjectiveProgressLink(
-        vault_id=vault.id, objective_id=objective.id, progress=0, total=10, is_completed=False
-    )
-    async_session.add(link)
-    await async_session.commit()
-
-    # Create evaluator
+async def test_reach_evaluator_population_reached(async_session, fresh_event_bus, patched_session_maker):
+    vault = await _vault(async_session)
+    _, link = await _progress(async_session, vault, "reach", REACH, 10, challenge="Reach 10 dwellers")
     ReachEvaluator(fresh_event_bus)
 
-    # Create 10 dwellers
-    for i in range(10):
-        dweller = Dweller(first_name=f"Test{i}", gender="male", rarity="common", level=1, vault_id=vault.id)
-        async_session.add(dweller)
-    await async_session.commit()
+    await _dwellers(async_session, vault, 10)
 
-    # Emit dweller assigned event to trigger check
     await fresh_event_bus.emit(GameEvent.DWELLER_ASSIGNED, vault.id, {"dweller_id": "test", "room_id": "test-room"})
 
-    # Refresh and check completion
     await async_session.refresh(link)
     assert link.is_completed is False
 
 
-@pytest.mark.asyncio
-async def test_reach_evaluator_reacts_to_dweller_added(
-    async_session: AsyncSession,
-    fresh_event_bus,
-    patched_session_maker,
-) -> None:
-    """Population growth via DWELLER_ADDED (radio/birth) must drive a dweller-count reach objective."""
-    user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
-    vault = await crud.vault.create(
-        async_session,
-        obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id),
-    )
-    objective = Objective(
-        challenge="Reach 10 dwellers",
-        reward="500 caps",
-        objective_type="reach",
-        target_entity={"reach_type": "dweller_count", "target": 10},
-        target_amount=10,
-        category=ObjectiveCategoryEnum.ACHIEVEMENT,
-    )
-    async_session.add(objective)
-    await async_session.commit()
-    await async_session.refresh(objective)
-    link = VaultObjectiveProgressLink(
-        vault_id=vault.id, objective_id=objective.id, progress=0, total=10, is_completed=False
-    )
-    async_session.add(link)
-    await async_session.commit()
-
+async def test_reach_evaluator_reacts_to_dweller_added(async_session, fresh_event_bus, patched_session_maker):
+    vault = await _vault(async_session)
+    _, link = await _progress(async_session, vault, "reach", REACH, 10, challenge="Reach 10 dwellers")
     ReachEvaluator(fresh_event_bus)
 
-    for i in range(5):
-        dweller = Dweller(first_name=f"Test{i}", gender="male", rarity="common", level=1, vault_id=vault.id)
-        async_session.add(dweller)
-    await async_session.commit()
-
+    await _dwellers(async_session, vault, 5)
     await fresh_event_bus.emit(GameEvent.DWELLER_ADDED, vault.id, {"dweller_id": "test"})
     await async_session.refresh(link)
     assert link.progress == 5
     assert link.is_completed is False
 
-    for i in range(5, 10):
-        dweller = Dweller(first_name=f"Test{i}", gender="male", rarity="common", level=1, vault_id=vault.id)
-        async_session.add(dweller)
-    await async_session.commit()
-
+    await _dwellers(async_session, vault, 5, start=5)
     await fresh_event_bus.emit(GameEvent.DWELLER_ADDED, vault.id, {"dweller_id": "test"})
     await async_session.refresh(link)
     assert link.progress == 10
     assert link.is_completed is False
 
 
-@pytest.mark.asyncio
 async def test_reach_evaluator_skips_unchanged_progress_write(
-    async_session: AsyncSession,
-    vault: Vault,
-    fresh_event_bus,
-    patched_session_maker,
-) -> None:
-    """A repeated absolute value must not issue a redundant progress UPDATE."""
-    from sqlalchemy import event
-
-    objective = Objective(
-        challenge="Reach 10 dwellers",
-        reward="500 caps",
-        objective_type="reach",
-        target_entity={"reach_type": "dweller_count", "target": 10},
-        target_amount=10,
-        category=ObjectiveCategoryEnum.ACHIEVEMENT,
-    )
-    async_session.add(objective)
-    await async_session.commit()
-    await async_session.refresh(objective)
-    link = VaultObjectiveProgressLink(
-        vault_id=vault.id, objective_id=objective.id, progress=5, total=10, is_completed=False
-    )
-    async_session.add(link)
-    for index in range(5):
-        async_session.add(
-            Dweller(first_name=f"Test{index}", gender="male", rarity="common", level=1, vault_id=vault.id)
-        )
-    await async_session.commit()
+    async_session, vault: Vault, fresh_event_bus, patched_session_maker
+):
+    _, link = await _progress(async_session, vault, "reach", REACH, 10, challenge="Reach 10 dwellers")
+    link.progress = 5
+    await _dwellers(async_session, vault, 5)
 
     ReachEvaluator(fresh_event_bus)
     statements: list[str] = []
@@ -607,37 +357,25 @@ async def test_reach_evaluator_skips_unchanged_progress_write(
     ]
 
 
-@pytest.mark.asyncio
 async def test_collect_evaluator_keeps_objective_active_when_reward_fails(
-    async_session: AsyncSession,
-    fresh_event_bus,
-    patched_session_maker,
-) -> None:
-    """A failed reward must not permanently consume a completed objective."""
-    user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
-    vault = await crud.vault.create(
+    async_session, fresh_event_bus, patched_session_maker
+):
+    vault = await _vault(async_session)
+    objective, link = await _progress(
         async_session,
-        obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id),
-    )
-    objective = Objective(
+        vault,
+        "collect",
+        {"resource_type": "caps"},
+        1,
         challenge="Collect one cap",
         reward="not a valid reward",
-        objective_type="collect",
-        target_entity={"resource_type": "caps"},
-        target_amount=1,
-        category=ObjectiveCategoryEnum.ACHIEVEMENT,
     )
-    link = VaultObjectiveProgressLink(vault_id=vault.id, objective_id=objective.id, progress=0, total=1)
-    async_session.add_all([objective, link])
-    await async_session.commit()
 
     CollectEvaluator(fresh_event_bus)
-
     await fresh_event_bus.emit(GameEvent.RESOURCE_COLLECTED, vault.id, {"resource_type": "caps", "amount": 1})
 
     await async_session.refresh(link)
     assert link.progress == 1
-    from app.services.reward_service import reward_service
 
     with pytest.raises(ValueError, match="Cannot parse objective reward string"):
         await reward_service.claim_objective_reward(async_session, objective.id, vault.id)
@@ -646,29 +384,11 @@ async def test_collect_evaluator_keeps_objective_active_when_reward_fails(
     assert link.is_completed is False
 
 
-@pytest.mark.asyncio
-async def test_collect_evaluator_does_not_reprocess_its_reward(
-    async_session: AsyncSession,
-    fresh_event_bus,
-    patched_session_maker,
-) -> None:
-    """A collect reward must not recursively trigger its own evaluator."""
-    user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
-    vault = await crud.vault.create(
-        async_session,
-        obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id),
+async def test_collect_evaluator_does_not_reprocess_its_reward(async_session, fresh_event_bus, patched_session_maker):
+    vault = await _vault(async_session)
+    objective, link = await _progress(
+        async_session, vault, "collect", {"resource_type": "caps"}, 1, challenge="Collect one cap", reward="10 caps"
     )
-    objective = Objective(
-        challenge="Collect one cap",
-        reward="10 caps",
-        objective_type="collect",
-        target_entity={"resource_type": "caps"},
-        target_amount=1,
-        category=ObjectiveCategoryEnum.ACHIEVEMENT,
-    )
-    link = VaultObjectiveProgressLink(vault_id=vault.id, objective_id=objective.id, progress=0, total=1)
-    async_session.add_all([objective, link])
-    await async_session.commit()
     initial_caps = vault.bottle_caps
 
     CollectEvaluator(fresh_event_bus)
@@ -682,7 +402,6 @@ async def test_collect_evaluator_does_not_reprocess_its_reward(
     await async_session.refresh(vault)
     assert link.is_completed is False
     assert vault.bottle_caps == initial_caps
-    from app.services.reward_service import reward_service
 
     await reward_service.claim_objective_reward(async_session, objective.id, vault.id)
     await async_session.refresh(vault)
@@ -691,79 +410,48 @@ async def test_collect_evaluator_does_not_reprocess_its_reward(
     assert vault.bottle_caps == initial_caps + 10
 
 
-@pytest.mark.asyncio
-async def test_all_assigned_starter_steps_record_early_progress(
-    async_session: AsyncSession,
-    fresh_event_bus,
-    patched_session_maker,
-) -> None:
-    """Events count toward later starter steps before their rewards become claimable."""
-    user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
-    vault = await crud.vault.create(
-        async_session,
-        obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id),
-    )
+async def _starter_chain(db, vault, count, amount, reward="10 food"):
+    objectives = [
+        _obj(f"Starter collect {s}", reward, "collect", CAPS, amount, category="starter", sequence=s)
+        for s in range(count)
+    ]
+    links = [
+        VaultObjectiveProgressLink(vault_id=vault.id, objective_id=o.id, progress=0, total=amount, is_completed=False)
+        for o in objectives
+    ]
+    db.add_all([*objectives, *links])
+    await db.commit()
+    return objectives, links
 
-    links = []
-    for sequence in range(3):
-        objective = Objective(
-            challenge=f"Starter collect {sequence}",
-            reward="10 food",
-            objective_type="collect",
-            target_entity={"resource_type": "caps"},
-            target_amount=5,
-            category=ObjectiveCategoryEnum.STARTER,
-            sequence=sequence,
-        )
-        async_session.add(objective)
-        await async_session.flush()
-        link = VaultObjectiveProgressLink(
-            vault_id=vault.id, objective_id=objective.id, progress=0, total=5, is_completed=False
-        )
-        async_session.add(link)
-        links.append(link)
-    await async_session.commit()
+
+async def test_all_assigned_starter_steps_record_early_progress(async_session, fresh_event_bus, patched_session_maker):
+    vault = await _vault(async_session)
+    _, links = await _starter_chain(async_session, vault, 3, 5)
 
     CollectEvaluator(fresh_event_bus)
-
     await fresh_event_bus.emit(GameEvent.RESOURCE_COLLECTED, vault.id, {"resource_type": "caps", "amount": 1})
 
-    await async_session.refresh(links[0])
-    await async_session.refresh(links[1])
-    await async_session.refresh(links[2])
+    for link in links:
+        await async_session.refresh(link)
     assert links[0].progress == 1
     assert links[1].progress == 1
     assert links[2].progress == 1
 
 
-@pytest.mark.asyncio
 async def test_storage_scrap_counts_early_and_rewards_claim_in_any_order(
-    async_session: AsyncSession, vault, fresh_event_bus, patched_session_maker
-) -> None:
-    from app.models.weapon import Weapon
-    from app.services.item_service import item_service
-    from app.services.recipe_unlock_service import catalog_entry
-    from app.services.reward_service import reward_service
-    from app.utils.exceptions import ResourceConflictException
-    from app.utils.item_factory import build_weapon
-
-    current = Objective(
-        challenge="Collect one cap",
-        reward="10 caps",
-        category="starter",
-        sequence=0,
-        objective_type="collect",
-        target_entity={"resource_type": "caps"},
-        target_amount=1,
+    async_session, vault, fresh_event_bus, patched_session_maker
+):
+    current = _obj(
+        "Collect one cap", "10 caps", "collect", {"resource_type": "caps"}, 1, category="starter", sequence=0
     )
-    future = Objective(
-        challenge="Scrap a rare weapon",
-        reward="300 caps",
+    future = _obj(
+        "Scrap a rare weapon",
+        "300 caps",
+        "scrap",
+        {"item_type": "weapon", "rarity": "rare"},
+        1,
         category="starter",
         sequence=1,
-        objective_type="scrap",
-        target_entity={"item_type": "weapon", "rarity": "rare"},
-        target_amount=1,
     )
     links = [VaultObjectiveProgressLink(vault_id=vault.id, objective_id=o.id, total=1) for o in (current, future)]
     async_session.add_all([current, future, *links])
@@ -792,13 +480,7 @@ async def test_storage_scrap_counts_early_and_rewards_claim_in_any_order(
     assert links[1].progress == 1
     assert links[1].is_completed is False
     assert vault.bottle_caps == initial_caps
-    assert announcements == [
-        {
-            "objective_id": str(future.id),
-            "challenge": future.challenge,
-            "ready_to_claim": True,
-        }
-    ]
+    assert announcements == [{"objective_id": str(future.id), "challenge": future.challenge, "ready_to_claim": True}]
 
     await reward_service.claim_objective_reward(async_session, future.id, vault.id)
     await async_session.refresh(vault)
@@ -812,45 +494,15 @@ async def test_storage_scrap_counts_early_and_rewards_claim_in_any_order(
         await reward_service.claim_objective_reward(async_session, future.id, vault.id)
 
 
-@pytest.mark.asyncio
-async def test_completing_current_starter_step_advances_to_next(
-    async_session: AsyncSession,
-    fresh_event_bus,
-    patched_session_maker,
-) -> None:
-    """Completing the current step makes the next step current on the following read."""
-    user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
-    vault = await crud.vault.create(
-        async_session,
-        obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id),
-    )
-
-    links = []
-    for sequence in range(2):
-        objective = Objective(
-            challenge=f"Starter collect {sequence}",
-            reward="10 food",
-            objective_type="collect",
-            target_entity={"resource_type": "caps"},
-            target_amount=1,
-            category=ObjectiveCategoryEnum.STARTER,
-            sequence=sequence,
-        )
-        async_session.add(objective)
-        await async_session.flush()
-        link = VaultObjectiveProgressLink(
-            vault_id=vault.id, objective_id=objective.id, progress=0, total=1, is_completed=False
-        )
-        async_session.add(link)
-        links.append(link)
-    await async_session.commit()
+async def test_completing_current_starter_step_advances_to_next(async_session, fresh_event_bus, patched_session_maker):
+    vault = await _vault(async_session)
+    _, links = await _starter_chain(async_session, vault, 2, 1)
 
     CollectEvaluator(fresh_event_bus)
 
     await fresh_event_bus.emit(GameEvent.RESOURCE_COLLECTED, vault.id, {"resource_type": "caps", "amount": 1})
     await async_session.refresh(links[0])
     assert links[0].is_completed is False
-    from app.services.reward_service import reward_service
 
     await reward_service.claim_objective_reward(async_session, links[0].objective_id, vault.id)
 
@@ -859,344 +511,94 @@ async def test_completing_current_starter_step_advances_to_next(
     assert links[1].progress == 1
 
 
-class TestAliasMatching:
-    """Tests for evaluator alias matching functionality."""
-
-    def test_build_evaluator_matches_room_alias(self, fresh_event_bus):
-        """Test BuildEvaluator matches room aliases like 'living quarters' -> 'living_room'."""
-        evaluator = BuildEvaluator(fresh_event_bus)
-        objective = Objective(
-            challenge="Build a Living Room",
-            reward="100 caps",
-            objective_type="build",
-            target_entity={"room_type": "living_room"},
-            target_amount=1,
-            category=ObjectiveCategoryEnum.ACHIEVEMENT,
-        )
-        # Event uses alias "Living Quarters"
-        data = {"room_type": "Living Quarters"}
-        assert evaluator._matches(objective, GameEvent.ROOM_BUILT, data) is True
-
-    def test_collect_evaluator_matches_item_alias_weapons(self, fresh_event_bus):
-        """Test CollectEvaluator matches 'Weapons' -> 'weapon'."""
-        evaluator = CollectEvaluator(fresh_event_bus)
-        objective = Objective(
-            challenge="Collect 3 weapons",
-            reward="100 caps",
-            objective_type="collect",
-            target_entity={"item_type": "weapon"},
-            target_amount=3,
-            category=ObjectiveCategoryEnum.ACHIEVEMENT,
-        )
-        # Event uses plural "Weapons"
-        data = {"item_type": "Weapons"}
-        assert evaluator._matches(objective, GameEvent.ITEM_COLLECTED, data) is True
-
-    def test_assign_evaluator_matches_room_alias(self, fresh_event_bus):
-        """Test AssignEvaluator matches room aliases."""
-        evaluator = AssignEvaluator(fresh_event_bus)
-        objective = Objective(
-            challenge="Assign to Living Room",
-            reward="50 caps",
-            objective_type="assign",
-            target_entity={"room_type": "living_room"},
-            target_amount=1,
-            category=ObjectiveCategoryEnum.ACHIEVEMENT,
-        )
-        # Event uses alias "Living Quarters"
-        data = {"room_type": "Living Quarters"}
-        assert evaluator._matches(objective, GameEvent.DWELLER_ASSIGNED, data) is True
-
-
-class TestExpeditionEvaluator:
-    """Tests for ExpeditionEvaluator functionality."""
-
-    def test_matches_specific_quest_type(self, fresh_event_bus):
-        """Test ExpeditionEvaluator matches specific quest type."""
-        evaluator = ExpeditionEvaluator(fresh_event_bus)
-        objective = Objective(
-            challenge="Complete 1 Main Quest",
-            reward="2000 caps",
-            objective_type="expedition",
-            target_entity={"quest_type": "main"},
-            target_amount=1,
-            category=ObjectiveCategoryEnum.ACHIEVEMENT,
-        )
-        data = {"quest_type": "main"}
-        assert evaluator._matches(objective, GameEvent.QUEST_COMPLETED, data) is True
-
-
-@pytest.mark.asyncio
-async def test_expedition_evaluator_quest_completed(
-    async_session: AsyncSession,
-    fresh_event_bus,
-    patched_session_maker,
-) -> None:
-    """Test ExpeditionEvaluator updates progress on quest completion."""
-    user_data = create_fake_user()
-    user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))
-    vault_data = create_fake_vault()
-    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**vault_data, user_id=user.id))
-
+@pytest.mark.parametrize(
+    ("evaluator_cls", "objective_type", "target_entity", "kind", "data"),
+    [
+        (BuildEvaluator, "build", {"room_type": "living_room"}, GameEvent.ROOM_BUILT, {"room_type": "Living Quarters"}),
+        (CollectEvaluator, "collect", {"item_type": "weapon"}, GameEvent.ITEM_COLLECTED, {"item_type": "Weapons"}),
+        (
+            AssignEvaluator,
+            "assign",
+            {"room_type": "living_room"},
+            GameEvent.DWELLER_ASSIGNED,
+            {"room_type": "Living Quarters"},
+        ),
+        (ExpeditionEvaluator, "expedition", {"quest_type": "main"}, GameEvent.QUEST_COMPLETED, {"quest_type": "main"}),
+    ],
+    ids=["build_room_alias", "collect_item_alias", "assign_room_alias", "expedition_quest_type"],
+)
+def test_evaluator_matches_aliased_target(fresh_event_bus, evaluator_cls, objective_type, target_entity, kind, data):
     objective = Objective(
-        challenge="Complete 3 quests",
-        reward="800 caps",
-        objective_type="expedition",
-        target_entity={},
-        target_amount=3,
-        category=ObjectiveCategoryEnum.ACHIEVEMENT,
-    )
-    async_session.add(objective)
-    await async_session.commit()
-    await async_session.refresh(objective)
-
-    link = VaultObjectiveProgressLink(
-        vault_id=vault.id, objective_id=objective.id, progress=0, total=3, is_completed=False
-    )
-    async_session.add(link)
-    await async_session.commit()
-
-    ExpeditionEvaluator(fresh_event_bus)
-
-    await fresh_event_bus.emit(GameEvent.QUEST_COMPLETED, vault.id, {"quest_type": "main"})
-
-    await async_session.refresh(link)
-    assert link.progress == 1
-
-
-@pytest.mark.asyncio
-async def test_level_up_evaluator_dweller_leveled_up(
-    async_session: AsyncSession,
-    fresh_event_bus,
-    patched_session_maker,
-) -> None:
-    """Test LevelUpEvaluator updates progress on dweller level up."""
-    user_data = create_fake_user()
-    user = await crud.user.create(async_session, obj_in=UserCreate(**user_data))
-    vault_data = create_fake_vault()
-    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**vault_data, user_id=user.id))
-
-    objective = Objective(
-        challenge="Level up 2 dwellers to Lv.5",
-        reward="1000 caps",
-        objective_type="level_up",
-        target_entity={"min_level": 5},
-        target_amount=2,
-        category=ObjectiveCategoryEnum.ACHIEVEMENT,
-    )
-    async_session.add(objective)
-    await async_session.commit()
-    await async_session.refresh(objective)
-
-    link = VaultObjectiveProgressLink(
-        vault_id=vault.id, objective_id=objective.id, progress=0, total=2, is_completed=False
-    )
-    async_session.add(link)
-    await async_session.commit()
-
-    LevelUpEvaluator(fresh_event_bus)
-
-    await fresh_event_bus.emit(GameEvent.DWELLER_LEVEL_UP, vault.id, {"new_level": 5})
-
-    await async_session.refresh(link)
-    assert link.progress == 1
-
-
-@pytest.mark.asyncio
-async def test_scrap_evaluator_matches_rare_weapon(
-    async_session: AsyncSession,
-    fresh_event_bus,
-    patched_session_maker,
-) -> None:
-    """Test ScrapEvaluator completes a rare-weapon objective on a matching scrap."""
-    user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
-    vault = await crud.vault.create(
-        async_session,
-        obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id),
-    )
-    objective = Objective(
-        challenge="Scrap a Rare Weapon",
-        reward="150 caps",
-        objective_type="scrap",
-        target_entity={"item_type": "weapon", "rarity": "rare"},
+        challenge="Match target",
+        reward="100 caps",
+        objective_type=objective_type,
+        target_entity=target_entity,
         target_amount=1,
-        category=ObjectiveCategoryEnum.ACHIEVEMENT,
+        category="achievement",
     )
-    async_session.add(objective)
-    await async_session.commit()
-    await async_session.refresh(objective)
+    assert evaluator_cls(fresh_event_bus)._matches(objective, kind, data) is True
 
-    link = VaultObjectiveProgressLink(
-        vault_id=vault.id, objective_id=objective.id, progress=0, total=1, is_completed=False
-    )
-    async_session.add(link)
-    await async_session.commit()
 
+@pytest.mark.parametrize(
+    ("challenge", "target_entity", "payload", "progress"),
+    [
+        (
+            "Scrap a Rare Weapon",
+            {"item_type": "weapon", "rarity": "rare"},
+            {"item_name": "Baseball bat", "item_type": "weapon", "rarity": "rare"},
+            1,
+        ),
+        (
+            "Scrap a Rare Weapon",
+            {"item_type": "weapon", "rarity": "rare"},
+            {"item_name": "Rusty pipe", "item_type": "weapon", "rarity": "common"},
+            0,
+        ),
+        (
+            "Scrap a Rare Weapon",
+            {"item_type": "weapon", "rarity": "rare"},
+            {"item_name": "Worn vault suit", "item_type": "outfit", "rarity": "rare"},
+            0,
+        ),
+        (
+            "Reverse-engineer a Legendary",
+            {"rarity": "legendary"},
+            {"item_name": "Legendary power armor", "item_type": "outfit", "rarity": "legendary"},
+            1,
+        ),
+    ],
+    ids=["rare_weapon", "rarity_mismatch", "item_type_mismatch", "rarity_only"],
+)
+async def test_scrap_evaluator_matching(
+    async_session, fresh_event_bus, patched_session_maker, challenge, target_entity, payload, progress
+):
+    vault = await _vault(async_session)
+    _, link = await _progress(async_session, vault, "scrap", target_entity, 1, challenge=challenge, reward="150 caps")
     ScrapEvaluator(fresh_event_bus)
 
-    await fresh_event_bus.emit(
-        GameEvent.ITEM_SCRAPPED,
-        vault.id,
-        {"item_name": "Baseball bat", "item_type": "weapon", "rarity": "rare"},
-    )
+    await fresh_event_bus.emit(GameEvent.ITEM_SCRAPPED, vault.id, payload)
 
     await async_session.refresh(link)
-    assert link.progress == 1
+    assert link.progress == progress
     assert link.is_completed is False
 
 
-@pytest.mark.asyncio
-async def test_scrap_evaluator_ignores_rarity_mismatch(
-    async_session: AsyncSession,
-    fresh_event_bus,
-    patched_session_maker,
-) -> None:
-    """Test ScrapEvaluator ignores a common scrap for a rare objective."""
-    user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
-    vault = await crud.vault.create(
-        async_session,
-        obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id),
-    )
-    objective = Objective(
-        challenge="Scrap a Rare Weapon",
-        reward="150 caps",
-        objective_type="scrap",
-        target_entity={"item_type": "weapon", "rarity": "rare"},
-        target_amount=1,
-        category=ObjectiveCategoryEnum.ACHIEVEMENT,
-    )
-    async_session.add(objective)
-    await async_session.commit()
-    await async_session.refresh(objective)
-
-    link = VaultObjectiveProgressLink(
-        vault_id=vault.id, objective_id=objective.id, progress=0, total=1, is_completed=False
-    )
-    async_session.add(link)
-    await async_session.commit()
-
-    ScrapEvaluator(fresh_event_bus)
-
-    await fresh_event_bus.emit(
-        GameEvent.ITEM_SCRAPPED,
-        vault.id,
-        {"item_name": "Rusty pipe", "item_type": "weapon", "rarity": "common"},
-    )
-
-    await async_session.refresh(link)
-    assert link.progress == 0
-    assert link.is_completed is False
-
-
-@pytest.mark.asyncio
-async def test_scrap_evaluator_ignores_item_type_mismatch(
-    async_session: AsyncSession,
-    fresh_event_bus,
-    patched_session_maker,
-) -> None:
-    """Test ScrapEvaluator ignores an outfit scrap for a weapon objective."""
-    user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
-    vault = await crud.vault.create(
-        async_session,
-        obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id),
-    )
-    objective = Objective(
-        challenge="Scrap a Rare Weapon",
-        reward="150 caps",
-        objective_type="scrap",
-        target_entity={"item_type": "weapon", "rarity": "rare"},
-        target_amount=1,
-        category=ObjectiveCategoryEnum.ACHIEVEMENT,
-    )
-    async_session.add(objective)
-    await async_session.commit()
-    await async_session.refresh(objective)
-
-    link = VaultObjectiveProgressLink(
-        vault_id=vault.id, objective_id=objective.id, progress=0, total=1, is_completed=False
-    )
-    async_session.add(link)
-    await async_session.commit()
-
-    ScrapEvaluator(fresh_event_bus)
-
-    await fresh_event_bus.emit(
-        GameEvent.ITEM_SCRAPPED,
-        vault.id,
-        {"item_name": "Worn vault suit", "item_type": "outfit", "rarity": "rare"},
-    )
-
-    await async_session.refresh(link)
-    assert link.progress == 0
-    assert link.is_completed is False
-
-
-@pytest.mark.asyncio
-async def test_scrap_evaluator_rarity_only_matches_any_item_type(
-    async_session: AsyncSession,
-    fresh_event_bus,
-    patched_session_maker,
-) -> None:
-    """Test a rarity-only scrap objective matches any item type."""
-    user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
-    vault = await crud.vault.create(
-        async_session,
-        obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id),
-    )
-    objective = Objective(
-        challenge="Reverse-engineer a Legendary",
-        reward="5000 caps",
-        objective_type="scrap",
-        target_entity={"rarity": "legendary"},
-        target_amount=1,
-        category=ObjectiveCategoryEnum.ACHIEVEMENT,
-    )
-    async_session.add(objective)
-    await async_session.commit()
-    await async_session.refresh(objective)
-
-    link = VaultObjectiveProgressLink(
-        vault_id=vault.id, objective_id=objective.id, progress=0, total=1, is_completed=False
-    )
-    async_session.add(link)
-    await async_session.commit()
-
-    ScrapEvaluator(fresh_event_bus)
-
-    await fresh_event_bus.emit(
-        GameEvent.ITEM_SCRAPPED,
-        vault.id,
-        {"item_name": "Legendary power armor", "item_type": "outfit", "rarity": "legendary"},
-    )
-
-    await async_session.refresh(link)
-    assert link.progress == 1
-    assert link.is_completed is False
-
-
-@pytest.mark.asyncio
 async def test_full_storage_reward_rollback_preserves_other_objectives_and_retry(
     async_session, vault, fresh_event_bus, caplog
 ):
-    """Earned rewards survive a blocked claim; independent rewards and retry still work."""
     vault_id = vault.id
     initial_caps = vault.bottle_caps
     storage = Storage(vault_id=vault_id, max_space=0)
-    blocked = Objective(
-        challenge="A collect food for weapon",
-        reward="weapon:Laser Pistol",
-        objective_type="collect",
-        target_entity={"resource_type": "food"},
-        target_amount=1,
-        category=ObjectiveCategoryEnum.ACHIEVEMENT,
+    blocked = _obj(
+        "A collect food for weapon",
+        "weapon:Laser Pistol",
+        "collect",
+        {"resource_type": "food"},
+        1,
+        category="achievement",
     )
-    healthy = Objective(
-        challenge="Z collect food for caps",
-        reward="10 caps",
-        objective_type="collect",
-        target_entity={"resource_type": "food"},
-        target_amount=1,
-        category=ObjectiveCategoryEnum.ACHIEVEMENT,
+    healthy = _obj(
+        "Z collect food for caps", "10 caps", "collect", {"resource_type": "food"}, 1, category="achievement"
     )
     blocked_link = VaultObjectiveProgressLink(vault_id=vault_id, objective_id=blocked.id, total=1)
     healthy_link = VaultObjectiveProgressLink(vault_id=vault_id, objective_id=healthy.id, total=1)
@@ -1233,8 +635,6 @@ async def test_full_storage_reward_rollback_preserves_other_objectives_and_retry
         assert healthy_link.is_completed is False
         assert completions == [str(blocked_id), str(healthy_id)]
         assert vault.bottle_caps == initial_caps
-        from app.services.reward_service import reward_service
-        from app.utils.exceptions import ResourceConflictException
 
         with pytest.raises(ResourceConflictException, match="Storage full"):
             await reward_service.claim_objective_reward(async_session, blocked_id, vault_id)
@@ -1263,23 +663,20 @@ async def test_full_storage_reward_rollback_preserves_other_objectives_and_retry
 
 
 async def test_objective_target_waits_for_claim_and_announces_once(
-    async_session: AsyncSession, fresh_event_bus, patched_session_maker
-) -> None:
-    """Reaching a target makes rewards ready; repeated events never pay or notify again."""
-    user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
-    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id))
-    objective = Objective(
+    async_session, fresh_event_bus, patched_session_maker
+):
+    vault = await _vault(async_session)
+    _, link = await _progress(
+        async_session,
+        vault,
+        "collect",
+        {"resource_type": "caps"},
+        2,
         challenge="Collect two caps",
         reward="50 caps",
-        category=ObjectiveCategoryEnum.STARTER,
-        objective_type="collect",
-        target_entity={"resource_type": "caps"},
-        target_amount=2,
+        category="starter",
         sequence=0,
     )
-    link = VaultObjectiveProgressLink(vault_id=vault.id, objective_id=objective.id, total=2)
-    async_session.add_all([objective, link])
-    await async_session.commit()
     initial_caps = vault.bottle_caps
     announced = []
 
@@ -1322,14 +719,13 @@ async def test_objective_target_waits_for_claim_and_announces_once(
     ],
 )
 def test_collect_matches_material_and_source(target: dict, event: dict, expected: bool, fresh_event_bus) -> None:
-    """A material filter narrows to that catalog type; a source filter rejects unstamped events."""
     objective = Objective(
         challenge="Collect junk",
         reward="50 caps",
         objective_type="collect",
         target_entity=target,
         target_amount=6,
-        category=ObjectiveCategoryEnum.WEEKLY,
+        category="weekly",
     )
 
     assert CollectEvaluator(fresh_event_bus)._matches(objective, GameEvent.ITEM_COLLECTED, event) is expected

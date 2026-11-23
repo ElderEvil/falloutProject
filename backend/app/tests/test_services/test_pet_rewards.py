@@ -43,7 +43,6 @@ async def _settled_exploration(async_session: AsyncSession, vault: Vault, dwelle
 async def test_apply_rewards_applies_pet_caps_bonus(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
 ) -> None:
-    """A pet with caps_pct scales the awarded caps at settlement."""
     pet = await crud.pet.create(async_session, _pet_data())
     await crud.pet.equip(db_session=async_session, item_id=pet.id, dweller_id=dweller.id)
 
@@ -61,7 +60,6 @@ async def test_apply_rewards_applies_pet_caps_bonus(
 async def test_apply_rewards_caps_pet_bonus_at_max_pct(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
 ) -> None:
-    """caps_pct above MAX_PCT_BONUS is clamped at settlement."""
     exploration = await _settled_exploration(async_session, vault, dweller, caps=100)
 
     with patch(
@@ -75,7 +73,6 @@ async def test_apply_rewards_caps_pet_bonus_at_max_pct(
 
 @pytest.mark.asyncio
 async def test_apply_rewards_without_pet_unchanged(async_session: AsyncSession, vault: Vault, dweller: Dweller) -> None:
-    """No equipped pet means caps are awarded exactly as found."""
     exploration = await _settled_exploration(async_session, vault, dweller, caps=100)
     initial_caps = vault.bottle_caps
 

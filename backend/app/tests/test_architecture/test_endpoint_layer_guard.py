@@ -56,7 +56,6 @@ SESSION_ONLY_ATTRIBUTES = frozenset({"get", "refresh"})
 
 
 def _crud_imports(source: str) -> set[str]:
-    """Return every ``app.crud*`` module imported by a module (including nested imports)."""
     modules: set[str] = set()
     for node in ast.walk(ast.parse(source)):
         if isinstance(node, ast.ImportFrom):
@@ -70,7 +69,6 @@ def _crud_imports(source: str) -> set[str]:
 
 
 def _raw_query_lines(source: str) -> list[tuple[int, str]]:
-    """Return (line, description) for raw session loads and query building in a module."""
     violations: list[tuple[int, str]] = []
     for node in ast.walk(ast.parse(source)):
         if not isinstance(node, ast.Call):
@@ -92,7 +90,6 @@ def _endpoint_files() -> list[tuple[Path, str]]:
 
 
 def test_endpoints_do_not_query_directly() -> None:
-    """Queries live in CRUD; endpoints orchestrate through services. No baseline."""
     offenders = []
     for path, name in _endpoint_files():
         for line, description in _raw_query_lines(path.read_text(encoding="utf-8")):
@@ -101,7 +98,6 @@ def test_endpoints_do_not_query_directly() -> None:
 
 
 def test_endpoints_do_not_import_crud() -> None:
-    """New endpoint -> CRUD dependencies fail; the baseline must shrink, never grow."""
     found = set()
     for path, name in _endpoint_files():
         found.update((name, module) for module in _crud_imports(path.read_text(encoding="utf-8")))
@@ -117,7 +113,6 @@ def test_endpoints_do_not_import_crud() -> None:
 
 
 def test_guard_detects_crud_imports() -> None:
-    """Self-test: package-attribute, submodule, and plain imports are all caught."""
     source = (
         "from app import crud\n"
         "from app.crud.notification import notification\n"
@@ -129,7 +124,6 @@ def test_guard_detects_crud_imports() -> None:
 
 
 def test_guard_detects_raw_queries() -> None:
-    """Self-test: select(), execute(), and session loads are flagged; plain attribute calls are not."""
     source = (
         "x = select(Room).where(Room.id == 1)\n"
         "y = await db_session.execute(query)\n"
@@ -147,6 +141,5 @@ def test_guard_detects_raw_queries() -> None:
 
 
 def test_guard_leaves_other_attribute_calls_alone() -> None:
-    """Self-test: a non-session receiver's .get()/refresh() is not a session load."""
     source = "a = cache.get('k')\nb = obj.refresh()\nc = settings.get('x')\n"
     assert _raw_query_lines(source) == []

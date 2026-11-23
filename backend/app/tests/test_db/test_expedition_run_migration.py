@@ -1,15 +1,8 @@
-"""Regression coverage for the consolidated expedition_run migration."""
-
-import importlib.util
 import inspect
-from pathlib import Path
 
-MIGRATION_PATH = Path(__file__).parents[2] / "alembic/versions/2026_09_25_0001-b80551876fa9_add_expedition_run.py"
-MIGRATION_SPEC = importlib.util.spec_from_file_location("add_expedition_run", MIGRATION_PATH)
-assert MIGRATION_SPEC
-assert MIGRATION_SPEC.loader
-MIGRATION = importlib.util.module_from_spec(MIGRATION_SPEC)
-MIGRATION_SPEC.loader.exec_module(MIGRATION)
+from app.tests.test_alembic._support import load_migration
+
+MIGRATION = load_migration("2026_09_25_0001-b80551876fa9_add_expedition_run.py", "add_expedition_run")
 
 
 def test_revision_chain() -> None:

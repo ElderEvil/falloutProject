@@ -1,5 +1,3 @@
-"""Console authorization, validation, audit and shared scenario integration."""
-
 import inspect
 import logging
 from uuid import uuid4
@@ -12,6 +10,10 @@ from app.crud.notification import notification as notification_crud
 from app.crud.user_profile import profile_crud
 from app.schemas.console import ConsoleRequest
 from app.services.console_service import _commands, console_manifest, execute_console
+
+
+async def _run(session, actor_id, command, args=None):
+    return await execute_console(session, actor_id, ConsoleRequest(command=command, args=args or {}))
 
 
 @pytest.mark.parametrize("path", ["/system/console", "/system/console/manifest"])
@@ -77,7 +79,7 @@ async def test_inspection_and_audit(async_client, superuser_token_headers, vault
 
 async def test_failed_command_is_audited(async_session, caplog):
     with caplog.at_level(logging.INFO, logger="app.services.console_service"):
-        result = await execute_console(async_session, uuid4(), ConsoleRequest(command="nope"))
+        result = await _run(async_session, uuid4(), "nope")
     assert result.ok is False
     assert any(
         r.message.startswith("Admin console failed:") and r.console["outcome"] == "failed" for r in caplog.records
@@ -86,14 +88,8 @@ async def test_failed_command_is_audited(async_session, caplog):
 
 async def test_setup_uses_existing_dweller_and_offers_site(async_session, vault, dweller):
     before = await crud.dweller.get_multi_by_vault(async_session, vault.id)
-    result = await execute_console(
-        async_session,
-        vault.user_id,
-        ConsoleRequest(
-            command="expedition.setup",
-            args={"vault_id": str(vault.id), "dweller_id": str(dweller.id), "site_id": "collapsed_subway"},
-        ),
-    )
+    setup_args = {"vault_id": str(vault.id), "dweller_id": str(dweller.id), "site_id": "collapsed_subway"}
+    result = await _run(async_session, vault.user_id, "expedition.setup", setup_args)
     assert result.ok, result.lines
     assert "siteId=collapsed_subway" in result.links[0].to
     journeys = await crud.exploration.get_by_vault(async_session, vault_id=vault.id, active_only=True)
@@ -101,26 +97,17 @@ async def test_setup_uses_existing_dweller_and_offers_site(async_session, vault,
     assert journeys[0].dweller_id == dweller.id
     assert any(event.get("site_id") == "collapsed_subway" for event in journeys[0].events)
     assert len(await crud.dweller.get_multi_by_vault(async_session, vault.id)) == len(before)
-    status = await execute_console(
-        async_session,
-        vault.user_id,
-        ConsoleRequest(
-            command="expedition.status",
-            args={"vault_id": str(vault.id)},
-        ),
-    )
+    status = await _run(async_session, vault.user_id, "expedition.status", {"vault_id": str(vault.id)})
     assert "Collapsed Subway" in " ".join(status.lines)
 
 
 async def test_setup_invalid_site_changes_nothing(async_session, vault, dweller):
     vault_id = vault.id
-    result = await execute_console(
+    result = await _run(
         async_session,
         vault.user_id,
-        ConsoleRequest(
-            command="expedition.setup",
-            args={"vault_id": str(vault.id), "dweller_id": str(dweller.id), "site_id": "invalid"},
-        ),
+        "expedition.setup",
+        {"vault_id": str(vault.id), "dweller_id": str(dweller.id), "site_id": "invalid"},
     )
     assert result.ok is False
     await async_session.rollback()
@@ -128,7 +115,6 @@ async def test_setup_invalid_site_changes_nothing(async_session, vault, dweller)
 
 
 async def test_setup_late_failure_preserves_only_committed_departure(async_session, vault, dweller):
-    """The reused CLI operation explicitly persists departure before fast-forwarding."""
     vault_id, dweller_id, actor_id = vault.id, dweller.id, vault.user_id
     engine = async_session.bind.sync_engine
 
@@ -139,13 +125,11 @@ async def test_setup_late_failure_preserves_only_committed_departure(async_sessi
     event.listen(engine, "before_cursor_execute", fail_fast_forward)
     try:
         with pytest.raises(RuntimeError, match="late scenario write failed"):
-            await execute_console(
+            await _run(
                 async_session,
                 actor_id,
-                ConsoleRequest(
-                    command="expedition.setup",
-                    args={"vault_id": str(vault_id), "dweller_id": str(dweller_id), "site_id": "collapsed_subway"},
-                ),
+                "expedition.setup",
+                {"vault_id": str(vault_id), "dweller_id": str(dweller_id), "site_id": "collapsed_subway"},
             )
     finally:
         event.remove(engine, "before_cursor_execute", fail_fast_forward)
@@ -164,14 +148,7 @@ async def test_greedisgood_respects_cap_without_earned_progress(async_session, v
     await crud.vault.update(async_session, vault_id, {"bottle_caps": balance})
     profile = await profile_crud.get_by_user_id(async_session, actor_id)
     earned_before = profile.total_caps_earned if profile else None
-    result = await execute_console(
-        async_session,
-        actor_id,
-        ConsoleRequest(
-            command="greedisgood",
-            args={"vault_id": str(vault_id), **amount},
-        ),
-    )
+    result = await _run(async_session, actor_id, "greedisgood", {"vault_id": str(vault_id), **amount})
     assert result.ok
     await async_session.refresh(vault)
     assert vault.bottle_caps == expected
@@ -182,44 +159,19 @@ async def test_greedisgood_respects_cap_without_earned_progress(async_session, v
 @pytest.mark.parametrize("amount", [0, -500, 1_000_000])
 async def test_greedisgood_rejects_invalid_amount(async_session, vault, amount):
     original, vault_id = vault.bottle_caps, vault.id
-    result = await execute_console(
-        async_session,
-        vault.user_id,
-        ConsoleRequest(
-            command="greedisgood",
-            args={"vault_id": str(vault_id), "amount": amount},
-        ),
-    )
+    result = await _run(async_session, vault.user_id, "greedisgood", {"vault_id": str(vault_id), "amount": amount})
     assert result.ok is False
     await async_session.rollback()
-    reloaded = await crud.vault.get(async_session, vault_id)
-    assert reloaded.bottle_caps == original
+    assert (await crud.vault.get(async_session, vault_id)).bottle_caps == original
 
 
 async def test_thereisnospoon_refills_only_to_capacity(async_session, vault):
     vault_id, actor_id = vault.id, vault.user_id
     await crud.vault.update(
-        async_session,
-        vault_id,
-        {
-            "power": 1,
-            "power_max": 500,
-            "food": 2,
-            "food_max": 300,
-            "water": 3,
-            "water_max": 0,
-        },
+        async_session, vault_id, {"power": 1, "power_max": 500, "food": 2, "food_max": 300, "water": 3, "water_max": 0}
     )
     original_caps = vault.bottle_caps
-    result = await execute_console(
-        async_session,
-        actor_id,
-        ConsoleRequest(
-            command="thereisnospoon",
-            args={"vault_id": str(vault_id)},
-        ),
-    )
-    assert result.ok
+    assert (await _run(async_session, actor_id, "thereisnospoon", {"vault_id": str(vault_id)})).ok
     await async_session.refresh(vault)
     assert (vault.power, vault.food, vault.water) == (500, 300, 0)
     assert vault.bottle_caps == original_caps
@@ -236,14 +188,7 @@ async def test_cheat_commit_failure_rolls_back_changes(async_session, vault, com
     event.listen(async_session.sync_session, "before_commit", fail_commit)
     try:
         with pytest.raises(RuntimeError, match="cheat commit failed"):
-            await execute_console(
-                async_session,
-                actor_id,
-                ConsoleRequest(
-                    command=command,
-                    args={"vault_id": str(vault_id)},
-                ),
-            )
+            await _run(async_session, actor_id, command, {"vault_id": str(vault_id)})
     finally:
         event.remove(async_session.sync_session, "before_commit", fail_commit)
     await async_session.rollback()
@@ -256,10 +201,7 @@ async def test_cheat_is_forbidden_for_ordinary_user(async_client, normal_user_to
     response = await async_client.post(
         "/system/console",
         headers=normal_user_token_headers,
-        json={
-            "command": "greedisgood",
-            "args": {"vault_id": str(vault.id), "amount": 500},
-        },
+        json={"command": "greedisgood", "args": {"vault_id": str(vault.id), "amount": 500}},
     )
     assert response.status_code == 403
     await async_session.refresh(vault)

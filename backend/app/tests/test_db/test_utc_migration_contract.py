@@ -1,11 +1,3 @@
-"""Rehearse the UTC conversion contract without migrating application tables.
-
-PostgreSQL cases use connection-local temporary tables and the existing enum type.
-Set UTC_MIGRATION_REQUIRE_POSTGRES=1 to fail rather than skip unavailable PostgreSQL.
-The quest rotation revision is also exercised against a pre-existing row on SQLite.
-"""
-
-import importlib.util
 import json
 import os
 from collections.abc import AsyncGenerator
@@ -16,9 +8,7 @@ from zoneinfo import ZoneInfo
 
 import pytest
 import pytest_asyncio
-from alembic.migration import MigrationContext
-from alembic.operations import Operations
-from sqlalchemy import Column, Integer, MetaData, Table, create_engine, text
+from sqlalchemy import Column, Integer, MetaData, Table, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncConnection, create_async_engine
@@ -28,6 +18,7 @@ from sqlmodel import SQLModel
 from app.core.config import settings
 from app.core.enums import SPECIALEnum
 from app.schemas.training import TrainingRead
+from app.tests.test_alembic._support import BASELINE_VERSIONS, bind_op, column_names, load_migration, sqlite_db
 from app.utils.types import UTCDateTime
 
 INSTANTS = (
@@ -56,7 +47,6 @@ async def utc_connection() -> AsyncGenerator[AsyncConnection]:
     except OSError, SQLAlchemyError:
         await engine.dispose()
         unavailable("PostgreSQL unavailable for UTC migration rehearsal")
-
     try:
         async with connection.begin():
             await connection.execute(
@@ -93,10 +83,7 @@ async def test_timestamp_inventory_matches_migrated_schema(utc_connection: Async
         for column in table.c
         if isinstance(column.type, UTCDateTime)
     }
-    # Pinned totals: chat continuity (+5) and quest rotation (+2) are in the base; the world-event
-    # tables add eight more across two tables (worldevent 5, worldeventparticipation 3), pvpduel
-    # adds three columns on one table, and collectibles add four on two tables (vaultcollectible's
-    # created_at, updated_at and found_at plus vaultlocationstate.searched_at).
+    # Pinned totals: the world-event, pvpduel and collectible migrations add their columns here.
     assert len(expected) == 144
     assert len({table for table, _ in expected}) == 45
     rows = await utc_connection.execute(
@@ -120,7 +107,6 @@ async def test_explicit_utc_conversion_preserves_instants_nulls_and_payloads(
     await utc_connection.execute(text("SELECT set_config('TimeZone', :zone, true)"), {"zone": zone})
     payload = await seed_sample(utc_connection, instant)
     await utc_connection.execute(CONVERT_TO_AWARE)
-
     rows = (await utc_connection.execute(text("SELECT * FROM utc_migration_sample ORDER BY id"))).mappings().all()
     expected = instant.replace(tzinfo=UTC)
     assert rows[0]["started_at"] == expected
@@ -244,7 +230,6 @@ def test_training_wire_contract_keeps_utc_instant_and_nullable_completion(
 
 @pytest.mark.integration
 async def test_utc_datetime_type_round_trips_on_postgres(utc_connection: AsyncConnection) -> None:
-    """UTCDateTime binds explicit offsets and reads back the same UTC instant on PostgreSQL."""
     metadata = MetaData()
     table = Table(
         "utc_type_round_trip",
@@ -257,34 +242,22 @@ async def test_utc_datetime_type_round_trips_on_postgres(utc_connection: AsyncCo
     instant = datetime(2026, 1, 1, 12, 0, tzinfo=UTC)
     offset_value = instant.astimezone(timezone(timedelta(hours=5, minutes=45)))
     await utc_connection.execute(table.insert().values(id=1, ts=offset_value))
-
     row = (await utc_connection.execute(table.select())).one()
     assert row.ts == instant
     assert row.ts.utcoffset() == timedelta(0)
-
     result = await utc_connection.execute(table.select().where(table.c.ts <= instant + timedelta(minutes=15)))
     assert result.one().id == 1
 
 
-def test_quest_rotation_migration_adds_nullable_unadopted_periods(monkeypatch):
-    migration_path = (
-        Path(__file__).parents[2] / "alembic/baseline_versions/2026_11_20_0002-b3f7a2c9d4e8_quest_rotation_periods.py"
-    )
-    spec = importlib.util.spec_from_file_location("quest_rotation_periods", migration_path)
-    migration = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(migration)
-    engine = create_engine("sqlite://")
-    with engine.begin() as db:
-        db.exec_driver_sql("CREATE TABLE gamestate (id INTEGER PRIMARY KEY)")
-        db.exec_driver_sql("INSERT INTO gamestate VALUES (1)")
-        monkeypatch.setattr(migration, "op", Operations(MigrationContext.configure(db)))
+def test_quest_rotation_migration_adds_nullable_unadopted_periods():
+    migration = load_migration("b3f7a2c9d4e8", "quest_rotation_periods", BASELINE_VERSIONS)
+    with sqlite_db("CREATE TABLE gamestate (id INTEGER PRIMARY KEY)", "INSERT INTO gamestate VALUES (1)") as db:
+        bind_op(migration, db)
         migration.upgrade()
-        columns = [column[1] for column in db.exec_driver_sql("PRAGMA table_info(gamestate)")]
-        assert {"daily_quests_period", "weekly_quests_period"} <= set(columns)
+        assert {"daily_quests_period", "weekly_quests_period"} <= set(column_names(db, "gamestate"))
         assert db.exec_driver_sql("SELECT daily_quests_period, weekly_quests_period FROM gamestate").one() == (
             None,
             None,
         )
         migration.downgrade()
-        assert [column[1] for column in db.exec_driver_sql("PRAGMA table_info(gamestate)")] == ["id"]
-    engine.dispose()
+        assert column_names(db, "gamestate") == ["id"]

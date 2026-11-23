@@ -16,9 +16,7 @@ from app.core.stream_manager import SSEManager
 pytestmark = pytest.mark.asyncio
 
 
-# ---------------------------------------------------------------------------
 # Fixtures
-# ---------------------------------------------------------------------------
 
 
 @pytest.fixture
@@ -36,17 +34,13 @@ def vault_id() -> str:
     return "22222222-2222-2222-2222-222222222222"
 
 
-# ---------------------------------------------------------------------------
 # SSEManager — subscribe / publish
-# ---------------------------------------------------------------------------
 
 
 # No assertion needed — the test is that no exception is raised
 
 
 async def test_cancelled_error_unsubscribes(manager: SSEManager, user_id: str):
-    """A subscriber cancelled via CancelledError is properly cleaned up."""
-
     async def consume():
         with contextlib.suppress(asyncio.CancelledError):
             async for _ in manager.subscribe(user_id, "cancel_test"):
@@ -61,8 +55,6 @@ async def test_cancelled_error_unsubscribes(manager: SSEManager, user_id: str):
 
 
 async def test_close_shuts_down_all_subscribers(manager: SSEManager, user_id: str):
-    """close() sends None sentinel to all subscribers, unsubscribing them."""
-
     async def consume():
         async for _ in manager.subscribe(user_id, "shutdown"):
             pass  # exits when None sentinel triggers generator stop
@@ -72,7 +64,6 @@ async def test_close_shuts_down_all_subscribers(manager: SSEManager, user_id: st
 
 
 async def test_broadcast_to_vault(manager: SSEManager, vault_id: str):
-    """broadcast_to_vault publishes to multiple users."""
     uid_a = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
     uid_b = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"
     collected: dict[str, list] = {uid_a: [], uid_b: []}
@@ -91,14 +82,10 @@ async def test_broadcast_to_vault(manager: SSEManager, vault_id: str):
     assert collected[uid_b] == [{"msg": "broadcast"}]
 
 
-# ---------------------------------------------------------------------------
 # _with_heartbeat helper
-# ---------------------------------------------------------------------------
 
 
 class _Stream:
-    """Minimal async iterable that yields items."""
-
     def __init__(self, items: list):
         self._items = items
 
@@ -112,14 +99,12 @@ class _Stream:
 
 
 async def test_heartbeat_yields_items_unchanged():
-    """_with_heartbeat passes through items from the underlying stream."""
     stream = _Stream([{"a": 1}, {"a": 2}])
     results = [item async for item in _with_heartbeat(stream, interval=60)]
     assert results == [{"a": 1}, {"a": 2}]
 
 
 async def test_heartbeat_yields_none_on_timeout():
-    """_with_heartbeat yields None when no item arrives within interval."""
     results: list[int | None] = []
     call_count = 0
 

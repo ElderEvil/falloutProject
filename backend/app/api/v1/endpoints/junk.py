@@ -19,6 +19,7 @@ from app.api.deps import (
 from app.core.game_data import get_static_game_data
 from app.models.junk import Junk
 from app.schemas.junk import JunkCreate, JunkRead, JunkUpdate
+from app.schemas.responses import NULL_BODY_RESPONSES
 from app.services.item_service import item_service
 from app.utils.static_data import StaticGameData
 
@@ -115,7 +116,7 @@ async def read_junk_data(data_store: Annotated[StaticGameData, Depends(get_stati
     return data_store.junk_items
 
 
-@router.post("/{junk_id}/sell/", status_code=200, response_model=None)
+@router.post("/{junk_id}/sell/", status_code=200, response_model=None, responses=NULL_BODY_RESPONSES)
 async def sell_junk(
     junk_id: UUID,
     db_session: DBSession,

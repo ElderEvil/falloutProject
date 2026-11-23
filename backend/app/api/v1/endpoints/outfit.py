@@ -21,7 +21,7 @@ from app.core.game_data import get_static_game_data
 from app.crud.item_base import get_items_by_vault
 from app.models.outfit import Outfit
 from app.schemas.outfit import OutfitCreate, OutfitRead, OutfitUpdate
-from app.schemas.responses import JunkListResponse
+from app.schemas.responses import NULL_BODY_RESPONSES, JunkListResponse
 from app.services.item_service import item_service
 from app.utils.static_data import StaticGameData
 
@@ -128,7 +128,7 @@ async def equip_outfit(
     return await item_service.equip_item(db_session, item_id=outfit_id, dweller_id=dweller_id, model=Outfit)
 
 
-@router.post("/{outfit_id}/unequip/", status_code=200, response_model=None)
+@router.post("/{outfit_id}/unequip/", status_code=200, response_model=None, responses=NULL_BODY_RESPONSES)
 async def unequip_outfit(
     outfit_id: UUID,
     db_session: DBSession,
@@ -162,7 +162,7 @@ async def scrap_outfit(
     return JunkListResponse(junk=junk_list)
 
 
-@router.post("/{outfit_id}/sell/", status_code=200, response_model=None)
+@router.post("/{outfit_id}/sell/", status_code=200, response_model=None, responses=NULL_BODY_RESPONSES)
 async def sell_outfit(
     outfit_id: UUID,
     db_session: DBSession,

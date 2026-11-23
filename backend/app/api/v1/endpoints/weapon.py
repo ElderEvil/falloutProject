@@ -20,7 +20,7 @@ from app.api.deps import (
 from app.core.game_data import get_static_game_data
 from app.crud.item_base import get_items_by_vault
 from app.models.weapon import Weapon
-from app.schemas.responses import JunkListResponse
+from app.schemas.responses import NULL_BODY_RESPONSES, JunkListResponse
 from app.schemas.weapon import WeaponCreate, WeaponRead, WeaponUpdate
 from app.services.item_service import item_service
 from app.utils.static_data import StaticGameData
@@ -128,7 +128,7 @@ async def equip_weapon(
     return await item_service.equip_item(db_session, item_id=weapon_id, dweller_id=dweller_id, model=Weapon)
 
 
-@router.post("/{weapon_id}/unequip/", status_code=200, response_model=None)
+@router.post("/{weapon_id}/unequip/", status_code=200, response_model=None, responses=NULL_BODY_RESPONSES)
 async def unequip_weapon(
     weapon_id: UUID,
     db_session: DBSession,
@@ -162,7 +162,7 @@ async def scrap_weapon(
     return JunkListResponse(junk=junk_list)
 
 
-@router.post("/{weapon_id}/sell/", status_code=200, response_model=None)
+@router.post("/{weapon_id}/sell/", status_code=200, response_model=None, responses=NULL_BODY_RESPONSES)
 async def sell_weapon(
     weapon_id: UUID,
     db_session: DBSession,

@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends
 from app.api.deps import CurrentActiveUser, DBSession, PetPaginationParams, get_current_active_user
 from app.models.pet import Pet
 from app.schemas.pet import PetRead
+from app.schemas.responses import NULL_BODY_RESPONSES
 from app.services.pet_service import pet_service
 
 router = APIRouter(prefix="/pets", tags=["Pet"], dependencies=[Depends(get_current_active_user)])
@@ -70,7 +71,7 @@ async def equip_pet(
     return await pet_service.equip(db_session, dweller_id, pet_id, user)
 
 
-@router.post("/{pet_id}/unequip/", status_code=200, response_model=None)
+@router.post("/{pet_id}/unequip/", status_code=200, response_model=None, responses=NULL_BODY_RESPONSES)
 async def unequip_pet(
     pet_id: UUID,
     db_session: DBSession,

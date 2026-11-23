@@ -51,16 +51,10 @@ UNRESOLVED_BASELINE: frozenset[str] = frozenset(
     {
         "GET /api/v1/game/vaults/{vault_id}/game-state",
         "POST /api/v1/game/vaults/{vault_id}/tick",
-        "POST /api/v1/junk/{junk_id}/sell/",
         "POST /api/v1/objectives/{vault_id}/{objective_id}/progress",
         "POST /api/v1/objectives/{vault_id}/assign-random",
-        "POST /api/v1/outfits/{outfit_id}/sell/",
-        "POST /api/v1/outfits/{outfit_id}/unequip/",
-        "POST /api/v1/pets/{pet_id}/unequip/",
         "POST /api/v1/quests/{vault_id}/{quest_id}/assign",
         "POST /api/v1/vaults/update_resources",
-        "POST /api/v1/weapons/{weapon_id}/sell/",
-        "POST /api/v1/weapons/{weapon_id}/unequip/",
     }
 )
 

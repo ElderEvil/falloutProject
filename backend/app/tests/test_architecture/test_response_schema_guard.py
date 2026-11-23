@@ -8,9 +8,10 @@ Each 2xx response must be one of:
 
 * ``structured`` — an ``application/json`` schema naming a ``$ref``, an object
   with properties, a typed array, a primitive, or a union of those;
-* ``legitimate`` — no body at all (204) or a non-JSON media type such as
-  ``text/event-stream`` or ``text/html``;
-* ``unresolved`` — JSON schema absent, empty, or unconstrained (an object with
+* ``legitimate`` — a status that forbids a body (204, 205) declaring no content,
+  or a non-JSON media type such as ``text/event-stream`` or ``text/html``;
+* ``unresolved`` — a 2xx that may carry a body but declares no content at all,
+  or a JSON schema that is absent, empty, or unconstrained (an object with
   neither properties nor ``$ref``, or ``additionalProperties: true``).
 
 A new operation with an unresolved response fails the suite. Fixing a listed
@@ -51,6 +52,9 @@ UNRESOLVED_BASELINE: frozenset[str] = frozenset()
 
 PRIMITIVE_TYPES = frozenset({"string", "integer", "number", "boolean"})
 JSON_MEDIA_TYPE = "application/json"
+#: Statuses that forbid a response body outright, so omitting ``content`` is the
+#: correct contract rather than an undeclared payload.
+BODYLESS_STATUSES = frozenset({"204", "205"})
 
 
 def _is_typed_schema(schema: Any, *, allow_null: bool = False) -> bool:
@@ -80,11 +84,15 @@ def _is_typed_schema(schema: Any, *, allow_null: bool = False) -> bool:
     return allow_null and schema_type == "null"
 
 
-def _classify_response(response: dict[str, Any]) -> str:
-    """Classify one response object as structured, legitimate, or unresolved."""
+def _classify_response(response: dict[str, Any], status: str | int = "200") -> str:
+    """Classify one response object as structured, legitimate, or unresolved.
+
+    ``status`` decides whether omitting ``content`` is honest: 204/205 cannot carry a
+    body, while any other 2xx that declares no content is an undeclared response body.
+    """
     content = response.get("content") or {}
     if not content:
-        return LEGITIMATE
+        return LEGITIMATE if str(status) in BODYLESS_STATUSES else UNRESOLVED
     if JSON_MEDIA_TYPE not in content:
         return LEGITIMATE
     media = content.get(JSON_MEDIA_TYPE) or {}
@@ -96,12 +104,13 @@ def _classify_response(response: dict[str, Any]) -> str:
 
 def _classify_operation(operation: dict[str, Any]) -> str:
     """Worst 2xx classification for an operation; no 2xx at all is unresolved."""
-    successes = [
-        response for status, response in (operation.get("responses") or {}).items() if str(status).startswith("2")
-    ]
-    if not successes:
+    classifications = {
+        _classify_response(response, status)
+        for status, response in (operation.get("responses") or {}).items()
+        if str(status).startswith("2")
+    }
+    if not classifications:
         return UNRESOLVED
-    classifications = {_classify_response(response) for response in successes}
     if UNRESOLVED in classifications:
         return UNRESOLVED
     if STRUCTURED in classifications:
@@ -173,7 +182,6 @@ def test_classifier_self_test() -> None:
     # Unconstrained or absent schemas must be rejected.
     assert _classify_response(response({})) == UNRESOLVED
     assert _classify_response(response()) == UNRESOLVED
-    assert _classify_response({"content": {}}) == LEGITIMATE
     assert _classify_response(response({"type": "object", "additionalProperties": True})) == UNRESOLVED
     assert _classify_response(response({"type": "object"})) == UNRESOLVED
     assert _classify_response(response({"type": "array"})) == UNRESOLVED
@@ -222,6 +230,16 @@ def test_classifier_self_test() -> None:
         )
         == STRUCTURED
     )
-    assert _classify_response({"description": "no body"}) == LEGITIMATE
     assert _classify_response(response(media_type="text/event-stream")) == LEGITIMATE
     assert _classify_response(response(media_type="text/html")) == LEGITIMATE
+
+    # A 2xx that may carry a body but declares no content at all is unresolved: an endpoint
+    # returning an undeclared JSON body must never pass by omission.
+    assert _classify_response({"description": "no body"}) == UNRESOLVED
+    assert _classify_response({"content": {}}) == UNRESOLVED
+    assert _classify_response({}, status=200) == UNRESOLVED
+    assert _classify_response({}, status=201) == UNRESOLVED
+    # Statuses that forbid a body stay legitimate, and declared content still wins when present.
+    assert _classify_response({"description": "no body"}, status=204) == LEGITIMATE
+    assert _classify_response({"content": {}}, status=205) == LEGITIMATE
+    assert _classify_response(response({"type": "string"}), status=204) == STRUCTURED

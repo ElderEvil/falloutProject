@@ -123,20 +123,32 @@ BASE_COMMIT_KIND = "commit"
 
 
 def _transaction_calls(source: str) -> dict[tuple[str, str], int]:
-    """Count awaited ``commit``/``rollback`` calls per owner, ignoring nested callables.
+    """Count awaited ``commit``/``rollback`` calls per owner, including nested callables.
 
     The key carries the enclosing class (``CRUDUser.create``, not ``create``) so two classes
-    that happen to share a method name cannot mask each other's transaction calls.
+    that happen to share a method name cannot mask each other's transaction calls. A nested
+    callable is a distinct owner (``CRUDUser.create.<locals>.retry``) rather than invisible: its
+    body never merges into the enclosing function's count, but a commit parked in a closure is
+    still measured and therefore still fails the inventory ratchet.
     """
     tree = ast.parse(source)
     found: collections.Counter[tuple[str, str]] = collections.Counter()
 
-    def count_owner(node: ast.FunctionDef | ast.AsyncFunctionDef, prefix: str) -> None:
+    def count_owner(node: ast.FunctionDef | ast.AsyncFunctionDef, owner: str) -> None:
         pending = list(node.body)
         while pending:
             child = pending.pop()
-            # A nested callable owns its body; do not attribute its writes to the enclosing function.
-            if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)):
+            # A nested callable owns its body: recurse under a qualified name so its writes stay
+            # measurable without being attributed to the enclosing function.
+            if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                count_owner(child, f"{owner}.<locals>.{child.name}")
+                continue
+            if isinstance(child, ast.ClassDef):
+                for member in child.body:
+                    if isinstance(member, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                        count_owner(member, f"{owner}.<locals>.{child.name}.{member.name}")
+                continue
+            if isinstance(child, ast.Lambda):
                 continue
             if (
                 isinstance(child, ast.Await)
@@ -144,16 +156,16 @@ def _transaction_calls(source: str) -> dict[tuple[str, str], int]:
                 and isinstance(child.value.func, ast.Attribute)
                 and child.value.func.attr in TRANSACTION_CALLS
             ):
-                found[f"{prefix}{node.name}", child.value.func.attr] += 1
+                found[owner, child.value.func.attr] += 1
             pending.extend(ast.iter_child_nodes(child))
 
     for node in tree.body:
         if isinstance(node, ast.ClassDef):
             for member in node.body:
                 if isinstance(member, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                    count_owner(member, f"{node.name}.")
+                    count_owner(member, f"{node.name}.{member.name}")
         elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-            count_owner(node, "")
+            count_owner(node, node.name)
     return dict(found)
 
 
@@ -193,6 +205,38 @@ class Beta:
         await session.commit()
 """
     assert _transaction_calls(source) == {("Alpha.create", "commit"): 1, ("Beta.create", "commit"): 2}
+
+
+def test_counter_attributes_nested_callable_transactions() -> None:
+    """A transaction call inside an inner ``async def`` must have an owner.
+
+    Nested callables used to be skipped outright, so a commit added to a closure was attributed
+    to nobody and the inventory ratchet could never see it - the guard's whole point is that no
+    CRUD commit escapes measurement.
+    """
+    source = """
+class Alpha:
+    async def create(self, session):
+        async def retry(saved):
+            await session.rollback()
+            await session.commit()
+
+        await retry(1)
+
+
+async def module_helper(session):
+    async def reopen():
+        await session.commit()
+
+    await reopen()
+    await session.commit()
+"""
+    assert _transaction_calls(source) == {
+        ("Alpha.create.<locals>.retry", "rollback"): 1,
+        ("Alpha.create.<locals>.retry", "commit"): 1,
+        ("module_helper", "commit"): 1,
+        ("module_helper.<locals>.reopen", "commit"): 1,
+    }
 
 
 def test_crud_transaction_inventory_is_frozen() -> None:

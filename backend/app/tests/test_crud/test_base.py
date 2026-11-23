@@ -1,8 +1,8 @@
-"""Regression tests for ``CRUDBase.create``: conflict detection and transaction ownership.
+"""Regression tests for ``CRUDBase.create``/``create_all``: conflict detection and transaction ownership.
 
 Two defects are pinned here. A create schema without a ``name`` field must still produce a
 ``ResourceAlreadyExistsException`` (409) instead of an ``AttributeError`` raised from inside the
-handler. And ``commit=False`` must flush and propagate without rolling back the caller's
+handler - for the single-row and the bulk path alike. And ``commit=False`` must flush and propagate without rolling back the caller's
 transaction (docs/backend/SERVICE_LAYER.md: "recoverable nested attempts use a savepoint owned by
 their caller").
 """
@@ -105,3 +105,21 @@ async def test_caller_owned_savepoint_absorbs_the_conflict(
 
     await async_session.commit()
     assert await async_session.get(Dweller, earlier.id) is not None
+
+
+async def test_create_all_duplicate_without_name_field_raises_conflict(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller
+) -> None:
+    """The bulk path translates a unique violation the same way the single-row path does.
+
+    ``create_all`` reads the conflict identifier off the first staged schema; a schema without a
+    ``name`` field must fall back to the model name instead of raising ``AttributeError`` from the
+    exception handler, which would surface a 500 rather than the expected 409.
+    """
+    conversation_in = await _conversation_in(async_session, vault, dweller)
+    await crud.conversation.create(db_session=async_session, obj_in=conversation_in)
+
+    with pytest.raises(ResourceAlreadyExistsException) as exc_info:
+        await crud.conversation.create_all(db_session=async_session, objs_in=[conversation_in])
+
+    assert "Conversation" in exc_info.value.detail

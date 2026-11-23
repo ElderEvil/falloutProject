@@ -22,25 +22,25 @@ class CRUDUserProfile(CRUDBase[UserProfile, UserProfileBase, ProfileUpdate]):
         return response.scalar_one_or_none()
 
     async def create_for_user(self, db_session: AsyncSession, user_id: UUID) -> UserProfile:
-        """Create a user profile, race-safe: on unique-violation from a concurrent create, roll
-        back and return the existing profile instead of raising.
+        """Stage a profile for ``user_id``; the caller owns the transaction.
+
+        Race-safe: on a unique violation from a concurrent create, the savepoint rolls back
+        only this attempt and the existing profile is returned instead of raising.
         """
         db_obj = UserProfile(user_id=user_id)
-        db_session.add(db_obj)
         try:
-            await db_session.commit()
-            await db_session.refresh(db_obj)
+            async with db_session.begin_nested():
+                db_session.add(db_obj)
+                await db_session.flush()
         except IntegrityError:
-            # Race condition: another request created the profile first
+            # Race condition: another request created the profile first.
             logger.debug("Profile already exists for user %s, fetching existing", user_id)
-            await db_session.rollback()
             existing = await self.get_by_user_id(db_session, user_id)
             if existing:
                 return existing
             # Should not happen, but re-raise if profile still not found
             raise
-        else:
-            return db_obj
+        return db_obj
 
     async def lock_by_user_ids(self, db_session: AsyncSession, user_ids: Iterable[UUID]) -> list[UserProfile]:
         """Lock the participants' profiles in profile-id order for a merge."""

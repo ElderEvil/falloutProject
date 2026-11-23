@@ -172,11 +172,8 @@ async def get_my_profile(
     Returns:
         User's profile with statistics and preferences.
     """
-    profile = await profile_crud.get_by_user_id(db_session, user.id)
-    if not profile:
-        # create_for_user handles the concurrent-create race internally.
-        profile = await profile_crud.create_for_user(db_session, user.id)
-    return profile
+    # The service owns the create and its commit; the endpoint never touches the transaction.
+    return await user_service.get_or_create_profile(db_session, user.id)
 
 
 @router.put("/me/profile", response_model=ProfileRead)

@@ -115,7 +115,13 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
                 locked[user_id] = user
         return locked
 
-    async def create(self, db_session: AsyncSession, obj_in: UserCreate) -> User:
+    async def create(self, db_session: AsyncSession, obj_in: UserCreate, *, commit: bool = True) -> User:
+        """Create a user and, standalone, its profile.
+
+        With ``commit=False`` the caller owns the transaction: the user row is flushed, the
+        profile is left to the caller (so the same transaction can stage it explicitly) and a
+        conflict is propagated without rolling back the caller's work.
+        """
         db_obj = build_user_model(
             username=obj_in.username,
             email=obj_in.email,
@@ -125,12 +131,15 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
         try:
             db_session.add(db_obj)
             await db_session.flush()
-            db_session.add(UserProfile(user_id=db_obj.id))
-            await db_session.commit()
+            if commit:
+                db_session.add(UserProfile(user_id=db_obj.id))
+                await db_session.commit()
         except IntegrityError as e:
-            await db_session.rollback()
+            if commit:
+                await db_session.rollback()
             raise ResourceConflictException(detail="User already exists") from e
-        await db_session.refresh(db_obj)
+        if commit:
+            await db_session.refresh(db_obj)
         return db_obj
 
     async def create_with_oauth_account(

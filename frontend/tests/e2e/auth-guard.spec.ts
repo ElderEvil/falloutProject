@@ -1,7 +1,37 @@
 import { test, expect, type Page } from '@playwright/test'
+import type { AISettingsRead } from '../../src/modules/ai-settings/models/aiSettings'
+import type { DeathStatistics } from '../../src/core/types/death'
 import { TEST_USER, type TestUser } from './fixtures/auth'
 
 const TOKEN = 'deterministic-e2e-token'
+
+/**
+ * Fixture shaped like the real `AISettingsRead` payload. AISettingsPanel
+ * dereferences `effective.*` and `jev.*` directly as soon as it renders, so the
+ * `{}` this spec used to return made the panel throw and the test passed on a
+ * crashed page.
+ */
+const AI_SETTINGS: AISettingsRead = {
+  profile: null,
+  effective: {
+    provider: 'openai',
+    model: 'gpt-4o-mini',
+    base_url: null,
+    gateway_route: 'openai',
+    mode: 'gateway',
+  },
+  jev: {
+    enabled: true,
+    configured: true,
+    model: 'gpt-4o-mini',
+    timeout_seconds: 10,
+  },
+}
+
+const AI_SETTINGS_URL = '/api/v1/ai-settings/'
+
+/** Card title only rendered once `/api/v1/ai-settings/` resolves into a real payload. */
+const ADMIN_PANEL_MARKER = 'Provider configuration'
 
 /**
  * A signed-in Overseer *without* superuser rights. Anonymous requests prove nothing
@@ -39,6 +69,15 @@ const PROFILE = {
   updated_at: '2026-02-01T08:00:00Z',
 }
 
+/** ProfileView's LifeDeathStatistics reads `deaths_by_cause.*` unguarded. */
+const DEATH_STATISTICS: DeathStatistics = {
+  total_dwellers_born: 0,
+  total_dwellers_died: 0,
+  deaths_by_cause: { health: 0, radiation: 0, incident: 0, exploration: 0, combat: 0 },
+  revivable_count: 0,
+  permanently_dead_count: 0,
+}
+
 /**
  * Stub the API surface the shell touches on boot. CI runs this spec with
  * PW_SKIP_BACKEND=1 (Vite only), so every request must be answered here.
@@ -52,10 +91,19 @@ async function mockApi(page: Page, user: TestUser | null): Promise<void> {
       return route.fulfill({ json: user })
     }
     if (path === '/api/v1/users/me/profile') return route.fulfill({ json: PROFILE })
+    if (path === '/api/v1/users/me/profile/statistics') {
+      return route.fulfill({ json: DEATH_STATISTICS })
+    }
     if (path === '/api/v1/auth/oauth/providers') {
       return route.fulfill({ json: { google: false, github: false } })
     }
+    // ProfileView's ConnectedAccountsCard reads `accounts.providers` unguarded;
+    // the generic `{}` fallback below crashes the profile page on render.
+    if (path === '/api/v1/auth/oauth/accounts') {
+      return route.fulfill({ json: { providers: [], has_password: true } })
+    }
     if (path === '/api/v1/vaults/my') return route.fulfill({ json: [] })
+    if (path === '/api/v1/ai-settings/') return route.fulfill({ json: AI_SETTINGS })
     // Collection endpoints the dashboard/store layer iterates; an object stub here
     // throws `forEach is not a function` and would be misread as a guard failure.
     if (path === '/api/v1/dwellers' || path.startsWith('/api/v1/dwellers/vault/')) {
@@ -93,6 +141,20 @@ function trackPageErrors(page: Page): string[] {
   const errors: string[] = []
   page.on('pageerror', (err) => errors.push(`PAGE ERROR: ${err.message}`))
   return errors
+}
+
+/**
+ * Records `/api/v1/ai-settings/` requests from the first navigation on. The panel
+ * only fetches on mount, so a redirect that never mounts the view makes none —
+ * that is what proves the router stopped the admin page rather than unmounting
+ * it after a render.
+ */
+function trackAiSettingsRequests(page: Page): string[] {
+  const hits: string[] = []
+  page.on('request', (request) => {
+    if (new URL(request.url()).pathname === AI_SETTINGS_URL) hits.push(request.method())
+  })
+  return hits
 }
 
 async function expectNoCrash(page: Page, errors: string[]): Promise<void> {
@@ -187,24 +249,43 @@ test.describe('Auth guard — signed-in users', () => {
     const pageErrors = trackPageErrors(page)
     await mockApi(page, NON_ADMIN_USER)
     await signInBeforeLoad(page, NON_ADMIN_USER)
+    const aiSettingsRequests = trackAiSettingsRequests(page)
 
     await page.goto('/admin/ai-settings')
     await page.waitForURL('**/profile**', { timeout: 10_000 })
+    await page.waitForLoadState('networkidle')
 
     expect(new URL(page.url()).pathname).toBe('/profile')
-    // The admin surface must never have rendered for a non-admin.
-    await expect(page.getByRole('heading', { name: /AI Settings/i })).toHaveCount(0)
+    // The view fetches on mount, so zero requests prove the router never mounted
+    // the admin page — stronger than checking that its text is absent afterwards.
+    expect(aiSettingsRequests).toHaveLength(0)
     await expectNoCrash(page, pageErrors)
   })
 
-  test('superuser session reaches /admin/ai-settings', async ({ page }) => {
+  test('superuser session reaches /admin/ai-settings and the panel renders', async ({ page }) => {
+    const pageErrors = trackPageErrors(page)
     await mockApi(page, TEST_USER)
     await signInBeforeLoad(page, TEST_USER)
+    // The page fetches its settings on mount, so this request is the proof it mounted.
+    const settingsRequest = page.waitForRequest(
+      (request) => new URL(request.url()).pathname === AI_SETTINGS_URL,
+      { timeout: 10_000 }
+    )
 
     await page.goto('/admin/ai-settings')
-    await page.waitForLoadState('networkidle')
+    expect((await settingsRequest).method()).toBe('GET')
 
+    await page.waitForURL('**/admin/ai-settings', { timeout: 10_000 })
     expect(new URL(page.url()).pathname).toBe('/admin/ai-settings')
+    // Only the successful-load branch renders these; the loading skeleton and the
+    // "AI settings unavailable" error card render neither.
+    await expect(page.getByText(ADMIN_PANEL_MARKER, { exact: true })).toBeVisible()
+    await expect(page.getByText('Effective configuration', { exact: true })).toBeVisible()
+    await expect(page.locator('#ai-model')).toBeVisible()
+    await expect(page.getByText('AI settings unavailable')).toHaveCount(0)
+    // Effective config echoes the fixture, so a silently empty payload fails too.
+    await expect(page.getByText('gpt-4o-mini', { exact: true }).first()).toBeVisible()
+    await expectNoCrash(page, pageErrors)
   })
 
   test('signed-in non-admin reaches a protected route', async ({ page }) => {

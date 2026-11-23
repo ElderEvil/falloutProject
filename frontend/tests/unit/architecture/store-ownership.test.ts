@@ -41,6 +41,20 @@ function escapeRe(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
+/**
+ * Local name introduced by one import specifier. Static named imports rename
+ * with `as` (`{ useRoomStore as room }`); destructured dynamic imports rename
+ * with `:` (`{ useRoomStore: getRoomStore }`). Both must yield the local name,
+ * otherwise writes through the renamed alias are invisible to the scanner.
+ */
+function importLocalName(part: string): string {
+  const [imported, ...asRest] = part.split(/\s+as\s+/)
+  if (asRest.length > 0) return asRest.join(' as ').trim()
+  const colon = imported.indexOf(':')
+  if (colon !== -1) return imported.slice(colon + 1).trim()
+  return imported.trim()
+}
+
 function parseImportBindings(clause: string): string[] {
   const trimmed = clause.trim()
   if (!trimmed) return []
@@ -51,8 +65,8 @@ function parseImportBindings(clause: string): string[] {
     for (const rawPart of named[1].split(',')) {
       const part = rawPart.trim()
       if (!part || part.startsWith('type ')) continue
-      const [imported, local] = part.split(/\s+as\s+/)
-      bindings.push((local ?? imported).trim())
+      const local = importLocalName(part)
+      if (local) bindings.push(local)
     }
   }
   const defaultPart = trimmed.replace(/\{[\s\S]*\}/, '').replace(/,/g, '').trim()
@@ -87,66 +101,147 @@ function readStoreImports(content: string): ImportedStore[] {
   return imports
 }
 
-/** Local names that hold (part of) an imported store. */
-function collectAliases(content: string, binding: string): string[] {
-  const name = escapeRe(binding)
-  const aliases = new Set<string>([binding])
-  const whole = new RegExp(`\\b(?:const|let|var)\\s+([A-Za-z_$][\\w$]*)\\s*=\\s*${name}\\s*\\(`, 'g')
-  const destructured = new RegExp(
-    `\\b(?:const|let|var)\\s*\\{([^}]*)\\}\\s*=\\s*${name}\\s*\\(`,
-    'g'
-  )
-  let match: RegExpExecArray | null
-  while ((match = whole.exec(content)) !== null) aliases.add(match[1])
-  while ((match = destructured.exec(content)) !== null) {
-    for (const rawPart of match[1].split(',')) {
-      const part = rawPart.trim()
-      if (!part) continue
-      const [key, local] = part.split(/\s*:\s*/)
-      const target = (local ?? key).trim()
-      if (target && /^[A-Za-z_$][\w$]*$/.test(target)) aliases.add(target)
+interface AliasBinding {
+  name: string
+  /** Lexical span (character offsets) in which writes to this name are owned. */
+  start: number
+  end: number
+}
+
+/**
+ * Innermost block enclosing `index`: the span between the nearest unbalanced
+ * `{` before it and its matching `}`. Falls back to the whole file when the
+ * declaration sits at module scope, which keeps module-level aliases visible
+ * everywhere (and keeps the ratchet conservative).
+ */
+function enclosingScope(content: string, index: number): { start: number; end: number } {
+  let depth = 0
+  let open = -1
+  for (let i = index - 1; i >= 0; i -= 1) {
+    const ch = content[i]
+    if (ch === '}') {
+      depth += 1
+    } else if (ch === '{') {
+      if (depth === 0) {
+        open = i
+        break
+      }
+      depth -= 1
     }
   }
-  // Refs obtained via storeToRefs: `const { a } = storeToRefs(roomStore)`.
-  // Follow aliases of aliases (a store slice can itself be passed to storeToRefs).
-  const queue = [...aliases]
+  if (open === -1) return { start: 0, end: content.length }
+  depth = 0
+  for (let i = open; i < content.length; i += 1) {
+    const ch = content[i]
+    if (ch === '{') {
+      depth += 1
+    } else if (ch === '}') {
+      depth -= 1
+      if (depth === 0) return { start: open, end: i + 1 }
+    }
+  }
+  return { start: open, end: content.length }
+}
+
+function destructuredLocals(list: string): string[] {
+  const names: string[] = []
+  for (const rawPart of list.split(',')) {
+    const part = rawPart.trim()
+    if (!part) continue
+    const [key, local] = part.split(/\s*:\s*/)
+    const target = (local ?? key).trim()
+    if (target && /^[A-Za-z_$][\w$]*$/.test(target)) names.push(target)
+  }
+  return names
+}
+
+/**
+ * Local names that hold (part of) an imported store, each tied to the lexical
+ * scope of its declaration. The same name declared in two functions therefore
+ * yields two bindings, and a write only counts in the scope that declared it.
+ */
+function collectAliases(content: string, binding: string): AliasBinding[] {
+  const aliases: AliasBinding[] = []
+  const seen = new Set<string>()
+  const add = (name: string, index: number): boolean => {
+    if (!/^[A-Za-z_$][\w$]*$/.test(name)) return false
+    const scope = enclosingScope(content, index)
+    const key = `${name}@${scope.start}:${scope.end}`
+    if (seen.has(key)) return false
+    seen.add(key)
+    aliases.push({ name, start: scope.start, end: scope.end })
+    return true
+  }
+
+  add(binding, 0) // the import binding itself lives at module scope
+  const queue: string[] = [binding]
   while (queue.length > 0) {
     const current = queue.pop() as string
-    const refs = new RegExp(
-      `\\b(?:const|let|var)\\s*\\{([^}]*)\\}\\s*=\\s*storeToRefs\\(\\s*${escapeRe(current)}\\s*\\)`,
+    const name = escapeRe(current)
+    const whole = new RegExp(
+      `\\b(?:const|let|var)\\s+([A-Za-z_$][\\w$]*)\\s*=\\s*${name}\\s*\\(`,
       'g'
     )
-    let refMatch: RegExpExecArray | null
-    while ((refMatch = refs.exec(content)) !== null) {
-      for (const rawPart of refMatch[1].split(',')) {
-        const part = rawPart.trim()
-        if (!part) continue
-        const [key, local] = part.split(/\s*:\s*/)
-        const target = (local ?? key).trim()
-        if (target && /^[A-Za-z_$][\w$]*$/.test(target) && !aliases.has(target)) {
-          aliases.add(target)
-          queue.push(target)
-        }
+    const destructured = new RegExp(
+      `\\b(?:const|let|var)\\s*\\{([^}]*)\\}\\s*=\\s*${name}\\s*\\(`,
+      'g'
+    )
+    const refs = new RegExp(
+      `\\b(?:const|let|var)\\s*\\{([^}]*)\\}\\s*=\\s*storeToRefs\\(\\s*${name}\\s*\\)`,
+      'g'
+    )
+
+    let match: RegExpExecArray | null
+    while ((match = whole.exec(content)) !== null) {
+      if (add(match[1], match.index)) queue.push(match[1])
+    }
+    while ((match = destructured.exec(content)) !== null) {
+      for (const local of destructuredLocals(match[1])) {
+        if (add(local, match.index)) queue.push(local)
+      }
+    }
+    // Refs obtained via storeToRefs: `const { a } = storeToRefs(roomStore)`.
+    while ((match = refs.exec(content)) !== null) {
+      for (const local of destructuredLocals(match[1])) {
+        if (add(local, match.index)) queue.push(local)
       }
     }
   }
-  return [...aliases]
+  return aliases
 }
 
-function countWrites(content: string, name: string): number {
+/** Offsets of every write site through `name`, regardless of scope. */
+function findWrites(content: string, name: string): number[] {
   const identifier = escapeRe(name)
+  // Property assignments need at least one step of chain: `store.x = ...`.
   const chain = `(?:\\s*\\.\\s*[A-Za-z_$][\\w$]*|\\s*\\[[^\\]]*\\])+`
+  // Array mutations may be bare (`dwellers.push(...)` after destructuring).
+  const mutationChain = `(?:\\s*\\.\\s*[A-Za-z_$][\\w$]*|\\s*\\[[^\\]]*\\])*`
   const patterns: RegExp[] = [
     // Assigning a property on the store or one of its refs: `store.x = ...`, `ref.value = ...`
     new RegExp(`(?<![\\w$.])${identifier}(?![\\w$])${chain}\\s*(?:=|\\+=|-=)(?!=|>)`, 'g'),
     // In-place mutation of an array owned by / exposed from the store.
-    new RegExp(`(?<![\\w$.])${identifier}(?![\\w$])${chain}\\s*\\.\\s*(?:push|splice|sort)\\s*\\(`, 'g'),
+    new RegExp(
+      `(?<![\\w$.])${identifier}(?![\\w$])${mutationChain}\\s*\\.\\s*(?:push|splice|sort)\\s*\\(`,
+      'g'
+    ),
   ]
-  let total = 0
+  const sites = new Set<number>()
   for (const pattern of patterns) {
-    total += content.match(pattern)?.length ?? 0
+    for (const match of content.matchAll(pattern)) {
+      sites.add(match.index ?? 0)
+    }
   }
-  return total
+  return [...sites]
+}
+
+/** Writes through a name that fall inside a scope which declared that name. */
+function countWrites(content: string, bindings: readonly AliasBinding[]): number {
+  const sites = new Set<number>()
+  for (const site of findWrites(content, bindings[0].name)) {
+    if (bindings.some((binding) => site >= binding.start && site < binding.end)) sites.add(site)
+  }
+  return sites.size
 }
 
 export function scanCrossStoreWrites(files: readonly SourceFile[]): Map<string, number> {
@@ -166,9 +261,17 @@ export function scanCrossStoreWrites(files: readonly SourceFile[]): Map<string, 
       if (targetModule !== null && targetModule === ownModule) continue
       if (imported.storePath !== null && imported.storePath === normalizedPath) continue
 
-      let writes = 0
+      // Group alias declarations by local name; a write counts once as long as
+      // it sits inside any scope that declared that name.
+      const byName = new Map<string, AliasBinding[]>()
       for (const alias of collectAliases(file.content, imported.binding)) {
-        writes += countWrites(file.content, alias)
+        const list = byName.get(alias.name) ?? []
+        list.push(alias)
+        byName.set(alias.name, list)
+      }
+      let writes = 0
+      for (const bindings of byName.values()) {
+        writes += countWrites(file.content, bindings)
       }
       if (writes > 0) {
         const key = `${normalizedPath} -> ${imported.binding}`
@@ -345,5 +448,69 @@ describe('scanCrossStoreWrites fixtures', () => {
     ])
 
     expect(found.get('src/modules/profile/components/SyncBadge.vue -> useVaultStore')).toBe(2)
+  })
+
+  it('flags a write through a renamed dynamic-import alias', () => {
+    const found = scanCrossStoreWrites([
+      {
+        path: 'src/modules/chat/composables/useRoomSelection.ts',
+        content: `
+          export async function selectRoom(id: string) {
+            const { useRoomStore: getRoomStore } = await import('@/modules/rooms/stores/room')
+            const roomStore = getRoomStore()
+            roomStore.selectedRoom = id
+          }
+        `,
+      },
+    ])
+
+    // The binding is the local name `getRoomStore`, not `useRoomStore: getRoomStore`.
+    expect([...found]).toEqual([
+      ['src/modules/chat/composables/useRoomSelection.ts -> getRoomStore', 1],
+    ])
+  })
+
+  it('does not count an unrelated same-named local object from another scope', () => {
+    const found = scanCrossStoreWrites([
+      {
+        path: 'src/modules/profile/components/RoomLabel.vue',
+        content: `
+          <script setup lang="ts">
+          import { useRoomStore } from '@/modules/rooms/stores/room'
+
+          export function roomName(roomId: string) {
+            const store = useRoomStore()
+            return store.rooms.find((r) => r.id === roomId)?.name
+          }
+
+          export function clearLocalSelection() {
+            const store = { selectedRoom: null as string | null }
+            store.selectedRoom = null
+          }
+          </script>
+        `,
+      },
+    ])
+
+    expect([...found]).toEqual([])
+  })
+
+  it('flags bare destructured array mutations', () => {
+    const found = scanCrossStoreWrites([
+      {
+        path: 'src/modules/rooms/composables/useDwellerRoster.ts',
+        content: `
+          import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
+          export function repoint(item: Dweller) {
+            const { dwellers } = useDwellerStore()
+            dwellers.push(item)
+            dwellers.splice(0, 1)
+            dwellers.sort(byLevel)
+          }
+        `,
+      },
+    ])
+
+    expect(found.get('src/modules/rooms/composables/useDwellerRoster.ts -> useDwellerStore')).toBe(3)
   })
 })

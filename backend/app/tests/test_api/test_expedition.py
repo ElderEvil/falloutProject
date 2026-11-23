@@ -1,39 +1,47 @@
 import random
-from datetime import datetime
 from uuid import uuid4
-
-import pytest
-from httpx import AsyncClient, Response
-from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
 from app.core.enums import ExpeditionRunStatus
-from app.models.dweller import Dweller
-from app.models.exploration import Exploration
-from app.models.vault import Vault
-from app.schemas.expedition import TriviaQuestion
 from app.services import catalog_service as data_loader
 from app.services.exploration_service import exploration_service
 from app.utils.time import utcnow
 
+SITES = [
+    "red_rocket",
+    "super_duper_mart",
+    "abandoned_campsite",
+    "roadside_supply_truck",
+    "forgotten_shack",
+    "collapsed_subway",
+    "rusted_midway",
+    "frozen_research_outpost",
+    "raider_tollbooth",
+    "gloomwater_bog",
+    "gloomwater_bog_night",
+    "outskirts_interchange",
+]
 
-async def _enter_raider_tollbooth(
-    async_client: AsyncClient,
-    superuser_token_headers: dict[str, str],
-    async_session: AsyncSession,
-    vault: Vault,
-    dweller: Dweller,
-) -> tuple[Exploration, TriviaQuestion, Response]:
+
+async def _start(session, vault, dweller, level=10):
+    await crud.dweller.update(session, dweller.id, {"level": level}, commit=True)
+    return await exploration_service.send_dweller(session, vault.id, dweller.id, duration=4)
+
+
+async def _enter(client, headers, exploration, site_id="red_rocket"):
+    return await client.post(f"/explorations/{exploration.id}/site/enter", json={"site_id": site_id}, headers=headers)
+
+
+async def _resolve(client, headers, exploration, payload):
+    return await client.post(f"/explorations/{exploration.id}/site/resolve", json=payload, headers=headers)
+
+
+async def _enter_raider_tollbooth(client, headers, session, vault, dweller):
     """Enter the trivia site and return the run's pinned question, not the served answer key."""
-    await crud.dweller.update(async_session, dweller.id, {"level": 10}, commit=True)
-    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
-    entered = await async_client.post(
-        f"/explorations/{exploration.id}/site/enter",
-        json={"site_id": "raider_tollbooth"},
-        headers=superuser_token_headers,
-    )
+    exploration = await _start(session, vault, dweller)
+    entered = await _enter(client, headers, exploration, "raider_tollbooth")
     assert entered.status_code == 200
-    run = await crud.expedition_run.get_open_for_exploration(async_session, exploration.id)
+    run = await crud.expedition_run.get_open_for_exploration(session, exploration.id)
     pinned = next(iter(run.flags["trivia_questions"].values()))
     question_id = pinned[0] if isinstance(pinned, list) else pinned
     site = data_loader.get_expedition_site("raider_tollbooth")
@@ -41,22 +49,9 @@ async def _enter_raider_tollbooth(
     return exploration, question, entered
 
 
-@pytest.mark.asyncio
-async def test_site_enter_and_current(
-    async_client: AsyncClient,
-    superuser_token_headers: dict[str, str],
-    async_session: AsyncSession,
-    vault: Vault,
-    dweller: Dweller,
-) -> None:
-    await crud.dweller.update(async_session, dweller.id, {"level": 10}, commit=True)
-    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
-
-    enter = await async_client.post(
-        f"/explorations/{exploration.id}/site/enter",
-        json={"site_id": "red_rocket"},
-        headers=superuser_token_headers,
-    )
+async def test_site_enter_and_current(async_client, superuser_token_headers, async_session, vault, dweller):
+    exploration = await _start(async_session, vault, dweller)
+    enter = await _enter(async_client, superuser_token_headers, exploration)
     assert enter.status_code == 200
     body = enter.json()
     assert body["site_id"] == "red_rocket"
@@ -64,232 +59,86 @@ async def test_site_enter_and_current(
     assert body["room_names"] == ["Forecourt", "Garage", "Bunker Cache"]
     assert body["node"]["kind"] == "trap"
     assert body["can_retreat"] is True
-
-    current = await async_client.get(
-        f"/explorations/{exploration.id}/site",
-        headers=superuser_token_headers,
-    )
+    current = await async_client.get(f"/explorations/{exploration.id}/site", headers=superuser_token_headers)
     assert current.status_code == 200
     assert current.json()["site_id"] == "red_rocket"
 
 
-@pytest.mark.asyncio
-async def test_site_enter_unknown_site_rejected(
-    async_client: AsyncClient,
-    superuser_token_headers: dict[str, str],
-    async_session: AsyncSession,
-    vault: Vault,
-    dweller: Dweller,
-) -> None:
-    await crud.dweller.update(async_session, dweller.id, {"level": 10}, commit=True)
-    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
-
-    response = await async_client.post(
-        f"/explorations/{exploration.id}/site/enter",
-        json={"site_id": "no_such_site"},
-        headers=superuser_token_headers,
-    )
-    assert response.status_code == 400
+async def test_site_enter_unknown_site_rejected(async_client, superuser_token_headers, async_session, vault, dweller):
+    exploration = await _start(async_session, vault, dweller)
+    assert (await _enter(async_client, superuser_token_headers, exploration, "no_such_site")).status_code == 400
 
 
-@pytest.mark.asyncio
-async def test_site_resolve_and_retreat(
-    async_client: AsyncClient,
-    superuser_token_headers: dict[str, str],
-    async_session: AsyncSession,
-    vault: Vault,
-    dweller: Dweller,
-) -> None:
+async def test_site_resolve_and_retreat(async_client, superuser_token_headers, async_session, vault, dweller):
     random.seed(11)
-    await crud.dweller.update(async_session, dweller.id, {"level": 10}, commit=True)
-    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
-    await async_client.post(
-        f"/explorations/{exploration.id}/site/enter",
-        json={"site_id": "red_rocket"},
-        headers=superuser_token_headers,
-    )
-
-    resolved = await async_client.post(
-        f"/explorations/{exploration.id}/site/resolve",
-        json={"choice_id": "detour"},
-        headers=superuser_token_headers,
-    )
+    exploration = await _start(async_session, vault, dweller)
+    await _enter(async_client, superuser_token_headers, exploration)
+    resolved = await _resolve(async_client, superuser_token_headers, exploration, {"choice_id": "detour"})
     assert resolved.status_code == 200
     assert resolved.json()["room_index"] == 1
-
-    retreated = await async_client.post(
-        f"/explorations/{exploration.id}/site/retreat",
-        headers=superuser_token_headers,
-    )
+    retreated = await async_client.post(f"/explorations/{exploration.id}/site/retreat", headers=superuser_token_headers)
     assert retreated.status_code == 200
     body = retreated.json()
     assert body["status"] == "retreated"
     assert body["can_retreat"] is False
-
-    current = await async_client.get(
-        f"/explorations/{exploration.id}/site",
-        headers=superuser_token_headers,
-    )
+    current = await async_client.get(f"/explorations/{exploration.id}/site", headers=superuser_token_headers)
     assert current.status_code == 200
     assert current.json() is None
 
 
-@pytest.mark.asyncio
 async def test_site_resolve_without_choice_rejected(
-    async_client: AsyncClient,
-    superuser_token_headers: dict[str, str],
-    async_session: AsyncSession,
-    vault: Vault,
-    dweller: Dweller,
-) -> None:
-    await crud.dweller.update(async_session, dweller.id, {"level": 10}, commit=True)
-    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
-    await async_client.post(
-        f"/explorations/{exploration.id}/site/enter",
-        json={"site_id": "red_rocket"},
-        headers=superuser_token_headers,
-    )
-
-    response = await async_client.post(
-        f"/explorations/{exploration.id}/site/resolve",
-        json={},
-        headers=superuser_token_headers,
-    )
-    assert response.status_code == 400
+    async_client, superuser_token_headers, async_session, vault, dweller
+):
+    exploration = await _start(async_session, vault, dweller)
+    await _enter(async_client, superuser_token_headers, exploration)
+    assert (await _resolve(async_client, superuser_token_headers, exploration, {})).status_code == 400
 
 
-@pytest.mark.asyncio
-async def test_site_available_lists_all_sites(
-    async_client: AsyncClient,
-    superuser_token_headers: dict[str, str],
-    async_session: AsyncSession,
-    vault: Vault,
-    dweller: Dweller,
-) -> None:
+async def test_site_available_lists_all_sites(async_client, superuser_token_headers, async_session, vault, dweller):
     """A level-appropriate dweller sees every site with its room count and level gate."""
-    await crud.dweller.update(async_session, dweller.id, {"level": 10}, commit=True)
-    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
-
-    response = await async_client.get(
-        f"/explorations/{exploration.id}/site/available",
-        headers=superuser_token_headers,
-    )
+    exploration = await _start(async_session, vault, dweller)
+    response = await async_client.get(f"/explorations/{exploration.id}/site/available", headers=superuser_token_headers)
     assert response.status_code == 200
     sites = {site["id"]: site for site in response.json()}
-    assert set(sites) == {
-        "red_rocket",
-        "super_duper_mart",
-        "abandoned_campsite",
-        "roadside_supply_truck",
-        "forgotten_shack",
-        "collapsed_subway",
-        "rusted_midway",
-        "frozen_research_outpost",
-        "raider_tollbooth",
-        "gloomwater_bog",
-        "gloomwater_bog_night",
-        "outskirts_interchange",
-    }
+    assert set(sites) == set(SITES)
     assert sites["red_rocket"]["min_dweller_level"] == 3
     assert sites["red_rocket"]["room_total"] == 3
     assert sites["super_duper_mart"]["min_dweller_level"] == 5
     assert sites["super_duper_mart"]["room_total"] == 4
 
 
-@pytest.mark.asyncio
 async def test_site_available_level_gate_excludes_sites(
-    async_client: AsyncClient,
-    superuser_token_headers: dict[str, str],
-    async_session: AsyncSession,
-    vault: Vault,
-    dweller: Dweller,
-) -> None:
-    await crud.dweller.update(async_session, dweller.id, {"level": 4}, commit=True)
-    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
-
-    response = await async_client.get(
-        f"/explorations/{exploration.id}/site/available",
-        headers=superuser_token_headers,
-    )
+    async_client, superuser_token_headers, async_session, vault, dweller
+):
+    exploration = await _start(async_session, vault, dweller, level=4)
+    response = await async_client.get(f"/explorations/{exploration.id}/site/available", headers=superuser_token_headers)
     assert response.status_code == 200
-    site_ids = [site["id"] for site in response.json()]
-    assert site_ids == [
-        "red_rocket",
-        "abandoned_campsite",
-        "roadside_supply_truck",
-        "forgotten_shack",
-        "collapsed_subway",
-        "rusted_midway",
-        "frozen_research_outpost",
-        "raider_tollbooth",
-        "gloomwater_bog",
-        "gloomwater_bog_night",
-        "outskirts_interchange",
-    ]
+    assert [site["id"] for site in response.json()] == [s for s in SITES if s != "super_duper_mart"]
 
 
-@pytest.mark.asyncio
 async def test_site_available_anti_farm_excludes_recent_clear(
-    async_client: AsyncClient,
-    superuser_token_headers: dict[str, str],
-    async_session: AsyncSession,
-    vault: Vault,
-    dweller: Dweller,
-) -> None:
-    await crud.dweller.update(async_session, dweller.id, {"level": 10}, commit=True)
-    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
+    async_client, superuser_token_headers, async_session, vault, dweller
+):
+    exploration = await _start(async_session, vault, dweller)
     run = await crud.expedition_run.create_run(
-        async_session,
-        exploration_id=exploration.id,
-        vault_id=vault.id,
-        site_id="red_rocket",
+        async_session, exploration_id=exploration.id, vault_id=vault.id, site_id="red_rocket"
     )
     run.status = ExpeditionRunStatus.CLEARED
     run.finished_at = utcnow()
     async_session.add(run)
     await async_session.commit()
-
-    response = await async_client.get(
-        f"/explorations/{exploration.id}/site/available",
-        headers=superuser_token_headers,
-    )
+    response = await async_client.get(f"/explorations/{exploration.id}/site/available", headers=superuser_token_headers)
     assert response.status_code == 200
-    site_ids = [site["id"] for site in response.json()]
-    assert site_ids == [
-        "super_duper_mart",
-        "abandoned_campsite",
-        "roadside_supply_truck",
-        "forgotten_shack",
-        "collapsed_subway",
-        "rusted_midway",
-        "frozen_research_outpost",
-        "raider_tollbooth",
-        "gloomwater_bog",
-        "gloomwater_bog_night",
-        "outskirts_interchange",
-    ]
+    assert [site["id"] for site in response.json()] == [s for s in SITES if s != "red_rocket"]
 
 
-@pytest.mark.asyncio
-async def test_site_available_missing_exploration_404(
-    async_client: AsyncClient,
-    superuser_token_headers: dict[str, str],
-) -> None:
-    response = await async_client.get(
-        f"/explorations/{uuid4()}/site/available",
-        headers=superuser_token_headers,
-    )
-    assert response.status_code == 404
+async def test_site_available_missing_exploration_404(async_client, superuser_token_headers):
+    assert (
+        await async_client.get(f"/explorations/{uuid4()}/site/available", headers=superuser_token_headers)
+    ).status_code == 404
 
 
-@pytest.mark.asyncio
-async def test_site_trivia_enter_hides_answer_key(
-    async_client: AsyncClient,
-    superuser_token_headers: dict[str, str],
-    async_session: AsyncSession,
-    vault: Vault,
-    dweller: Dweller,
-) -> None:
+async def test_site_trivia_enter_hides_answer_key(async_client, superuser_token_headers, async_session, vault, dweller):
     _, _, entered = await _enter_raider_tollbooth(async_client, superuser_token_headers, async_session, vault, dweller)
     body = entered.json()
     assert body["node"]["kind"] == "trivia"
@@ -303,25 +152,20 @@ async def test_site_trivia_enter_hides_answer_key(
     )
 
 
-@pytest.mark.asyncio
 async def test_site_trivia_correct_answer_pays_once(
-    async_client: AsyncClient,
-    superuser_token_headers: dict[str, str],
-    async_session: AsyncSession,
-    vault: Vault,
-    dweller: Dweller,
-) -> None:
+    async_client, superuser_token_headers, async_session, vault, dweller
+):
     exploration, question, entered = await _enter_raider_tollbooth(
         async_client, superuser_token_headers, async_session, vault, dweller
     )
     before = (await crud.exploration.get(async_session, exploration.id)).total_caps_found
-
     body = None
     for _ in range(entered.json()["node"]["question_total"]):
-        resolved = await async_client.post(
-            f"/explorations/{exploration.id}/site/resolve",
-            json={"choice_id": question.correct_option_id, "question_id": question.id},
-            headers=superuser_token_headers,
+        resolved = await _resolve(
+            async_client,
+            superuser_token_headers,
+            exploration,
+            {"choice_id": question.correct_option_id, "question_id": question.id},
         )
         assert resolved.status_code == 200
         body = resolved.json()
@@ -337,41 +181,31 @@ async def test_site_trivia_correct_answer_pays_once(
     assert body["finale_paid"] is True
     assert body["outcome"]["caps_gained"] >= 40
     assert body["node"]["options"] == []
-
     after = (await crud.exploration.get(async_session, exploration.id)).total_caps_found
     assert after > before
-
-    duplicate = await async_client.post(
-        f"/explorations/{exploration.id}/site/resolve",
-        json={"choice_id": question.correct_option_id, "question_id": question.id},
-        headers=superuser_token_headers,
+    duplicate = await _resolve(
+        async_client,
+        superuser_token_headers,
+        exploration,
+        {"choice_id": question.correct_option_id, "question_id": question.id},
     )
     assert duplicate.status_code == 400
     assert (await crud.exploration.get(async_session, exploration.id)).total_caps_found == after
 
 
-@pytest.mark.asyncio
 async def test_site_trivia_invalid_answer_rejected(
-    async_client: AsyncClient,
-    superuser_token_headers: dict[str, str],
-    async_session: AsyncSession,
-    vault: Vault,
-    dweller: Dweller,
-) -> None:
+    async_client, superuser_token_headers, async_session, vault, dweller
+):
     """An unknown answer id is rejected and leaves the pinned encounter untouched."""
     exploration, question, _ = await _enter_raider_tollbooth(
         async_client, superuser_token_headers, async_session, vault, dweller
     )
     before_run = await crud.expedition_run.get_open_for_exploration(async_session, exploration.id)
     before_questions = dict(before_run.flags["trivia_questions"])
-
-    response = await async_client.post(
-        f"/explorations/{exploration.id}/site/resolve",
-        json={"choice_id": "not-an-option", "question_id": question.id},
-        headers=superuser_token_headers,
+    response = await _resolve(
+        async_client, superuser_token_headers, exploration, {"choice_id": "not-an-option", "question_id": question.id}
     )
     assert response.status_code == 400
-
     run_after = await crud.expedition_run.get_open_for_exploration(async_session, exploration.id)
     assert run_after is not None
     assert run_after.status == ExpeditionRunStatus.IN_ROOM
@@ -379,24 +213,16 @@ async def test_site_trivia_invalid_answer_rejected(
     assert run_after.flags["trivia_questions"] == before_questions
 
 
-@pytest.mark.asyncio
 async def test_site_trivia_wrong_answer_starts_combat(
-    async_client: AsyncClient,
-    superuser_token_headers: dict[str, str],
-    async_session: AsyncSession,
-    vault: Vault,
-    dweller: Dweller,
-) -> None:
+    async_client, superuser_token_headers, async_session, vault, dweller
+):
     random.seed(11)
     exploration, question, _ = await _enter_raider_tollbooth(
         async_client, superuser_token_headers, async_session, vault, dweller
     )
     wrong_id = next(option.id for option in question.options if option.id != question.correct_option_id)
-
-    resolved = await async_client.post(
-        f"/explorations/{exploration.id}/site/resolve",
-        json={"choice_id": wrong_id, "question_id": question.id},
-        headers=superuser_token_headers,
+    resolved = await _resolve(
+        async_client, superuser_token_headers, exploration, {"choice_id": wrong_id, "question_id": question.id}
     )
     assert resolved.status_code == 200
     body = resolved.json()
@@ -404,24 +230,13 @@ async def test_site_trivia_wrong_answer_starts_combat(
     assert body["combat_state"] is not None
     assert body["node"]["options"] == []
     assert "Wrong answer" in body["outcome"]["text"]
-
     run_after = await crud.expedition_run.get_open_for_exploration(async_session, exploration.id)
     assert run_after is not None
     assert run_after.flags["combat"]
-
-    strike = await async_client.post(
-        f"/explorations/{exploration.id}/site/resolve",
-        json={},
-        headers=superuser_token_headers,
-    )
+    strike = await _resolve(async_client, superuser_token_headers, exploration, {})
     assert strike.status_code == 200
     strike_body = strike.json()
     assert strike_body["status"] == "in_room"
     assert strike_body["combat_state"] is not None
-
-    rejected = await async_client.post(
-        f"/explorations/{exploration.id}/site/resolve",
-        json={"choice_id": wrong_id},
-        headers=superuser_token_headers,
-    )
+    rejected = await _resolve(async_client, superuser_token_headers, exploration, {"choice_id": wrong_id})
     assert rejected.status_code == 400

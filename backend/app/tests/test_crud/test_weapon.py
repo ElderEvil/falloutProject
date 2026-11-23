@@ -7,16 +7,9 @@ from app.tests.factory.items import create_fake_weapon
 from app.utils.exceptions import ResourceNotFoundException
 
 
-@pytest.mark.asyncio
 async def test_weapon_deletion(async_session: AsyncSession) -> None:
-    weapon_data = create_fake_weapon()
-    weapon_in = WeaponCreate(**weapon_data)
-    weapon = await crud.weapon.create(async_session, obj_in=weapon_in)
-
-    # Delete the weapon
+    weapon = await crud.weapon.create(async_session, obj_in=WeaponCreate(**create_fake_weapon()))
     await crud.weapon.delete(async_session, id=weapon.id)
-
-    # Try to read the deleted weapon
     with pytest.raises(ResourceNotFoundException) as exc_info:
         await crud.weapon.get(async_session, id=weapon.id)
     assert exc_info.value.status_code == 404

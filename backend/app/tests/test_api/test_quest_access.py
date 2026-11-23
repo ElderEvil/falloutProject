@@ -10,10 +10,6 @@ from app.schemas.pagination import Pagination
 
 @pytest.mark.asyncio
 async def test_read_vault_quests_checks_access_before_querying() -> None:
-    db_session = AsyncMock()
-    user = MagicMock()
-    vault_id = uuid4()
-
     with (
         patch(
             "app.api.v1.endpoints.quest.get_user_vault_or_403",
@@ -22,6 +18,5 @@ async def test_read_vault_quests_checks_access_before_querying() -> None:
         patch("app.api.v1.endpoints.quest.quest_service.get_quests_for_vault", new=AsyncMock()) as get_quests,
         pytest.raises(HTTPException, match="Forbidden"),
     ):
-        await read_vault_quests(vault_id, db_session, user, Pagination())
-
+        await read_vault_quests(uuid4(), AsyncMock(), MagicMock(), Pagination())
     get_quests.assert_not_awaited()

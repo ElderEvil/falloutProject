@@ -10,9 +10,7 @@ class TestTestEmailEndpoint:
     async def test_post_test_email_success(self, async_client, superuser_token_headers) -> None:
         with patch("app.services.email_service.send_email", new_callable=AsyncMock) as mock_send:
             response = await async_client.post(
-                "/email/test",
-                headers=superuser_token_headers,
-                json={"email_to": "test@example.com"},
+                "/email/test", headers=superuser_token_headers, json={"email_to": "test@example.com"}
             )
         assert response.status_code == 200
         data = response.json()
@@ -27,9 +25,7 @@ class TestTestEmailEndpoint:
             side_effect=aiosmtplib.SMTPException("connection refused"),
         ):
             response = await async_client.post(
-                "/email/test",
-                headers=superuser_token_headers,
-                json={"email_to": "test@example.com"},
+                "/email/test", headers=superuser_token_headers, json={"email_to": "test@example.com"}
             )
         assert response.status_code == 502
         assert "SMTP delivery failed" in response.json()["detail"]

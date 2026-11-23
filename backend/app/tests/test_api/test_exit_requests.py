@@ -1,7 +1,6 @@
 from datetime import datetime
 
 import pytest
-from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import crud
@@ -52,45 +51,29 @@ async def _vault_with_population(async_session: AsyncSession, superuser) -> Vaul
     return vault
 
 
-async def _ask(async_session: AsyncSession, dweller) -> None:
-    await crud.dweller.update(async_session, dweller.id, {"exit_requested_at": utcnow()})
-
-
-async def test_list_exit_requests_returns_only_pending(
-    async_client: AsyncClient,
-    async_session: AsyncSession,
-    superuser_token_headers: dict[str, str],
-    superuser,
-):
+async def _asker(async_session, superuser, *, prefix="Asker", happiness=80):
     vault = await _vault_with_population(async_session, superuser)
-    dwelling = await _make_dweller(async_session, vault.id, prefix="Asker")
-    await _ask(async_session, dwelling)
+    dweller = await _make_dweller(async_session, vault.id, happiness=happiness, prefix=prefix)
+    await crud.dweller.update(async_session, dweller.id, {"exit_requested_at": utcnow()})
+    return vault, dweller
 
+
+async def test_list_exit_requests_returns_only_pending(async_client, async_session, superuser_token_headers, superuser):
+    vault, dwelling = await _asker(async_session, superuser)
     response = await async_client.get(f"/dwellers/vault/{vault.id}/exit-requests", headers=superuser_token_headers)
-
     assert response.status_code == 200
     requests = response.json()
     assert [entry["dweller_id"] for entry in requests] == [str(dwelling.id)]
     assert requests[0]["dweller_name"] == "Asker Seeker"
 
 
-async def test_grant_exit_records_a_living_departure(
-    async_client: AsyncClient,
-    async_session: AsyncSession,
-    superuser_token_headers: dict[str, str],
-    superuser,
-):
-    vault = await _vault_with_population(async_session, superuser)
-    dwelling = await _make_dweller(async_session, vault.id, prefix="Asker")
-    await _ask(async_session, dwelling)
-
+async def test_grant_exit_records_a_living_departure(async_client, async_session, superuser_token_headers, superuser):
+    vault, dwelling = await _asker(async_session, superuser)
     response = await async_client.post(f"/dwellers/{dwelling.id}/grant-exit", headers=superuser_token_headers)
-
     assert response.status_code == 200
     body = response.json()
     assert body["granted"] is True
     assert body["epitaph"] is None
-
     await async_session.refresh(dwelling)
     assert dwelling.lifecycle is LifecycleEnum.WASTELAND
     assert dwelling.availability is AvailabilityEnum.DEPARTURE
@@ -98,46 +81,29 @@ async def test_grant_exit_records_a_living_departure(
     assert dwelling.previous_vault_id == vault.id
     assert dwelling.is_dead is False
     assert dwelling.is_permanently_dead is False
-
     remaining = await async_client.get(f"/dwellers/vault/{vault.id}/exit-requests", headers=superuser_token_headers)
     assert remaining.json() == []
 
 
 async def test_refuse_exit_resolves_the_request_and_costs_the_vault(
-    async_client: AsyncClient,
-    async_session: AsyncSession,
-    superuser_token_headers: dict[str, str],
-    superuser,
+    async_client, async_session, superuser_token_headers, superuser
 ):
-    vault = await _vault_with_population(async_session, superuser)
-    dwelling = await _make_dweller(async_session, vault.id, prefix="Asker", happiness=80)
-    await _ask(async_session, dwelling)
-
+    vault, dwelling = await _asker(async_session, superuser, happiness=80)
     response = await async_client.post(f"/dwellers/{dwelling.id}/refuse-exit", headers=superuser_token_headers)
-
     assert response.status_code == 200
     body = response.json()
     assert body["granted"] is False
     assert body["happiness"] == 80 - game_config.exit_request.vault_refusal_happiness_penalty
-
     await async_session.refresh(dwelling)
     assert dwelling.exit_requested_at is None
     assert dwelling.is_dead is False
-
     remaining = await async_client.get(f"/dwellers/vault/{vault.id}/exit-requests", headers=superuser_token_headers)
     assert remaining.json() == []
 
 
-async def test_grant_without_a_request_is_rejected(
-    async_client: AsyncClient,
-    async_session: AsyncSession,
-    superuser_token_headers: dict[str, str],
-    superuser,
-):
+async def test_grant_without_a_request_is_rejected(async_client, async_session, superuser_token_headers, superuser):
     vault = await _vault_with_population(async_session, superuser)
     quiet = await _make_dweller(async_session, vault.id, prefix="Quiet")
-
     response = await async_client.post(f"/dwellers/{quiet.id}/grant-exit", headers=superuser_token_headers)
-
     assert response.status_code == 400
     assert "has not asked" in response.json()["detail"]

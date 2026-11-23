@@ -1,274 +1,82 @@
-import uuid
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from sqlalchemy import func, select
 
+from app import crud
+from app.core.enums import NotificationType, RarityEnum
 from app.models.dweller import BIO_MAX_CHARS
+from app.models.llm_interaction import LLMInteraction
+from app.models.notification import Notification
+from app.models.world_location import DwellerLocation, WorldLocation
 from app.schemas.dweller_ai import DwellerBackstory, ExtendedBio
 from app.services.dweller_ai_service import dweller_ai
-
-pytestmark = pytest.mark.asyncio
-
-
-def _make_dweller_mock(bio: str | None = None) -> MagicMock:
-    """Return a MagicMock with the minimum DwellerReadFull shape needed."""
-    dweller = MagicMock()
-    dweller.bio = bio
-    dweller.id = uuid.uuid4()
-    dweller.first_name = "Test"
-    dweller.gender = "male"
-    dweller.vault_id = uuid.uuid4()
-    dweller.strength = 5
-    dweller.perception = 5
-    dweller.endurance = 5
-    dweller.charisma = 5
-    dweller.intelligence = 5
-    dweller.agility = 5
-    dweller.luck = 5
-    dweller.rarity = "common"
-    return dweller
+from app.tests.test_services.test_dweller_ai_helpers import ai_env, fake_db, make_dweller, make_user
 
 
-# ── generate_backstory ────────────────────────────────────────────
-
-
-@patch("app.services.dweller_ai_service.llm_interaction_crud")
-@patch("app.services.dweller_ai_service.map_service")
-@patch("app.services.dweller_ai_service.dweller_crud")
-@patch("app.services.dweller_ai_service.backstory_agent")
-@patch("app.services.dweller_ai_service.quota_service")
-async def test_generate_backstory_map_service_raising_is_swallowed(
-    mock_quota: MagicMock,
-    mock_agent: MagicMock,
-    mock_crud: MagicMock,
-    mock_map: MagicMock,
-    mock_llm: MagicMock,
-) -> None:
-    mock_quota.check_quota = AsyncMock(return_value=MagicMock(allowed=True))
-    mock_llm.create = AsyncMock()
-    mock_crud.update = AsyncMock()
-    mock_map.register_bio_places = AsyncMock(side_effect=Exception("DB failure"))
-    mock_map.notify_bio_registration_failure = AsyncMock()
-
-    mock_dweller = _make_dweller_mock(bio=None)
-
-    output = DwellerBackstory(
-        bio="Backstory.",
-        origin_place="Megaton",
-        visited_places=["Rivet City"],
-    )
-    mock_result = MagicMock()
-    mock_result.output = output
-    mock_result.usage.return_value = MagicMock(input_tokens=30, output_tokens=10, total_tokens=40)
-    mock_agent.run = AsyncMock(return_value=mock_result)
-
-    mock_user = MagicMock()
-    mock_user.id = uuid.uuid4()
-
-    # Should NOT raise — helper catches internally
-    result = await dweller_ai.generate_backstory(
-        user=mock_user,
-        db_session=MagicMock(commit=AsyncMock()),
-        dweller_info=mock_dweller,
-    )
-
-    # Bio was still committed
-    mock_crud.update.assert_called_once()
-    mock_llm.create.assert_called_once()
+async def test_generate_backstory_swallows_map_failures_and_replaces_the_origin_entry() -> None:
+    dweller = make_dweller("Old origin.")
+    dweller.bio_entries = [
+        {"source": "template", "text": "Old origin.", "ref": {}, "created_at": "2026-01-01T00:00:00"}
+    ]
+    output = DwellerBackstory(bio="New origin.", origin_place="Megaton", visited_places=["Rivet City"])
+    with ai_env("backstory_agent", output) as d:
+        d.map.register_bio_places = AsyncMock(side_effect=Exception("DB failure"))
+        result = await dweller_ai.generate_backstory(user=make_user(), db_session=fake_db(), dweller_info=dweller)
+    # The helper catches internally; the bio is still committed and the old origin entry replaced.
+    d.crud.update.assert_called_once()
+    d.llm.create.assert_called_once()
     assert result is not None
+    entries = d.crud.update.call_args[0][2].bio_entries
+    assert [entry["source"] for entry in entries] == ["template"]
+    assert entries[0]["text"] == "New origin."
 
 
-# ── extend_bio ─────────────────────────────────────────────────────
-
-
-@patch("app.services.dweller_ai_service.llm_interaction_crud")
-@patch("app.services.dweller_ai_service.map_service")
-@patch("app.services.dweller_ai_service.dweller_crud")
-@patch("app.services.dweller_ai_service.bio_extension_agent")
-@patch("app.services.dweller_ai_service.quota_service")
-async def test_extend_bio_length_guard_truncates_at_the_bio_cap(
-    mock_quota: MagicMock,
-    mock_agent: MagicMock,
-    mock_crud: MagicMock,
-    mock_map: MagicMock,
-    mock_llm: MagicMock,
-) -> None:
-    mock_quota.check_quota = AsyncMock(return_value=MagicMock(allowed=True))
-    mock_llm.create = AsyncMock()
-    mock_map.register_bio_places = AsyncMock()
-
-    existing_bio = "A" * (BIO_MAX_CHARS - 100)
-    mock_dweller = _make_dweller_mock(bio=existing_bio)
-    mock_crud.get_full_info = AsyncMock(return_value=mock_dweller)
-    mock_crud.update = AsyncMock()
-
-    output = ExtendedBio(
-        extended_bio="B" * 300,
-        visited_places=[],
-    )
-    mock_result = MagicMock()
-    mock_result.output = output
-    mock_result.usage.return_value = MagicMock(input_tokens=40, output_tokens=20, total_tokens=60)
-    mock_agent.run = AsyncMock(return_value=mock_result)
-
-    mock_user = MagicMock()
-    mock_user.id = uuid.uuid4()
-
-    await dweller_ai.extend_bio(
-        db_session=MagicMock(commit=AsyncMock()),
-        dweller_id=mock_dweller.id,
-        user=mock_user,
-    )
-
-    # The bio passed to crud.update should be truncated
-    mock_crud.update.assert_called_once()
-    update_call = mock_crud.update.call_args
-    stored_bio = update_call[0][2].bio  # DwellerUpdate.bio
+async def test_extend_bio_length_guard_truncates_at_the_bio_cap() -> None:
+    dweller = make_dweller("A" * (BIO_MAX_CHARS - 100))
+    output = ExtendedBio(extended_bio="B" * 300, visited_places=[])
+    with ai_env("bio_extension_agent", output) as d:
+        d.crud.get_full_info = AsyncMock(return_value=dweller)
+        await dweller_ai.extend_bio(db_session=fake_db(), dweller_id=dweller.id, user=make_user())
+    d.crud.update.assert_called_once()
+    stored_bio = d.crud.update.call_args[0][2].bio  # DwellerUpdate.bio
     assert len(stored_bio) <= BIO_MAX_CHARS
     assert stored_bio.endswith("...")
     assert not stored_bio.endswith("....")  # not double-truncated
 
 
-@patch("app.services.dweller_ai_service.llm_interaction_crud")
-@patch("app.services.dweller_ai_service.map_service")
-@patch("app.services.dweller_ai_service.dweller_crud")
-@patch("app.services.dweller_ai_service.bio_extension_agent")
-@patch("app.services.dweller_ai_service.quota_service")
-async def test_extend_bio_rewrites_the_origin_entry(
-    mock_quota: MagicMock,
-    mock_agent: MagicMock,
-    mock_crud: MagicMock,
-    mock_map: MagicMock,
-    mock_llm: MagicMock,
-) -> None:
-    mock_quota.check_quota = AsyncMock(return_value=MagicMock(allowed=True))
-    mock_llm.create = AsyncMock()
-    mock_map.register_bio_places = AsyncMock()
-    mock_crud.update = AsyncMock()
-
-    mock_dweller = _make_dweller_mock(bio="Original biography.")
-    mock_crud.get_full_info = AsyncMock(return_value=mock_dweller)
-
-    mock_result = MagicMock()
-    mock_result.output = ExtendedBio(extended_bio="More details.", visited_places=[])
-    mock_result.usage.return_value = MagicMock(input_tokens=10, output_tokens=5, total_tokens=15)
-    mock_agent.run = AsyncMock(return_value=mock_result)
-
-    mock_user = MagicMock()
-    mock_user.id = uuid.uuid4()
-
-    await dweller_ai.extend_bio(
-        db_session=MagicMock(commit=AsyncMock()),
-        dweller_id=mock_dweller.id,
-        user=mock_user,
-    )
-
-    update = mock_crud.update.call_args[0][2]
+async def test_extend_bio_rewrites_the_origin_entry() -> None:
+    dweller = make_dweller("Original biography.")
+    output = ExtendedBio(extended_bio="More details.", visited_places=[])
+    with ai_env("bio_extension_agent", output) as d:
+        d.crud.get_full_info = AsyncMock(return_value=dweller)
+        await dweller_ai.extend_bio(db_session=fake_db(), dweller_id=dweller.id, user=make_user())
+    update = d.crud.update.call_args[0][2]
     assert [entry["source"] for entry in update.bio_entries] == ["template"]
     assert update.bio_entries[0]["text"] == update.bio
     assert "More details." in update.bio
 
 
-@patch("app.services.dweller_ai_service.llm_interaction_crud")
-@patch("app.services.dweller_ai_service.map_service")
-@patch("app.services.dweller_ai_service.dweller_crud")
-@patch("app.services.dweller_ai_service.bio_extension_agent")
-@patch("app.services.dweller_ai_service.quota_service")
-async def test_extend_bio_preserves_life_entries(
-    mock_quota: MagicMock,
-    mock_agent: MagicMock,
-    mock_crud: MagicMock,
-    mock_map: MagicMock,
-    mock_llm: MagicMock,
-) -> None:
-    """Extending the origin story must not discard recorded life events or their metadata."""
-    mock_quota.check_quota = AsyncMock(return_value=MagicMock(allowed=True))
-    mock_llm.create = AsyncMock()
-    mock_map.register_bio_places = AsyncMock()
-    mock_crud.update = AsyncMock()
-
-    mock_dweller = _make_dweller_mock(bio="Original biography.")
-    mock_dweller.bio_entries = [
+async def test_extend_bio_preserves_life_entries() -> None:
+    # Extending the origin story must not discard recorded life events or their metadata.
+    dweller = make_dweller("Original biography.")
+    dweller.bio_entries = [
         {"source": "template", "text": "Original biography.", "ref": {}, "created_at": "2026-01-01T00:00:00"},
-        {
-            "source": "dialogue",
-            "text": "I keep a lucky wrench.",
-            "ref": {"source": "chat"},
-            "created_at": "2026-01-02T00:00:00",
-        },
+        {"source": "dialogue", "text": "I keep a lucky wrench.", "ref": {"source": "chat"}, "created_at": "2026-01-02"},
     ]
-    mock_crud.get_full_info = AsyncMock(return_value=mock_dweller)
-
-    mock_result = MagicMock()
-    mock_result.output = ExtendedBio(extended_bio="More details.", visited_places=[])
-    mock_result.usage.return_value = MagicMock(input_tokens=10, output_tokens=5, total_tokens=15)
-    mock_agent.run = AsyncMock(return_value=mock_result)
-
-    mock_user = MagicMock()
-    mock_user.id = uuid.uuid4()
-
-    await dweller_ai.extend_bio(
-        db_session=MagicMock(commit=AsyncMock()),
-        dweller_id=mock_dweller.id,
-        user=mock_user,
-    )
-
-    update = mock_crud.update.call_args[0][2]
+    output = ExtendedBio(extended_bio="More details.", visited_places=[])
+    with ai_env("bio_extension_agent", output) as d:
+        d.crud.get_full_info = AsyncMock(return_value=dweller)
+        await dweller_ai.extend_bio(db_session=fake_db(), dweller_id=dweller.id, user=make_user())
+    update = d.crud.update.call_args[0][2]
     assert [entry["source"] for entry in update.bio_entries] == ["template", "dialogue"]
     assert update.bio_entries[1]["ref"] == {"source": "chat"}
     assert "lucky wrench" in update.bio
     assert "More details." in update.bio
 
 
-@patch("app.services.dweller_ai_service.llm_interaction_crud")
-@patch("app.services.dweller_ai_service.map_service")
-@patch("app.services.dweller_ai_service.dweller_crud")
-@patch("app.services.dweller_ai_service.backstory_agent")
-@patch("app.services.dweller_ai_service.quota_service")
-async def test_generate_backstory_replaces_origin_entry(
-    mock_quota: MagicMock,
-    mock_agent: MagicMock,
-    mock_crud: MagicMock,
-    mock_map: MagicMock,
-    mock_llm: MagicMock,
-) -> None:
-    mock_quota.check_quota = AsyncMock(return_value=MagicMock(allowed=True))
-    mock_llm.create = AsyncMock()
-    mock_map.register_bio_places = AsyncMock()
-    mock_crud.update = AsyncMock()
-
-    mock_dweller = _make_dweller_mock(bio="Old origin.")
-    mock_dweller.bio_entries = [
-        {"source": "template", "text": "Old origin.", "ref": {}, "created_at": "2026-01-01T00:00:00"}
-    ]
-
-    mock_result = MagicMock()
-    mock_result.output = DwellerBackstory(bio="New origin.", origin_place="Megaton", visited_places=[])
-    mock_result.usage.return_value = MagicMock(input_tokens=10, output_tokens=5, total_tokens=15)
-    mock_agent.run = AsyncMock(return_value=mock_result)
-
-    mock_user = MagicMock()
-    mock_user.id = uuid.uuid4()
-
-    await dweller_ai.generate_backstory(
-        user=mock_user, db_session=MagicMock(commit=AsyncMock()), dweller_info=mock_dweller
-    )
-
-    entries = mock_crud.update.call_args[0][2].bio_entries
-    assert [entry["source"] for entry in entries] == ["template"]
-    assert entries[0]["text"] == "New origin."
-
-
 @pytest.mark.parametrize("extend", [False, True])
 async def test_failed_map_write_preserves_bio_and_usage_without_partial_places(async_session, vault, dweller, extend):
-    from sqlalchemy import func, select
-
-    from app import crud
-    from app.core.enums import NotificationType, RarityEnum
-    from app.models.llm_interaction import LLMInteraction
-    from app.models.notification import Notification
-    from app.models.world_location import DwellerLocation, WorldLocation
-
     dweller.bio = "Original biography."
     dweller.rarity = RarityEnum.LEGENDARY
     await async_session.commit()

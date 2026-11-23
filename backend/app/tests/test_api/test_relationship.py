@@ -1,45 +1,49 @@
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
-from httpx import AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel import select
 
 from app import crud
 from app.core.config import settings
+from app.models.relationship import Relationship
 from app.schemas.dweller import DwellerCreateCommonOverride
 from app.schemas.relationship import VaultRelationshipRead
 from app.services.dweller_service import dweller_service
+from app.services.relationship_service import relationship_service
 from app.utils.exceptions import AccessDeniedException, ValidationException
 
 pytestmark = pytest.mark.asyncio(scope="module")
 
+EP = "app.api.v1.endpoints.relationship."
 
-async def _create_acquaintance_relationship(
-    async_client: AsyncClient,
-    async_session: AsyncSession,
-    superuser_token_headers: dict[str, str],
-    vault_number: int,
-) -> str:
-    """Create a vault, two dwellers and a fresh acquaintance relationship (affinity 0)."""
+
+async def _vault(async_session, number):
     user = await crud.user.get_by_email(async_session, email=settings.FIRST_SUPERUSER_EMAIL)
     assert user is not None
-    vault = await crud.vault.create_with_user_id(
-        db_session=async_session,
-        obj_in={"number": vault_number, "population_max": 50},
-        user_id=user.id,
+    return await crud.vault.create_with_user_id(
+        db_session=async_session, obj_in={"number": number, "population_max": 50}, user_id=user.id
     )
-    dweller1 = await dweller_service.create_random_dweller(
-        async_session,
-        vault.id,
-        obj_in=DwellerCreateCommonOverride(gender="male", visual_attributes={"race": "human"}),
-    )
-    dweller2 = await dweller_service.create_random_dweller(
-        async_session,
-        vault.id,
-        obj_in=DwellerCreateCommonOverride(gender="female", visual_attributes={"race": "human"}),
-    )
+
+
+async def _dwellers(async_session, vault):
+    return [
+        await dweller_service.create_random_dweller(
+            async_session,
+            vault.id,
+            obj_in=DwellerCreateCommonOverride(gender=gender, visual_attributes={"race": "human"}),
+        )
+        for gender in ("male", "female")
+    ]
+
+
+async def _create_acquaintance_relationship(
+    async_client, async_session, superuser_token_headers, vault_number: int
+) -> str:
+    """Create a vault, two dwellers and a fresh acquaintance relationship (affinity 0)."""
+    vault = await _vault(async_session, vault_number)
+    dweller1, dweller2 = await _dwellers(async_session, vault)
     create_response = await async_client.post(
         "/relationships/",
         headers=superuser_token_headers,
@@ -49,94 +53,10 @@ async def _create_acquaintance_relationship(
     return create_response.json()["id"]
 
 
-@pytest.mark.asyncio
-async def test_get_vault_relationships_empty(
-    async_client: AsyncClient,
-    async_session: AsyncSession,
-    superuser_token_headers: dict[str, str],
-):
-    user = await crud.user.get_by_email(async_session, email=settings.FIRST_SUPERUSER_EMAIL)
-    vault = await crud.vault.create_with_user_id(
-        db_session=async_session,
-        obj_in={"number": 899, "population_max": 50},
-        user_id=user.id,
-    )
-
-    response = await async_client.get(
-        f"/relationships/vault/{vault.id}",
-        headers=superuser_token_headers,
-    )
-    assert response.status_code == 200
-    data = response.json()
-    assert isinstance(data, list)
-    assert len(data) == 0
-
-
-@pytest.mark.asyncio
-async def test_initiate_romance(
-    async_client: AsyncClient,
-    async_session: AsyncSession,
-    superuser_token_headers: dict[str, str],
-):
-    user = await crud.user.get_by_email(async_session, email=settings.FIRST_SUPERUSER_EMAIL)
-    vault = await crud.vault.create_with_user_id(
-        db_session=async_session,
-        obj_in={"number": 896, "population_max": 50},
-        user_id=user.id,
-    )
-
-    # Create dwellers and relationship
-    dweller1 = await dweller_service.create_random_dweller(
-        async_session,
-        vault.id,
-        obj_in=DwellerCreateCommonOverride(gender="male", visual_attributes={"race": "human"}),
-    )
-    dweller2 = await dweller_service.create_random_dweller(
-        async_session,
-        vault.id,
-        obj_in=DwellerCreateCommonOverride(gender="female", visual_attributes={"race": "human"}),
-    )
-
-    create_response = await async_client.post(
-        "/relationships/",
-        headers=superuser_token_headers,
-        json={
-            "dweller_1_id": str(dweller1.id),
-            "dweller_2_id": str(dweller2.id),
-        },
-    )
-    relationship_id = create_response.json()["id"]
-
-    # Manually set affinity to 70+ to allow romance
-    from uuid import UUID
-
-    from sqlmodel import select
-
-    from app.models.relationship import Relationship
-
-    result = await async_session.execute(select(Relationship).where(Relationship.id == UUID(relationship_id)))
-    relationship = result.scalar_one()
-    relationship.affinity = 75
-    await async_session.commit()
-
-    response = await async_client.put(
-        f"/relationships/{relationship_id}/romance",
-        headers=superuser_token_headers,
-    )
-    assert response.status_code == 200
-    data = response.json()
-    assert data["relationship_type"] == "romantic"
-
-
-# Mock-based tests for uncovered endpoint paths
-
-
 def _make_mock_relationship(**overrides: object) -> MagicMock:
-    """Create a mock relationship object with all attributes needed for serialization."""
     now = datetime.now(UTC)
-    rid = overrides.pop("id", uuid4())
     attrs: dict[str, object] = {
-        "id": rid,
+        "id": overrides.pop("id", uuid4()),
         "dweller_1_id": overrides.pop("dweller_1_id", uuid4()),
         "dweller_2_id": overrides.pop("dweller_2_id", uuid4()),
         "relationship_type": overrides.pop("relationship_type", "acquaintance"),
@@ -151,14 +71,38 @@ def _make_mock_relationship(**overrides: object) -> MagicMock:
     return mock
 
 
-# --- GET /relationships/vault/{vault_id} -----------------------------------
+async def test_get_vault_relationships_empty(async_client, async_session, superuser_token_headers):
+    vault = await _vault(async_session, 899)
+
+    response = await async_client.get(f"/relationships/vault/{vault.id}", headers=superuser_token_headers)
+    assert response.status_code == 200
+    data = response.json()
+    assert isinstance(data, list)
+    assert len(data) == 0
 
 
-@pytest.mark.asyncio
-async def test_get_vault_relationships_includes_bond_progress(
-    async_client: AsyncClient,
-    superuser_token_headers: dict[str, str],
-):
+async def test_initiate_romance(async_client, async_session, superuser_token_headers):
+    vault = await _vault(async_session, 896)
+    dweller1, dweller2 = await _dwellers(async_session, vault)
+
+    create_response = await async_client.post(
+        "/relationships/",
+        headers=superuser_token_headers,
+        json={"dweller_1_id": str(dweller1.id), "dweller_2_id": str(dweller2.id)},
+    )
+    relationship_id = create_response.json()["id"]
+
+    result = await async_session.execute(select(Relationship).where(Relationship.id == UUID(relationship_id)))
+    relationship = result.scalar_one()
+    relationship.affinity = 75
+    await async_session.commit()
+
+    response = await async_client.put(f"/relationships/{relationship_id}/romance", headers=superuser_token_headers)
+    assert response.status_code == 200
+    assert response.json()["relationship_type"] == "romantic"
+
+
+async def test_get_vault_relationships_includes_bond_progress(async_client, superuser_token_headers):
     vault_id = uuid4()
     relationship = VaultRelationshipRead.model_validate(
         _make_mock_relationship(),
@@ -174,230 +118,85 @@ async def test_get_vault_relationships_includes_bond_progress(
         },
     )
     with (
-        patch("app.api.v1.endpoints.relationship.get_user_vault_or_403", AsyncMock()),
+        patch(f"{EP}get_user_vault_or_403", AsyncMock()),
         patch(
-            "app.api.v1.endpoints.relationship.relationship_service.get_vault_relationships_with_progress",
-            AsyncMock(return_value=[relationship]),
+            f"{EP}relationship_service.get_vault_relationships_with_progress", AsyncMock(return_value=[relationship])
         ),
     ):
         response = await async_client.get(f"/relationships/vault/{vault_id}", headers=superuser_token_headers)
 
     assert response.status_code == 200
-    assert response.json()[0]["bond_change_per_tick"] == 3
-    assert response.json()[0]["bond_tick_seconds"] == 60
-    assert response.json()[0]["conception_potential"] == "possible"
-    assert response.json()[0]["same_race"] is True
-    assert response.json()[0]["average_charisma"] == 8
-    assert response.json()[0]["discomfort_severity"] is None
-    assert response.json()[0]["discomfort_source"] is None
-    assert response.json()[0]["can_make_partners"] is False
+    item = response.json()[0]
+    assert item["bond_change_per_tick"] == 3
+    assert item["bond_tick_seconds"] == 60
+    assert item["conception_potential"] == "possible"
+    assert item["same_race"] is True
+    assert item["average_charisma"] == 8
+    assert item["discomfort_severity"] is None
+    assert item["discomfort_source"] is None
+    assert item["can_make_partners"] is False
 
 
-# --- GET /relationships/{relationship_id} ----------------------------------
-
-
-@pytest.mark.asyncio
-async def test_get_relationship_access_denied(
-    async_client: AsyncClient,
-    superuser_token_headers: dict[str, str],
-) -> None:
+async def test_get_relationship_access_denied(async_client, superuser_token_headers):
     mock_rel = _make_mock_relationship()
-
     with (
+        patch(f"{EP}relationship_crud.get", AsyncMock(return_value=mock_rel)),
         patch(
-            "app.api.v1.endpoints.relationship.relationship_crud.get",
-            AsyncMock(return_value=mock_rel),
-        ),
-        patch(
-            "app.api.v1.endpoints.relationship.verify_dweller_access",
+            f"{EP}verify_dweller_access",
             AsyncMock(side_effect=AccessDeniedException("The user doesn't have enough privileges")),
         ),
     ):
-        response = await async_client.get(
-            f"/relationships/{mock_rel.id}",
-            headers=superuser_token_headers,
-        )
+        response = await async_client.get(f"/relationships/{mock_rel.id}", headers=superuser_token_headers)
     assert response.status_code == 403
 
 
-# --- POST /relationships/ --------------------------------------------------
-
-
-# --- PUT /relationships/{id}/romance ---------------------------------------
-
-
-@pytest.mark.asyncio
-async def test_initiate_romance_not_found(
-    async_client: AsyncClient,
-    superuser_token_headers: dict[str, str],
-) -> None:
+@pytest.mark.parametrize(
+    ("method", "suffix"), [("put", "romance"), ("put", "partner"), ("delete", ""), ("put", "marry")]
+)
+async def test_relationship_actions_not_found(async_client, superuser_token_headers, method, suffix):
     fake_id = uuid4()
-
-    with patch(
-        "app.api.v1.endpoints.relationship.relationship_crud.get",
-        AsyncMock(return_value=None),
-    ):
-        response = await async_client.put(
-            f"/relationships/{fake_id}/romance",
-            headers=superuser_token_headers,
-        )
+    url = f"/relationships/{fake_id}" + (f"/{suffix}" if suffix else "")
+    with patch(f"{EP}relationship_crud.get", AsyncMock(return_value=None)):
+        response = await getattr(async_client, method)(url, headers=superuser_token_headers)
     assert response.status_code == 404
     assert "Relationship not found" in response.json()["detail"]
 
 
-@pytest.mark.asyncio
-async def test_initiate_romance_value_error(
-    async_client: AsyncClient,
-    async_session: AsyncSession,
-    superuser_token_headers: dict[str, str],
-) -> None:
-    """PUT /relationships/{id}/romance returns 400 when affinity is below the romance threshold.
-
-    Exercises the real service rejection without mocks: a fresh acquaintance
-    relationship starts at affinity 0, below the configured romance threshold.
-    """
+@pytest.mark.parametrize(
+    ("suffix", "vault_number", "detail"),
+    [("romance", 893, "Affinity too low for romance"), ("partner", 894, "Affinity too low for partnership")],
+)
+async def test_low_affinity_rejected(
+    async_client, async_session, superuser_token_headers, suffix, vault_number, detail
+):
     relationship_id = await _create_acquaintance_relationship(
-        async_client, async_session, superuser_token_headers, vault_number=893
+        async_client, async_session, superuser_token_headers, vault_number=vault_number
     )
 
-    response = await async_client.put(
-        f"/relationships/{relationship_id}/romance",
-        headers=superuser_token_headers,
-    )
+    response = await async_client.put(f"/relationships/{relationship_id}/{suffix}", headers=superuser_token_headers)
     assert response.status_code == 400
-    assert "Affinity too low for romance" in response.json()["detail"]
+    assert detail in response.json()["detail"]
 
 
-# --- PUT /relationships/{id}/partner ---------------------------------------
-
-
-@pytest.mark.asyncio
-async def test_make_partners_not_found(
-    async_client: AsyncClient,
-    superuser_token_headers: dict[str, str],
-) -> None:
-    fake_id = uuid4()
-
-    with patch(
-        "app.api.v1.endpoints.relationship.relationship_crud.get",
-        AsyncMock(return_value=None),
-    ):
-        response = await async_client.put(
-            f"/relationships/{fake_id}/partner",
-            headers=superuser_token_headers,
-        )
-    assert response.status_code == 404
-    assert "Relationship not found" in response.json()["detail"]
-
-
-@pytest.mark.asyncio
-async def test_make_partners_value_error(
-    async_client: AsyncClient,
-    async_session: AsyncSession,
-    superuser_token_headers: dict[str, str],
-) -> None:
-    """PUT /relationships/{id}/partner returns 400 when affinity is below the romance threshold.
-
-    Exercises the real service rejection without mocks: partnership requires
-    affinity at or above the romance threshold, and a fresh acquaintance
-    relationship starts at affinity 0.
-    """
-    relationship_id = await _create_acquaintance_relationship(
-        async_client, async_session, superuser_token_headers, vault_number=894
-    )
-
-    response = await async_client.put(
-        f"/relationships/{relationship_id}/partner",
-        headers=superuser_token_headers,
-    )
-    assert response.status_code == 400
-    assert "Affinity too low for partnership" in response.json()["detail"]
-
-
-# --- DELETE /relationships/{id} --------------------------------------------
-
-
-@pytest.mark.asyncio
-async def test_break_up_not_found(
-    async_client: AsyncClient,
-    superuser_token_headers: dict[str, str],
-) -> None:
-    fake_id = uuid4()
-
-    with patch(
-        "app.api.v1.endpoints.relationship.relationship_crud.get",
-        AsyncMock(return_value=None),
-    ):
-        response = await async_client.delete(
-            f"/relationships/{fake_id}",
-            headers=superuser_token_headers,
-        )
-    assert response.status_code == 404
-    assert "Relationship not found" in response.json()["detail"]
-
-
-@pytest.mark.asyncio
-async def test_break_up_acquaintance_succeeds(
-    async_client: AsyncClient,
-    async_session: AsyncSession,
-    superuser_token_headers: dict[str, str],
-) -> None:
-    """DELETE /relationships/{id} ends an acquaintance relationship end-to-end.
-
-    The service's break_up has no stage-based rejection (it transitions any
-    relationship to EX), so the former mocked "Cannot break up" 400 asserted
-    fictional behavior. This exercises the real path instead: the breakup
-    succeeds and the relationship is persisted as EX with the affinity penalty.
-    """
+async def test_break_up_acquaintance_succeeds(async_client, async_session, superuser_token_headers):
     relationship_id = await _create_acquaintance_relationship(
         async_client, async_session, superuser_token_headers, vault_number=895
     )
 
-    response = await async_client.delete(
-        f"/relationships/{relationship_id}",
-        headers=superuser_token_headers,
-    )
+    response = await async_client.delete(f"/relationships/{relationship_id}", headers=superuser_token_headers)
     assert response.status_code == 200
     assert response.json()["message"] == "Relationship ended"
 
-    get_response = await async_client.get(
-        f"/relationships/{relationship_id}",
-        headers=superuser_token_headers,
-    )
+    get_response = await async_client.get(f"/relationships/{relationship_id}", headers=superuser_token_headers)
     assert get_response.status_code == 200
     data = get_response.json()
     assert data["relationship_type"] == "ex"
     assert data["affinity"] == 0
 
 
-# --- PUT /relationships/{id}/marry -----------------------------------------
-
-
-@pytest.mark.asyncio
-async def test_marry(
-    async_client: AsyncClient,
-    async_session: AsyncSession,
-    superuser_token_headers: dict[str, str],
-):
-    user = await crud.user.get_by_email(async_session, email=settings.FIRST_SUPERUSER_EMAIL)
-    vault = await crud.vault.create_with_user_id(
-        db_session=async_session,
-        obj_in={"number": 892, "population_max": 50},
-        user_id=user.id,
-    )
-
-    dweller1 = await dweller_service.create_random_dweller(
-        async_session,
-        vault.id,
-        obj_in=DwellerCreateCommonOverride(gender="male", visual_attributes={"race": "human"}),
-    )
-    dweller2 = await dweller_service.create_random_dweller(
-        async_session,
-        vault.id,
-        obj_in=DwellerCreateCommonOverride(gender="female", visual_attributes={"race": "human"}),
-    )
-
-    from app.services.relationship_service import relationship_service
+async def test_marry(async_client, async_session, superuser_token_headers):
+    vault = await _vault(async_session, 892)
+    dweller1, dweller2 = await _dwellers(async_session, vault)
 
     relationship = await relationship_service.get_or_create_relationship(async_session, dweller1.id, dweller2.id)
     relationship.affinity = 85
@@ -406,13 +205,9 @@ async def test_marry(
     dweller2.partner_id = dweller1.id
     await async_session.commit()
 
-    response = await async_client.put(
-        f"/relationships/{relationship.id}/marry",
-        headers=superuser_token_headers,
-    )
+    response = await async_client.put(f"/relationships/{relationship.id}/marry", headers=superuser_token_headers)
     assert response.status_code == 200
-    data = response.json()
-    assert data["relationship_type"] == "MARRIED"
+    assert response.json()["relationship_type"] == "MARRIED"
 
     await async_session.refresh(dweller1)
     await async_session.refresh(dweller2)
@@ -420,113 +215,46 @@ async def test_marry(
     assert dweller2.partner_id == dweller1.id
 
 
-@pytest.mark.asyncio
-async def test_marry_not_found(
-    async_client: AsyncClient,
-    superuser_token_headers: dict[str, str],
-) -> None:
-    fake_id = uuid4()
-
-    with patch(
-        "app.api.v1.endpoints.relationship.relationship_crud.get",
-        AsyncMock(return_value=None),
-    ):
-        response = await async_client.put(
-            f"/relationships/{fake_id}/marry",
-            headers=superuser_token_headers,
-        )
-    assert response.status_code == 404
-    assert "Relationship not found" in response.json()["detail"]
-
-
-@pytest.mark.asyncio
-async def test_marry_value_error(
-    async_client: AsyncClient,
-    superuser_token_headers: dict[str, str],
-) -> None:
-    """PUT /relationships/{id}/marry returns 400 when the service rejects the marriage.
-
-    The endpoint no longer catches ValueError: it lets the service's
-    ValidationException (HTTP 400) propagate to FastAPI's exception handling.
-    """
+async def test_marry_value_error(async_client, superuser_token_headers):
     mock_rel = _make_mock_relationship()
-
     with (
+        patch(f"{EP}relationship_crud.get", AsyncMock(return_value=mock_rel)),
+        patch(f"{EP}verify_dweller_access", AsyncMock(return_value=None)),
         patch(
-            "app.api.v1.endpoints.relationship.relationship_crud.get",
-            AsyncMock(return_value=mock_rel),
-        ),
-        patch(
-            "app.api.v1.endpoints.relationship.verify_dweller_access",
-            AsyncMock(return_value=None),
-        ),
-        patch(
-            "app.api.v1.endpoints.relationship.relationship_service.marry",
+            f"{EP}relationship_service.marry",
             AsyncMock(side_effect=ValidationException("Affinity too low for marriage")),
         ),
     ):
-        response = await async_client.put(
-            f"/relationships/{mock_rel.id}/marry",
-            headers=superuser_token_headers,
-        )
+        response = await async_client.put(f"/relationships/{mock_rel.id}/marry", headers=superuser_token_headers)
     assert response.status_code == 400
     assert "Affinity too low" in response.json()["detail"]
 
 
-# --- GET /relationships/compatibility/{dweller_1_id}/{dweller_2_id} --------
-
-
-@pytest.mark.asyncio
-async def test_compatibility_access_denied_dweller_1(
-    async_client: AsyncClient,
-    superuser_token_headers: dict[str, str],
-) -> None:
-    d1_id = uuid4()
-    d2_id = uuid4()
-
+async def test_compatibility_access_denied_dweller_1(async_client, superuser_token_headers):
+    d1_id, d2_id = uuid4(), uuid4()
     with (
         patch(
-            "app.api.v1.endpoints.relationship.verify_dweller_access",
+            f"{EP}verify_dweller_access",
             AsyncMock(side_effect=AccessDeniedException("The user doesn't have enough privileges")),
         ),
     ):
         response = await async_client.get(
-            f"/relationships/compatibility/{d1_id}/{d2_id}",
-            headers=superuser_token_headers,
+            f"/relationships/compatibility/{d1_id}/{d2_id}", headers=superuser_token_headers
         )
     assert response.status_code == 403
 
 
-# --- POST /relationships/vault/{vault_id}/process --------------------------
-
-
-@pytest.mark.asyncio
-async def test_process_vault_breeding_success(
-    async_client: AsyncClient,
-    superuser_token_headers: dict[str, str],
-) -> None:
+async def test_process_vault_breeding_success(async_client, superuser_token_headers):
     vault_id = uuid4()
-    mock_stats = {
-        "conceptions": 1,
-        "births": 0,
-        "pairs_processed": 3,
-        "relationships_processed": 5,
-    }
-
+    mock_stats = {"conceptions": 1, "births": 0, "pairs_processed": 3, "relationships_processed": 5}
     with (
-        patch(
-            "app.api.v1.endpoints.relationship.get_user_vault_or_403",
-            AsyncMock(return_value=None),
-        ),
+        patch(f"{EP}get_user_vault_or_403", AsyncMock(return_value=None)),
         patch(
             "app.services.game_loop_service.game_loop_service._process_breeding",
             AsyncMock(return_value=mock_stats),
         ),
     ):
-        response = await async_client.post(
-            f"/relationships/vault/{vault_id}/process",
-            headers=superuser_token_headers,
-        )
+        response = await async_client.post(f"/relationships/vault/{vault_id}/process", headers=superuser_token_headers)
     assert response.status_code == 200
     data = response.json()
     assert data["message"] == "Breeding and relationships processed successfully"

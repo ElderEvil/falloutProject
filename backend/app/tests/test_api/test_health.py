@@ -1,20 +1,15 @@
 from unittest.mock import AsyncMock, patch
 
 import pytest
-from httpx import AsyncClient
 from redis.exceptions import ConnectionError as RedisConnectionError
-from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine
+from sqlalchemy.ext.asyncio import AsyncEngine
 
 from app.core.config import settings
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize("failed_service", [None, "postgresql", "redis"])
 async def test_readiness_probes_only_critical_dependencies(
-    async_client: AsyncClient,
-    db_connection: AsyncConnection,
-    monkeypatch: pytest.MonkeyPatch,
-    failed_service: str | None,
+    async_client, db_connection, monkeypatch, failed_service
 ) -> None:
     redis_client = AsyncMock()
     if failed_service == "redis":
@@ -36,7 +31,6 @@ async def test_readiness_probes_only_critical_dependencies(
                 response = await async_client.get("https://testserver/readiness")
         else:
             response = await async_client.get("https://testserver/readiness")
-
     assert response.status_code == (503 if failed_service else 200)
     body = response.json()
     assert body["status"] == ("not_ready" if failed_service else "ready")
@@ -50,13 +44,11 @@ async def test_readiness_probes_only_critical_dependencies(
     ai.assert_not_called()
 
 
-@pytest.mark.asyncio
-async def test_liveness_stays_lightweight_and_does_not_probe_dependencies(async_client: AsyncClient) -> None:
+async def test_liveness_stays_lightweight_and_does_not_probe_dependencies(async_client) -> None:
     with (
         patch.object(AsyncEngine, "connect", side_effect=AssertionError("Unexpected database probe")),
         patch("app.core.health_check.Redis", side_effect=AssertionError("Unexpected Redis probe")),
     ):
         response = await async_client.get("https://testserver/healthcheck")
-
     assert response.status_code == 200
     assert response.json() == {"status": "ok"}

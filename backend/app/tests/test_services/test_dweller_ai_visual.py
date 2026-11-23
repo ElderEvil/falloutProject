@@ -6,8 +6,13 @@ from pydantic_ai.exceptions import UnexpectedModelBehavior
 
 from app.core.enums import AgeGroupEnum
 from app.crud.storage import storage as storage_crud
+from app.options.appearance import background_options, body_type_options, haircuts, pose_options, skin_tone_options
+from app.options.factions import faction_restrictions
+from app.options.presets import archetypes
+from app.options.races import RaceOption, race_descriptions
 from app.schemas.dweller import DwellerVisualAttributes
 from app.services.dweller_ai_service import dweller_ai, restrict_equipment_fields
+from app.tests.test_services.test_dweller_ai_helpers import SVC, ai_env, fake_db, make_dweller, make_user
 from app.utils.exceptions import AIProviderException
 
 
@@ -24,7 +29,6 @@ async def test_avatar_race_change_normalizes_age_and_medical_inventory(async_ses
     dweller.radaway = 2
     async_session.add(dweller)
     await async_session.commit()
-
     with patch.object(dweller_ai, "generate_photo", new=AsyncMock(return_value=dweller)):
         await dweller_ai.generate_dweller_avatar(
             dweller_id=dweller.id,
@@ -34,7 +38,6 @@ async def test_avatar_race_change_normalizes_age_and_medical_inventory(async_ses
             db_session=async_session,
             user=MagicMock(),
         )
-
     await async_session.refresh(dweller)
     storage = await storage_crud.get_by_vault(async_session, dweller.vault_id)
     assert dweller.age_group == AgeGroupEnum.ADULT
@@ -44,53 +47,33 @@ async def test_avatar_race_change_normalizes_age_and_medical_inventory(async_ses
     assert storage.radaway >= 2
 
 
-@patch("app.services.dweller_ai_service.llm_interaction_crud")
-@patch("app.services.dweller_ai_service.visual_attributes_agent")
-@patch("app.services.dweller_ai_service.dweller_crud")
-@patch("app.services.dweller_ai_service.quota_service")
-async def test_generate_replaces_substantial_attrs(
-    mock_quota: MagicMock, mock_crud: MagicMock, mock_agent: MagicMock, mock_llm: MagicMock
-) -> None:
-    mock_quota.check_quota = AsyncMock(return_value=MagicMock(allowed=True))
-    mock_crud.update = AsyncMock(return_value=MagicMock())
-    mock_llm.create = AsyncMock()
-
-    mock_dweller = MagicMock()
-    mock_dweller.visual_attributes = {
-        "race": "human",
-        "faction": "vault_dweller",
-        "height": "tall",
-        "build": "athletic",
-        "voice_line_text": "Stay sharp.",
-        "voice_line_url": "https://audio.example/voice.mp3",
-    }
-    mock_dweller.first_name = "Test"
-    mock_dweller.last_name = "Dweller"
-    mock_dweller.gender = "male"
-    mock_dweller.bio = "A test dweller."
-    mock_dweller.id = uuid.UUID("00000000-0000-0000-0000-000000000001")
-
+async def test_generate_replaces_substantial_attrs() -> None:
     output = DwellerVisualAttributes(
         race="synth", faction="the_institute", state_of_being="gen_3", height="average", hair_color="red"
     )
-    result = MagicMock()
-    result.output = output
-    result.usage.return_value = MagicMock(input_tokens=100, output_tokens=50, total_tokens=150)
-    mock_agent.run = AsyncMock(return_value=result)
-    updated_dweller = MagicMock()
-    updated_dweller.visual_attributes = {"height": "average", "hair_color": "red"}
-    mock_crud.get_full_info = AsyncMock(return_value=updated_dweller)
-
-    user = MagicMock()
-    user.id = uuid.uuid4()
-    generated = await dweller_ai.generate_visual_attributes(
-        user=user, db_session=MagicMock(commit=AsyncMock()), dweller_info=mock_dweller
+    dweller = make_dweller(
+        "A test dweller.",
+        id=uuid.UUID("00000000-0000-0000-0000-000000000001"),
+        visual_attributes={
+            "race": "human",
+            "faction": "vault_dweller",
+            "height": "tall",
+            "build": "athletic",
+            "voice_line_text": "Stay sharp.",
+            "voice_line_url": "https://audio.example/voice.mp3",
+        },
     )
-
-    deps = mock_agent.run.call_args.kwargs["deps"]
+    updated = MagicMock()
+    updated.visual_attributes = {"height": "average", "hair_color": "red"}
+    with ai_env("visual_attributes_agent", output) as d:
+        d.crud.get_full_info = AsyncMock(return_value=updated)
+        generated = await dweller_ai.generate_visual_attributes(
+            user=make_user(), db_session=fake_db(), dweller_info=dweller
+        )
+    deps = d.agent.run.call_args.kwargs["deps"]
     assert deps.race == "human"
     assert deps.faction == "vault_dweller"
-    stored = mock_crud.update.call_args.args[2].visual_attributes
+    stored = d.crud.update.call_args.args[2].visual_attributes
     assert stored.race == "human"
     assert stored.faction == "vault_dweller"
     assert stored.height == "average"
@@ -98,26 +81,10 @@ async def test_generate_replaces_substantial_attrs(
     assert stored.build is None
     assert stored.voice_line_text == "Stay sharp."
     assert stored.voice_line_url == "https://audio.example/voice.mp3"
-    assert generated is updated_dweller
+    assert generated is updated
 
 
-@patch("app.services.dweller_ai_service.get_provider_model_snapshot", new_callable=AsyncMock)
-@patch("app.services.dweller_ai_service.get_instructions", new_callable=AsyncMock)
-@patch("app.services.dweller_ai_service.visual_attributes_agent")
-@patch("app.services.dweller_ai_service.dweller_crud")
-@patch("app.services.dweller_ai_service.quota_service")
-async def test_generate_visual_attributes_maps_invalid_ai_output_to_safe_error(
-    mock_quota: MagicMock,
-    mock_crud: MagicMock,
-    mock_agent: MagicMock,
-    mock_instructions: AsyncMock,
-    mock_provider_model: AsyncMock,
-) -> None:
-    mock_quota.check_quota = AsyncMock(return_value=MagicMock(allowed=True))
-    mock_instructions.return_value = ("instructions", uuid.uuid4(), "instructions-hash")
-    mock_provider_model.return_value = ("lmstudio", "test-model")
-    mock_agent.run = AsyncMock(side_effect=UnexpectedModelBehavior("invalid JSON"))
-
+async def test_generate_visual_attributes_maps_invalid_ai_output_to_safe_error() -> None:
     dweller = MagicMock(
         id=uuid.uuid4(),
         first_name="Test",
@@ -128,12 +95,18 @@ async def test_generate_visual_attributes_maps_invalid_ai_output_to_safe_error(
         weapon=None,
         outfit=None,
     )
-
-    with pytest.raises(AIProviderException) as exc_info:
-        await dweller_ai.generate_visual_attributes(
-            user=MagicMock(id=uuid.uuid4()), db_session=MagicMock(commit=AsyncMock()), dweller_info=dweller
-        )
-
+    with (
+        ai_env("visual_attributes_agent", None) as d,
+        patch(f"{SVC}.get_instructions", new_callable=AsyncMock) as instructions,
+        patch(f"{SVC}.get_provider_model_snapshot", new_callable=AsyncMock) as provider_model,
+    ):
+        instructions.return_value = ("instructions", uuid.uuid4(), "instructions-hash")
+        provider_model.return_value = ("lmstudio", "test-model")
+        d.agent.run = AsyncMock(side_effect=UnexpectedModelBehavior("invalid JSON"))
+        with pytest.raises(AIProviderException) as exc_info:
+            await dweller_ai.generate_visual_attributes(
+                user=MagicMock(id=uuid.uuid4()), db_session=fake_db(), dweller_info=dweller
+            )
     assert exc_info.value.status_code == 502
     assert exc_info.value.detail == "The AI provider returned an invalid appearance response. Please try again."
 
@@ -147,19 +120,12 @@ def test_restrict_equipment_fields_removes_non_owned() -> None:
 
 
 def test_race_options() -> None:
-    """Race options should be importable with correct values."""
-    from app.options.races import RaceOption, race_descriptions
-
     assert len(list(RaceOption)) == 4
     assert RaceOption.HUMAN.value == "human"
     assert RaceOption.GHOUL in race_descriptions
 
 
 def test_faction_restrictions() -> None:
-    """Faction restrictions should map correctly per race."""
-    from app.options.factions import faction_restrictions
-    from app.options.races import RaceOption
-
     assert RaceOption.HUMAN in faction_restrictions
     assert len(faction_restrictions[RaceOption.HUMAN]) > 5  # Humans have many factions
     assert len(faction_restrictions[RaceOption.GHOUL]) < 5  # Ghouls have fewer
@@ -167,10 +133,6 @@ def test_faction_restrictions() -> None:
 
 
 def test_appearance_options_per_race() -> None:
-    """Appearance options should be organized by race."""
-    from app.options.appearance import body_type_options, haircuts, skin_tone_options
-    from app.options.races import RaceOption
-
     for race in RaceOption:
         assert race in skin_tone_options
         assert race in body_type_options
@@ -178,15 +140,11 @@ def test_appearance_options_per_race() -> None:
 
 
 def test_presets_exist() -> None:
-    from app.options.presets import archetypes
-
     assert len(archetypes) >= 5
     assert "Vault Dweller" in archetypes
     assert "Super Mutant Brute" in archetypes
 
 
 def test_scene_options_are_part_of_the_appearance_catalogue() -> None:
-    from app.options.appearance import background_options, pose_options
-
     assert len(pose_options) >= 5
     assert len(background_options) >= 5

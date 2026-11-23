@@ -1,9 +1,6 @@
-"""Conversation CRUD: lazy race-safe get_or_create and touch."""
-
 from uuid import UUID
 
 import pytest
-from sqlalchemy.exc import IntegrityError
 from sqlmodel import func, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -27,49 +24,53 @@ async def _count(async_session: AsyncSession) -> int:
     return (await async_session.execute(select(func.count()).select_from(Conversation))).scalar_one()
 
 
-async def test_get_or_create_creates_then_reuses_one_row(
-    async_session: AsyncSession, vault: Vault, dweller: Dweller
+async def _thread(session: AsyncSession, vault_id, user_id, dweller_id):
+    return await crud.conversation.get_or_create(session, vault_id=vault_id, user_id=user_id, dweller_id=dweller_id)
+
+
+async def _other_user(session: AsyncSession, suffix: str):
+    user = build_user_model(username=f"merge{suffix}", email=f"merge{suffix}@example.com")
+    session.add(user)
+    await session.commit()
+    return user
+
+
+async def test_get_or_create_reuses_one_row_and_separates_dweller_pairs(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller, dweller_data: dict
 ) -> None:
     user_id, vault_id = await _ids(async_session, vault)
-    first = await crud.conversation.get_or_create(
-        async_session, vault_id=vault_id, user_id=user_id, dweller_id=dweller.id
-    )
+    first = await _thread(async_session, vault_id, user_id, dweller.id)
     assert first.id.version == 7
     assert first.message_count == 0
-    second = await crud.conversation.get_or_create(
-        async_session, vault_id=vault_id, user_id=user_id, dweller_id=dweller.id
-    )
+    second = await _thread(async_session, vault_id, user_id, dweller.id)
     assert second.id == first.id
     await async_session.flush()
     assert await _count(async_session) == 1
+
+    other = await crud.dweller.create(async_session, obj_in=DwellerCreate(**dweller_data, vault_id=vault_id))
+    third = await _thread(async_session, vault_id, user_id, other.id)
+    assert third.id != first.id
+    await async_session.flush()
+    assert await _count(async_session) == 2
 
 
 async def test_get_or_create_recovers_from_create_race(
     async_session: AsyncSession, vault: Vault, dweller: Dweller, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Staged race (the repo pattern): the loser's pre-insert SELECT saw nothing, its INSERT
-    hits the unique constraint, and it must re-select the winner's row instead of raising.
-    """
+    # Staged race: the loser's pre-insert SELECT saw nothing and its INSERT hit the unique
+    # constraint, so it must re-select the winner's row instead of raising.
     user_id, vault_id = await _ids(async_session, vault)
-    winner = await crud.conversation.get_or_create(
-        async_session, vault_id=vault_id, user_id=user_id, dweller_id=dweller.id
-    )
+    winner = await _thread(async_session, vault_id, user_id, dweller.id)
     await async_session.flush()
-
     real_get = CRUDConversation.get_by_pair
     calls = {"n": 0}
 
     async def stale_none_get(self, db, *, user_id, dweller_id):
         calls["n"] += 1
-        if calls["n"] == 1:
-            return None
-        return await real_get(self, db, user_id=user_id, dweller_id=dweller_id)
+        return None if calls["n"] == 1 else await real_get(self, db, user_id=user_id, dweller_id=dweller_id)
 
     monkeypatch.setattr(CRUDConversation, "get_by_pair", stale_none_get)
-    recovered = await crud.conversation.get_or_create(
-        async_session, vault_id=vault_id, user_id=user_id, dweller_id=dweller.id
-    )
-
+    recovered = await _thread(async_session, vault_id, user_id, dweller.id)
     assert calls["n"] == 2  # stale pre-insert view + recovery re-select
     assert recovered.id == winner.id
     # The caller's transaction must stay usable after the savepoint rollback.
@@ -77,27 +78,9 @@ async def test_get_or_create_recovers_from_create_race(
     assert await _count(async_session) == 1
 
 
-async def test_get_or_create_separates_dweller_pairs(
-    async_session: AsyncSession, vault: Vault, dweller: Dweller, dweller_data: dict
-) -> None:
-    user_id, vault_id = await _ids(async_session, vault)
-    other = await crud.dweller.create(async_session, obj_in=DwellerCreate(**dweller_data, vault_id=vault_id))
-    first = await crud.conversation.get_or_create(
-        async_session, vault_id=vault_id, user_id=user_id, dweller_id=dweller.id
-    )
-    second = await crud.conversation.get_or_create(
-        async_session, vault_id=vault_id, user_id=user_id, dweller_id=other.id
-    )
-    assert first.id != second.id
-    await async_session.flush()
-    assert await _count(async_session) == 2
-
-
 async def test_touch_bumps_count_and_timestamp(async_session: AsyncSession, vault: Vault, dweller: Dweller) -> None:
     user_id, vault_id = await _ids(async_session, vault)
-    conversation = await crud.conversation.get_or_create(
-        async_session, vault_id=vault_id, user_id=user_id, dweller_id=dweller.id
-    )
+    conversation = await _thread(async_session, vault_id, user_id, dweller.id)
     at = utcnow()
     touched = await crud.conversation.touch(async_session, conversation, at=at)
     assert touched.message_count == 1
@@ -109,17 +92,10 @@ async def test_touch_bumps_count_and_timestamp(async_session: AsyncSession, vaul
     await async_session.flush()
 
 
-async def _other_user(session: AsyncSession, suffix: str):
-    user = build_user_model(username=f"merge{suffix}", email=f"merge{suffix}@example.com")
-    session.add(user)
-    await session.commit()
-    return user
-
-
 async def test_reassign_user_moves_a_thread_to_the_surviving_account(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
 ) -> None:
-    """A merged-away account's thread must follow its messages, or continuity is lost."""
+    # A merged-away account's thread must follow its messages, or continuity is lost.
     _, vault_id = await _ids(async_session, vault)
     source = await _other_user(async_session, "src")
     target = await _other_user(async_session, "tgt")
@@ -139,7 +115,7 @@ async def test_reassign_user_moves_a_thread_to_the_surviving_account(
 async def test_reassign_user_folds_a_duplicate_dweller_thread_onto_the_targets(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
 ) -> None:
-    """Both sides may hold a thread for the same dweller; messages must not be orphaned."""
+    # Both sides may hold a thread for the same dweller; messages must not be orphaned.
     _, vault_id = await _ids(async_session, vault)
     source = await _other_user(async_session, "src2")
     target = await _other_user(async_session, "tgt2")

@@ -41,16 +41,13 @@ async def test_passwordless_user_cannot_authenticate(async_session: AsyncSession
     data = create_fake_user()
     async_session.add(User(username=data["username"], email=data["email"], hashed_password=None))
     await async_session.commit()
-
     assert await crud.user.authenticate(async_session, email=data["email"], password=data["password"]) is None
 
 
 @pytest.mark.asyncio
 async def test_create_commits_user_and_profile_together(async_session: AsyncSession) -> None:
     data = create_fake_user()
-
     user = await crud.user.create(async_session, obj_in=UserCreate(**data))
-
     profile = await async_session.execute(select(UserProfile).where(col(UserProfile.user_id) == user.id))
     assert profile.scalar_one_or_none() is not None
 
@@ -59,10 +56,8 @@ async def test_create_commits_user_and_profile_together(async_session: AsyncSess
 async def test_create_duplicate_still_raises_conflict(async_session: AsyncSession) -> None:
     data = create_fake_user()
     await crud.user.create(async_session, obj_in=UserCreate(**data))
-
     with pytest.raises(ResourceConflictException) as exc_info:
         await crud.user.create(async_session, obj_in=UserCreate(**data))
-
     assert "User already exists" in exc_info.value.detail
 
 
@@ -77,18 +72,15 @@ async def test_profile_failure_leaves_no_user_row(async_session: AsyncSession, m
     user_crud_module = importlib.import_module("app.crud.user")
     monkeypatch.setattr(user_crud_module, "UserProfile", _FailingProfile)
     data = create_fake_user()
-
     with pytest.raises(RuntimeError):
         await crud.user.create(async_session, obj_in=UserCreate(**data))
     await async_session.rollback()
-
     assert await crud.user.get_by_email(async_session, email=data["email"]) is None
 
 
 def test_build_user_model_supports_passwordless_accounts() -> None:
     with_password = build_user_model(username="alice", email="alice@example.com", password="Secret123!")
     without_password = build_user_model(username="bob", email="bob@example.com")
-
     assert with_password.hashed_password is not None
     assert with_password.hashed_password.startswith("$argon2")
     assert without_password.hashed_password is None
@@ -102,9 +94,7 @@ async def test_authenticate_rehashes_legacy_bcrypt_password(async_session: Async
     user = User(username=data["username"], email=data["email"], hashed_password=legacy)
     async_session.add(user)
     await async_session.commit()
-
     authenticated = await crud.user.authenticate(async_session, email=user.email, password=password)
-
     assert authenticated is not None
     await async_session.refresh(user)
     assert user.hashed_password.startswith("$argon2")
@@ -118,8 +108,6 @@ async def test_authenticate_wrong_password_does_not_rehash(async_session: AsyncS
     user = User(username=data["username"], email=data["email"], hashed_password=legacy)
     async_session.add(user)
     await async_session.commit()
-
     assert await crud.user.authenticate(async_session, email=user.email, password="wrong") is None
-
     await async_session.refresh(user)
     assert user.hashed_password == legacy

@@ -1,5 +1,6 @@
 import asyncio
 import time
+from contextlib import contextmanager
 from types import SimpleNamespace
 from unittest.mock import ANY, AsyncMock, patch
 from uuid import uuid4
@@ -18,16 +19,57 @@ from app.api.tasks import (
     game_tick,
     process_vault_tick,
 )
+from app.api.world_event_tasks import _advance_world_event, advance_world_event
 from app.core.dramatiq import broker
-from app.core.tick_profiling import (
-    TickProfile,
-    reset_current_profile,
-    set_current_profile,
-    tick_phase,
-)
+from app.core.tick_profiling import TickProfile, reset_current_profile, set_current_profile, tick_phase
 from app.models.pregnancy import Pregnancy
 from app.models.vault import Vault
 from app.utils.exceptions import ResourceNotFoundException
+
+TASKS = "app.api.tasks."
+PROCESS = TASKS + "game_loop_service.process_vault_tick"
+TASK_SESSION = TASKS + "task_session"
+
+
+class _FakeTaskSession:
+    def __init__(self) -> None:
+        self.session = AsyncMock()
+
+    async def __aenter__(self) -> AsyncMock:
+        return self.session
+
+    async def __aexit__(self, *args) -> None:
+        return None
+
+
+class _HeldLock:
+    def __init__(self, *, acquired: bool) -> None:
+        self.acquired = acquired
+
+    async def __aenter__(self) -> bool:
+        return self.acquired
+
+    async def __aexit__(self, *args) -> None:
+        return None
+
+
+@pytest.fixture
+async def redis():
+    client = fakeredis.aioredis.FakeRedis(decode_responses=True)
+    try:
+        yield client
+    finally:
+        await client.aclose()
+
+
+@contextmanager
+def _tick_env():
+    with (
+        patch(TASK_SESSION, new=_FakeTaskSession),
+        patch("app.services.progression.objectives.evaluators.evaluator_manager.initialize"),
+        patch("app.services.progression.objectives.notifications.register_objective_event_handlers"),
+    ):
+        yield
 
 
 def test_quest_completion_is_scheduled_every_minute() -> None:
@@ -50,7 +92,6 @@ def test_tick_profile_records_named_phases() -> None:
             pass
     finally:
         reset_current_profile(token)
-
     profile.finish()
     assert set(profile.phases) == {"first", "second"}
     assert profile.phases["first"] >= 0
@@ -62,47 +103,28 @@ def test_tick_profile_records_named_phases() -> None:
     assert summary["dispatch_key"] == "dispatch-key"
 
 
-class _FakeTaskSession:
-    def __init__(self) -> None:
-        self.session = AsyncMock()
-
-    async def __aenter__(self) -> AsyncMock:
-        return self.session
-
-    async def __aexit__(self, *args) -> None:
-        return None
-
-
-@pytest.mark.asyncio
 async def test_check_quest_completion_drives_both_passes() -> None:
     with (
-        patch("app.api.tasks.task_session", new=lambda: _FakeTaskSession()),
+        patch(TASK_SESSION, new=_FakeTaskSession),
         patch(
             "app.services.progression.quests.service.quest_service.check_and_complete_quests",
             new=AsyncMock(return_value=2),
         ) as check,
     ):
         count = await _check_quest_completion()
-
     assert count == 2
     check.assert_awaited_once()
 
 
-@pytest.mark.asyncio
 async def test_dispatch_game_tick_enqueues_every_active_vault_with_one_tick_id() -> None:
     vault_ids = [uuid4(), uuid4()]
     tick_id = "dispatch-1"
-
     with (
-        patch("app.api.tasks.task_session", new=lambda: _FakeTaskSession()),
-        patch(
-            "app.api.tasks.game_loop_service.get_active_vault_ids",
-            new=AsyncMock(return_value=vault_ids),
-        ),
+        patch(TASK_SESSION, new=_FakeTaskSession),
+        patch("app.api.tasks.game_loop_service.get_active_vault_ids", new=AsyncMock(return_value=vault_ids)),
         patch("app.api.tasks.process_vault_tick.send") as send,
     ):
         stats = await _dispatch_game_tick(tick_id)
-
     assert stats == {"vaults_dispatched": 2}
     assert [(call.args[0], call.args[1]) for call in send.call_args_list] == [
         (str(vault_id), tick_id) for vault_id in vault_ids
@@ -116,63 +138,40 @@ def test_game_tick_uses_the_current_dramatiq_message_id() -> None:
         patch("app.api.tasks._dispatch_game_tick", new=AsyncMock(return_value={"vaults_dispatched": 2})) as dispatch,
     ):
         game_tick.fn()
-
     dispatch.assert_awaited_once_with("dispatch-1")
 
 
-@pytest.mark.asyncio
-async def test_vault_tick_lock_is_exclusive_and_releasable() -> None:
-    redis = fakeredis.aioredis.FakeRedis(decode_responses=True)
-    try:
-        token = await _acquire_vault_tick_lock(redis, "vault-1")
-        assert token is not None
-        assert await _acquire_vault_tick_lock(redis, "vault-1") is None
-
-        await _release_vault_tick_lock(redis, "vault-1", token)
-
-        assert await _acquire_vault_tick_lock(redis, "vault-1") is not None
-    finally:
-        await redis.aclose()
+async def test_vault_tick_lock_is_exclusive_and_releasable(redis) -> None:
+    token = await _acquire_vault_tick_lock(redis, "vault-1")
+    assert token is not None
+    assert await _acquire_vault_tick_lock(redis, "vault-1") is None
+    await _release_vault_tick_lock(redis, "vault-1", token)
+    assert await _acquire_vault_tick_lock(redis, "vault-1") is not None
 
 
-@pytest.mark.asyncio
-async def test_process_vault_tick_skips_when_another_worker_holds_the_lock() -> None:
+async def test_process_vault_tick_skips_when_another_worker_holds_the_lock(redis) -> None:
     """A duplicate dispatch must not run the vault tick twice."""
     vault_id = str(uuid4())
-    redis = fakeredis.aioredis.FakeRedis(decode_responses=True)
-    try:
-        await _acquire_vault_tick_lock(redis, vault_id)
-        with patch("app.api.tasks.game_loop_service.process_vault_tick", new=AsyncMock()) as process:
-            result = await _process_vault_tick_async(vault_id, redis)
-
-        assert result == {"status": "skipped"}
-        process.assert_not_awaited()
-    finally:
-        await redis.aclose()
+    await _acquire_vault_tick_lock(redis, vault_id)
+    with patch(PROCESS, new=AsyncMock()) as process:
+        result = await _process_vault_tick_async(vault_id, redis)
+    assert result == {"status": "skipped"}
+    process.assert_not_awaited()
 
 
-@pytest.mark.asyncio
-async def test_process_vault_tick_passes_the_dispatch_id_to_the_service() -> None:
+async def test_process_vault_tick_passes_the_dispatch_id_to_the_service(redis) -> None:
     """The actor delegates dispatch idempotency to the service."""
     vault_id = str(uuid4())
-    redis = fakeredis.aioredis.FakeRedis(decode_responses=True)
-    try:
-        with (
-            patch("app.api.tasks.task_session", new=lambda: _FakeTaskSession()),
-            patch("app.services.progression.objectives.evaluators.evaluator_manager.initialize"),
-            patch("app.services.progression.objectives.notifications.register_objective_event_handlers"),
-            patch(
-                "app.api.tasks.game_loop_service.process_vault_tick",
-                new=AsyncMock(return_value={"vault_id": vault_id}),
-            ) as process,
-        ):
-            result = await _process_vault_tick_async(vault_id, redis, "dispatch-1")
-
-        assert result == {"vault_id": vault_id}
-        assert process.await_args.args[2] == "dispatch-1"
-        assert await redis.get(f"fallout:vault-tick:{vault_id}") is None
-    finally:
-        await redis.aclose()
+    with (
+        _tick_env(),
+        patch(
+            "app.api.tasks.game_loop_service.process_vault_tick", new=AsyncMock(return_value={"vault_id": vault_id})
+        ) as process,
+    ):
+        result = await _process_vault_tick_async(vault_id, redis, "dispatch-1")
+    assert result == {"vault_id": vault_id}
+    assert process.await_args.args[2] == "dispatch-1"
+    assert await redis.get(f"fallout:vault-tick:{vault_id}") is None
 
 
 def test_process_vault_tick_actor_discards_the_internal_result(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -183,7 +182,6 @@ def test_process_vault_tick_actor_discards_the_internal_result(monkeypatch: pyte
         new=AsyncMock(return_value={"vault_id": "vault-1", "updates": {}}),
     ) as process:
         assert process_vault_tick.fn("vault-1") is None
-
     process.assert_awaited_once_with("vault-1", ANY, None)
 
 
@@ -197,79 +195,50 @@ def test_process_vault_tick_actor_still_raises_for_retry(monkeypatch: pytest.Mon
         process_vault_tick.fn("vault-1")
 
 
-@pytest.mark.asyncio
-async def test_process_vault_tick_releases_lease_on_failure_for_retry() -> None:
+async def test_process_vault_tick_releases_lease_on_failure_for_retry(redis) -> None:
     """A failed tick must release its lease so the retry can run."""
     vault_id = str(uuid4())
-    redis = fakeredis.aioredis.FakeRedis(decode_responses=True)
-    try:
-        with (
-            patch("app.api.tasks.task_session", new=lambda: _FakeTaskSession()),
-            patch("app.services.progression.objectives.evaluators.evaluator_manager.initialize"),
-            patch("app.services.progression.objectives.notifications.register_objective_event_handlers"),
-            patch(
-                "app.api.tasks.game_loop_service.process_vault_tick",
-                new=AsyncMock(side_effect=RuntimeError("boom")),
-            ),
-            pytest.raises(RuntimeError),
-        ):
-            await _process_vault_tick_async(vault_id, redis, "dispatch-1")
-
-        assert await redis.get(f"fallout:vault-tick:{vault_id}") is None
-    finally:
-        await redis.aclose()
+    with (
+        _tick_env(),
+        patch(PROCESS, new=AsyncMock(side_effect=RuntimeError("boom"))),
+        pytest.raises(RuntimeError),
+    ):
+        await _process_vault_tick_async(vault_id, redis, "dispatch-1")
+    assert await redis.get(f"fallout:vault-tick:{vault_id}") is None
 
 
-@pytest.mark.asyncio
-async def test_process_vault_tick_treats_deleted_vault_as_missing() -> None:
+async def test_process_vault_tick_treats_deleted_vault_as_missing(redis) -> None:
     vault_id = str(uuid4())
-    redis = fakeredis.aioredis.FakeRedis(decode_responses=True)
-    try:
-        with (
-            patch("app.api.tasks.task_session", new=lambda: _FakeTaskSession()),
-            patch("app.services.progression.objectives.evaluators.evaluator_manager.initialize"),
-            patch("app.services.progression.objectives.notifications.register_objective_event_handlers"),
-            patch(
-                "app.api.tasks.game_loop_service.process_vault_tick",
-                new=AsyncMock(side_effect=ResourceNotFoundException(Vault, vault_id)),
-            ),
-        ):
-            result = await _process_vault_tick_async(vault_id, redis)
-
-        assert result == {"status": "missing"}
-        assert await redis.get(f"fallout:vault-tick:{vault_id}") is None
-    finally:
-        await redis.aclose()
+    with (
+        _tick_env(),
+        patch(
+            "app.api.tasks.game_loop_service.process_vault_tick",
+            new=AsyncMock(side_effect=ResourceNotFoundException(Vault, vault_id)),
+        ),
+    ):
+        result = await _process_vault_tick_async(vault_id, redis)
+    assert result == {"status": "missing"}
+    assert await redis.get(f"fallout:vault-tick:{vault_id}") is None
 
 
-@pytest.mark.asyncio
-async def test_process_vault_tick_reraises_missing_non_vault_resources() -> None:
+async def test_process_vault_tick_reraises_missing_non_vault_resources(redis) -> None:
     """A missing pregnancy or parent must retry, not masquerade as a deleted vault."""
     vault_id = str(uuid4())
-    redis = fakeredis.aioredis.FakeRedis(decode_responses=True)
-    try:
-        with (
-            patch("app.api.tasks.task_session", new=lambda: _FakeTaskSession()),
-            patch("app.services.progression.objectives.evaluators.evaluator_manager.initialize"),
-            patch("app.services.progression.objectives.notifications.register_objective_event_handlers"),
-            patch(
-                "app.api.tasks.game_loop_service.process_vault_tick",
-                new=AsyncMock(side_effect=ResourceNotFoundException(Pregnancy, uuid4())),
-            ),
-            pytest.raises(ResourceNotFoundException),
-        ):
-            await _process_vault_tick_async(vault_id, redis)
-
-        assert await redis.get(f"fallout:vault-tick:{vault_id}") is None
-    finally:
-        await redis.aclose()
+    with (
+        _tick_env(),
+        patch(
+            "app.api.tasks.game_loop_service.process_vault_tick",
+            new=AsyncMock(side_effect=ResourceNotFoundException(Pregnancy, uuid4())),
+        ),
+        pytest.raises(ResourceNotFoundException),
+    ):
+        await _process_vault_tick_async(vault_id, redis)
+    assert await redis.get(f"fallout:vault-tick:{vault_id}") is None
 
 
-@pytest.mark.asyncio
-async def test_vault_tick_heartbeat_keeps_the_lease_alive(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_vault_tick_heartbeat_keeps_the_lease_alive(redis, monkeypatch: pytest.MonkeyPatch) -> None:
     """A tick longer than the base TTL must not overlap a second worker."""
     vault_id = str(uuid4())
-    redis = fakeredis.aioredis.FakeRedis(decode_responses=True)
     monkeypatch.setattr("app.api.tasks.VAULT_TICK_LOCK_TTL_SECONDS", 1)
     monkeypatch.setattr("app.api.tasks.VAULT_TICK_LOCK_RENEW_INTERVAL_SECONDS", 0.2)
 
@@ -277,37 +246,22 @@ async def test_vault_tick_heartbeat_keeps_the_lease_alive(monkeypatch: pytest.Mo
         await asyncio.sleep(1.5)
         return {"vault_id": vault_id}
 
-    try:
-        with (
-            patch("app.api.tasks.task_session", new=lambda: _FakeTaskSession()),
-            patch("app.services.progression.objectives.evaluators.evaluator_manager.initialize"),
-            patch("app.services.progression.objectives.notifications.register_objective_event_handlers"),
-            patch("app.api.tasks.game_loop_service.process_vault_tick", new=slow_tick),
-        ):
-            first = asyncio.create_task(_process_vault_tick_async(vault_id, redis))
-            await asyncio.sleep(1.2)
-            second = await _process_vault_tick_async(vault_id, redis)
-            result = await first
-
-        assert second == {"status": "skipped"}
-        assert result == {"vault_id": vault_id}
-    finally:
-        await redis.delete(f"fallout:vault-tick:{vault_id}")
-        await redis.aclose()
+    with _tick_env(), patch(PROCESS, new=slow_tick):
+        first = asyncio.create_task(_process_vault_tick_async(vault_id, redis))
+        await asyncio.sleep(1.2)
+        second = await _process_vault_tick_async(vault_id, redis)
+        result = await first
+    assert second == {"status": "skipped"}
+    assert result == {"vault_id": vault_id}
+    await redis.delete(f"fallout:vault-tick:{vault_id}")
 
 
 def test_advance_world_event_actor_runs_the_impl_and_logs() -> None:
-    from app.api.world_event_tasks import advance_world_event
-
     with (
-        patch(
-            "app.api.world_event_tasks._advance_world_event",
-            new=AsyncMock(return_value="completed"),
-        ) as advance,
+        patch("app.api.world_event_tasks._advance_world_event", new=AsyncMock(return_value="completed")) as advance,
         patch("app.api.world_event_tasks.logger.info") as log,
     ):
         result = advance_world_event.fn()
-
     advance.assert_awaited_once()
     assert result == "completed"
     log.assert_called_once()
@@ -315,31 +269,14 @@ def test_advance_world_event_actor_runs_the_impl_and_logs() -> None:
 
 def test_world_event_advance_is_scheduled_every_five_minutes() -> None:
     """Event windows lapse without a player request, so the cron must be registered."""
-    from app.api.world_event_tasks import advance_world_event
-
     assert "periodic" in advance_world_event.options
 
 
-class _HeldLock:
-    def __init__(self, *, acquired: bool) -> None:
-        self.acquired = acquired
-
-    async def __aenter__(self) -> bool:
-        return self.acquired
-
-    async def __aexit__(self, *args) -> None:
-        return None
-
-
-@pytest.mark.asyncio
 async def test_advance_world_event_skips_when_the_lock_is_held() -> None:
-    from app.api.world_event_tasks import _advance_world_event
-
     with (
         patch("app.api.world_event_tasks.task_session", new=lambda: _FakeTaskSession()),
         patch("app.core.db_locks.hold_advisory_lock", new=lambda *_args: _HeldLock(acquired=False)),
         patch("app.services.world_event_service.world_event_service.advance", new=AsyncMock()) as advance,
     ):
         assert await _advance_world_event() == "locked"
-
     advance.assert_not_awaited()

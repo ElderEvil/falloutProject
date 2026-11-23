@@ -7,428 +7,197 @@ from sqlalchemy import event
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
-from app.api.v1.endpoints.dweller import extend_bio
-from app.core.enums import AgeGroupEnum, GenderEnum, RarityEnum
+from app.api.v1.endpoints.dweller import extend_bio, get_revival_cost, revive_dweller
+from app.core.enums import AgeGroupEnum, DwellerStatusEnum, GenderEnum, LifecycleEnum, RarityEnum
+from app.core.game_config import game_config
 from app.crud.storage import storage as storage_crud
 from app.models.dweller import Dweller
 from app.models.room import Room
 from app.models.vault import Vault
-from app.schemas.dweller import DwellerCreate
+from app.options.pet_modifiers import PET_EFFECT_BY_NAME
+from app.schemas.dweller import DwellerCreate, DwellerUpdate, RevivalCostResponse
 from app.services.exploration_service import exploration_service
 from app.tests.factory.dwellers import create_fake_dweller
+from app.utils.exceptions import AccessDeniedException
+
+DOGMEAT = {"name": "Dogmeat (Fallout 4)", "rarity": RarityEnum.LEGENDARY, "value": 500}
+SPECIAL_FIELDS = {"strength", "perception", "endurance", "charisma", "intelligence", "agility", "luck"}
+
+
+async def _save(session: AsyncSession, *objs: object) -> None:
+    session.add_all(objs)
+    await session.commit()
+
+
+def _dweller_in(vault_id, **overrides) -> DwellerCreate:
+    return DwellerCreate(**(create_fake_dweller() | {"vault_id": vault_id} | overrides))
+
+
+async def _radiated(session: AsyncSession, dweller: Dweller) -> None:
+    # Radiation reduces the healing ceiling below max_health.
+    dweller.max_health, dweller.health, dweller.radiation, dweller.stimpack = 100, 30, 40, 1
+    await _save(session, dweller)
+
+
+async def _equip_dogmeat(session: AsyncSession, dweller: Dweller) -> int:
+    pet = await crud.pet.create(session, obj_in=DOGMEAT)
+    await crud.pet.equip(db_session=session, item_id=pet.id, dweller_id=dweller.id)
+    return PET_EFFECT_BY_NAME["dogmeat (fallout 4)"].max_health
 
 
 async def test_extend_bio_endpoint_delegates_to_ai_service() -> None:
-    user = MagicMock()
-    session = MagicMock()
-    dweller_id = uuid4()
-    expected = MagicMock()
-
+    user, session, dweller_id, expected = MagicMock(), MagicMock(), uuid4(), MagicMock()
     with (
         patch("app.api.v1.endpoints.dweller.verify_dweller_access", new=AsyncMock()) as guard,
         patch("app.api.v1.endpoints.dweller.dweller_ai.extend_bio", new=AsyncMock(return_value=expected)) as extend,
     ):
         result = await extend_bio(dweller_id=dweller_id, user=user, db_session=session)
-
     assert result is expected
     guard.assert_awaited_once_with(dweller_id, user, session)
     extend.assert_awaited_once_with(db_session=session, dweller_id=dweller_id, user=user)
 
 
 @pytest.mark.smoke
-@pytest.mark.asyncio
-async def test_create_dweller(
-    async_client: AsyncClient,
-    superuser_token_headers: dict[str, str],
-    room: Room,
-    dweller_data: dict,
-) -> None:
+async def test_create_dweller(async_client, superuser_token_headers, room, dweller_data: dict) -> None:
     dweller_data.update({"vault_id": str(room.vault_id), "room_id": str(room.id)})
     response = await async_client.post("/dwellers/", json=dweller_data, headers=superuser_token_headers)
     assert response.status_code == 200
-    response_data = response.json()
-    assert response_data["first_name"] == dweller_data["first_name"]
-    assert response_data["last_name"] == dweller_data["last_name"]
-    assert response_data["age_group"] == dweller_data["age_group"]
-    assert response_data["gender"] == dweller_data["gender"]
-    assert response_data["rarity"] == dweller_data["rarity"]
-    assert response_data["level"] == dweller_data["level"]
-    assert response_data["experience"] == dweller_data["experience"]
-    assert response_data["max_health"] == dweller_data["max_health"]
-    assert response_data["health"] == dweller_data["health"]
-    assert response_data["radiation"] == dweller_data["radiation"]
-    assert response_data["happiness"] == dweller_data["happiness"]
-    assert response_data["stimpack"] == dweller_data["stimpack"]
-    assert response_data["radaway"] == dweller_data["radaway"]
-    assert "status" in response_data
+    body = response.json()
+    for field in set(dweller_data) - SPECIAL_FIELDS - {"vault_id", "room_id"}:
+        assert body[field] == dweller_data[field]
+    assert "status" in body
 
 
 @pytest.mark.smoke
-@pytest.mark.asyncio
-async def test_read_dweller_list_exposes_weapon_type(
-    async_client: AsyncClient,
-    async_session: AsyncSession,
-    superuser_token_headers: dict[str, str],
-    equipped_dweller: tuple[Dweller, object, object],
-) -> None:
-    """DwellerReadLess must serialize weapon_type without lazy-loading (MissingGreenlet guard)."""
+async def test_read_dweller_list_exposes_weapon_type(async_client, superuser_token_headers, equipped_dweller) -> None:
+    # DwellerReadLess must serialize weapon_type without lazy-loading (MissingGreenlet guard).
     dweller, _, weapon = equipped_dweller
     response = await async_client.get("/dwellers/", headers=superuser_token_headers)
     assert response.status_code == 200
-    by_id = {d["id"]: d for d in response.json()}
-    assert by_id[str(dweller.id)]["weapon_type"] == weapon.weapon_type.value
+    assert {d["id"]: d for d in response.json()}[str(dweller.id)]["weapon_type"] == weapon.weapon_type.value
 
 
 @pytest.mark.smoke
-@pytest.mark.asyncio
-async def test_delete_dweller(
-    async_client: AsyncClient,
-    superuser_token_headers: dict[str, str],
-    dweller: Dweller,
-) -> None:
-    delete_response = await async_client.delete(f"/dwellers/{dweller.id}", headers=superuser_token_headers)
-    assert delete_response.status_code == 204
-    read_response = await async_client.get(f"/dwellers/{dweller.id}", headers=superuser_token_headers)
-    assert read_response.status_code == 404
+async def test_delete_dweller(async_client, superuser_token_headers, dweller) -> None:
+    assert (await async_client.delete(f"/dwellers/{dweller.id}", headers=superuser_token_headers)).status_code == 204
+    assert (await async_client.get(f"/dwellers/{dweller.id}", headers=superuser_token_headers)).status_code == 404
 
 
-@pytest.mark.asyncio
 async def test_delete_exploring_dweller_closes_journey(
-    async_client: AsyncClient,
-    superuser_token_headers: dict[str, str],
-    async_session: AsyncSession,
-    dweller: Dweller,
-    vault: Vault,
+    async_client, superuser_token_headers, async_session, dweller, vault
 ) -> None:
-    exploration = await exploration_service.send_dweller(
+    run = await exploration_service.send_dweller(
         async_session, vault.id, dweller.id, duration=4, stimpaks=0, radaways=0
     )
     await crud.expedition_run.create_run(
-        async_session,
-        exploration_id=exploration.id,
-        vault_id=vault.id,
-        site_id="gloomwater_bog",
+        async_session, exploration_id=run.id, vault_id=vault.id, site_id="gloomwater_bog"
     )
-
-    response = await async_client.delete(f"/dwellers/{dweller.id}", headers=superuser_token_headers)
-    assert response.status_code == 204
-
-    detail = await async_client.get(f"/explorations/{exploration.id}", headers=superuser_token_headers)
+    assert (await async_client.delete(f"/dwellers/{dweller.id}", headers=superuser_token_headers)).status_code == 204
+    detail = await async_client.get(f"/explorations/{run.id}", headers=superuser_token_headers)
     assert detail.status_code == 200
     assert detail.json()["status"] == "recalled"
     assert (await async_client.get(f"/dwellers/{dweller.id}", headers=superuser_token_headers)).status_code == 404
 
 
-@pytest.mark.asyncio
-async def test_filter_dwellers_by_status(
-    async_client: AsyncClient,
-    async_session: AsyncSession,
-    superuser_token_headers: dict[str, str],
-    room: Room,
-) -> None:
-    from app.core.enums import DwellerStatusEnum
-    from app.schemas.dweller import DwellerUpdate
+async def test_filter_dwellers_by_status(async_client, async_session, superuser_token_headers, room) -> None:
+    working = await crud.dweller.create(async_session, _dweller_in(room.vault_id, room_id=room.id))
+    await crud.dweller.create(async_session, _dweller_in(room.vault_id))
+    await crud.dweller.update(async_session, working.id, DwellerUpdate(status=DwellerStatusEnum.WORKING))
 
-    # Create dwellers with different statuses
-    dweller_1_data = create_fake_dweller()
-    dweller_2_data = create_fake_dweller()
-    dweller_1_data.update({"vault_id": str(room.vault_id), "room_id": str(room.id)})
-    dweller_2_data.update({"vault_id": str(room.vault_id)})
-
-    dweller_1_in = DwellerCreate(**dweller_1_data)
-    dweller_2_in = DwellerCreate(**dweller_2_data)
-
-    dweller_1 = await crud.dweller.create(async_session, dweller_1_in)
-    dweller_2 = await crud.dweller.create(async_session, dweller_2_in)
-
-    # Update dweller_1 to WORKING status
-    await crud.dweller.update(async_session, dweller_1.id, DwellerUpdate(status=DwellerStatusEnum.WORKING))
-    # dweller_2 stays IDLE
-
-    # Filter by WORKING status
-    response = await async_client.get(
-        f"/dwellers/vault/{room.vault_id}/?status=working", headers=superuser_token_headers
-    )
-    assert response.status_code == 200
-    dwellers = response.json()
-    assert len(dwellers) == 1
-    assert dwellers[0]["status"] == "working"
-
-    # Filter by IDLE status
-    response = await async_client.get(f"/dwellers/vault/{room.vault_id}/?status=idle", headers=superuser_token_headers)
-    assert response.status_code == 200
-    dwellers = response.json()
-    assert len(dwellers) == 1
-    assert dwellers[0]["status"] == "idle"
+    for status in ("working", "idle"):
+        response = await async_client.get(
+            f"/dwellers/vault/{room.vault_id}/?status={status}", headers=superuser_token_headers
+        )
+        assert response.status_code == 200
+        assert [row["status"] for row in response.json()] == [status]
 
 
-@pytest.mark.asyncio
-async def test_search_dwellers_by_name(
-    async_client: AsyncClient,
-    async_session: AsyncSession,
-    superuser_token_headers: dict[str, str],
-    room: Room,
-) -> None:
-    # Create dwellers with specific names
-    dweller_1_data = create_fake_dweller()
-    dweller_2_data = create_fake_dweller()
-    dweller_1_data.update(
-        {
-            "first_name": "John",
-            "last_name": "Smith",
-            "vault_id": str(room.vault_id),
-        }
-    )
-    dweller_2_data.update(
-        {
-            "first_name": "Jane",
-            "last_name": "Doe",
-            "vault_id": str(room.vault_id),
-        }
-    )
+async def test_search_dwellers_by_name(async_client, async_session, superuser_token_headers, room) -> None:
+    await crud.dweller.create(async_session, _dweller_in(room.vault_id, first_name="John", last_name="Smith"))
+    await crud.dweller.create(async_session, _dweller_in(room.vault_id, first_name="Jane", last_name="Doe"))
 
-    dweller_1_in = DwellerCreate(**dweller_1_data)
-    dweller_2_in = DwellerCreate(**dweller_2_data)
-
-    await crud.dweller.create(async_session, dweller_1_in)
-    await crud.dweller.create(async_session, dweller_2_in)
-
-    # Search by first name
-    response = await async_client.get(f"/dwellers/vault/{room.vault_id}/?search=John", headers=superuser_token_headers)
-    assert response.status_code == 200
-    dwellers = response.json()
-    assert len(dwellers) == 1
-    assert dwellers[0]["first_name"] == "John"
-
-    # Search by last name (case insensitive)
-    response = await async_client.get(f"/dwellers/vault/{room.vault_id}/?search=doe", headers=superuser_token_headers)
-    assert response.status_code == 200
-    dwellers = response.json()
-    assert len(dwellers) == 1
-    assert dwellers[0]["last_name"] == "Doe"
+    for query, field, expected in (("John", "first_name", "John"), ("doe", "last_name", "Doe")):
+        response = await async_client.get(
+            f"/dwellers/vault/{room.vault_id}/?search={query}", headers=superuser_token_headers
+        )
+        assert response.status_code == 200
+        rows = response.json()
+        assert len(rows) == 1
+        assert rows[0][field] == expected
 
 
-@pytest.mark.asyncio
-async def test_sort_dwellers(
-    async_client: AsyncClient,
-    async_session: AsyncSession,
-    superuser_token_headers: dict[str, str],
-    room: Room,
-) -> None:
-    # Create dwellers with different levels
-    dweller_1_data = create_fake_dweller()
-    dweller_2_data = create_fake_dweller()
-    dweller_1_data.update({"level": 5, "vault_id": str(room.vault_id)})
-    dweller_2_data.update({"level": 10, "vault_id": str(room.vault_id)})
+async def test_sort_dwellers(async_client, async_session, superuser_token_headers, room) -> None:
+    await crud.dweller.create(async_session, _dweller_in(room.vault_id, level=5))
+    await crud.dweller.create(async_session, _dweller_in(room.vault_id, level=10))
 
-    dweller_1_in = DwellerCreate(**dweller_1_data)
-    dweller_2_in = DwellerCreate(**dweller_2_data)
-
-    await crud.dweller.create(async_session, dweller_1_in)
-    await crud.dweller.create(async_session, dweller_2_in)
-
-    # Sort by level ascending
-    response = await async_client.get(
-        f"/dwellers/vault/{room.vault_id}/?sort_by=level&order=asc", headers=superuser_token_headers
-    )
-    assert response.status_code == 200
-    dwellers = response.json()
-    assert len(dwellers) == 2
-    assert dwellers[0]["level"] == 5
-    assert dwellers[1]["level"] == 10
-
-    # Sort by level descending
-    response = await async_client.get(
-        f"/dwellers/vault/{room.vault_id}/?sort_by=level&order=desc", headers=superuser_token_headers
-    )
-    assert response.status_code == 200
-    dwellers = response.json()
-    assert len(dwellers) == 2
-    assert dwellers[0]["level"] == 10
-    assert dwellers[1]["level"] == 5
+    for order, levels in (("asc", [5, 10]), ("desc", [10, 5])):
+        response = await async_client.get(
+            f"/dwellers/vault/{room.vault_id}/?sort_by=level&order={order}", headers=superuser_token_headers
+        )
+        assert response.status_code == 200
+        assert [row["level"] for row in response.json()] == levels
 
 
-@pytest.mark.asyncio
-async def test_read_dweller_lineage_not_found(
-    async_client: AsyncClient,
-    superuser_token_headers: dict[str, str],
-) -> None:
-    response = await async_client.get(f"/dwellers/{uuid4()}/lineage", headers=superuser_token_headers)
-    assert response.status_code == 404
+async def test_read_dweller_lineage_not_found(async_client, superuser_token_headers) -> None:
+    assert (await async_client.get(f"/dwellers/{uuid4()}/lineage", headers=superuser_token_headers)).status_code == 404
 
 
-@pytest.mark.asyncio
 async def test_add_bio_addendum_records_dialogue_entry(
-    async_client: AsyncClient,
-    async_session: AsyncSession,
-    superuser_token_headers: dict[str, str],
-    room: Room,
-    dweller_data: dict,
+    async_client, async_session, superuser_token_headers, room, dweller_data: dict
 ) -> None:
-    dweller_data.update({"vault_id": str(room.vault_id)})
-    dweller = await crud.dweller.create(async_session, DwellerCreate(**dweller_data))
-
+    dweller = await crud.dweller.create(async_session, DwellerCreate(**dweller_data | {"vault_id": room.vault_id}))
     response = await async_client.post(
         f"/dwellers/{dweller.id}/bio/addendum/",
         json={"text": "I keep a lucky wrench under my bunk."},
         headers=superuser_token_headers,
     )
-
     assert response.status_code == 200
     body = response.json()
-    entries = body["bio_entries"]
-    assert any(entry["source"] == "dialogue" and "lucky wrench" in entry["text"] for entry in entries)
+    assert any(e["source"] == "dialogue" and "lucky wrench" in e["text"] for e in body["bio_entries"])
     assert "lucky wrench" in body["bio"]
 
 
-@pytest.mark.asyncio
-async def test_add_bio_addendum_rejects_short_text(
-    async_client: AsyncClient,
-    superuser_token_headers: dict[str, str],
-) -> None:
+async def test_add_bio_addendum_rejects_short_text(async_client, superuser_token_headers) -> None:
     response = await async_client.post(
-        f"/dwellers/{uuid4()}/bio/addendum/",
-        json={"text": "short"},
-        headers=superuser_token_headers,
+        f"/dwellers/{uuid4()}/bio/addendum/", json={"text": "short"}, headers=superuser_token_headers
     )
-
     assert response.status_code == 422
 
 
-async def _set_radiated_state(async_session: AsyncSession, dweller: Dweller) -> None:
-    dweller.max_health = 100
-    dweller.health = 30
-    dweller.radiation = 40
-    dweller.stimpack = 1
-    async_session.add(dweller)
-    await async_session.commit()
-
-
-@pytest.mark.asyncio
-async def test_read_dweller_exposes_effective_max_health(
-    async_client: AsyncClient,
-    async_session: AsyncSession,
-    superuser_token_headers: dict[str, str],
-    dweller: Dweller,
+@pytest.mark.parametrize(("as_list", "with_pet"), [(False, False), (True, False), (False, True), (True, True)])
+async def test_effective_max_health_matches_orm(
+    as_list, with_pet, async_client, async_session, superuser_token_headers, dweller
 ) -> None:
-    """DwellerReadFull must carry the radiation-reduced health ceiling."""
-    await _set_radiated_state(async_session, dweller)
-    response = await async_client.get(f"/dwellers/{dweller.id}", headers=superuser_token_headers)
-    assert response.status_code == 200
-    assert response.json()["effective_max_health"] == 60
-
-
-@pytest.mark.asyncio
-async def test_read_dweller_effective_max_health_includes_pet_bonus(
-    async_client: AsyncClient,
-    async_session: AsyncSession,
-    superuser_token_headers: dict[str, str],
-    dweller: Dweller,
-) -> None:
-    """DwellerReadFull must carry the equipped pet's max_health bonus (wire == ORM)."""
-    from app.options.pet_modifiers import PET_EFFECT_BY_NAME
-
-    pet = await crud.pet.create(
-        async_session,
-        obj_in={"name": "Dogmeat (Fallout 4)", "rarity": RarityEnum.LEGENDARY, "value": 500},
+    bonus = await _equip_dogmeat(async_session, dweller) if with_pet else 0
+    await _radiated(async_session, dweller)
+    response = await async_client.get(
+        "/dwellers/" if as_list else f"/dwellers/{dweller.id}", headers=superuser_token_headers
     )
-    await crud.pet.equip(db_session=async_session, item_id=pet.id, dweller_id=dweller.id)
-
-    dweller.max_health = 100
-    dweller.health = 30
-    dweller.radiation = 40
-    async_session.add(dweller)
-    await async_session.commit()
-
-    response = await async_client.get(f"/dwellers/{dweller.id}", headers=superuser_token_headers)
     assert response.status_code == 200
-    body = response.json()
-    pet_bonus = PET_EFFECT_BY_NAME["dogmeat (fallout 4)"].max_health
-    assert body["effective_max_health"] == max(1, 100 + pet_bonus - 40)
-
-    reloaded = await crud.dweller.get(async_session, dweller.id)
+    if as_list:
+        body = {row["id"]: row for row in response.json()}[str(dweller.id)]
+        reloaded = (await crud.dweller.get_multi_by_vault(async_session, dweller.vault_id))[0]
+    else:
+        body = response.json()
+        reloaded = await crud.dweller.get(async_session, dweller.id)
+    assert body["effective_max_health"] == max(1, 100 + bonus - 40)
     assert reloaded.effective_max_health == body["effective_max_health"]
 
 
-@pytest.mark.asyncio
-async def test_read_dweller_list_exposes_effective_max_health(
-    async_client: AsyncClient,
-    async_session: AsyncSession,
-    superuser_token_headers: dict[str, str],
-    dweller: Dweller,
-) -> None:
-    """DwellerReadLess (compact list shape) must carry the same ceiling."""
-    await _set_radiated_state(async_session, dweller)
-    response = await async_client.get("/dwellers/", headers=superuser_token_headers)
-    assert response.status_code == 200
-    by_id = {d["id"]: d for d in response.json()}
-    assert by_id[str(dweller.id)]["effective_max_health"] == 60
-
-
-@pytest.mark.asyncio
-async def test_read_dweller_list_effective_max_health_includes_pet_bonus(
-    async_client: AsyncClient,
-    async_session: AsyncSession,
-    superuser_token_headers: dict[str, str],
-    dweller: Dweller,
-) -> None:
-    """The list endpoint's effective_max_health matches the ORM value with a pet equipped.
-
-    get_multi_by_vault must selectinload(Dweller.pet) (B7) or the wire value
-    silently drops the pet's max_health bonus.
-    """
-    from app.options.pet_modifiers import PET_EFFECT_BY_NAME
-
-    pet = await crud.pet.create(
-        async_session,
-        obj_in={"name": "Dogmeat (Fallout 4)", "rarity": RarityEnum.LEGENDARY, "value": 500},
-    )
-    await crud.pet.equip(db_session=async_session, item_id=pet.id, dweller_id=dweller.id)
-
-    dweller.max_health = 100
-    dweller.health = 30
-    dweller.radiation = 40
-    async_session.add(dweller)
-    await async_session.commit()
-
-    response = await async_client.get("/dwellers/", headers=superuser_token_headers)
-    assert response.status_code == 200
-    by_id = {d["id"]: d for d in response.json()}
-    pet_bonus = PET_EFFECT_BY_NAME["dogmeat (fallout 4)"].max_health
-    assert by_id[str(dweller.id)]["effective_max_health"] == max(1, 100 + pet_bonus - 40)
-
-    reloaded = (await crud.dweller.get_multi_by_vault(async_session, dweller.vault_id))[0]
-    assert reloaded.effective_max_health == by_id[str(dweller.id)]["effective_max_health"]
-
-
-@pytest.mark.asyncio
 async def test_use_stimpack_clamps_healing_at_effective_max_health(
-    async_client: AsyncClient,
-    async_session: AsyncSession,
-    superuser_token_headers: dict[str, str],
-    dweller: Dweller,
+    async_client, async_session, superuser_token_headers, dweller
 ) -> None:
-    """Stimpack healing must stop at the radiation-reduced ceiling, not max_health."""
-    from app.core.game_config import game_config
-
-    await _set_radiated_state(async_session, dweller)
+    await _radiated(async_session, dweller)
     response = await async_client.post(f"/dwellers/{dweller.id}/use_stimpack", headers=superuser_token_headers)
     assert response.status_code == 200
-    heal_amount = max(1, int(100 * game_config.health.stimpack_heal_percent))
+    heal = max(1, int(100 * game_config.health.stimpack_heal_percent))
     body = response.json()
-    assert body["health"] == min(30 + heal_amount, 60)
+    assert body["health"] == min(30 + heal, 60)
     assert body["effective_max_health"] == 60
 
 
-@pytest.mark.asyncio
 async def test_revival_cost_endpoint_delegates_to_death_service() -> None:
-    """The quote endpoint must reuse the service cost path, not recompute it inline."""
-    from app.api.v1.endpoints.dweller import get_revival_cost as get_revival_cost_endpoint
-    from app.schemas.dweller import RevivalCostResponse
-
-    user = MagicMock()
-    session = MagicMock()
-    dweller_id = uuid4()
+    user, session, dweller_id = MagicMock(), MagicMock(), uuid4()
     expected = RevivalCostResponse(
         dweller_id=dweller_id,
         dweller_name="Casey Jones",
@@ -438,157 +207,100 @@ async def test_revival_cost_endpoint_delegates_to_death_service() -> None:
         can_afford=True,
         vault_caps=1000,
     )
-
     with (
         patch("app.api.v1.endpoints.dweller.verify_dweller_access", new=AsyncMock()),
         patch(
-            "app.api.v1.endpoints.dweller.death_service.build_revival_quote",
-            new=AsyncMock(return_value=expected),
+            "app.api.v1.endpoints.dweller.death_service.build_revival_quote", new=AsyncMock(return_value=expected)
         ) as build_quote,
     ):
-        result = await get_revival_cost_endpoint(dweller_id=dweller_id, user=user, db_session=session)
-
+        result = await get_revival_cost(dweller_id=dweller_id, user=user, db_session=session)
     assert result is expected
     build_quote.assert_awaited_once_with(session, dweller_id, user)
 
 
-@pytest.mark.asyncio
 async def test_revive_endpoint_delegates_to_death_service() -> None:
-    """The revive endpoint must not re-derive the cost; the service owns it."""
-    from app.api.v1.endpoints.dweller import revive_dweller as revive_dweller_endpoint
-
-    user = MagicMock()
-    session = MagicMock()
-    dweller_id = uuid4()
-    expected = MagicMock()
-
+    user, session, dweller_id, expected = MagicMock(), MagicMock(), uuid4(), MagicMock()
     with (
         patch("app.api.v1.endpoints.dweller.verify_dweller_access", new=AsyncMock()),
         patch(
-            "app.api.v1.endpoints.dweller.death_service.revive_dweller",
-            new=AsyncMock(return_value=expected),
+            "app.api.v1.endpoints.dweller.death_service.revive_dweller", new=AsyncMock(return_value=expected)
         ) as revive,
     ):
-        result = await revive_dweller_endpoint(dweller_id=dweller_id, user=user, db_session=session)
-
+        result = await revive_dweller(dweller_id=dweller_id, user=user, db_session=session)
     assert result is expected
     revive.assert_awaited_once_with(session, dweller_id, user)
 
 
-@pytest.mark.asyncio
-async def test_ai_endpoints_reject_users_without_vault_access(
-    async_client: AsyncClient,
-    superuser_token_headers: dict[str, str],
-) -> None:
-    """Every AI endpoint must authorize the dweller before doing any work."""
-    from app.utils.exceptions import AccessDeniedException
-
+async def test_endpoints_reject_users_without_vault_access(async_client, superuser_token_headers) -> None:
     dweller_id = uuid4()
     denial = AccessDeniedException("The user doesn't have enough privileges")
-
     with (
         patch("app.api.v1.endpoints.dweller.verify_dweller_access", new=AsyncMock(side_effect=denial)),
         patch("app.api.v1.endpoints.dweller.dweller_ai.generate_backstory", new=AsyncMock()) as backstory,
         patch("app.api.v1.endpoints.dweller.dweller_ai.extend_bio", new=AsyncMock()) as extend,
         patch("app.api.v1.endpoints.dweller.dweller_ai.generate_audio", new=AsyncMock()) as audio,
     ):
-        backstory_response = await async_client.post(
-            f"/dwellers/{dweller_id}/generate_backstory/", headers=superuser_token_headers
-        )
-        extend_response = await async_client.post(
-            f"/dwellers/{dweller_id}/extend_bio/", headers=superuser_token_headers
-        )
-        audio_response = await async_client.post(
-            f"/dwellers/{dweller_id}/generate_audio/", params={"text": "Hello"}, headers=superuser_token_headers
-        )
-
-    assert backstory_response.status_code == 403
-    assert extend_response.status_code == 403
-    assert audio_response.status_code == 403
+        for method, path, params in (
+            ("post", "generate_backstory/", {}),
+            ("post", "extend_bio/", {}),
+            ("post", "generate_audio/", {"text": "Hello"}),
+            ("get", "revival_cost", {}),
+            ("post", "revive", {}),
+        ):
+            response = await getattr(async_client, method)(
+                f"/dwellers/{dweller_id}/{path}", params=params, headers=superuser_token_headers
+            )
+            assert response.status_code == 403
     backstory.assert_not_awaited()
     extend.assert_not_awaited()
     audio.assert_not_awaited()
 
 
-@pytest.mark.asyncio
-async def test_revival_endpoints_reject_users_without_vault_access(
-    async_client: AsyncClient,
-    superuser_token_headers: dict[str, str],
-) -> None:
-    from app.utils.exceptions import AccessDeniedException
-
-    dweller_id = uuid4()
-    denial = AccessDeniedException("The user doesn't have enough privileges")
-
-    with patch("app.api.v1.endpoints.dweller.verify_dweller_access", new=AsyncMock(side_effect=denial)):
-        cost_response = await async_client.get(f"/dwellers/{dweller_id}/revival_cost", headers=superuser_token_headers)
-        revive_response = await async_client.post(f"/dwellers/{dweller_id}/revive", headers=superuser_token_headers)
-
-    assert cost_response.status_code == 403
-    assert revive_response.status_code == 403
-
-
-@pytest.mark.asyncio
-async def test_update_dweller_rejects_game_state(
-    async_client: AsyncClient,
-    async_session: AsyncSession,
-    superuser_token_headers: dict[str, str],
-    dweller: Dweller,
-) -> None:
-    """A client must not be able to write game state the simulation owns."""
+async def test_update_dweller_rejects_game_state(async_client, async_session, superuser_token_headers, dweller) -> None:
     original_level, original_health = dweller.level, dweller.health
-
     for payload in ({"level": 50}, {"health": 1500}, {"radiation": 0}, {"is_dead": True}, {"status": "working"}):
         response = await async_client.put(f"/dwellers/{dweller.id}", json=payload, headers=superuser_token_headers)
         assert response.status_code == 422, f"{payload} was accepted"
-
     await async_session.refresh(dweller)
     assert dweller.level == original_level
     assert dweller.health == original_health
 
 
-@pytest.mark.asyncio
 async def test_update_dweller_accepts_player_editable_fields(
-    async_client: AsyncClient,
-    async_session: AsyncSession,
-    superuser_token_headers: dict[str, str],
-    dweller: Dweller,
-    staffed_barbershop: Room,
+    async_client,
+    async_session,
+    superuser_token_headers,
+    dweller,
+    staffed_barbershop,
 ) -> None:
     response = await async_client.put(
         f"/dwellers/{dweller.id}",
         json={"first_name": "Renamed", "visual_attributes": {"race": "human"}},
         headers=superuser_token_headers,
     )
-
     assert response.status_code == 200
     assert response.json()["first_name"] == "Renamed"
     await async_session.refresh(dweller)
     assert dweller.first_name == "Renamed"
 
 
-@pytest.mark.asyncio
 async def test_changing_to_ageless_race_clears_old_age_and_radiation(
-    async_client: AsyncClient,
-    async_session: AsyncSession,
-    superuser_token_headers: dict[str, str],
-    dweller: Dweller,
-    staffed_barbershop: Room,
+    async_client,
+    async_session,
+    superuser_token_headers,
+    dweller,
+    staffed_barbershop,
 ) -> None:
-    dweller.age_group = AgeGroupEnum.ELDER
-    dweller.radiation = 30
-    dweller.radaway = 2
-    original_storage = await storage_crud.get_by_vault(async_session, dweller.vault_id)
-    original_radaway = original_storage.radaway if original_storage is not None else 0
-    async_session.add(dweller)
-    await async_session.commit()
+    dweller.age_group, dweller.radiation, dweller.radaway = AgeGroupEnum.ELDER, 30, 2
+    stored = await storage_crud.get_by_vault(async_session, dweller.vault_id)
+    original_radaway = stored.radaway if stored is not None else 0
+    await _save(async_session, dweller)
 
     response = await async_client.put(
         f"/dwellers/{dweller.id}",
         json={"visual_attributes": {"race": "synth", "state_of_being": "gen_3"}},
         headers=superuser_token_headers,
     )
-
     assert response.status_code == 200
     await async_session.refresh(dweller)
     assert dweller.age_group == AgeGroupEnum.ADULT
@@ -599,191 +311,113 @@ async def test_changing_to_ageless_race_clears_old_age_and_radiation(
     assert storage.radaway == original_radaway + 2
 
 
-@pytest.mark.asyncio
 async def test_update_dweller_can_unassign_a_room(
-    async_client: AsyncClient,
-    async_session: AsyncSession,
-    superuser_token_headers: dict[str, str],
-    dweller: Dweller,
-    room: Room,
+    async_client, async_session, superuser_token_headers, dweller, room
 ) -> None:
     dweller.room_id = room.id
-    async_session.add(dweller)
-    await async_session.commit()
-
+    await _save(async_session, dweller)
     response = await async_client.put(
         f"/dwellers/{dweller.id}", json={"room_id": None}, headers=superuser_token_headers
     )
-
     assert response.status_code == 200
     await async_session.refresh(dweller)
     assert dweller.room_id is None
 
 
-@pytest.mark.asyncio
 async def test_update_dweller_rejects_room_assignment(
-    async_client: AsyncClient,
-    async_session: AsyncSession,
-    superuser_token_headers: dict[str, str],
-    dweller: Dweller,
-    room: Room,
+    async_client, async_session, superuser_token_headers, dweller, room
 ) -> None:
-    """Room assignment must go through the move endpoints, not PUT /dwellers/{id}."""
     original_room_id = dweller.room_id
-
     response = await async_client.put(
         f"/dwellers/{dweller.id}", json={"room_id": str(room.id)}, headers=superuser_token_headers
     )
-
     assert response.status_code == 422
     await async_session.refresh(dweller)
     assert dweller.room_id == original_room_id
 
 
-@pytest.mark.asyncio
 async def test_filter_dwellers_by_race_and_faction(
-    async_client: AsyncClient,
-    async_session: AsyncSession,
-    superuser_token_headers: dict[str, str],
-    vault: Vault,
-    monkeypatch: pytest.MonkeyPatch,
+    async_client,
+    async_session,
+    superuser_token_headers,
+    vault,
+    monkeypatch,
 ) -> None:
-    from app.core.game_config import game_config
-
     monkeypatch.setattr(game_config.features, "faction_mechanics", True)
 
     def identity(race: str, faction: str) -> DwellerCreate:
-        data = create_fake_dweller()
-        data.update({"vault_id": vault.id, "visual_attributes": {"race": race, "faction": faction}})
-        return DwellerCreate(**data)
+        return _dweller_in(vault.id, visual_attributes={"race": race, "faction": faction})
 
     ghoul = await crud.dweller.create(async_session, identity("ghoul", "children_of_atom"))
     human = await crud.dweller.create(async_session, identity("human", "vault_dweller"))
     await crud.dweller.create(async_session, identity("super_mutant", "super_mutant_tribe"))
 
-    by_race = await async_client.get(f"/dwellers/vault/{vault.id}/?race=ghoul", headers=superuser_token_headers)
-    assert by_race.status_code == 200
-    assert [row["id"] for row in by_race.json()] == [str(ghoul.id)]
-
-    by_faction = await async_client.get(
-        f"/dwellers/vault/{vault.id}/?faction=vault_dweller", headers=superuser_token_headers
-    )
-    assert [row["id"] for row in by_faction.json()] == [str(human.id)]
-
-    combined = await async_client.get(
-        f"/dwellers/vault/{vault.id}/?race=human&faction=vault_dweller", headers=superuser_token_headers
-    )
-    assert [row["id"] for row in combined.json()] == [str(human.id)]
+    for query, expected in (
+        ("race=ghoul", ghoul),
+        ("faction=vault_dweller", human),
+        ("race=human&faction=vault_dweller", human),
+    ):
+        response = await async_client.get(f"/dwellers/vault/{vault.id}/?{query}", headers=superuser_token_headers)
+        assert response.status_code == 200
+        assert [row["id"] for row in response.json()] == [str(expected.id)]
 
 
-@pytest.mark.asyncio
-async def test_filter_dwellers_by_gender(
-    async_client: AsyncClient,
-    async_session: AsyncSession,
-    superuser_token_headers: dict[str, str],
-    vault: Vault,
-) -> None:
-    def dweller_of_gender(gender: GenderEnum) -> DwellerCreate:
-        data = create_fake_dweller()
-        data.update({"vault_id": vault.id, "gender": gender})
-        return DwellerCreate(**data)
+async def test_filter_dwellers_by_gender(async_client, async_session, superuser_token_headers, vault) -> None:
+    male = await crud.dweller.create(async_session, _dweller_in(vault.id, gender=GenderEnum.MALE))
+    female = await crud.dweller.create(async_session, _dweller_in(vault.id, gender=GenderEnum.FEMALE))
 
-    male = await crud.dweller.create(async_session, dweller_of_gender(GenderEnum.MALE))
-    female = await crud.dweller.create(async_session, dweller_of_gender(GenderEnum.FEMALE))
-
-    by_male = await async_client.get(f"/dwellers/vault/{vault.id}/?gender=male", headers=superuser_token_headers)
-    assert by_male.status_code == 200
-    assert [row["id"] for row in by_male.json()] == [str(male.id)]
-
-    by_female = await async_client.get(f"/dwellers/vault/{vault.id}/?gender=female", headers=superuser_token_headers)
-    assert by_female.status_code == 200
-    assert [row["id"] for row in by_female.json()] == [str(female.id)]
-
-    invalid = await async_client.get(f"/dwellers/vault/{vault.id}/?gender=invalid", headers=superuser_token_headers)
-    assert invalid.status_code == 422
+    for gender, expected in (("male", male), ("female", female)):
+        response = await async_client.get(
+            f"/dwellers/vault/{vault.id}/?gender={gender}", headers=superuser_token_headers
+        )
+        assert response.status_code == 200
+        assert [row["id"] for row in response.json()] == [str(expected.id)]
 
 
-@pytest.mark.asyncio
-async def test_filter_dwellers_by_rarity(
-    async_client: AsyncClient,
-    async_session: AsyncSession,
-    superuser_token_headers: dict[str, str],
-    vault: Vault,
-) -> None:
-    def dweller_of_rarity(rarity: RarityEnum) -> DwellerCreate:
-        data = create_fake_dweller()
-        data.update({"vault_id": vault.id, "rarity": rarity})
-        return DwellerCreate(**data)
+async def test_filter_dwellers_by_rarity(async_client, async_session, superuser_token_headers, vault) -> None:
+    created = {}
+    for rarity in (RarityEnum.COMMON, RarityEnum.RARE, RarityEnum.LEGENDARY):
+        created[rarity] = await crud.dweller.create(async_session, _dweller_in(vault.id, rarity=rarity))
 
-    common = await crud.dweller.create(async_session, dweller_of_rarity(RarityEnum.COMMON))
-    rare = await crud.dweller.create(async_session, dweller_of_rarity(RarityEnum.RARE))
-    legendary = await crud.dweller.create(async_session, dweller_of_rarity(RarityEnum.LEGENDARY))
-
-    by_common = await async_client.get(f"/dwellers/vault/{vault.id}/?rarity=common", headers=superuser_token_headers)
-    assert by_common.status_code == 200
-    assert [row["id"] for row in by_common.json()] == [str(common.id)]
-
-    by_rare = await async_client.get(f"/dwellers/vault/{vault.id}/?rarity=rare", headers=superuser_token_headers)
-    assert by_rare.status_code == 200
-    assert [row["id"] for row in by_rare.json()] == [str(rare.id)]
-
-    by_legendary = await async_client.get(
-        f"/dwellers/vault/{vault.id}/?rarity=legendary", headers=superuser_token_headers
-    )
-    assert by_legendary.status_code == 200
-    assert [row["id"] for row in by_legendary.json()] == [str(legendary.id)]
-
-    invalid = await async_client.get(f"/dwellers/vault/{vault.id}/?rarity=invalid", headers=superuser_token_headers)
-    assert invalid.status_code == 422
+    for rarity, dweller in created.items():
+        response = await async_client.get(
+            f"/dwellers/vault/{vault.id}/?rarity={rarity.value}", headers=superuser_token_headers
+        )
+        assert response.status_code == 200
+        assert [row["id"] for row in response.json()] == [str(dweller.id)]
 
 
-@pytest.mark.asyncio
-async def test_unknown_race_filter_is_rejected(
-    async_client: AsyncClient,
-    superuser_token_headers: dict[str, str],
-    vault: Vault,
-) -> None:
-    """An invalid race is a 422, not a silent empty roster."""
-    response = await async_client.get(f"/dwellers/vault/{vault.id}/?race=reptilian", headers=superuser_token_headers)
-
-    assert response.status_code == 422
+async def test_invalid_filter_values_are_rejected(async_client, superuser_token_headers, vault) -> None:
+    # An unknown value is a 422, not a silent empty roster.
+    for query in ("race=reptilian", "gender=invalid", "rarity=invalid"):
+        response = await async_client.get(f"/dwellers/vault/{vault.id}/?{query}", headers=superuser_token_headers)
+        assert response.status_code == 422
 
 
 async def test_faction_filter_rejected_while_switch_off(
-    async_client: AsyncClient,
-    superuser_token_headers: dict[str, str],
-    vault: Vault,
-    monkeypatch: pytest.MonkeyPatch,
+    async_client, superuser_token_headers, vault, monkeypatch
 ) -> None:
-    from app.core.game_config import game_config
-
     monkeypatch.setattr(game_config.features, "faction_mechanics", False)
     response = await async_client.get(
         f"/dwellers/vault/{vault.id}/?faction=vault_dweller", headers=superuser_token_headers
     )
-
     assert response.status_code == 422
 
 
 async def test_dweller_detail_exposes_identity_modifiers(
-    async_client: AsyncClient,
-    async_session: AsyncSession,
-    superuser_token_headers: dict[str, str],
-    dweller: Dweller,
-    monkeypatch: pytest.MonkeyPatch,
+    async_client,
+    async_session,
+    superuser_token_headers,
+    dweller,
+    monkeypatch,
 ) -> None:
-    """The dossier can explain why a dweller is effective without recomputing rules client-side."""
-    from app.core.game_config import game_config
-
     # The subsystem ships dark, so this test states the flag as a precondition.
     monkeypatch.setattr(game_config.features, "race_mechanics", True)
     monkeypatch.setattr(game_config.features, "faction_mechanics", True)
     dweller.visual_attributes = {"race": "super_mutant", "faction": "super_mutant_tribe"}
-    async_session.add(dweller)
-    await async_session.commit()
+    await _save(async_session, dweller)
 
     response = await async_client.get(f"/dwellers/{dweller.id}", headers=superuser_token_headers)
-
     assert response.status_code == 200
     modifiers = response.json()["identity_modifiers"]
     assert modifiers["strength"] == 3
@@ -792,12 +426,8 @@ async def test_dweller_detail_exposes_identity_modifiers(
     assert modifiers["melee_damage_pct"] == 0.15
 
 
-async def test_appearance_options_endpoint(
-    async_client: AsyncClient,
-    superuser_token_headers: dict[str, str],
-) -> None:
+async def test_appearance_options_endpoint(async_client, superuser_token_headers) -> None:
     response = await async_client.get("/dwellers/appearance-options", headers=superuser_token_headers)
-
     assert response.status_code == 200
     body = response.json()
     assert "human" in body["skin_tones_by_race"]
@@ -806,16 +436,13 @@ async def test_appearance_options_endpoint(
     assert body["backgrounds"]
 
 
-@pytest.mark.asyncio
 async def test_roster_attention_focus_is_validated_and_applied(
-    async_client, async_session, superuser_token_headers, vault, dweller_data
-):
+    async_client, async_session, superuser_token_headers, vault, dweller_data: dict
+) -> None:
     low = await crud.dweller.create(
-        async_session, obj_in=DwellerCreate(**(dweller_data | {"vault_id": vault.id, "happiness": 49}))
+        async_session, DwellerCreate(**dweller_data | {"vault_id": vault.id, "happiness": 49})
     )
-    await crud.dweller.create(
-        async_session, obj_in=DwellerCreate(**(dweller_data | {"vault_id": vault.id, "happiness": 50}))
-    )
+    await crud.dweller.create(async_session, DwellerCreate(**dweller_data | {"vault_id": vault.id, "happiness": 50}))
     response = await async_client.get(
         f"/dwellers/vault/{vault.id}/", params={"focus": "low_happiness"}, headers=superuser_token_headers
     )
@@ -827,24 +454,18 @@ async def test_roster_attention_focus_is_validated_and_applied(
     assert invalid.status_code == 422
 
 
-@pytest.mark.asyncio
 async def test_revival_endpoints_reject_permanent_memorial(
     async_client, async_session, dweller, superuser_token_headers
-):
-    from app.core.enums import DwellerStatusEnum, LifecycleEnum
-
-    dweller.lifecycle = LifecycleEnum.DEAD_PERMANENT
-    dweller.is_dead = True
-    dweller.is_permanently_dead = True
+) -> None:
+    dweller.lifecycle, dweller.is_dead, dweller.is_permanently_dead = LifecycleEnum.DEAD_PERMANENT, True, True
     dweller.status = DwellerStatusEnum.DEAD
     dweller.epitaph = "Remembered"
     await async_session.commit()
-    dweller_id = dweller.id
     vault = await crud.vault.get(async_session, dweller.vault_id)
     caps = vault.bottle_caps
     for method, path in [("get", "revival_cost"), ("post", "revive")]:
         response = await getattr(async_client, method)(
-            f"/dwellers/{dweller_id}/{path}", headers=superuser_token_headers
+            f"/dwellers/{dweller.id}/{path}", headers=superuser_token_headers
         )
         assert response.status_code == 400
         assert "permanently dead" in response.text
@@ -858,7 +479,7 @@ async def test_revival_endpoints_reject_permanent_memorial(
 @pytest.mark.parametrize("last_name", ["O'Connor", "Волков", None])
 async def test_rename_dweller_updates_both_names(
     async_client, async_session, dweller, superuser_token_headers, last_name
-):
+) -> None:
     response = await async_client.patch(
         f"/dwellers/{dweller.id}/rename",
         json={"first_name": "Amata", "last_name": last_name},
@@ -871,7 +492,7 @@ async def test_rename_dweller_updates_both_names(
     assert dweller.last_name == last_name
 
 
-async def test_rename_dweller_preserves_omitted_last_name(async_client, dweller, superuser_token_headers):
+async def test_rename_dweller_preserves_omitted_last_name(async_client, dweller, superuser_token_headers) -> None:
     response = await async_client.patch(
         f"/dwellers/{dweller.id}/rename", json={"first_name": "Amata"}, headers=superuser_token_headers
     )
@@ -880,7 +501,9 @@ async def test_rename_dweller_preserves_omitted_last_name(async_client, dweller,
 
 
 @pytest.mark.parametrize("last_name", ["x", "Bad123", "x" * 33])
-async def test_rename_dweller_rejects_invalid_last_name(async_client, dweller, superuser_token_headers, last_name):
+async def test_rename_dweller_rejects_invalid_last_name(
+    async_client, dweller, superuser_token_headers, last_name
+) -> None:
     response = await async_client.patch(
         f"/dwellers/{dweller.id}/rename",
         json={"first_name": "Amata", "last_name": last_name},
@@ -892,7 +515,7 @@ async def test_rename_dweller_rejects_invalid_last_name(async_client, dweller, s
 @pytest.mark.parametrize("action", ["restore", "grant-exit", "refuse-exit"])
 async def test_unvaulted_dweller_actions_return_not_found(
     async_client, async_session, dweller, superuser_token_headers, action
-):
+) -> None:
     dweller.vault_id = None
     await async_session.commit()
     response = await async_client.post(f"/dwellers/{dweller.id}/{action}", headers=superuser_token_headers)
@@ -900,25 +523,21 @@ async def test_unvaulted_dweller_actions_return_not_found(
 
 
 async def test_read_dweller_does_not_refetch_what_the_access_check_loaded(
-    async_client: AsyncClient, async_session: AsyncSession, dweller, superuser_token_headers: dict[str, str]
-):
-    """The access check loads the dweller; the handler must reuse it, not re-read it.
-
-    Counted at the SQLAlchemy execution boundary so the assertion tracks real
-    reads rather than how many times a CRUD method happens to be called.
-    """
+    async_client, async_session, dweller, superuser_token_headers
+) -> None:
+    # Counted at the SQLAlchemy execution boundary: the access check's load must be reused.
     engine = getattr(async_session.get_bind(), "sync_engine", async_session.get_bind())
-    dweller_selects: list[str] = []
+    selects: list[str] = []
 
-    def count_dweller_selects(conn, cursor, statement, parameters, context, executemany):
+    def count(conn, cursor, statement, parameters, context, executemany):
         if statement.lstrip().upper().startswith("SELECT") and f"FROM {Dweller.__tablename__}" in statement:
-            dweller_selects.append(statement)
+            selects.append(statement)
 
-    event.listen(engine, "before_cursor_execute", count_dweller_selects)
+    event.listen(engine, "before_cursor_execute", count)
     try:
         response = await async_client.get(f"/dwellers/{dweller.id}", headers=superuser_token_headers)
     finally:
-        event.remove(engine, "before_cursor_execute", count_dweller_selects)
+        event.remove(engine, "before_cursor_execute", count)
 
     assert response.status_code == 200
-    assert len(dweller_selects) == 1
+    assert len(selects) == 1

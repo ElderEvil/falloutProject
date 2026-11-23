@@ -1,11 +1,9 @@
 import pytest
-from httpx import AsyncClient
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
 from app.core.enums import HazardTeam, IncidentType
 from app.models.team import ACTIVE_STATUS, RESERVE_STATUS
-from app.models.vault import Vault
 from app.schemas.dweller import DwellerCreate
 from app.services.catalog_service import load_outfits
 from app.services.hazard_team_service import TEAM_SIZE
@@ -13,14 +11,12 @@ from app.tests.test_services._hazard_team_helpers import ensure_station, make_me
 from app.utils.item_factory import build_outfit
 
 
-@pytest.mark.asyncio
-async def test_roster_reports_every_team(
-    async_client: AsyncClient, superuser_token_headers: dict[str, str], vault: Vault
-):
-    response = await async_client.get(
-        f"/contamination-team/vault/{vault.id}/roster",
-        headers=superuser_token_headers,
-    )
+async def _dweller(async_session: AsyncSession, vault, dweller_data):
+    return await crud.dweller.create(async_session, obj_in=DwellerCreate(**dweller_data, vault_id=vault.id))
+
+
+async def test_roster_reports_every_team(async_client, superuser_token_headers, vault):
+    response = await async_client.get(f"/contamination-team/vault/{vault.id}/roster", headers=superuser_token_headers)
 
     assert response.status_code == 200
     body = response.json()
@@ -29,24 +25,17 @@ async def test_roster_reports_every_team(
     assert all(team["active"] == [] and team["reserve"] == [] for team in body["teams"])
 
 
-@pytest.mark.asyncio
 async def test_set_place_activates_a_reserve_member(
-    async_client: AsyncClient,
-    superuser_token_headers: dict[str, str],
-    async_session: AsyncSession,
-    vault: Vault,
-    dweller_data: dict,
+    async_client, superuser_token_headers, async_session, vault, dweller_data
 ):
-    dweller = await crud.dweller.create(async_session, obj_in=DwellerCreate(**dweller_data, vault_id=vault.id))
+    dweller = await _dweller(async_session, vault, dweller_data)
     await ensure_station(async_session, vault.id)
     await make_member(async_session, vault.id, dweller.id, HazardTeam.FIRE, RESERVE_STATUS)
-
     response = await async_client.put(
         f"/contamination-team/vault/{vault.id}/fire/{dweller.id}",
         json={"active": True},
         headers=superuser_token_headers,
     )
-
     assert response.status_code == 200
     body = response.json()
     assert body["vault_id"] == str(vault.id)
@@ -57,92 +46,62 @@ async def test_set_place_activates_a_reserve_member(
     assert fire["reserve"] == []
 
 
-@pytest.mark.asyncio
 async def test_set_place_refused_without_a_response_station(
-    async_client: AsyncClient,
-    superuser_token_headers: dict[str, str],
-    async_session: AsyncSession,
-    vault: Vault,
-    dweller_data: dict,
+    async_client, superuser_token_headers, async_session, vault, dweller_data
 ):
-    dweller = await crud.dweller.create(async_session, obj_in=DwellerCreate(**dweller_data, vault_id=vault.id))
+    dweller = await _dweller(async_session, vault, dweller_data)
     await make_member(async_session, vault.id, dweller.id, HazardTeam.FIRE, RESERVE_STATUS)
-
     response = await async_client.put(
         f"/contamination-team/vault/{vault.id}/fire/{dweller.id}",
         json={"active": True},
         headers=superuser_token_headers,
     )
-
     assert response.status_code == 400
     assert "response station" in response.json()["detail"].lower()
     place = await crud.team_crud.get_hazard_member(async_session, vault.id, HazardTeam.FIRE, dweller.id)
     assert place.status == RESERVE_STATUS
 
 
-@pytest.mark.asyncio
 async def test_set_place_full_team_returns_409(
-    async_client: AsyncClient,
-    superuser_token_headers: dict[str, str],
-    async_session: AsyncSession,
-    vault: Vault,
-    dweller_data: dict,
+    async_client, superuser_token_headers, async_session, vault, dweller_data
 ):
     dwellers = []
     while len(dwellers) <= TEAM_SIZE:
-        dwellers.append(
-            await crud.dweller.create(async_session, obj_in=DwellerCreate(**dweller_data, vault_id=vault.id))
-        )
+        dwellers.append(await _dweller(async_session, vault, dweller_data))
     await ensure_station(async_session, vault.id)
     for dweller in dwellers[:TEAM_SIZE]:
         await make_member(async_session, vault.id, dweller.id, HazardTeam.FIRE, ACTIVE_STATUS)
     await make_member(async_session, vault.id, dwellers[TEAM_SIZE].id, HazardTeam.FIRE, RESERVE_STATUS)
-
     response = await async_client.put(
         f"/contamination-team/vault/{vault.id}/fire/{dwellers[TEAM_SIZE].id}",
         json={"active": True},
         headers=superuser_token_headers,
     )
-
     assert response.status_code == 409
 
 
-@pytest.mark.asyncio
 async def test_set_place_without_a_place_returns_404(
-    async_client: AsyncClient,
-    superuser_token_headers: dict[str, str],
-    async_session: AsyncSession,
-    vault: Vault,
-    dweller_data: dict,
+    async_client, superuser_token_headers, async_session, vault, dweller_data
 ):
-    dweller = await crud.dweller.create(async_session, obj_in=DwellerCreate(**dweller_data, vault_id=vault.id))
-
+    dweller = await _dweller(async_session, vault, dweller_data)
     response = await async_client.put(
         f"/contamination-team/vault/{vault.id}/fire/{dweller.id}",
         json={"active": True},
         headers=superuser_token_headers,
     )
-
     assert response.status_code == 404
 
 
-@pytest.mark.asyncio
 async def test_set_place_requires_vault_ownership(
-    async_client: AsyncClient,
-    normal_user_token_headers: dict[str, str],
-    async_session: AsyncSession,
-    vault: Vault,
-    dweller_data: dict,
+    async_client, normal_user_token_headers, async_session, vault, dweller_data
 ):
-    dweller = await crud.dweller.create(async_session, obj_in=DwellerCreate(**dweller_data, vault_id=vault.id))
+    dweller = await _dweller(async_session, vault, dweller_data)
     await make_member(async_session, vault.id, dweller.id, HazardTeam.FIRE, RESERVE_STATUS)
-
     response = await async_client.put(
         f"/contamination-team/vault/{vault.id}/fire/{dweller.id}",
         json={"active": True},
         headers=normal_user_token_headers,
     )
-
     assert response.status_code == 403
 
 
@@ -155,12 +114,8 @@ async def _equip_catalog_outfit(async_session: AsyncSession, dweller_id, name: s
     await crud.outfit.equip(db_session=async_session, item_id=outfit.id, dweller_id=dweller_id)
 
 
-@pytest.mark.asyncio
 async def test_roster_enrichment_is_identical_across_get_and_put(
-    async_client: AsyncClient,
-    superuser_token_headers: dict[str, str],
-    async_session: AsyncSession,
-    room_with_dwellers: dict,
+    async_client, superuser_token_headers, async_session, room_with_dwellers
 ):
     room = room_with_dwellers["room"]
     vault_id = room.vault_id
@@ -177,7 +132,6 @@ async def test_roster_enrichment_is_identical_across_get_and_put(
         incident = await raise_incident(async_session, room, IncidentType.FIRE)
         await crud.incident_participant_crud.record(async_session, incident.id, [dweller.id])
     await async_session.commit()
-
     get_response = await async_client.get(
         f"/contamination-team/vault/{vault_id}/roster", headers=superuser_token_headers
     )
@@ -187,7 +141,6 @@ async def test_roster_enrichment_is_identical_across_get_and_put(
     assert before["outfit_name"] == "Firefighter suit, rad helmet"
     assert before["has_matching_gear"] is False
     assert before["hazard_resist"] == pytest.approx(expected_resist)
-
     put_response = await async_client.put(
         f"/contamination-team/vault/{vault_id}/fire/{dweller.id}",
         json={"active": False},

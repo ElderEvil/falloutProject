@@ -3,15 +3,12 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 import pytest_asyncio
-from httpx import AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import crud
 from app.api.deps import get_current_active_user
 from app.core.enums import WorldEventStatus
 from app.core.game_config import game_config
 from app.models.user import User
-from app.models.vault import Vault
 from app.models.world_event import WorldEvent, WorldEventParticipation
 from app.schemas.user import UserCreate
 from app.schemas.world_event import WorldEventClaimRead, WorldEventRead
@@ -22,7 +19,7 @@ REWARD = [{"reward_type": "caps", "amount": 50}]
 
 
 async def _add_event(
-    async_session: AsyncSession,
+    async_session,
     *,
     status: WorldEventStatus = WorldEventStatus.ACTIVE,
     progress_amount: int = 40,
@@ -46,16 +43,14 @@ async def _add_event(
     return event
 
 
-async def _add_participation(
-    async_session: AsyncSession, event: WorldEvent, vault: Vault, contribution: int
-) -> WorldEventParticipation:
+async def _add_participation(async_session, event: WorldEvent, vault, contribution: int) -> WorldEventParticipation:
     participation = WorldEventParticipation(world_event_id=event.id, vault_id=vault.id, contribution=contribution)
     async_session.add(participation)
     await async_session.commit()
     return participation
 
 
-async def _claim(async_client: AsyncClient, vault: Vault, *, status: int = 400, detail: str | None = None):
+async def _claim(async_client, vault, *, status: int = 400, detail: str | None = None):
     response = await async_client.post(f"/vaults/{vault.id}/world-event/claim")
     assert response.status_code == status, response.text
     if detail is not None:
@@ -78,14 +73,10 @@ async def owner_fixture(user: User) -> AsyncGenerator[User]:
         app.dependency_overrides.pop(get_current_active_user, None)
 
 
-async def test_owner_reads_progress_and_own_standing(
-    async_client: AsyncClient, async_session: AsyncSession, owner: User, vault: Vault
-) -> None:
+async def test_owner_reads_progress_and_own_standing(async_client, async_session, owner, vault) -> None:
     event = await _add_event(async_session)
     await _add_participation(async_session, event, vault, 25)
-
     response = await async_client.get(f"/vaults/{vault.id}/world-event")
-
     assert response.status_code == 200, response.text
     body = response.json()
     assert set(body) == set(WorldEventRead.model_fields)
@@ -104,7 +95,7 @@ async def test_owner_reads_progress_and_own_standing(
     assert body["reward"] == REWARD
 
 
-async def test_foreign_vault_is_forbidden(async_client: AsyncClient, async_session: AsyncSession, vault: Vault) -> None:
+async def test_foreign_vault_is_forbidden(async_client, async_session, vault) -> None:
     await _add_event(async_session)
     foreign_user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
     app.dependency_overrides[get_current_active_user] = lambda: foreign_user
@@ -112,14 +103,12 @@ async def test_foreign_vault_is_forbidden(async_client: AsyncClient, async_sessi
         response = await async_client.get(f"/vaults/{vault.id}/world-event")
     finally:
         app.dependency_overrides.pop(get_current_active_user, None)
-
     assert response.status_code == 403
     assert response.json()["detail"] == "The user doesn't have enough privileges"
 
 
-async def test_no_event_yields_well_formed_empty_payload(async_client: AsyncClient, owner: User, vault: Vault) -> None:
+async def test_no_event_yields_well_formed_empty_payload(async_client, owner, vault) -> None:
     response = await async_client.get(f"/vaults/{vault.id}/world-event")
-
     assert response.status_code == 200, response.text
     assert response.json() == {
         "event_id": None,
@@ -141,30 +130,24 @@ async def test_no_event_yields_well_formed_empty_payload(async_client: AsyncClie
 
 
 @pytest.mark.parametrize("join_active", [False, True], ids=["no-participation", "only-active-participation"])
-async def test_claim_rejected_while_ineligible(
-    async_client: AsyncClient, async_session: AsyncSession, owner: User, vault: Vault, join_active: bool
-) -> None:
+async def test_claim_rejected_while_ineligible(async_client, async_session, owner, vault, join_active) -> None:
     await _add_event(async_session, status=WorldEventStatus.COMPLETED)
     if join_active:
         # Contributing to a still-running event is not enough: the only completed event on record
         # is the one this vault never joined.
         active = await _add_event(async_session)
         await _add_participation(async_session, active, vault, 100)
-
     await _claim(async_client, vault, detail="Your vault took no part in this world event.")
 
 
-async def test_claim_rejected_before_any_event_completes(
-    async_client: AsyncClient, async_session: AsyncSession, owner: User, vault: Vault
-) -> None:
+async def test_claim_rejected_before_any_event_completes(async_client, async_session, owner, vault) -> None:
     active = await _add_event(async_session)
     await _add_participation(async_session, active, vault, 90)
-
     await _claim(async_client, vault, detail="The world event is not complete yet.")
 
 
 async def test_claim_still_pays_a_completed_event_after_the_next_one_activates(
-    async_client: AsyncClient, async_session: AsyncSession, owner: User, vault: Vault
+    async_client, async_session, owner, vault
 ) -> None:
     """Rotation must not strand an unclaimed reward: claims target the finished event."""
     finished = await _add_event(async_session, status=WorldEventStatus.COMPLETED)
@@ -173,43 +156,31 @@ async def test_claim_still_pays_a_completed_event_after_the_next_one_activates(
     vault.bottle_caps = 500
     async_session.add(vault)
     await async_session.commit()
-
     response = await _claim(async_client, vault, status=200)
-
     assert response.json()["event_id"] == str(finished.id)
     await async_session.refresh(vault)
     assert vault.bottle_caps == 550
 
 
 async def test_endpoints_are_hidden_while_the_flag_is_off(
-    async_client: AsyncClient,
-    async_session: AsyncSession,
-    owner: User,
-    vault: Vault,
-    monkeypatch: pytest.MonkeyPatch,
+    async_client, async_session, owner, vault, monkeypatch
 ) -> None:
     monkeypatch.setattr(game_config.features, "world_events", False)
     await _add_event(async_session)
-
     read = await async_client.get(f"/vaults/{vault.id}/world-event")
     claim = await async_client.post(f"/vaults/{vault.id}/world-event/claim")
-
     assert read.status_code == 404
     assert claim.status_code == 404
 
 
-async def test_claim_pays_rewards_once(
-    async_client: AsyncClient, async_session: AsyncSession, owner: User, vault: Vault
-) -> None:
+async def test_claim_pays_rewards_once(async_client, async_session, owner, vault) -> None:
     event = await _add_event(async_session, status=WorldEventStatus.COMPLETED)
     participation = await _add_participation(async_session, event, vault, 25)
     vault.bottle_caps = 1_000
     async_session.add(vault)
     await async_session.commit()
     caps_before = vault.bottle_caps
-
     response = await _claim(async_client, vault, status=200)
-
     body = response.json()
     assert set(body) == set(WorldEventClaimRead.model_fields)
     assert body["event_id"] == str(event.id)
@@ -219,7 +190,6 @@ async def test_claim_pays_rewards_once(
     await async_session.refresh(participation)
     assert vault.bottle_caps - caps_before == 50
     assert participation.reward_claimed_at is not None
-
     await _claim(async_client, vault, status=409)
     await async_session.refresh(vault)
     assert vault.bottle_caps == caps_before + 50

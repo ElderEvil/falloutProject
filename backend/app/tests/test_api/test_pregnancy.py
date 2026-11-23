@@ -3,7 +3,6 @@ from unittest.mock import patch
 from uuid import UUID
 
 import pytest
-from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import crud
@@ -11,7 +10,9 @@ from app.core.config import settings
 from app.core.enums import AgeGroupEnum, GenderEnum, RarityEnum
 from app.core.game_config import game_config
 from app.models.dweller import Dweller
-from app.schemas.dweller import DwellerCreate, DwellerCreateCommonOverride
+from app.schemas.dweller import DwellerCreate
+from app.services.family.breeding_service import breeding_service
+from app.services.game_tick.family_tick import _deliver_due_baby
 
 pytestmark = pytest.mark.asyncio(loop_scope="module")
 
@@ -33,36 +34,25 @@ async def _adult(async_session: AsyncSession, vault_id: UUID, gender: GenderEnum
     )
 
 
-@pytest.mark.asyncio
-async def test_get_vault_pregnancies_with_active(
-    async_client: AsyncClient,
-    async_session: AsyncSession,
-    superuser_token_headers: dict[str, str],
-):
+async def _couple(async_session, vault_id):
+    return (
+        await _adult(async_session, vault_id, GenderEnum.FEMALE),
+        await _adult(async_session, vault_id, GenderEnum.MALE),
+    )
+
+
+async def _vault(async_session, number: int, **extra):
     user = await crud.user.get_by_email(async_session, email=settings.FIRST_SUPERUSER_EMAIL)
-    vault = await crud.vault.create_with_user_id(
-        db_session=async_session,
-        obj_in={"number": 798},
-        user_id=user.id,
+    return await crud.vault.create_with_user_id(
+        db_session=async_session, obj_in={"number": number, **extra}, user_id=user.id
     )
 
-    # Create couple
-    mother = await _adult(async_session, vault.id, GenderEnum.FEMALE)
-    father = await _adult(async_session, vault.id, GenderEnum.MALE)
 
-    # Create pregnancy
-    from app.services.family.breeding_service import breeding_service
-
-    pregnancy = await breeding_service.create_pregnancy(
-        async_session,
-        mother.id,
-        father.id,
-    )
-
-    response = await async_client.get(
-        f"/pregnancies/vault/{vault.id}",
-        headers=superuser_token_headers,
-    )
+async def test_get_vault_pregnancies_with_active(async_client, async_session, superuser_token_headers):
+    vault = await _vault(async_session, 798)
+    mother, father = await _couple(async_session, vault.id)
+    await breeding_service.create_pregnancy(async_session, mother.id, father.id)
+    response = await async_client.get(f"/pregnancies/vault/{vault.id}", headers=superuser_token_headers)
     assert response.status_code == 200
     data = response.json()
     assert len(data) == 1
@@ -73,50 +63,20 @@ async def test_get_vault_pregnancies_with_active(
     assert "time_remaining_seconds" in data[0]
 
 
-@pytest.mark.asyncio
-async def test_deliver_baby_success(
-    async_client: AsyncClient,
-    async_session: AsyncSession,
-    superuser_token_headers: dict[str, str],
-    monkeypatch: pytest.MonkeyPatch,
-):
-    user = await crud.user.get_by_email(async_session, email=settings.FIRST_SUPERUSER_EMAIL)
-    vault = await crud.vault.create_with_user_id(
-        db_session=async_session,
-        obj_in={"number": 795, "population_max": 10},
-        user_id=user.id,
-    )
-
-    # Create pregnancy and set it to be due
-    mother = await _adult(async_session, vault.id, GenderEnum.FEMALE)
-    father = await _adult(async_session, vault.id, GenderEnum.MALE)
-
-    from app.services.family.breeding_service import breeding_service
-
-    pregnancy = await breeding_service.create_pregnancy(
-        async_session,
-        mother.id,
-        father.id,
-    )
-
-    # Manually set pregnancy to be due (in the past)
+async def test_deliver_baby_success(async_client, async_session, superuser_token_headers, monkeypatch):
+    vault = await _vault(async_session, 795, population_max=10)
+    mother, father = await _couple(async_session, vault.id)
+    pregnancy = await breeding_service.create_pregnancy(async_session, mother.id, father.id)
     pregnancy.due_at = datetime.now(UTC) - timedelta(minutes=1)
     await async_session.commit()
-
     monkeypatch.setattr(game_config.breeding, "twin_chance", 1.0)
     monkeypatch.setattr(game_config.breeding, "triplet_chance", 0.0)
-
     with patch("random.random", return_value=0.5):
-        response = await async_client.post(
-            f"/pregnancies/{pregnancy.id}/deliver",
-            headers=superuser_token_headers,
-        )
-
+        response = await async_client.post(f"/pregnancies/{pregnancy.id}/deliver", headers=superuser_token_headers)
     assert response.status_code == 200
     data = response.json()
     assert len(data["children"]) == 2
     returned_ids = {child["id"] for child in data["children"]}
-
     newborns = [
         dweller
         for dweller in await crud.dweller.get_all_in_vault(async_session, vault.id)
@@ -124,63 +84,24 @@ async def test_deliver_baby_success(
     ]
     assert {str(dweller.id) for dweller in newborns} == returned_ids
     assert "message" in data
-
-    # Verify pregnancy status updated
-    pregnancy_check = await async_client.get(
-        f"/pregnancies/{pregnancy.id}",
-        headers=superuser_token_headers,
-    )
+    pregnancy_check = await async_client.get(f"/pregnancies/{pregnancy.id}", headers=superuser_token_headers)
     assert pregnancy_check.json()["status"] == "delivered"
 
 
-@pytest.mark.asyncio
-async def test_deliver_baby_at_capacity_returns_400(
-    async_client: AsyncClient,
-    async_session: AsyncSession,
-    superuser_token_headers: dict[str, str],
-    monkeypatch: pytest.MonkeyPatch,
-):
-    user = await crud.user.get_by_email(async_session, email=settings.FIRST_SUPERUSER_EMAIL)
-    vault = await crud.vault.create_with_user_id(
-        db_session=async_session,
-        obj_in={"number": 796, "population_max": 2},
-        user_id=user.id,
-    )
-    mother = await _adult(async_session, vault.id, GenderEnum.FEMALE)
-    father = await _adult(async_session, vault.id, GenderEnum.MALE)
-
-    from app.services.family.breeding_service import breeding_service
-
+async def test_deliver_baby_at_capacity_returns_400(async_client, async_session, superuser_token_headers, monkeypatch):
+    vault = await _vault(async_session, 796, population_max=2)
+    mother, father = await _couple(async_session, vault.id)
     pregnancy = await breeding_service.create_pregnancy(async_session, mother.id, father.id)
     pregnancy.due_at = datetime.now(UTC) - timedelta(minutes=1)
     await async_session.commit()
     monkeypatch.setattr(game_config.breeding, "twin_chance", 0.0)
-
-    response = await async_client.post(
-        f"/pregnancies/{pregnancy.id}/deliver",
-        headers=superuser_token_headers,
-    )
-
+    response = await async_client.post(f"/pregnancies/{pregnancy.id}/deliver", headers=superuser_token_headers)
     assert response.status_code == 400
     assert response.json()["detail"] == "No living space available for a newborn"
 
 
-# Debug Endpoint Tests (Superuser-only)
-
-
-@pytest.mark.asyncio
-async def test_force_conception_success(
-    async_client: AsyncClient,
-    async_session: AsyncSession,
-    superuser_token_headers: dict[str, str],
-):
-    user = await crud.user.get_by_email(async_session, email=settings.FIRST_SUPERUSER_EMAIL)
-    vault = await crud.vault.create_with_user_id(
-        db_session=async_session,
-        obj_in={"number": 701},
-        user_id=user.id,
-    )
-
+async def test_force_conception_success(async_client, async_session, superuser_token_headers):
+    vault = await _vault(async_session, 701)
     mother = await crud.dweller.create(
         async_session,
         obj_in=DwellerCreate(
@@ -209,13 +130,11 @@ async def test_force_conception_success(
             vault_id=str(vault.id),
         ),
     )
-
     response = await async_client.post(
         "/pregnancies/debug/force-conception",
         headers=superuser_token_headers,
         params={"mother_id": str(mother.id), "father_id": str(father.id)},
     )
-
     assert response.status_code == 200
     data = response.json()
     assert data["mother_id"] == str(mother.id)
@@ -223,40 +142,20 @@ async def test_force_conception_success(
     assert data["status"] == "pregnant"
 
 
-@pytest.mark.asyncio
-async def test_accelerate_pregnancy_success(
-    async_client: AsyncClient,
-    async_session: AsyncSession,
-    superuser_token_headers: dict[str, str],
-    caplog,
-):
+async def test_accelerate_pregnancy_success(async_client, async_session, superuser_token_headers, caplog):
     user = await crud.user.get_by_email(async_session, email=settings.FIRST_SUPERUSER_EMAIL)
-    vault = await crud.vault.create_with_user_id(
-        db_session=async_session,
-        obj_in={"number": 704},
-        user_id=user.id,
-    )
-
-    mother = await _adult(async_session, vault.id, GenderEnum.FEMALE)
-    father = await _adult(async_session, vault.id, GenderEnum.MALE)
-
-    from app.services.family.breeding_service import breeding_service
-
+    vault = await _vault(async_session, 704)
+    mother, father = await _couple(async_session, vault.id)
     pregnancy = await breeding_service.create_pregnancy(async_session, mother.id, father.id)
-
     assert not pregnancy.is_due
-
     with caplog.at_level("INFO", logger="app.api.v1.endpoints.pregnancy"):
         response = await async_client.post(
-            f"/pregnancies/{pregnancy.id}/debug/accelerate",
-            headers=superuser_token_headers,
+            f"/pregnancies/{pregnancy.id}/debug/accelerate", headers=superuser_token_headers
         )
-
     assert response.status_code == 200
     data = response.json()
     assert data["is_due"] is True
     assert data["progress_percentage"] == 100.0
-
     audit = next(record for record in caplog.records if record.message == "DEBUG pregnancy accelerated")
     assert audit.triggered_by == str(user.id)
     assert not hasattr(audit, "new_due_at")
@@ -264,68 +163,38 @@ async def test_accelerate_pregnancy_success(
 
 
 async def _pregnancy_in_new_vault(async_session: AsyncSession, number: int):
-    owner = await crud.user.get_by_email(async_session, email=settings.FIRST_SUPERUSER_EMAIL)
-    vault = await crud.vault.create_with_user_id(db_session=async_session, obj_in={"number": number}, user_id=owner.id)
-    mother = await _adult(async_session, vault.id, GenderEnum.FEMALE)
-    father = await _adult(async_session, vault.id, GenderEnum.MALE)
-
-    from app.services.family.breeding_service import breeding_service
-
+    vault = await _vault(async_session, number)
+    mother, father = await _couple(async_session, vault.id)
     return await breeding_service.create_pregnancy(async_session, mother.id, father.id)
 
 
-@pytest.mark.asyncio
-async def test_get_pregnancy_foreign_vault_returns_404(
-    async_client: AsyncClient,
-    async_session: AsyncSession,
-    normal_user_token_headers: dict[str, str],
+@pytest.mark.parametrize(("method", "suffix"), [("get", ""), ("post", "/deliver")])
+async def test_foreign_vault_pregnancy_returns_404(
+    async_client, async_session, normal_user_token_headers, method, suffix
 ):
-    pregnancy = await _pregnancy_in_new_vault(async_session, 781)
-
-    response = await async_client.get(f"/pregnancies/{pregnancy.id}", headers=normal_user_token_headers)
-
-    assert response.status_code == 404
-
-
-@pytest.mark.asyncio
-async def test_deliver_foreign_vault_pregnancy_returns_404(
-    async_client: AsyncClient,
-    async_session: AsyncSession,
-    normal_user_token_headers: dict[str, str],
-):
-    pregnancy = await _pregnancy_in_new_vault(async_session, 782)
-
-    response = await async_client.post(f"/pregnancies/{pregnancy.id}/deliver", headers=normal_user_token_headers)
-
+    pregnancy = await _pregnancy_in_new_vault(async_session, 781 if method == "get" else 782)
+    response = await getattr(async_client, method)(
+        f"/pregnancies/{pregnancy.id}{suffix}", headers=normal_user_token_headers
+    )
     assert response.status_code == 404
 
 
 async def test_tick_birth_log_records_count_without_names(async_session, vault, monkeypatch, caplog):
-    from app.services.family.breeding_service import breeding_service
-    from app.services.game_tick.family_tick import _deliver_due_baby
-
     vault.population_max = 10
     async_session.add(vault)
     await async_session.commit()
-    mother = await _adult(async_session, vault.id, GenderEnum.FEMALE)
-    father = await _adult(async_session, vault.id, GenderEnum.MALE)
+    mother, father = await _couple(async_session, vault.id)
     pregnancy = await breeding_service.create_pregnancy(async_session, mother.id, father.id)
     await breeding_service.accelerate_pregnancy(async_session, pregnancy.id)
     monkeypatch.setattr(game_config.breeding, "twin_chance", 0.0)
-
     with caplog.at_level("INFO", logger="app.services.game_tick.family_tick"):
         assert await _deliver_due_baby(async_session, vault.id, pregnancy.id)
-
     birth = next(record for record in caplog.records if record.name == "app.services.game_tick.family_tick")
     assert birth.args == (vault.id, 1)
 
 
 async def test_tick_delivery_failure_does_not_log_pregnancy_id(async_session, vault, caplog):
-    from app.services.family.breeding_service import breeding_service
-    from app.services.game_tick.family_tick import _deliver_due_baby
-
-    mother = await _adult(async_session, vault.id, GenderEnum.FEMALE)
-    father = await _adult(async_session, vault.id, GenderEnum.MALE)
+    mother, father = await _couple(async_session, vault.id)
     pregnancy = await breeding_service.create_pregnancy(async_session, mother.id, father.id)
     with caplog.at_level("ERROR", logger="app.services.game_tick.family_tick"):
         assert not await _deliver_due_baby(async_session, vault.id, pregnancy.id)

@@ -1,7 +1,6 @@
 """Barbershop API and appearance/AI gate tests."""
 
 import pytest
-from httpx import AsyncClient
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
@@ -59,16 +58,9 @@ async def _make_human(db_session: AsyncSession, dweller: Dweller) -> None:
     await db_session.refresh(dweller)
 
 
-async def test_read_barbershop_status(
-    async_client: AsyncClient,
-    async_session: AsyncSession,
-    superuser_token_headers: dict[str, str],
-    vault: Vault,
-) -> None:
+async def test_read_barbershop_status(async_client, async_session, superuser_token_headers, vault) -> None:
     room = await _make_room(async_session, vault)
-
     response = await async_client.get(f"/rooms/{room.id}/barbershop", headers=superuser_token_headers)
-
     assert response.status_code == 200
     body = response.json()
     assert body["room_id"] == str(room.id)
@@ -82,44 +74,27 @@ async def test_read_barbershop_status(
 
 
 async def test_read_barbershop_status_rejects_other_rooms(
-    async_client: AsyncClient,
-    async_session: AsyncSession,
-    superuser_token_headers: dict[str, str],
-    vault: Vault,
+    async_client, async_session, superuser_token_headers, vault
 ) -> None:
     room = await _make_room(
-        async_session,
-        vault,
-        name="Diner",
-        category=RoomTypeEnum.PRODUCTION,
-        ability=SPECIALEnum.AGILITY,
+        async_session, vault, name="Diner", category=RoomTypeEnum.PRODUCTION, ability=SPECIALEnum.AGILITY
     )
-
     response = await async_client.get(f"/rooms/{room.id}/barbershop", headers=superuser_token_headers)
-
     assert response.status_code == 400
 
 
-async def test_change_appearance_endpoint(
-    async_client: AsyncClient,
-    async_session: AsyncSession,
-    superuser_token_headers: dict[str, str],
-    vault: Vault,
-    dweller: Dweller,
-) -> None:
+async def test_change_appearance_endpoint(async_client, async_session, superuser_token_headers, vault, dweller) -> None:
     room = await _make_room(async_session, vault)
     await _staff(async_session, room, dweller)
     await _make_human(async_session, dweller)
     vault.bottle_caps = 500
     async_session.add(vault)
     await async_session.commit()
-
     response = await async_client.post(
         f"/rooms/{room.id}/barbershop/dwellers/{dweller.id}",
         json={"skin_tone": "Tan", "hair_color": "black"},
         headers=superuser_token_headers,
     )
-
     assert response.status_code == 200
     body = response.json()
     assert body["portrait_updated"] is True
@@ -131,85 +106,51 @@ async def test_change_appearance_endpoint(
 
 
 async def test_change_appearance_endpoint_requires_staffed_room(
-    async_client: AsyncClient,
-    async_session: AsyncSession,
-    superuser_token_headers: dict[str, str],
-    vault: Vault,
-    dweller: Dweller,
+    async_client, async_session, superuser_token_headers, vault, dweller
 ) -> None:
     room = await _make_room(async_session, vault)
     await _make_human(async_session, dweller)
-
     response = await async_client.post(
         f"/rooms/{room.id}/barbershop/dwellers/{dweller.id}",
         json={"skin_tone": "Tan", "hair_color": "black"},
         headers=superuser_token_headers,
     )
-
     assert response.status_code == 403
     assert "Barbershop" in response.json()["detail"]
 
 
-async def test_put_appearance_change_requires_barbershop(
-    async_client: AsyncClient,
-    async_session: AsyncSession,
-    superuser_token_headers: dict[str, str],
-    dweller: Dweller,
+APPEARANCE_CALLS = [
+    ("put", "/dwellers/{id}", True, {"json": {"visual_attributes": {"skin_tone": "Tan"}}}),
+    ("post", "/dwellers/{id}/generate_visual_attributes/", False, {}),
+    ("post", "/dwellers/{id}/generate_photo/", False, {}),
+    ("post", "/dwellers/{id}/generate_with_ai/", False, {}),
+    (
+        "post",
+        "/dwellers/{id}/generate_avatar",
+        False,
+        {"params": {"dweller_first_name": "Test", "dweller_last_name": "User"}, "json": {"hair_color": "black"}},
+    ),
+]
+
+
+@pytest.mark.parametrize(("method", "path", "human", "kwargs"), APPEARANCE_CALLS)
+async def test_appearance_endpoints_require_barbershop(
+    async_client, async_session, superuser_token_headers, dweller, method, path, human, kwargs
 ) -> None:
-    await _make_human(async_session, dweller)
-
-    response = await async_client.put(
-        f"/dwellers/{dweller.id}",
-        json={"visual_attributes": {"skin_tone": "Tan"}},
-        headers=superuser_token_headers,
+    if human:
+        await _make_human(async_session, dweller)
+    response = await getattr(async_client, method)(
+        path.format(id=dweller.id), headers=superuser_token_headers, **kwargs
     )
-
     assert response.status_code == 403
     assert "Barbershop" in response.json()["detail"]
 
 
 async def test_put_non_appearance_fields_still_work_without_barbershop(
-    async_client: AsyncClient,
-    superuser_token_headers: dict[str, str],
-    dweller: Dweller,
+    async_client, superuser_token_headers, dweller
 ) -> None:
     response = await async_client.put(
-        f"/dwellers/{dweller.id}",
-        json={"first_name": "Renamed"},
-        headers=superuser_token_headers,
+        f"/dwellers/{dweller.id}", json={"first_name": "Renamed"}, headers=superuser_token_headers
     )
-
     assert response.status_code == 200
     assert response.json()["first_name"] == "Renamed"
-
-
-@pytest.mark.parametrize("path", ["generate_visual_attributes", "generate_photo", "generate_with_ai"])
-async def test_ai_appearance_endpoints_require_barbershop(
-    async_client: AsyncClient,
-    superuser_token_headers: dict[str, str],
-    dweller: Dweller,
-    path: str,
-) -> None:
-    response = await async_client.post(
-        f"/dwellers/{dweller.id}/{path}/",
-        headers=superuser_token_headers,
-    )
-
-    assert response.status_code == 403
-    assert "Barbershop" in response.json()["detail"]
-
-
-async def test_generate_avatar_requires_barbershop(
-    async_client: AsyncClient,
-    superuser_token_headers: dict[str, str],
-    dweller: Dweller,
-) -> None:
-    response = await async_client.post(
-        f"/dwellers/{dweller.id}/generate_avatar",
-        params={"dweller_first_name": "Test", "dweller_last_name": "User"},
-        json={"hair_color": "black"},
-        headers=superuser_token_headers,
-    )
-
-    assert response.status_code == 403
-    assert "Barbershop" in response.json()["detail"]

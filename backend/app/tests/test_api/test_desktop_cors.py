@@ -8,30 +8,23 @@ from starlette.middleware.cors import CORSMiddleware
 
 from main import app
 
+PREFLIGHT = {"Access-Control-Request-Method": "POST"}
+
+
+async def _preflight(application, origin: str, extra: dict | None = None):
+    async with AsyncClient(transport=ASGITransport(app=application), base_url="http://test") as client:
+        return await client.options("/api/v1/auth/login", headers={"Origin": origin, **PREFLIGHT, **(extra or {})})
+
 
 @pytest.mark.parametrize("origin", ["tauri://localhost", "http://tauri.localhost", "https://tauri.localhost"])
 async def test_desktop_api_preflight_allows_app_origins(origin: str) -> None:
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        response = await client.options(
-            "/api/v1/auth/login",
-            headers={
-                "Origin": origin,
-                "Access-Control-Request-Method": "POST",
-                "Access-Control-Request-Headers": "content-type,authorization",
-            },
-        )
-
+    response = await _preflight(app, origin, {"Access-Control-Request-Headers": "content-type,authorization"})
     assert response.status_code == 200
     assert response.headers["access-control-allow-origin"] == origin
 
 
 async def test_desktop_api_preflight_rejects_untrusted_origin() -> None:
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        response = await client.options(
-            "/api/v1/auth/login",
-            headers={"Origin": "https://untrusted.example", "Access-Control-Request-Method": "POST"},
-        )
-
+    response = await _preflight(app, "https://untrusted.example")
     assert response.status_code == 400
     assert "access-control-allow-origin" not in response.headers
 
@@ -58,11 +51,6 @@ def production_cors_app() -> CORSMiddleware:
 async def test_production_manifest_preflight_policy(
     production_cors_app: CORSMiddleware, origin: str, expected_status: int
 ) -> None:
-    async with AsyncClient(transport=ASGITransport(app=production_cors_app), base_url="http://test") as client:
-        response = await client.options(
-            "/api/v1/auth/login",
-            headers={"Origin": origin, "Access-Control-Request-Method": "POST"},
-        )
-
+    response = await _preflight(production_cors_app, origin)
     assert response.status_code == expected_status
     assert response.headers.get("access-control-allow-origin") == (origin if expected_status == 200 else None)

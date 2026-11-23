@@ -1,4 +1,5 @@
-from datetime import datetime, timedelta
+from contextlib import contextmanager
+from datetime import timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
@@ -42,32 +43,30 @@ from app.tests.factory.vaults import create_fake_vault
 from app.utils.exceptions import AccessDeniedException, ResourceNotFoundException, ValidationException
 from app.utils.time import utcnow
 
+DMG_DWELLERS = "app.services.combat.incident_math.damage_to_dwellers"
+DMG_RAIDERS = "app.services.combat.incident_math.damage_to_raiders"
+PROGRESS = "app.services.combat.incident_math.containment_progress"
+NOTIFY_WS = "app.services.notification_service.manager"
+NOTIFY_SSE = "app.services.notification_service.sse_manager"
+
 
 @pytest_asyncio.fixture(name="room")
 async def room_fixture(async_session: AsyncSession, vault: Vault) -> Room:
-    """Create a test room."""
-
-    room_data = create_fake_room()
-    room_in = RoomCreate(**room_data, vault_id=vault.id)
-    return await crud.room.create(db_session=async_session, obj_in=room_in)
+    return await crud.room.create(async_session, RoomCreate(**create_fake_room(), vault_id=vault.id))
 
 
 def create_test_room() -> dict:
-    """Create a test room that is NOT an elevator, arena, or response station (ensures incident can spawn)."""
+    """A room that is NOT an elevator, arena, or response station (so an incident can spawn)."""
     room_data = create_fake_room()
     # get_occupied_rooms (the spawner's candidate set) excludes elevators by name
     # and arenas/response stations by category, so a wave-continuation spawn needs
     # both rooms eligible.
-    while room_data["name"] == "Elevator" or room_data["category"] in (
-        RoomTypeEnum.ARENA,
-        RoomTypeEnum.RESPONSE,
-    ):
+    while room_data["name"] == "Elevator" or room_data["category"] in (RoomTypeEnum.ARENA, RoomTypeEnum.RESPONSE):
         room_data = create_fake_room()
     return room_data
 
 
 def response_station_room(vault_id, *, coordinate_x: int, coordinate_y: int, size: int = 3) -> RoomCreate:
-    """Build a Response Station (category ``response``) for incident-candidate tests."""
     return RoomCreate(
         name="Response Station",
         category=RoomTypeEnum.RESPONSE,
@@ -87,56 +86,71 @@ def response_station_room(vault_id, *, coordinate_x: int, coordinate_y: int, siz
     )
 
 
-@pytest.mark.asyncio
-async def test_spawn_incident_no_rooms(async_session: AsyncSession, vault: Vault):
-    incident = await incident_service.spawn_incident(async_session, vault.id)
-    assert incident is None
+async def _dweller(session, vault_id, data, **extra):
+    return await crud.dweller.create(session, obj_in=DwellerCreate(**{**data, **extra}, vault_id=vault_id))
 
 
-@pytest.mark.asyncio
-async def test_runtime_spawn_rolls_from_the_balance_weights(async_session: AsyncSession, room_with_dwellers: dict):
-    room = room_with_dwellers["room"]
+async def _room(session, vault_id, x, y, **extra):
+    return await crud.room.create(
+        session, RoomCreate(**create_test_room(), vault_id=vault_id, coordinate_x=x, coordinate_y=y, **extra)
+    )
 
-    with patch("app.services.combat.incident_spawning.random.choices", return_value=[IncidentType.FIRE]) as chooser:
-        incident = await incident_service.spawn_incident(async_session, room.vault_id)
 
+async def _production_room(session, vault_id, name, x, y, ability=SPECIALEnum.STRENGTH):
+    return await crud.room.create(
+        session,
+        RoomCreate(
+            name=name,
+            category=RoomTypeEnum.PRODUCTION,
+            ability=ability,
+            base_cost=100,
+            incremental_cost=50,
+            t2_upgrade_cost=500,
+            t3_upgrade_cost=1500,
+            size_min=3,
+            size_max=6,
+            coordinate_x=x,
+            coordinate_y=y,
+            vault_id=vault_id,
+        ),
+    )
+
+
+async def _incident(session, room, incident_type, difficulty=2, **extra):
+    return await crud.incident_crud.create(
+        session, vault_id=room.vault_id, room_id=room.id, incident_type=incident_type, difficulty=difficulty, **extra
+    )
+
+
+async def _commit(session, *objs):
+    for obj in objs:
+        session.add(obj)
+    await session.commit()
+
+
+async def _active_count(session, vault_id):
+    return len(await crud.incident_crud.get_active_by_vault(session, vault_id))
+
+
+async def _spawn(session, vault_id, incident_type=IncidentType.FIRE):
+    incident = await incident_service.spawn_incident(session, vault_id, incident_type)
     assert incident is not None
-    assert incident.type == IncidentType.FIRE
-    vault = await crud.vault.get(async_session, room.vault_id)
-    population = await crud.dweller.count_living_in_vault(async_session, room.vault_id)
-    expected = game_config.incident.get_spawn_weights(population, vault.vault_mode)
-    assert chooser.call_args.kwargs["weights"] == list(expected.values())
+    return incident
 
 
-@pytest.mark.asyncio
-async def test_runtime_spawn_continues_the_active_wave(async_session: AsyncSession, vault: Vault, dweller_data: dict):
-    for index in range(2):
-        room = await crud.room.create(
-            async_session,
-            RoomCreate(**create_test_room(), vault_id=vault.id, coordinate_x=index + 1, coordinate_y=1),
-        )
-        dweller = await crud.dweller.create(async_session, obj_in=DwellerCreate(**dweller_data, vault_id=vault.id))
-        await dweller_service.move_to_room(async_session, dweller.id, room.id)
-    await async_session.commit()
-
-    first = await incident_service.spawn_incident(async_session, vault.id, IncidentType.MOLE_RAT_ATTACK)
-    assert first is not None
-
-    with patch(
-        "app.services.combat.incident_spawning.random.choices",
-        side_effect=AssertionError("rolled a new type mid-wave"),
-    ):
-        second = await incident_service.spawn_incident(async_session, vault.id)
-
-    assert second is not None
-    assert second.type == IncidentType.MOLE_RAT_ATTACK
+async def _occupant(session, vault_id, room_id, data):
+    """A dweller standing in the room, so it is a spawn (or spread) candidate."""
+    dweller = await _dweller(session, vault_id, data)
+    dweller.room_id = room_id
+    session.add(dweller)
+    await session.commit()
+    return dweller
 
 
-@pytest.mark.asyncio
-async def test_incident_never_spawns_in_an_arena(async_session: AsyncSession, vault: Vault):
-    arena = await crud.room.create(
-        db_session=async_session,
-        obj_in=RoomCreate(
+async def _arena_room(session, vault_id):
+    return await crud.room.create(
+        session,
+        RoomCreate(
             name="Arena",
             category=RoomTypeEnum.ARENA,
             ability="Strength",
@@ -149,140 +163,105 @@ async def test_incident_never_spawns_in_an_arena(async_session: AsyncSession, va
             size_max=6,
             size=6,
             tier=1,
-            vault_id=vault.id,
+            vault_id=vault_id,
             coordinate_x=0,
             coordinate_y=1,
         ),
     )
-    dweller_in = DwellerCreate(
-        first_name="Gladiator",
-        last_name="Dweller",
-        gender="male",
-        rarity="common",
-        vault_id=vault.id,
-        room_id=arena.id,
-        strength=5,
-        perception=5,
-        endurance=5,
-        charisma=5,
-        intelligence=5,
-        agility=5,
-        luck=5,
+
+
+@contextmanager
+def _damage(dwellers: float, raiders: float = 0.0):
+    with patch(DMG_DWELLERS, return_value=dwellers), patch(DMG_RAIDERS, return_value=raiders):
+        yield
+
+
+async def _assign_quest_to_vault(session, vault):
+    quest = await crud.quest_crud.create(
+        session,
+        obj_in=QuestCreate(
+            title="Coexist Quest",
+            short_description="Send a team",
+            long_description="A quest that needs a team roster.",
+            requirements="1 dweller",
+            rewards="100 caps",
+            duration_minutes=60,
+        ),
     )
-    dweller = await crud.dweller.create(db_session=async_session, obj_in=dweller_in)
-    dweller.room_id = arena.id
-    async_session.add(dweller)
-    await async_session.commit()
-
-    incident = await incident_service.spawn_incident(async_session, vault.id, IncidentType.RADROACH_INFESTATION)
-
-    assert incident is None
+    await crud.quest_crud.assign_to_vault(session, quest.id, vault.id, is_visible=True)
+    return quest
 
 
 @pytest.mark.asyncio
-async def test_incident_does_not_spread_into_an_arena(async_session: AsyncSession, vault: Vault):
-    """A spread must not carry an incident into an arena either."""
-
-    source = await crud.room.create(
-        db_session=async_session,
-        obj_in=RoomCreate(**create_test_room(), vault_id=vault.id, coordinate_x=6, coordinate_y=1),
-    )
-    arena = await crud.room.create(
-        db_session=async_session,
-        obj_in=RoomCreate(**create_test_room(), vault_id=vault.id, coordinate_x=6, coordinate_y=2),
-    )
-    arena.category = RoomTypeEnum.ARENA
-    arena.name = "Arena"
-    async_session.add(arena)
-    await async_session.commit()
-
-    incident = await crud.incident_crud.create(
-        async_session,
-        vault_id=vault.id,
-        room_id=source.id,
-        incident_type=IncidentType.RADROACH_INFESTATION,
-        difficulty=2,
-    )
-
-    adjacent = await crud.room.get_adjacent_rooms(
-        async_session, vault.id, exclude_room_id=source.id, coord_x=6, coord_y=1
-    )
-
-    assert arena.id not in {room.id for room in adjacent}
+async def test_spawn_incident_no_rooms(async_session, vault):
+    assert await incident_service.spawn_incident(async_session, vault.id) is None
 
 
 @pytest.mark.asyncio
-async def test_incident_never_spawns_in_a_response_station(async_session: AsyncSession, vault: Vault):
-    station = await crud.room.create(
-        db_session=async_session,
-        obj_in=response_station_room(vault.id, coordinate_x=1, coordinate_y=1),
-    )
-    dweller_in = DwellerCreate(
-        first_name="Responder",
-        last_name="Dweller",
-        gender="male",
-        rarity="common",
-        vault_id=vault.id,
-        room_id=station.id,
-        strength=5,
-        perception=5,
-        endurance=5,
-        charisma=5,
-        intelligence=5,
-        agility=5,
-        luck=5,
-    )
-    dweller = await crud.dweller.create(db_session=async_session, obj_in=dweller_in)
-    dweller.room_id = station.id
-    async_session.add(dweller)
-    await async_session.commit()
-
-    incident = await incident_service.spawn_incident(async_session, vault.id, IncidentType.RADROACH_INFESTATION)
-
-    assert incident is None
-
-
-@pytest.mark.asyncio
-async def test_incident_does_not_spread_into_a_response_station(async_session: AsyncSession, vault: Vault):
-    """A spread must not carry an incident into the station either."""
-    source = await crud.room.create(
-        db_session=async_session,
-        obj_in=RoomCreate(**create_test_room(), vault_id=vault.id, coordinate_x=6, coordinate_y=1),
-    )
-    station = await crud.room.create(
-        db_session=async_session,
-        obj_in=response_station_room(vault.id, coordinate_x=6, coordinate_y=2),
-    )
-
-    incident = await crud.incident_crud.create(
-        async_session,
-        vault_id=vault.id,
-        room_id=source.id,
-        incident_type=IncidentType.RADROACH_INFESTATION,
-        difficulty=2,
-    )
-
-    adjacent = await crud.room.get_adjacent_rooms(
-        async_session, vault.id, exclude_room_id=source.id, coord_x=6, coord_y=1
-    )
-    assert station.id not in {room.id for room in adjacent}
-
-    await incident_service._spread_incident(async_session, incident)
-    rooms_with_incidents = await crud.incident_crud.get_rooms_with_active_incidents(async_session, vault.id)
-    assert station.id not in rooms_with_incidents
-
-
-@pytest.mark.asyncio
-async def test_incident_read_returns_the_latest_journal_entries(async_session: AsyncSession, room_with_dwellers: dict):
-    """The compact UI journal must not get stuck on a long incident's opening rounds."""
+async def test_runtime_spawn_rolls_from_the_balance_weights(async_session, room_with_dwellers):
     room = room_with_dwellers["room"]
-    incident = await crud.incident_crud.create(
-        async_session,
-        vault_id=room.vault_id,
-        room_id=room.id,
-        incident_type=IncidentType.RAIDER_ATTACK,
-        difficulty=3,
+    with patch("app.services.combat.incident_spawning.random.choices", return_value=[IncidentType.FIRE]) as chooser:
+        incident = await incident_service.spawn_incident(async_session, room.vault_id)
+    assert incident is not None
+    assert incident.type == IncidentType.FIRE
+    vault = await crud.vault.get(async_session, room.vault_id)
+    population = await crud.dweller.count_living_in_vault(async_session, room.vault_id)
+    expected = game_config.incident.get_spawn_weights(population, vault.vault_mode)
+    assert chooser.call_args.kwargs["weights"] == list(expected.values())
+
+
+@pytest.mark.asyncio
+async def test_runtime_spawn_continues_the_active_wave(async_session, vault, dweller_data):
+    for index in range(2):
+        room = await _room(async_session, vault.id, index + 1, 1)
+        dweller = await _dweller(async_session, vault.id, dweller_data)
+        await dweller_service.move_to_room(async_session, dweller.id, room.id)
+    await async_session.commit()
+    first = await _spawn(async_session, vault.id, IncidentType.MOLE_RAT_ATTACK)
+    with patch("app.services.combat.incident_spawning.random.choices", side_effect=AssertionError("rolled mid-wave")):
+        second = await incident_service.spawn_incident(async_session, vault.id)
+    assert second is not None
+    assert second.type == first.type == IncidentType.MOLE_RAT_ATTACK
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("excluded_kind", ["arena", "response_station"])
+async def test_incident_never_spawns_in_an_excluded_room(async_session, vault, dweller_data, excluded_kind):
+    if excluded_kind == "arena":
+        excluded = await _arena_room(async_session, vault.id)
+    else:
+        excluded = await crud.room.create(
+            async_session, response_station_room(vault.id, coordinate_x=1, coordinate_y=1)
+        )
+    await _occupant(async_session, vault.id, excluded.id, dweller_data)
+    incident = await incident_service.spawn_incident(async_session, vault.id, IncidentType.RADROACH_INFESTATION)
+    assert incident is None
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("blocked_kind", ["arena", "response_station"])
+async def test_incident_does_not_spread_into_an_excluded_room(async_session, vault, blocked_kind):
+    source = await _room(async_session, vault.id, 6, 1)
+    if blocked_kind == "arena":
+        blocked = await _room(async_session, vault.id, 6, 2)
+        blocked.category = RoomTypeEnum.ARENA
+        blocked.name = "Arena"
+        await _commit(async_session, blocked)
+    else:
+        blocked = await crud.room.create(async_session, response_station_room(vault.id, coordinate_x=6, coordinate_y=2))
+    incident = await _incident(async_session, source, IncidentType.RADROACH_INFESTATION)
+    adjacent = await crud.room.get_adjacent_rooms(
+        async_session, vault.id, exclude_room_id=source.id, coord_x=6, coord_y=1
     )
+    assert blocked.id not in {room.id for room in adjacent}
+    await incident_service._spread_incident(async_session, incident)
+    assert blocked.id not in await crud.incident_crud.get_rooms_with_active_incidents(async_session, vault.id)
+
+
+@pytest.mark.asyncio
+async def test_incident_read_returns_the_latest_journal_entries(async_session, room_with_dwellers):
+    room = room_with_dwellers["room"]
+    incident = await _incident(async_session, room, IncidentType.RAIDER_ATTACK, 3)
     started = utcnow()
     for index in range(45):
         async_session.add(
@@ -294,157 +273,76 @@ async def test_incident_read_returns_the_latest_journal_entries(async_session: A
             )
         )
     await async_session.commit()
-
     read = await incident_service.get_incident_read(async_session, incident, room.name)
-
     assert [event.message for event in read.events] == [f"Round {index}" for index in range(5, 45)]
 
 
 @pytest.mark.asyncio
-async def test_incident_read_pins_fire_containment_progress(async_session: AsyncSession, room_with_dwellers: dict):
+async def test_incident_read_pins_fire_containment_progress(async_session, room_with_dwellers):
     room = room_with_dwellers["room"]
-    incident = await crud.incident_crud.create(
-        async_session,
-        vault_id=room.vault_id,
-        room_id=room.id,
-        incident_type=IncidentType.FIRE,
-        difficulty=3,
-    )
+    incident = await _incident(async_session, room, IncidentType.FIRE, 3)
     incident.combat_progress = 0.5
-    async_session.add(incident)
-    await async_session.commit()
-
+    await _commit(async_session, incident)
     read = await incident_service.get_incident_read(async_session, incident, room.name)
-
-    assert read.progress.current == 50
-    assert read.progress.target == 100
-    assert read.progress.label == "Fire contained"
-    assert read.family == IncidentFamily.HAZARD
-    assert read.objective == IncidentObjective.CONTAIN
+    assert (read.progress.current, read.progress.target, read.progress.label) == (50, 100, "Fire contained")
+    assert (read.family, read.objective) == (IncidentFamily.HAZARD, IncidentObjective.CONTAIN)
     assert read.response.label == "Send responders"
-    assert read.risk.kind == "spread"
-    assert read.risk.rooms_affected == 1
+    assert (read.risk.kind, read.risk.rooms_affected) == ("spread", 1)
 
 
 @pytest.mark.asyncio
-async def test_incident_read_pins_combat_kill_progress(async_session: AsyncSession, room_with_dwellers: dict):
+async def test_incident_read_pins_combat_kill_progress(async_session, room_with_dwellers):
     room = room_with_dwellers["room"]
-    incident = await crud.incident_crud.create(
-        async_session,
-        vault_id=room.vault_id,
-        room_id=room.id,
-        incident_type=IncidentType.RAIDER_ATTACK,
-        difficulty=3,
-    )
+    incident = await _incident(async_session, room, IncidentType.RAIDER_ATTACK, 3)
     incident.enemies_defeated = 2
-    async_session.add(incident)
-    await async_session.commit()
-
+    await _commit(async_session, incident)
     read = await incident_service.get_incident_read(async_session, incident, room.name)
-
-    assert read.progress.current == 2
-    assert read.progress.target == 6
+    assert (read.progress.current, read.progress.target) == (2, 6)
     assert read.progress.label == "Intruders neutralized"
-    assert read.family == IncidentFamily.INTRUSION
-    assert read.objective == IncidentObjective.DEFEAT
+    assert (read.family, read.objective) == (IncidentFamily.INTRUSION, IncidentObjective.DEFEAT)
 
 
 @pytest.mark.asyncio
-async def test_get_incident_for_vault_returns_owned_incident(async_session: AsyncSession, room_with_dwellers: dict):
+async def test_get_incident_for_vault_contract(async_session, room_with_dwellers):
     room = room_with_dwellers["room"]
-    incident = await crud.incident_crud.create(
-        async_session,
-        vault_id=room.vault_id,
-        room_id=room.id,
-        incident_type=IncidentType.FIRE,
-        difficulty=1,
-    )
-
+    incident = await _incident(async_session, room, IncidentType.FIRE, 1)
     fetched = await incident_service.get_incident_for_vault(async_session, incident.id, room.vault_id)
-
     assert fetched.id == incident.id
-
-
-@pytest.mark.asyncio
-async def test_get_incident_for_vault_rejects_other_vault(async_session: AsyncSession, room_with_dwellers: dict):
-    room = room_with_dwellers["room"]
-    incident = await crud.incident_crud.create(
-        async_session,
-        vault_id=room.vault_id,
-        room_id=room.id,
-        incident_type=IncidentType.FIRE,
-        difficulty=1,
-    )
-
     with pytest.raises(AccessDeniedException, match="does not belong"):
         await incident_service.get_incident_for_vault(async_session, incident.id, uuid4())
-
-
-@pytest.mark.asyncio
-async def test_get_incident_for_vault_missing_raises_not_found(async_session: AsyncSession, vault: Vault):
     with pytest.raises(ResourceNotFoundException):
-        await incident_service.get_incident_for_vault(async_session, uuid4(), vault.id)
+        await incident_service.get_incident_for_vault(async_session, uuid4(), room.vault_id)
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize(
-    ("damage", "expected_health"),
-    [
-        (5.0, [98, 97]),
-        (1.0, [99, 100]),
-    ],
-)
+@pytest.mark.parametrize(("damage", "expected_health"), [(5.0, [98, 97]), (1.0, [99, 100])])
 async def test_process_incident_distributes_all_integer_damage(
-    async_session: AsyncSession,
-    room_with_dwellers: dict,
-    damage: float,
-    expected_health: list[int],
+    async_session, room_with_dwellers, damage, expected_health
 ):
-    room = room_with_dwellers["room"]
-    dwellers = room_with_dwellers["dwellers"]
+    room, dwellers = room_with_dwellers["room"], room_with_dwellers["dwellers"]
     for dweller in dwellers:
-        dweller.health = 100
-        dweller.max_health = 100
-        async_session.add(dweller)
-    await async_session.commit()
-
-    incident = await incident_service.spawn_incident(async_session, room.vault_id, IncidentType.RADROACH_INFESTATION)
-    assert incident is not None
-
-    with (
-        patch("app.services.combat.incident_math.damage_to_dwellers", return_value=damage),
-        patch("app.services.combat.incident_math.damage_to_raiders", return_value=0.0),
-    ):
+        dweller.health = dweller.max_health = 100
+        await _commit(async_session, dweller)
+    incident = await _spawn(async_session, room.vault_id, IncidentType.RADROACH_INFESTATION)
+    with patch(DMG_DWELLERS, return_value=damage), patch(DMG_RAIDERS, return_value=0.0):
         result = await incident_service.process_incident(async_session, incident, 2)
-
     for dweller in dwellers:
         await async_session.refresh(dweller)
     await async_session.refresh(incident)
-
     assert sorted(dweller.health for dweller in dwellers) == sorted(expected_health)
     assert result.dwellers_damaged == min(int(damage), len(dwellers))
     assert incident.damage_dealt == int(damage)
 
 
 @pytest.mark.asyncio
-async def test_radscorpion_deals_health_and_radiation_damage(async_session: AsyncSession, room_with_dwellers: dict):
-    room = room_with_dwellers["room"]
-    dweller = room_with_dwellers["dwellers"][0]
-    dweller.health = 100
-    dweller.max_health = 100
+async def test_radscorpion_deals_health_and_radiation_damage(async_session, room_with_dwellers):
+    room, dweller = room_with_dwellers["room"], room_with_dwellers["dwellers"][0]
+    dweller.health = dweller.max_health = 100
     dweller.radiation = 0
-    async_session.add(dweller)
-    await async_session.commit()
-
-    incident = await incident_service.spawn_incident(async_session, room.vault_id, IncidentType.RADSCORPION_ATTACK)
-    assert incident is not None
-
-    with (
-        patch("app.services.combat.incident_math.damage_to_dwellers", return_value=20.0),
-        patch("app.services.combat.incident_math.damage_to_raiders", return_value=0.0),
-    ):
+    await _commit(async_session, dweller)
+    incident = await _spawn(async_session, room.vault_id, IncidentType.RADSCORPION_ATTACK)
+    with patch(DMG_DWELLERS, return_value=20.0), patch(DMG_RAIDERS, return_value=0.0):
         result = await incident_service.process_incident(async_session, incident, 2)
-
     await async_session.refresh(dweller)
     assert result.dwellers_damaged == 2
     assert dweller.health == 90
@@ -453,59 +351,35 @@ async def test_radscorpion_deals_health_and_radiation_damage(async_session: Asyn
 
 
 @pytest.mark.asyncio
-async def test_process_incident_does_not_damage_child(
-    async_session: AsyncSession, room_with_dwellers: dict, dweller_data: dict
-):
-    """Children in an incident room do not join combat or receive combat damage."""
+async def test_process_incident_does_not_damage_child(async_session, room_with_dwellers, dweller_data):
+    # Children in an incident room do not join combat or receive combat damage.
     room = room_with_dwellers["room"]
-    child_data = {
-        **dweller_data,
-        "age_group": AgeGroupEnum.CHILD,
-        "health": 100,
-        "max_health": 100,
-    }
-    child = await crud.dweller.create(
-        async_session,
-        obj_in=DwellerCreate(**child_data, vault_id=room.vault_id, room_id=room.id),
+    child = await _dweller(
+        async_session, room.vault_id, dweller_data, age_group=AgeGroupEnum.CHILD, health=100, max_health=100
     )
     await async_session.commit()
-
-    incident = await incident_service.spawn_incident(async_session, room.vault_id, IncidentType.FIRE)
-    assert incident is not None
+    incident = await _spawn(async_session, room.vault_id, IncidentType.FIRE)
     await incident_service.process_incident(async_session, incident, 60)
-
     await async_session.refresh(child)
     assert child.health == 100
 
 
 @pytest.mark.asyncio
-@pytest.mark.asyncio
-async def test_round_failure_leaves_no_partial_state(async_session: AsyncSession, room_with_dwellers: dict):
-    """A crash inside the round must not persist damage or deaths (single-commit round).
-
-    Rollback after a mid-round failure shows the dweller exactly as before the
-    round: the killing blow and the death marker were pending, not committed.
-    """
-    room = room_with_dwellers["room"]
-    dweller = room_with_dwellers["dwellers"][0]
+async def test_round_failure_leaves_no_partial_state(async_session, room_with_dwellers):
+    # A crash inside the round must not persist damage or deaths (single-commit round).
+    room, dweller = room_with_dwellers["room"], room_with_dwellers["dwellers"][0]
     dweller.health = 5
     dweller.max_health = 100
-    async_session.add(dweller)
-    await async_session.commit()
-
-    incident = await incident_service.spawn_incident(async_session, room.vault_id, IncidentType.RADROACH_INFESTATION)
-    assert incident is not None
-
+    await _commit(async_session, dweller)
+    incident = await _spawn(async_session, room.vault_id, IncidentType.RADROACH_INFESTATION)
     with (
-        patch("app.services.combat.incident_math.damage_to_dwellers", return_value=20.0),
-        patch("app.services.combat.incident_math.damage_to_raiders", return_value=0.0),
+        _damage(20.0),
         patch("app.services.combat.incident_publishing.record_events", side_effect=SQLAlchemyError("event boom")),
-        patch("app.services.notification_service.manager") as mock_ws,
-        patch("app.services.notification_service.sse_manager") as mock_sse,
+        patch(NOTIFY_WS) as mock_ws,
+        patch(NOTIFY_SSE) as mock_sse,
         pytest.raises(SQLAlchemyError, match="event boom"),
     ):
         await incident_service.process_incident(async_session, incident, 2)
-
     await async_session.rollback()
     await async_session.refresh(dweller)
     assert not dweller.is_dead
@@ -515,33 +389,19 @@ async def test_round_failure_leaves_no_partial_state(async_session: AsyncSession
 
 
 @pytest.mark.asyncio
-async def test_fatal_round_delivers_death_notification_after_commit(
-    async_session: AsyncSession, room_with_dwellers: dict
-):
-    room = room_with_dwellers["room"]
-    dweller = room_with_dwellers["dwellers"][0]
+async def test_fatal_round_delivers_death_notification_after_commit(async_session, room_with_dwellers):
+    room, dweller = room_with_dwellers["room"], room_with_dwellers["dwellers"][0]
     dweller.visual_attributes = {"race": "synth", "state_of_being": "gen_1"}
     dweller.health = 5
     dweller.max_health = 100
-    async_session.add(dweller)
-    await async_session.commit()
-
-    incident = await incident_service.spawn_incident(async_session, room.vault_id, IncidentType.RADROACH_INFESTATION)
-    assert incident is not None
-
-    with (
-        patch("app.services.combat.incident_math.damage_to_dwellers", return_value=20.0),
-        patch("app.services.combat.incident_math.damage_to_raiders", return_value=0.0),
-        patch("app.services.notification_service.manager") as mock_ws,
-        patch("app.services.notification_service.sse_manager") as mock_sse,
-    ):
+    await _commit(async_session, dweller)
+    incident = await _spawn(async_session, room.vault_id, IncidentType.RADROACH_INFESTATION)
+    with _damage(20.0), patch(NOTIFY_WS) as mock_ws, patch(NOTIFY_SSE) as mock_sse:
         await incident_service.process_incident(async_session, incident, 2)
-
     await async_session.refresh(dweller)
     assert dweller.is_dead
     assert mock_ws.send_personal_message.call_count >= 1
     assert mock_sse.publish.call_count >= 1
-
     events = (
         await async_session.execute(select(IncidentEvent).where(IncidentEvent.incident_id == incident.id))
     ).scalars()
@@ -550,12 +410,11 @@ async def test_fatal_round_delivers_death_notification_after_commit(
 
 
 @pytest.mark.asyncio
-async def test_generate_loot(async_session: AsyncSession, vault: Vault):
+async def test_generate_loot(async_session):
     # A hazard pays in experience: no caps, no loot, however severe.
     loot_low = incident_math.generate_loot(difficulty=1, incident_type=IncidentType.FIRE)
     assert loot_low["caps"] == 0
     assert loot_low["items"] == []
-
     # An intrusion pays caps scaled by difficulty.
     loot_high = incident_math.generate_loot(difficulty=10, incident_type=IncidentType.RAIDER_ATTACK)
     assert loot_high["caps"] >= 250
@@ -563,54 +422,14 @@ async def test_generate_loot(async_session: AsyncSession, vault: Vault):
 
 
 @pytest.mark.asyncio
-async def test_assign_responders_moves_healthy_adult(
-    async_session: AsyncSession, room_with_dwellers: dict, dweller_data: dict
-):
+async def test_assign_responders_moves_and_persists_the_roster(async_session, room_with_dwellers, dweller_data):
     room = room_with_dwellers["room"]
-    responder = await crud.dweller.create(
-        async_session,
-        obj_in=DwellerCreate(**dweller_data, vault_id=room.vault_id),
-    )
-    incident = await incident_service.spawn_incident(async_session, room.vault_id, IncidentType.FIRE)
-    assert incident is not None
+    responder = await _dweller(async_session, room.vault_id, dweller_data)
+    incident = await _spawn(async_session, room.vault_id)
     assigned = await incident_service.assign_responders(async_session, incident, [responder.id])
-
     await async_session.refresh(responder)
     assert assigned == [responder.id]
     assert responder.room_id == room.id
-
-
-async def _assign_quest_to_vault(async_session: AsyncSession, vault: Vault) -> Quest:
-    """Assign a fresh quest to the vault so a quest team can be created."""
-    quest = await crud.quest_crud.create(
-        async_session,
-        obj_in=QuestCreate(
-            title="Coexist Quest",
-            short_description="Send a team",
-            long_description="A quest that needs a team roster.",
-            requirements="1 dweller",
-            rewards="100 caps",
-            duration_minutes=60,
-        ),
-    )
-    await crud.quest_crud.assign_to_vault(async_session, quest.id, vault.id, is_visible=True)
-    return quest
-
-
-@pytest.mark.asyncio
-async def test_assign_responders_persists_incident_team(
-    async_session: AsyncSession, room_with_dwellers: dict, dweller_data: dict
-):
-    room = room_with_dwellers["room"]
-    responder = await crud.dweller.create(
-        async_session,
-        obj_in=DwellerCreate(**dweller_data, vault_id=room.vault_id),
-    )
-    incident = await incident_service.spawn_incident(async_session, room.vault_id, IncidentType.FIRE)
-    assert incident is not None
-
-    await incident_service.assign_responders(async_session, incident, [responder.id])
-
     team = await crud.team_crud.get_incident_team_row(async_session, incident.id, room.vault_id)
     assert team is not None
     assert team.quest_id is None
@@ -618,78 +437,53 @@ async def test_assign_responders_persists_incident_team(
     assert [member.dweller_id for member in team.members] == [responder.id]
     assert all(member.slot_number is None for member in team.members)
     assert all(member.status == "assigned" for member in team.members)
+    members = await crud.team_crud.get_incident_team(async_session, incident.id, room.vault_id)
+    assert [member.dweller_id for member in members] == [responder.id]
 
 
 @pytest.mark.asyncio
-async def test_assign_responders_appends_to_roster(
-    async_session: AsyncSession, room_with_dwellers: dict, dweller_data: dict
-):
+async def test_assign_responders_appends_to_roster(async_session, room_with_dwellers, dweller_data):
     room = room_with_dwellers["room"]
-    responder1 = await crud.dweller.create(async_session, obj_in=DwellerCreate(**dweller_data, vault_id=room.vault_id))
-    responder2 = await crud.dweller.create(async_session, obj_in=DwellerCreate(**dweller_data, vault_id=room.vault_id))
-    incident = await incident_service.spawn_incident(async_session, room.vault_id, IncidentType.FIRE)
-    assert incident is not None
-
-    await incident_service.assign_responders(async_session, incident, [responder1.id])
-    # Re-sending responder1 alongside a new responder2 must append, not replace or duplicate.
-    await incident_service.assign_responders(async_session, incident, [responder1.id, responder2.id])
-
+    first, second = [await _dweller(async_session, room.vault_id, dweller_data) for _ in range(2)]
+    incident = await _spawn(async_session, room.vault_id)
+    await incident_service.assign_responders(async_session, incident, [first.id])
+    # Re-sending the first responder alongside a new one must append, not replace or duplicate.
+    await incident_service.assign_responders(async_session, incident, [first.id, second.id])
     team = await crud.team_crud.get_incident_team_row(async_session, incident.id, room.vault_id)
     assert team is not None
-    assert sorted(member.dweller_id for member in team.members) == sorted([responder1.id, responder2.id])
+    assert sorted(member.dweller_id for member in team.members) == sorted([first.id, second.id])
 
 
 @pytest.mark.asyncio
 async def test_assign_responders_skips_committed_and_errors_when_all_committed(
-    async_session: AsyncSession, room_with_dwellers: dict, dweller_data: dict
+    async_session, room_with_dwellers, dweller_data
 ):
-    room = room_with_dwellers["room"]
-    vault = room_with_dwellers["vault"]
-    responder = await crud.dweller.create(async_session, obj_in=DwellerCreate(**dweller_data, vault_id=vault.id))
-    other = await crud.dweller.create(async_session, obj_in=DwellerCreate(**dweller_data, vault_id=vault.id))
-
-    first = await crud.incident_crud.create(
-        async_session, vault_id=vault.id, room_id=room.id, incident_type=IncidentType.FIRE, difficulty=2
-    )
-    await incident_service.assign_responders(async_session, first, [responder.id])
-
-    second = await crud.incident_crud.create(
-        async_session, vault_id=vault.id, room_id=room.id, incident_type=IncidentType.FIRE, difficulty=2
-    )
-
+    room, vault = room_with_dwellers["room"], room_with_dwellers["vault"]
+    committed, free = [await _dweller(async_session, vault.id, dweller_data) for _ in range(2)]
+    first = await _incident(async_session, room, IncidentType.FIRE)
+    await incident_service.assign_responders(async_session, first, [committed.id])
+    second = await _incident(async_session, room, IncidentType.FIRE)
     # The committed responder is skipped; the free one is assigned.
-    assigned = await incident_service.assign_responders(async_session, second, [responder.id, other.id])
-    assert assigned == [other.id]
+    assert await incident_service.assign_responders(async_session, second, [committed.id, free.id]) == [free.id]
     team = await crud.team_crud.get_incident_team_row(async_session, second.id, vault.id)
     assert team is not None
-    assert [member.dweller_id for member in team.members] == [other.id]
-
+    assert [member.dweller_id for member in team.members] == [free.id]
     events = await crud.incident_crud.get_recent_events(async_session, second.id)
-    assign_event = next(event for event in events if event.kind == "responders_assigned")
-    assert assign_event.data == {"skipped": [responder.first_name]}
-
+    assert next(event for event in events if event.kind == "responders_assigned").data == {
+        "skipped": [committed.first_name]
+    }
     # When every chosen responder is committed elsewhere, assignment raises a 400 naming the conflict.
     with pytest.raises(ValidationException) as excinfo:
-        await incident_service.assign_responders(async_session, second, [responder.id])
+        await incident_service.assign_responders(async_session, second, [committed.id])
     assert "committed" in str(excinfo.value)
 
 
 @pytest.mark.asyncio
-async def test_assign_responders_accepts_six_responders(
-    async_session: AsyncSession, room_with_dwellers: dict, dweller_data: dict
-):
+async def test_assign_responders_accepts_six_responders(async_session, room_with_dwellers, dweller_data):
     room = room_with_dwellers["room"]
-    responders = [
-        await crud.dweller.create(async_session, obj_in=DwellerCreate(**dweller_data, vault_id=room.vault_id))
-        for _ in range(6)
-    ]
-    incident = await incident_service.spawn_incident(async_session, room.vault_id, IncidentType.FIRE)
-    assert incident is not None
-
-    assigned = await incident_service.assign_responders(
-        async_session, incident, [responder.id for responder in responders]
-    )
-
+    responders = [await _dweller(async_session, room.vault_id, dweller_data) for _ in range(6)]
+    incident = await _spawn(async_session, room.vault_id)
+    assigned = await incident_service.assign_responders(async_session, incident, [r.id for r in responders])
     assert len(assigned) == 6
     team = await crud.team_crud.get_incident_team_row(async_session, incident.id, room.vault_id)
     assert team is not None
@@ -697,44 +491,24 @@ async def test_assign_responders_accepts_six_responders(
 
 
 @pytest.mark.asyncio
-async def test_assign_responders_rejects_seventh_responder(
-    async_session: AsyncSession, room_with_dwellers: dict, dweller_data: dict
-):
+async def test_assign_responders_rejects_seventh_responder(async_session, room_with_dwellers, dweller_data):
     room = room_with_dwellers["room"]
-    responders = [
-        await crud.dweller.create(async_session, obj_in=DwellerCreate(**dweller_data, vault_id=room.vault_id))
-        for _ in range(7)
-    ]
-    incident = await incident_service.spawn_incident(async_session, room.vault_id, IncidentType.FIRE)
-    assert incident is not None
-
+    responders = [await _dweller(async_session, room.vault_id, dweller_data) for _ in range(7)]
+    incident = await _spawn(async_session, room.vault_id)
     with pytest.raises(ValidationException, match="at most 6"):
-        await incident_service.assign_responders(async_session, incident, [responder.id for responder in responders])
-
+        await incident_service.assign_responders(async_session, incident, [r.id for r in responders])
     assert await crud.team_crud.get_incident_team_row(async_session, incident.id, room.vault_id) is None
 
 
 @pytest.mark.asyncio
-async def test_assign_responders_rejects_roster_overflow(
-    async_session: AsyncSession, room_with_dwellers: dict, dweller_data: dict
-):
+async def test_assign_responders_rejects_roster_overflow(async_session, room_with_dwellers, dweller_data):
     room = room_with_dwellers["room"]
-    first_five = [
-        await crud.dweller.create(async_session, obj_in=DwellerCreate(**dweller_data, vault_id=room.vault_id))
-        for _ in range(5)
-    ]
-    two_more = [
-        await crud.dweller.create(async_session, obj_in=DwellerCreate(**dweller_data, vault_id=room.vault_id))
-        for _ in range(2)
-    ]
-    incident = await incident_service.spawn_incident(async_session, room.vault_id, IncidentType.FIRE)
-    assert incident is not None
-
-    await incident_service.assign_responders(async_session, incident, [responder.id for responder in first_five])
-
+    first_five = [await _dweller(async_session, room.vault_id, dweller_data) for _ in range(5)]
+    two_more = [await _dweller(async_session, room.vault_id, dweller_data) for _ in range(2)]
+    incident = await _spawn(async_session, room.vault_id)
+    await incident_service.assign_responders(async_session, incident, [r.id for r in first_five])
     with pytest.raises(ValidationException, match="at most 6"):
-        await incident_service.assign_responders(async_session, incident, [responder.id for responder in two_more])
-
+        await incident_service.assign_responders(async_session, incident, [r.id for r in two_more])
     # The existing roster is untouched.
     team = await crud.team_crud.get_incident_team_row(async_session, incident.id, room.vault_id)
     assert team is not None
@@ -743,15 +517,13 @@ async def test_assign_responders_rejects_roster_overflow(
 
 @pytest.mark.asyncio
 async def test_assign_responders_reloads_incident_for_update(
-    async_session: AsyncSession, room_with_dwellers: dict, dweller_data: dict, monkeypatch: pytest.MonkeyPatch
+    async_session, room_with_dwellers, dweller_data, monkeypatch
 ):
-    room = room_with_dwellers["room"]
-    responder = await crud.dweller.create(async_session, obj_in=DwellerCreate(**dweller_data, vault_id=room.vault_id))
-    incident = await incident_service.spawn_incident(async_session, room.vault_id, IncidentType.FIRE)
-    assert incident is not None
-
     from app.crud.incident import incident_crud
 
+    room = room_with_dwellers["room"]
+    responder = await _dweller(async_session, room.vault_id, dweller_data)
+    incident = await _spawn(async_session, room.vault_id)
     locked_ids: list = []
     original = incident_crud.get_for_update
 
@@ -760,77 +532,42 @@ async def test_assign_responders_reloads_incident_for_update(
         return await original(db_session, incident_id)
 
     monkeypatch.setattr(incident_crud, "get_for_update", spy)
-
     await incident_service.assign_responders(async_session, incident, [responder.id])
-
     assert locked_ids == [incident.id]
 
 
 @pytest.mark.asyncio
-async def test_assign_responders_revalidates_status_under_lock(
-    async_session: AsyncSession, room_with_dwellers: dict, dweller_data: dict
-):
+async def test_assign_responders_revalidates_status_under_lock(async_session, room_with_dwellers, dweller_data):
     room = room_with_dwellers["room"]
-    responder = await crud.dweller.create(async_session, obj_in=DwellerCreate(**dweller_data, vault_id=room.vault_id))
-    incident = await incident_service.spawn_incident(async_session, room.vault_id, IncidentType.FIRE)
-    assert incident is not None
-
+    responder = await _dweller(async_session, room.vault_id, dweller_data)
+    incident = await _spawn(async_session, room.vault_id)
     # The caller holds an ACTIVE object, but the row is already resolved.
     incident.status = IncidentStatus.RESOLVED
-    async_session.add(incident)
-    await async_session.commit()
+    await _commit(async_session, incident)
     incident.status = IncidentStatus.ACTIVE  # stale caller-side view
-
     with pytest.raises(ValidationException, match="no longer active"):
         await incident_service.assign_responders(async_session, incident, [responder.id])
 
 
 @pytest.mark.asyncio
-async def test_deleting_incident_cascades_its_team(
-    async_session: AsyncSession, room_with_dwellers: dict, dweller_data: dict
-):
+async def test_deleting_incident_cascades_its_team(async_session, room_with_dwellers, dweller_data):
     room = room_with_dwellers["room"]
-    responder = await crud.dweller.create(async_session, obj_in=DwellerCreate(**dweller_data, vault_id=room.vault_id))
-    incident = await incident_service.spawn_incident(async_session, room.vault_id, IncidentType.FIRE)
-    assert incident is not None
+    responder = await _dweller(async_session, room.vault_id, dweller_data)
+    incident = await _spawn(async_session, room.vault_id)
     await incident_service.assign_responders(async_session, incident, [responder.id])
-
     assert await crud.team_crud.get_incident_team_row(async_session, incident.id, room.vault_id) is not None
-
     await crud.incident_crud.remove(async_session, incident.id)
-
     assert await crud.team_crud.get_incident_team_row(async_session, incident.id, room.vault_id) is None
 
 
 @pytest.mark.asyncio
-async def test_incident_team_retrievable_via_crud(
-    async_session: AsyncSession, room_with_dwellers: dict, dweller_data: dict
-):
-    room = room_with_dwellers["room"]
-    responder = await crud.dweller.create(async_session, obj_in=DwellerCreate(**dweller_data, vault_id=room.vault_id))
-    incident = await incident_service.spawn_incident(async_session, room.vault_id, IncidentType.FIRE)
-    assert incident is not None
-    await incident_service.assign_responders(async_session, incident, [responder.id])
-
-    members = await crud.team_crud.get_incident_team(async_session, incident.id, room.vault_id)
-    assert [member.dweller_id for member in members] == [responder.id]
-
-
-@pytest.mark.asyncio
-async def test_quest_and_incident_teams_coexist(
-    async_session: AsyncSession, room_with_dwellers: dict, dweller_data: dict
-):
-    room = room_with_dwellers["room"]
-    vault = room_with_dwellers["vault"]
+async def test_quest_and_incident_teams_coexist(async_session, room_with_dwellers, dweller_data):
+    room, vault = room_with_dwellers["room"], room_with_dwellers["vault"]
     quest = await _assign_quest_to_vault(async_session, vault)
-    quest_dweller = await crud.dweller.create(async_session, obj_in=DwellerCreate(**dweller_data, vault_id=vault.id))
-    responder = await crud.dweller.create(async_session, obj_in=DwellerCreate(**dweller_data, vault_id=vault.id))
-
+    quest_dweller, responder = [await _dweller(async_session, vault.id, dweller_data) for _ in range(2)]
     await team_service.assign_quest_team(async_session, quest.id, vault.id, [quest_dweller.id])
-    incident = await incident_service.spawn_incident(async_session, vault.id, IncidentType.FIRE)
-    assert incident is not None
+    incident = await _spawn(async_session, vault.id)
     await incident_service.assign_responders(async_session, incident, [responder.id])
-
     quest_team = await crud.team_crud.get_quest_team_row(async_session, quest.id, vault.id)
     incident_team = await crud.team_crud.get_incident_team_row(async_session, incident.id, vault.id)
     assert quest_team is not None
@@ -841,256 +578,107 @@ async def test_quest_and_incident_teams_coexist(
 
 
 @pytest.mark.asyncio
-async def test_assign_responders_rejections_write_no_team(
-    async_session: AsyncSession, room_with_dwellers: dict, dweller_data: dict
-):
-    room = room_with_dwellers["room"]
-    vault = room_with_dwellers["vault"]
-    incident = await incident_service.spawn_incident(async_session, vault.id, IncidentType.FIRE)
-    assert incident is not None
-
+async def test_assign_responders_rejections_write_no_team(async_session, room_with_dwellers, dweller_data):
+    room, vault = room_with_dwellers["room"], room_with_dwellers["vault"]
+    incident = await _spawn(async_session, vault.id)
     # A wounded dweller is rejected.
-    wounded = await crud.dweller.create(async_session, obj_in=DwellerCreate(**dweller_data, vault_id=vault.id))
+    wounded = await _dweller(async_session, vault.id, dweller_data)
     wounded.health = 0
-    async_session.add(wounded)
-    await async_session.commit()
+    await _commit(async_session, wounded)
     with pytest.raises(ValidationException, match="healthy"):
         await incident_service.assign_responders(async_session, incident, [wounded.id])
-
     # Duplicate ids are rejected.
-    healthy = await crud.dweller.create(async_session, obj_in=DwellerCreate(**dweller_data, vault_id=vault.id))
+    healthy = await _dweller(async_session, vault.id, dweller_data)
     with pytest.raises(ValidationException, match="only once"):
         await incident_service.assign_responders(async_session, incident, [healthy.id, healthy.id])
-
     # An empty selection is rejected.
     with pytest.raises(ValidationException, match="at least one"):
         await incident_service.assign_responders(async_session, incident, [])
-
     # A dweller from another vault is rejected.
     other_user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
     other_vault = await crud.vault.create(
         async_session, obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=other_user.id)
     )
-    foreign = await crud.dweller.create(async_session, obj_in=DwellerCreate(**dweller_data, vault_id=other_vault.id))
+    foreign = await _dweller(async_session, other_vault.id, dweller_data)
     with pytest.raises(ValidationException, match="do not belong"):
         await incident_service.assign_responders(async_session, incident, [foreign.id])
-
     # An inactive incident is rejected.
     incident.status = IncidentStatus.RESOLVED
-    async_session.add(incident)
-    await async_session.commit()
+    await _commit(async_session, incident)
     with pytest.raises(ValidationException, match="no longer active"):
         await incident_service.assign_responders(async_session, incident, [healthy.id])
-
     # No team row was written by any rejected assignment.
     assert await crud.team_crud.get_incident_team_row(async_session, incident.id, vault.id) is None
 
 
 @pytest.mark.asyncio
-async def test_only_one_incident_type_per_vault(async_session: AsyncSession, vault: Vault, dweller_data: dict):
-    # Create three separate rooms with dwellers (need 3+ rooms for multiple incidents)
-    room1_data = create_fake_room()
-    room1_data["name"] = "Power Generator"
-    room1_data["category"] = "Production"
-    room1_in = RoomCreate(**room1_data, vault_id=vault.id, coordinate_x=1, coordinate_y=1)
-    room1 = await crud.room.create(db_session=async_session, obj_in=room1_in)
-
-    room2_data = create_fake_room()
-    room2_data["name"] = "Water Treatment"
-    room2_data["category"] = "Production"
-    room2_in = RoomCreate(**room2_data, vault_id=vault.id, coordinate_x=2, coordinate_y=1)
-    room2 = await crud.room.create(db_session=async_session, obj_in=room2_in)
-
-    room3_data = create_fake_room()
-    room3_data["name"] = "Diner"
-    room3_data["category"] = "Production"
-    room3_in = RoomCreate(**room3_data, vault_id=vault.id, coordinate_x=3, coordinate_y=1)
-    room3 = await crud.room.create(db_session=async_session, obj_in=room3_in)
-
-    # Add dwellers to all rooms
-    dweller1_in = DwellerCreate(**dweller_data, vault_id=vault.id)
-    dweller1 = await crud.dweller.create(db_session=async_session, obj_in=dweller1_in)
-    await dweller_service.move_to_room(async_session, dweller1.id, room1.id)
-
-    dweller2_in = DwellerCreate(**dweller_data, vault_id=vault.id)
-    dweller2 = await crud.dweller.create(db_session=async_session, obj_in=dweller2_in)
-    await dweller_service.move_to_room(async_session, dweller2.id, room2.id)
-
-    dweller3_in = DwellerCreate(**dweller_data, vault_id=vault.id)
-    dweller3 = await crud.dweller.create(db_session=async_session, obj_in=dweller3_in)
-    await dweller_service.move_to_room(async_session, dweller3.id, room3.id)
-
+async def test_only_one_incident_type_per_vault(async_session, vault, dweller_data):
+    rooms = [
+        await _production_room(async_session, vault.id, name, index + 1, 1)
+        for index, name in enumerate(("Power Generator", "Water Treatment", "Diner"))
+    ]
+    for room in rooms:
+        dweller = await _dweller(async_session, vault.id, dweller_data)
+        await dweller_service.move_to_room(async_session, dweller.id, room.id)
     await async_session.commit()
-
-    # Refresh rooms to get updated dwellers
-    await async_session.refresh(room1)
-    await async_session.refresh(room2)
-    await async_session.refresh(room3)
-
-    # Spawn FIRE incident (spawns in a random occupied room, not at vault door)
-    fire_incident = await incident_service.spawn_incident(async_session, vault.id, IncidentType.FIRE)
-    assert fire_incident is not None
+    fire_incident = await _spawn(async_session, vault.id, IncidentType.FIRE)
     assert fire_incident.type == IncidentType.FIRE
-
-    # Try to spawn RAIDER_ATTACK in vault (should fail - different type)
-    raider_incident = await incident_service.spawn_incident(async_session, vault.id, IncidentType.RAIDER_ATTACK)
-    assert raider_incident is None  # Should not spawn different type
-
-    # Try to spawn another FIRE (should succeed - same type, different room)
-    fire_incident2 = await incident_service.spawn_incident(async_session, vault.id, IncidentType.FIRE)
-    assert fire_incident2 is not None
+    # A different type must not spawn while the wave is active.
+    assert await incident_service.spawn_incident(async_session, vault.id, IncidentType.RAIDER_ATTACK) is None
+    # Another FIRE may spawn in a different room.
+    fire_incident2 = await _spawn(async_session, vault.id, IncidentType.FIRE)
     assert fire_incident2.type == IncidentType.FIRE
-    assert fire_incident2.id != fire_incident.id  # Different incident
+    assert fire_incident2.id != fire_incident.id
 
 
 @pytest.mark.asyncio
-async def test_spread_skips_elevator(async_session: AsyncSession, vault: Vault, dweller_data: dict):
-    """Test that incidents don't spread to elevator rooms."""
-
-    # Create incident room
-    incident_room_data = create_fake_room()
-    incident_room_data["category"] = "Production"  # Ensure it's a production room
-    incident_room_in = RoomCreate(**incident_room_data, vault_id=vault.id, coordinate_x=1, coordinate_y=1)
-    incident_room = await crud.room.create(db_session=async_session, obj_in=incident_room_in)
-
-    # Create elevator adjacent to incident room
-    elevator_data = {
-        "name": "Elevator",
-        "category": "Misc.",
-        "ability": None,
-        "t2_upgrade_cost": None,
-        "t3_upgrade_cost": None,
-        "base_cost": 100,
-        "size_min": 1,
-        "size_max": 1,
-        "tier": 1,
-        "coordinate_x": 2,
-        "coordinate_y": 1,
-    }
-    elevator_in = RoomCreate(**elevator_data, vault_id=vault.id)
-    elevator = await crud.room.create(db_session=async_session, obj_in=elevator_in)
-
-    # Create normal room also adjacent
-    normal_room_data = create_fake_room()
-    normal_room_data["category"] = "Production"  # Ensure it's a production room
-    normal_room_in = RoomCreate(**normal_room_data, vault_id=vault.id, coordinate_x=1, coordinate_y=2)
-    normal_room = await crud.room.create(db_session=async_session, obj_in=normal_room_in)
-
-    # Add dweller to incident room
-    dweller = DwellerCreate(**dweller_data, vault_id=vault.id, room_id=incident_room.id)
-    await crud.dweller.create(db_session=async_session, obj_in=dweller)
-
-    await async_session.commit()
-
-    # Create incident manually
-    incident = await crud.incident_crud.create(
-        async_session,
+async def test_spread_skips_elevator(async_session, vault, dweller_data):
+    incident_room = await _production_room(async_session, vault.id, "Reactor", 1, 1)
+    elevator_in = RoomCreate(
+        name="Elevator",
+        category="Misc.",
+        ability=None,
+        t2_upgrade_cost=None,
+        t3_upgrade_cost=None,
+        base_cost=100,
+        size_min=1,
+        size_max=1,
+        tier=1,
         vault_id=vault.id,
-        room_id=incident_room.id,
-        incident_type=IncidentType.FIRE,
-        difficulty=5,
+        coordinate_x=2,
+        coordinate_y=1,
     )
-
-    # Trigger spread
+    elevator = await crud.room.create(async_session, elevator_in)
+    normal_room = await _production_room(async_session, vault.id, "Diner", 1, 2)
+    await _dweller(async_session, vault.id, dweller_data)
+    await async_session.commit()
+    incident = await _incident(async_session, incident_room, IncidentType.FIRE, 5)
     await incident_service._spread_incident(async_session, incident)
-
-    # Get all active incidents
     active_incidents = await crud.incident_crud.get_active_by_vault(async_session, vault.id)
-
-    # Check that no incident spread to elevator
     for inc in active_incidents:
         assert inc.room_id != elevator.id
-
-    # If spread occurred, it should be to normal_room
     if len(active_incidents) > 1:
         spread_incident = next(inc for inc in active_incidents if inc.id != incident.id)
         assert spread_incident.room_id == normal_room.id
 
 
 @pytest.mark.asyncio
-async def test_spread_respects_active_incident_cap(async_session: AsyncSession, vault: Vault):
-    current_room = await crud.room.create(
-        async_session,
-        RoomCreate(
-            name="Power Generator",
-            category=RoomTypeEnum.PRODUCTION,
-            ability=SPECIALEnum.STRENGTH,
-            base_cost=100,
-            incremental_cost=50,
-            t2_upgrade_cost=500,
-            t3_upgrade_cost=1500,
-            size_min=3,
-            size_max=6,
-            coordinate_x=1,
-            coordinate_y=1,
-            vault_id=vault.id,
-        ),
-    )
-    target_room = await crud.room.create(
-        async_session,
-        RoomCreate(
-            name="Diner",
-            category=RoomTypeEnum.PRODUCTION,
-            ability=SPECIALEnum.AGILITY,
-            base_cost=100,
-            incremental_cost=50,
-            t2_upgrade_cost=500,
-            t3_upgrade_cost=1500,
-            size_min=3,
-            size_max=6,
-            coordinate_x=2,
-            coordinate_y=1,
-            vault_id=vault.id,
-        ),
-    )
-    active_incident = await crud.incident_crud.create(
-        async_session,
-        vault_id=vault.id,
-        room_id=current_room.id,
-        incident_type=IncidentType.FIRE,
-        difficulty=5,
-    )
-
+async def test_spread_respects_active_incident_cap(async_session, vault):
+    current_room = await _production_room(async_session, vault.id, "Power Generator", 1, 1)
+    await _production_room(async_session, vault.id, "Diner", 2, 1, ability=SPECIALEnum.AGILITY)
+    active_incident = await _incident(async_session, current_room, IncidentType.FIRE, 5)
     for index in range(game_config.incident.max_active_incidents - 1):
-        room = await crud.room.create(
-            async_session,
-            RoomCreate(
-                name=f"Room {index}",
-                category=RoomTypeEnum.PRODUCTION,
-                ability=SPECIALEnum.STRENGTH,
-                base_cost=100,
-                incremental_cost=50,
-                t2_upgrade_cost=500,
-                t3_upgrade_cost=1500,
-                size_min=3,
-                size_max=6,
-                coordinate_x=index + 4,
-                coordinate_y=4,
-                vault_id=vault.id,
-            ),
-        )
-        await crud.incident_crud.create(
-            async_session,
-            vault_id=vault.id,
-            room_id=room.id,
-            incident_type=IncidentType.FIRE,
-            difficulty=1,
-        )
-
-    assert (
-        len(await crud.incident_crud.get_active_by_vault(async_session, vault.id))
-        == game_config.incident.max_active_incidents
-    )
+        room = await _production_room(async_session, vault.id, f"Room {index}", index + 4, 4)
+        await _incident(async_session, room, IncidentType.FIRE, 1)
+    cap = game_config.incident.max_active_incidents
+    assert await _active_count(async_session, vault.id) == cap
     assert await incident_service._spread_incident(async_session, active_incident) is False
-    assert (
-        len(await crud.incident_crud.get_active_by_vault(async_session, vault.id))
-        == game_config.incident.max_active_incidents
-    )
+    assert await _active_count(async_session, vault.id) == cap
 
 
 class TestProcessVaultIncidents:
     @pytest.mark.asyncio
-    async def test_spawns_new_incident(self, async_session: AsyncSession, vault: Vault):
+    async def test_spawns_new_incident(self, async_session, vault):
         mock_incident = MagicMock()
         mock_incident.type = "raider_attack"
         with (
@@ -1107,8 +695,17 @@ class TestProcessVaultIncidents:
         mock_process.assert_not_awaited()
 
     @pytest.mark.asyncio
-    async def test_offline_vault_does_not_process_existing_incidents(self, async_session: AsyncSession, vault: Vault):
-        game_state = GameState(vault_id=vault.id, last_activity_time=utcnow() - timedelta(minutes=11))
+    @pytest.mark.parametrize("mode", ["offline", "paused", "persisted_pause"])
+    async def test_inactive_vault_does_not_process_existing_incidents(self, async_session, vault, mode):
+        game_state = None
+        if mode == "offline":
+            game_state = GameState(vault_id=vault.id, last_activity_time=utcnow() - timedelta(minutes=11))
+        elif mode == "paused":
+            game_state = GameState(vault_id=vault.id, is_paused=True)
+        else:
+            # The fast-tick actor path passes no game_state; persisted pause must still hold.
+            async_session.add(GameState(vault_id=vault.id, is_paused=True))
+            await async_session.commit()
         with (
             patch.object(incident_service, "should_spawn_incident", new_callable=AsyncMock) as mock_spawn,
             patch.object(incident_service, "process_incident", new_callable=AsyncMock) as mock_process,
@@ -1117,50 +714,12 @@ class TestProcessVaultIncidents:
             mock_crud.get_active_by_vault = AsyncMock(return_value=[MagicMock()])
             mock_crud.get_pending_responder_returns = AsyncMock(return_value=[])
             result = await incident_service.process_vault_incidents(async_session, vault.id, 2, game_state)
-
         assert result["active_count"] == 1
         mock_spawn.assert_not_called()
         mock_process.assert_not_awaited()
 
     @pytest.mark.asyncio
-    async def test_paused_vault_does_not_process_existing_incidents(self, async_session: AsyncSession, vault: Vault):
-        game_state = GameState(vault_id=vault.id, is_paused=True)
-        with (
-            patch.object(incident_service, "should_spawn_incident", new_callable=AsyncMock) as mock_spawn,
-            patch.object(incident_service, "process_incident", new_callable=AsyncMock) as mock_process,
-            patch("app.services.combat.incident_tick.incident_crud") as mock_crud,
-        ):
-            mock_crud.get_active_by_vault = AsyncMock(return_value=[MagicMock()])
-            mock_crud.get_pending_responder_returns = AsyncMock(return_value=[])
-            result = await incident_service.process_vault_incidents(async_session, vault.id, 2, game_state)
-
-        assert result["active_count"] == 1
-        mock_spawn.assert_not_awaited()
-        mock_process.assert_not_awaited()
-
-    @pytest.mark.asyncio
-    async def test_persisted_pause_skips_processing_without_passed_game_state(
-        self, async_session: AsyncSession, vault: Vault
-    ):
-        """The fast-tick actor path passes no game_state; it must still honor persisted pause state."""
-        async_session.add(GameState(vault_id=vault.id, is_paused=True))
-        await async_session.commit()
-
-        with (
-            patch.object(incident_service, "should_spawn_incident", new_callable=AsyncMock) as mock_spawn,
-            patch.object(incident_service, "process_incident", new_callable=AsyncMock) as mock_process,
-            patch("app.services.combat.incident_tick.incident_crud") as mock_crud,
-        ):
-            mock_crud.get_active_by_vault = AsyncMock(return_value=[MagicMock()])
-            mock_crud.get_pending_responder_returns = AsyncMock(return_value=[])
-            result = await incident_service.process_vault_incidents(async_session, vault.id, 2)
-
-        assert result["active_count"] == 1
-        mock_spawn.assert_not_awaited()
-        mock_process.assert_not_awaited()
-
-    @pytest.mark.asyncio
-    async def test_processes_active(self, async_session: AsyncSession, vault: Vault):
+    async def test_processes_active(self, async_session, vault):
         mock_incident = MagicMock()
         mock_incident.status = MagicMock()
         mock_incident.status.value = "resolved"
@@ -1187,7 +746,7 @@ class TestProcessVaultIncidents:
         assert result["caps_earned"] == 50
 
     @pytest.mark.asyncio
-    async def test_skips_skipped_result(self, async_session: AsyncSession, vault: Vault):
+    async def test_skips_skipped_result(self, async_session, vault):
         mock_incident = MagicMock()
         mock_incident.id = "inc-1"
         with (
@@ -1208,14 +767,12 @@ class TestProcessVaultIncidents:
         assert result["processed"] == 0
 
     @pytest.mark.asyncio
-    async def test_error_in_one_does_not_stop(self, async_session: AsyncSession, vault: Vault):
-        inc1 = MagicMock()
+    async def test_error_in_one_does_not_stop(self, async_session, vault):
+        inc1, inc2 = MagicMock(), MagicMock()
         inc1.id = "inc-1"
-        inc2 = MagicMock()
         inc2.id = "inc-2"
         inc2.status = MagicMock()
         inc2.status.value = "active"
-
         call_count = [0]
 
         async def process_side_effect(db_session, incident, seconds_passed):
@@ -1226,12 +783,7 @@ class TestProcessVaultIncidents:
 
         with (
             patch.object(incident_service, "should_spawn_incident", new_callable=AsyncMock, return_value=False),
-            patch.object(
-                incident_service,
-                "process_incident",
-                new_callable=AsyncMock,
-                side_effect=process_side_effect,
-            ),
+            patch.object(incident_service, "process_incident", new_callable=AsyncMock, side_effect=process_side_effect),
             patch("app.services.combat.incident_tick.incident_crud") as mock_crud,
             patch.object(async_session, "refresh", new_callable=AsyncMock),
         ):
@@ -1243,7 +795,7 @@ class TestProcessVaultIncidents:
         assert call_count[0] == 2
 
     @pytest.mark.asyncio
-    async def test_outer_exception_set_error(self, async_session: AsyncSession, vault: Vault):
+    async def test_outer_exception_set_error(self, async_session, vault):
         with patch.object(
             incident_service,
             "should_spawn_incident",
@@ -1255,111 +807,81 @@ class TestProcessVaultIncidents:
 
 
 @pytest.mark.asyncio
-async def test_disabled_vault_does_not_spawn_or_process(async_session: AsyncSession, vault: Vault):
+async def test_disabled_vault_does_not_spawn_or_process(async_session, vault):
     vault.incidents_disabled = True
     await async_session.commit()
-
     with (
         patch.object(incident_service, "spawn_incident", new_callable=AsyncMock) as mock_spawn,
         patch.object(incident_service, "process_incident", new_callable=AsyncMock) as mock_process,
     ):
         result = await incident_service.process_vault_incidents(async_session, vault.id, 2)
-
     assert result["active_count"] == 0
     mock_spawn.assert_not_awaited()
     mock_process.assert_not_awaited()
 
 
 @pytest.mark.asyncio
-async def test_disabled_vault_should_spawn_returns_false(async_session: AsyncSession, vault: Vault):
+async def test_disabled_vault_should_spawn_returns_false(async_session, vault):
     vault.incidents_disabled = True
     await async_session.commit()
     assert await incident_service.should_spawn_incident(async_session, vault.id, 3600) is False
 
 
 class TestTickCommitBoundaries:
-    """Characterization: pins the transaction boundaries of one incident tick.
-
-    The tick commits at multiple boundaries today: the spawn path commits the
-    incident row, its lifecycle event, and the owner notification separately;
-    each combat round commits once (deferred death notifications drain right
-    after it); a victorious round's caps payout commits the deposit and the
-    profile statistic separately. Consolidating to a single commit per tick
-    must prove these boundaries equivalent first — these tests fail loudly if
-    the boundaries move silently.
-    """
+    """Pins the transaction boundaries of one incident tick; consolidation must prove them equivalent."""
 
     @pytest.mark.asyncio
-    async def test_quiet_round_commits_exactly_once(self, async_session: AsyncSession, room_with_dwellers: dict):
+    async def test_quiet_round_commits_exactly_once(self, async_session, room_with_dwellers):
         vault = room_with_dwellers["vault"]
-        incident = await incident_service.spawn_incident(async_session, vault.id, IncidentType.FIRE)
-        assert incident is not None
-
+        incident = await _spawn(async_session, vault.id)
         with (
             patch.object(async_session, "commit", wraps=async_session.commit) as commit_spy,
             patch.object(incident_service, "should_spawn_incident", new_callable=AsyncMock, return_value=False),
-            patch("app.services.combat.incident_math.damage_to_dwellers", return_value=0.0),
-            patch("app.services.combat.incident_math.damage_to_raiders", return_value=0.0),
-            patch("app.services.combat.incident_math.containment_progress", return_value=0.0),
+            _damage(0.0),
+            patch(PROGRESS, return_value=0.0),
         ):
             stats = await incident_service.process_vault_incidents(async_session, vault.id, 2)
-
         assert stats["processed"] == 1
         assert stats["caps_earned"] == 0
         assert commit_spy.await_count == 1
 
     @pytest.mark.asyncio
-    async def test_spawn_commits_activation_before_notification(
-        self, async_session: AsyncSession, room_with_dwellers: dict
-    ):
+    async def test_spawn_commits_activation_before_notification(self, async_session, room_with_dwellers):
         vault = room_with_dwellers["vault"]
         with (
             patch.object(async_session, "commit", wraps=async_session.commit) as commit_spy,
-            patch("app.services.notification_service.manager"),
-            patch("app.services.notification_service.sse_manager"),
+            patch(NOTIFY_WS),
+            patch(NOTIFY_SSE),
         ):
             incident = await incident_service.spawn_incident(async_session, vault.id, IncidentType.FIRE)
-
         assert incident is not None
         assert commit_spy.await_count == 2
 
     @pytest.mark.asyncio
-    async def test_victory_commits_round_notification_then_deposit(
-        self, async_session: AsyncSession, room_with_dwellers: dict
-    ):
+    async def test_victory_commits_round_notification_then_deposit(self, async_session, room_with_dwellers):
         vault = room_with_dwellers["vault"]
         for dweller in room_with_dwellers["dwellers"]:
             dweller.level = game_config.leveling.max_level  # keep level-up commits out of this count
             async_session.add(dweller)
         await async_session.commit()
-
-        incident = await incident_service.spawn_incident(async_session, vault.id, IncidentType.RADROACH_INFESTATION)
-        assert incident is not None
-
+        incident = await _spawn(async_session, vault.id, IncidentType.RADROACH_INFESTATION)
         with (
             patch.object(async_session, "commit", wraps=async_session.commit) as commit_spy,
             patch.object(incident_service, "should_spawn_incident", new_callable=AsyncMock, return_value=False),
-            patch("app.services.combat.incident_math.damage_to_dwellers", return_value=0.0),
-            patch("app.services.combat.incident_math.damage_to_raiders", return_value=1000.0),
-            patch("app.services.notification_service.manager"),
-            patch("app.services.notification_service.sse_manager"),
+            _damage(0.0, 1000.0),
+            patch(NOTIFY_WS),
+            patch(NOTIFY_SSE),
         ):
             stats = await incident_service.process_vault_incidents(async_session, vault.id, 2)
-
         assert stats["resolved"] == 1
         assert stats["caps_earned"] > 0
         assert commit_spy.await_count == 4
 
 
 @pytest.mark.asyncio
-async def test_failed_incident_rolls_back_before_the_next_one(async_session: AsyncSession, vault: Vault) -> None:
-    """A failed round must recover the session, or every later incident in the tick fails.
-
-    SQLite does not poison a session on a failed statement the way PostgreSQL does,
-    so this pins the recovery call itself rather than its downstream symptom.
-    """
-    vault_id = vault.id
-
+async def test_failed_incident_rolls_back_before_the_next_one(async_session, vault):
+    # SQLite does not poison a session on a failed statement the way PostgreSQL does,
+    # so this pins the recovery call itself rather than its downstream symptom.
     async def poison(*_args, **_kwargs):
         await async_session.execute(text("SELECT 1 FROM table_that_does_not_exist"))
 
@@ -1371,8 +893,7 @@ async def test_failed_incident_rolls_back_before_the_next_one(async_session: Asy
     ):
         mock_crud.get_active_by_vault = AsyncMock(return_value=[MagicMock()])
         mock_crud.get_pending_responder_returns = AsyncMock(return_value=[])
-        result = await incident_service.process_vault_incidents(async_session, vault_id, 2)
-
+        result = await incident_service.process_vault_incidents(async_session, vault.id, 2)
     assert result["active_count"] == 1
     rollback_spy.assert_awaited()
 
@@ -1389,8 +910,7 @@ async def test_spawn_honors_pause_on_incident_preference(async_session, room_wit
         profile = await profile_crud.create_for_user(async_session, vault.user_id)
     profile.preferences = {"pause_on_incident": enabled}
     await async_session.commit()
-    incident = await incident_service.spawn_incident(async_session, vault.id, IncidentType.FIRE)
-    assert incident is not None
+    incident = await _spawn(async_session, vault.id)
     state = await game_state_crud.get_by_vault_id(async_session, vault.id)
     assert bool(state and state.is_paused) is enabled
     if enabled:
@@ -1401,7 +921,7 @@ async def test_spawn_honors_pause_on_incident_preference(async_session, room_wit
 
 
 async def test_auto_pause_does_not_commit_before_incident_insert(async_session, room_with_dwellers):
-    """Creating the first game state must not release the spawn lock before inserting its incident."""
+    # Creating the first game state must not release the spawn lock before inserting its incident.
     from sqlalchemy import event
 
     from app.crud.user_profile import profile_crud
@@ -1432,19 +952,9 @@ async def test_auto_pause_does_not_commit_before_incident_insert(async_session, 
 async def test_incident_cannot_draft_residents_defending_another_room(async_session, room_with_dwellers):
     room = room_with_dwellers["room"]
     resident = room_with_dwellers["dwellers"][0]
-    other_room = await crud.room.create(
-        async_session, RoomCreate(**create_test_room(), vault_id=room.vault_id, coordinate_x=10, coordinate_y=2)
-    )
-    await crud.incident_crud.create(
-        async_session, vault_id=room.vault_id, room_id=room.id, incident_type=IncidentType.RAIDER_ATTACK, difficulty=4
-    )
-    other = await crud.incident_crud.create(
-        async_session,
-        vault_id=room.vault_id,
-        room_id=other_room.id,
-        incident_type=IncidentType.RAIDER_ATTACK,
-        difficulty=4,
-    )
+    other_room = await _room(async_session, room.vault_id, 10, 2)
+    await _incident(async_session, room, IncidentType.RAIDER_ATTACK, 4)
+    other = await _incident(async_session, other_room, IncidentType.RAIDER_ATTACK, 4)
     with pytest.raises(ValidationException, match="committed"):
         await incident_service.assign_responders(async_session, other, [resident.id])
     await async_session.refresh(resident)
@@ -1455,10 +965,8 @@ async def test_incident_cannot_draft_residents_defending_another_room(async_sess
 async def test_current_residents_do_not_consume_helper_slots(async_session, room_with_dwellers, dweller_data):
     room = room_with_dwellers["room"]
     resident = room_with_dwellers["dwellers"][0]
-    helper = await crud.dweller.create(async_session, obj_in=DwellerCreate(**dweller_data, vault_id=room.vault_id))
-    incident = await crud.incident_crud.create(
-        async_session, vault_id=room.vault_id, room_id=room.id, incident_type=IncidentType.RAIDER_ATTACK, difficulty=4
-    )
+    helper = await _dweller(async_session, room.vault_id, dweller_data)
+    incident = await _incident(async_session, room, IncidentType.RAIDER_ATTACK, 4)
     assigned = await incident_service.assign_responders(async_session, incident, [resident.id, helper.id])
     assert assigned == [helper.id]
     members = await crud.team_crud.get_incident_team(async_session, incident.id, room.vault_id)
@@ -1474,18 +982,12 @@ async def test_residents_and_six_helpers_all_fight_without_replacing_each_other(
 ):
     room = room_with_dwellers["room"]
     residents = room_with_dwellers["dwellers"]
-    helpers = [
-        await crud.dweller.create(async_session, obj_in=DwellerCreate(**dweller_data, vault_id=room.vault_id))
-        for _ in range(6)
-    ]
+    helpers = [await _dweller(async_session, room.vault_id, dweller_data) for _ in range(6)]
     for dweller in [*residents, *helpers]:
         dweller.health = dweller.max_health = 1000
         dweller.radiation = 0
-        async_session.add(dweller)
-    await async_session.commit()
-    incident = await crud.incident_crud.create(
-        async_session, vault_id=room.vault_id, room_id=room.id, incident_type=IncidentType.RAIDER_ATTACK, difficulty=100
-    )
+        await _commit(async_session, dweller)
+    incident = await _incident(async_session, room, IncidentType.RAIDER_ATTACK, 100)
     await incident_service.assign_responders(async_session, incident, [helper.id for helper in helpers])
     result = await incident_service.process_incident(async_session, incident, 2)
     assert not result.no_defenders
@@ -1499,13 +1001,10 @@ async def test_residents_and_six_helpers_all_fight_without_replacing_each_other(
 
 async def test_incident_does_not_pull_a_fighter_out_of_arena(async_session, room_with_dwellers, dweller_data):
     room = room_with_dwellers["room"]
-    helper = await crud.dweller.create(async_session, obj_in=DwellerCreate(**dweller_data, vault_id=room.vault_id))
+    helper = await _dweller(async_session, room.vault_id, dweller_data)
     helper.status = DwellerStatusEnum.FIGHTING
-    async_session.add(helper)
-    await async_session.commit()
-    incident = await crud.incident_crud.create(
-        async_session, vault_id=room.vault_id, room_id=room.id, incident_type=IncidentType.RAIDER_ATTACK, difficulty=4
-    )
+    await _commit(async_session, helper)
+    incident = await _incident(async_session, room, IncidentType.RAIDER_ATTACK, 4)
     with pytest.raises(ValidationException, match="healthy adult"):
         await incident_service.assign_responders(async_session, incident, [helper.id])
     assert helper.status == DwellerStatusEnum.FIGHTING

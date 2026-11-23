@@ -17,22 +17,40 @@ from app.services.combat.incident_service import incident_service
 from app.utils.exceptions import ResourceConflictException, ResourceNotFoundException, ValidationException
 from app.utils.static_data import game_data_store
 
-VICTORY_TYPES = (
-    IncidentType.FERAL_GHOUL_ATTACK,
-    IncidentType.RAIDER_ATTACK,
-    IncidentType.DEATHCLAW_ATTACK,
-)
+VICTORY_TYPES = (IncidentType.FERAL_GHOUL_ATTACK, IncidentType.RAIDER_ATTACK, IncidentType.DEATHCLAW_ATTACK)
+
+
+async def _storage(session: AsyncSession, vault_id, max_space: int) -> Storage:
+    storage = await storage_crud.get_by_vault(session, vault_id)
+    if storage is None:
+        storage = Storage(vault_id=vault_id, max_space=max_space)
+        session.add(storage)
+    else:
+        storage.max_space = max_space
+        storage.used_space = 0
+    await session.commit()
+    return storage
+
+
+async def _incident(session: AsyncSession, room, incident_type: IncidentType, difficulty: int, duration: int = 60):
+    return await crud.incident_crud.create(
+        session,
+        vault_id=room.vault_id,
+        room_id=room.id,
+        incident_type=incident_type,
+        difficulty=difficulty,
+        duration=duration,
+    )
 
 
 @pytest.mark.parametrize("incident_type", list(IncidentType))
 def test_every_incident_type_has_a_reward_tier(incident_type: IncidentType):
-    """A new incident type must not silently fall back to no reward at all."""
+    # A new incident type must not silently fall back to no reward at all.
     assert incident_math.get_reward_tier(incident_type).caps_multiplier >= 0
 
 
 def test_caps_escalate_with_severity(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setattr(random, "randint", lambda low, high: high)
-
     caps = [
         incident_math.generate_loot(difficulty=5, incident_type=incident_type)["caps"]
         for incident_type in (
@@ -43,36 +61,28 @@ def test_caps_escalate_with_severity(monkeypatch: pytest.MonkeyPatch):
             IncidentType.DEATHCLAW_ATTACK,
         )
     ]
-
     assert caps == sorted(caps)
     assert caps[0] == 0
 
 
 def test_fire_pays_in_experience_alone():
     loot = incident_math.generate_loot(difficulty=10, incident_type=IncidentType.FIRE)
-
     assert loot["caps"] == 0
     assert loot["items"] == []
 
 
 @pytest.mark.parametrize(
     "incident_type",
-    [
-        IncidentType.RADROACH_INFESTATION,
-        IncidentType.MOLE_RAT_ATTACK,
-        IncidentType.RADSCORPION_ATTACK,
-    ],
+    [IncidentType.RADROACH_INFESTATION, IncidentType.MOLE_RAT_ATTACK, IncidentType.RADSCORPION_ATTACK],
 )
 def test_bare_infestations_drop_caps_without_loot(incident_type: IncidentType):
     loot = incident_math.generate_loot(difficulty=10, incident_type=incident_type)
-
     assert loot["caps"] > 0
     assert loot["items"] == []
 
 
 def test_ghouls_leave_scrap_behind():
     loot = incident_math.generate_loot(difficulty=5, incident_type=IncidentType.FERAL_GHOUL_ATTACK)
-
     assert loot["items"][0]["item_type"] == "junk"
 
 
@@ -88,7 +98,7 @@ def test_deathclaw_salvage_improves_with_difficulty():
 
 @pytest.mark.parametrize("incident_type", VICTORY_TYPES)
 def test_loot_is_drawn_from_the_shipped_catalog(incident_type: IncidentType):
-    """Loot names must exist in the catalogs, or granting mints phantom items."""
+    # Loot names must exist in the catalogs, or granting mints phantom items.
     for _ in range(25):
         for item in incident_math.generate_loot(difficulty=9, incident_type=incident_type)["items"]:
             pool = game_data_store.junk_items if item["item_type"] == "junk" else game_data_store.weapons
@@ -97,28 +107,15 @@ def test_loot_is_drawn_from_the_shipped_catalog(incident_type: IncidentType):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    ("incident_type", "model"),
-    [(IncidentType.RAIDER_ATTACK, Weapon), (IncidentType.DEATHCLAW_ATTACK, Junk)],
+    ("incident_type", "model"), [(IncidentType.RAIDER_ATTACK, Weapon), (IncidentType.DEATHCLAW_ATTACK, Junk)]
 )
 async def test_victory_hands_its_loot_to_the_vault(
     async_session: AsyncSession, room_with_dwellers: dict, incident_type: IncidentType, model
 ):
-    """A promised item must reach storage — the whole tier table is theatre otherwise."""
-    room = room_with_dwellers["room"]
-    vault = room_with_dwellers["vault"]
-    if await storage_crud.get_by_vault(async_session, vault.id) is None:
-        async_session.add(Storage(vault_id=vault.id, max_space=100))
-        await async_session.commit()
-
-    incident = await crud.incident_crud.create(
-        async_session,
-        vault_id=vault.id,
-        room_id=room.id,
-        incident_type=incident_type,
-        difficulty=9,
-        duration=60,
-    )
-
+    # A promised item must reach storage — the whole tier table is theatre otherwise.
+    room, vault = room_with_dwellers["room"], room_with_dwellers["vault"]
+    await _storage(async_session, vault.id, 100)
+    incident = await _incident(async_session, room, incident_type, 9)
     caps = await incident_round.resolve_victory(async_session, incident, room_with_dwellers["dwellers"])
     await async_session.commit()
 
@@ -126,7 +123,6 @@ async def test_victory_hands_its_loot_to_the_vault(
     assert loot_items, f"a {incident_type} victory must drop gear"
     expected = loot_items[0]["name"]
     stored = (await async_session.exec(select(model).where(model.name == expected))).all()
-
     assert stored, f"{expected} was promised to the player but never reached storage"
     assert caps == incident.loot["caps"]
 
@@ -134,25 +130,12 @@ async def test_victory_hands_its_loot_to_the_vault(
 @pytest.mark.asyncio
 async def test_victory_records_the_experience_its_responders_gained(
     async_session: AsyncSession, room_with_dwellers: dict
-) -> None:
-    """The XP the panel reports must equal what the responders actually received."""
-    room = room_with_dwellers["room"]
-    vault = room_with_dwellers["vault"]
-    dwellers = room_with_dwellers["dwellers"]
-    if await storage_crud.get_by_vault(async_session, vault.id) is None:
-        async_session.add(Storage(vault_id=vault.id, max_space=100))
-        await async_session.commit()
-
+):
+    # The XP the panel reports must equal what the responders actually received.
+    room, vault, dwellers = room_with_dwellers["room"], room_with_dwellers["vault"], room_with_dwellers["dwellers"]
+    await _storage(async_session, vault.id, 100)
     before = {dweller.id: dweller.experience for dweller in dwellers}
-    incident = await crud.incident_crud.create(
-        async_session,
-        vault_id=vault.id,
-        room_id=room.id,
-        incident_type=IncidentType.RAIDER_ATTACK,
-        difficulty=4,
-        duration=60,
-    )
-
+    incident = await _incident(async_session, room, IncidentType.RAIDER_ATTACK, 4)
     await incident_round.resolve_victory(async_session, incident, dwellers)
     await async_session.commit()
 
@@ -162,24 +145,13 @@ async def test_victory_records_the_experience_its_responders_gained(
 
 
 @pytest.mark.asyncio
-async def test_full_storage_does_not_block_an_incident_victory(
-    async_session: AsyncSession, room_with_dwellers: dict
-) -> None:
-    """A full vault must not leave a won incident stuck retrying forever."""
-    room = room_with_dwellers["room"]
-    vault = room_with_dwellers["vault"]
-
+async def test_full_storage_does_not_block_an_incident_victory(async_session: AsyncSession, room_with_dwellers: dict):
+    # A full vault must not leave a won incident stuck retrying forever.
+    room, vault = room_with_dwellers["room"], room_with_dwellers["vault"]
     async_session.add(Storage(vault_id=vault.id, max_space=0))
     await async_session.commit()
 
-    incident = await crud.incident_crud.create(
-        async_session,
-        vault_id=vault.id,
-        room_id=room.id,
-        incident_type=IncidentType.RAIDER_ATTACK,
-        difficulty=1,
-        duration=60,
-    )
+    incident = await _incident(async_session, room, IncidentType.RAIDER_ATTACK, 1)
     async_session.add(incident)
     await async_session.commit()
     await async_session.refresh(incident)
@@ -190,82 +162,49 @@ async def test_full_storage_does_not_block_an_incident_victory(
     assert incident.status == IncidentStatus.RESOLVED, "the victory must commit even when nothing fits"
     assert incident.loot["items"] == [], "an item that could not be stored is not reported as recovered"
     assert incident.unclaimed_loot, "the item waits for a take/sell decision instead of being lost"
-
     events = await crud.incident_crud.get_recent_events(async_session, incident.id)
     assert any("held for your decision" in event.message for event in events), "the player is told the item is waiting"
 
 
 async def _resolve_victory_into_a_full_vault(async_session: AsyncSession, room, vault):
-    """Resolve a raider victory with no free slot, returning the incident and its storage."""
-    storage = await storage_crud.get_by_vault(async_session, vault.id)
-    if storage is None:
-        storage = Storage(vault_id=vault.id, max_space=0)
-        async_session.add(storage)
-    else:
-        storage.max_space = 0
-    await async_session.commit()
-
-    incident = await crud.incident_crud.create(
-        async_session,
-        vault_id=vault.id,
-        room_id=room.id,
-        incident_type=IncidentType.RAIDER_ATTACK,
-        difficulty=1,
-        duration=60,
-    )
+    storage = await _storage(async_session, vault.id, 0)
+    incident = await _incident(async_session, room, IncidentType.RAIDER_ATTACK, 1)
     await incident_service.process_incident(async_session, incident, 60)
     await async_session.refresh(incident)
     return incident, storage
 
 
 @pytest.mark.asyncio
-async def test_held_incident_overflow_reaches_storage_once_space_frees_up(
+async def test_held_incident_overflow_conflicts_until_space_frees_up(
     async_session: AsyncSession, room_with_dwellers: dict
-) -> None:
-    room = room_with_dwellers["room"]
-    vault = room_with_dwellers["vault"]
+):
+    room, vault = room_with_dwellers["room"], room_with_dwellers["vault"]
     incident, storage = await _resolve_victory_into_a_full_vault(async_session, room, vault)
     held_name = incident.unclaimed_loot[0]["name"]
+
+    with pytest.raises(ResourceConflictException):
+        await incident_service.take_unclaimed_item(async_session, incident.id, vault.id, 0)
+    await async_session.refresh(incident)
+    assert len(incident.unclaimed_loot) == 1
+    with pytest.raises(ResourceNotFoundException):
+        await incident_service.take_unclaimed_item(async_session, incident.id, vault.id, 5)
 
     storage.max_space = 1
     async_session.add(storage)
     await async_session.flush()
-
-    remaining = await incident_service.take_unclaimed_item(async_session, incident.id, vault.id, 0)
-
-    assert remaining == []
+    assert await incident_service.take_unclaimed_item(async_session, incident.id, vault.id, 0) == []
     stored = (await async_session.exec(select(Weapon).where(Weapon.storage_id == storage.id))).all()
     assert [weapon.name for weapon in stored] == [held_name]
 
 
 @pytest.mark.asyncio
-async def test_taking_held_incident_overflow_conflicts_while_full(
-    async_session: AsyncSession, room_with_dwellers: dict
-) -> None:
-    room = room_with_dwellers["room"]
-    vault = room_with_dwellers["vault"]
-    incident, _ = await _resolve_victory_into_a_full_vault(async_session, room, vault)
-
-    with pytest.raises(ResourceConflictException):
-        await incident_service.take_unclaimed_item(async_session, incident.id, vault.id, 0)
-
-    await async_session.refresh(incident)
-    assert len(incident.unclaimed_loot) == 1
-
-    with pytest.raises(ResourceNotFoundException):
-        await incident_service.take_unclaimed_item(async_session, incident.id, vault.id, 5)
-
-
-@pytest.mark.asyncio
 async def test_selling_held_incident_overflow_pays_caps_without_space(
     async_session: AsyncSession, room_with_dwellers: dict
-) -> None:
-    room = room_with_dwellers["room"]
-    vault = room_with_dwellers["vault"]
+):
+    room, vault = room_with_dwellers["room"], room_with_dwellers["vault"]
     incident, _ = await _resolve_victory_into_a_full_vault(async_session, room, vault)
     await async_session.refresh(vault)
     caps_before = vault.bottle_caps
-
     observed = []
 
     async def caps_event(_kind, event_vault_id, data):
@@ -288,25 +227,11 @@ async def test_selling_held_incident_overflow_pays_caps_without_space(
 @pytest.mark.asyncio
 async def test_taking_stacked_junk_prices_each_row_at_the_unit_value(
     async_session: AsyncSession, room_with_dwellers: dict
-) -> None:
-    """A stack of N junk rows must not carry N times the unit value each."""
-    room = room_with_dwellers["room"]
-    vault = room_with_dwellers["vault"]
-    storage = await storage_crud.get_by_vault(async_session, vault.id)
-    if storage is None:
-        storage = Storage(vault_id=vault.id, max_space=2)
-        async_session.add(storage)
-    else:
-        storage.max_space = 2
-        storage.used_space = 0
-    incident = await crud.incident_crud.create(
-        async_session,
-        vault_id=vault.id,
-        room_id=room.id,
-        incident_type=IncidentType.FERAL_GHOUL_ATTACK,
-        difficulty=3,
-        duration=60,
-    )
+):
+    # A stack of N junk rows must not carry N times the unit value each.
+    room, vault = room_with_dwellers["room"], room_with_dwellers["vault"]
+    storage = await _storage(async_session, vault.id, 2)
+    incident = await _incident(async_session, room, IncidentType.FERAL_GHOUL_ATTACK, 3)
     incident.unclaimed_loot = [{"item_type": "junk", "rarity": "common", "name": "Scrap Metal", "quantity": 2}]
     async_session.add(incident)
     await async_session.commit()
@@ -322,25 +247,11 @@ async def test_taking_stacked_junk_prices_each_row_at_the_unit_value(
 @pytest.mark.asyncio
 async def test_taking_held_loot_with_no_catalog_row_is_rejected_and_kept(
     async_session: AsyncSession, room_with_dwellers: dict
-) -> None:
-    """A weapon the catalog does not know must never mint a defaulted row, and must stay held."""
-    room = room_with_dwellers["room"]
-    vault = room_with_dwellers["vault"]
-    storage = await storage_crud.get_by_vault(async_session, vault.id)
-    if storage is None:
-        storage = Storage(vault_id=vault.id, max_space=1)
-        async_session.add(storage)
-    else:
-        storage.max_space = 1
-        storage.used_space = 0
-    incident = await crud.incident_crud.create(
-        async_session,
-        vault_id=vault.id,
-        room_id=room.id,
-        incident_type=IncidentType.RAIDER_ATTACK,
-        difficulty=3,
-        duration=60,
-    )
+):
+    # A weapon the catalog does not know must never mint a defaulted row, and must stay held.
+    room, vault = room_with_dwellers["room"], room_with_dwellers["vault"]
+    storage = await _storage(async_session, vault.id, 1)
+    incident = await _incident(async_session, room, IncidentType.RAIDER_ATTACK, 3)
     incident.unclaimed_loot = [{"item_type": "weapon", "rarity": "common", "name": "Nonexistent Relic", "quantity": 1}]
     async_session.add(incident)
     await async_session.commit()

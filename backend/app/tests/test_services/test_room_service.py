@@ -1,27 +1,33 @@
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
-from datetime import datetime
 from typing import Any
 from unittest.mock import AsyncMock, patch
 from uuid import UUID
 
 import pytest
 from sqlalchemy import event
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.asyncio import AsyncConnection
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
-from app.core.enums import AgeGroupEnum, GenderEnum, RarityEnum, RoomTypeEnum, SPECIALEnum
+from app.core.enums import IncidentStatus, IncidentType, RoomTypeEnum, SPECIALEnum
 from app.core.event_bus import GameEvent, event_bus
-from app.models.dweller import Dweller
+from app.core.game_data import get_static_game_data
+from app.models.incident import Incident
 from app.models.room import Room
+from app.models.team import Team, TeamMember
 from app.models.training import Training
 from app.models.vault import Vault
 from app.schemas.dweller import DwellerCreate
 from app.schemas.room import RoomCreate
 from app.services.room_assignment_policy import calculate_room_capacity
+from app.services.room_remodel_service import remodel_room
 from app.services.room_service import room_service
+from app.services.vault import seeding
+from app.services.vault_service import vault_service
+from app.tests.factory.dwellers import create_rush_dweller_payload
 from app.utils.exceptions import (
     InsufficientResourcesException,
     ResourceConflictException,
@@ -29,11 +35,44 @@ from app.utils.exceptions import (
     UniqueRoomViolationException,
     VaultOperationException,
 )
+from app.utils.room_rules import room_refund
 from app.utils.time import utcnow
 
-# Helpers
+RECALC = "app.services.vault_service.vault_service.recalculate_vault_attributes"
+LOCK = "app.services.room_assignment_policy.db_locks.hold_advisory_lock"
+
+ROOM_DEFAULTS: dict[str, Any] = {
+    "name": "Power Generator",
+    "category": RoomTypeEnum.PRODUCTION,
+    "ability": SPECIALEnum.STRENGTH,
+    "population_required": None,
+    "base_cost": 100,
+    "incremental_cost": 25,
+    "t2_upgrade_cost": 500,
+    "t3_upgrade_cost": 1500,
+    "capacity": None,
+    "output": None,
+    "size_min": 3,
+    "size_max": 9,
+    "size": 3,
+    "tier": 1,
+    "coordinate_x": 0,
+    "coordinate_y": 1,
+    "image_url": None,
+    "capacity_formula": "10*S",
+    "output_formula": "5*S",
+}
 
 
+def _pc(vault: Vault, **overrides: Any) -> RoomCreate:
+    return RoomCreate(vault_id=vault.id, **(ROOM_DEFAULTS | overrides))
+
+
+def _payload(vault_id: UUID, **overrides: Any) -> RoomCreate:
+    return RoomCreate(vault_id=vault_id, **(ROOM_DEFAULTS | overrides))
+
+
+# Names kept for app/tests/test_api/test_room.py, which builds its fixtures through them.
 def _make_room_create(
     vault_id: UUID,
     *,
@@ -47,53 +86,17 @@ def _make_room_create(
     capacity_formula: str | None = "10*S",
     output_formula: str | None = "5*S",
 ) -> RoomCreate:
-    return RoomCreate(
-        vault_id=vault_id,
+    return _payload(
+        vault_id,
         name=name,
-        category=RoomTypeEnum.PRODUCTION,
-        ability=SPECIALEnum.STRENGTH,
-        population_required=None,
-        base_cost=100,
-        incremental_cost=25,
-        t2_upgrade_cost=500,
-        t3_upgrade_cost=1500,
-        capacity=None,
-        output=None,
-        size_min=size_min,
-        size_max=size_max,
-        size=size,
-        tier=tier,
         coordinate_x=coordinate_x,
         coordinate_y=coordinate_y,
-        image_url=None,
+        size=size,
+        size_min=size_min,
+        size_max=size_max,
+        tier=tier,
         capacity_formula=capacity_formula,
         output_formula=output_formula,
-    )
-
-
-async def _create_elevator(session: AsyncSession, vault_id: UUID, coordinate_y: int, *, coordinate_x: int = 6) -> Room:
-    return await crud.room.create(
-        session,
-        obj_in=RoomCreate(
-            vault_id=vault_id,
-            name="Elevator",
-            category=RoomTypeEnum.MISC,
-            ability=None,
-            population_required=None,
-            base_cost=100,
-            incremental_cost=None,
-            t2_upgrade_cost=None,
-            t3_upgrade_cost=None,
-            capacity=None,
-            output=None,
-            size_min=1,
-            size_max=1,
-            size=1,
-            tier=1,
-            coordinate_x=coordinate_x,
-            coordinate_y=coordinate_y,
-            image_url=None,
-        ),
     )
 
 
@@ -111,56 +114,139 @@ async def _create_existing_room(
     output_formula: str | None = "5*S",
     image_url: str | None = None,
 ) -> Room:
+    payload = _make_room_create(
+        vault_id,
+        name=name,
+        coordinate_x=coordinate_x,
+        coordinate_y=coordinate_y,
+        size=size,
+        size_max=size_max,
+        tier=tier,
+        capacity_formula=capacity_formula,
+        output_formula=output_formula,
+    ).model_copy(update={"image_url": image_url})
+    return await crud.room.create(session, obj_in=payload)
+
+
+async def _create_elevator(session: AsyncSession, vault_id: UUID, coordinate_y: int, *, coordinate_x: int = 6) -> Room:
     return await crud.room.create(
         session,
-        obj_in=RoomCreate(
-            vault_id=vault_id,
-            name=name,
-            category=RoomTypeEnum.PRODUCTION,
-            ability=SPECIALEnum.STRENGTH,
-            population_required=None,
-            base_cost=100,
-            incremental_cost=25,
-            t2_upgrade_cost=500,
-            t3_upgrade_cost=1500,
-            capacity=None,
-            output=None,
-            size_min=3,
-            size_max=size_max,
-            size=size,
-            tier=tier,
+        obj_in=_payload(
+            vault_id,
+            name="Elevator",
+            category=RoomTypeEnum.MISC,
+            ability=None,
+            incremental_cost=None,
+            t2_upgrade_cost=None,
+            t3_upgrade_cost=None,
+            size_min=1,
+            size_max=1,
+            size=1,
             coordinate_x=coordinate_x,
             coordinate_y=coordinate_y,
-            image_url=image_url,
-            capacity_formula=capacity_formula,
-            output_formula=output_formula,
+            capacity_formula=None,
+            output_formula=None,
         ),
     )
 
 
-async def _create_dweller_in_room(session: AsyncSession, vault_id: UUID, room: Room) -> Dweller:
-    dweller_in = DwellerCreate(
-        vault_id=vault_id,
-        first_name="Test",
-        last_name="Dweller",
-        gender=GenderEnum.MALE,
-        rarity=RarityEnum.COMMON,
-        age_group=AgeGroupEnum.ADULT,
-        level=1,
-        experience=0,
-        max_health=100,
-        health=100,
-        radiation=0,
-        happiness=50,
-        strength=5,
-        perception=5,
-        endurance=5,
-        charisma=5,
-        intelligence=5,
-        agility=5,
-        luck=5,
+async def _create_radio_studio(
+    session: AsyncSession, vault_id: UUID, *, coordinate_x: int = 1, coordinate_y: int = 0, size: int = 3, tier: int = 1
+) -> Room:
+    return await crud.room.create(
+        session,
+        obj_in=_payload(
+            vault_id,
+            name="Radio studio",
+            ability=SPECIALEnum.CHARISMA,
+            base_cost=600,
+            incremental_cost=150,
+            t2_upgrade_cost=1500,
+            t3_upgrade_cost=4500,
+            size=size,
+            tier=tier,
+            coordinate_x=coordinate_x,
+            coordinate_y=coordinate_y,
+            capacity_formula=None,
+            output_formula=None,
+        ),
     )
-    dweller = await crud.dweller.create(session, obj_in=dweller_in)
+
+
+def _response(vault, *, coordinate_x, coordinate_y=0, size=3):
+    return _pc(
+        vault,
+        name="Response Station",
+        category=RoomTypeEnum.RESPONSE,
+        ability=SPECIALEnum.ENDURANCE,
+        base_cost=600,
+        incremental_cost=None,
+        t2_upgrade_cost=None,
+        t3_upgrade_cost=None,
+        size=size,
+        coordinate_x=coordinate_x,
+        coordinate_y=coordinate_y,
+        capacity_formula=None,
+        output_formula=None,
+    )
+
+
+def _radio(vault, *, coordinate_x, coordinate_y=0, size=3, tier=1):
+    return _pc(
+        vault,
+        name="Radio studio",
+        ability=SPECIALEnum.CHARISMA,
+        base_cost=600,
+        incremental_cost=150,
+        t2_upgrade_cost=1500,
+        t3_upgrade_cost=4500,
+        size=size,
+        tier=tier,
+        coordinate_x=coordinate_x,
+        coordinate_y=coordinate_y,
+        capacity_formula=None,
+        output_formula=None,
+    )
+
+
+async def _room(session: AsyncSession, vault: Vault, **overrides: Any) -> Room:
+    return await crud.room.create(session, obj_in=_pc(vault, **overrides))
+
+
+async def _elevator(session, vault, coordinate_y, coordinate_x=6):
+    return await crud.room.create(
+        session,
+        obj_in=_pc(
+            vault,
+            name="Elevator",
+            category=RoomTypeEnum.MISC,
+            ability=None,
+            incremental_cost=None,
+            t2_upgrade_cost=None,
+            t3_upgrade_cost=None,
+            size_min=1,
+            size_max=1,
+            size=1,
+            coordinate_x=coordinate_x,
+            coordinate_y=coordinate_y,
+            capacity_formula=None,
+            output_formula=None,
+        ),
+    )
+
+
+async def _station(session: AsyncSession, vault: Vault, **kw: Any) -> Room:
+    return await crud.room.create(session, obj_in=_response(vault, **kw))
+
+
+async def _studio(session: AsyncSession, vault: Vault, **kw: Any) -> Room:
+    return await crud.room.create(session, obj_in=_radio(vault, **kw))
+
+
+async def _dweller(session: AsyncSession, vault: Vault, room: Room, **stats: Any) -> Any:
+    dweller = await crud.dweller.create(
+        session, obj_in=DwellerCreate(vault_id=vault.id, **create_rush_dweller_payload(**stats))
+    )
     dweller.room_id = room.id
     session.add(dweller)
     await session.commit()
@@ -168,9 +254,18 @@ async def _create_dweller_in_room(session: AsyncSession, vault_id: UUID, room: R
     return dweller
 
 
+async def _build(session: AsyncSession, payload: RoomCreate):
+    with patch(RECALC, new_callable=AsyncMock):
+        return await room_service._build(db_session=session, obj_in=payload)
+
+
+async def _upgrade(session: AsyncSession, room_id: UUID):
+    with patch(RECALC, new_callable=AsyncMock):
+        return await room_service._upgrade(session, room_id)
+
+
 @pytest.fixture
 async def rich_vault(vault: Vault, async_session: AsyncSession) -> Vault:
-    """Vault with enough caps to pay for any test build."""
     vault.bottle_caps = 1_000_000
     async_session.add(vault)
     await async_session.commit()
@@ -188,556 +283,211 @@ def _stub_room_template():
 # _build merge scenarios
 
 
-@pytest.mark.asyncio
-async def test_build_merges_adjacent_room_on_right(async_session: AsyncSession, rich_vault: Vault):
-    await _create_elevator(async_session, rich_vault.id, coordinate_y=1)
-    existing = await _create_existing_room(
-        async_session,
-        rich_vault.id,
-        name="Power Generator",
-        coordinate_x=0,
-        coordinate_y=1,
-        size=3,
-        tier=2,
-    )
-
-    with patch("app.services.vault_service.vault_service.recalculate_vault_attributes", new_callable=AsyncMock):
-        result, created = await room_service._build(
-            db_session=async_session,
-            obj_in=_make_room_create(
-                rich_vault.id,
-                name="Power Generator",
-                coordinate_x=3,
-                coordinate_y=1,
-                tier=2,
-            ),
-        )
-
-    assert result.id == existing.id
-    assert created is False
-    assert result.coordinate_x == 0
-    assert result.size == 6
-    assert result.capacity == 60
-    assert result.output == 30
+async def test_build_merges_adjacent_room_on_right(async_session, rich_vault):
+    await _elevator(async_session, rich_vault, 1)
+    existing = await _room(async_session, rich_vault, coordinate_x=0, tier=2)
+    result, created = await _build(async_session, _pc(rich_vault, coordinate_x=3, tier=2))
+    assert (result.id, created, result.coordinate_x, result.size) == (existing.id, False, 0, 6)
+    assert (result.capacity, result.output) == (60, 30)
 
 
-@pytest.mark.asyncio
-async def test_build_merges_adjacent_room_on_left(async_session: AsyncSession, rich_vault: Vault):
-    await _create_elevator(async_session, rich_vault.id, coordinate_y=1)
-    existing = await _create_existing_room(
-        async_session,
-        rich_vault.id,
-        name="Power Generator",
-        coordinate_x=3,
-        coordinate_y=1,
-        size=3,
-        tier=2,
-    )
-
-    with patch("app.services.vault_service.vault_service.recalculate_vault_attributes", new_callable=AsyncMock):
-        result, created = await room_service._build(
-            db_session=async_session,
-            obj_in=_make_room_create(
-                rich_vault.id,
-                name="Power Generator",
-                coordinate_x=0,
-                coordinate_y=1,
-                tier=2,
-            ),
-        )
-
-    assert result.id != existing.id
-    assert created is True
-    assert result.coordinate_x == 0
-    assert result.size == 6
+async def test_build_merges_adjacent_room_on_left(async_session, rich_vault):
+    await _elevator(async_session, rich_vault, 1)
+    existing = await _room(async_session, rich_vault, coordinate_x=3, tier=2)
+    result, created = await _build(async_session, _pc(rich_vault, coordinate_x=0, tier=2))
+    assert (result.id != existing.id, created, result.coordinate_x, result.size) == (True, True, 0, 6)
     remaining = await crud.room.get_all_by_vault(async_session, rich_vault.id)
     assert existing.id not in {room.id for room in remaining}
 
 
-@pytest.mark.asyncio
-async def test_build_three_way_merge_to_size_max(async_session: AsyncSession, rich_vault: Vault):
-    await _create_elevator(async_session, rich_vault.id, coordinate_y=1)
-    left = await _create_existing_room(async_session, rich_vault.id, name="Power Generator", coordinate_x=0, size=3)
-    right = await _create_existing_room(async_session, rich_vault.id, name="Power Generator", coordinate_x=6, size=3)
-
-    with patch("app.services.vault_service.vault_service.recalculate_vault_attributes", new_callable=AsyncMock):
-        result, created = await room_service._build(
-            db_session=async_session,
-            obj_in=_make_room_create(
-                rich_vault.id,
-                name="Power Generator",
-                coordinate_x=3,
-                coordinate_y=1,
-            ),
-        )
-
-    assert result.id == left.id
-    assert created is False
-    assert result.size == 9
-    assert result.coordinate_x == 0
-    remaining = await crud.room.get_all_by_vault(async_session, rich_vault.id)
-    remaining_ids = {room.id for room in remaining}
+async def test_build_three_way_merge_to_size_max(async_session, rich_vault):
+    await _elevator(async_session, rich_vault, 1)
+    left = await _room(async_session, rich_vault, coordinate_x=0)
+    right = await _room(async_session, rich_vault, coordinate_x=6)
+    result, created = await _build(async_session, _pc(rich_vault, coordinate_x=3))
+    assert (result.id, created, result.size, result.coordinate_x) == (left.id, False, 9, 0)
+    remaining_ids = {room.id for room in await crud.room.get_all_by_vault(async_session, rich_vault.id)}
     assert left.id in remaining_ids
     assert right.id not in remaining_ids
 
 
-@pytest.mark.asyncio
-async def test_build_no_merge_different_tier(async_session: AsyncSession, rich_vault: Vault):
-    """Adjacent rooms of different tiers do not merge."""
-    await _create_elevator(async_session, rich_vault.id, coordinate_y=1)
-    existing = await _create_existing_room(async_session, rich_vault.id, name="Power Generator", coordinate_x=0, tier=1)
-
-    with patch("app.services.vault_service.vault_service.recalculate_vault_attributes", new_callable=AsyncMock):
-        result, created = await room_service._build(
-            db_session=async_session,
-            obj_in=_make_room_create(
-                rich_vault.id,
-                name="Power Generator",
-                coordinate_x=3,
-                coordinate_y=1,
-                tier=2,
-            ),
-        )
-
-    assert created is True
-    assert result.id != existing.id
-    assert result.size == 3
+@pytest.mark.parametrize(
+    ("existing_kw", "new_kw", "expected_name"),
+    [
+        ({"tier": 1}, {"tier": 2}, "Power Generator"),
+        ({}, {"name": "Diner"}, "Diner"),
+        ({"size_max": 3}, {"size_max": 3}, "Power Generator"),
+    ],
+)
+async def test_build_no_merge(async_session, rich_vault, existing_kw, new_kw, expected_name):
+    await _elevator(async_session, rich_vault, 1)
+    existing = await _room(async_session, rich_vault, **existing_kw)
+    result, created = await _build(async_session, _pc(rich_vault, coordinate_x=3, **new_kw))
+    assert (created, result.id != existing.id, result.size, result.name) == (True, True, 3, expected_name)
 
 
-@pytest.mark.asyncio
-async def test_build_no_merge_different_name(async_session: AsyncSession, rich_vault: Vault):
-    """Adjacent rooms of different names do not merge."""
-    await _create_elevator(async_session, rich_vault.id, coordinate_y=1)
-    existing = await _create_existing_room(async_session, rich_vault.id, name="Power Generator", coordinate_x=0)
-
-    with patch("app.services.vault_service.vault_service.recalculate_vault_attributes", new_callable=AsyncMock):
-        result, created = await room_service._build(
-            db_session=async_session,
-            obj_in=_make_room_create(
-                rich_vault.id,
-                name="Diner",
-                coordinate_x=3,
-                coordinate_y=1,
-            ),
-        )
-
-    assert created is True
-    assert result.id != existing.id
-    assert result.name == "Diner"
+async def test_build_same_coordinate_same_name_expands(async_session, rich_vault):
+    await _elevator(async_session, rich_vault, 1)
+    existing = await _room(async_session, rich_vault, coordinate_x=0)
+    result, created = await _build(async_session, _pc(rich_vault, coordinate_x=0))
+    assert (result.id, created, result.size) == (existing.id, False, 6)
 
 
-@pytest.mark.asyncio
-async def test_build_no_merge_exceeds_size_max(async_session: AsyncSession, rich_vault: Vault):
-    await _create_elevator(async_session, rich_vault.id, coordinate_y=1)
-    existing = await _create_existing_room(
-        async_session, rich_vault.id, name="Power Generator", coordinate_x=0, size=3, size_max=3
-    )
-
-    with patch("app.services.vault_service.vault_service.recalculate_vault_attributes", new_callable=AsyncMock):
-        result, created = await room_service._build(
-            db_session=async_session,
-            obj_in=_make_room_create(
-                rich_vault.id,
-                name="Power Generator",
-                coordinate_x=3,
-                coordinate_y=1,
-                size_max=3,
-            ),
-        )
-
-    assert created is True
-    assert result.id != existing.id
-    assert result.size == 3
-
-
-@pytest.mark.asyncio
-async def test_build_same_coordinate_same_name_expands(async_session: AsyncSession, rich_vault: Vault):
-    await _create_elevator(async_session, rich_vault.id, coordinate_y=1)
-    existing = await _create_existing_room(async_session, rich_vault.id, name="Power Generator", coordinate_x=0, size=3)
-
-    with patch("app.services.vault_service.vault_service.recalculate_vault_attributes", new_callable=AsyncMock):
-        result, created = await room_service._build(
-            db_session=async_session,
-            obj_in=_make_room_create(
-                rich_vault.id,
-                name="Power Generator",
-                coordinate_x=0,
-                coordinate_y=1,
-            ),
-        )
-
-    assert result.id == existing.id
-    assert created is False
-    assert result.size == 6
-
-
-@pytest.mark.asyncio
-async def test_build_merge_reassigns_dwellers(async_session: AsyncSession, rich_vault: Vault):
-    await _create_elevator(async_session, rich_vault.id, coordinate_y=1)
-    existing = await _create_existing_room(async_session, rich_vault.id, name="Power Generator", coordinate_x=0)
-    await _create_dweller_in_room(async_session, rich_vault.id, existing)
-
-    with patch("app.services.vault_service.vault_service.recalculate_vault_attributes", new_callable=AsyncMock):
-        result, _created = await room_service._build(
-            db_session=async_session,
-            obj_in=_make_room_create(
-                rich_vault.id,
-                name="Power Generator",
-                coordinate_x=3,
-                coordinate_y=1,
-            ),
-        )
-
+async def test_build_merge_reassigns_dwellers(async_session, rich_vault):
+    await _elevator(async_session, rich_vault, 1)
+    existing = await _room(async_session, rich_vault, coordinate_x=0)
+    await _dweller(async_session, rich_vault, existing)
+    result, _created = await _build(async_session, _pc(rich_vault, coordinate_x=3))
     dwellers = await crud.dweller.get_by_room(async_session, result.id)
     assert len(dwellers) == 1
     assert dwellers[0].room_id == result.id
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(("size", "expected_price"), [(3, 125), (6, 150)])
-async def test_build_merge_charges_price(
-    async_session: AsyncSession, rich_vault: Vault, size: int, expected_price: int
-):
-    await _create_elevator(async_session, rich_vault.id, coordinate_y=1, coordinate_x=9)
-    await _create_existing_room(async_session, rich_vault.id, name="Power Generator", coordinate_x=0, size=size)
+async def test_build_merge_charges_price(async_session, rich_vault, size, expected_price):
+    await _elevator(async_session, rich_vault, 1, coordinate_x=9)
+    await _room(async_session, rich_vault, coordinate_x=0, size=size)
     caps_before = rich_vault.bottle_caps
-
-    result, _created = await room_service._build(
-        db_session=async_session,
-        obj_in=_make_room_create(rich_vault.id, name="Power Generator", coordinate_x=size, coordinate_y=1),
-    )
-
+    result, _created = await room_service._build(db_session=async_session, obj_in=_pc(rich_vault, coordinate_x=size))
     await async_session.refresh(rich_vault)
     assert rich_vault.bottle_caps == caps_before - expected_price
     assert result.size == size + 3
 
 
-@pytest.mark.asyncio
-async def test_build_merge_recomputes_image_url(async_session: AsyncSession, rich_vault: Vault):
-    await _create_elevator(async_session, rich_vault.id, coordinate_y=1)
-    existing = await _create_existing_room(
-        async_session, rich_vault.id, name="Power Generator", coordinate_x=0, image_url=None
-    )
+async def test_build_merge_recomputes_image_url(async_session, rich_vault):
+    await _elevator(async_session, rich_vault, 1)
+    existing = await _room(async_session, rich_vault, coordinate_x=0)
     existing.image_url = "/static/old.png"
     async_session.add(existing)
     await async_session.commit()
-
-    with patch("app.services.vault_service.vault_service.recalculate_vault_attributes", new_callable=AsyncMock):
-        result, _created = await room_service._build(
-            db_session=async_session,
-            obj_in=_make_room_create(
-                rich_vault.id,
-                name="Power Generator",
-                coordinate_x=3,
-                coordinate_y=1,
-            ),
-        )
-
+    result, _created = await _build(async_session, _pc(rich_vault, coordinate_x=3))
     assert result.image_url != "/static/old.png"
 
 
 # Backfill merge-rooms
 
 
-@pytest.mark.asyncio
-async def test_backfill_merge_rooms_dry_run_reports_without_writing(async_session: AsyncSession, rich_vault: Vault):
-    await _create_elevator(async_session, rich_vault.id, coordinate_y=1)
-    await _create_existing_room(async_session, rich_vault.id, name="Power Generator", coordinate_x=0)
-    await _create_existing_room(async_session, rich_vault.id, name="Power Generator", coordinate_x=3)
+@pytest.mark.parametrize(("xs", "expected"), [((0, 3), 1), ((0, 3, 6), 2)])
+async def test_backfill_dry_run_reports_without_writing(async_session, rich_vault, xs, expected):
+    await _elevator(async_session, rich_vault, 1, coordinate_x=9)
+    for coordinate_x in xs:
+        await _room(async_session, rich_vault, coordinate_x=coordinate_x)
     rooms_before = len(await crud.room.get_all_by_vault(async_session, rich_vault.id))
+    dry = await room_service.backfill_merge_rooms_for_vault(async_session, rich_vault.id, dry_run=True)
+    assert dry["merged"] == expected
+    assert len(await crud.room.get_all_by_vault(async_session, rich_vault.id)) == rooms_before
+    applied = await room_service.backfill_merge_rooms_for_vault(async_session, rich_vault.id, dry_run=False)
+    assert applied["merged"] == expected
 
-    summary = await room_service.backfill_merge_rooms_for_vault(async_session, rich_vault.id, dry_run=True)
 
-    assert summary["merged"] == 1
-    rooms_after = len(await crud.room.get_all_by_vault(async_session, rich_vault.id))
-    assert rooms_after == rooms_before
-
-
-@pytest.mark.asyncio
-async def test_backfill_merge_rooms_apply_merges(async_session: AsyncSession, rich_vault: Vault):
-    await _create_elevator(async_session, rich_vault.id, coordinate_y=1)
-    left = await _create_existing_room(async_session, rich_vault.id, name="Power Generator", coordinate_x=0)
-    right = await _create_existing_room(async_session, rich_vault.id, name="Power Generator", coordinate_x=3)
-
+async def test_backfill_merge_rooms_apply_merges(async_session, rich_vault):
+    await _elevator(async_session, rich_vault, 1)
+    left = await _room(async_session, rich_vault, coordinate_x=0)
+    right = await _room(async_session, rich_vault, coordinate_x=3)
+    left_dweller = await _dweller(async_session, rich_vault, left)
+    right_dweller = await _dweller(async_session, rich_vault, right)
     summary = await room_service.backfill_merge_rooms_for_vault(async_session, rich_vault.id, dry_run=False)
-
     assert summary["merged"] == 1
     survivor = await crud.room.get(async_session, left.id)
     assert survivor.size == 6
+    await async_session.refresh(left_dweller)
+    await async_session.refresh(right_dweller)
+    assert (left_dweller.room_id, right_dweller.room_id) == (survivor.id, survivor.id)
     with pytest.raises(ResourceNotFoundException):
         await crud.room.get(async_session, right.id)
 
 
-@pytest.mark.asyncio
-async def test_backfill_merge_rooms_idempotent(async_session: AsyncSession, rich_vault: Vault):
-    await _create_elevator(async_session, rich_vault.id, coordinate_y=1)
-    await _create_existing_room(async_session, rich_vault.id, name="Power Generator", coordinate_x=0)
-    await _create_existing_room(async_session, rich_vault.id, name="Power Generator", coordinate_x=3)
-
+async def test_backfill_merge_rooms_idempotent(async_session, rich_vault):
+    await _elevator(async_session, rich_vault, 1)
+    await _room(async_session, rich_vault, coordinate_x=0)
+    await _room(async_session, rich_vault, coordinate_x=3)
     first = await room_service.backfill_merge_rooms_for_vault(async_session, rich_vault.id, dry_run=False)
     second = await room_service.backfill_merge_rooms_for_vault(async_session, rich_vault.id, dry_run=False)
-
-    assert first["merged"] == 1
-    assert second["merged"] == 0
+    assert (first["merged"], second["merged"]) == (1, 0)
 
 
-@pytest.mark.asyncio
-async def test_backfill_skips_unplaced_rooms_without_sort_crash(async_session: AsyncSession, rich_vault: Vault):
-    """Unplaced (NULL-coordinate) rooms must not crash the backfill sort."""
-    await _create_elevator(async_session, rich_vault.id, coordinate_y=1)
-    await _create_existing_room(async_session, rich_vault.id, name="Power Generator", coordinate_x=0)
-    await _create_existing_room(async_session, rich_vault.id, name="Power Generator", coordinate_x=3)
-    await _create_existing_room(async_session, rich_vault.id, name="Storage", coordinate_x=None, coordinate_y=None)
-
+async def test_backfill_skips_unplaced_rooms_without_sort_crash(async_session, rich_vault):
+    # Unplaced (NULL-coordinate) rooms must not crash the backfill sort.
+    await _elevator(async_session, rich_vault, 1)
+    await _room(async_session, rich_vault, coordinate_x=0)
+    await _room(async_session, rich_vault, coordinate_x=3)
+    await _room(async_session, rich_vault, name="Storage", coordinate_x=None, coordinate_y=None)
     summary = await room_service.backfill_merge_rooms_for_vault(async_session, rich_vault.id, dry_run=True)
-
     assert summary["merged"] == 1
 
 
-@pytest.mark.asyncio
-async def test_backfill_dry_run_matches_apply_for_chain(async_session: AsyncSession, rich_vault: Vault):
-    await _create_elevator(async_session, rich_vault.id, coordinate_y=1)
-    for coordinate_x in (0, 3, 6):
-        await _create_existing_room(async_session, rich_vault.id, name="Power Generator", coordinate_x=coordinate_x)
-
-    dry = await room_service.backfill_merge_rooms_for_vault(async_session, rich_vault.id, dry_run=True)
-    applied = await room_service.backfill_merge_rooms_for_vault(async_session, rich_vault.id, dry_run=False)
-
-    assert dry["merged"] == applied["merged"] == 2
-
-
-@pytest.mark.asyncio
-async def test_build_merge_reassigns_training(async_session: AsyncSession, rich_vault: Vault):
-    await _create_elevator(async_session, rich_vault.id, coordinate_y=1)
-    absorbed = await _create_existing_room(async_session, rich_vault.id, name="Power Generator", coordinate_x=3)
-    dweller = await _create_dweller_in_room(async_session, rich_vault.id, absorbed)
+async def _training(session: AsyncSession, vault: Vault, dweller: Any, room: Room, **kw: Any) -> Training:
     training = Training(
-        vault_id=rich_vault.id,
+        vault_id=vault.id,
         dweller_id=dweller.id,
-        room_id=absorbed.id,
+        room_id=room.id,
         stat_being_trained=SPECIALEnum.STRENGTH,
         current_stat_value=5,
         target_stat_value=6,
         started_at=utcnow(),
         estimated_completion_at=utcnow(),
+        **kw,
     )
-    async_session.add(training)
-    await async_session.commit()
+    session.add(training)
+    await session.commit()
+    return training
 
-    with patch("app.services.vault_service.vault_service.recalculate_vault_attributes", new_callable=AsyncMock):
-        survivor, _ = await room_service._build(
-            db_session=async_session,
-            obj_in=_make_room_create(rich_vault.id, name="Power Generator", coordinate_x=0, tier=1),
-        )
 
+async def test_build_merge_reassigns_training_and_dwellers(async_session, rich_vault):
+    await _elevator(async_session, rich_vault, 1)
+    absorbed = await _room(async_session, rich_vault, coordinate_x=3)
+    dweller = await _dweller(async_session, rich_vault, absorbed)
+    training = await _training(async_session, rich_vault, dweller, absorbed)
+    survivor, _ = await _build(async_session, _pc(rich_vault, coordinate_x=0, tier=1))
     await async_session.refresh(training)
-    assert survivor.size == 6
-    assert training.room_id == survivor.id
-
-
-@pytest.mark.asyncio
-async def test_build_merge_moves_absorbed_dwellers_to_survivor(async_session: AsyncSession, rich_vault: Vault):
-    await _create_elevator(async_session, rich_vault.id, coordinate_y=1)
-    absorbed = await _create_existing_room(async_session, rich_vault.id, name="Power Generator", coordinate_x=3)
-    dweller = await _create_dweller_in_room(async_session, rich_vault.id, absorbed)
-
-    with patch("app.services.vault_service.vault_service.recalculate_vault_attributes", new_callable=AsyncMock):
-        survivor, _ = await room_service._build(
-            db_session=async_session,
-            obj_in=_make_room_create(rich_vault.id, name="Power Generator", coordinate_x=0, tier=1),
-        )
-
     await async_session.refresh(dweller)
-    assert dweller.room_id == survivor.id
-
-
-@pytest.mark.asyncio
-async def test_backfill_merge_moves_dwellers_into_survivor(async_session: AsyncSession, rich_vault: Vault):
-    await _create_elevator(async_session, rich_vault.id, coordinate_y=1)
-    left = await _create_existing_room(async_session, rich_vault.id, name="Power Generator", coordinate_x=0)
-    right = await _create_existing_room(async_session, rich_vault.id, name="Power Generator", coordinate_x=3)
-    left_dweller = await _create_dweller_in_room(async_session, rich_vault.id, left)
-    right_dweller = await _create_dweller_in_room(async_session, rich_vault.id, right)
-
-    summary = await room_service.backfill_merge_rooms_for_vault(async_session, rich_vault.id, dry_run=False)
-
-    assert summary["merged"] == 1
-    survivor = await crud.room.get(async_session, left.id)
-    await async_session.refresh(left_dweller)
-    await async_session.refresh(right_dweller)
-    assert left_dweller.room_id == survivor.id
-    assert right_dweller.room_id == survivor.id
+    assert survivor.size == 6
+    assert (training.room_id, dweller.room_id) == (survivor.id, survivor.id)
 
 
 # _upgrade merge scenarios
 
 
-@pytest.mark.asyncio
-async def test_upgrade_merges_adjacent_same_tier_room(async_session: AsyncSession, rich_vault: Vault):
-    await _create_elevator(async_session, rich_vault.id, coordinate_y=1)
-    survivor = await _create_existing_room(
-        async_session,
-        rich_vault.id,
-        name="Power Generator",
-        coordinate_x=0,
-        coordinate_y=1,
-        size=3,
-        tier=2,
-    )
-    upgraded = await _create_existing_room(
-        async_session,
-        rich_vault.id,
-        name="Power Generator",
-        coordinate_x=3,
-        coordinate_y=1,
-        size=3,
-        tier=1,
-    )
-    dweller = await _create_dweller_in_room(async_session, rich_vault.id, upgraded)
-
-    with patch("app.services.vault_service.vault_service.recalculate_vault_attributes", new_callable=AsyncMock):
-        result = await room_service._upgrade(async_session, upgraded.id)
-
-    assert result.id == survivor.id
-    assert result.tier == 2
-    assert result.size == 6
-    with pytest.raises(ResourceNotFoundException):
-        await crud.room.get(async_session, upgraded.id)
-    await async_session.refresh(dweller)
-    assert dweller.room_id == survivor.id
-
-
-@pytest.mark.asyncio
-async def test_upgrade_no_merge_different_tier(async_session: AsyncSession, rich_vault: Vault):
-    await _create_elevator(async_session, rich_vault.id, coordinate_y=1)
-    await _create_existing_room(
-        async_session,
-        rich_vault.id,
-        name="Power Generator",
-        coordinate_x=0,
-        coordinate_y=1,
-        size=3,
-        tier=3,
-    )
-    upgraded = await _create_existing_room(
-        async_session,
-        rich_vault.id,
-        name="Power Generator",
-        coordinate_x=3,
-        coordinate_y=1,
-        size=3,
-        tier=1,
-    )
-
-    with patch("app.services.vault_service.vault_service.recalculate_vault_attributes", new_callable=AsyncMock):
-        result = await room_service._upgrade(async_session, upgraded.id)
-
-    assert result.id == upgraded.id
-    assert result.tier == 2
-    assert result.size == 3
+@pytest.mark.parametrize(("neighbor_tier", "merges"), [(2, True), (3, False)])
+async def test_upgrade_merge_respects_tier(async_session, rich_vault, neighbor_tier, merges):
+    await _elevator(async_session, rich_vault, 1)
+    neighbor = await _room(async_session, rich_vault, coordinate_x=0, tier=neighbor_tier)
+    upgraded = await _room(async_session, rich_vault, coordinate_x=3, tier=1)
+    dweller = await _dweller(async_session, rich_vault, upgraded)
+    result = await _upgrade(async_session, upgraded.id)
+    if merges:
+        assert (result.id, result.tier, result.size) == (neighbor.id, 2, 6)
+        with pytest.raises(ResourceNotFoundException):
+            await crud.room.get(async_session, upgraded.id)
+        await async_session.refresh(dweller)
+        assert dweller.room_id == neighbor.id
+    else:
+        assert (result.id, result.tier, result.size) == (upgraded.id, 2, 3)
 
 
 # Response Station — unique room growth via an adjacent segment (issue #997)
 
 
-def _make_response_room_create(
-    vault_id: UUID, *, coordinate_x: int, coordinate_y: int = 0, size: int = 3
-) -> RoomCreate:
-    """A Response Station catalog payload: unique (null incremental cost), 3..9 footprint."""
-    return RoomCreate(
-        vault_id=vault_id,
-        name="Response Station",
-        category=RoomTypeEnum.RESPONSE,
-        ability=SPECIALEnum.ENDURANCE,
-        population_required=None,
-        base_cost=600,
-        incremental_cost=None,
-        t2_upgrade_cost=None,
-        t3_upgrade_cost=None,
-        capacity=None,
-        output=None,
-        size_min=3,
-        size_max=9,
-        size=size,
-        tier=1,
-        coordinate_x=coordinate_x,
-        coordinate_y=coordinate_y,
-        image_url=None,
-        capacity_formula=None,
-        output_formula=None,
-    )
-
-
-async def _create_response_station(
-    session: AsyncSession, vault_id: UUID, *, coordinate_x: int = 1, size: int = 3
-) -> Room:
-    return await crud.room.create(
-        session, obj_in=_make_response_room_create(vault_id, coordinate_x=coordinate_x, size=size)
-    )
-
-
-@pytest.mark.asyncio
-async def test_adjacent_station_segment_merges_into_one_row(async_session: AsyncSession, rich_vault: Vault):
-    station = await _create_response_station(async_session, rich_vault.id, coordinate_x=1)
+async def test_adjacent_station_segment_merges_into_one_row(async_session, rich_vault):
+    station = await _station(async_session, rich_vault, coordinate_x=1)
     assert calculate_room_capacity(station.size) == 2
-
-    with patch("app.services.vault_service.vault_service.recalculate_vault_attributes", new_callable=AsyncMock):
-        grown_to_six, created = await room_service._build(
-            db_session=async_session,
-            obj_in=_make_response_room_create(rich_vault.id, coordinate_x=4),
-        )
-
-    assert grown_to_six.id == station.id
-    assert created is False
-    assert grown_to_six.size == 6
+    starting_caps = rich_vault.bottle_caps
+    grown_to_six, created = await _build(async_session, _response(rich_vault, coordinate_x=4))
+    assert (grown_to_six.id, created, grown_to_six.size) == (station.id, False, 6)
     assert calculate_room_capacity(grown_to_six.size) == 4
-
-    with patch("app.services.vault_service.vault_service.recalculate_vault_attributes", new_callable=AsyncMock):
-        grown_to_nine, created = await room_service._build(
-            db_session=async_session,
-            obj_in=_make_response_room_create(rich_vault.id, coordinate_x=7),
-        )
-
-    assert grown_to_nine.id == station.id
-    assert created is False
-    assert grown_to_nine.size == 9
+    grown_to_nine, created = await _build(async_session, _response(rich_vault, coordinate_x=7))
+    assert (grown_to_nine.id, created, grown_to_nine.size) == (station.id, False, 9)
     assert calculate_room_capacity(grown_to_nine.size) == 6
-
+    await async_session.refresh(rich_vault)
+    assert rich_vault.bottle_caps == starting_caps - 1200
     names = await crud.room.get_names_by_vault(async_session, rich_vault.id)
     assert names.count("Response Station") == 1
 
 
-@pytest.mark.asyncio
-async def test_adjacent_station_segment_charges_one_build_price_per_segment(
-    async_session: AsyncSession, rich_vault: Vault
-):
-    """Each adjacent segment costs one station build price; the row id never changes."""
-    await _create_response_station(async_session, rich_vault.id, coordinate_x=1)
-    starting_caps = rich_vault.bottle_caps
-
-    with patch("app.services.vault_service.vault_service.recalculate_vault_attributes", new_callable=AsyncMock):
-        await room_service._build(
-            db_session=async_session, obj_in=_make_response_room_create(rich_vault.id, coordinate_x=4)
-        )
-        await room_service._build(
-            db_session=async_session, obj_in=_make_response_room_create(rich_vault.id, coordinate_x=7)
-        )
-
-    await async_session.refresh(rich_vault)
-    assert rich_vault.bottle_caps == starting_caps - 1200
-
-
-@pytest.mark.asyncio
-async def test_adjacent_station_segment_preserves_dwellers(async_session: AsyncSession, rich_vault: Vault):
-    station = await _create_response_station(async_session, rich_vault.id, coordinate_x=1)
-    dweller = await _create_dweller_in_room(async_session, rich_vault.id, station)
-
-    with patch("app.services.vault_service.vault_service.recalculate_vault_attributes", new_callable=AsyncMock):
-        grown, _created = await room_service._build(
-            db_session=async_session,
-            obj_in=_make_response_room_create(rich_vault.id, coordinate_x=4),
-        )
-
+async def test_adjacent_station_segment_preserves_dwellers(async_session, rich_vault):
+    station = await _station(async_session, rich_vault, coordinate_x=1)
+    dweller = await _dweller(async_session, rich_vault, station)
+    grown, _created = await _build(async_session, _response(rich_vault, coordinate_x=4))
     assert grown.id == station.id
     await async_session.refresh(dweller)
     assert dweller.room_id == station.id
@@ -745,37 +495,25 @@ async def test_adjacent_station_segment_preserves_dwellers(async_session: AsyncS
     assert names.count("Response Station") == 1
 
 
-@pytest.mark.asyncio
-async def test_disconnected_second_station_rejected_without_charge(async_session: AsyncSession, rich_vault: Vault):
-    await _create_response_station(async_session, rich_vault.id, coordinate_x=1)
-    await _create_elevator(async_session, rich_vault.id, coordinate_y=1, coordinate_x=0)
+async def test_disconnected_second_station_rejected_without_charge(async_session, rich_vault):
+    await _station(async_session, rich_vault, coordinate_x=1)
+    await _elevator(async_session, rich_vault, 1, coordinate_x=0)
     starting_caps = rich_vault.bottle_caps
-
     with pytest.raises(UniqueRoomViolationException):
         await room_service._build(
-            db_session=async_session,
-            obj_in=_make_response_room_create(rich_vault.id, coordinate_x=1, coordinate_y=1),
+            db_session=async_session, obj_in=_response(rich_vault, coordinate_x=1, coordinate_y=1)
         )
-
     await async_session.refresh(rich_vault)
     assert rich_vault.bottle_caps == starting_caps
     names = await crud.room.get_names_by_vault(async_session, rich_vault.id)
     assert names.count("Response Station") == 1
 
 
-@pytest.mark.asyncio
-async def test_adjacent_station_segment_at_size_max_rejected_without_charge(
-    async_session: AsyncSession, rich_vault: Vault
-):
-    station = await _create_response_station(async_session, rich_vault.id, coordinate_x=1, size=9)
+async def test_adjacent_station_segment_at_size_max_rejected_without_charge(async_session, rich_vault):
+    station = await _station(async_session, rich_vault, coordinate_x=1, size=9)
     starting_caps = rich_vault.bottle_caps
-
     with pytest.raises(UniqueRoomViolationException):
-        await room_service._build(
-            db_session=async_session,
-            obj_in=_make_response_room_create(rich_vault.id, coordinate_x=10),
-        )
-
+        await room_service._build(db_session=async_session, obj_in=_response(rich_vault, coordinate_x=10))
     await async_session.refresh(rich_vault)
     assert rich_vault.bottle_caps == starting_caps
     await async_session.refresh(station)
@@ -787,92 +525,31 @@ async def test_adjacent_station_segment_at_size_max_rejected_without_charge(
 # Radio studio — one per vault, still growable through adjacent segments
 
 
-def _make_radio_create(
-    vault_id: UUID, *, coordinate_x: int, coordinate_y: int = 0, size: int = 3, tier: int = 1
-) -> RoomCreate:
-    """A Radio studio catalog payload: per-segment incremental cost, 3..9 footprint."""
-    return RoomCreate(
-        vault_id=vault_id,
-        name="Radio studio",
-        category=RoomTypeEnum.PRODUCTION,
-        ability=SPECIALEnum.CHARISMA,
-        population_required=None,
-        base_cost=600,
-        incremental_cost=150,
-        t2_upgrade_cost=1500,
-        t3_upgrade_cost=4500,
-        capacity=None,
-        output=None,
-        size_min=3,
-        size_max=9,
-        size=size,
-        tier=tier,
-        coordinate_x=coordinate_x,
-        coordinate_y=coordinate_y,
-        image_url=None,
-        capacity_formula=None,
-        output_formula=None,
-    )
-
-
-async def _create_radio_studio(
-    session: AsyncSession,
-    vault_id: UUID,
-    *,
-    coordinate_x: int = 1,
-    coordinate_y: int = 0,
-    size: int = 3,
-    tier: int = 1,
-) -> Room:
-    return await crud.room.create(
-        session,
-        obj_in=_make_radio_create(vault_id, coordinate_x=coordinate_x, coordinate_y=coordinate_y, size=size, tier=tier),
-    )
-
-
-@pytest.mark.asyncio
-async def test_adjacent_radio_segment_merges_into_one_studio(async_session: AsyncSession, rich_vault: Vault):
-    studio = await _create_radio_studio(async_session, rich_vault.id, coordinate_x=1)
+async def test_adjacent_radio_segment_merges_into_one_studio(async_session, rich_vault):
+    studio = await _studio(async_session, rich_vault, coordinate_x=1)
     starting_caps = rich_vault.bottle_caps
-
     grown_to_six, created = await room_service._build(
-        db_session=async_session,
-        obj_in=_make_radio_create(rich_vault.id, coordinate_x=4),
+        db_session=async_session, obj_in=_radio(rich_vault, coordinate_x=4)
     )
-
-    assert grown_to_six.id == studio.id
-    assert created is False
-    assert grown_to_six.size == 6
+    assert (grown_to_six.id, created, grown_to_six.size) == (studio.id, False, 6)
     await async_session.refresh(rich_vault)
     assert rich_vault.bottle_caps == starting_caps - 750
-
     grown_to_nine, created = await room_service._build(
-        db_session=async_session,
-        obj_in=_make_radio_create(rich_vault.id, coordinate_x=7),
+        db_session=async_session, obj_in=_radio(rich_vault, coordinate_x=7)
     )
-
-    assert grown_to_nine.id == studio.id
-    assert created is False
-    assert grown_to_nine.size == 9
+    assert (grown_to_nine.id, created, grown_to_nine.size) == (studio.id, False, 9)
     await async_session.refresh(rich_vault)
     assert rich_vault.bottle_caps == starting_caps - 1650
-
     names = await crud.room.get_names_by_vault(async_session, rich_vault.id)
     assert names.count("Radio studio") == 1
 
 
-@pytest.mark.asyncio
-async def test_disconnected_second_radio_studio_rejected_without_charge(async_session: AsyncSession, rich_vault: Vault):
-    await _create_radio_studio(async_session, rich_vault.id, coordinate_x=1)
-    await _create_elevator(async_session, rich_vault.id, coordinate_y=1, coordinate_x=0)
+async def test_disconnected_second_radio_studio_rejected_without_charge(async_session, rich_vault):
+    await _studio(async_session, rich_vault, coordinate_x=1)
+    await _elevator(async_session, rich_vault, 1, coordinate_x=0)
     starting_caps = rich_vault.bottle_caps
-
     with pytest.raises(UniqueRoomViolationException) as excinfo:
-        await room_service._build(
-            db_session=async_session,
-            obj_in=_make_radio_create(rich_vault.id, coordinate_x=1, coordinate_y=1),
-        )
-
+        await room_service._build(db_session=async_session, obj_in=_radio(rich_vault, coordinate_x=1, coordinate_y=1))
     detail = str(excinfo.value)
     assert "Radio studio" in detail
     assert "adjacent" in detail
@@ -882,86 +559,50 @@ async def test_disconnected_second_radio_studio_rejected_without_charge(async_se
     assert names.count("Radio studio") == 1
 
 
-@pytest.mark.asyncio
-async def test_adjacent_tier_resolution_extends_the_touching_studio(async_session: AsyncSession, rich_vault: Vault):
-    upgraded = await _create_radio_studio(async_session, rich_vault.id, coordinate_x=1)
-    await room_service.upgrade_room(async_session, upgraded.id)
-    await _create_radio_studio(async_session, rich_vault.id, coordinate_x=1, coordinate_y=1)
-
-    await room_service._build(
-        db_session=async_session,
-        obj_in=_make_radio_create(rich_vault.id, coordinate_x=4),
-    )
-
-    await async_session.refresh(upgraded)
-    assert upgraded.tier == 2
-    assert upgraded.size == 6
+async def _tier_case(session, vault, *, upgrade, neighbor):
+    room = await _studio(session, vault, coordinate_x=1, tier=1 if upgrade else 2)
+    if upgrade:
+        await room_service.upgrade_room(session, room.id)
+    await _studio(session, vault, **neighbor)
+    return room
 
 
-@pytest.mark.asyncio
-async def test_maxed_adjacent_studio_does_not_block_a_growable_one(async_session: AsyncSession, rich_vault: Vault):
-    growable = await _create_radio_studio(async_session, rich_vault.id, coordinate_x=1)
-    await room_service.upgrade_room(async_session, growable.id)
-    await _create_radio_studio(async_session, rich_vault.id, coordinate_x=7, size=9, tier=3)
+@pytest.mark.parametrize(
+    ("upgrade", "neighbor", "caps_spent"),
+    [
+        (True, {"coordinate_x": 1, "coordinate_y": 1}, None),
+        (True, {"coordinate_x": 7, "size": 9, "tier": 3}, 2700),
+        (False, {"coordinate_x": 7}, 2400),
+    ],
+)
+async def test_adjacent_tier_resolution_grows_the_touching_studio(
+    async_session, rich_vault, upgrade, neighbor, caps_spent
+):
+    expected = await _tier_case(async_session, rich_vault, upgrade=upgrade, neighbor=neighbor)
     starting_caps = rich_vault.bottle_caps
-
-    grown, _ = await room_service._build(
-        db_session=async_session,
-        obj_in=_make_radio_create(rich_vault.id, coordinate_x=4),
-    )
-
-    assert grown.id == growable.id
-    assert grown.tier == 2
-    assert grown.size == 6
-    await async_session.refresh(rich_vault)
-    assert rich_vault.bottle_caps == starting_caps - 2700
+    grown, _ = await room_service._build(db_session=async_session, obj_in=_radio(rich_vault, coordinate_x=4))
+    assert (grown.id, grown.tier, grown.size) == (expected.id, 2, 6)
+    if caps_spent:
+        await async_session.refresh(rich_vault)
+        assert rich_vault.bottle_caps == starting_caps - caps_spent
 
 
-@pytest.mark.asyncio
-async def test_higher_touching_tier_wins_over_a_mergeable_lower_tier(async_session: AsyncSession, rich_vault: Vault):
-    upgraded = await _create_radio_studio(async_session, rich_vault.id, coordinate_x=1, tier=2)
-    await _create_radio_studio(async_session, rich_vault.id, coordinate_x=7)
-    starting_caps = rich_vault.bottle_caps
-
-    grown, _ = await room_service._build(
-        db_session=async_session,
-        obj_in=_make_radio_create(rich_vault.id, coordinate_x=4),
-    )
-
-    assert grown.id == upgraded.id
-    assert grown.tier == 2
-    assert grown.size == 6
-    await async_session.refresh(rich_vault)
-    assert rich_vault.bottle_caps == starting_caps - 2400
-
-
-@pytest.mark.asyncio
-async def test_split_radio_studio_rejected_by_remodel_service(async_session: AsyncSession, rich_vault: Vault):
-    from app.services.room_remodel_service import remodel_room
-
-    studio = await _create_radio_studio(async_session, rich_vault.id, coordinate_x=1, size=6)
-
+async def test_split_radio_studio_rejected_by_remodel_service(async_session, rich_vault):
+    studio = await _studio(async_session, rich_vault, coordinate_x=1, size=6)
     with pytest.raises(UniqueRoomViolationException, match="cannot be split"):
         await remodel_room(async_session, studio.id)
-
     await async_session.refresh(studio)
     assert studio.size == 6
     names = await crud.room.get_names_by_vault(async_session, rich_vault.id)
     assert names.count("Radio studio") == 1
 
 
-@pytest.mark.asyncio
-async def test_explicit_merge_of_legacy_radio_studios_still_succeeds(async_session: AsyncSession, rich_vault: Vault):
-    """Legacy duplicate studios can still be merged into one; only building and splitting are blocked."""
-    from app.services.room_remodel_service import remodel_room
-
-    left = await _create_radio_studio(async_session, rich_vault.id, coordinate_x=1)
-    right = await _create_radio_studio(async_session, rich_vault.id, coordinate_x=4)
-
+async def test_explicit_merge_of_legacy_radio_studios_still_succeeds(async_session, rich_vault):
+    # Legacy duplicate studios can still merge; only building and splitting are blocked.
+    left = await _studio(async_session, rich_vault, coordinate_x=1)
+    right = await _studio(async_session, rich_vault, coordinate_x=4)
     merged = (await remodel_room(async_session, left.id, right.id))[0]
-
-    assert merged.id == left.id
-    assert merged.size == 6
+    assert (merged.id, merged.size) == (left.id, 6)
     names = await crud.room.get_names_by_vault(async_session, rich_vault.id)
     assert names.count("Radio studio") == 1
 
@@ -972,73 +613,47 @@ async def _placement_lock_held(*_args, **_kwargs):
     yield False
 
 
-@pytest.mark.asyncio
-async def test_build_refused_when_vault_placement_lock_is_held(async_session: AsyncSession, rich_vault: Vault):
+async def _lock_op(kind, session, vault, room_id):
+    if kind == "build":
+        await room_service._build(db_session=session, obj_in=_response(vault, coordinate_x=1))
+    elif kind == "upgrade":
+        await room_service._upgrade(session, room_id)
+    elif kind == "backfill":
+        await room_service.backfill_merge_rooms_for_vault(session, vault.id, dry_run=False)
+    elif kind == "destroy":
+        await room_service.destroy_room(session, room_id)
+    else:
+        await room_service.apply_room_style(session, room_id, "default")
+
+
+@pytest.mark.parametrize("kind", ["build", "upgrade", "backfill", "destroy", "style"])
+async def test_operation_refused_when_vault_placement_lock_is_held(async_session, rich_vault, kind):
+    await _elevator(async_session, rich_vault, 1)
+    left = await _room(async_session, rich_vault, coordinate_x=0)
+    await _room(async_session, rich_vault, coordinate_x=3)
     starting_caps = rich_vault.bottle_caps
-
-    with (
-        patch("app.services.room_assignment_policy.db_locks.hold_advisory_lock", new=_placement_lock_held),
-        pytest.raises(ResourceConflictException),
-    ):
-        await room_service._build(
-            db_session=async_session,
-            obj_in=_make_response_room_create(rich_vault.id, coordinate_x=1),
-        )
-
+    with patch(LOCK, new=_placement_lock_held), pytest.raises(ResourceConflictException):
+        await _lock_op(kind, async_session, rich_vault, left.id)
     await async_session.refresh(rich_vault)
     assert rich_vault.bottle_caps == starting_caps
+    assert await crud.room.get(async_session, left.id)
 
 
-@pytest.mark.asyncio
-async def test_upgrade_refused_when_vault_placement_lock_is_held(async_session: AsyncSession, rich_vault: Vault):
-    room = await _create_existing_room(async_session, rich_vault.id, coordinate_x=0, tier=1)
-
-    with (
-        patch("app.services.room_assignment_policy.db_locks.hold_advisory_lock", new=_placement_lock_held),
-        pytest.raises(ResourceConflictException),
-    ):
-        await room_service._upgrade(async_session, room.id)
-
-
-@pytest.mark.asyncio
-async def test_backfill_apply_refused_when_vault_placement_lock_is_held(async_session: AsyncSession, rich_vault: Vault):
-    await _create_existing_room(async_session, rich_vault.id, name="Power Generator", coordinate_x=0)
-    await _create_existing_room(async_session, rich_vault.id, name="Power Generator", coordinate_x=3)
-
-    with (
-        patch("app.services.room_assignment_policy.db_locks.hold_advisory_lock", new=_placement_lock_held),
-        pytest.raises(ResourceConflictException),
-    ):
-        await room_service.backfill_merge_rooms_for_vault(async_session, rich_vault.id, dry_run=False)
-
-
-@pytest.mark.asyncio
-async def test_backfill_dry_run_ignores_vault_placement_lock(async_session: AsyncSession, rich_vault: Vault):
-    await _create_elevator(async_session, rich_vault.id, coordinate_y=1)
-    await _create_existing_room(async_session, rich_vault.id, name="Power Generator", coordinate_x=0)
-    await _create_existing_room(async_session, rich_vault.id, name="Power Generator", coordinate_x=3)
-
-    with patch("app.services.room_assignment_policy.db_locks.hold_advisory_lock", new=_placement_lock_held):
+async def test_backfill_dry_run_ignores_vault_placement_lock(async_session, rich_vault):
+    await _elevator(async_session, rich_vault, 1)
+    await _room(async_session, rich_vault, coordinate_x=0)
+    await _room(async_session, rich_vault, coordinate_x=3)
+    with patch(LOCK, new=_placement_lock_held):
         summary = await room_service.backfill_merge_rooms_for_vault(async_session, rich_vault.id, dry_run=True)
-
     assert summary["merged"] == 1
 
 
-@pytest.mark.asyncio
-async def test_boosted_seeded_station_grows_to_nine(async_session: AsyncSession, rich_vault: Vault):
-    """The real boosted layout's station slot merges two adjacent segments to size 9.
-
-    The seeded station at (13, 0) must have free adjacent cells at (16, 0) and
-    (19, 0); the test fails if the slot has no room to grow.
-    """
-    from app.core.game_data import get_static_game_data
-    from app.services.vault import seeding
-
+async def test_boosted_seeded_station_grows_to_nine(async_session, rich_vault):
+    # The seeded station at (13, 0) must have free adjacent cells at (16, 0) and (19, 0).
     game_data = await get_static_game_data()
     prepared = seeding.prepare_initial_rooms(game_data.rooms, rich_vault.id, is_boosted=True)
     await crud.vault.create_storage(db_session=async_session, vault_id=rich_vault.id)
     await seeding.create_initial_rooms(async_session, rich_vault, prepared)
-
     station = next(
         room
         for room in await crud.room.get_all_by_vault(async_session, rich_vault.id)
@@ -1046,62 +661,35 @@ async def test_boosted_seeded_station_grows_to_nine(async_session: AsyncSession,
     )
     assert station.size == 3
     assert calculate_room_capacity(station.size) == 2
-
-    with patch("app.services.vault_service.vault_service.recalculate_vault_attributes", new_callable=AsyncMock):
-        grown_to_six, _created = await room_service._build(
-            db_session=async_session,
-            obj_in=_make_response_room_create(rich_vault.id, coordinate_x=16, coordinate_y=0),
-        )
-    assert grown_to_six.id == station.id
-    assert grown_to_six.size == 6
-    assert calculate_room_capacity(grown_to_six.size) == 4
-
-    with patch("app.services.vault_service.vault_service.recalculate_vault_attributes", new_callable=AsyncMock):
-        grown_to_nine, _created = await room_service._build(
-            db_session=async_session,
-            obj_in=_make_response_room_create(rich_vault.id, coordinate_x=19, coordinate_y=0),
-        )
-    assert grown_to_nine.id == station.id
-    assert grown_to_nine.size == 9
-    assert calculate_room_capacity(grown_to_nine.size) == 6
-
+    grown_to_six, _created = await _build(async_session, _response(rich_vault, coordinate_x=16, coordinate_y=0))
+    assert (grown_to_six.id, grown_to_six.size, calculate_room_capacity(grown_to_six.size)) == (station.id, 6, 4)
+    grown_to_nine, _created = await _build(async_session, _response(rich_vault, coordinate_x=19, coordinate_y=0))
+    assert (grown_to_nine.id, grown_to_nine.size, calculate_room_capacity(grown_to_nine.size)) == (station.id, 9, 6)
     names = await crud.room.get_names_by_vault(async_session, rich_vault.id)
     assert names.count("Response Station") == 1
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(("inner_x", "outer_x", "size"), [(7, 10, 3), (3, 0, 3), (7, 16, 9)])
-async def test_destroy_requires_outermost_room(async_session: AsyncSession, rich_vault: Vault, inner_x, outer_x, size):
-    await _create_elevator(async_session, rich_vault.id, 1)
-    inner = await _create_existing_room(async_session, rich_vault.id, coordinate_x=inner_x, size=size)
-    outer = await _create_existing_room(async_session, rich_vault.id, coordinate_x=outer_x)
-    dweller = await _create_dweller_in_room(async_session, rich_vault.id, inner)
+async def test_destroy_requires_outermost_room(async_session, rich_vault, inner_x, outer_x, size):
+    await _elevator(async_session, rich_vault, 1)
+    inner = await _room(async_session, rich_vault, coordinate_x=inner_x, size=size)
+    outer = await _room(async_session, rich_vault, coordinate_x=outer_x)
+    dweller = await _dweller(async_session, rich_vault, inner)
     caps = rich_vault.bottle_caps
-
     with pytest.raises(VaultOperationException, match="end of a row"):
         await room_service.destroy_room(async_session, inner.id)
-
     await async_session.refresh(rich_vault)
     await async_session.refresh(dweller)
-    assert rich_vault.bottle_caps == caps
-    assert dweller.room_id == inner.id
+    assert (rich_vault.bottle_caps, dweller.room_id) == (caps, inner.id)
     assert await crud.room.get(async_session, inner.id)
     await room_service.destroy_room(async_session, outer.id)
     await room_service.destroy_room(async_session, inner.id)
 
 
-@pytest.mark.asyncio
-async def test_destroy_defers_refund_event_until_after_commit(
-    async_session: AsyncSession, rich_vault: Vault, monkeypatch: pytest.MonkeyPatch
-):
-    """The refund event must leave the destroy transaction before it is emitted.
-
-    RESOURCE_COLLECTED listeners open their own session and lock the vault row for update, so an emit
-    inside the still-open destroy transaction deadlocks them against its uncommitted caps update.
-    """
-    from app.services.vault_service import vault_service
-
-    outer = await _create_existing_room(async_session, rich_vault.id, coordinate_x=7)
+async def test_destroy_defers_refund_event_until_after_commit(async_session, rich_vault, monkeypatch):
+    # RESOURCE_COLLECTED listeners lock the vault row in their own session, so emitting inside the
+    # still-open destroy transaction deadlocks them against its uncommitted caps update.
+    outer = await _room(async_session, rich_vault, coordinate_x=7)
     deposit_calls: list[dict[str, Any]] = []
     emitted: list[tuple[str, dict[str, Any]]] = []
 
@@ -1118,24 +706,20 @@ async def test_destroy_defers_refund_event_until_after_commit(
         await room_service.destroy_room(async_session, outer.id)
     finally:
         event_bus.unsubscribe(GameEvent.RESOURCE_COLLECTED, handler)
-
     assert deposit_calls
     assert deposit_calls[0]["emit_event"] is False
     assert emitted == [(GameEvent.RESOURCE_COLLECTED, {"resource_type": "caps", "amount": 17})]
 
 
-@pytest.mark.asyncio
-async def test_destroy_lowest_elevator_on_empty_floor(async_session: AsyncSession, rich_vault: Vault):
+async def test_destroy_lowest_elevator_on_empty_floor(async_session, rich_vault):
     rich_vault.bottle_caps = 1000
     async_session.add(rich_vault)
     await async_session.commit()
-    above = await _create_elevator(async_session, rich_vault.id, 1)
-    lowest = await _create_elevator(async_session, rich_vault.id, 2)
+    above = await _elevator(async_session, rich_vault, 1)
+    lowest = await _elevator(async_session, rich_vault, 2)
     above_id, lowest_id = above.id, lowest.id
     initial_caps = rich_vault.bottle_caps
-
     destroyed = await room_service.destroy_room(async_session, lowest_id)
-
     assert destroyed.id == lowest_id
     assert await async_session.get(Room, lowest_id) is None
     assert await crud.room.get(async_session, above_id)
@@ -1143,59 +727,29 @@ async def test_destroy_lowest_elevator_on_empty_floor(async_session: AsyncSessio
     assert rich_vault.bottle_caps == initial_caps + 50
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize("room_x", [3, 7])
-async def test_destroy_lowest_elevator_with_attached_room_rejected(
-    async_session: AsyncSession, rich_vault: Vault, room_x: int
-):
-    await _create_elevator(async_session, rich_vault.id, 1)
-    lowest = await _create_elevator(async_session, rich_vault.id, 2)
-    attached = await _create_existing_room(async_session, rich_vault.id, coordinate_x=room_x, coordinate_y=2)
+async def test_destroy_lowest_elevator_with_attached_room_rejected(async_session, rich_vault, room_x):
+    await _elevator(async_session, rich_vault, 1)
+    lowest = await _elevator(async_session, rich_vault, 2)
+    attached = await _room(async_session, rich_vault, coordinate_x=room_x, coordinate_y=2)
     vault_id, lowest_id, attached_id = rich_vault.id, lowest.id, attached.id
     initial_caps = rich_vault.bottle_caps
-
     with pytest.raises(VaultOperationException, match="only access to level 2"):
         await room_service.destroy_room(async_session, lowest_id)
-
     await async_session.rollback()
     assert await crud.room.get(async_session, lowest_id)
     assert await crud.room.get(async_session, attached_id)
     assert (await crud.vault.get(async_session, vault_id)).bottle_caps == initial_caps
 
 
-@pytest.mark.asyncio
-async def test_destroy_refused_when_vault_placement_lock_is_held(async_session: AsyncSession, rich_vault: Vault):
-    room = await _create_existing_room(async_session, rich_vault.id, coordinate_x=7)
-    with (
-        patch("app.services.room_assignment_policy.db_locks.hold_advisory_lock", new=_placement_lock_held),
-        pytest.raises(ResourceConflictException),
-    ):
-        await room_service.destroy_room(async_session, room.id)
-    assert await crud.room.get(async_session, room.id)
-
-
-@pytest.mark.asyncio
-async def test_style_refused_when_vault_placement_lock_is_held(async_session: AsyncSession, rich_vault: Vault):
-    room = await _create_existing_room(async_session, rich_vault.id, coordinate_x=6)
-
-    with (
-        patch("app.services.room_assignment_policy.db_locks.hold_advisory_lock", new=_placement_lock_held),
-        pytest.raises(ResourceConflictException),
-    ):
-        await room_service.apply_room_style(async_session, room.id, "default")
-
-
 @pytest.mark.parametrize(("size", "tier"), [(6, 1), (9, 2), (9, 3)])
 async def test_split_merge_preserves_room_totals_and_dwellers(async_session, rich_vault, size, tier):
-    from app.services.room_remodel_service import remodel_room
-    from app.utils.room_rules import room_refund
-
-    await _create_elevator(async_session, rich_vault.id, 1)
-    source = await _create_existing_room(async_session, rich_vault.id, coordinate_x=7, size=size, tier=tier)
+    await _elevator(async_session, rich_vault, 1)
+    source = await _room(async_session, rich_vault, coordinate_x=7, size=size, tier=tier)
     source.capacity, source.output = 101, 37
     async_session.add(source)
     await async_session.commit()
-    residents = [await _create_dweller_in_room(async_session, rich_vault.id, source) for _ in range(size // 3 * 2)]
+    residents = [await _dweller(async_session, rich_vault, source) for _ in range(size // 3 * 2)]
     rich_vault.bottle_caps = 5_000
     async_session.add(rich_vault)
     await async_session.commit()
@@ -1229,10 +783,8 @@ async def test_split_merge_preserves_room_totals_and_dwellers(async_session, ric
     "change", [{"tier": 2}, {"name": "Diner"}, {"coordinate_x": 13}, {"coordinate_y": 2}, {"size": 9}]
 )
 async def test_manual_merge_rejects_incompatible_neighbors(async_session, rich_vault, change):
-    from app.services.room_remodel_service import remodel_room
-
-    left = await _create_existing_room(async_session, rich_vault.id, coordinate_x=7)
-    right = await _create_existing_room(async_session, rich_vault.id, coordinate_x=10)
+    left = await _room(async_session, rich_vault, coordinate_x=7)
+    right = await _room(async_session, rich_vault, coordinate_x=10)
     await crud.room.update(async_session, right.id, change)
     with pytest.raises(VaultOperationException):
         await remodel_room(async_session, left.id, right.id)
@@ -1240,41 +792,17 @@ async def test_manual_merge_rejects_incompatible_neighbors(async_session, rich_v
 
 
 async def test_split_requires_multiple_base_segments_and_free_placement_lock(async_session, rich_vault):
-    from app.services.room_remodel_service import remodel_room
-
-    source = await _create_existing_room(async_session, rich_vault.id, coordinate_x=7)
+    source = await _room(async_session, rich_vault, coordinate_x=7)
     with pytest.raises(VaultOperationException, match="one base segment"):
         await remodel_room(async_session, source.id)
-    with (
-        patch("app.services.room_assignment_policy.db_locks.hold_advisory_lock", new=_placement_lock_held),
-        pytest.raises(ResourceConflictException),
-    ):
+    with patch(LOCK, new=_placement_lock_held), pytest.raises(ResourceConflictException):
         await remodel_room(async_session, source.id)
 
 
 async def test_remodel_training_and_incident_references_follow_survivor(async_session, rich_vault):
-    from app.core.enums import IncidentStatus, IncidentType
-    from app.models.incident import Incident
-    from app.services.room_remodel_service import remodel_room
-
-    source = await _create_existing_room(async_session, rich_vault.id, coordinate_x=7, size=6)
-    dwellers = [await _create_dweller_in_room(async_session, rich_vault.id, source) for _ in range(4)]
-    trainings = [
-        Training(
-            vault_id=rich_vault.id,
-            dweller_id=d.id,
-            room_id=source.id,
-            stat_being_trained=SPECIALEnum.STRENGTH,
-            current_stat_value=5,
-            target_stat_value=6,
-            progress=0.45,
-            started_at=utcnow(),
-            estimated_completion_at=utcnow(),
-        )
-        for d in dwellers
-    ]
-    async_session.add_all(trainings)
-    await async_session.commit()
+    source = await _room(async_session, rich_vault, coordinate_x=7, size=6)
+    dwellers = [await _dweller(async_session, rich_vault, source) for _ in range(4)]
+    trainings = [await _training(async_session, rich_vault, d, source, progress=0.45) for d in dwellers]
     pieces = await remodel_room(async_session, source.id)
     for training, dweller in zip(trainings, dwellers, strict=True):
         await async_session.refresh(training)
@@ -1305,11 +833,8 @@ async def test_remodel_training_and_incident_references_follow_survivor(async_se
 
 
 async def test_split_preserves_dispatched_return_postings(async_session, rich_vault):
-    from app.models.team import Team, TeamMember
-    from app.services.room_remodel_service import remodel_room
-
-    source = await _create_existing_room(async_session, rich_vault.id, coordinate_x=7, size=6)
-    residents = [await _create_dweller_in_room(async_session, rich_vault.id, source) for _ in range(4)]
+    source = await _room(async_session, rich_vault, coordinate_x=7, size=6)
+    residents = [await _dweller(async_session, rich_vault, source) for _ in range(4)]
     team = Team(vault_id=rich_vault.id, name="Return crew", exploration_id=source.id)
     async_session.add(team)
     await async_session.flush()
@@ -1329,11 +854,7 @@ async def test_split_preserves_dispatched_return_postings(async_session, rich_va
 
 
 async def test_split_failure_rolls_back_the_entire_layout(async_session, rich_vault):
-    from sqlalchemy.exc import OperationalError
-
-    from app.services.room_remodel_service import remodel_room
-
-    source = await _create_existing_room(async_session, rich_vault.id, coordinate_x=7, size=6)
+    source = await _room(async_session, rich_vault, coordinate_x=7, size=6)
     vault_id, source_id = rich_vault.id, source.id
     connection = await async_session.connection()
 
@@ -1353,25 +874,18 @@ async def test_split_failure_rolls_back_the_entire_layout(async_session, rich_va
 
 
 async def test_remodeled_refunds_survive_upgrades_and_automatic_merging(async_session, rich_vault):
-    from app.services.room_remodel_service import remodel_room
-    from app.utils.room_rules import room_refund
-
-    source = await _create_existing_room(async_session, rich_vault.id, coordinate_x=7, size=9)
+    source = await _room(async_session, rich_vault, coordinate_x=7, size=9)
     refund = room_refund(source)
     pieces = await remodel_room(async_session, source.id)
     for piece in pieces:
         await room_service.upgrade_room(async_session, piece.id)
     remaining = await crud.room.get_all_by_vault(async_session, rich_vault.id)
     assert len(remaining) == 1
-    assert remaining[0].size == 9
-    assert remaining[0].tier == 2
+    assert (remaining[0].size, remaining[0].tier) == (9, 2)
     assert room_refund(remaining[0]) == refund + 750
 
 
-@pytest.mark.asyncio
 async def test_buildable_rooms_are_sorted_by_population_requirement():
-    from app.core.game_data import get_static_game_data
-
     game_data = await get_static_game_data()
     rooms = game_data.get_buildable_rooms(set())
     keys = [(room.population_required is not None, room.population_required or 0) for room in rooms]
@@ -1380,130 +894,79 @@ async def test_buildable_rooms_are_sorted_by_population_requirement():
     assert arena.population_required == 55
     assert arena.is_unique is True
     assert arena.base_cost == 3000
-    assert arena.t2_upgrade_cost == 12000
-    assert arena.t3_upgrade_cost == 36000
+    assert (arena.t2_upgrade_cost, arena.t3_upgrade_cost) == (12000, 36000)
 
 
-@pytest.mark.asyncio
-async def test_unaffordable_build_does_not_expand_adjacent_room(async_session: AsyncSession, vault: Vault):
+async def test_unaffordable_build_does_not_expand_adjacent_room(async_session, vault):
     vault.bottle_caps = 0
     async_session.add(vault)
     await async_session.commit()
-    await _create_elevator(async_session, vault.id, coordinate_y=1)
-    existing = await _create_existing_room(async_session, vault.id, coordinate_x=0)
-    room_id, vault_id, initial_size = existing.id, vault.id, existing.size
-
+    await _elevator(async_session, vault, 1)
+    existing = await _room(async_session, vault, coordinate_x=0)
+    room_id, initial_size = existing.id, existing.size
     with pytest.raises(InsufficientResourcesException):
-        await room_service._build(
-            db_session=async_session,
-            obj_in=_make_room_create(vault_id, coordinate_x=3, coordinate_y=1),
-        )
-
+        await room_service._build(db_session=async_session, obj_in=_pc(vault, coordinate_x=3))
     await async_session.rollback()
     persisted = await crud.room.get(async_session, room_id)
     assert persisted.size == initial_size
 
 
-@pytest.mark.asyncio
-async def test_build_insert_failure_leaves_caps_untouched(
-    async_session: AsyncSession, db_connection: AsyncConnection, vault: Vault
-):
-    """A failed room insert must not leave the caps deduction committed."""
-    vault.bottle_caps = 10000
-    async_session.add(vault)
-    await async_session.commit()
-    await _create_elevator(async_session, vault.id, coordinate_y=1)
-    vault_id = vault.id
-    initial_caps = vault.bottle_caps
-
-    def fail_room_insert(_conn, _cursor, statement, _parameters, _context, _executemany):
-        if statement.lstrip().upper().startswith("INSERT INTO ROOM "):
-            raise RuntimeError("injected room insert failure")
-
-    connection = db_connection.sync_connection
-    event.listen(connection, "before_cursor_execute", fail_room_insert)
-    try:
-        with pytest.raises(RuntimeError, match="injected room insert failure"):
-            await room_service._build(
-                db_session=async_session,
-                obj_in=_make_room_create(vault_id, coordinate_x=3, coordinate_y=1),
-            )
-    finally:
-        event.remove(connection, "before_cursor_execute", fail_room_insert)
-
-    await async_session.rollback()
-    persisted = await crud.vault.get(async_session, vault_id)
-    assert persisted.bottle_caps == initial_caps
+async def _failing_op(session, vault, kind, room_id):
+    if kind == "build":
+        await room_service._build(db_session=session, obj_in=_pc(vault, coordinate_x=3))
+    elif kind == "upgrade":
+        await room_service._upgrade(session, room_id)
+    else:
+        await room_service.destroy_room(session, room_id)
 
 
-@pytest.mark.asyncio
-async def test_upgrade_failure_preserves_caps(
-    async_session: AsyncSession, db_connection: AsyncConnection, rich_vault: Vault
-):
-    """A failed tier write must not leave the upgrade charge committed."""
-    await _create_elevator(async_session, rich_vault.id, coordinate_y=1)
-    room = await _create_existing_room(async_session, rich_vault.id, coordinate_x=0, tier=1)
-    vault_id, room_id = rich_vault.id, room.id
-    initial_caps = rich_vault.bottle_caps
-
-    def fail_room_update(_conn, _cursor, statement, _parameters, _context, _executemany):
-        if statement.lstrip().upper().startswith("UPDATE ROOM "):
-            raise RuntimeError("injected room update failure")
-
-    connection = db_connection.sync_connection
-    event.listen(connection, "before_cursor_execute", fail_room_update)
-    try:
-        with pytest.raises(RuntimeError, match="injected room update failure"):
-            await room_service._upgrade(async_session, room_id)
-    finally:
-        event.remove(connection, "before_cursor_execute", fail_room_update)
-
-    await async_session.rollback()
-    persisted_vault = await crud.vault.get(async_session, vault_id)
-    persisted_room = await crud.room.get(async_session, room_id)
-    assert persisted_vault.bottle_caps == initial_caps
-    assert persisted_room.tier == 1
-
-
-@pytest.mark.asyncio
-@pytest.mark.parametrize("is_elevator", [False, True])
-async def test_destroy_failure_preserves_room_and_caps(
-    async_session: AsyncSession, db_connection: AsyncConnection, rich_vault: Vault, is_elevator: bool
-):
-    """A failed refund must not leave the room deletion and refund split apart."""
-    await _create_elevator(async_session, rich_vault.id, coordinate_y=1)
+@pytest.mark.parametrize(
+    ("kind", "prefix", "message"),
+    [
+        ("build", "INSERT INTO ROOM", "injected room insert failure"),
+        ("upgrade", "UPDATE ROOM", "injected room update failure"),
+        ("destroy", "UPDATE VAULT", "injected refund failure"),
+        ("destroy_elevator", "UPDATE VAULT", "injected refund failure"),
+    ],
+)
+async def test_write_failure_preserves_state(async_session, db_connection, rich_vault, kind, prefix, message):
+    await _elevator(async_session, rich_vault, 1)
     room = (
-        await _create_elevator(async_session, rich_vault.id, coordinate_y=2)
-        if is_elevator
-        else await _create_existing_room(async_session, rich_vault.id, coordinate_x=0)
+        None
+        if kind == "build"
+        else await (
+            _elevator(async_session, rich_vault, 2)
+            if kind == "destroy_elevator"
+            else _room(async_session, rich_vault, coordinate_x=0)
+        )
     )
-    vault_id, room_id = rich_vault.id, room.id
+    vault_id, room_id = rich_vault.id, room and room.id
     initial_caps = rich_vault.bottle_caps
 
-    def fail_refund(_conn, _cursor, statement, _parameters, _context, _executemany):
-        if statement.lstrip().upper().startswith("UPDATE VAULT "):
-            raise RuntimeError("injected refund failure")
+    def fail(_conn, _cursor, statement, _parameters, _context, _executemany):
+        if statement.lstrip().upper().startswith(prefix):
+            raise RuntimeError(message)
 
     connection = db_connection.sync_connection
-    event.listen(connection, "before_cursor_execute", fail_refund)
+    event.listen(connection, "before_cursor_execute", fail)
     try:
-        with pytest.raises(RuntimeError, match="injected refund failure"):
-            await room_service.destroy_room(async_session, room_id)
+        with pytest.raises(RuntimeError, match=message):
+            await _failing_op(async_session, rich_vault, kind, room_id)
     finally:
-        event.remove(connection, "before_cursor_execute", fail_refund)
+        event.remove(connection, "before_cursor_execute", fail)
 
     await async_session.rollback()
-    persisted_room = await crud.room.get(async_session, room_id)
     persisted_vault = await crud.vault.get(async_session, vault_id)
-    assert persisted_room.id == room_id
     assert persisted_vault.bottle_caps == initial_caps
+    if room_id is not None:
+        persisted_room = await crud.room.get(async_session, room_id)
+        assert persisted_room.id == room_id
+        if kind == "upgrade":
+            assert persisted_room.tier == 1
 
 
-@pytest.mark.asyncio
-async def test_build_commits_once_on_create_and_merge_paths(
-    async_session: AsyncSession, rich_vault: Vault, monkeypatch: pytest.MonkeyPatch
-):
-    await _create_elevator(async_session, rich_vault.id, coordinate_y=1)
+async def test_build_commits_once_on_create_and_merge_paths(async_session, rich_vault, monkeypatch):
+    await _elevator(async_session, rich_vault, 1)
     commits = 0
     original_commit = async_session.commit
 
@@ -1513,16 +976,8 @@ async def test_build_commits_once_on_create_and_merge_paths(
         await original_commit()
 
     monkeypatch.setattr(async_session, "commit", counting_commit)
-
-    await room_service._build(
-        db_session=async_session,
-        obj_in=_make_room_create(rich_vault.id, coordinate_x=3, coordinate_y=1),
-    )
+    await room_service._build(db_session=async_session, obj_in=_pc(rich_vault, coordinate_x=3))
     assert commits == 1
-
     commits = 0
-    await room_service._build(
-        db_session=async_session,
-        obj_in=_make_room_create(rich_vault.id, coordinate_x=0, coordinate_y=1),
-    )
+    await room_service._build(db_session=async_session, obj_in=_pc(rich_vault, coordinate_x=0))
     assert commits == 1

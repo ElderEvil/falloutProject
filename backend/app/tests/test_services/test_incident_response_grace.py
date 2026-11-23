@@ -1,12 +1,10 @@
-"""Incident response grace (game balance): an undefended incident waits for responders.
+"""Incident response grace: an undefended incident waits for responders.
 
-Ticks run every 2s and spreading is disabled, so without a grace window the
-first no-defender round fails the incident — an empty room is a ~100% loss
-before the player can react. These tests pin the grace through the real live
-path (``incident_service.process_incident``) and the offline sim kernel.
+Ticks run every 2s and spreading is disabled, so without a grace window the first
+no-defender round fails the incident before the player can react.
 """
 
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -20,31 +18,21 @@ from app.utils.time import utcnow
 
 
 @pytest.mark.asyncio
-async def test_undefended_incident_waits_out_the_grace(async_session: AsyncSession, vault: Vault) -> None:
+@pytest.mark.parametrize(("aged", "expected_status"), [(False, "active"), (True, "failed")])
+async def test_undefended_incident_honors_the_grace_window(
+    async_session: AsyncSession, vault: Vault, aged: bool, expected_status: str
+) -> None:
     room = await empty_room(async_session, vault.id)
     incident = await raise_incident(async_session, room, IncidentType.RAIDER_ATTACK)
-
+    if aged:
+        incident.start_time = utcnow() - timedelta(hours=1)
     result = await incident_service.process_incident(async_session, incident, 2)
-
     assert result.no_defenders
-    assert incident.status.value == "active"
-
-
-@pytest.mark.asyncio
-async def test_undefended_incident_fails_after_grace(async_session: AsyncSession, vault: Vault) -> None:
-    """Once the grace window passes, an still-undefended incident fails as before."""
-    room = await empty_room(async_session, vault.id)
-    incident = await raise_incident(async_session, room, IncidentType.RAIDER_ATTACK)
-    incident.start_time = utcnow() - timedelta(hours=1)
-
-    result = await incident_service.process_incident(async_session, incident, 2)
-
-    assert result.no_defenders
-    assert incident.status.value == "failed"
+    assert incident.status.value == expected_status
 
 
 def test_sim_models_the_grace_window() -> None:
-    """The offline kernel waits out an explicit grace, then fails without defenders."""
+    # The offline kernel waits out an explicit grace, then fails without defenders.
     outcome = resolve_incident(IncidentType.RAIDER_ATTACK, 1, [], dt=2, duration=60, response_grace_seconds=120)
     assert outcome.failed
     assert not outcome.resolved

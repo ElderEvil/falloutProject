@@ -140,7 +140,7 @@ async def unequip_outfit(
         AccessDeniedException: If the user doesn't own the outfit's vault.
     """
     await verify_item_access(outfit_id, Outfit, user, db_session)
-    await crud.outfit.unequip(db_session=db_session, item_id=outfit_id)
+    await item_service.unequip_item(db_session, item_id=outfit_id, model=Outfit)
 
 
 @router.post("/{outfit_id}/scrap/", response_model=JunkListResponse)

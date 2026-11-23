@@ -323,6 +323,11 @@ class CRUDItem[ModelType: Weapon | Outfit | Pet, CreateSchemaType: SQLModel, Upd
         db_session.add(dweller)
 
     async def unequip(self, *, db_session: AsyncSession, item_id: UUID) -> None:
+        """Stage an unequip: the item returns to storage, the dweller's slot is cleared.
+
+        Does not commit — the caller owns the transaction. Both writes are flushed together so
+        the item's move and the dweller's slot change become durable or disappear as one unit.
+        """
         dweller, storage_id, item_type = await self._fetch_unequip_data(db_session, item_id)
 
         dweller = ensure_found(dweller, Dweller, identifier=item_id)
@@ -332,7 +337,7 @@ class CRUDItem[ModelType: Weapon | Outfit | Pet, CreateSchemaType: SQLModel, Upd
         await self._update_item(db_session, item_model, item_id, storage_id)
         await self._update_dweller(db_session, dweller, item_type)
 
-        await db_session.commit()
+        await db_session.flush()
 
     @staticmethod
     def convert_to_junk(item: Weapon | Outfit) -> list[Junk]:

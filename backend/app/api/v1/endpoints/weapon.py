@@ -140,7 +140,7 @@ async def unequip_weapon(
         AccessDeniedException: If the user doesn't own the weapon's vault.
     """
     await verify_item_access(weapon_id, Weapon, user, db_session)
-    await crud.weapon.unequip(db_session=db_session, item_id=weapon_id)
+    await item_service.unequip_item(db_session, item_id=weapon_id, model=Weapon)
 
 
 @router.post("/{weapon_id}/scrap/", response_model=JunkListResponse)

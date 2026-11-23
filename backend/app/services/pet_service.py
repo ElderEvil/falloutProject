@@ -11,6 +11,7 @@ from app.crud.pet import pet as pet_crud
 from app.models.pet import Pet
 from app.models.user import User
 from app.services.access_service import get_accessible_vault, verify_dweller_access
+from app.services.item_service import item_service
 from app.utils.dweller_availability import require_vault_equipment_access
 from app.utils.exceptions import ResourceNotFoundException, ensure_found
 
@@ -60,7 +61,7 @@ class PetService:
         """Return an equipped pet to its vault's storage."""
         pet = await pet_crud.get(db_session, pet_id)
         await self._verify_pet_vault(db_session, pet, user)
-        await pet_crud.unequip(db_session=db_session, item_id=pet_id)
+        await item_service.unequip_item(db_session, item_id=pet_id, model=Pet)
 
     @staticmethod
     async def _verify_pet_vault(db_session: AsyncSession, pet: Pet, user: User) -> None:

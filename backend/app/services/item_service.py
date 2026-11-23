@@ -11,6 +11,7 @@ from app.crud.item_base import CRUDItem, get_item_vault_id
 from app.crud.junk import CRUDJunk
 from app.models.junk import Junk
 from app.models.outfit import Outfit
+from app.models.pet import Pet
 from app.models.vault import Vault
 from app.models.weapon import Weapon
 from app.services.vault_service import vault_service
@@ -18,8 +19,10 @@ from app.utils.dweller_availability import require_vault_equipment_access
 from app.utils.exceptions import ensure_found
 
 ItemModel = type[Weapon] | type[Outfit] | type[Junk]
+EquippableModel = type[Weapon] | type[Outfit] | type[Pet]
 
 _ITEM_CRUD: dict[ItemModel, CRUDItem | CRUDJunk] = {Weapon: crud.weapon, Outfit: crud.outfit, Junk: crud.junk}
+_UNEQUIP_CRUD: dict[EquippableModel, CRUDItem] = {Weapon: crud.weapon, Outfit: crud.outfit, Pet: crud.pet}
 
 
 def _crud_for(model: ItemModel):
@@ -46,6 +49,15 @@ class ItemService:
                 {"dweller_id": str(dweller_id), "item_type": model.__name__.lower()},
             )
         return item
+
+    async def unequip_item(self, db_session: AsyncSession, *, item_id: UUID, model: EquippableModel) -> None:
+        """Unequip an item in one transaction: the item returns to storage and the slot clears.
+
+        CRUD stages both writes and flushes them; the commit is owned here so a partial unequip
+        (item moved, dweller still pointing at it, or the reverse) cannot become visible.
+        """
+        await _UNEQUIP_CRUD[model].unequip(db_session=db_session, item_id=item_id)
+        await db_session.commit()
 
     async def sell_item(self, db_session: AsyncSession, *, item_id: UUID, model: ItemModel) -> None:
         """Sell an item for caps: credit the owning vault, then delete the item in a single commit."""

@@ -441,8 +441,8 @@ const handleGlowSelect = (value: unknown) => {
                         >
                           <span class="setting-label">Colourful Map Markers</span>
                           <span class="setting-description"
-                            >Tint place icons by site family: civil, industry, threat,
-                            knowledge, spectacle.</span
+                            >Tint place icons by site family: civil, industry, threat, knowledge,
+                            spectacle.</span
                           >
                         </Label>
                         <Switch

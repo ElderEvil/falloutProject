@@ -777,9 +777,7 @@ function handleTouchEnd(event: TouchEvent) {
     >
       <template #toggle-label="{ count }">Places and sites · {{ count }}</template>
       <template v-if="$slots.filters" #filters><slot name="filters" /></template>
-      <template #legend
-        ><MapLegend :group-colors="groupColors"
-      /></template>
+      <template #legend><MapLegend :group-colors="groupColors" /></template>
     </MarkerListPanel>
   </div>
 </template>

@@ -66,7 +66,6 @@ export const FAMILY_MEANING: Record<GroupFamily, string> = {
   spectacle: 'entertainment, landmarks, regions',
 }
 
-
 /** Colour for a place-group key, or undefined for ungrouped/unknown keys. */
 export function groupColor(key: string | null | undefined): string | undefined {
   const family = familyFor(key)

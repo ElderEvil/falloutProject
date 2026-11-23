@@ -2,7 +2,12 @@
 import { Icon } from '@iconify/vue'
 import { MARKER_TYPES } from '../models/markerTypeMeta'
 import { DANGER_RAMP } from '../utils/dangerStyle'
-import { FAMILY_LABELS, FAMILY_MEANING, GROUP_FAMILIES, type GroupFamily } from '../models/groupColors'
+import {
+  FAMILY_LABELS,
+  FAMILY_MEANING,
+  GROUP_FAMILIES,
+  type GroupFamily,
+} from '../models/groupColors'
 
 withDefaults(defineProps<{ groupColors?: boolean }>(), {
   groupColors: true,
@@ -80,14 +85,12 @@ const states = [
               <circle cx="5" cy="5" r="4.5" :style="{ fill: GROUP_FAMILIES[family] }" />
             </svg>
             <span class="font-medium">{{ FAMILY_LABELS[family] }}</span>
-            <span class="text-theme-primary/65">{{
-              FAMILY_MEANING[family]
-            }}</span>
+            <span class="text-theme-primary/65">{{ FAMILY_MEANING[family] }}</span>
           </span>
         </div>
         <p class="mt-2 leading-relaxed text-theme-primary/65">
-          Colour shows the site family; the glyph shows the exact type. Unscouted
-          places keep their family colour, dimmed and ringed.
+          Colour shows the site family; the glyph shows the exact type. Unscouted places keep their
+          family colour, dimmed and ringed.
         </p>
       </section>
       <section>
@@ -95,8 +98,8 @@ const states = [
           Risk: {{ DANGER_RAMP.map((entry) => entry.label).join(' · ') }}.
         </p>
         <p class="mt-2 leading-relaxed text-theme-primary/65">
-          Fog marks unexplored terrain. Unscouted places wear a neutral pin and a
-          dashed ring, though their colour still hints at the family.
+          Fog marks unexplored terrain. Unscouted places wear a neutral pin and a dashed ring,
+          though their colour still hints at the family.
         </p>
       </section>
     </div>

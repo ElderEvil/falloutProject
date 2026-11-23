@@ -73,6 +73,8 @@ CRUD_TRANSACTION_BASELINE: dict[tuple[str, str, str], int] = {
     ("user.py", "CRUDUser.authenticate", "commit"): 1,
     ("user.py", "CRUDUser.create", "commit"): 1,
     ("user.py", "CRUDUser.create", "rollback"): 1,
+    ("user.py", "CRUDUser.create_with_oauth_account", "commit"): 1,
+    ("user.py", "CRUDUser.create_with_oauth_account", "rollback"): 1,
     ("user_profile.py", "CRUDUserProfile.delete_for_user", "commit"): 1,
     ("user_profile.py", "CRUDUserProfile.increment_statistic", "commit"): 1,
     ("user_profile.py", "CRUDUserProfile.reassign_user", "commit"): 1,

@@ -512,6 +512,7 @@ class OAuthService:
                         provider_user_id=profile["provider_user_id"],
                         username=username,
                         email=profile["email"],
+                        commit=False,
                     )
             except ResourceConflictException:
                 link = await crud.oauth_account.get_by_provider_subject(

@@ -150,12 +150,12 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
         provider_user_id: str,
         username: str,
         email: str,
+        commit: bool = True,
     ) -> tuple[User, OAuthAccount]:
-        """Stage a user, its profile, and the provider link; the caller owns the transaction.
+        """Stage a user, its profile and the provider link; commit=False leaves the transaction to the caller.
 
-        Rows are flushed so a uniqueness conflict surfaces inside the caller's savepoint (or
-        transaction) without rolling it back. The service entry point commits once the whole
-        first-login operation is staged.
+        Rows are flushed so a conflict surfaces inside the caller's savepoint instead of poisoning
+        the surrounding transaction.
         """
         db_obj = build_user_model(username=username, email=email)
         db_obj.email_verified = True
@@ -169,7 +169,12 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
             db_session.add(link)
             await db_session.flush()
         except IntegrityError as exc:
+            if commit:
+                await db_session.rollback()
             raise ResourceConflictException(detail="User or OAuth identity already exists") from exc
+        if commit:
+            await db_session.commit()
+            await db_session.refresh(db_obj)
         return db_obj, link
 
     async def update(

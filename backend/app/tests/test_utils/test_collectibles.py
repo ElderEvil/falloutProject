@@ -22,7 +22,7 @@ def _entry(**overrides: object) -> dict[str, object]:
         "image": "comic_images/grognak.png",
         "kind": "comic",
         "set": "comics",
-        "location": "Megaton",
+        "location": "Zion Canyon",
         "action": "salvage",
         "description": "Test.",
     }
@@ -112,6 +112,7 @@ def test_set_definitions_load_from_disk() -> None:
         ({"stat": "charisma_plus"}, "unknown stat"),
         ({"location": "Nowhere At All"}, "unknown seeded place"),
         ({"location": "Poseidon Energy"}, "does not match its place archetype"),
+        ({"location": "Megaton"}, "a caravan destination hides its salvage"),
         ({"image": "comic_images/missing.png"}, "missing image"),
         ({"description": "  "}, "needs a description"),
         ({"set": "mystery"}, "references unknown set"),

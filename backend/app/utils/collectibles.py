@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Any
 
 from app.core.enums import SPECIAL_STATS
-from app.utils.place_groups import get_place_group, group_for_place_name
+from app.utils.place_groups import get_place_group, group_for_place_name, trade_entry
 from app.utils.places import normalize_place_name
 from app.utils.time import as_utc
 
@@ -85,6 +85,13 @@ def validate_collectibles(
             raise ValueError(f"{label} {key!r} references unknown seeded place {entry.get('location')!r}")
         if bool(group.get("clearable")) != (action == "clear"):
             raise ValueError(f"{label} {key!r} action {action!r} does not match its place archetype")
+        # The map owns one action slot per place and a ready caravan outranks a search, so a
+        # salvage site that also trades can hide its own collectible behind the trade button.
+        if action == "salvage" and trade_entry(entry["location"]) is not None:
+            raise ValueError(
+                f"{label} {key!r} sits on tradeable place {entry.get('location')!r}; "
+                "a caravan destination hides its salvage behind the trade action"
+            )
         image = entry.get("image")
         if not image or not (static_root / image).is_file():
             raise ValueError(f"{label} {key!r} references missing image {image!r}")

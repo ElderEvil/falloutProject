@@ -1,41 +1,41 @@
 [
- {
-  "key": "guns_and_bullets",
-  "name": "Guns and Bullets",
-  "stat": "perception",
-  "amount": 2,
-  "duration_hours": 6,
-  "image": "magazine_images/guns_and_bullets.png",
-  "kind": "magazine",
-  "set": "magazines",
-  "location": "National Archives",
-  "action": "salvage",
-  "description": "A hunting rifle on the cover, a squirrel in its sights. The margins are full of tall tales."
- },
- {
-  "key": "tesla_science",
-  "name": "Tesla Science",
-  "stat": "intelligence",
-  "amount": 2,
-  "duration_hours": 6,
-  "image": "magazine_images/tesla_science.png",
-  "kind": "magazine",
-  "set": "magazines",
-  "location": "Cambridge",
-  "action": "salvage",
-  "description": "A coil taller than a house, arcing at a lab coat. The subscription card is still inside, unspoiled."
- },
- {
-  "key": "wasteland_survival_guide",
-  "name": "Wasteland Survival Guide",
-  "stat": "endurance",
-  "amount": 2,
-  "duration_hours": 6,
-  "image": "magazine_images/wasteland_survival_guide.png",
-  "kind": "magazine",
-  "set": "magazines",
-  "location": "the Pitt",
-  "action": "salvage",
-  "description": "A machete-wielding scavenger on a steel catwalk, grinning down. Chapter one is titled Run, and it means it."
- }
+  {
+    "key": "guns_and_bullets",
+    "name": "Guns and Bullets",
+    "stat": "perception",
+    "amount": 2,
+    "duration_hours": 6,
+    "image": "magazine_images/guns_and_bullets.png",
+    "kind": "magazine",
+    "set": "magazines",
+    "location": "National Archives",
+    "action": "salvage",
+    "description": "A hunting rifle on the cover, a squirrel in its sights. The margins are full of tall tales."
+  },
+  {
+    "key": "tesla_science",
+    "name": "Tesla Science",
+    "stat": "intelligence",
+    "amount": 2,
+    "duration_hours": 6,
+    "image": "magazine_images/tesla_science.png",
+    "kind": "magazine",
+    "set": "magazines",
+    "location": "the Divide",
+    "action": "salvage",
+    "description": "A coil taller than a house, arcing at a lab coat. The subscription card is still inside, unspoiled."
+  },
+  {
+    "key": "wasteland_survival_guide",
+    "name": "Wasteland Survival Guide",
+    "stat": "endurance",
+    "amount": 2,
+    "duration_hours": 6,
+    "image": "magazine_images/wasteland_survival_guide.png",
+    "kind": "magazine",
+    "set": "magazines",
+    "location": "the Pitt",
+    "action": "salvage",
+    "description": "A machete-wielding scavenger on a steel catwalk, grinning down. Chapter one is titled Run, and it means it."
+  }
 ]

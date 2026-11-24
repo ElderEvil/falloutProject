@@ -39,7 +39,7 @@ All seven places exist in `backend/app/data/places/seed_places.json`.
 |---|---|---|---|---|
 | Strength | Poseidon Energy | power (clearable) | Clear | "Hefted a turbine rotor alone the night the grid went dark. Grip first, questions later." |
 | Perception | Museum of Freedom | landmark (inert) | Search | "A lookout's award, left in the curator's desk. The one exhibit the raiders never found." |
-| Endurance | The Slog | settlement (inert) | Search | "Passed around the tarberry rows every harvest. The wasteland wears out; it didn't." |
+| Endurance | Jefferson Memorial | landmark (inert) | Search | "Hauled the last clean barrel up the memorial stairs. The legs complained; the barrel got there." |
 | Charisma | Galaxy News Radio | entertainment (clearable) | Clear | "The station's on-air trophy. The voice on the tape still says the line better than anyone alive." |
 | Intelligence | The Institute | research (clearable) | Clear | "A lab mascot from before the walls went up. Its notes are better than its smile." |
 | Agility | Mass Pike Tunnel | metro (clearable) | Clear | "A courier's charm, carried the length of the tunnel at a dead run and never dropped." |

@@ -217,7 +217,7 @@ class TestAudioChat:
         assert response.status_code == error.status_code
         assert response.json() == {"detail": error.detail}
 
-    async def test_audio_chat_rejects_an_oversized_upload(self) -> None:
+    async def test_audio_chat_rejects_an_oversized_upload(self, async_session) -> None:
         from fastapi import HTTPException
 
         from app.core.config import settings
@@ -227,7 +227,7 @@ class TestAudioChat:
 
         with pytest.raises(HTTPException) as exc_info:
             await voice_chat_with_dweller(
-                dweller_id=uuid4(), user=MagicMock(id=uuid4()), db_session=MagicMock(), audio_file=audio_file
+                dweller_id=uuid4(), user=MagicMock(id=uuid4()), db_session=async_session, audio_file=audio_file
             )
 
         assert exc_info.value.status_code == 413

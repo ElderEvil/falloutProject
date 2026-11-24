@@ -12,6 +12,7 @@ from sqladmin import Admin
 from sqlalchemy.ext.asyncio import async_sessionmaker
 from sqlmodel.ext.asyncio.session import AsyncSession
 from starlette import status
+from starlette.middleware.gzip import GZipMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 from starlette.responses import JSONResponse
 
@@ -217,6 +218,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Compress JSON above 1 KiB. Starlette's default exclusion list already skips text/event-stream,
+# audio and images, so SSE and voice bytes pass through untouched.
+app.add_middleware(GZipMiddleware, minimum_size=1024)
 
 # Added last, so it is the outermost middleware: guard rejections (429/403 auto-ban) and CORS
 # failures also carry a correlation id. Starlette inserts each middleware at position 0, so the

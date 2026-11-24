@@ -14,12 +14,9 @@ from uuid import UUID
 import pytest
 import pytest_asyncio
 from sqlalchemy import text
-from sqlalchemy.engine import make_url
-from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
-from sqlalchemy.pool import NullPool
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 from app import crud
-from app.core.config import settings
 from app.core.enums import (
     SPECIAL_STATS,
     AgeGroupEnum,
@@ -36,24 +33,9 @@ from app.schemas.dweller import DwellerCreate
 from app.services.departure_pool_service import departure_pool_service
 from app.utils.exceptions import ResourceConflictException
 
+pytest_plugins = ["app.tests.test_alembic._support"]
+
 pytestmark = pytest.mark.integration
-
-
-@pytest_asyncio.fixture(scope="module")
-async def live_pg_engine() -> AsyncEngine:
-    """Connect to the live PostgreSQL database, skipping when unavailable."""
-    uri = str(settings.ASYNC_DATABASE_URI)
-    if make_url(uri).get_backend_name() != "postgresql":
-        pytest.skip("ASYNC_DATABASE_URI is not PostgreSQL; skipping pool claim concurrency check")
-    engine = create_async_engine(uri, poolclass=NullPool)
-    try:
-        async with engine.connect() as conn:
-            await conn.execute(text("SELECT 1"))
-    except Exception as exc:
-        await engine.dispose()
-        pytest.skip(f"PostgreSQL unavailable: {exc}")
-    yield engine
-    await engine.dispose()
 
 
 @pytest_asyncio.fixture

@@ -15,13 +15,10 @@ from uuid import UUID, uuid4
 import pytest
 import pytest_asyncio
 from sqlalchemy import text
-from sqlalchemy.engine import make_url
-from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker, create_async_engine
-from sqlalchemy.pool import NullPool
+from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
-from app.core.config import settings
 from app.core.enums import AgeGroupEnum, GenderEnum, RarityEnum, RoomTypeEnum, SPECIALEnum
 from app.models.dweller import Dweller
 from app.models.room import Room
@@ -35,6 +32,8 @@ from app.services.dweller_service import dweller_service
 from app.services.room_assignment_policy import calculate_room_capacity
 from app.tests.factory.vaults import random_vault_number
 from app.utils.exceptions import ResourceConflictException, ValidationException
+
+pytest_plugins = ["app.tests.test_alembic._support"]
 
 
 def _production_room_create(
@@ -210,22 +209,6 @@ async def test_bulk_retries_candidate_in_next_room_when_first_is_busy(
 
 
 # Live-PostgreSQL race: the last free worker slot goes to exactly one request
-
-
-@pytest_asyncio.fixture(scope="module")
-async def live_pg_engine() -> AsyncIterator[AsyncEngine]:
-    uri = str(settings.ASYNC_DATABASE_URI)
-    if make_url(uri).get_backend_name() != "postgresql":
-        pytest.skip("ASYNC_DATABASE_URI is not PostgreSQL; skipping the capacity race check")
-    engine = create_async_engine(uri, poolclass=NullPool)
-    try:
-        async with engine.connect() as conn:
-            await conn.execute(text("SELECT 1"))
-    except Exception as exc:
-        await engine.dispose()
-        pytest.skip(f"PostgreSQL unavailable: {exc}")
-    yield engine
-    await engine.dispose()
 
 
 @pytest_asyncio.fixture

@@ -6,7 +6,6 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 
 from app.core import db_locks
-from app.core.config import settings
 
 pytest_plugins = ["app.tests.test_alembic._support"]
 
@@ -24,9 +23,11 @@ def _session_maker(engine: AsyncEngine) -> async_sessionmaker[AsyncSession]:
     return async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
 
-def _pooled_engine() -> AsyncEngine:
-    # A pooled engine: NullPool cannot show whether a connection was handed back.
-    return create_async_engine(str(settings.ASYNC_DATABASE_URI))
+def _pooled_engine(engine: AsyncEngine) -> AsyncEngine:
+    # A pooled engine on the same per-worker database: NullPool cannot show whether a
+    # connection was handed back, and advisory locks are per-database. `str(URL)` would
+    # mask the password as `***`, so render it with the credential intact.
+    return create_async_engine(engine.url.render_as_string(hide_password=False))
 
 
 @pytest.mark.integration
@@ -56,7 +57,7 @@ async def test_lock_is_released_when_the_block_exits(live_pg_engine: AsyncEngine
 
 @pytest.mark.integration
 async def test_lock_connection_is_handed_back_on_exit(live_pg_engine: AsyncEngine) -> None:
-    engine = _pooled_engine()
+    engine = _pooled_engine(live_pg_engine)
     try:
         async with (
             _session_maker(engine)() as session,
@@ -71,7 +72,7 @@ async def test_lock_connection_is_handed_back_on_exit(live_pg_engine: AsyncEngin
 
 @pytest.mark.integration
 async def test_lock_connection_is_handed_back_when_acquisition_fails(live_pg_engine: AsyncEngine) -> None:
-    engine = _pooled_engine()
+    engine = _pooled_engine(live_pg_engine)
     try:
         async with _session_maker(engine)() as session:
             with (

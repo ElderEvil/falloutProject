@@ -987,7 +987,10 @@ class CaravanConfig(BaseSettings):
 
     caps_cost_settlement: int = Field(default=150, ge=0, description="Fee to trade with a settlement")
     caps_cost_city: int = Field(default=300, ge=0, description="Fee to trade with a city")
-    revisit_hours: int = Field(default=24, ge=1, description="Cooldown before the same settlement trades again")
+    # A city hauls the same shipment for twice the fee, so it earns that with a shorter cooldown: the
+    # tier decides how often you may trade, never how much a trip pays (that would break the guardrail).
+    revisit_hours_settlement: int = Field(default=24, ge=1, description="Cooldown after a settlement caravan")
+    revisit_hours_city: int = Field(default=12, ge=1, description="Cooldown after a city caravan")
 
 
 class ExplorationConfig(BaseSettings):

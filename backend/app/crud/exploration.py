@@ -99,6 +99,25 @@ class CRUDExploration(CRUDBase[Exploration, ExplorationCreate, ExplorationUpdate
         )
         return result.first() is not None
 
+    async def has_unfinished_dispatch_to(self, db_session: AsyncSession, *, vault_id: UUID, location_id: UUID) -> bool:
+        """True while a party is still out to, or coming back from, the location.
+
+        The partial unique index covers ACTIVE runs only, so a party on its return leg frees the index
+        slot while still occupying the destination. Clearing tolerates that (a new run is blocked by the
+        site's own reclear window); a caravan must not, or a short cooldown would let two parties trade
+        with one settlement at once.
+        """
+        result = await db_session.execute(
+            select(Exploration.id)
+            .where(
+                Exploration.vault_id == vault_id,
+                Exploration.target_location_id == location_id,
+                Exploration.status.in_(IN_PROGRESS_STATUSES),
+            )
+            .limit(1)
+        )
+        return result.first() is not None
+
     async def get_active_dispatch_location_ids(self, db_session: AsyncSession, *, vault_id: UUID) -> set[UUID]:
         """Map points this vault currently has a party en route to."""
         result = await db_session.execute(

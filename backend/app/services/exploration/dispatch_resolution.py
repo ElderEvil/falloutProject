@@ -13,7 +13,7 @@ from uuid import UUID
 
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.core.enums import NotificationPriority, NotificationType
+from app.core.enums import ExplorationPurpose, NotificationPriority, NotificationType
 from app.core.event_bus import GameEvent, event_bus
 from app.core.game_config import game_config
 from app.crud import dweller as dweller_crud
@@ -34,8 +34,14 @@ from app.services.exploration.party_resolution import (
     resolve_party_combat,
 )
 from app.services.notification_service import notification_service
-from app.utils.place_groups import effective_place_group, location_xp_for
+from app.utils.place_groups import (
+    effective_place_group,
+    location_xp_for,
+    trade_entry,
+    trade_revisit_hours,
+)
 from app.utils.place_loot import loot_table
+from app.utils.static_data import game_data_store
 from app.utils.time import utcnow
 
 logger = logging.getLogger(__name__)
@@ -61,6 +67,9 @@ async def resolve_dispatch_arrival(db_session: AsyncSession, exploration_id: UUI
     group = effective_place_group(location.group_key, location.kind)
     if group is None:
         await exploration_coordinator.start_return(db_session, exploration_id, arrived=arrived)
+        return
+    if exploration.purpose == ExplorationPurpose.TRADE:
+        await _resolve_trade(db_session, exploration, location, state, group, arrived)
         return
     if not group.get("clearable"):
         await _resolve_salvage(db_session, exploration, location, state, arrived)
@@ -208,6 +217,55 @@ def _collectible_payload(award: CollectibleAward) -> dict:
         "dweller_id": str(award.dweller_id),
         "location_name": award.location_name,
     }
+
+
+async def _resolve_trade(
+    db_session: AsyncSession,
+    exploration: Exploration,
+    location: WorldLocation,
+    state: VaultLocationState,
+    group: dict,
+    arrived: bool,
+) -> None:
+    """Settle a caravan: a guaranteed shipment of the settlement's material, no combat, no XP.
+
+    The shipment is common junk only — the material the catalog names for this place — and it is per
+    run, not per dweller: one cart. Scaling it with the party would let a two-dweller caravan out-haul
+    a two-dweller clear, which is exactly what the half-yield guardrail forbids. The cooldown is
+    stamped on arrival, not at home: the run keeps the destination occupied until it is back (dispatch
+    refuses a second party), so the clock can start here and stay deterministic. A recalled or blocked
+    caravan never reaches this branch: no shipment, no cooldown, fee forfeited.
+    """
+    entry = trade_entry(location.name)
+    now = utcnow()
+    if entry is None or (state.caravan_available_at is not None and now < state.caravan_available_at):
+        await exploration_coordinator.start_return(db_session, exploration.id, arrived=arrived)
+        return
+    if exploration.team_id is not None:
+        members = list(await team_crud.get_exploration_team_dwellers(db_session, exploration.id))
+    else:
+        anchor = await dweller_crud.get_with_equipment(db_session, exploration.dweller_id)
+        members = [anchor] if anchor is not None and not anchor.is_dead else []
+    # Case-insensitive: the catalog ships a material key, the junk catalog stores the label.
+    common = [
+        item
+        for item in game_data_store.junk_items
+        if str(item.junk_type).lower() == entry["material"] and str(item.rarity).lower() == "common"
+    ]
+    if not members or not common:
+        await exploration_coordinator.start_return(db_session, exploration.id, arrived=arrived)
+        return
+
+    low, high = entry["band"]
+    item = common[0]
+    for _ in range(random.randint(low, high)):
+        apply_loot_find(exploration, item_name=item.name, rarity="common", item_type="junk", caps=0)
+    state.caravan_available_at = now + timedelta(hours=trade_revisit_hours(group))
+    db_session.add(state)
+    db_session.add(exploration)
+    # Flush before the return leg re-locks the run, exactly as the clearing branch does.
+    await db_session.flush()
+    await exploration_coordinator.start_return(db_session, exploration.id, arrived=arrived)
 
 
 async def _resolve_salvage(

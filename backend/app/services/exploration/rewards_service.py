@@ -6,6 +6,7 @@ from uuid import UUID
 
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.enums import ExplorationPurpose
 from app.core.event_bus import GameEvent, event_bus
 from app.crud import dweller as dweller_crud
 from app.crud import exploration as crud_exploration
@@ -294,6 +295,10 @@ class RewardsService:
         commit: bool = False,
     ) -> int:
         """Grant exploration XP to one living member, settling any level-up."""
+        # A trade caravan is the safe faucet: zero XP, including the distance XP the spatial ticker
+        # accrues (issue 1493). Enforced at the single grant point, so team and solo paths inherit it.
+        if exploration.purpose == ExplorationPurpose.TRADE:
+            return 0
         from app.services.leveling_service import leveling_service
 
         full_experience = rewards_calculator.calculate_exploration_xp(exploration, dweller_obj)

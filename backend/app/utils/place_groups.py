@@ -192,3 +192,18 @@ def trade_caps_cost(group: dict[str, Any] | None) -> int:
             return cfg.caps_cost_city
         case _:
             return 0
+
+
+def trade_revisit_hours(group: dict[str, Any] | None) -> int:
+    """Cooldown after a caravan; 0 for an untradeable place.
+
+    A city charges double the fee and hauls the same shipment, so its edge is trading more often.
+    """
+    cfg = game_config.exploration.caravan
+    match trade_tier(group):
+        case 1:
+            return cfg.revisit_hours_settlement
+        case 2:
+            return cfg.revisit_hours_city
+        case _:
+            return 0

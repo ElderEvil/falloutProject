@@ -15,7 +15,7 @@ from sqlalchemy import orm
 from sqlalchemy.exc import IntegrityError
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.core.enums import DwellerStatusEnum, ExplorationStatus, TrainingStatus
+from app.core.enums import DwellerStatusEnum, ExplorationPurpose, ExplorationStatus, TrainingStatus
 from app.core.event_bus import GameEvent, event_bus
 from app.core.game_config import game_config
 from app.crud import exploration as crud_exploration
@@ -24,13 +24,14 @@ from app.crud import training as training_crud
 from app.crud import world_location as crud_world_location
 from app.crud.dweller import dweller as dweller_crud
 from app.crud.storage import storage as crud_storage
+from app.crud.vault import vault as vault_crud
 from app.crud.vault_slot import vault_slot as vault_slot_crud
 from app.crud.world_snapshot import world_snapshot as world_snapshot_crud
 from app.models.dweller import Dweller
 from app.models.exploration import Exploration
 from app.models.storage import Storage
 from app.models.team import Team, TeamMember
-from app.models.world_location import WorldLocation
+from app.models.world_location import VaultLocationState, WorldLocation
 from app.options.races import can_use_radaway
 from app.schemas.dweller import DwellerUpdate
 from app.schemas.exploration import ExplorationPartyMemberRead, ExplorationProgress
@@ -46,7 +47,7 @@ from app.utils import world_terrain
 from app.utils.collectibles import bobblehead_for_location
 from app.utils.dweller_availability import DwellerAction, availability_error
 from app.utils.exceptions import ResourceNotFoundException, ValidationException, ensure_found
-from app.utils.place_groups import effective_place_group
+from app.utils.place_groups import effective_place_group, trade_caps_cost, trade_entry, trade_tier
 from app.utils.place_loot import loot_table
 from app.utils.serialize import serialize_naive_utc_datetime, serialize_optional_utc_datetime
 from app.utils.time import utcnow
@@ -368,11 +369,16 @@ class ExplorationService:
         location_id: UUID,
         stimpaks: int = 0,
         radaways: int = 0,
+        purpose: ExplorationPurpose = ExplorationPurpose.CLEAR,
     ) -> Exploration:
-        """Send a party to clear a specific map point.
+        """Send a party to a specific map point: clear a site, or trade with a settlement.
 
         Travels whole hours by distance from the vault slot, suppresses random events, resolves once on arrival.
         No leader: dweller_ids[0] only anchors the non-nullable Exploration.dweller_id FK.
+
+        A trade run (issue 1493) is the safe faucet: no combat, no loot roll above common, no XP, and a
+        flat caps fee charged inside the departure transaction. It shares one eligibility rule with a
+        clear (unlocked, one party per site), because the map must never advertise what this refuses.
         """
         max_party_size = game_config.exploration.dispatch.max_party_size
         if not dweller_ids:
@@ -401,7 +407,10 @@ class ExplorationService:
         location, state = pair
 
         group = effective_place_group(location.group_key, location.kind)
-        if group is not None and group.get("clearable"):
+        fee = 0
+        if purpose == ExplorationPurpose.TRADE:
+            fee = await self._require_trade(db_session, vault_id, location, state, group)
+        elif group is not None and group.get("clearable"):
             if not state.is_dispatchable(utcnow()):
                 raise ValidationException("This location is currently cleared")
             if await crud_exploration.has_active_dispatch_to(db_session, vault_id=vault_id, location_id=location_id):
@@ -444,6 +453,8 @@ class ExplorationService:
             await db_session.refresh(storage)
         self._require_supplies(storage, stimpaks, radaways)
         self._deduct_storage_supplies(db_session, storage, stimpaks, radaways)
+        if fee:
+            await self._charge_caravan_fee(db_session, vault_id, fee)
         anchor = dwellers[0]
 
         exploration = Exploration(
@@ -453,7 +464,8 @@ class ExplorationService:
             stimpaks=stimpaks,
             radaways=radaways,
             target_location_id=location_id,
-            clear_tier=tier,
+            purpose=purpose,
+            clear_tier=tier if purpose == ExplorationPurpose.CLEAR else None,
             start_time=utcnow(),
             status=ExplorationStatus.ACTIVE,
         )
@@ -488,6 +500,42 @@ class ExplorationService:
             # The partial unique index catches a race the pre-check above cannot see.
             await db_session.rollback()
             raise ValidationException("A party is already on its way to this location") from None
+
+    async def _require_trade(
+        self,
+        db_session: AsyncSession,
+        vault_id: UUID,
+        location: WorldLocation,
+        state: VaultLocationState,
+        group: dict | None,
+    ) -> int:
+        """Refuse a caravan the map would not offer, else return the fee it costs.
+
+        One party per place (the partial unique index only covers ACTIVE runs, so this check is what
+        keeps a settlement busy through the return leg) and one cooldown per settlement. Knowledge of
+        the place is checked by the shared dispatch tail, after this returns.
+        """
+        if trade_tier(group) == 0 or trade_entry(location.name) is None:
+            raise ValidationException("Nothing to trade here")
+        if await crud_exploration.has_unfinished_dispatch_to(db_session, vault_id=vault_id, location_id=location.id):
+            raise ValidationException("A party is already on its way to this location")
+        now = utcnow()
+        if state.caravan_available_at is not None and now < state.caravan_available_at:
+            raise ValidationException("This settlement has no caravan ready yet")
+        return trade_caps_cost(group)
+
+    @staticmethod
+    async def _charge_caravan_fee(db_session: AsyncSession, vault_id: UUID, fee: int) -> None:
+        """Debit the caravan fee under the vault row lock, inside the departure transaction.
+
+        The lock is taken last and held until the departure commit, so a concurrent second caravan
+        cannot pass on the same caps, and any later failure in this transaction rolls the debit back.
+        """
+        vault = await vault_crud.lock_for_update(db_session, vault_id)
+        if vault.bottle_caps < fee:
+            raise ValidationException(f"A caravan costs {fee} caps; the vault holds {vault.bottle_caps}")
+        vault.bottle_caps -= fee
+        db_session.add(vault)
 
     @staticmethod
     def _supply_shortfall(available_stimpaks: int, available_radaways: int, stimpaks: int, radaways: int) -> str | None:

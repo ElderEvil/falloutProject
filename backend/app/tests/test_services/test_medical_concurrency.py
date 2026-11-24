@@ -12,12 +12,9 @@ from uuid import UUID
 
 import pytest
 import pytest_asyncio
-from sqlalchemy import delete, text
-from sqlalchemy.engine import make_url
-from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
-from sqlalchemy.pool import NullPool
+from sqlalchemy import delete
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
-from app.core.config import settings
 from app.core.enums import GenderEnum, RarityEnum
 from app.core.game_config import game_config
 from app.models.dweller import Dweller
@@ -29,24 +26,9 @@ from app.tests.factory.dwellers import create_random_common_dweller
 from app.utils.exceptions import ContentNoChangeException, ResourceConflictException
 from app.utils.radiation import radiation_removal_amount
 
+pytest_plugins = ["app.tests.test_alembic._support"]
+
 pytestmark = pytest.mark.integration
-
-
-@pytest_asyncio.fixture(scope="module")
-async def live_pg_engine() -> AsyncEngine:
-    """Connect to the live PostgreSQL database, skipping when unavailable."""
-    uri = str(settings.ASYNC_DATABASE_URI)
-    if make_url(uri).get_backend_name() != "postgresql":
-        pytest.skip("ASYNC_DATABASE_URI is not PostgreSQL; skipping medical concurrency check")
-    engine = create_async_engine(uri, poolclass=NullPool)
-    try:
-        async with engine.connect() as conn:
-            await conn.execute(text("SELECT 1"))
-    except Exception as exc:
-        await engine.dispose()
-        pytest.skip(f"PostgreSQL unavailable: {exc}")
-    yield engine
-    await engine.dispose()
 
 
 @pytest_asyncio.fixture

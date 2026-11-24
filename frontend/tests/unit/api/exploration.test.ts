@@ -31,6 +31,7 @@ describe('explorationApi', () => {
         location_id: 'loc-1',
         stimpaks: 2,
         radaways: 1,
+        purpose: 'clear',
       },
       { params: { vault_id: 'vault-1' } }
     )

@@ -1,4 +1,5 @@
 import asyncio
+from uuid import uuid4
 
 import pytest
 import pytest_asyncio
@@ -29,9 +30,12 @@ async def vault_with_dweller(
     password: str = "bobblepw123",  # ruff: ignore[hardcoded-password-default]
 ) -> tuple:
     number = random_vault_number()
+    # The live-Postgres tests share one database across xdist workers and never
+    # clean up users, so the identity must be unique by construction, not by luck.
+    handle = f"{prefix}{number}-{uuid4().hex[:8]}"
     user = await user_crud.create(
         db_session=db,
-        obj_in=UserCreate(username=f"{prefix}{number}", email=f"{prefix}{number}@example.com", password=password),
+        obj_in=UserCreate(username=handle, email=f"{handle}@example.com", password=password),
     )
     vault = await vault_crud.create_with_user_id(
         db_session=db, obj_in=VaultCreate(number=number, name=f"Vault {number}"), user_id=user.id

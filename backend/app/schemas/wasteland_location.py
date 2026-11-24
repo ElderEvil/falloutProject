@@ -41,6 +41,17 @@ class LocationClearStateRead(SQLModel):
     loot_preview: list[LocationLootEntryRead] = []
 
 
+class LocationCaravanStateRead(SQLModel):
+    """What a caravan here would cost and pay, and why it is refused right now (None = available)."""
+
+    material: str
+    band: list[int]
+    caps_cost: int
+    party_cap: int
+    cooldown_remaining_seconds: int = 0
+    refusal_reason: str | None = None
+
+
 class WastelandLocationRead(SQLModel):
     """All row fields for a WastelandLocation, serialized for the API."""
 
@@ -56,8 +67,9 @@ class WastelandLocationRead(SQLModel):
     exploration_id: UUID | None
     created_at: OptionalUTCDateTimeJSON
     clear_state: LocationClearStateRead | None = None
-    # What the map offers here: a clearable site, a one-time salvage point, or nothing.
-    action: Literal["clear", "salvage", "none"] = "none"
+    caravan: LocationCaravanStateRead | None = None
+    # What the map offers here: a clearable site, a salvage point, trade, or nothing.
+    action: Literal["clear", "salvage", "trade", "none"] = "none"
 
 
 class PlaceGroupRead(SQLModel):

@@ -151,6 +151,35 @@ async def test_trade_refuses_an_unaffordable_fee_without_touching_the_vault(
 
 
 @pytest.mark.usefixtures("default_world_snapshot")
+async def test_map_offers_trade_exactly_when_dispatch_accepts(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller
+) -> None:
+    """Read/write parity: whatever the map advertises, the service must accept."""
+    location, state = await _register_place(async_session, vault, dweller)
+
+    detail = await map_service.get_location_detail(async_session, vault, location.id)
+    assert detail.action == "trade"
+    assert detail.caravan is not None
+    assert detail.caravan.refusal_reason is None
+    assert detail.caravan.caps_cost == CARAVAN.caps_cost_settlement
+    await _trade(async_session, vault, dweller, location)
+
+    detail = await map_service.get_location_detail(async_session, vault, location.id)
+    assert detail.action == "none"
+    assert detail.caravan is not None
+    assert detail.caravan.refusal_reason is not None
+    with pytest.raises(ValidationException):
+        await _trade(async_session, vault, dweller, location)
+
+    state.caravan_available_at = utcnow() + timedelta(hours=6)
+    async_session.add(state)
+    await async_session.commit()
+    detail = await map_service.get_location_detail(async_session, vault, location.id)
+    assert detail.action == "none"
+    assert detail.caravan.cooldown_remaining_seconds > 0
+
+
+@pytest.mark.usefixtures("default_world_snapshot")
 async def test_resolution_pays_a_common_shipment_and_starts_the_cooldown(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
 ) -> None:

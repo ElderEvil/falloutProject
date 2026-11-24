@@ -7,6 +7,7 @@ contract, and site markers project the expedition catalog onto the map.
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import TYPE_CHECKING, Literal
 from uuid import UUID
 
@@ -15,10 +16,12 @@ from app.core.game_config import game_config
 from app.crud.exploration import exploration as exploration_crud
 from app.crud.vault_slot import vault_slot as vault_slot_crud
 from app.crud.world_location import world_location as wl_crud
+from app.models.exploration import IN_PROGRESS_STATUSES
 from app.models.world_location import VaultLocationState, WorldLocation
 from app.schemas.wasteland_location import (
     DwellerRef,
     ExpeditionSiteMarkerRead,
+    LocationCaravanStateRead,
     LocationClearStateRead,
     LocationLootEntryRead,
     PlaceGroupRead,
@@ -37,7 +40,7 @@ from app.services.exploration.site_offers import (
 )
 from app.services.map import bio_registration, discovery
 from app.utils.collectibles import bobblehead_for_location
-from app.utils.place_groups import effective_place_group, load_place_groups, location_xp_for
+from app.utils.place_groups import effective_place_group, load_place_groups, location_xp_for, trade_entry, trade_terms
 from app.utils.place_loot import loot_table
 from app.utils.places import WORLD_SCALE
 from app.utils.time import utcnow
@@ -100,16 +103,65 @@ def _loot_preview(loot_key: str | None) -> list[LocationLootEntryRead]:
     ]
 
 
+def _caravan_for(
+    state: VaultLocationState,
+    location: WorldLocation,
+    *,
+    unlocked: bool,
+    busy: bool,
+    has_slot: bool,
+    now: datetime,
+) -> LocationCaravanStateRead | None:
+    """The caravan offer for a tradeable place, with the single reason it is refused (None = ready).
+
+    Shopfront for the service's own rule: a refusal here is the message ``dispatch`` would raise, so the
+    map never dangles a button the write path rejects.
+    """
+    entry = trade_entry(location.name)
+    fee, _cooldown = trade_terms(effective_place_group(location.group_key, location.kind))
+    if entry is None or fee == 0:
+        return None
+    remaining = 0
+    if state.caravan_available_at is not None:
+        remaining = max(0, int((state.caravan_available_at - now).total_seconds()))
+    refusal = (
+        "Not known to the vault"
+        if not unlocked
+        else "A party is already on its way"
+        if busy
+        else "No caravan ready yet"
+        if remaining
+        else "Vault has no map placement"
+        if not has_slot
+        else None
+    )
+    return LocationCaravanStateRead(
+        material=entry["material"],
+        band=entry["band"],
+        caps_cost=fee,
+        party_cap=game_config.exploration.dispatch.max_party_size,
+        cooldown_remaining_seconds=remaining,
+        refusal_reason=refusal,
+    )
+
+
 def _action_for(
-    state: VaultLocationState, location: WorldLocation, *, unlocked: bool, busy: bool = False
-) -> Literal["clear", "salvage", "none"]:
-    """What the map offers at this point: clear, a one-time salvage, or nothing.
+    state: VaultLocationState,
+    location: WorldLocation,
+    *,
+    unlocked: bool,
+    busy: bool = False,
+    caravan: LocationCaravanStateRead | None = None,
+) -> Literal["clear", "salvage", "trade", "none"]:
+    """What the map offers at this point: clear, a one-time salvage, trade, or nothing.
 
     A place the vault has not unlocked, or one with a party already en route, offers nothing:
     the dispatch service refuses both, so advertising an action here would only produce a dead-end
     button. Salvage implies the place is not clearable and the catalog binds a bobblehead to its
     name; the collectible feature flag keeps inert places inert while the content is switched off.
     """
+    if caravan is not None and caravan.refusal_reason is None:
+        return "trade"
     if not unlocked:
         return "none"
     if busy:
@@ -162,6 +214,16 @@ async def get_location_detail(
     ]
     location_unlocked = any(r.is_unlocked for r in dweller_refs)
     busy = await exploration_crud.has_active_dispatch_to(db_session, vault_id=vault.id, location_id=state.location_id)
+    caravan = _caravan_for(
+        state,
+        location,
+        unlocked=location_unlocked,
+        busy=await exploration_crud.has_unfinished_dispatch_to(
+            db_session, vault_id=vault.id, location_id=state.location_id
+        ),
+        has_slot=await vault_slot_crud.get_by_vault(db_session, vault.id) is not None,
+        now=utcnow(),
+    )
 
     return WastelandLocationWithDwellers(
         id=state.location_id,
@@ -179,7 +241,8 @@ async def get_location_detail(
         is_unlocked=location_unlocked,
         dispatch_in_progress=busy,
         clear_state=_clear_state_for(state, location),
-        action=_action_for(state, location, unlocked=location_unlocked, busy=busy),
+        caravan=caravan,
+        action=_action_for(state, location, unlocked=location_unlocked, busy=busy, caravan=caravan),
     )
 
 
@@ -196,6 +259,11 @@ async def get_vault_map(db_session: AsyncSession, vault: Vault, *, unlocked_only
     location_ids = [state.location_id for _, state in pairs]
     dweller_refs_map = await wl_crud.get_dweller_refs(db_session, vault.id, location_ids)
     dispatch_targets = await exploration_crud.get_active_dispatch_location_ids(db_session, vault_id=vault.id)
+    unfinished_targets = await exploration_crud.get_active_dispatch_location_ids(
+        db_session, vault_id=vault.id, statuses=IN_PROGRESS_STATUSES
+    )
+    has_slot = await vault_slot_crud.get_by_vault(db_session, vault.id) is not None
+    now = utcnow()
 
     locations: list[WastelandLocationWithDwellers] = []
     for location, state in pairs:
@@ -217,6 +285,14 @@ async def get_vault_map(db_session: AsyncSession, vault: Vault, *, unlocked_only
         if unlocked_only and state.type != LocationTypeEnum.HOME_VAULT and not location_unlocked:
             continue
 
+        caravan = _caravan_for(
+            state,
+            location,
+            unlocked=location_unlocked,
+            busy=state.location_id in unfinished_targets,
+            has_slot=has_slot,
+            now=now,
+        )
         locations.append(
             WastelandLocationWithDwellers(
                 id=state.location_id,
@@ -234,7 +310,8 @@ async def get_vault_map(db_session: AsyncSession, vault: Vault, *, unlocked_only
                 is_unlocked=location_unlocked,
                 dispatch_in_progress=busy,
                 clear_state=_clear_state_for(state, location),
-                action=_action_for(state, location, unlocked=location_unlocked, busy=busy),
+                caravan=caravan,
+                action=_action_for(state, location, unlocked=location_unlocked, busy=busy, caravan=caravan),
             )
         )
 

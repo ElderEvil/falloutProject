@@ -201,6 +201,7 @@ class TestAudioChat:
         if kind == "empty":
             audio_file = MagicMock()
             audio_file.read = AsyncMock(return_value=b"")
+            audio_file.size = 0
             with pytest.raises(ValidationException) as exc_info:
                 await voice_chat_with_dweller(
                     dweller_id=uuid4(), user=MagicMock(id=uuid4()), db_session=MagicMock(), audio_file=audio_file
@@ -215,6 +216,21 @@ class TestAudioChat:
             response = await async_client.post(f"chat/{uuid4()}/voice", headers=normal_user_token_headers, files=AUDIO)
         assert response.status_code == error.status_code
         assert response.json() == {"detail": error.detail}
+
+    async def test_audio_chat_rejects_an_oversized_upload(self) -> None:
+        from fastapi import HTTPException
+
+        from app.core.config import settings
+
+        audio_file = MagicMock()
+        audio_file.size = settings.MAX_REQUEST_BODY_BYTES + 1
+
+        with pytest.raises(HTTPException) as exc_info:
+            await voice_chat_with_dweller(
+                dweller_id=uuid4(), user=MagicMock(id=uuid4()), db_session=MagicMock(), audio_file=audio_file
+            )
+
+        assert exc_info.value.status_code == 413
 
 
 class TestExplorationActions:

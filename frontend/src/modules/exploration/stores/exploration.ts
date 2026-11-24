@@ -381,7 +381,8 @@ export const useExplorationStore = defineStore('exploration', () => {
     vaultId: string,
     dwellerIds: string[],
     locationId: string,
-    supplies: { stimpaks: number; radaways: number } = { stimpaks: 0, radaways: 0 }
+    supplies: { stimpaks: number; radaways: number } = { stimpaks: 0, radaways: 0 },
+    purpose: 'clear' | 'trade' = 'clear'
   ): Promise<Exploration> {
     isLoading.value = true
     error.value = null
@@ -394,6 +395,7 @@ export const useExplorationStore = defineStore('exploration', () => {
         locationId,
         stimpaks: supplies.stimpaks,
         radaways: supplies.radaways,
+        purpose,
       })) as unknown as Exploration
       upsertExploration(exploration)
       return exploration

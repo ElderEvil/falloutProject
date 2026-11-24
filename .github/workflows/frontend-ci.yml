@@ -130,3 +130,14 @@ jobs:
         env:
           PW_SKIP_BACKEND: '1'
         run: pnpm exec playwright test tests/e2e/accessibility.spec.ts --project=chromium
+
+      # The guard spec mocks the API it needs, so it runs against Vite alone (same
+      # PW_SKIP_BACKEND contract as the accessibility step above). Without this step
+      # a router guard regression ships silently: the spec existed but never ran.
+      - name: Run auth guard checks
+        if: steps.filter.outputs.src == 'true'
+        timeout-minutes: 10
+        working-directory: frontend
+        env:
+          PW_SKIP_BACKEND: '1'
+        run: pnpm exec playwright test tests/e2e/auth-guard.spec.ts --project=chromium

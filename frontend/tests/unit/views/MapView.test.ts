@@ -766,13 +766,17 @@ describe('MapView', () => {
       modal.vm.$emit('dispatch', {
         dwellerIds: ['dweller-1'],
         supplies: { stimpaks: 4, radaways: 2 },
+        purpose: 'clear',
       })
       await flushPromises()
 
-      expect(dispatchSpy).toHaveBeenCalledWith('vault-1', ['dweller-1'], 'loc-1', {
-        stimpaks: 4,
-        radaways: 2,
-      })
+      expect(dispatchSpy).toHaveBeenCalledWith(
+        'vault-1',
+        ['dweller-1'],
+        'loc-1',
+        { stimpaks: 4, radaways: 2 },
+        'clear'
+      )
       expect(mapStore.refreshMap).toHaveBeenCalled()
       expect(modal.props('modelValue')).toBe(false)
     })

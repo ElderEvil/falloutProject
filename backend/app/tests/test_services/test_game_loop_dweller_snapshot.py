@@ -24,8 +24,9 @@ SNAPSHOT_KEYS = {"id", "health", "max_health", "radiation", "happiness", "level"
 async def _tick_and_capture(async_session, vault_id, **kwargs) -> dict:
     with patch.object(sse_manager, "publish", new_callable=AsyncMock) as publish:
         await game_loop_service.process_vault_tick(async_session, vault_id, **kwargs)
-    publish.assert_awaited_once()
-    _vault_id, topic, data = publish.await_args.args
+    tick_calls = [call for call in publish.await_args_list if call.args[1] == "game_ticks"]
+    assert len(tick_calls) == 1
+    _vault_id, topic, data = tick_calls[0].args
     assert topic == "game_ticks"
     return data["results"]["updates"]
 

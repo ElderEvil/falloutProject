@@ -400,17 +400,17 @@ class TestCombatAndProductionApplication:
         manager = ResourceManager()
         human = _fighter("human", faction="vault_dweller")
         mutant = _fighter("super_mutant", faction="vault_dweller")
-        human_output = manager._calculate_room_production(_room(), [human], 60)
-        assert manager._calculate_room_production(_room(), [mutant], 60) > human_output
-        assert human_output == pytest.approx(10 * 5 * game_config.resource.base_production_rate * 1.0 * 1.05 * 60)
+        human_output = manager.calculate_room_production(_room(), [human], 60)["power"]
+        assert manager.calculate_room_production(_room(), [mutant], 60)["power"] > human_output
+        assert human_output == pytest.approx(10 * 5 * game_config.resource.power_production_rate * 1.0 * 1.05 * 60)
 
     def test_production_perk_is_per_worker_not_per_room(self) -> None:
         """A single faction bonus must not inflate neutral coworkers in the same room."""
         manager = ResourceManager()
         vault_dweller, neutral = _fighter("human", faction="vault_dweller"), _fighter("human", faction="none")
-        mixed = manager._calculate_room_production(_room(), [vault_dweller, neutral], 60)
+        mixed = manager.calculate_room_production(_room(), [vault_dweller, neutral], 60)["power"]
         # 5 stats x 1.05 for the Vault Dweller plus 5 stats x 1.0 for the neutral worker.
-        rate = game_config.resource.base_production_rate
+        rate = game_config.resource.power_production_rate
         assert mixed == pytest.approx(10 * (5 * 1.05 + 5 * 1.0) * rate * 1.0 * 60)
         assert mixed < 10 * (5 + 5) * rate * 1.0 * 1.05 * 60
 
@@ -478,8 +478,8 @@ class TestFeatureFlag:
         monkeypatch.setattr(game_config.features, "race_mechanics", False)
         monkeypatch.setattr(game_config.features, "faction_mechanics", False)
         mutant = _fighter("super_mutant", faction="super_mutant_tribe")
-        assert ResourceManager()._calculate_room_production(_room(), [mutant], 60) == pytest.approx(
-            10 * 5 * game_config.resource.base_production_rate * 1.0 * 60
+        assert ResourceManager().calculate_room_production(_room(), [mutant], 60)["power"] == pytest.approx(
+            10 * 5 * game_config.resource.power_production_rate * 1.0 * 60
         )
         assert combat_power(mutant) == combat_power(_fighter("human"))
 

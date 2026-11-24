@@ -2,6 +2,42 @@
 
 All notable changes to this project will be documented in this file.
 
+## 3.20.1 (2026-11-24)
+
+### Bug Fixes
+
+* **pvp:** gate the bout on the seal clock and name dwellers in journals ([#1477](https://github.com/ElderEvil/falloutProject/issues/1477)) ([#1510](https://github.com/ElderEvil/falloutProject/issues/1510)) 960e7d4
+
+## 3.20.0 (2026-11-24)
+
+### Features
+
+* **map:** trade caravans — settlements become a material faucet ([#1493](https://github.com/ElderEvil/falloutProject/issues/1493)) ([#1508](https://github.com/ElderEvil/falloutProject/issues/1508)) 2c4d359
+
+## 3.19.1 (2026-11-23)
+
+### Bug Fixes
+
+* **balance:** charge deprivation for dry time, not the elapsed window ([#1507](https://github.com/ElderEvil/falloutProject/issues/1507)) 9ed25a2
+
+## 3.19.0 (2026-11-23)
+
+### Features
+
+* **balance:** retune resources and add graded non-lethal deprivation ([#1494](https://github.com/ElderEvil/falloutProject/issues/1494)) 6cd8525, closes #1456 #1456
+
+## 3.18.0 (2026-11-23)
+
+### Features
+
+* **map:** tint markers by five site families (wave 2) ([#1495](https://github.com/ElderEvil/falloutProject/issues/1495)) 3fe3e87
+
+## 3.17.2 (2026-11-23)
+
+### Bug Fixes
+
+* **router:** guard the dweller chat route ([#1504](https://github.com/ElderEvil/falloutProject/issues/1504)) da6480f
+
 ## 3.17.1 (2026-11-22)
 
 ### Performance Improvements

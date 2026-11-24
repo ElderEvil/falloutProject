@@ -22,6 +22,7 @@ import type {
 } from '../models/map'
 import { useMapStore } from '../stores/map'
 import { isHintLocation, isKnownLocation } from '../utils/visibility'
+import { markerTypeMeta } from '../models/markerTypeMeta'
 
 interface Props {
   modelValue: boolean
@@ -55,7 +56,11 @@ const emit = defineEmits<{
    */
   (
     e: 'dispatch',
-    payload: { dwellerIds: string[]; supplies: { stimpaks: number; radaways: number } }
+    payload: {
+      dwellerIds: string[]
+      supplies: { stimpaks: number; radaways: number }
+      purpose: 'clear' | 'trade'
+    }
   ): void
 }>()
 
@@ -95,6 +100,11 @@ const placeType = computed(() => {
   if (props.site) return 'expedition_site'
   return ''
 })
+
+// The badge used to print the raw enum; a label is what a player can read.
+const placeTypeLabel = computed(() =>
+  placeType.value ? markerTypeMeta(placeType.value).label : ''
+)
 
 const description = computed(() => {
   if (props.location) return props.location.description ?? 'No description available.'
@@ -166,6 +176,27 @@ const signatureEntry = computed(() => lootPreview.value.find((entry) => entry.si
 const incidentalEntries = computed(() => lootPreview.value.filter((entry) => !entry.signature))
 const xpPerSurvivor = computed(() => clearState.value?.xp_per_survivor ?? 0)
 
+// Caravan offer (issue 1493): one material, a flat fee, and the single reason it is refused.
+const caravan = computed(() => props.location?.caravan ?? null)
+const isTrade = computed(() => props.location?.action === 'trade')
+const caravanReady = computed(() => caravan.value !== null && caravan.value.refusal_reason === null)
+const caravanMaterial = computed(() =>
+  (caravan.value?.material ?? '').replace(/\b\w/g, (char) => char.toUpperCase())
+)
+const caravanBand = computed(() =>
+  caravan.value ? `${caravan.value.band[0]}–${caravan.value.band[1]} per trip` : ''
+)
+const caravanSecondsSource = computed(() => caravan.value?.cooldown_remaining_seconds ?? 0)
+const { secondsLeft: caravanSeconds } = useCountdown(caravanSecondsSource)
+const caravanCountdown = computed(() =>
+  caravanSeconds.value > 0 ? formatRemaining(caravanSeconds.value) : ''
+)
+const caravanProgress = computed(() => {
+  const total = caravan.value?.cooldown_total_seconds ?? 0
+  if (total <= 0) return 0
+  return Math.min(100, Math.max(0, Math.round(100 - (caravanSeconds.value / total) * 100)))
+})
+
 function lootEntryLabel(entry: {
   item_type: string
   rarity: string
@@ -211,12 +242,20 @@ const {
 // The section and its footer confirm appear exactly where the old Dispatch
 // button did: a clearable point that is uncleared or re-clearable.
 const isSalvage = computed(() => props.location?.action === 'salvage')
-const partyCap = computed(() => (isSalvage.value ? 1 : props.maxPartySize))
+const partyCap = computed(() =>
+  isSalvage.value
+    ? 1
+    : isTrade.value
+      ? (caravan.value?.party_cap ?? props.maxPartySize)
+      : props.maxPartySize
+)
 const actionable = computed(
   () =>
     !isLocked.value &&
     !dispatchInProgress.value &&
-    ((isClearable.value && (!isCleared.value || reclearReady.value)) || isSalvage.value)
+    ((isClearable.value && (!isCleared.value || reclearReady.value)) ||
+      isSalvage.value ||
+      caravanReady.value)
 )
 
 watch(
@@ -236,7 +275,11 @@ function closeModal() {
 
 function confirmDispatch() {
   if (!canSubmit.value) return
-  emit('dispatch', { dwellerIds: [...selectedDwellerIds.value], supplies: suppliesPayload() })
+  emit('dispatch', {
+    dwellerIds: [...selectedDwellerIds.value],
+    supplies: suppliesPayload(),
+    purpose: isTrade.value ? 'trade' : 'clear',
+  })
 }
 
 // Expedition-site status projection (mirrors the marker's block_reason).
@@ -391,7 +434,7 @@ function dwellerDisplayName(first: string, last: string | null) {
               <p class="mt-1 text-sm font-bold text-theme-primary">{{ recordStatus }}</p>
             </div>
             <div class="flex flex-col items-end gap-1.5">
-              <Badge :variant="badgeVariant" :class="badgeClass">{{ placeType }}</Badge>
+              <Badge :variant="badgeVariant" :class="badgeClass">{{ placeTypeLabel }}</Badge>
               <span
                 v-if="placeGroup"
                 class="flex items-center gap-1 text-xs text-theme-primary/70"
@@ -486,6 +529,71 @@ function dwellerDisplayName(first: string, last: string | null) {
           </p>
         </section>
 
+        <!-- Caravan offer (issue 1493): the settlement's own material for a flat fee. -->
+        <section
+          v-if="caravan"
+          class="relative overflow-hidden rounded-lg border border-warning/40 bg-gradient-to-br from-warning/10 via-warning/5 to-transparent p-4"
+        >
+          <Icon
+            icon="mdi:cart-outline"
+            class="pointer-events-none absolute -right-4 -top-4 h-20 w-20 text-warning/10"
+          />
+          <div class="flex items-center justify-between gap-3">
+            <p class="flex items-center gap-2 text-xs font-bold tracking-[0.12em] text-warning">
+              <Icon
+                icon="mdi:cart-outline"
+                class="h-4 w-4"
+                :class="dispatchInProgress && isTrade ? 'animate-pulse' : ''"
+              />
+              CARAVAN
+            </p>
+            <span
+              class="rounded-full border border-warning/40 px-2 py-0.5 font-mono text-[10px] uppercase tracking-widest text-warning/90"
+            >
+              {{ caravanBand }}
+            </span>
+          </div>
+          <dl class="mt-3 grid grid-cols-2 gap-3 text-xs">
+            <div>
+              <dt class="text-theme-primary/50">Shipment</dt>
+              <dd class="font-semibold text-theme-primary">{{ caravanMaterial }}</dd>
+            </div>
+            <div>
+              <dt class="text-theme-primary/50">Fee</dt>
+              <dd class="font-semibold text-theme-primary">{{ caravan.caps_cost }} caps</dd>
+            </div>
+          </dl>
+          <div v-if="caravanCountdown">
+            <p class="mt-3 flex items-center justify-between text-[11px] text-theme-primary/70">
+              <span class="flex items-center gap-1.5">
+                <Icon icon="mdi:timer-sand" class="h-3.5 w-3.5" />
+                Next caravan
+              </span>
+              <span class="font-mono text-warning">{{ caravanCountdown }}</span>
+            </p>
+            <div class="mt-1.5 h-1 overflow-hidden rounded-full bg-theme-primary/10">
+              <div
+                class="h-full rounded-full bg-warning/70 transition-[width] duration-700 ease-out"
+                :style="{ width: `${caravanProgress}%` }"
+              />
+            </div>
+          </div>
+          <p
+            v-else-if="caravanReady"
+            class="mt-3 flex items-center gap-1.5 text-[11px] text-theme-primary/60"
+          >
+            <Icon icon="mdi:cart-check" class="h-3.5 w-3.5" />
+            Ready to load — no XP, no combat
+          </p>
+          <p
+            v-if="caravan.refusal_reason && caravan.refusal_reason !== 'No caravan ready yet'"
+            class="mt-3 flex items-center gap-1.5 text-[11px] text-warning"
+          >
+            <Icon icon="mdi:alert-circle-outline" class="h-3.5 w-3.5" />
+            {{ caravan.refusal_reason }}
+          </p>
+        </section>
+
         <p
           v-if="dispatchInProgress"
           class="flex items-center gap-1.5 border-t border-theme-primary/20 pt-4 text-xs text-warning"
@@ -496,7 +604,7 @@ function dwellerDisplayName(first: string, last: string | null) {
 
         <section v-if="actionable" class="space-y-4 border-t border-theme-primary/20 pt-4">
           <p class="text-xs font-bold tracking-[0.12em] text-theme-primary/60">
-            {{ isSalvage ? 'SEND A SCAVENGER' : 'SEND TEAM' }}
+            {{ isSalvage ? 'SEND A SCAVENGER' : isTrade ? 'SEND A CARAVAN' : 'SEND TEAM' }}
           </p>
           <PartySlots
             :selected-dwellers="selectedDwellers"
@@ -513,7 +621,7 @@ function dwellerDisplayName(first: string, last: string | null) {
             @toggle="toggleDweller"
           />
           <SupplySliders
-            v-if="!isSalvage"
+            v-if="!isSalvage && !isTrade"
             :selected-stimpaks="selectedStimpaks"
             :selected-radaways="selectedRadaways"
             :max-stimpaks="maxStimpaks"
@@ -553,8 +661,11 @@ function dwellerDisplayName(first: string, last: string | null) {
         :disabled="!canSubmit || suppliesLoading"
         @click="confirmDispatch"
       >
-        <Icon :icon="isSalvage ? 'mdi:magnify' : 'mdi:send'" class="h-4 w-4" />
-        {{ isSalvage ? 'Search' : 'Dispatch' }}
+        <Icon
+          :icon="isSalvage ? 'mdi:magnify' : isTrade ? 'mdi:cart-outline' : 'mdi:send'"
+          class="h-4 w-4"
+        />
+        {{ isSalvage ? 'Search' : isTrade ? 'Send caravan' : 'Dispatch' }}
       </Button>
     </template>
   </TerminalModal>

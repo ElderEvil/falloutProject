@@ -637,13 +637,13 @@ describe('MapMarker zoom compensation', () => {
         y: 30,
         name: 'Camp',
         type: 'discovery',
-        color: 'var(--color-group-military)',
+        color: 'var(--color-family-threat)',
         risk: 'high',
       },
       global: { stubs: { Icon: true } },
     })
     expect(wrapper.find('.marker-glyph').attributes('style')).toContain(
-      'var(--color-group-military)'
+      'var(--color-family-threat)'
     )
     expect(wrapper.attributes('aria-label')).toContain('High risk')
     await wrapper.setProps({ is_unlocked: false })

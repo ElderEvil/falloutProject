@@ -291,6 +291,7 @@ describe('Exploration Store', () => {
         locationId: 'loc-1',
         stimpaks: 0,
         radaways: 0,
+        purpose: 'clear',
       })
       expect(result).toEqual(mockExploration)
       expect(store.explorations).toContainEqual(mockExploration)

@@ -9335,6 +9335,33 @@ export interface components {
             partners: components["schemas"]["LineageMember"][];
         };
         /**
+         * LocationCaravanStateRead
+         * @description What a caravan here would cost and pay, and why it is refused right now
+         *     (None = available).
+         */
+        LocationCaravanStateRead: {
+            /** Material */
+            material: string;
+            /** Band */
+            band: number[];
+            /** Caps Cost */
+            caps_cost: number;
+            /** Party Cap */
+            party_cap: number;
+            /**
+             * Cooldown Remaining Seconds
+             * @default 0
+             */
+            cooldown_remaining_seconds?: number;
+            /**
+             * Cooldown Total Seconds
+             * @default 0
+             */
+            cooldown_total_seconds?: number;
+            /** Refusal Reason */
+            refusal_reason?: string | null;
+        };
+        /**
          * LocationClearStateRead
          * @description Read-only projection of VaultLocationState clear fields; availability is
          *     derived from now at read time, never persisted.
@@ -12728,12 +12755,13 @@ export interface components {
             /** Created At */
             created_at: string | null;
             clear_state?: components["schemas"]["LocationClearStateRead"] | null;
+            caravan?: components["schemas"]["LocationCaravanStateRead"] | null;
             /**
              * Action
              * @default none
              * @enum {string}
              */
-            action: "clear" | "salvage" | "none";
+            action: "clear" | "salvage" | "trade" | "none";
             /** Dwellers */
             dwellers: components["schemas"]["DwellerRef"][];
             /**

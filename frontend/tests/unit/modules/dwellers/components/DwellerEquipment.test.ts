@@ -9,6 +9,8 @@ import {
 } from '../../../helpers/dwellerDetailContext'
 import type { Dweller } from '@/modules/dwellers/models/dweller'
 import type { DwellerDetailContext } from '@/modules/dwellers/components/DwellerDetailContext'
+import DwellerCollectibles from '@/modules/dwellers/components/DwellerCollectibles.vue'
+import { getDwellerCollectibles } from '@/modules/dwellers/api/collectibles'
 
 enableAutoUnmount(afterEach)
 
@@ -38,6 +40,8 @@ const petsStoreMock = vi.hoisted(() => ({
 vi.mock('@/modules/pets/stores/pets', () => ({
   usePetsStore: () => petsStoreMock,
 }))
+
+vi.mock('@/modules/dwellers/api/collectibles', () => ({ getDwellerCollectibles: vi.fn() }))
 
 vi.mock('@/modules/auth/stores/auth', () => ({
   useAuthStore: () => ({
@@ -120,6 +124,8 @@ beforeEach(() => {
   petsStoreMock.getAvailablePets.mockReturnValue([])
   petsStoreMock.equipPet.mockResolvedValue(undefined)
   petsStoreMock.unequipPet.mockResolvedValue(undefined)
+  // The collectibles child loads on mount; default to none so unrelated tests stay offline.
+  vi.mocked(getDwellerCollectibles).mockResolvedValue([])
 })
 
 describe('DwellerEquipment', () => {
@@ -524,4 +530,28 @@ it('does not open a stale picker after switching vaults during its load', async 
   finish?.()
   await flushPromises()
   expect(wrapper.findComponent({ name: 'TerminalModal' }).props('open')).toBe(false)
+})
+
+describe('DwellerEquipment collectibles', () => {
+  it('renders exactly one collectibles view beneath the equipment slots', async () => {
+    vi.mocked(getDwellerCollectibles).mockResolvedValue([
+      {
+        key: 'strength',
+        name: 'Strength Bobblehead',
+        stat: 'strength',
+        amount: 1,
+        image: 'bobblehead_images/strength.png',
+        location: 'Poseidon Energy',
+        found_at: '2026-11-21T00:00:00Z',
+      },
+    ] as never)
+
+    const wrapper = mountEquip(makeDweller())
+    await flushPromises()
+
+    // The parent-child link is what a section-list test cannot prove: drop the embed and this fails.
+    const views = wrapper.findAllComponents(DwellerCollectibles)
+    expect(views).toHaveLength(1)
+    expect(views[0]!.text()).toContain('Strength Bobblehead')
+  })
 })

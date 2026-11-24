@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file.
 
+## 3.20.5 (2026-11-24)
+
 ## 3.20.4 (2026-11-24)
 
 ### Bug Fixes

@@ -21,8 +21,7 @@ DEBT: dict[str, str] = {
     "mixins.py": "CompletionMixin.complete",
     "notification.py": "CRUDNotification.mark_as_read CRUDNotification.mark_all_as_read CRUDNotification.dismiss",
     "objective.py": (
-        "CRUDObjective.create_for_vault CRUDObjective.sync_starter_templates "
-        "CRUDObjective.sync_achievement_templates"
+        "CRUDObjective.create_for_vault CRUDObjective.sync_starter_templates CRUDObjective.sync_achievement_templates"
     ),
     "quest.py": "CRUDQuest.get_multi_for_vault CRUDQuest.create_quest",
     "room.py": "CRUDRoom.apply_remodel",

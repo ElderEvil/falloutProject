@@ -102,10 +102,8 @@ class CRUDExploration(CRUDBase[Exploration, ExplorationCreate, ExplorationUpdate
     async def has_unfinished_dispatch_to(self, db_session: AsyncSession, *, vault_id: UUID, location_id: UUID) -> bool:
         """True while a party is still out to, or coming back from, the location.
 
-        The partial unique index covers ACTIVE runs only, so a party on its return leg frees the index
-        slot while still occupying the destination. Clearing tolerates that (a new run is blocked by the
-        site's own reclear window); a caravan must not, or a short cooldown would let two parties trade
-        with one settlement at once.
+        The partial unique index covers ACTIVE only, so a returning party frees the index slot while still
+        occupying the destination — fine for clearing, fatal for a caravan's cooldown.
         """
         result = await db_session.execute(
             select(Exploration.id)

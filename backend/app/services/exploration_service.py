@@ -47,7 +47,7 @@ from app.utils import world_terrain
 from app.utils.collectibles import bobblehead_for_location
 from app.utils.dweller_availability import DwellerAction, availability_error
 from app.utils.exceptions import ResourceNotFoundException, ValidationException, ensure_found
-from app.utils.place_groups import effective_place_group, trade_caps_cost, trade_entry, trade_tier
+from app.utils.place_groups import effective_place_group, trade_entry, trade_terms
 from app.utils.place_loot import loot_table
 from app.utils.serialize import serialize_naive_utc_datetime, serialize_optional_utc_datetime
 from app.utils.time import utcnow
@@ -373,12 +373,9 @@ class ExplorationService:
     ) -> Exploration:
         """Send a party to a specific map point: clear a site, or trade with a settlement.
 
-        Travels whole hours by distance from the vault slot, suppresses random events, resolves once on arrival.
-        No leader: dweller_ids[0] only anchors the non-nullable Exploration.dweller_id FK.
-
-        A trade run (issue 1493) is the safe faucet: no combat, no loot roll above common, no XP, and a
-        flat caps fee charged inside the departure transaction. It shares one eligibility rule with a
-        clear (unlocked, one party per site), because the map must never advertise what this refuses.
+        Travels whole hours by distance from the vault slot, suppresses random events, resolves once on
+        arrival. No leader: dweller_ids[0] only anchors the non-nullable Exploration.dweller_id FK. A trade
+        run shares this whole tail and pays a flat caps fee inside the departure transaction.
         """
         max_party_size = game_config.exploration.dispatch.max_party_size
         if not dweller_ids:
@@ -512,20 +509,20 @@ class ExplorationService:
         state: VaultLocationState,
         group: dict | None,
     ) -> int:
-        """Refuse a caravan the map would not offer, else return the fee it costs.
+        """Refuse a caravan the map would not offer, else return its fee.
 
-        One party per place (the partial unique index only covers ACTIVE runs, so this check is what
-        keeps a settlement busy through the return leg) and one cooldown per settlement. Knowledge of
-        the place is checked by the shared dispatch tail, after this returns.
+        The unfinished-dispatch check is what keeps a settlement busy through the return leg: the partial
+        unique index only sees ACTIVE runs. Knowledge of the place is checked later, by the shared tail.
         """
-        if trade_tier(group) == 0 or trade_entry(location.name) is None:
+        fee, _cooldown = trade_terms(group)
+        if fee == 0 or trade_entry(location.name) is None:
             raise ValidationException("Nothing to trade here")
         if await crud_exploration.has_unfinished_dispatch_to(db_session, vault_id=vault_id, location_id=location.id):
             raise ValidationException("A party is already on its way to this location")
         now = utcnow()
         if state.caravan_available_at is not None and now < state.caravan_available_at:
             raise ValidationException("This settlement has no caravan ready yet")
-        return trade_caps_cost(group)
+        return fee
 
     async def _charge_caravan_fee(
         self,
@@ -537,12 +534,10 @@ class ExplorationService:
         state: VaultLocationState,
         group: dict | None,
     ) -> None:
-        """Re-validate trade eligibility and debit the fee under the vault row lock.
+        """Re-check eligibility and debit the fee under the vault row lock.
 
-        The pre-check ran before any lock, and snapshot generation commits in between, so a caravan that
-        was refused a moment ago can be admissible by now (and the reverse: a recalled run stamps no
-        cooldown, so two parties could work one settlement). Re-checking here serializes both caravans of
-        a vault on its row. Any later failure in this transaction rolls the debit back.
+        Snapshot generation commits between the pre-check and here, and a recalled caravan stamps no
+        cooldown, so two parties could otherwise work one settlement. Any later failure rolls the debit back.
         """
         vault = await vault_crud.lock_for_update(db_session, vault_id)
         await db_session.refresh(state)

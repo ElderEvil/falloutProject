@@ -295,8 +295,7 @@ class RewardsService:
         commit: bool = False,
     ) -> int:
         """Grant exploration XP to one living member, settling any level-up."""
-        # A trade caravan is the safe faucet: zero XP, including the distance XP the spatial ticker
-        # accrues (issue 1493). Enforced at the single grant point, so team and solo paths inherit it.
+        # A caravan pays no XP at all, not even the distance XP the spatial ticker accrues (issue 1493).
         if exploration.purpose == ExplorationPurpose.TRADE:
             return 0
         from app.services.leveling_service import leveling_service

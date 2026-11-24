@@ -4,13 +4,10 @@ Revision ID: c1a5e8b4d902
 Revises: b1e2f3a4c5d6
 Create Date: 2026-11-23 00:01:00.000000
 
-Trade caravans (issue 1493). No backfill is needed: the purpose defaults to 'clear' (every existing
-run is a clear, which is also what the resolver already assumes), and a NULL cooldown means "never
-traded". Both adds are metadata-only in PG, so no maintenance window. The server default is dropped
-immediately after the add so the migrated schema matches the model, which carries no server default.
-
-No index on purpose: it holds two values, and no query filters on it alone. If a trade-only scan
-ever needs one, a partial index WHERE purpose = 'trade' is the right tool, not a btree over a boolean.
+Trade caravans (issue 1493). No backfill: 'clear' is what every existing run is, and a NULL cooldown
+means "never traded". Both adds are metadata-only in PG, so no maintenance window; the default is dropped
+straight after so the migrated schema matches the model. No index on purpose — two values, never filtered
+alone. If a trade-only scan ever needs one, a partial index is the right tool, not a btree over a boolean.
 """
 
 from collections.abc import Sequence

@@ -34,9 +34,8 @@ ERROR_NOT_ARRIVED = "Exploration has not arrived home yet"
 def _contribution_weight(run: Exploration) -> int:
     """World-event units one resolved run is worth.
 
-    A trade caravan contributes nothing (issue 1493): it is the safe faucet, and letting it feed world
-    events would make the cheap trip the optimal way to move a shared goal. Otherwise ``clear_tier`` is
-    the difficulty signal — NULL on a free-roam trip, the escalation tier on a dispatch sent to clear.
+    A trade caravan contributes nothing (issue 1493): the cheap trip must not be the optimal way to move
+    a shared goal. Otherwise ``clear_tier`` is the signal — NULL on a roam, the tier on a clear.
     """
     if run.purpose == ExplorationPurpose.TRADE:
         return 0

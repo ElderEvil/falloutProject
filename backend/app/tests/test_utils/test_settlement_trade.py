@@ -13,9 +13,8 @@ from app.utils.place_groups import (
     group_for_place_name,
     load_settlement_trade,
     seeded_place_groups,
-    trade_caps_cost,
     trade_entry,
-    trade_tier,
+    trade_terms,
 )
 
 
@@ -65,16 +64,16 @@ def test_trade_lookup_is_by_place_name_and_silent_when_untradeable() -> None:
     assert trade_entry("Vault 101") is None
 
 
-def test_tiers_fees_and_untradeable_groups() -> None:
-    settlement = get_place_group("settlement")
-    city = get_place_group("city")
+def test_trade_terms_are_flat_per_tier() -> None:
+    caravan = game_config.exploration.caravan
 
-    assert trade_tier(settlement) == 1
-    assert trade_tier(city) == 2
-    assert trade_tier(get_place_group("factory")) == 0
-    assert trade_caps_cost(settlement) == game_config.exploration.caravan.caps_cost_settlement
-    assert trade_caps_cost(city) == game_config.exploration.caravan.caps_cost_city
-    assert trade_caps_cost(get_place_group("factory")) == 0
+    assert trade_terms(get_place_group("settlement")) == (
+        caravan.caps_cost_settlement,
+        caravan.revisit_hours_settlement,
+    )
+    assert trade_terms(get_place_group("city")) == (caravan.caps_cost_city, caravan.revisit_hours_city)
+    assert trade_terms(get_place_group("factory")) == (0, 0)
+    assert trade_terms(None) == (0, 0)
 
 
 def test_a_material_without_a_common_item_is_rejected(monkeypatch: pytest.MonkeyPatch) -> None:

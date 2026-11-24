@@ -1,5 +1,5 @@
 {
-  "_comment": "Caravan shipment catalog (issue 1493): one named material per tradeable place. 'band' is the unit range per dispatch, both tiers: yield parity is the guardrail, and a city earns its higher fee with a shorter cooldown instead. 'comparable' names the clearable seed site whose cleared haul sets the volume bar (three junk units per run); its materials need not match the shipment, because the half-yield rule is about volume, not identity. Content for the economy test, never shown to a player.",
+  "_comment": "Caravan shipments (issue 1493): one material per tradeable place, a unit band per trip, and the clearable site whose cleared haul benchmarks the half-yield test. Never shown to a player.",
   "places": [
     {"place": "Arefu", "material": "steel", "band": [1, 2], "comparable": "Poseidon Energy"},
     {"place": "Big Town", "material": "cloth", "band": [1, 2], "comparable": "Super Duper Mart"},

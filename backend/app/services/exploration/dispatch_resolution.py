@@ -34,14 +34,8 @@ from app.services.exploration.party_resolution import (
     resolve_party_combat,
 )
 from app.services.notification_service import notification_service
-from app.utils.place_groups import (
-    effective_place_group,
-    location_xp_for,
-    trade_entry,
-    trade_revisit_hours,
-)
+from app.utils.place_groups import effective_place_group, location_xp_for, shipment_items, trade_entry, trade_terms
 from app.utils.place_loot import loot_table
-from app.utils.static_data import game_data_store
 from app.utils.time import utcnow
 
 logger = logging.getLogger(__name__)
@@ -227,14 +221,12 @@ async def _resolve_trade(
     group: dict,
     arrived: bool,
 ) -> None:
-    """Settle a caravan: a guaranteed shipment of the settlement's material, no combat, no XP.
+    """Settle a caravan: a guaranteed shipment, no combat, no XP.
 
-    The shipment is common junk only — the material the catalog names for this place — and it is per
-    run, not per dweller: one cart. Scaling it with the party would let a two-dweller caravan out-haul
-    a two-dweller clear, which is exactly what the half-yield guardrail forbids. The cooldown is
-    stamped on arrival, not at home: the run keeps the destination occupied until it is back (dispatch
-    refuses a second party), so the clock can start here and stay deterministic. A recalled or blocked
-    caravan never reaches this branch: no shipment, no cooldown, fee forfeited.
+    One cart per run, not per dweller — scaling with the party would let two dwellers out-haul a
+    two-dweller clear, which is the rule this feature exists to respect. The cooldown starts on arrival
+    because the run holds the destination until it is home. Recalled or blocked caravans never reach
+    this branch: no shipment, no cooldown, fee forfeited.
     """
     entry = trade_entry(location.name)
     now = utcnow()
@@ -246,12 +238,7 @@ async def _resolve_trade(
     else:
         anchor = await dweller_crud.get_with_equipment(db_session, exploration.dweller_id)
         members = [anchor] if anchor is not None and not anchor.is_dead else []
-    # Case-insensitive: the catalog ships a material key, the junk catalog stores the label.
-    common = [
-        item
-        for item in game_data_store.junk_items
-        if str(item.junk_type).lower() == entry["material"] and str(item.rarity).lower() == "common"
-    ]
+    common = shipment_items(entry["material"])
     if not members or not common:
         await exploration_coordinator.start_return(db_session, exploration.id, arrived=arrived)
         return
@@ -260,7 +247,7 @@ async def _resolve_trade(
     item = common[0]
     for _ in range(random.randint(low, high)):
         apply_loot_find(exploration, item_name=item.name, rarity="common", item_type="junk", caps=0)
-    state.caravan_available_at = now + timedelta(hours=trade_revisit_hours(group))
+    state.caravan_available_at = now + timedelta(hours=trade_terms(group)[1])
     db_session.add(state)
     db_session.add(exploration)
     # Flush before the return leg re-locks the run, exactly as the clearing branch does.

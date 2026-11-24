@@ -31,12 +31,14 @@ from app.models.storage import Storage
 from app.models.vault import Vault
 from app.options.identity_modifiers import effective_stat
 from app.schemas.room_rush import RoomRushQuote, RoomRushResourceGain, RoomRushResult, RushBlockedReason
+from app.services.collectible_service import collectible_service
 from app.services.combat import incident_spawning
 from app.services.notification_service import notification_service
 from app.services.resource_manager_service import ResourceManager, compute_medical_capacity, load_rival_pairs
 from app.services.rewards.resources import grant_experience
 from app.services.vault.scenario_service import vault_scenario_service
 from app.services.vault_service import vault_service
+from app.utils.collectibles import PRODUCTION_PCT
 from app.utils.exceptions import (
     IncidentsDisabledException,
     ResourceConflictException,
@@ -365,8 +367,16 @@ class RoomRushService:
         storage = await crud_storage.get_by_vault(db_session, vault.id)
         rooms = await crud_room.get_all_by_vault(db_session, vault.id)
         rival_pairs = await load_rival_pairs(db_session, {worker.id for worker in workers})
+        # Same rule as the tick: a room must not pay two rates depending on how it was worked.
+        production_multiplier = await collectible_service.bonus_multiplier(
+            db_session, vault_id=vault.id, bonus_type=PRODUCTION_PCT
+        )
         raw_payout = self.resource_manager.calculate_room_production(
-            room, workers, game_config.rush.payout_seconds, rival_pairs=rival_pairs
+            room,
+            workers,
+            game_config.rush.payout_seconds,
+            rival_pairs=rival_pairs,
+            production_multiplier=production_multiplier,
         )
         scenario = vault_scenario_service.get(vault.scenario_key)
         if scenario is not None:

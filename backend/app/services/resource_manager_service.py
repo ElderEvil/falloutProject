@@ -24,8 +24,10 @@ from app.schemas.vault import (
     ResourceTickEvents,
     VaultUpdate,
 )
+from app.services.collectible_service import collectible_service
 from app.services.game_tick.deprivation import output_multiplier
 from app.services.vault.scenario_service import vault_scenario_service
+from app.utils.collectibles import PRODUCTION_PCT
 from app.utils.resource_warnings import get_resource_warnings
 
 logger = logging.getLogger(__name__)
@@ -79,6 +81,10 @@ class ResourceManager:
         rival_pairs = await load_rival_pairs(db_session, dweller_ids)
 
         with tick_phase("resources.calculate"):
+            # Read once per window: the set bonus is a vault property, not a per-step one.
+            production_multiplier = await collectible_service.bonus_multiplier(
+                db_session, vault_id=vault_id, bonus_type=PRODUCTION_PCT
+            )
             resource_update, events = self.calculate_resource_window(
                 resource_data.vault,
                 resource_data.rooms,
@@ -87,6 +93,7 @@ class ResourceManager:
                 seconds_passed,
                 state=resource_data.game_state,
                 rival_pairs=rival_pairs,
+                production_multiplier=production_multiplier,
             )
 
         # Write medical production to Storage (separate from VaultUpdate)
@@ -135,6 +142,7 @@ class ResourceManager:
         *,
         state: GameState | None = None,
         rival_pairs: set[frozenset[UUID]] | None = None,
+        production_multiplier: float = 1.0,
     ) -> tuple[VaultUpdate, ResourceTickEvents]:
         """Calculate net resource change considering production, consumption, and efficiency.
 
@@ -156,7 +164,13 @@ class ResourceManager:
         while elapsed < seconds_passed:
             step = min(60, seconds_passed - elapsed)
             used = self._calculate_consumption(rooms, dweller_count, step)
-            made = self._calculate_production(rooms_with_dwellers, step, stocks["power"], rival_pairs=rival_pairs)
+            made = self._calculate_production(
+                rooms_with_dwellers,
+                step,
+                stocks["power"],
+                rival_pairs=rival_pairs,
+                production_multiplier=production_multiplier,
+            )
             self.apply_food_water_multiplier(made, food_water_multiplier)
             deprivation_multiplier = output_multiplier(state)
             if deprivation_multiplier != 1.0:
@@ -235,14 +249,19 @@ class ResourceManager:
         seconds_passed: int,
         *,
         rival_pairs: set[frozenset[UUID]] | None = None,
+        production_multiplier: float = 1.0,
     ) -> dict[str, float]:
         """Return this room's raw production split across resource keys."""
         totals = dict.fromkeys(("power", "food", "water", "stimpack", "radaway"), 0.0)
         if room.ability is None:
             return totals
 
-        production = self._calculate_room_production(room, dwellers, seconds_passed) * self._friction_multiplier(
-            dwellers, rival_pairs
+        # The set bonus is vault-wide, so it scales the room's whole output once, after friction,
+        # and never leaks into the rate that _apply_room_production prices per resource.
+        production = (
+            self._calculate_room_production(room, dwellers, seconds_passed)
+            * self._friction_multiplier(dwellers, rival_pairs)
+            * production_multiplier
         )
         self._apply_room_production(room.name, room.ability, production, totals)
         return totals
@@ -293,6 +312,7 @@ class ResourceManager:
         current_power: float,
         *,
         rival_pairs: set[frozenset[UUID]] | None = None,
+        production_multiplier: float = 1.0,
     ) -> dict[str, float]:
         """Calculate resource production from all production rooms."""
         production_totals = {"power": 0.0, "food": 0.0, "water": 0.0, "stimpack": 0.0, "radaway": 0.0}
@@ -308,7 +328,13 @@ class ResourceManager:
             if current_power <= 0 and room.ability != SPECIALEnum.STRENGTH:
                 continue
 
-            production = self.calculate_room_production(room, dwellers, seconds_passed, rival_pairs=rival_pairs)
+            production = self.calculate_room_production(
+                room,
+                dwellers,
+                seconds_passed,
+                rival_pairs=rival_pairs,
+                production_multiplier=production_multiplier,
+            )
             for resource_type, amount in production.items():
                 production_totals[resource_type] += amount
 

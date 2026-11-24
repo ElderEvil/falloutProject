@@ -22,11 +22,13 @@ from app.models.weapon import Weapon
 from app.options.pet_modifiers import MAX_PCT_BONUS, pet_modifiers_for
 from app.schemas.exploration import PendingOverflowRead
 from app.schemas.exploration_event import RewardsSchema
+from app.services.collectible_service import collectible_service
 from app.services.exploration.locking import lock_exploration_with_vault_claim
 from app.services.exploration.rewards_calculator import rewards_calculator
 from app.services.loot_overflow_service import loot_overflow_service
 from app.services.resource_manager_service import compute_medical_capacity
 from app.services.vault_service import vault_service
+from app.utils.collectibles import EXPEDITION_LOOT_PCT
 from app.utils.exceptions import ValidationException
 from app.utils.objective_constants import WASTELAND_LOOT_SOURCE
 
@@ -333,7 +335,13 @@ class RewardsService:
         total_caps = exploration.total_caps_found
         credited = 0
         if total_caps > 0:
-            total_caps = int(total_caps * (1 + min(pet_modifiers_for(dweller_obj).caps_pct, MAX_PCT_BONUS)))
+            # The one place a run's caps become vault caps: apply the completed comic set here, so
+            # the find-time loot stays the run's raw haul and the bonus can never be paid twice.
+            loot_multiplier = await collectible_service.bonus_multiplier(
+                db_session, vault_id=exploration.vault_id, bonus_type=EXPEDITION_LOOT_PCT
+            )
+            pet_multiplier = 1 + min(pet_modifiers_for(dweller_obj).caps_pct, MAX_PCT_BONUS)
+            total_caps = int(total_caps * pet_multiplier * loot_multiplier)
             vault = await crud_vault.get(db_session, exploration.vault_id)
             credited = await vault_service.deposit_caps(
                 db_session=db_session, vault_obj=vault, amount=total_caps, commit=commit, emit_event=False

@@ -3,6 +3,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from app import crud
 from app.cli.simulate_resources import ResourceEconomyConfig, _build_scenario, simulate
 from app.core.enums import AgeGroupEnum, RarityEnum, RoomTypeEnum, SPECIALEnum
 from app.core.event_bus import GameEvent
@@ -12,9 +13,16 @@ from app.models import Dweller, Storage
 from app.models.room import Room
 from app.models.vault import Vault
 from app.options.races import DISCOMFORT_EFFECTS, DISCOMFORT_PRODUCTION_FLOOR, DiscomfortSeverity
-from app.schemas.vault import ResourceLevelWarning, ResourceProduction, ResourceTickEvents
+from app.schemas.dweller import DwellerCreate
+from app.schemas.room import RoomCreate
+from app.schemas.vault import ResourceLevelWarning, ResourceProduction, ResourceTickEvents, VaultCreateWithUserID
+from app.services.collectible_service import collectible_service
 from app.services.resource_manager_service import ResourceManager
 from app.services.vault.scenario_service import SHORT_RATIONS_SCENARIO, vault_scenario_service
+from app.tests.factory.dwellers import create_fake_dweller
+from app.tests.factory.rooms import create_fake_room
+from app.tests.factory.vaults import create_fake_vault
+from app.utils.collectibles import PRODUCTION_PCT
 from app.utils.item_factory import build_outfit
 from app.utils.resource_warnings import get_resource_warnings
 
@@ -388,3 +396,64 @@ def test_friction_multiplier_penalizes_discomfort_and_rivals() -> None:
         DISCOMFORT_EFFECTS[DiscomfortSeverity.MODERATE].production_multiplier * max(1 - 2 * penalty, 1 - penalty),
     )
     assert ResourceManager._friction_multiplier([human, mutant], rival_pairs) == pytest.approx(expected)
+
+
+BOBBLEHEADS = ("strength", "perception", "endurance", "charisma", "intelligence", "agility", "luck")
+
+
+async def _staffed_power_vault(async_session, user_id):
+    """One vault with a single staffed generator, deterministic across two runs."""
+    vault = await crud.vault.create(
+        db_session=async_session, obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user_id)
+    )
+    vault.power, vault.power_max = 100, 100
+    room_data = create_fake_room() | {
+        "name": "Power Generator",
+        "category": RoomTypeEnum.PRODUCTION,
+        "ability": SPECIALEnum.STRENGTH,
+        "output": 10.0,
+        "tier": 1,
+        "size": 1,
+        "size_min": 1,
+        "size_max": 1,
+    }
+    room = await crud.room.create(db_session=async_session, obj_in=RoomCreate(**room_data, vault_id=vault.id))
+    data = create_fake_dweller()
+    data.update({"strength": 10, "health": 100, "max_health": 100, "age_group": AgeGroupEnum.ADULT})
+    worker = await crud.dweller.create(db_session=async_session, obj_in=DwellerCreate(**data, vault_id=vault.id))
+    # Room assignment is not a create-time field; the tick reads dwellers through room_id.
+    worker.room_id = room.id
+    async_session.add(worker)
+    await async_session.commit()
+    return vault
+
+
+async def _tick_power(async_session, vault: Vault) -> float:
+    _, events = await ResourceManager().process_vault_resources(async_session, vault.id, 60)
+    return events.production.power
+
+
+@pytest.mark.parametrize(("keys", "expected"), [(BOBBLEHEADS[:6], 1.0), (BOBBLEHEADS, 1.05)])
+async def test_the_bobblehead_cabinet_multiplies_a_real_tick_once(
+    async_session, vault: Vault, monkeypatch: pytest.MonkeyPatch, keys: tuple[str, ...], expected: float
+) -> None:
+    # 7/7 scales one tick by exactly 1.05; a double application would read 1.1025. The finder is a
+    # second, unassigned dweller so its +1 SPECIAL is not what moves the room.
+    monkeypatch.setattr(game_config.features, "collectibles", True)
+    control = await _staffed_power_vault(async_session, vault.user_id)
+    boosted = await _staffed_power_vault(async_session, vault.user_id)
+    finder = await crud.dweller.create(
+        db_session=async_session,
+        obj_in=DwellerCreate(**create_fake_dweller(), vault_id=boosted.id),
+    )
+    for key in keys:
+        assert await collectible_service.award(async_session, vault_id=boosted.id, dweller=finder, collectible_key=key)
+    await async_session.commit()
+    assert await collectible_service.bonus_multiplier(
+        async_session, vault_id=boosted.id, bonus_type=PRODUCTION_PCT
+    ) == pytest.approx(expected)
+
+    base = await _tick_power(async_session, control)
+
+    assert base > 0
+    assert await _tick_power(async_session, boosted) == pytest.approx(base * expected)

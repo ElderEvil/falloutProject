@@ -82,6 +82,7 @@ def pg_worker_database() -> Generator[str | None]:
         return
     worker = os.environ.get("PYTEST_XDIST_WORKER", "main")
     clone = f"{url.database}_w{worker}"
+    clone_uri = url.set(database=clone).render_as_string(hide_password=False)
     if not _run_admin(url, f'DROP DATABASE IF EXISTS "{clone}" WITH (FORCE)', f'CREATE DATABASE "{clone}"'):
         yield None
         return
@@ -89,9 +90,10 @@ def pg_worker_database() -> Generator[str | None]:
         migrated = subprocess.run(
             [sys.executable, "-m", "alembic", "upgrade", "head"],
             cwd=str(Path(__file__).resolve().parents[3]),
-            # Alembic hands this through configparser, which treats `%` as an interpolation
-            # marker: a socket-path URL would blow up there, so escape it on the way in.
-            env={**os.environ, "ASYNC_DATABASE_URI": str(url.set(database=clone)).replace("%", "%%")},
+            # `str(URL)` renders the password as `***`; the subprocess needs the real one.
+            # Alembic then passes the value through configparser, which treats `%` as an
+            # interpolation marker, so escape it (a socket-path DSN hits exactly that).
+            env={**os.environ, "ASYNC_DATABASE_URI": clone_uri.replace("%", "%%")},
             capture_output=True,
             text=True,
             timeout=600,

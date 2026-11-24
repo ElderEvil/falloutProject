@@ -25,8 +25,9 @@ def _session_maker(engine: AsyncEngine) -> async_sessionmaker[AsyncSession]:
 
 def _pooled_engine(engine: AsyncEngine) -> AsyncEngine:
     # A pooled engine on the same per-worker database: NullPool cannot show whether a
-    # connection was handed back, and advisory locks are per-database.
-    return create_async_engine(str(engine.url))
+    # connection was handed back, and advisory locks are per-database. `str(URL)` would
+    # mask the password as `***`, so render it with the credential intact.
+    return create_async_engine(engine.url.render_as_string(hide_password=False))
 
 
 @pytest.mark.integration

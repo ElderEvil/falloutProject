@@ -5,6 +5,7 @@ from uuid import UUID
 
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.enums import ExplorationPurpose
 from app.crud import dweller as dweller_crud
 from app.crud import exploration as crud_exploration
 from app.models.exploration import Exploration
@@ -33,9 +34,11 @@ ERROR_NOT_ARRIVED = "Exploration has not arrived home yet"
 def _contribution_weight(run: Exploration) -> int:
     """World-event units one resolved run is worth.
 
-    Exploration has no mode/kind column: ``clear_tier`` is its only per-run difficulty signal — NULL on
-    a free-roam trip, the escalation tier on a dispatch sent to clear a hazard site.
+    A trade caravan contributes nothing (issue 1493): the cheap trip must not be the optimal way to move
+    a shared goal. Otherwise ``clear_tier`` is the signal — NULL on a roam, the tier on a clear.
     """
+    if run.purpose == ExplorationPurpose.TRADE:
+        return 0
     return 3 if run.clear_tier is not None else 1
 
 

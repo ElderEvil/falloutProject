@@ -411,6 +411,13 @@ class ExplorationStatus(StrEnum):
     RECALLED = "recalled"
 
 
+class ExplorationPurpose(StrEnum):
+    """What a targeted run is for: clearing a site, or trading with a settlement (issue 1493)."""
+
+    CLEAR = "clear"
+    TRADE = "trade"
+
+
 class IncidentType(StrEnum):
     """Types of incidents that can occur in the vault."""
 

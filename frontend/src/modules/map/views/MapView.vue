@@ -308,6 +308,7 @@ async function ensureDispatchData() {
 async function handleDispatch(payload: {
   dwellerIds: string[]
   supplies: { stimpaks: number; radaways: number }
+  purpose: 'clear' | 'trade'
 }) {
   const location = selectedLocation.value
   if (
@@ -324,11 +325,13 @@ async function handleDispatch(payload: {
       vaultId.value,
       payload.dwellerIds,
       location.id,
-      payload.supplies
+      payload.supplies,
+      payload.purpose
     )
     showModal.value = false
     await mapStore.refreshMap(vaultId.value)
-    toast.success(`${location.name} — dispatch sent`)
+    const verb = payload.purpose === 'trade' ? 'caravan sent' : 'dispatch sent'
+    toast.success(`${location.name} — ${verb}`)
   } catch (err) {
     notifyErrorOnce(err, getErrorMessage(err))
   } finally {

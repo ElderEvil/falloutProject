@@ -96,9 +96,7 @@ async def test_get_vault_map_reports_collectible_set_progress(
 ) -> None:
     monkeypatch.setattr(game_config.features, "collectibles", True)
     for key in ("grognak_barbarian", "astounding_tales"):
-        assert await collectible_service.award(
-            async_session, vault_id=vault.id, dweller=dweller, collectible_key=key
-        )
+        assert await collectible_service.award(async_session, vault_id=vault.id, dweller=dweller, collectible_key=key)
     await async_session.commit()
     response = await async_client.get(f"/map/vault/{vault.id}", headers=superuser_token_headers)
     assert response.status_code == 200

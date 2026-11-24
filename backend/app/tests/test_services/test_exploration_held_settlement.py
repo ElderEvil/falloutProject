@@ -33,6 +33,7 @@ from app.services.exploration.rewards_service import rewards_service
 from app.services.exploration_service import exploration_service
 from app.services.leveling_service import LevelingService
 from app.tests.factory.items import create_fake_outfit, create_fake_weapon
+from app.utils.reward_delivery import reward_delivery_is_deferred
 from app.utils.time import utcnow
 
 
@@ -289,6 +290,9 @@ async def test_failed_settlement_discards_level_up_and_retry_delivers_once(
         await exploration_coordinator.finalize_return(async_session, exploration_id)
     assert _level_up_events(emit, vault_id) == []
     notify.assert_not_awaited()
+    # Name the branch on the next red instead of leaving `0 == 1`: if the deferral flag
+    # survived the failed attempt, the retry would skip surfacing silently.
+    assert not reward_delivery_is_deferred(async_session), "deferral flag survived the failed attempt"
     await async_session.refresh(dweller)
     assert dweller.level == level_before
     with (

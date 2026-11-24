@@ -23,6 +23,13 @@ class CRUDCollectible:
         )
         return result.scalar_one_or_none()
 
+    async def list_keys(self, db_session: AsyncSession, vault_id: UUID) -> list[str]:
+        """Every collectible key this vault holds; the set bonus reads claims, never finders."""
+        result = await db_session.execute(
+            select(VaultCollectible.collectible_key).where(VaultCollectible.vault_id == vault_id)
+        )
+        return list(result.scalars().all())
+
     async def list_for_dweller(
         self, db_session: AsyncSession, vault_id: UUID, dweller_id: UUID
     ) -> list[VaultCollectible]:

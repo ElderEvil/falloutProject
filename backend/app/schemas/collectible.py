@@ -1,4 +1,4 @@
-"""Read models for the durable per-vault bobblehead claims."""
+"""Read models for the durable per-vault collectible claims and their sets."""
 
 from __future__ import annotations
 
@@ -17,3 +17,13 @@ class DwellerCollectibleRead(SQLModel):
     image: str
     location: str
     found_at: datetime
+
+
+class CollectibleSetProgressRead(SQLModel):
+    """One defined set and this vault's progress toward its bonus."""
+
+    set: str
+    name: str
+    held: int
+    required: int
+    active: bool

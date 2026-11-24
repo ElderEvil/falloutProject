@@ -5,6 +5,8 @@
   "stat": "strength",
   "amount": 1,
   "image": "bobblehead_images/strength.png",
+  "kind": "bobblehead",
+  "set": "bobbleheads",
   "location": "Poseidon Energy",
   "action": "clear",
   "description": "Hefted a turbine rotor alone the night the grid went dark. Grip first, questions later."
@@ -15,6 +17,8 @@
   "stat": "perception",
   "amount": 1,
   "image": "bobblehead_images/perception.png",
+  "kind": "bobblehead",
+  "set": "bobbleheads",
   "location": "Museum of Freedom",
   "action": "salvage",
   "description": "A lookout's award, left in the curator's desk. The one exhibit the raiders never found."
@@ -25,6 +29,8 @@
   "stat": "endurance",
   "amount": 1,
   "image": "bobblehead_images/endurance.png",
+  "kind": "bobblehead",
+  "set": "bobbleheads",
   "location": "The Slog",
   "action": "salvage",
   "description": "Passed around the tarberry rows every harvest. The wasteland wears out; it didn't."
@@ -35,6 +41,8 @@
   "stat": "charisma",
   "amount": 1,
   "image": "bobblehead_images/charisma.png",
+  "kind": "bobblehead",
+  "set": "bobbleheads",
   "location": "Galaxy News Radio",
   "action": "clear",
   "description": "The station's on-air trophy. The voice on the tape still says the line better than anyone alive."
@@ -45,6 +53,8 @@
   "stat": "intelligence",
   "amount": 1,
   "image": "bobblehead_images/intelligence.png",
+  "kind": "bobblehead",
+  "set": "bobbleheads",
   "location": "The Institute",
   "action": "clear",
   "description": "A lab mascot from before the walls went up. Its notes are better than its smile."
@@ -55,6 +65,8 @@
   "stat": "agility",
   "amount": 1,
   "image": "bobblehead_images/agility.png",
+  "kind": "bobblehead",
+  "set": "bobbleheads",
   "location": "Mass Pike Tunnel",
   "action": "clear",
   "description": "A courier's charm, carried the length of the tunnel at a dead run and never dropped."
@@ -65,6 +77,8 @@
   "stat": "luck",
   "amount": 1,
   "image": "bobblehead_images/luck.png",
+  "kind": "bobblehead",
+  "set": "bobbleheads",
   "location": "Red Rocket - Springvale",
   "action": "clear",
   "description": "Pried out of a vending machine that paid out one time too many. The coin landed your way."

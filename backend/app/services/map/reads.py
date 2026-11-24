@@ -31,6 +31,7 @@ from app.schemas.wasteland_location import (
     WastelandLocationWithDwellers,
 )
 from app.services.catalog_service import load_expedition_sites
+from app.services.collectible_service import collectible_service
 from app.services.exploration.site_offers import (
     SiteBlockState,
     journey_offer_context,
@@ -39,7 +40,7 @@ from app.services.exploration.site_offers import (
     uses_single_scene,
 )
 from app.services.map import bio_registration, discovery
-from app.utils.collectibles import bobblehead_for_location
+from app.utils.collectibles import collectible_for_location
 from app.utils.place_groups import effective_place_group, load_place_groups, location_xp_for, trade_entry, trade_terms
 from app.utils.place_loot import loot_table
 from app.utils.places import WORLD_SCALE
@@ -158,8 +159,8 @@ def _action_for(
 
     A place the vault has not unlocked, or one with a party already en route, offers nothing:
     the dispatch service refuses both, so advertising an action here would only produce a dead-end
-    button. Salvage implies the place is not clearable and the catalog binds a bobblehead to its
-    name; the collectible feature flag keeps inert places inert while the content is switched off.
+    button. Salvage implies the place is not clearable and the catalog binds a salvage collectible to
+    it; the collectible feature flag keeps inert places inert while the content is switched off.
     """
     if caravan is not None and caravan.refusal_reason is None:
         return "trade"
@@ -170,10 +171,12 @@ def _action_for(
     group = effective_place_group(location.group_key, location.kind)
     if group is not None and group.get("clearable"):
         return "clear"
-    if game_config.features.collectibles and state.searched_at is None:
-        entry = bobblehead_for_location(location.name)
-        if entry is not None and entry["action"] == "salvage":
-            return "salvage"
+    if (
+        game_config.features.collectibles
+        and state.searched_at is None
+        and collectible_for_location(location.name, action="salvage") is not None
+    ):
+        return "salvage"
     return "none"
 
 
@@ -345,6 +348,7 @@ async def get_vault_map(db_session: AsyncSession, vault: Vault, *, unlocked_only
     ]
 
     expedition_sites = await _expedition_site_markers(db_session, vault)
+    collectible_sets = await collectible_service.set_progress(db_session, vault_id=vault.id)
 
     return VaultMapResponse(
         locations=locations,
@@ -353,6 +357,7 @@ async def get_vault_map(db_session: AsyncSession, vault: Vault, *, unlocked_only
         discovery_routes=discovery_routes,
         place_groups=[PlaceGroupRead(**group) for group in load_place_groups()],
         expedition_sites=expedition_sites,
+        collectible_sets=collectible_sets,
     )
 
 

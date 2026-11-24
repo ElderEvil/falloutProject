@@ -1,4 +1,4 @@
-"""Award bobbleheads: the durable vault claim plus the finder's permanent bonus.
+"""Award collectibles: the durable vault claim, the finder's permanent bonus, and set bonuses.
 
 Every write is staged; the caller's transaction owner commits. Dispatch awards run inside the
 existing vault claim and are published from ``start_return``, never from here.
@@ -22,9 +22,10 @@ from app.models.collectible import VaultCollectible
 from app.models.dweller import Dweller
 from app.models.exploration import Exploration
 from app.models.world_location import WorldLocation
-from app.schemas.collectible import DwellerCollectibleRead
+from app.schemas.collectible import CollectibleSetProgressRead, DwellerCollectibleRead
 from app.services.notification_service import notification_service
-from app.utils.collectibles import bobblehead_for_key, bobblehead_for_location
+from app.utils.collectibles import collectible_for_key, collectible_for_location, set_progress
+from app.utils.collectibles import set_bonus_multiplier as completed_set_multiplier
 from app.utils.time import utcnow
 
 logger = logging.getLogger(__name__)
@@ -32,7 +33,7 @@ logger = logging.getLogger(__name__)
 
 @dataclass(frozen=True)
 class CollectibleAward:
-    """One bobblehead awarded to a finder; the boundary builds its event payload."""
+    """One collectible awarded to a finder; the boundary builds its event payload."""
 
     collectible_key: str
     name: str
@@ -52,11 +53,11 @@ class CollectibleService:
         collectible_key: str,
         location_id: UUID | None = None,
     ) -> bool:
-        """Claim a bobblehead for the vault and add its bonus to the finder.
+        """Claim a collectible for the vault and add its bonus to the finder.
 
         Returns False when the vault already holds the claim; nothing is written then.
         """
-        entry = bobblehead_for_key(collectible_key)
+        entry = collectible_for_key(collectible_key)
         if await collectible_crud.get_by_vault_and_key(db_session, vault_id, collectible_key) is not None:
             return False
 
@@ -90,12 +91,12 @@ class CollectibleService:
     async def list_for_dweller(
         self, db_session: AsyncSession, *, vault_id: UUID, dweller_id: UUID
     ) -> list[DwellerCollectibleRead]:
-        """The dweller's found bobbleheads in its current vault, catalog-joined for the API."""
+        """The dweller's found collectibles in its current vault, catalog-joined for the API."""
         claims = await collectible_crud.list_for_dweller(db_session, vault_id, dweller_id)
         reads: list[DwellerCollectibleRead] = []
         for claim in claims:
             try:
-                entry = bobblehead_for_key(claim.collectible_key)
+                entry = collectible_for_key(claim.collectible_key)
             except ValueError:
                 logger.warning(
                     "Collectible claim %s for vault %s has no catalog entry; omitting it",
@@ -116,6 +117,23 @@ class CollectibleService:
             )
         return reads
 
+    async def bonus_multiplier(self, db_session: AsyncSession, *, vault_id: UUID, bonus_type: str) -> float:
+        """The vault's multiplier from its completed sets of one bonus type.
+
+        Derived per read — nothing is written when a set completes — and gated on the feature
+        flag here so callers never branch on it. Returns 1.0 while the flag is off.
+        """
+        if not game_config.features.collectibles:
+            return 1.0
+        return completed_set_multiplier(bonus_type, await collectible_crud.list_keys(db_session, vault_id))
+
+    async def set_progress(self, db_session: AsyncSession, *, vault_id: UUID) -> list[CollectibleSetProgressRead]:
+        """Every defined set with this vault's counts and whether its bonus is being paid."""
+        keys = await collectible_crud.list_keys(db_session, vault_id)
+        return [
+            CollectibleSetProgressRead(**row) for row in set_progress(keys, enabled=game_config.features.collectibles)
+        ]
+
     async def award_site_collectible(
         self,
         db_session: AsyncSession,
@@ -125,7 +143,7 @@ class CollectibleService:
         members: Sequence[Dweller],
         action: str = "clear",
     ) -> CollectibleAward | None:
-        """Award a cleared site's bobblehead to its luckiest survivor.
+        """Award the collectible bound to a site to its luckiest survivor.
 
         Staged only: the dispatch transaction owner commits the claim and the bonus, and the
         notification is parked until that commit. Returns the event payload, or None when the
@@ -133,8 +151,8 @@ class CollectibleService:
         """
         if not game_config.features.collectibles:
             return None
-        entry = bobblehead_for_location(location.name)
-        if entry is None or entry["action"] != action:
+        entry = collectible_for_location(location.name, action=action)
+        if entry is None:
             return None
         living = [member for member in members if not member.is_dead]
         if not living:

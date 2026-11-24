@@ -8,6 +8,7 @@ from uuid import UUID
 from sqlmodel import SQLModel
 
 from app.core.enums import DwellerLocationRelationEnum, LocationTypeEnum
+from app.schemas.collectible import CollectibleSetProgressRead
 from app.utils.serialize_types import OptionalUTCDateTimeJSON
 
 
@@ -176,3 +177,4 @@ class VaultMapResponse(SQLModel):
     discovery_routes: list[DiscoveryRouteRead] = []
     place_groups: list[PlaceGroupRead] = []
     expedition_sites: list[ExpeditionSiteMarkerRead] = []
+    collectible_sets: list[CollectibleSetProgressRead] = []

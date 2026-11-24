@@ -44,7 +44,7 @@ from app.services.map.world_generation import WORLD_ID
 from app.services.user_service import user_service
 from app.services.world_snapshot_service import world_snapshot_service
 from app.utils import world_terrain
-from app.utils.collectibles import bobblehead_for_location
+from app.utils.collectibles import collectible_for_location
 from app.utils.dweller_availability import DwellerAction, availability_error
 from app.utils.exceptions import ResourceNotFoundException, ValidationException, ensure_found
 from app.utils.place_groups import effective_place_group, trade_entry, trade_terms
@@ -414,12 +414,10 @@ class ExplorationService:
                 raise ValidationException("A party is already on its way to this location")
             self._require_rollable_loot(group)
         else:
-            salvage = bobblehead_for_location(location.name)
             if (
                 group is None
                 or not game_config.features.collectibles
-                or salvage is None
-                or salvage["action"] != "salvage"
+                or collectible_for_location(location.name, action="salvage") is None
                 or state.searched_at is not None
             ):
                 raise ValidationException("This location cannot be cleared")

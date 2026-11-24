@@ -658,9 +658,21 @@ test('[large] measures grown boosted vault, roster scrolling, and populated trai
       () => nav.locator(`a[href="/vault/${vault.id}/dwellers"]`).click(),
       async () => {
         await expect(rows).toHaveCount(20)
-        await expect(page.getByRole('navigation', { name: 'Dweller pages' })).toContainText(
-          '1–20 of 100'
-        )
+        await expect(page.locator('.dweller-progress')).toHaveText('Showing 20 of 100')
+      }
+    )
+  )
+  const loadMore = page.getByRole('button', { name: /^Show \d+ more$/ })
+  reports.push(
+    await measureInteraction(
+      page,
+      testInfo,
+      'load-more-dwellers',
+      () => loadMore.first().click(),
+      async () => {
+        await expect(rows).toHaveCount(40)
+        await expect(rows.first()).toContainText(roster[0]!.first_name)
+        await expect(page.locator('.dweller-progress')).toHaveText('Showing 40 of 100')
       }
     )
   )
@@ -686,27 +698,15 @@ test('[large] measures grown boosted vault, roster scrolling, and populated trai
   )
   expect(scrollReport.animationFrameIntervalsMs?.length ?? 0).toBeGreaterThan(10)
   reports.push(scrollReport)
-  const nextPage = page.getByRole('button', { name: 'Next dweller page', exact: true })
-  reports.push(
-    await measureInteraction(
-      page,
-      testInfo,
-      'next-dweller-page',
-      () => nextPage.click(),
-      async () => {
-        await expect(rows).toHaveCount(20)
-        await expect(rows.first()).toContainText(roster[20]!.first_name)
-        await expect(page.getByRole('navigation', { name: 'Dweller pages' })).toContainText(
-          '21–40 of 100'
-        )
-      }
-    )
-  )
-  for (let currentPage = 3; currentPage <= 5; currentPage++) {
-    await nextPage.click()
+  // The sentinel appends in 20-row chunks; keep going until the whole roster is mounted.
+  for (let step = 0; step < 10 && (await loadMore.count()) > 0; step++) {
+    await loadMore.first().click()
   }
-  await expect(nextPage).toBeDisabled()
-  await expect(rows).toHaveCount(20)
+  await expect(rows).toHaveCount(roster.length)
+  await expect(page.locator('.dweller-progress')).toHaveText(
+    `Showing ${roster.length} of ${roster.length}`
+  )
+  await expect(loadMore).toHaveCount(0)
   const lastResident = roster.at(-1)!
   reports.push(
     await measureInteraction(

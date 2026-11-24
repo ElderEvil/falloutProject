@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vite-plus/test'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vite-plus/test'
+import { reactive, nextTick } from 'vue'
 import { shallowMount, mount } from '@vue/test-utils'
 import DwellersList from '@/modules/dwellers/components/DwellersList.vue'
 
@@ -35,76 +36,233 @@ const baseProps = (overrides: Record<string, unknown> = {}) => ({
   ...overrides,
 })
 
+/** Minimal IntersectionObserver stand-in: the component under test decides *when* to observe. */
+class FakeIntersectionObserver {
+  static instances: FakeIntersectionObserver[] = []
+  elements = new Set<Element>()
+
+  constructor(
+    private readonly callback: (entries: { isIntersecting: boolean }[]) => void,
+    readonly options?: IntersectionObserverInit
+  ) {
+    FakeIntersectionObserver.instances.push(this)
+  }
+
+  observe(el: Element) {
+    this.elements.add(el)
+  }
+
+  unobserve(el: Element) {
+    this.elements.delete(el)
+  }
+
+  disconnect() {
+    this.elements.clear()
+  }
+
+  intersect(isIntersecting = true) {
+    this.callback([{ isIntersecting }])
+  }
+}
+
 describe('DwellersList', () => {
   const roster = Array.from({ length: 45 }, (_, index) => dweller({ id: `dweller-${index}` }))
+  const visibleIds = (wrapper: ReturnType<typeof shallowMount>, viewMode: string) =>
+    viewMode === 'table'
+      ? (wrapper.findComponent({ name: 'DwellersTable' }).props('dwellers') as { id: string }[]).map(
+          (d) => d.id
+        )
+      : wrapper
+          .findAllComponents({
+            name: viewMode === 'list' ? 'DwellerListRow' : 'DwellerGridItem',
+          })
+          .map((row) => (row.props('dweller') as { id: string }).id)
 
-  it.each(['list', 'grid', 'table'])(
-    'paginates the %s layout without changing roster order',
-    async (viewMode) => {
+  const loadMoreButton = (wrapper: ReturnType<typeof shallowMount>, label = 'Show 20 more') =>
+    wrapper.findAll('button').find((button) => button.text().includes(label))
+
+  const intersectSentinel = async (isIntersecting = true) => {
+    FakeIntersectionObserver.instances.at(-1)!.intersect(isIntersecting)
+    await nextTick()
+    await nextTick()
+  }
+
+  beforeEach(() => {
+    FakeIntersectionObserver.instances = []
+    vi.stubGlobal('IntersectionObserver', FakeIntersectionObserver)
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  describe('incremental rendering', () => {
+    it.each(['list', 'grid', 'table'])(
+      'caps the first render of the %s layout at 20 without changing roster order',
+      async (viewMode) => {
+        const wrapper = shallowMount(DwellersList, {
+          props: baseProps({ dwellers: roster, viewMode }),
+          global: { stubs: { Button: false } },
+        })
+        await nextTick()
+
+        expect(visibleIds(wrapper, viewMode)).toEqual(roster.slice(0, 20).map((d) => d.id))
+        expect(wrapper.get('.dweller-progress').text()).toBe('Showing 20 of 45')
+        expect(wrapper.find('[aria-label="Next dweller page"]').exists()).toBe(false)
+        expect(wrapper.find('[aria-label="Previous dweller page"]').exists()).toBe(false)
+      }
+    )
+
+    it.each(['list', 'grid', 'table'])(
+      'appends the next 20 %s rows when the sentinel intersects',
+      async (viewMode) => {
+        const wrapper = shallowMount(DwellersList, {
+          props: baseProps({ dwellers: roster, viewMode }),
+          global: { stubs: { Button: false } },
+        })
+        await nextTick()
+        expect(FakeIntersectionObserver.instances).toHaveLength(1)
+
+        await intersectSentinel()
+        expect(visibleIds(wrapper, viewMode)).toEqual(roster.slice(0, 40).map((d) => d.id))
+        expect(wrapper.get('.dweller-progress').text()).toBe('Showing 40 of 45')
+
+        await intersectSentinel()
+        expect(visibleIds(wrapper, viewMode)).toEqual(roster.map((d) => d.id))
+        expect(wrapper.get('.dweller-progress').text()).toBe('Showing 45 of 45')
+      }
+    )
+
+    it('ignores an observer entry that reports the sentinel leaving the viewport', async () => {
       const wrapper = shallowMount(DwellersList, {
-        props: baseProps({ dwellers: roster, viewMode }),
+        props: baseProps({ dwellers: roster }),
         global: { stubs: { Button: false } },
       })
-      const visibleIds = () =>
-        viewMode === 'table'
-          ? wrapper
-              .findComponent({ name: 'DwellersTable' })
-              .props('dwellers')
-              .map((d: { id: string }) => d.id)
-          : wrapper
-              .findAllComponents({
-                name: viewMode === 'list' ? 'DwellerListRow' : 'DwellerGridItem',
-              })
-              .map((row) => row.props('dweller').id)
+      await nextTick()
 
-      expect(visibleIds()).toEqual(roster.slice(0, 20).map((d) => d.id))
-      expect(wrapper.text()).toContain('1–20 of 45')
-      expect(wrapper.get('[aria-label="Dweller pages"]').element.nextElementSibling).toBeNull()
-      expect(
-        wrapper.get('[aria-label="Previous dweller page"]').attributes('disabled')
-      ).toBeDefined()
+      await intersectSentinel(false)
 
-      await wrapper.get('[aria-label="Next dweller page"]').trigger('click')
-      expect(visibleIds()).toEqual(roster.slice(20, 40).map((d) => d.id))
-      expect(wrapper.text()).toContain('21–40 of 45')
-      await wrapper.get('[aria-label="Next dweller page"]').trigger('click')
-      expect(visibleIds()).toEqual(roster.slice(40).map((d) => d.id))
-      expect(wrapper.get('[aria-label="Next dweller page"]').attributes('disabled')).toBeDefined()
-      await wrapper.get('[aria-label="Previous dweller page"]').trigger('click')
-      expect(visibleIds()).toEqual(roster.slice(20, 40).map((d) => d.id))
-    }
-  )
-
-  it('resets to the first page when filtered or sorted results are replaced', async () => {
-    const wrapper = shallowMount(DwellersList, {
-      props: baseProps({ dwellers: roster }),
-      global: { stubs: { Button: false } },
+      expect(visibleIds(wrapper, 'list')).toHaveLength(20)
     })
-    await wrapper.get('[aria-label="Next dweller page"]').trigger('click')
-    const filtered = [roster[42]!]
-    await wrapper.setProps({ dwellers: filtered })
-    expect(wrapper.findComponent({ name: 'DwellerListRow' }).props('dweller')).toEqual(filtered[0])
-    expect(wrapper.find('[aria-label="Dweller pages"]').exists()).toBe(false)
-  })
 
-  it('preserves the page when changing layout and opens the dweller on that page', async () => {
-    const wrapper = shallowMount(DwellersList, {
-      props: baseProps({ dwellers: roster }),
-      global: { stubs: { Button: false } },
-    })
-    await wrapper.get('[aria-label="Next dweller page"]').trigger('click')
-    await wrapper.setProps({ viewMode: 'grid' })
-    wrapper.findComponent({ name: 'DwellerGridItem' }).vm.$emit('click')
-    expect(wrapper.emitted('view-details')).toEqual([['dweller-20']])
-  })
+    it('observes the sentinel against the nearest scrolling ancestor, not the window', async () => {
+      const scroller = document.createElement('div')
+      scroller.style.overflowY = 'auto'
+      document.body.appendChild(scroller)
 
-  it('hides pagination for a single page and while loading', async () => {
-    const wrapper = shallowMount(DwellersList, {
-      props: baseProps({ dwellers: roster.slice(0, 20) }),
+      const wrapper = mount(DwellersList, {
+        props: baseProps({ dwellers: roster }),
+        attachTo: scroller,
+        global: { stubs: { Icon: true, Button: false } },
+      })
+      await nextTick()
+
+      expect(FakeIntersectionObserver.instances.at(-1)!.options?.root).toBe(scroller)
+      wrapper.unmount()
+      scroller.remove()
     })
-    expect(wrapper.find('[aria-label="Dweller pages"]').exists()).toBe(false)
-    await wrapper.setProps({ dwellers: roster, isLoading: true })
-    expect(wrapper.find('[aria-label="Dweller pages"]').exists()).toBe(false)
+
+    it('resets to the first 20 when the roster is replaced by a filter or sort change', async () => {
+      const wrapper = shallowMount(DwellersList, {
+        props: baseProps({ dwellers: roster }),
+        global: { stubs: { Button: false } },
+      })
+      await nextTick()
+      await intersectSentinel()
+      expect(visibleIds(wrapper, 'list')).toHaveLength(40)
+
+      const filtered = roster.filter((_, index) => index % 3 !== 2)
+      await wrapper.setProps({ dwellers: filtered })
+
+      expect(visibleIds(wrapper, 'list')).toEqual(filtered.slice(0, 20).map((d) => d.id))
+      expect(wrapper.get('.dweller-progress').text()).toBe('Showing 20 of 30')
+    })
+
+    it('keeps the scroll depth when a single dweller is updated in place', async () => {
+      const live = reactive(roster.map((d) => ({ ...d })))
+      const wrapper = shallowMount(DwellersList, {
+        props: baseProps({ dwellers: live }),
+        global: { stubs: { Button: false } },
+      })
+      await nextTick()
+      await intersectSentinel()
+      expect(visibleIds(wrapper, 'list')).toHaveLength(40)
+
+      live[0]!.happiness = 12
+      await nextTick()
+
+      expect(visibleIds(wrapper, 'list')).toHaveLength(40)
+    })
+
+    it('keeps a load-more button so keyboard users can reach every dweller', async () => {
+      const wrapper = mount(DwellersList, {
+        props: baseProps({ dwellers: roster }),
+        global: { stubs: { Icon: true } },
+      })
+      await nextTick()
+
+      const button = loadMoreButton(wrapper)
+      expect(button).toBeDefined()
+      expect(button!.text()).toContain('Show 20 more')
+
+      await button!.trigger('click')
+
+      expect(visibleIds(wrapper, 'list')).toHaveLength(40)
+      expect(loadMoreButton(wrapper, 'Show 5 more')).toBeDefined()
+    })
+
+    it('renders no sentinel and no load-more control when every dweller is shown', async () => {
+      const wrapper = shallowMount(DwellersList, {
+        props: baseProps({ dwellers: roster.slice(0, 20) }),
+        global: { stubs: { Button: false } },
+      })
+      await nextTick()
+
+      expect(wrapper.find('.dweller-sentinel').exists()).toBe(false)
+      expect(loadMoreButton(wrapper)).toBeUndefined()
+      expect(wrapper.get('.dweller-progress').text()).toBe('Showing 20 of 20')
+      expect(wrapper.get('.dweller-progress').attributes('aria-live')).toBeUndefined()
+    })
+
+    it('shows the progress line only once rows exist and loading has finished', async () => {
+      const wrapper = shallowMount(DwellersList, {
+        props: baseProps({ dwellers: roster, isLoading: true }),
+        global: { stubs: { Button: false } },
+      })
+      await nextTick()
+
+      expect(wrapper.find('.dweller-progress').exists()).toBe(false)
+      expect(wrapper.find('.dweller-sentinel').exists()).toBe(false)
+    })
+
+    it('disconnects the observer on unmount', async () => {
+      const wrapper = shallowMount(DwellersList, {
+        props: baseProps({ dwellers: roster }),
+        global: { stubs: { Button: false } },
+      })
+      await nextTick()
+      const observer = FakeIntersectionObserver.instances.at(-1)!
+      const disconnect = vi.spyOn(observer, 'disconnect')
+
+      wrapper.unmount()
+
+      expect(disconnect).toHaveBeenCalled()
+    })
+
+    it('keeps the scroll depth when changing layout and opens the dweller that was revealed', async () => {
+      const wrapper = shallowMount(DwellersList, {
+        props: baseProps({ dwellers: roster }),
+        global: { stubs: { Button: false } },
+      })
+      await nextTick()
+      await intersectSentinel()
+
+      await wrapper.setProps({ viewMode: 'grid' })
+      wrapper.findComponent({ name: 'DwellerGridItem' }).vm.$emit('click')
+
+      expect(wrapper.findAllComponents({ name: 'DwellerGridItem' })).toHaveLength(40)
+      expect(wrapper.emitted('view-details')).toEqual([[roster[0]!.id]])
+    })
   })
 
   it('renders the list layout for list mode', () => {

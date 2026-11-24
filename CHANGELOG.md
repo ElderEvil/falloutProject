@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 3.22.0 (2026-11-24)
+
+### Features
+
+* **progression:** give quest badges cadence colours ([#1522](https://github.com/ElderEvil/falloutProject/issues/1522)) 4851511
+
 ## 3.21.0 (2026-11-24)
 
 ### Features

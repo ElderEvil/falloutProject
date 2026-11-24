@@ -49,6 +49,7 @@ class LocationCaravanStateRead(SQLModel):
     caps_cost: int
     party_cap: int
     cooldown_remaining_seconds: int = 0
+    cooldown_total_seconds: int = 0
     refusal_reason: str | None = None
 
 

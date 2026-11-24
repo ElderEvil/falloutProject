@@ -176,6 +176,7 @@ async def test_map_offers_trade_exactly_when_dispatch_accepts(
     assert detail.caravan is not None
     assert detail.caravan.refusal_reason is None
     assert detail.caravan.caps_cost == CARAVAN.caps_cost_settlement
+    assert detail.caravan.cooldown_total_seconds == CARAVAN.revisit_hours_settlement * 3600
     await _trade(async_session, vault, dweller, location)
 
     detail = await map_service.get_location_detail(async_session, vault, location.id)

@@ -118,7 +118,7 @@ def _caravan_for(
     map never dangles a button the write path rejects.
     """
     entry = trade_entry(location.name)
-    fee, _cooldown = trade_terms(effective_place_group(location.group_key, location.kind))
+    fee, cooldown_hours = trade_terms(effective_place_group(location.group_key, location.kind))
     if entry is None or fee == 0:
         return None
     remaining = 0
@@ -141,6 +141,7 @@ def _caravan_for(
         caps_cost=fee,
         party_cap=game_config.exploration.dispatch.max_party_size,
         cooldown_remaining_seconds=remaining,
+        cooldown_total_seconds=cooldown_hours * 3600,
         refusal_reason=refusal,
     )
 

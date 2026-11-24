@@ -9,6 +9,7 @@ import TerminalModal from '@/core/components/common/TerminalModal.vue'
 import { isMature } from '../models/dweller'
 import { getItemIcon } from '@/core/models/items'
 import { useDwellerDetailContext } from './DwellerDetailContext'
+import DwellerCollectibles from './DwellerCollectibles.vue'
 
 const ctx = useDwellerDetailContext()
 
@@ -275,6 +276,10 @@ const modalIcon = computed(() => {
         </button>
       </div>
     </div>
+
+    <!-- Permanent finds live here rather than in a tab of their own: a bobblehead or magazine is
+         equipment the dweller keeps for life, so it belongs beside the weapon, outfit and pet. -->
+    <DwellerCollectibles class="mt-6 border-t border-theme-primary/15 pt-5" />
 
     <!-- Inventory Modal -->
     <TerminalModal

@@ -15,7 +15,11 @@ from app.services.broadcast_service import (
     regenerate,
     vault_stats_from_db,
 )
-from app.utils.exceptions import BroadcastRateLimitException, TTSProviderException
+from app.utils.exceptions import (
+    BroadcastNotYetAiringException,
+    BroadcastRateLimitException,
+    TTSProviderException,
+)
 
 VAULT_DATA = {
     "number": 1,
@@ -99,6 +103,42 @@ async def test_daily_broadcast_created_once(async_session, vault):
         second = await get_or_create_daily(async_session, vault.id, vault_data=VAULT_DATA)
     rows = (await async_session.exec(select(Broadcast))).all()
     assert ((first.id, len(rows)), rows[0].trigger) == ((second.id, 1), "daily")
+
+
+async def test_daily_broadcast_waits_until_the_day_after_founding(async_session, vault):
+    with _pipeline():
+        result = await get_or_create_daily(
+            async_session,
+            vault.id,
+            vault_data=VAULT_DATA,
+            vault_created_at=datetime.now(UTC).replace(tzinfo=None),
+        )
+    rows = (await async_session.exec(select(Broadcast))).all()
+    assert (result, rows) == (None, [])
+
+
+async def test_daily_broadcast_airs_once_the_vault_is_a_day_old(async_session, vault):
+    with _pipeline():
+        result = await get_or_create_daily(
+            async_session,
+            vault.id,
+            vault_data=VAULT_DATA,
+            vault_created_at=datetime.now(UTC).replace(tzinfo=None) - timedelta(days=1),
+        )
+    assert result is not None
+    assert result.trigger == "daily"
+
+
+async def test_regenerate_before_the_first_airing_is_refused(async_session, vault):
+    with _pipeline(), pytest.raises(BroadcastNotYetAiringException):
+        await regenerate(
+            async_session,
+            vault.id,
+            vault_data=VAULT_DATA,
+            vault_created_at=datetime.now(UTC).replace(tzinfo=None),
+        )
+    rows = (await async_session.exec(select(Broadcast))).all()
+    assert rows == []
 
 
 async def test_daily_broadcast_without_explicit_context_uses_vault_stats(async_session, vault):

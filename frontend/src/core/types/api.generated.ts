@@ -18372,7 +18372,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["BroadcastRead"];
+                    "application/json": components["schemas"]["BroadcastRead"] | null;
                 };
             };
             /** @description Validation Error */

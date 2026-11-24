@@ -58,6 +58,7 @@ from app.core.logging import setup_logging
 from app.core.static_files import CachedStaticFiles
 from app.core.stream_manager import sse_manager
 from app.core.websocket_manager import manager
+from app.db.redis import close_shared_redis
 from app.db.session import async_engine, get_async_session
 from app.middleware.request_id import RequestIdMiddleware
 from app.services.ai_settings_service import ai_settings_service
@@ -147,6 +148,7 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
             await manager.stop_redis()
         finally:
             await sse_manager.close()
+            await close_shared_redis()
 
 
 app = FastAPI(

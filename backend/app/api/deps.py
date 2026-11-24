@@ -1,5 +1,6 @@
 """FastAPI dependency injection providers."""
 
+from collections.abc import AsyncGenerator
 from typing import Annotated
 from uuid import UUID
 
@@ -12,6 +13,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app import crud
 from app.core.config import settings
 from app.core.security import decode_token_subject
+from app.db.redis import get_shared_redis
 from app.db.session import get_async_session
 from app.models.dweller import Dweller
 from app.models.junk import Junk
@@ -43,13 +45,9 @@ NotificationPaginationParams = Annotated[NotificationPagination, Depends()]
 PetPaginationParams = Annotated[PetPagination, Depends()]
 
 
-async def get_redis_client():
-    """Yield a connected Redis client, closing it on teardown."""
-    redis_client = Redis.from_url(settings.redis_url, decode_responses=True)
-    try:
-        yield redis_client
-    finally:
-        await redis_client.close()
+async def get_redis_client() -> AsyncGenerator[Redis]:
+    """Yield the process-wide Redis client; the app lifespan owns its lifecycle."""
+    yield get_shared_redis()
 
 
 async def get_current_user(

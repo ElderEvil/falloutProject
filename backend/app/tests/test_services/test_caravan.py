@@ -32,6 +32,20 @@ from app.utils.time import utcnow
 CARAVAN = game_config.exploration.caravan
 
 
+def test_dispatch_request_defaults_to_clearing() -> None:
+    """A client that does not know about caravans keeps sending clears, never an accidental trade."""
+    from uuid import uuid4
+
+    from app.schemas.exploration import ExpeditionDispatchRequest
+
+    request = ExpeditionDispatchRequest(dweller_ids=[uuid4()], location_id=uuid4())
+    assert request.purpose == ExplorationPurpose.CLEAR
+    assert (
+        ExpeditionDispatchRequest(dweller_ids=[uuid4()], location_id=uuid4(), purpose="trade").purpose
+        == ExplorationPurpose.TRADE
+    )
+
+
 async def _register_place(
     async_session: AsyncSession, vault: Vault, dweller: Dweller, name: str = "Megaton", *, unlock: bool = True
 ) -> tuple[WorldLocation, VaultLocationState]:

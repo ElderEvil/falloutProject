@@ -70,7 +70,7 @@ async def dispatch_dweller(
     user: CurrentActiveUser,
     db_session: DBSession,
 ) -> Exploration:
-    """Send a party to clear a specific map point.
+    """Send a party to a map point: clear it, or trade with it (issue 1493).
 
     Returns:
         ExplorationRead: The created targeted exploration.
@@ -87,6 +87,7 @@ async def dispatch_dweller(
         location_id=request.location_id,
         stimpaks=request.stimpaks,
         radaways=request.radaways,
+        purpose=request.purpose,
     )
 
 

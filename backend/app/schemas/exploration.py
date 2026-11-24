@@ -5,7 +5,7 @@ from uuid import UUID
 from pydantic import Field, model_validator
 from sqlmodel import SQLModel
 
-from app.core.enums import ExplorationStatus
+from app.core.enums import ExplorationPurpose, ExplorationStatus
 from app.utils.serialize_types import OptionalUTCDateTimeJSON, UTCDateTimeJSON
 
 
@@ -173,12 +173,13 @@ class ExplorationSendRequest(SQLModel):
 
 
 class ExpeditionDispatchRequest(SQLModel):
-    """Schema for dispatching a party to clear a specific map point."""
+    """Dispatch a party to a map point: clear a site, or trade with a settlement."""
 
     dweller_ids: list[UUID] = Field(min_length=1, description="Party of 1-3 dwellers, no leader")
     location_id: UUID
     stimpaks: int = Field(default=0, ge=0, le=25, description="Number of Stimpaks to bring")
     radaways: int = Field(default=0, ge=0, le=25, description="Number of Radaways to bring")
+    purpose: ExplorationPurpose = Field(default=ExplorationPurpose.CLEAR, description="clear or trade")
 
 
 class ExplorationRecallRequest(SQLModel):

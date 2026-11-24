@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 3.20.1 (2026-11-24)
+
+### Bug Fixes
+
+* **pvp:** gate the bout on the seal clock and name dwellers in journals ([#1477](https://github.com/ElderEvil/falloutProject/issues/1477)) ([#1510](https://github.com/ElderEvil/falloutProject/issues/1510)) 960e7d4
+
 ## 3.20.0 (2026-11-24)
 
 ### Features

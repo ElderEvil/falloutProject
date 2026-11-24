@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 3.21.0 (2026-11-24)
+
+### Features
+
+* **collectibles:** award comics and pay set bonuses ([#1520](https://github.com/ElderEvil/falloutProject/issues/1520)) 631f7e9
+
 ## 3.20.5 (2026-11-24)
 
 ## 3.20.4 (2026-11-24)

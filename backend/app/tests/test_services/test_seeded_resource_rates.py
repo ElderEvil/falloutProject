@@ -9,6 +9,8 @@ is a half-rate apprentice, so it is the binding case. Rates are set so both seed
 scarcity lever is the stock buffer, documented in docs/backend/BALANCE_WAVE_3.md.
 """
 
+import random
+
 import pytest
 
 from app import crud
@@ -20,26 +22,39 @@ from app.services.resource_manager_service import ResourceManager
 from app.services.vault import seeding
 
 RESOURCES = ("power", "food", "water")
+LAYOUT_SEED = 0
 
 
 async def _seed_layout(async_session, vault, boosted: bool):
-    """Seed the real starter layout (rooms, storage, dwellers) and return its resource data."""
-    game_data = await get_static_game_data()
-    prepared = seeding.prepare_initial_rooms(game_data.rooms, vault.id, is_boosted=boosted)
-    await crud.vault.create_storage(db_session=async_session, vault_id=vault.id)
-    _vault_obj, created = await seeding.create_initial_rooms(async_session, vault, prepared)
-    await seeding.create_initial_dwellers(
-        async_session,
-        vault.id,
-        created.production,
-        created.training,
-        created.misc,
-        created.capacity,
-        is_boosted=boosted,
-        created_crafting_rooms=created.crafting,
-    )
-    await async_session.commit()
-    return await resource.get_vault_resource_data(async_session, vault.id)
+    """Seed the real starter layout (rooms, storage, dwellers) and return its resource data.
+
+    Seeding rolls SPECIAL and outfits and staffing follows those rolls, so an unpinned gate
+    measures a different layout every run — CI once read 1.17x for the same code that reads
+    1.51x here. The seed is pinned for the duration of the call, so the gate is reproducible
+    while the ResourceManager formulas stay live. The stream is restored afterwards so no
+    other test inherits it.
+    """
+    rng_state = random.getstate()
+    random.seed(LAYOUT_SEED)
+    try:
+        game_data = await get_static_game_data()
+        prepared = seeding.prepare_initial_rooms(game_data.rooms, vault.id, is_boosted=boosted)
+        await crud.vault.create_storage(db_session=async_session, vault_id=vault.id)
+        _vault_obj, created = await seeding.create_initial_rooms(async_session, vault, prepared)
+        await seeding.create_initial_dwellers(
+            async_session,
+            vault.id,
+            created.production,
+            created.training,
+            created.misc,
+            created.capacity,
+            is_boosted=boosted,
+            created_crafting_rooms=created.crafting,
+        )
+        await async_session.commit()
+        return await resource.get_vault_resource_data(async_session, vault.id)
+    finally:
+        random.setstate(rng_state)
 
 
 def _net_per_minute(model, data, crew_special: int) -> dict[str, float]:
@@ -93,8 +108,17 @@ async def test_standard_seed_power_surplus_stays_inside_the_band(async_session, 
     net = _net_per_minute(data.vault, data, 5)
     draw = _power_draw_per_minute(data)
     ratio = (net["power"] + draw) / draw
+    power_crew = [
+        len(crew)
+        for room, crew in data.rooms_with_dwellers
+        if room.ability is not None and room.ability.value == "strength"
+    ]
 
-    assert 1.25 <= ratio <= 1.55, f"standard power surplus {ratio:.2f}x outside the tuned band"
+    assert 1.25 <= ratio <= 1.55, (
+        f"standard power surplus {ratio:.2f}x outside the tuned band "
+        f"(net {net['power']:.1f}/min, draw {draw:.1f}/min, rooms {len(data.rooms)}, "
+        f"dwellers {data.dweller_count}, power crew {power_crew})"
+    )
 
 
 @pytest.mark.asyncio

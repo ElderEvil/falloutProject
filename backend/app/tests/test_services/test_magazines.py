@@ -46,7 +46,7 @@ from app.utils.time import utcnow
 
 SITE = "National Archives"
 KEY = "guns_and_bullets"
-BOON = {"key": KEY, "stat": "perception", "amount": 1}
+BOON = {KEY: {"stat": "perception", "amount": 1}}
 
 
 async def _dweller(async_session: AsyncSession, vault: Vault, *, luck: int = 5) -> Dweller:
@@ -289,8 +289,24 @@ async def test_the_completed_shelf_upgrades_the_same_boon_from_one_point_to_two(
 
     assert payload is not None
     assert payload.amount == amount
-    assert reader.magazine_boon == {"key": KEY, "stat": "perception", "amount": amount}
+    assert (reader.magazine_boon or {})[KEY] == {"stat": "perception", "amount": amount}
     assert effective_stat(reader, "perception") == base + amount
+
+
+async def test_a_second_magazine_adds_to_the_first_instead_of_replacing_it(
+    async_session: AsyncSession, vault: Vault, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Permanent means permanent: a finder who reads another magazine keeps the first boon too."""
+    monkeypatch.setattr(game_config.features, "collectibles", True)
+    reader = await _dweller(async_session, vault)
+    perception, intelligence = effective_stat(reader, "perception"), effective_stat(reader, "intelligence")
+
+    for key in ("guns_and_bullets", "tesla_science"):
+        await collectible_service.award(async_session, vault_id=vault.id, dweller=reader, collectible_key=key)
+
+    assert set(reader.magazine_boon) == {"guns_and_bullets", "tesla_science"}
+    assert effective_stat(reader, "perception") == perception + 1
+    assert effective_stat(reader, "intelligence") == intelligence + 1
 
 
 async def test_the_boon_raises_only_the_finders_own_stat(async_session: AsyncSession, vault: Vault) -> None:

@@ -222,17 +222,22 @@ def magazine_boon_amount(entry: Mapping[str, Any], held_keys: Iterable[str]) -> 
 
 
 def magazine_boon_bonus(boon: Mapping[str, Any] | None, stat: str) -> int:
-    """The dweller's permanent magazine bonus for one stat; 0 when the boon is for another stat.
+    """The dweller's permanent magazine bonus for one stat, summed over every magazine they hold.
 
-    The boon never expires, so there is no clock to read and no job to run: a hand-edited or
-    malformed row is the only way this returns 0 for a stat the dweller actually holds.
+    The column is keyed by magazine because one finder can pick up more than one: a second find must
+    add to the first rather than replace it, which is the whole point of a permanent boon. Nothing
+    expires, so there is no clock to read; a malformed or unknown entry contributes nothing.
     """
-    if not boon or boon.get("stat") != stat:
+    if not boon:
         return 0
-    amount = boon.get("amount")
-    if not isinstance(amount, int) or isinstance(amount, bool):
-        return 0
-    return amount
+    total = 0
+    for held in boon.values():
+        if not isinstance(held, Mapping) or held.get("stat") != stat:
+            continue
+        amount = held.get("amount")
+        if isinstance(amount, int) and not isinstance(amount, bool):
+            total += amount
+    return total
 
 
 def set_held_counts(held_keys: Iterable[str]) -> Counter[str]:

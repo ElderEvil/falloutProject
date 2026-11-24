@@ -186,7 +186,9 @@ class CollectibleService:
         # point, and the boon just written is the single source of truth for what the finder got.
         amount = entry["amount"]
         if entry["kind"] == MAGAZINE:
-            amount = int((finder.magazine_boon or {}).get("amount", entry["amount"]))
+            held = (finder.magazine_boon or {}).get(entry["key"])
+            if isinstance(held, dict):
+                amount = int(held.get("amount", entry["amount"]))
 
         vault = await crud.vault.get(db_session, exploration.vault_id)
         if vault is not None:
@@ -224,7 +226,10 @@ class CollectibleService:
         pays the larger boon. No clock and no expiry: a one-time find is kept for good.
         """
         amount = magazine_boon_amount(entry, await collectible_crud.list_keys(db_session, vault_id))
-        dweller.magazine_boon = {"key": entry["key"], "stat": entry["stat"], "amount": amount}
+        # Keyed by magazine, not replaced: a dweller who finds a second one keeps the first.
+        boons = dict(dweller.magazine_boon or {})
+        boons[entry["key"]] = {"stat": entry["stat"], "amount": amount}
+        dweller.magazine_boon = boons
         db_session.add(dweller)
         await db_session.flush()
         return amount

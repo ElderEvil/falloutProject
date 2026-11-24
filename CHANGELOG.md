@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 3.20.0 (2026-11-24)
+
+### Features
+
+* **map:** trade caravans — settlements become a material faucet ([#1493](https://github.com/ElderEvil/falloutProject/issues/1493)) ([#1508](https://github.com/ElderEvil/falloutProject/issues/1508)) 2c4d359
+
 ## 3.19.1 (2026-11-23)
 
 ### Bug Fixes

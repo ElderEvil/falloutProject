@@ -96,6 +96,8 @@ describe('CombatZonePreview', () => {
     expect(text).toContain('Opposing vault')
     expect(text).not.toContain('Stand-in trio')
     expect(text).toContain('Take the bout')
+    // One band per side, from the party's combat-power sum: 3 x 20 is below the 75 floor.
+    expect(text).toContain('Light band')
     expect(wrapper.findAll('[data-slot="progress"]')).toHaveLength(5)
     expect(getDwellersByVaultMock).toHaveBeenCalledWith('vault-b', { limit: 6 })
   })

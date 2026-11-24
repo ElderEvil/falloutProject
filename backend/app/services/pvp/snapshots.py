@@ -20,7 +20,10 @@ TUNING: dict[str, float | int] = {
     "level_bonus_damage": 0.5,
 }
 
-POWER_BANDS: tuple[tuple[float, str], ...] = ((500.0, "elite"), (250.0, "strong"), (100.0, "steady"))
+# Party bands over the frozen power sum. The ceilings have to be reachable: the best possible
+# trio (three Lv50 SPECIAL-10 dwellers with the strongest catalog weapon) totals 402, and the
+# strongest starter party measures 237, so elite and strong must sit below those.
+POWER_BANDS: tuple[tuple[float, str], ...] = ((300.0, "elite"), (175.0, "strong"), (75.0, "steady"))
 
 
 def power_band(total_power: float) -> str:

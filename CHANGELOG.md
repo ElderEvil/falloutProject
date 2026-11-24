@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 3.23.0 (2026-11-24)
+
+### Features
+
+* **dwellers:** scroll the roster instead of paging ([#1523](https://github.com/ElderEvil/falloutProject/issues/1523)) 02c624f
+
 ## 3.22.0 (2026-11-24)
 
 ### Features

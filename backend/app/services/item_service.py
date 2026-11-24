@@ -11,6 +11,7 @@ from app.crud.item_base import CRUDItem, get_item_vault_id
 from app.crud.junk import CRUDJunk
 from app.models.junk import Junk
 from app.models.outfit import Outfit
+from app.models.pet import Pet
 from app.models.vault import Vault
 from app.models.weapon import Weapon
 from app.services.vault_service import vault_service
@@ -18,8 +19,10 @@ from app.utils.dweller_availability import require_vault_equipment_access
 from app.utils.exceptions import ensure_found
 
 ItemModel = type[Weapon] | type[Outfit] | type[Junk]
+EquippableModel = type[Weapon] | type[Outfit] | type[Pet]
 
 _ITEM_CRUD: dict[ItemModel, CRUDItem | CRUDJunk] = {Weapon: crud.weapon, Outfit: crud.outfit, Junk: crud.junk}
+_UNEQUIP_CRUD: dict[EquippableModel, CRUDItem] = {Weapon: crud.weapon, Outfit: crud.outfit, Pet: crud.pet}
 
 
 def _crud_for(model: ItemModel):
@@ -47,6 +50,15 @@ class ItemService:
             )
         return item
 
+    async def unequip_item(self, db_session: AsyncSession, *, item_id: UUID, model: EquippableModel) -> None:
+        """Unequip an item in one transaction: the item returns to storage and the slot clears.
+
+        CRUD stages both writes and flushes them; the commit is owned here so a partial unequip
+        (item moved, dweller still pointing at it, or the reverse) cannot become visible.
+        """
+        await _UNEQUIP_CRUD[model].unequip(db_session=db_session, item_id=item_id)
+        await db_session.commit()
+
     async def sell_item(self, db_session: AsyncSession, *, item_id: UUID, model: ItemModel) -> None:
         """Sell an item for caps: credit the owning vault, then delete the item in a single commit."""
         item = await _crud_for(model).get_or_none(db_session, item_id)
@@ -60,7 +72,6 @@ class ItemService:
             await db_session.delete(item)
             await db_session.commit()
         except SQLAlchemyError:
-            # Ensure we rollback on any error to avoid partial state in async contexts
             with contextlib.suppress(Exception):
                 await db_session.rollback()
             raise
@@ -72,7 +83,12 @@ class ItemService:
         await event_bus.emit(GameEvent.RESOURCE_COLLECTED, vault_id, {"resource_type": "caps", "amount": credited})
 
     async def scrap_item(self, db_session: AsyncSession, *, item_id: UUID, model: ItemModel) -> list[Junk]:
-        """Scrap an item into junk, then publish ITEM_SCRAPPED once it has committed."""
+        """Scrap an item into junk in one transaction, then publish ITEM_SCRAPPED.
+
+        The junk rows and the item's deletion are staged and flushed by CRUD without committing,
+        then committed once here; the recipe-progress subscriber runs on its own session, so it
+        must never observe a rolled-back scrap.
+        """
         item = await _crud_for(model).get_or_none(db_session, item_id)
         item = ensure_found(item, model, identifier=item_id)
 
@@ -82,6 +98,7 @@ class ItemService:
         rarity = str(item.rarity)
 
         junk_list = await _crud_for(model).scrap(db_session=db_session, item_id=item_id)
+        await db_session.commit()
 
         # Publish only after the scrap commits: the unlock handler runs on a
         # separate session and must never observe a rolled-back scrap.
@@ -108,5 +125,4 @@ class ItemService:
         )
 
 
-# Singleton instance
 item_service = ItemService()

@@ -132,7 +132,6 @@ class DwellerService:
             await event_service.publish_sse(exploration, "exploration_deleted", status=exploration.status)
 
     def get_identity_options(self) -> DwellerIdentityOptions:
-        """Return identity choices derived directly from the canonical options modules."""
         factions_by_race = (
             {}
             if not game_config.features.faction_mechanics
@@ -147,7 +146,6 @@ class DwellerService:
         )
 
     def get_appearance_options(self) -> DwellerAppearanceOptions:
-        """Return the canonical appearance choices derived from the options module."""
         return DwellerAppearanceOptions(
             skin_tones_by_race={race.value: tones for race, tones in skin_tone_options.items()},
             builds_by_race={race.value: builds for race, builds in body_type_options.items()},
@@ -200,17 +198,20 @@ class DwellerService:
         rarity: RarityEnum = RarityEnum.COMMON,
         register_bio_places: bool = True,
         enforce_capacity: bool = True,
+        *,
+        commit: bool = True,
     ) -> Dweller:
         """Create a random dweller, recording the overseer's total and registering bio places.
 
         Callers composing their OWN bio (e.g. pregen_service) pass ``register_bio_places=False``.
-        Vault-bootstrap callers (seeding, pregen) pass ``enforce_capacity=False``.
+        Vault-bootstrap callers (seeding, pregen) pass ``enforce_capacity=False``. ``commit=False``
+        callers own the commit and emit DWELLER_ADDED themselves after committing.
         """
         if enforce_capacity:
             await self._require_population_slot(db_session, vault_id)
         payload = await crud.dweller.prepare_random_dweller(db_session, vault_id, obj_in, seed=seed, rarity=rarity)
         payload["visual_attributes"] = complete_appearance(payload, random.Random(seed))
-        return await self._persist_registered_dweller(db_session, vault_id, payload, register_bio_places)
+        return await self._persist_registered_dweller(db_session, vault_id, payload, register_bio_places, commit=commit)
 
     async def create_dweller_from_template(
         self,
@@ -219,15 +220,19 @@ class DwellerService:
         template_id: str,
         overrides: Mapping[str, Any] | None = None,
         enforce_capacity: bool = True,
+        *,
+        commit: bool = True,
     ) -> Dweller:
         """Instantiate a dweller from a named template, recording the overseer's total and bio places."""
         if enforce_capacity:
             await self._require_population_slot(db_session, vault_id)
         payload = await crud.dweller.prepare_template_dweller(db_session, vault_id, template_id, overrides=overrides)
-        dweller = await self._persist_registered_dweller(db_session, vault_id, payload, register_bio_places=True)
+        dweller = await self._persist_registered_dweller(
+            db_session, vault_id, payload, register_bio_places=True, commit=commit
+        )
         from app.services.family.known_relations import reconcile_known_parent_links
 
-        await reconcile_known_parent_links(db_session, vault_id, template_id)
+        await reconcile_known_parent_links(db_session, vault_id, template_id, commit=commit)
         return dweller
 
     async def _persist_registered_dweller(
@@ -236,26 +241,31 @@ class DwellerService:
         vault_id: UUID,
         payload: dict[str, Any],
         register_bio_places: bool,
+        *,
+        commit: bool = True,
     ) -> Dweller:
-        """Persist a prepared payload, record the lifetime total and register explicit bio places."""
         from app.services.bio_service import make_entry
 
         payload["visual_attributes"] = complete_appearance(payload)
         bio_places = payload.pop("_bio_places", None)
         if payload.get("bio") and not payload.get("bio_entries"):
             payload["bio_entries"] = [make_entry("template", payload["bio"])]
-        dweller = await crud.dweller.persist_new_dweller(db_session, vault_id, payload)
-        await user_service.record_vault_statistic(db_session, vault_id, "total_dwellers_created")
-        await event_bus.emit(GameEvent.DWELLER_ADDED, vault_id, {"dweller_id": str(dweller.id)})
+        dweller = await crud.dweller.persist_new_dweller(db_session, vault_id, payload, commit=commit)
+        await user_service.record_vault_statistic(db_session, vault_id, "total_dwellers_created", commit=commit)
+        if commit:
+            await event_bus.emit(GameEvent.DWELLER_ADDED, vault_id, {"dweller_id": str(dweller.id)})
         if bio_places and register_bio_places:
             origin, visited = bio_places
             await map_service.register_bio_places(
-                db_session, cast("_MapDwellerLike", dweller), origin_place=origin or "", visited_places=visited
+                db_session,
+                cast("_MapDwellerLike", dweller),
+                origin_place=origin or "",
+                visited_places=visited,
+                commit=commit,
             )
         return dweller
 
     async def add_experience(self, db_session: AsyncSession, dweller_obj: Dweller, amount: int) -> Dweller:
-        """Add cumulative XP and settle levels/health in the reward transaction."""
         old_level = dweller_obj.level
         dweller_obj.experience += amount
         await leveling_service.check_level_up(db_session, dweller_obj, commit=False)
@@ -311,12 +321,7 @@ class DwellerService:
         dweller_id: UUID,
         dweller_data: DwellerUpdate | DwellerUpdateRequest | dict[str, Any],
     ) -> Any:
-        """Update a dweller, computing room-based status automatically.
-
-        When room_id is being changed, determines the correct dweller status
-        (idle/working/training) based on the target room's category.
-        """
-        # Ensure we work with a dict for mutation
+        """Update a dweller, computing room-based status automatically from the target room's category."""
         data = dweller_data if isinstance(dweller_data, dict) else dweller_data.model_dump(exclude_unset=True)
         room_id = data.get("room_id")
         name_fields = ("first_name", "last_name")
@@ -377,20 +382,17 @@ class DwellerService:
     async def move_to_room(
         self, db_session: AsyncSession, dweller_id: UUID, room_id: UUID, *, commit: bool = True
     ) -> DwellerReadWithRoomID:
-        """Move dweller to a different room."""
         dweller_obj = await crud.dweller.get(db_session, dweller_id)
 
         if dweller_obj.status == DwellerStatusEnum.EXPLORING:
             raise ResourceConflictException(detail="Dweller is exploring and cannot be assigned to a room")
 
-        # Validate room transfer (can't move to same room)
         if dweller_obj.room_id == room_id:
             raise ResourceConflictException(detail="Dweller is already in the room")
 
         old_room_id = dweller_obj.room_id
         room_obj = await crud.room.get(db_session, room_id)
 
-        # Validate vault transfer (can't move between vaults)
         if dweller_obj.vault_id != room_obj.vault_id:
             raise InvalidVaultTransferException
 
@@ -425,14 +427,12 @@ class DwellerService:
 
     async def publish_room_assignment(self, dweller_obj: Dweller, room_obj: Room) -> None:
         """Deliver progression only after the transaction owning the move commits."""
-        # Emit dweller assigned event for objective tracking
         await event_bus.emit(
             GameEvent.DWELLER_ASSIGNED,
             self._require_vault_id(dweller_obj),
             {"dweller_id": str(dweller_obj.id), "room_type": room_obj.name},
         )
 
-        # Check if this is a "correct" assignment (dweller's highest SPECIAL matches room's ability)
         if room_obj.ability and get_highest_special(dweller_obj) == room_obj.ability:
             await event_bus.emit(
                 GameEvent.DWELLER_ASSIGNED_CORRECTLY,
@@ -445,10 +445,8 @@ class DwellerService:
         dweller_obj = await crud.dweller.get(db_session, dweller_id)
         validate_automatic_assignment(dweller_obj)
 
-        # Find dweller's highest SPECIAL stat
         best_stat = get_highest_special(dweller_obj)
 
-        # Find production rooms in the dweller's vault that match this stat
         production_rooms = await crud.room.get_by_category(
             db_session, self._require_vault_id(dweller_obj), RoomTypeEnum.PRODUCTION
         )
@@ -459,7 +457,6 @@ class DwellerService:
                 detail=f"No production rooms found matching {best_stat.value} stat in this vault"
             )
 
-        # Check if dweller is already in a matching room
         if dweller_obj.room_id:
             current_room = await crud.room.get(db_session, dweller_obj.room_id)
             if current_room.category == RoomTypeEnum.PRODUCTION and current_room.ability == best_stat:
@@ -478,7 +475,6 @@ class DwellerService:
         if not best_room:
             raise ResourceConflictException(detail=f"All {best_stat.value} production rooms are at full capacity")
 
-        # Move dweller to the best room
         return await self.move_to_room(db_session, dweller_id, best_room.id)
 
 

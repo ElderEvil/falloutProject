@@ -6027,6 +6027,16 @@ export interface components {
             reason: string;
         };
         /**
+         * AssignedResponse
+         * @description Response for assignment operations.
+         */
+        AssignedResponse: {
+            /** Assigned */
+            assigned: number;
+            /** Message */
+            message: string;
+        };
+        /**
          * AutoAssignResponse
          * @description Response after auto-assigning dwellers to rooms.
          */
@@ -8652,6 +8662,24 @@ export interface components {
             rush: {
                 [key: string]: unknown;
             };
+        };
+        /**
+         * GameStateResponse
+         * @description Current game-loop status for one vault.
+         */
+        GameStateResponse: {
+            /** Vault Id */
+            vault_id: string;
+            /** Is Active */
+            is_active: boolean;
+            /** Is Paused */
+            is_paused: boolean;
+            /** Total Game Time */
+            total_game_time: number;
+            /** Last Tick Time */
+            last_tick_time: string;
+            /** Offline Time */
+            offline_time: number;
         };
         /**
          * GenderEnum
@@ -12027,7 +12055,7 @@ export interface components {
              * Radio Mode
              * @default recruitment
              */
-            radio_mode: string;
+            radio_mode: string | null;
             /**
              * Vault Mode
              * @description Difficulty mode chosen at creation; immutable thereafter
@@ -12114,7 +12142,7 @@ export interface components {
              * Radio Mode
              * @default recruitment
              */
-            radio_mode: string;
+            radio_mode: string | null;
             /** @default standard */
             vault_mode: components["schemas"]["VaultModeEnum"];
             /**
@@ -12239,6 +12267,48 @@ export interface components {
             /** Reward Snapshot */
             reward_snapshot?: string | null;
         };
+        /** VaultQuestCompletionLink */
+        VaultQuestCompletionLink: {
+            /**
+             * Vault Id
+             * Format: uuid
+             */
+            vault_id: string;
+            /**
+             * Quest Id
+             * Format: uuid
+             */
+            quest_id: string;
+            /**
+             * Is Completed
+             * @default false
+             */
+            is_completed: boolean;
+            /**
+             * Is Reward Ready
+             * @default false
+             */
+            is_reward_ready: boolean;
+            /**
+             * Is Visible
+             * @default false
+             */
+            is_visible: boolean;
+            /** Started At */
+            started_at?: string | null;
+            /** Duration Minutes */
+            duration_minutes?: number | null;
+            /** Return Started At */
+            return_started_at?: string | null;
+            /** Return Completes At */
+            return_completes_at?: string | null;
+            /** Completed At */
+            completed_at?: string | null;
+            /** Granted Rewards */
+            granted_rewards?: {
+                [key: string]: unknown;
+            }[] | null;
+        };
         /** VaultRead */
         VaultRead: {
             /** Number */
@@ -12292,7 +12362,7 @@ export interface components {
              * Radio Mode
              * @default recruitment
              */
-            radio_mode: string;
+            radio_mode: string | null;
             /**
              * Vault Mode
              * @description Difficulty mode chosen at creation; immutable thereafter
@@ -12382,7 +12452,7 @@ export interface components {
              * Radio Mode
              * @default recruitment
              */
-            radio_mode: string;
+            radio_mode: string | null;
             /**
              * Vault Mode
              * @description Difficulty mode chosen at creation; immutable thereafter
@@ -12480,7 +12550,7 @@ export interface components {
              * Radio Mode
              * @default recruitment
              */
-            radio_mode: string;
+            radio_mode: string | null;
             /**
              * Vault Mode
              * @description Difficulty mode chosen at creation; immutable thereafter
@@ -12587,6 +12657,30 @@ export interface components {
             default_on: boolean;
             /** Expedition */
             expedition: boolean;
+        };
+        /**
+         * VaultTickResponse
+         * @description Manual tick acknowledgement.
+         *
+         *     A paused or duplicate tick short-circuits to ``status`` only; a processed
+         *     tick carries ``vault_id``/``seconds_passed``/``updates``. ``updates`` stays an
+         *     open map because the tick phases assemble per-phase diagnostics (including
+         *     per-phase ``error`` keys) that are internal working contracts, not wire
+         *     schemas.
+         */
+        VaultTickResponse: {
+            /** Message */
+            message: string;
+            /** Status */
+            status?: string | null;
+            /** Vault Id */
+            vault_id?: string | null;
+            /** Seconds Passed */
+            seconds_passed?: number | null;
+            /** Updates */
+            updates?: {
+                [key: string]: unknown;
+            } | null;
         };
         /** VaultUpdate */
         VaultUpdate: {
@@ -15889,9 +15983,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["GameStateResponse"];
                 };
             };
             /** @description Validation Error */
@@ -16079,9 +16171,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["VaultTickResponse"];
                 };
             };
             /** @description Validation Error */
@@ -16466,7 +16556,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": null;
                 };
             };
             /** @description Validation Error */
@@ -16897,7 +16987,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["VaultObjectiveProgressLink"];
                 };
             };
             /** @description Validation Error */
@@ -16930,7 +17020,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["AssignedResponse"];
                 };
             };
             /** @description Validation Error */
@@ -17154,7 +17244,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": null;
                 };
             };
             /** @description Validation Error */
@@ -17216,7 +17306,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": null;
                 };
             };
             /** @description Validation Error */
@@ -17363,7 +17453,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": null;
                 };
             };
             /** @description Validation Error */
@@ -17786,7 +17876,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["VaultQuestCompletionLink"];
                 };
             };
             /** @description Validation Error */
@@ -20335,7 +20425,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["Vault"];
                 };
             };
             /** @description Validation Error */
@@ -20722,7 +20812,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": null;
                 };
             };
             /** @description Validation Error */
@@ -20784,7 +20874,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": null;
                 };
             };
             /** @description Validation Error */

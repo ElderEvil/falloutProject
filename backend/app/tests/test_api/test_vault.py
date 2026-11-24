@@ -384,3 +384,17 @@ async def test_vault_mode_is_immutable_via_api(async_client, superuser_token_hea
 
     read = await async_client.get(f"/vaults/{vault_id}", headers=superuser_token_headers)
     assert read.json()["vault_mode"] == "survival"
+
+
+async def test_read_vault_serialises_a_null_radio_mode(async_client, async_session, superuser_token_headers) -> None:
+    """The Postgres column is nullable, so a legacy row must still read as a 200."""
+    data = create_fake_vault()
+    data["user_id"] = await _owner_id(async_session)
+    vault = await crud.vault.create(async_session, VaultCreateWithUserID(**data))
+    vault.radio_mode = None
+    await async_session.commit()
+
+    response = await async_client.get(f"/vaults/{vault.id}", headers=superuser_token_headers)
+
+    assert response.status_code == 200
+    assert response.json()["radio_mode"] is None

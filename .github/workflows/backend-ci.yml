@@ -19,6 +19,7 @@ jobs:
   backend-ci:
     name: Backend Tests (${{ matrix.python-version }})
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     strategy:
       fail-fast: false
       matrix:
@@ -101,4 +102,4 @@ jobs:
 
       - name: Run tests
         working-directory: backend
-        run: uv run pytest app/tests -n auto -v --tb=short
+        run: uv run pytest app/tests -n auto -v --tb=short --timeout=180 --timeout-method=thread

@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends
 from app.api.deps import CurrentActiveUser, DBSession, PetPaginationParams, get_current_active_user
 from app.models.pet import Pet
 from app.schemas.pet import PetRead
+from app.schemas.responses import NULL_BODY_RESPONSES
 from app.services.pet_service import pet_service
 
 router = APIRouter(prefix="/pets", tags=["Pet"], dependencies=[Depends(get_current_active_user)])
@@ -25,12 +26,6 @@ async def read_pet_list(
     Every pet lives in a vault's storage or on one of its dwellers, so the vault
     is required rather than optional: an unscoped list would enumerate other
     players' pets.
-
-    Returns:
-        List of pets.
-
-    Raises:
-        AccessDeniedException: If the user doesn't own the vault.
     """
     return await pet_service.list_pets(db_session, vault_id, user, pagination.skip, pagination.limit)
 
@@ -41,14 +36,7 @@ async def read_pet(
     db_session: DBSession,
     user: CurrentActiveUser,
 ) -> Pet:
-    """Retrieve a pet by ID.
-
-    Returns:
-        The requested pet.
-
-    Raises:
-        AccessDeniedException: If the user doesn't own the pet's vault.
-    """
+    """Retrieve a pet by ID."""
     return await pet_service.get_pet(db_session, pet_id, user)
 
 
@@ -59,26 +47,15 @@ async def equip_pet(
     db_session: DBSession,
     user: CurrentActiveUser,
 ) -> Pet:
-    """Equip a pet on a dweller.
-
-    Returns:
-        The equipped pet.
-
-    Raises:
-        AccessDeniedException: If the user owns neither the dweller nor the pet.
-    """
+    """Equip a pet on a dweller."""
     return await pet_service.equip(db_session, dweller_id, pet_id, user)
 
 
-@router.post("/{pet_id}/unequip/", status_code=200, response_model=None)
+@router.post("/{pet_id}/unequip/", status_code=200, response_model=None, responses=NULL_BODY_RESPONSES)
 async def unequip_pet(
     pet_id: UUID,
     db_session: DBSession,
     user: CurrentActiveUser,
 ) -> None:
-    """Unequip a pet from a dweller.
-
-    Raises:
-        AccessDeniedException: If the user doesn't own the pet's vault.
-    """
+    """Unequip a pet from a dweller."""
     await pet_service.unequip(db_session, pet_id, user)

@@ -50,7 +50,6 @@ class NotificationService:
 
     @staticmethod
     async def _get_vault_prefix(db: AsyncSession, vault_id: UUID | None) -> str:
-        """Get vault number prefix for notification messages."""
         if not vault_id:
             return ""
 
@@ -75,7 +74,6 @@ class NotificationService:
         meta_data: dict[str, Any] | None = None,
         commit: bool = True,
     ):
-        """Create a notification and send it via WebSocket."""
         profile = await profile_crud.get_by_user_id(db, user_id)
         if not should_deliver_notification(profile.preferences if profile else None, notification_type):
             logger.info("Suppressed %s notification for user %s by preference", notification_type, user_id)
@@ -135,7 +133,7 @@ class NotificationService:
         """Push one notification payload over WebSocket and SSE (best-effort, never raises)."""
         try:
             await manager.send_personal_message(payload, user_id=user_id)
-        except Exception:  # broad by design: best-effort delivery must never fail the caller
+        except Exception:
             logger.exception(f"Failed to send notification {payload['notification']['id']} to user {user_id}")
 
         try:
@@ -144,8 +142,19 @@ class NotificationService:
                 "notifications",
                 payload,
             )
-        except Exception:  # broad by design: best-effort delivery must never fail the caller
+        except Exception:
             logger.exception(f"Failed to send SSE notification {payload['notification']['id']} to user {user_id}")
+
+    @staticmethod
+    async def _commit_and_deliver_transaction(db: AsyncSession) -> None:
+        """Commit the staged notification rows once, then push every parked delivery."""
+        try:
+            await db.commit()
+        except Exception:
+            NotificationService.discard_deferred_notifications(db)
+            await db.rollback()
+            raise
+        await NotificationService.deliver_deferred_notifications(db)
 
     @staticmethod
     def discard_deferred_notifications(db: AsyncSession) -> None:
@@ -184,8 +193,6 @@ class NotificationService:
             await sender(vault.user_id)
         except Exception:  # broad by design: caller-supplied sender may raise anything; must never fail the caller
             logger.exception("Failed to notify vault owner (%s)", context)
-
-    # Convenience methods for common notification types
 
     @staticmethod
     async def notify_exploration_update(
@@ -313,9 +320,19 @@ class NotificationService:
 
     @staticmethod
     async def notify_room_unlocks(
-        db: AsyncSession, user_id: UUID, vault_id: UUID, *, previous_population: int | None = None
+        db: AsyncSession,
+        user_id: UUID,
+        vault_id: UUID,
+        *,
+        previous_population: int | None = None,
+        commit: bool = True,
     ) -> None:
-        """Summarize crossed room thresholds, or the current threshold for a single arrival."""
+        """Summarize crossed room thresholds, or the current threshold for a single arrival.
+
+        ``commit=False`` stages the row in the caller's transaction and parks its delivery, so a
+        multi-row notification event (for example a recruit announcement plus this summary) can
+        commit once and push afterwards.
+        """
         population = await dweller_crud.count_alive_in_vault(db, vault_id)
         game_data = await get_static_game_data()
         built = {room.name.lower() for room in await room_crud.get_all_by_vault(db, vault_id)}
@@ -336,7 +353,10 @@ class NotificationService:
             f"Population {population} unlocked: {names}.",
             vault_id=vault_id,
             priority=NotificationPriority.NORMAL,
+            commit=False,
         )
+        if commit:
+            await NotificationService._commit_and_deliver_transaction(db)
 
     @staticmethod
     async def notify_baby_born(
@@ -389,19 +409,35 @@ class NotificationService:
         vault_id: UUID,
         dweller_name: str,
         meta_data: dict[str, Any] | None = None,
+        *,
+        commit: bool = True,
     ):
-        """Notify user that a new dweller arrived via radio."""
-        notification = await NotificationService.create_and_send(
-            db,
-            user_id=user_id,
-            vault_id=vault_id,
-            notification_type=NotificationType.RADIO_NEW_DWELLER,
-            priority=NotificationPriority.HIGH,
-            title="New Dweller Arrived!",
-            message=f"{dweller_name} heard your radio broadcast and joined the vault!",
-            meta_data=meta_data,
-        )
-        await NotificationService.notify_room_unlocks(db, user_id, vault_id)
+        """Announce a recruit and the room thresholds it crossed in one transaction.
+
+        Both rows are staged through CRUD, committed once, and only then pushed; any raise
+        before the commit drops every parked delivery.
+        """
+        try:
+            notification = await NotificationService.create_and_send(
+                db,
+                user_id=user_id,
+                vault_id=vault_id,
+                notification_type=NotificationType.RADIO_NEW_DWELLER,
+                priority=NotificationPriority.HIGH,
+                title="New Dweller Arrived!",
+                message=f"{dweller_name} heard your radio broadcast and joined the vault!",
+                meta_data=meta_data,
+                commit=False,
+            )
+            await NotificationService.notify_room_unlocks(db, user_id, vault_id, commit=False)
+            if commit:
+                await NotificationService._commit_and_deliver_transaction(db)
+        except BaseException:
+            NotificationService.discard_deferred_notifications(db)
+            if commit:
+                # This call owns the transaction, so its staged rows must not survive the raise.
+                await db.rollback()
+            raise
         return notification
 
     @staticmethod
@@ -621,5 +657,4 @@ class NotificationService:
         )
 
 
-# Global service instance
 notification_service = NotificationService()

@@ -126,9 +126,14 @@ class BioService:
         return cap_entries([make_entry(source, text), *rest])
 
     @staticmethod
-    async def _persist(db_session: AsyncSession, dweller_id: UUID, entries: list[dict[str, Any]]) -> Dweller:
+    async def _persist(
+        db_session: AsyncSession, dweller_id: UUID, entries: list[dict[str, Any]], *, commit: bool = True
+    ) -> Dweller:
         return await crud.dweller.update(
-            db_session, dweller_id, DwellerUpdate(bio=compile_bio(entries), bio_entries=entries)
+            db_session,
+            dweller_id,
+            DwellerUpdate(bio=compile_bio(entries), bio_entries=entries),
+            commit=commit,
         )
 
     async def append_entry(
@@ -138,15 +143,19 @@ class BioService:
         source: str,
         text: str,
         ref: dict[str, Any] | None = None,
+        *,
+        commit: bool = True,
     ) -> Dweller:
-        """Append one entry and recompile the rendered bio."""
+        """Append one entry and recompile the rendered bio; ``commit=False`` stages it."""
         normalized = text.strip()
         if len(normalized) < BIO_MIN_ENTRY_CHARS:
             raise ValidationException(f"Biography entries need at least {BIO_MIN_ENTRY_CHARS} characters")
         dweller = await crud.dweller.get(db_session, dweller_id)
         if source == "dialogue" and self.has_dialogue_entry(dweller, normalized):
             raise ContentNoChangeException(detail="That detail is already in the biography")
-        return await self._persist(db_session, dweller_id, self.with_entry(dweller, source, normalized, ref))
+        return await self._persist(
+            db_session, dweller_id, self.with_entry(dweller, source, normalized, ref), commit=commit
+        )
 
     def add_entry(
         self,
@@ -168,7 +177,6 @@ class BioService:
 
     @staticmethod
     def has_dialogue_entry(dweller: BioEntryOwner, text: str) -> bool:
-        """Whether this detail is already recorded in the life log."""
         candidate = text.strip().lower()
         return any(
             entry.get("source") == "dialogue" and str(entry.get("text") or "").strip().lower() == candidate

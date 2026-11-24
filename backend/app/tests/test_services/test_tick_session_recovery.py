@@ -53,9 +53,11 @@ async def test_recover_session_restores_a_usable_session(async_session: AsyncSes
 async def test_recover_session_discards_deferred_side_effects(async_session: AsyncSession) -> None:
     async_session.info["deferred_notification_deliveries"] = ["stale"]
     async_session.info["deferred_level_up_deliveries"] = ["stale"]
+    async_session.info["deferred_objective_completions"] = ["stale"]
     await recover_session(async_session)
     assert "deferred_notification_deliveries" not in async_session.info
     assert "deferred_level_up_deliveries" not in async_session.info
+    assert "deferred_objective_completions" not in async_session.info
 
 
 async def test_guard_phase_recovers_the_session_on_a_database_error(async_session: AsyncSession) -> None:

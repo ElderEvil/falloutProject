@@ -21,7 +21,7 @@ from app.core.game_data import get_static_game_data
 from app.crud.item_base import get_items_by_vault
 from app.models.outfit import Outfit
 from app.schemas.outfit import OutfitCreate, OutfitRead, OutfitUpdate
-from app.schemas.responses import JunkListResponse
+from app.schemas.responses import NULL_BODY_RESPONSES, JunkListResponse
 from app.services.item_service import item_service
 from app.utils.static_data import StaticGameData
 
@@ -34,11 +34,7 @@ async def create_outfit(
     db_session: DBSession,
     _: CurrentSuperuser,
 ) -> Outfit:
-    """Create a new outfit (administrators only).
-
-    Returns:
-        The created outfit.
-    """
+    """Create a new outfit (administrators only)."""
     return await crud.outfit.create(db_session, outfit_data)
 
 
@@ -54,12 +50,6 @@ async def read_outfit_list(
     Every item lives in a vault's storage or on one of its dwellers, so the vault
     is required rather than optional: an unscoped list would enumerate other
     players' gear.
-
-    Returns:
-        List of outfits.
-
-    Raises:
-        AccessDeniedException: If the user doesn't own the vault.
     """
     await get_user_vault_or_403(vault_id, user, db_session)
     return await get_items_by_vault(db_session, Outfit, vault_id, pagination.skip, pagination.limit)
@@ -71,14 +61,7 @@ async def read_outfit(
     db_session: DBSession,
     user: CurrentActiveUser,
 ) -> Outfit:
-    """Retrieve an outfit by ID.
-
-    Returns:
-        The requested outfit.
-
-    Raises:
-        AccessDeniedException: If the user doesn't own the outfit's vault.
-    """
+    """Retrieve an outfit by ID."""
     await verify_item_access(outfit_id, Outfit, user, db_session)
     return await crud.outfit.get(db_session, outfit_id)
 
@@ -90,11 +73,7 @@ async def update_outfit(
     db_session: DBSession,
     _: CurrentSuperuser,
 ) -> Outfit:
-    """Update an outfit (administrators only).
-
-    Returns:
-        The updated outfit.
-    """
+    """Update an outfit (administrators only)."""
     return await crud.outfit.update(db_session, outfit_id, outfit_data)
 
 
@@ -115,32 +94,21 @@ async def equip_outfit(
     db_session: DBSession,
     user: CurrentActiveUser,
 ) -> Outfit:
-    """Equip an outfit on a dweller.
-
-    Returns:
-        The equipped outfit.
-
-    Raises:
-        AccessDeniedException: If the user owns neither the dweller nor the outfit.
-    """
+    """Equip an outfit on a dweller."""
     await verify_dweller_access(dweller_id, user, db_session)
     await verify_item_access(outfit_id, Outfit, user, db_session)
     return await item_service.equip_item(db_session, item_id=outfit_id, dweller_id=dweller_id, model=Outfit)
 
 
-@router.post("/{outfit_id}/unequip/", status_code=200, response_model=None)
+@router.post("/{outfit_id}/unequip/", status_code=200, response_model=None, responses=NULL_BODY_RESPONSES)
 async def unequip_outfit(
     outfit_id: UUID,
     db_session: DBSession,
     user: CurrentActiveUser,
 ) -> None:
-    """Unequip an outfit from a dweller.
-
-    Raises:
-        AccessDeniedException: If the user doesn't own the outfit's vault.
-    """
+    """Unequip an outfit from a dweller."""
     await verify_item_access(outfit_id, Outfit, user, db_session)
-    await crud.outfit.unequip(db_session=db_session, item_id=outfit_id)
+    await item_service.unequip_item(db_session, item_id=outfit_id, model=Outfit)
 
 
 @router.post("/{outfit_id}/scrap/", response_model=JunkListResponse)
@@ -149,39 +117,24 @@ async def scrap_outfit(
     db_session: DBSession,
     user: CurrentActiveUser,
 ) -> JunkListResponse:
-    """Scrap an outfit into junk items.
-
-    Returns:
-        List of junk items produced from scrapping.
-
-    Raises:
-        AccessDeniedException: If the user doesn't own the outfit's vault.
-    """
+    """Scrap an outfit into junk items."""
     await verify_item_access(outfit_id, Outfit, user, db_session)
     junk_list = await item_service.scrap_item(db_session, item_id=outfit_id, model=Outfit)
     return JunkListResponse(junk=junk_list)
 
 
-@router.post("/{outfit_id}/sell/", status_code=200, response_model=None)
+@router.post("/{outfit_id}/sell/", status_code=200, response_model=None, responses=NULL_BODY_RESPONSES)
 async def sell_outfit(
     outfit_id: UUID,
     db_session: DBSession,
     user: CurrentActiveUser,
 ) -> None:
-    """Sell an outfit for caps.
-
-    Raises:
-        AccessDeniedException: If the user doesn't own the outfit's vault.
-    """
+    """Sell an outfit for caps."""
     await verify_item_access(outfit_id, Outfit, user, db_session)
     await item_service.sell_item(db_session, item_id=outfit_id, model=Outfit)
 
 
 @router.get("/read_data/", response_model=list[OutfitCreate])
 async def read_outfits_data(data_store: Annotated[StaticGameData, Depends(get_static_game_data)]) -> list[OutfitCreate]:
-    """Retrieve static outfit data definitions.
-
-    Returns:
-        List of static outfit definitions.
-    """
+    """Retrieve static outfit data definitions."""
     return data_store.outfits

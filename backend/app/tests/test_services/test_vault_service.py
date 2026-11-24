@@ -425,6 +425,14 @@ class TestCreateInitialItems:
         assert all(j.storage_id == storage.id for j in junk)
         assert all(j.description and j.value for j in junk)
 
+    async def test_commit_true_commits_the_boosted_seeds(self, async_session, vault) -> None:
+        vault_id = vault.id
+        await crud.vault.create_storage(db_session=async_session, vault_id=vault_id)
+        await seeding.create_initial_items(async_session, vault_id, is_boosted=True, commit=True)
+        await async_session.rollback()
+        pets = await get_items_by_vault(async_session, Pet, vault_id)
+        assert {pet.name for pet in pets} == {name for name, _ in BOOSTED_SEED_PETS}
+
     async def test_standard_vault_seeds_only_standard_outfits(self, async_session, vault) -> None:
         await crud.vault.create_storage(db_session=async_session, vault_id=vault.id)
         await seeding.create_initial_items(async_session, vault.id, is_boosted=False)

@@ -81,7 +81,6 @@ class CRUDItem[ModelType: Weapon | Outfit | Pet, CreateSchemaType: SQLModel, Upd
         return int((await db_session.execute(query)).scalar_one())
 
     async def count_equipped(self, db_session: AsyncSession, vault_id: UUID, name: str | None = None) -> int:
-        """Count equipped items on living vault residents, optionally matching a name."""
         from sqlalchemy import func
 
         dweller_subquery = (
@@ -138,21 +137,26 @@ class CRUDItem[ModelType: Weapon | Outfit | Pet, CreateSchemaType: SQLModel, Upd
         return (await db_session.execute(query)).scalars().first()
 
     async def create_many(
-        self, db_session: AsyncSession, objs_in: Sequence[ModelType | dict[str, Any]]
+        self, db_session: AsyncSession, objs_in: Sequence[ModelType | dict[str, Any]], *, commit: bool = True
     ) -> Sequence[ModelType]:
-        """Persist pre-built items in one transaction (vault seeding)."""
+        """Persist pre-built items; with ``commit=False`` the caller owns the transaction."""
         db_objs = [self.model.model_validate(o) if isinstance(o, dict) else o for o in objs_in]
         db_session.add_all(db_objs)
-        await db_session.commit()
-        for db_obj in db_objs:
-            await db_session.refresh(db_obj)
+        if commit:
+            await db_session.commit()
+            for db_obj in db_objs:
+                await db_session.refresh(db_obj)
+        else:
+            await db_session.flush()
         return db_objs
 
-    async def create(self, db_session: AsyncSession, obj_in: CreateSchemaType | dict) -> ModelType:
+    async def create(
+        self, db_session: AsyncSession, obj_in: CreateSchemaType | dict, *, commit: bool = True
+    ) -> ModelType:
         obj_in = obj_in if isinstance(obj_in, dict) else obj_in.model_dump()
         if obj_in.get("storage_id") and obj_in.get("dweller_id"):
             raise InvalidItemAssignmentException(self.model)
-        return await super().create(db_session, obj_in)
+        return await super().create(db_session, obj_in, commit=commit)
 
     async def update(
         self,
@@ -238,7 +242,6 @@ class CRUDItem[ModelType: Weapon | Outfit | Pet, CreateSchemaType: SQLModel, Upd
         return item
 
     async def get_held_for_exploration(self, db_session: AsyncSession, exploration_id: UUID) -> Sequence[ModelType]:
-        """All items of this type held by an exploration (equipped mid-run)."""
         result = await db_session.execute(select(self.model).where(self.model.exploration_id == exploration_id))
         return list(result.scalars().all())
 
@@ -318,6 +321,11 @@ class CRUDItem[ModelType: Weapon | Outfit | Pet, CreateSchemaType: SQLModel, Upd
         db_session.add(dweller)
 
     async def unequip(self, *, db_session: AsyncSession, item_id: UUID) -> None:
+        """Stage an unequip: the item returns to storage, the dweller's slot is cleared.
+
+        Does not commit — the caller owns the transaction. Both writes are flushed together so
+        the item's move and the dweller's slot change become durable or disappear as one unit.
+        """
         dweller, storage_id, item_type = await self._fetch_unequip_data(db_session, item_id)
 
         dweller = ensure_found(dweller, Dweller, identifier=item_id)
@@ -327,7 +335,7 @@ class CRUDItem[ModelType: Weapon | Outfit | Pet, CreateSchemaType: SQLModel, Upd
         await self._update_item(db_session, item_model, item_id, storage_id)
         await self._update_dweller(db_session, dweller, item_type)
 
-        await db_session.commit()
+        await db_session.flush()
 
     @staticmethod
     def convert_to_junk(item: Weapon | Outfit) -> list[Junk]:
@@ -355,7 +363,6 @@ class CRUDItem[ModelType: Weapon | Outfit | Pet, CreateSchemaType: SQLModel, Upd
 
         junk_results = []
 
-        # Always create at least one junk of the same rarity as the item
         same_rarity_junk_type = {
             RarityEnum.LEGENDARY: legendary_junk,
             RarityEnum.RARE: rare_junk,
@@ -388,10 +395,15 @@ class CRUDItem[ModelType: Weapon | Outfit | Pet, CreateSchemaType: SQLModel, Upd
         return junk_results
 
     async def scrap(self, *, db_session: AsyncSession, item_id: UUID) -> list[Junk]:
+        """Stage a scrap: junk rows plus the item's deletion, flushed, without committing.
+
+        The caller owns the transaction: it commits once the staged rows and the deletion are
+        durable. Ids come from python-side defaults, so the returned junk rows are safe to read
+        before that commit and no refresh statement is needed afterwards.
+        """
         item = await db_session.get(self.model, item_id)
         item = ensure_found(item, self.model, identifier=item_id)
 
-        # Get storage_id from the item before deleting
         storage_id = item.storage_id
 
         junk_list = self.convert_to_junk(item)
@@ -411,10 +423,6 @@ class CRUDItem[ModelType: Weapon | Outfit | Pet, CreateSchemaType: SQLModel, Upd
             db_session.add(junk)
 
         await db_session.delete(item)
-        await db_session.commit()
-
-        # Refresh junk items to get IDs
-        for junk in junk_list:
-            await db_session.refresh(junk)
+        await db_session.flush()
 
         return junk_list

@@ -25,12 +25,6 @@ from app.schemas.overflow import OverflowActionRequest, OverflowActionResponse
 from app.schemas.system import GameBalanceResponse, GameStateResponse, PresenceResponse, VaultTickResponse
 from app.services.combat.incident_service import incident_service
 from app.services.game_loop_service import game_loop_service
-from app.utils.exceptions import (
-    ResourceConflictException,
-    ResourceNotFoundException,
-    ValidationException,
-    VaultOperationException,
-)
 from app.utils.serialize import serialize_optional_utc_datetime
 
 router = APIRouter(prefix="/game", tags=["Game"])
@@ -254,15 +248,8 @@ async def spawn_debug_incident(
 
     If incident_type is not provided, a radscorpion incident will be spawned.
     """
-    try:
-        incident = await incident_service.spawn_incident(db_session, vault.id, incident_type)
-    except (
-        ResourceNotFoundException,
-        ResourceConflictException,
-        ValidationException,
-        VaultOperationException,
-    ) as error:
-        raise HTTPException(status_code=error.status_code, detail=error.detail) from error
+    # Domain failures (404/409/400) are mapped once at the API boundary by domain_exception_handler.
+    incident = await incident_service.spawn_incident(db_session, vault.id, incident_type)
 
     if not incident:
         raise HTTPException(status_code=400, detail="Failed to spawn incident. No occupied rooms available.")

@@ -16,6 +16,9 @@ async_engine = create_async_engine(
     pool_size=settings.API_DB_POOL_SIZE,
     max_overflow=settings.API_DB_MAX_OVERFLOW,
     pool_timeout=settings.API_DB_POOL_TIMEOUT,
+    # Postgres restarts and network blips leave pooled asyncpg connections dead; without a
+    # pre-ping the first request on each slot fails instead of transparently reconnecting.
+    pool_pre_ping=True,
     # Force PostgreSQL connection to use UTC timezone
     # This ensures utcnow() values are correctly interpreted as UTC
     # Fixes 2-hour offset issue when system timezone differs from UTC

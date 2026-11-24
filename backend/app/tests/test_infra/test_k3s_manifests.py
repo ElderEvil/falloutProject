@@ -49,6 +49,16 @@ def test_frontend_uses_the_release_image_baseline() -> None:
     assert "fo-shelter-fe" in container["image"]
 
 
+def test_frontend_and_postgres_declare_probes_and_resource_budgets() -> None:
+    for name in ("frontend-deployment.yaml", "postgres-deployment.yaml"):
+        container = _container(_load(name))
+
+        assert "readinessProbe" in container, name
+        assert "livenessProbe" in container, name
+        assert container["resources"]["requests"]["memory"], name
+        assert container["resources"]["limits"]["memory"], name
+
+
 def test_worker_manifest_matches_the_release_deployment_contract() -> None:
     manifest = _load("dramatiq-worker-deployment.yaml")
     container = _container(manifest)

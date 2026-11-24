@@ -30,6 +30,34 @@ spec:
             - "pg_stat_statements.track=all"
           ports:
             - containerPort: 5432
+          # Starting point; README records that live usage has not been measured yet.
+          resources:
+            requests:
+              cpu: 250m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+          # Recovery after an unclean shutdown can take ~3 minutes (crash recovery, WAL replay).
+          # Startup gates liveness so a slow boot is not killed halfway through replay.
+          startupProbe:
+            exec:
+              command: ["sh", "-c", "pg_isready -U \"$POSTGRES_USER\" -d \"$POSTGRES_DB\""]
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 18
+          readinessProbe:
+            exec:
+              command: ["sh", "-c", "pg_isready -U \"$POSTGRES_USER\" -d \"$POSTGRES_DB\""]
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+          livenessProbe:
+            exec:
+              command: ["sh", "-c", "pg_isready -U \"$POSTGRES_USER\" -d \"$POSTGRES_DB\""]
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 6
           env:
             - name: POSTGRES_DB
               valueFrom:

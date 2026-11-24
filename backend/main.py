@@ -12,6 +12,8 @@ from sqladmin import Admin
 from sqlalchemy.ext.asyncio import async_sessionmaker
 from sqlmodel.ext.asyncio.session import AsyncSession
 from starlette import status
+from starlette.middleware.body_limit import RequestBodyLimitMiddleware
+from starlette.middleware.gzip import GZipMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 from starlette.responses import JSONResponse
 
@@ -58,6 +60,7 @@ from app.core.logging import setup_logging
 from app.core.static_files import CachedStaticFiles
 from app.core.stream_manager import sse_manager
 from app.core.websocket_manager import manager
+from app.db.redis import close_shared_redis
 from app.db.session import async_engine, get_async_session
 from app.middleware.request_id import RequestIdMiddleware
 from app.services.ai_settings_service import ai_settings_service
@@ -147,6 +150,7 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
             await manager.stop_redis()
         finally:
             await sse_manager.close()
+            await close_shared_redis()
 
 
 app = FastAPI(
@@ -170,9 +174,6 @@ def domain_exception_handler(_request: Request, exc: Exception) -> JSONResponse:
 
 # Single transport mapping point for transport-free domain exceptions (docs/backend/SERVICE_LAYER.md)
 app.add_exception_handler(DomainError, domain_exception_handler)
-
-# Add request ID middleware (first, so it wraps all other middleware)
-app.add_middleware(RequestIdMiddleware)
 
 # ProxyHeadersMiddleware adapts request.client and the URL scheme for the rest of the app. It is added before
 # SecurityMiddleware so the guard remains outside it and resolves the client from the trusted Traefik chain itself
@@ -211,6 +212,10 @@ admin = Admin(
     templates_dir=str(Path(__file__).resolve().parent / "app" / "admin" / "templates"),
 )
 
+# Reject oversized bodies before they are read. Registered before CORS so CORS stays outermost and
+# a 413 still carries its headers; the voice route checks the upload size as well.
+app.add_middleware(RequestBodyLimitMiddleware, max_body_size=settings.MAX_REQUEST_BODY_BYTES)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.BACKEND_CORS_ORIGINS,
@@ -218,6 +223,15 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Compress JSON above 1 KiB. Starlette's default exclusion list already skips text/event-stream,
+# audio and images, so SSE and voice bytes pass through untouched.
+app.add_middleware(GZipMiddleware, minimum_size=1024)
+
+# Added last, so it is the outermost middleware: guard rejections (429/403 auto-ban) and CORS
+# failures also carry a correlation id. Starlette inserts each middleware at position 0, so the
+# last one added runs first.
+app.add_middleware(RequestIdMiddleware)
 
 
 app.mount("/static", CachedStaticFiles(directory="app/static"), name="static")

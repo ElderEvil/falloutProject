@@ -179,8 +179,11 @@ export function useWebSocket(initialUrl?: string) {
 
 // Specific composable for chat WebSocket
 export function useChatWebSocket(userId: string, dwellerId: string, token?: string | null) {
-  // Get WebSocket base URL from environment (same as axios API base URL)
-  let apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
+  // An explicit base URL always wins. Built for production with an empty one, the bundle must
+  // talk to the page's own origin — `connect-src 'self'` then already allows the socket — while
+  // dev keeps pointing at the local API server, whose proxy does not carry WebSockets.
+  const fallbackBaseUrl = import.meta.env.PROD ? window.location.origin : 'http://localhost:8000'
+  let apiBaseUrl = import.meta.env.VITE_API_BASE_URL || fallbackBaseUrl
 
   // Normalize: add default scheme if missing
   if (!apiBaseUrl.match(/^https?:\/\//)) {

@@ -70,6 +70,9 @@ fo-cli = "app.cli.main:cli"
 
 [tool.uv]
 default-groups = ["test", "lint"]
+# Dependency cooldown: ignore files published in the last 3 days so scanners can
+# catch malicious releases first (PyPI pulls most malware within 24h).
+exclude-newer = "3d"
 
 [build-system]
 requires = ["setuptools>=83.0.0"]

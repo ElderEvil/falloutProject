@@ -15,6 +15,10 @@ permissions:
   contents: read
   pull-requests: read # paths-filter reads changed files on pull requests
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   frontend-ci:
     name: Frontend Tests
@@ -25,13 +29,13 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
         with:
           fetch-depth: 0
 
       - name: Detect source changes
         id: filter
-        uses: dorny/paths-filter@v4
+        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d  # v4
         with:
           filters: |
             src:
@@ -55,13 +59,13 @@ jobs:
               - '.github/workflows/frontend-ci.yml'
 
       - name: Install pnpm
-        uses: pnpm/action-setup@v6
+        uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115  # v6
         with:
           version: 11.9.0
           run_install: false
 
       - name: Set up Node.js
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1  # v7
         with:
           node-version: 26
           check-latest: true

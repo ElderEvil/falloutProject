@@ -7,7 +7,7 @@ import importlib.util
 import os
 import subprocess
 import sys
-from collections.abc import Generator
+from collections.abc import AsyncIterator, Generator
 from contextlib import contextmanager
 from pathlib import Path
 from types import ModuleType
@@ -76,12 +76,11 @@ def pg_worker_database() -> Generator[str | None]:
     access to it, which a parallel worker cannot guarantee; an empty database plus one
     `alembic upgrade head` per worker is deterministic and costs a few seconds once.
     """
-    url = make_url(str(settings.ASYNC_DATABASE_URI))
-    if url.get_backend_name() != "postgresql":
+    clone = _worker_database_name()
+    if clone is None:
         yield None
         return
-    worker = os.environ.get("PYTEST_XDIST_WORKER", "main")
-    clone = f"{url.database}_w{worker}"
+    url = make_url(str(settings.ASYNC_DATABASE_URI))
     clone_uri = url.set(database=clone).render_as_string(hide_password=False)
     if not _run_admin(url, f'DROP DATABASE IF EXISTS "{clone}" WITH (FORCE)', f'CREATE DATABASE "{clone}"'):
         yield None
@@ -127,11 +126,81 @@ async def _admin(url, statements: tuple[str, ...]) -> None:
 
 
 @pytest_asyncio.fixture(scope="module")
-async def live_pg_engine(pg_worker_database: str | None):
-    """An engine on this worker's own migrated database, or a skip when Postgres is unreachable."""
+async def live_pg_engine(request, pg_worker_database: str | None):
+    """An engine on this worker's own migrated database, or a skip when Postgres is unreachable.
+
+    Identities are counted on the way in and out: a module that commits a `user`, `vault` or
+    `dweller` and leaves it behind is what poisoned a neighbouring module's accept race (a
+    duplicate handle), and the per-worker database only bounds the damage to one worker.
+    """
     if pg_worker_database is None:
         pytest.skip("PostgreSQL unavailable")
     url = make_url(str(settings.ASYNC_DATABASE_URI)).set(database=pg_worker_database)
     engine = create_async_engine(url, poolclass=NullPool)
-    yield engine
-    await engine.dispose()
+    tracked_from = len(_TRACKED)
+    before = await _sentinel_counts(engine)
+    try:
+        yield engine
+    finally:
+        rows = _TRACKED[tracked_from:]
+        del _TRACKED[tracked_from:]
+        if rows:
+            await _delete_tracked_rows(engine, rows)
+        after = await _sentinel_counts(engine)
+        await engine.dispose()
+    leaked = {table: after[table] - before[table] for table in before if after[table] > before[table]}
+    if leaked:
+        raise AssertionError(
+            f"{request.module.__name__} leaves committed identities behind: {leaked}. "
+            "Delete what the test created, or take the rows back inside the same transaction — "
+            "they survive into the next module that shares this worker's database."
+        )
+
+
+# Identities, not fixtures: reference content (quest catalog, item catalogs, game config) is
+# legitimately rewritten by seeding modules, so counting it would flag correct behaviour.
+LEAK_SENTINELS = ("user", "vault", "dweller")
+
+_TRACKED: list[tuple[str, object]] = []
+
+
+def track_created_identity(*, user_id: object = None, vault_id: object = None) -> None:
+    """Register a committed row so the module teardown deletes it.
+
+    Concurrency suites need real commits, but a committed `user` or `vault` outlives the module
+    and its handle can collide with the next one — the leak that surfaced as
+    `ResourceConflictException: User already exists` in an unrelated accept race.
+    """
+    for table, row_id in (("user", user_id), ("vault", vault_id)):
+        if row_id is not None:
+            _TRACKED.append((table, row_id))
+
+
+async def _delete_tracked_rows(engine, rows: list[tuple[str, object]]) -> None:
+    users = [row_id for table, row_id in rows if table == "user"]
+    vaults = [row_id for table, row_id in rows if table == "vault"]
+    async with engine.begin() as connection:
+        # `notification` holds a RESTRICT foreign key to both `user` and `dweller`, so it goes
+        # first; vaults then cascade their dwellers, duels and notifications.
+        if users:
+            await connection.execute(sa.text("DELETE FROM notification WHERE user_id = ANY(:ids)"), {"ids": users})
+        if vaults:
+            await connection.execute(sa.text("DELETE FROM vault WHERE id = ANY(:ids)"), {"ids": vaults})
+        if users:
+            await connection.execute(sa.text('DELETE FROM "user" WHERE id = ANY(:ids)'), {"ids": users})
+
+
+def _worker_database_name() -> str | None:
+    url = make_url(str(settings.ASYNC_DATABASE_URI))
+    if url.get_backend_name() != "postgresql":
+        return None
+    return f"{url.database}_w{os.environ.get('PYTEST_XDIST_WORKER', 'main')}"
+
+
+async def _sentinel_counts(engine) -> dict[str, int]:
+    async with engine.connect() as connection:
+        return {
+            # Table names come from the frozen LEAK_SENTINELS tuple, never from input.
+            table: (await connection.execute(sa.text(f'SELECT count(*) FROM "{table}"'))).scalar_one()  # ruff: ignore[hardcoded-sql-expression]
+            for table in LEAK_SENTINELS
+        }

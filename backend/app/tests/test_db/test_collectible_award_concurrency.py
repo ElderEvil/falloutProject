@@ -18,6 +18,7 @@ from app.schemas.user import UserCreate
 from app.schemas.vault import VaultCreate
 from app.services.collectible_service import collectible_service
 from app.tests.factory.vaults import random_vault_number
+from app.tests.test_alembic._support import track_created_identity
 
 pytest_plugins = ["app.tests.test_alembic._support"]
 
@@ -40,6 +41,9 @@ async def vault_with_dweller(
     vault = await vault_crud.create_with_user_id(
         db_session=db, obj_in=VaultCreate(number=number, name=f"Vault {number}"), user_id=user.id
     )
+    # Committed rows outlive the module: register them so teardown deletes them and the shared
+    # worker database keeps counting from zero.
+    track_created_identity(user_id=user.id, vault_id=vault.id)
     dweller = await dweller_crud.create(
         db_session=db,
         obj_in=DwellerCreate(

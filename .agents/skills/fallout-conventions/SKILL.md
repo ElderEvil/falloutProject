@@ -207,6 +207,9 @@ Inline SQL through `sh -c` breaks on quoting: write the SQL to a file and pipe i
 - `str(URL)` renders the password as `***` (SQLAlchemy masks it): hand a DSN to another process or
   engine with `render_as_string(hide_password=False)`, and escape `%` as `%%` when Alembic consumes it,
   because it passes the value through configparser.
+- A test that commits a real `user`/`vault` must register it with `track_created_identity(...)`; module
+  teardown deletes tracked rows before `live_pg_engine` counts `user`/`vault`/`dweller` and fails the
+  module that leaves them behind. Reference content is not counted — seeding rewrites it by design.
 
 ## Frontend dependency upgrades (Vite+)
 

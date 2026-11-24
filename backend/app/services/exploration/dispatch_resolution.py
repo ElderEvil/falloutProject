@@ -34,6 +34,7 @@ from app.services.exploration.party_resolution import (
     resolve_party_combat,
 )
 from app.services.notification_service import notification_service
+from app.utils.collectibles import MAGAZINE, collectible_for_location, salvage_ready
 from app.utils.place_groups import effective_place_group, location_xp_for, shipment_items, trade_entry, trade_terms
 from app.utils.place_loot import loot_table
 from app.utils.time import utcnow
@@ -262,12 +263,20 @@ async def _resolve_salvage(
     state: VaultLocationState,
     arrived: bool,
 ) -> None:
-    """Resolve a one-dweller salvage at an inert site: the bobblehead, a small find, a spent site.
+    """Resolve a one-dweller salvage at an inert site: the collectible, a small find, a spent site.
 
-    Runs under the vault lock acquired by the caller; the claim and ``searched_at`` are staged and
-    ``start_return`` remains the transaction owner. No combat: salvaging never damages the dweller.
+    Runs under the vault lock acquired by the caller; the claim, the buff and the site marker are
+    staged and ``start_return`` remains the transaction owner. No combat: salvaging never damages
+    the dweller. A magazine place is reread once its fixed 24h cooldown elapses, so it stamps
+    ``last_read_at`` and stays open; a bobblehead or comic is stamped ``searched_at`` and closes.
     """
-    if not game_config.features.collectibles or state.searched_at is not None:
+    now = utcnow()
+    entry = collectible_for_location(location.name, action="salvage")
+    if (
+        not game_config.features.collectibles
+        or entry is None
+        or not salvage_ready(entry, searched_at=state.searched_at, last_read_at=state.last_read_at, now=now)
+    ):
         await exploration_coordinator.start_return(db_session, exploration.id, arrived=arrived)
         return
     if exploration.team_id is not None:
@@ -279,7 +288,10 @@ async def _resolve_salvage(
         await exploration_coordinator.start_return(db_session, exploration.id, arrived=arrived)
         return
 
-    state.searched_at = utcnow()
+    if entry["kind"] == MAGAZINE:
+        state.last_read_at = now
+    else:
+        state.searched_at = now
     db_session.add(state)
     payload = await collectible_service.award_site_collectible(
         db_session, exploration=exploration, location=location, members=members, action="salvage"

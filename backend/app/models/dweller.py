@@ -166,6 +166,9 @@ class Dweller(BaseUUIDModel, DwellerBase, TimeStampMixin, SoftDeleteMixin, table
 
     # Derived from vaultcollectible claims; cleared on death and cross-vault recycling.
     collectible_bonus: dict[str, int] | None = Field(default=None, sa_column=sa.Column(JSONB))
+    # The one timed magazine buff: {"key", "stat", "amount", "expires_at"} (ISO UTC). A newer read
+    # replaces it outright, and expiry is read from expires_at — nothing sweeps this column.
+    magazine_buff: dict | None = Field(default=None, sa_column=sa.Column(JSONB))
 
     # Youth apprenticeship in a production room.
     apprentice_stat: SPECIALEnum | None = Field(default=None)

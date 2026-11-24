@@ -40,7 +40,7 @@ from app.services.exploration.site_offers import (
     uses_single_scene,
 )
 from app.services.map import bio_registration, discovery
-from app.utils.collectibles import collectible_for_location
+from app.utils.collectibles import collectible_for_location, salvage_ready
 from app.utils.place_groups import effective_place_group, load_place_groups, location_xp_for, trade_entry, trade_terms
 from app.utils.place_loot import loot_table
 from app.utils.places import WORLD_SCALE
@@ -155,12 +155,14 @@ def _action_for(
     busy: bool = False,
     caravan: LocationCaravanStateRead | None = None,
 ) -> Literal["clear", "salvage", "trade", "none"]:
-    """What the map offers at this point: clear, a one-time salvage, trade, or nothing.
+    """What the map offers at this point: clear, a salvage, trade, or nothing.
 
     A place the vault has not unlocked, or one with a party already en route, offers nothing:
     the dispatch service refuses both, so advertising an action here would only produce a dead-end
     button. Salvage implies the place is not clearable and the catalog binds a salvage collectible to
-    it; the collectible feature flag keeps inert places inert while the content is switched off.
+    it; ``salvage_ready`` is the same rule the write path applies, so a magazine place comes back
+    after its 24h read cooldown. The collectible feature flag keeps inert places inert while the
+    content is switched off.
     """
     if caravan is not None and caravan.refusal_reason is None:
         return "trade"
@@ -171,10 +173,11 @@ def _action_for(
     group = effective_place_group(location.group_key, location.kind)
     if group is not None and group.get("clearable"):
         return "clear"
+    entry = collectible_for_location(location.name, action="salvage")
     if (
         game_config.features.collectibles
-        and state.searched_at is None
-        and collectible_for_location(location.name, action="salvage") is not None
+        and entry is not None
+        and salvage_ready(entry, searched_at=state.searched_at, last_read_at=state.last_read_at, now=utcnow())
     ):
         return "salvage"
     return "none"

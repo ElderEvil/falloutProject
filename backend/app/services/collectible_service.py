@@ -1,4 +1,4 @@
-"""Award collectibles: the durable vault claim, the finder's permanent bonus, and set bonuses.
+"""Award collectibles: the durable vault claim, the finder's permanent bonus, magazines, and sets.
 
 Every write is staged; the caller's transaction owner commits. Dispatch awards run inside the
 existing vault claim and are published from ``start_return``, never from here.
@@ -9,6 +9,8 @@ from __future__ import annotations
 import logging
 from collections.abc import Sequence
 from dataclasses import dataclass
+from datetime import timedelta
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy.exc import IntegrityError
@@ -24,7 +26,13 @@ from app.models.exploration import Exploration
 from app.models.world_location import WorldLocation
 from app.schemas.collectible import CollectibleSetProgressRead, DwellerCollectibleRead
 from app.services.notification_service import notification_service
-from app.utils.collectibles import collectible_for_key, collectible_for_location, set_progress
+from app.utils.collectibles import (
+    MAGAZINE,
+    collectible_for_key,
+    collectible_for_location,
+    magazine_buff_hours,
+    set_progress,
+)
 from app.utils.collectibles import set_bonus_multiplier as completed_set_multiplier
 from app.utils.time import utcnow
 
@@ -55,7 +63,9 @@ class CollectibleService:
     ) -> bool:
         """Claim a collectible for the vault and add its bonus to the finder.
 
-        Returns False when the vault already holds the claim; nothing is written then.
+        Returns False when the vault already holds the claim; nothing is written then. A magazine
+        writes no permanent bonus — its claim is set progress and its effect is the timed buff that
+        ``award_site_collectible`` applies — so the finder's ``collectible_bonus`` stays untouched.
         """
         entry = collectible_for_key(collectible_key)
         if await collectible_crud.get_by_vault_and_key(db_session, vault_id, collectible_key) is not None:
@@ -79,6 +89,9 @@ class CollectibleService:
         except IntegrityError:
             logger.info("Vault %s already claimed %r; another award won the race", vault_id, entry["key"])
             return False
+
+        if entry["kind"] == MAGAZINE:
+            return True
 
         # Mutated only after the claim lands, so a lost race leaves the finder's bonus untouched.
         bonus = dict(dweller.collectible_bonus or {})
@@ -146,8 +159,10 @@ class CollectibleService:
         """Award the collectible bound to a site to its luckiest survivor.
 
         Staged only: the dispatch transaction owner commits the claim and the bonus, and the
-        notification is parked until that commit. Returns the event payload, or None when the
-        feature is off, the site holds nothing, or the vault already has the claim.
+        notification is parked until that commit. A magazine is the recurring case — its claim is
+        written once per vault and a later read only refreshes the finder's buff — so a return here
+        means "this read counted", for a first read and a renewal alike. Returns None when the
+        feature is off, the site holds nothing, or a one-shot collectible is already claimed.
         """
         if not game_config.features.collectibles:
             return None
@@ -158,28 +173,42 @@ class CollectibleService:
         if not living:
             return None
         finder = min(living, key=lambda member: (-member.luck, str(member.id)))
-        if not await self.award(
+        claimed = await self.award(
             db_session,
             vault_id=exploration.vault_id,
             dweller=finder,
             collectible_key=entry["key"],
             location_id=location.id,
-        ):
+        )
+        magazine = entry["kind"] == MAGAZINE
+        hours = 0
+        if magazine:
+            hours = await self._read_magazine(db_session, vault_id=exploration.vault_id, dweller=finder, entry=entry)
+        elif not claimed:
             return None
 
         vault = await crud.vault.get(db_session, exploration.vault_id)
         if vault is not None:
+            if magazine:
+                title = f"{entry['name']} {'read' if claimed else 'reread'}"
+                message = (
+                    f"{finder.display_name} {'read' if claimed else 'reread'} the {entry['name']} at "
+                    f"{location.name}: +{entry['amount']} {entry['stat']} for {hours} hours."
+                )
+            else:
+                title = f"{entry['name']} found"
+                message = (
+                    f"{finder.display_name} found the {entry['name']} at {location.name}: "
+                    f"permanent +{entry['amount']} {entry['stat']}."
+                )
             await notification_service.create_and_send(
                 db_session,
                 user_id=vault.user_id,
                 vault_id=vault.id,
                 notification_type=NotificationType.COLLECTIBLE_FOUND,
                 priority=NotificationPriority.NORMAL,
-                title=f"{entry['name']} found",
-                message=(
-                    f"{finder.display_name} found the {entry['name']} at {location.name}: "
-                    f"permanent +{entry['amount']} {entry['stat']}."
-                ),
+                title=title,
+                message=message,
                 meta_data={"collectible_key": entry["key"], "dweller_id": str(finder.id)},
                 commit=False,
             )
@@ -191,6 +220,25 @@ class CollectibleService:
             dweller_id=finder.id,
             location_name=location.name,
         )
+
+    async def _read_magazine(
+        self, db_session: AsyncSession, *, vault_id: UUID, dweller: Dweller, entry: dict[str, Any]
+    ) -> int:
+        """Put the finder's one magazine buff in place and return its length in hours.
+
+        Called after the claim is staged, so a first read already counts towards the set and gets
+        the set's longer buff. One buff at a time: a newer read replaces the old one outright.
+        """
+        hours = magazine_buff_hours(entry, await collectible_crud.list_keys(db_session, vault_id))
+        dweller.magazine_buff = {
+            "key": entry["key"],
+            "stat": entry["stat"],
+            "amount": entry["amount"],
+            "expires_at": (utcnow() + timedelta(hours=hours)).isoformat(),
+        }
+        db_session.add(dweller)
+        await db_session.flush()
+        return hours
 
 
 collectible_service = CollectibleService()

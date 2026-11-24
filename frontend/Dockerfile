@@ -24,7 +24,7 @@ ARG VITE_API_BASE_URL=http://localhost:8000
 COPY --from=build-stage /app/dist /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-RUN api_origin="${VITE_API_BASE_URL%/}" \
+RUN api_origin="$(printf '%s' "$VITE_API_BASE_URL" | sed -e 's:/*$::')/" \
  && ws_origin="$(printf '%s' "$api_origin" | sed -e 's|^https|wss|' -e 's|^http|ws|')" \
  && sed -i "s|__EXTRA_API_ORIGINS__|${api_origin} ${ws_origin}|g" /etc/nginx/conf.d/default.conf
 

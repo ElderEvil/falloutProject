@@ -38,12 +38,15 @@ async def vault_with_dweller(
         db_session=db,
         obj_in=UserCreate(username=handle, email=f"{handle}@example.com", password=password),
     )
+    # Register immediately: `create` has already committed, so a failure further down must not
+    # leave an orphan the teardown never learns about.
+    track_created_identity(user_id=user.id)
     vault = await vault_crud.create_with_user_id(
         db_session=db, obj_in=VaultCreate(number=number, name=f"Vault {number}"), user_id=user.id
     )
     # Committed rows outlive the module: register them so teardown deletes them and the shared
     # worker database keeps counting from zero.
-    track_created_identity(user_id=user.id, vault_id=vault.id)
+    track_created_identity(vault_id=vault.id)
     dweller = await dweller_crud.create(
         db_session=db,
         obj_in=DwellerCreate(

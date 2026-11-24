@@ -173,9 +173,6 @@ def domain_exception_handler(_request: Request, exc: Exception) -> JSONResponse:
 # Single transport mapping point for transport-free domain exceptions (docs/backend/SERVICE_LAYER.md)
 app.add_exception_handler(DomainError, domain_exception_handler)
 
-# Add request ID middleware (first, so it wraps all other middleware)
-app.add_middleware(RequestIdMiddleware)
-
 # ProxyHeadersMiddleware adapts request.client and the URL scheme for the rest of the app. It is added before
 # SecurityMiddleware so the guard remains outside it and resolves the client from the trusted Traefik chain itself
 # rather than trusting a pre-resolved X-Forwarded-For value.
@@ -220,6 +217,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Added last, so it is the outermost middleware: guard rejections (429/403 auto-ban) and CORS
+# failures also carry a correlation id. Starlette inserts each middleware at position 0, so the
+# last one added runs first.
+app.add_middleware(RequestIdMiddleware)
 
 
 app.mount("/static", CachedStaticFiles(directory="app/static"), name="static")

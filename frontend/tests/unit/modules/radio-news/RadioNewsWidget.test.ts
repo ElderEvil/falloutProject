@@ -208,6 +208,26 @@ describe('RadioNewsWidget', () => {
     expect(badge.text()).toContain('New Broadcast')
   })
 
+  it('stays off air for a vault founded today', async () => {
+    mockApiGet.mockResolvedValue(null)
+
+    const wrapper = mount(RadioNewsWidget, {
+      props: { vaultId: 'vault-1' },
+    })
+    await flushPromises()
+
+    // The badge must not claim a new broadcast when the server returned nothing.
+    expect(wrapper.find('.radio-news-widget__badge').text()).not.toContain('New Broadcast')
+
+    await wrapper.find('.radio-news-widget__toggle').trigger('click')
+    await flushPromises()
+
+    const offAir = wrapper.find('.radio-news-widget__off-air')
+    expect(offAir.exists()).toBe(true)
+    expect(offAir.text()).toContain('first broadcast airs tomorrow')
+    expect(wrapper.find('.radio-news-widget__error').exists()).toBe(false)
+  })
+
   it('derives the toggle name from its visible content', async () => {
     mockApiGet.mockResolvedValue(makeBroadcast())
 

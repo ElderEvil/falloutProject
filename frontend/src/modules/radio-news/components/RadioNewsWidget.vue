@@ -117,8 +117,13 @@ const loadBroadcast = async () => {
   try {
     const data = await fetchRadioNews(requestedVaultId)
     if (requestVersion !== loadVersion) return
-    if (broadcast.value?.id !== data.id) stopAudio()
+    // A vault founded today has no broadcast yet; the server answers null rather than generating one.
+    if (broadcast.value?.id !== data?.id) stopAudio()
     broadcast.value = data
+    if (!data) {
+      hasPlayed.value = false
+      return
+    }
     hasPlayed.value = data.id ? isPlayedToday(data.id) : false
     emit('newBroadcast', data)
   } catch (err) {
@@ -653,6 +658,19 @@ onBeforeUnmount(() => {
             </section>
           </div>
         </template>
+
+        <div
+          v-else
+          class="radio-news-widget__off-air space-y-1 px-4 py-5 text-xs leading-relaxed text-theme-primary/70"
+        >
+          <p
+            class="m-0 flex items-center gap-1.5 font-bold uppercase tracking-widest text-theme-primary/60"
+          >
+            <Icon icon="mdi:weather-night" class="h-4 w-4" />
+            Off air
+          </p>
+          <p class="m-0">The first broadcast airs tomorrow, once the vault has a day to report.</p>
+        </div>
       </aside>
     </Teleport>
   </div>

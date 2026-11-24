@@ -11,15 +11,23 @@ from app.services.broadcast_service import get_or_create_daily, regenerate, vaul
 router = APIRouter(tags=["Vault Radio Hour"])
 
 
-@router.get("/vaults/{vault_id}/radio-news", response_model=BroadcastRead)
+@router.get("/vaults/{vault_id}/radio-news", response_model=BroadcastRead | None)
 async def get_vault_radio_news(
     vault_id: UUID,
     user: CurrentActiveUser,
     db_session: DBSession,
-) -> BroadcastRead:
-    """Return today's broadcast, generating it once if none exists for the UTC day."""
+) -> BroadcastRead | None:
+    """Return today's broadcast, generating it once if none exists for the UTC day.
+
+    A vault founded today returns `null`: it has nothing to report until tomorrow's airing.
+    """
     vault = await get_user_vault_or_403(vault_id, user, db_session)
-    return await get_or_create_daily(db_session, vault_id, vault_data=vault_stats_from_db(vault))
+    return await get_or_create_daily(
+        db_session,
+        vault_id,
+        vault_data=vault_stats_from_db(vault),
+        vault_created_at=vault.created_at,
+    )
 
 
 @router.post("/vaults/{vault_id}/radio-news/regenerate", response_model=BroadcastRead)
@@ -30,4 +38,9 @@ async def regenerate_vault_radio_news(
 ) -> BroadcastRead:
     """Render a new manual broadcast, rate-limited to three per UTC day."""
     vault = await get_user_vault_or_403(vault_id, user, db_session)
-    return await regenerate(db_session, vault_id, vault_data=vault_stats_from_db(vault))
+    return await regenerate(
+        db_session,
+        vault_id,
+        vault_data=vault_stats_from_db(vault),
+        vault_created_at=vault.created_at,
+    )

@@ -25,6 +25,7 @@ from app.services.openrouter_tts_service import get_openrouter_tts_service
 from app.services.storage.factory import get_storage_client
 from app.utils.broadcast_script import build_daily_script
 from app.utils.exceptions import (
+    BroadcastNotYetAiringException,
     BroadcastRateLimitException,
     ElevenLabsProviderException,
     TTSProviderException,
@@ -46,6 +47,15 @@ BROADCAST_AUDIO_BUCKET = "dweller-audio"
 
 def _utc_today() -> date:
     return utcnow().date()
+
+
+def is_airing_day(created_at: datetime | None, today: date) -> bool:
+    """A vault founds quietly: its first broadcast airs the UTC day after creation.
+
+    `created_at` is the vault's founding timestamp; `None` means the caller has no opinion
+    and the guard stands down, which keeps the service usable from jobs that predate vaults.
+    """
+    return created_at is None or created_at.date() < today
 
 
 def vault_stats_from_db(vault: Vault) -> dict[str, Any]:
@@ -313,17 +323,23 @@ async def get_or_create_daily(
     vault_data: dict[str, Any] | None = None,
     recent_notifications: list[dict[str, Any]] | None = None,
     gender_counts: list[tuple[str, int]] | None = None,
-) -> BroadcastRead:
+    vault_created_at: datetime | None = None,
+) -> BroadcastRead | None:
     """Get today's broadcast, generating it once if none exists.
 
-    Generation happens outside the vault lock; the lock is taken only to
-    re-check and insert, so a slow TTS call does not block vault operations.
+    Returns `None` for a vault founded today: nothing has happened worth reporting yet, and a
+    broadcast on the founding day would narrate an empty vault. Generation happens outside the
+    vault lock; the lock is taken only to re-check and insert, so a slow TTS call does not block
+    vault operations.
     """
     today = _utc_today()
 
     existing = await get_today_broadcast(db, vault_id)
     if existing:
         return _serialize(existing)
+
+    if not is_airing_day(vault_created_at, today):
+        return None
 
     title, script, audio_key, audio_url = await _prepare(
         db,
@@ -365,9 +381,17 @@ async def regenerate(
     vault_data: dict[str, Any] | None = None,
     recent_notifications: list[dict[str, Any]] | None = None,
     gender_counts: list[tuple[str, int]] | None = None,
+    vault_created_at: datetime | None = None,
 ) -> BroadcastRead:
-    """Render a new manual broadcast, rate-limited to three per UTC day."""
+    """Render a new manual broadcast, rate-limited to three per UTC day.
+
+    A vault founded today cannot request one: the first airing is the next UTC day, so asking
+    early is a conflict rather than a rate-limit.
+    """
     today = _utc_today()
+
+    if not is_airing_day(vault_created_at, today):
+        raise BroadcastNotYetAiringException
 
     await _ensure_regeneration_allowed(db, vault_id, today)
 

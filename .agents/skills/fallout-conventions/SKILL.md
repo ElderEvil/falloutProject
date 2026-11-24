@@ -199,6 +199,15 @@ Inline SQL through `sh -c` breaks on quoting: write the SQL to a file and pipe i
   re-check `down_revision` and single-head state before pushing.
 - Verify migrations against a throwaway scratch Postgres pod, never the `fallout` namespace DB.
 
+## Test Postgres isolation
+
+- Each xdist worker gets its own database (`<db>_w<worker>`, migrated once per session, dropped at
+  teardown) from `app/tests/test_alembic/_support.py::live_pg_engine`. Never add a local copy of that
+  fixture — seven existed, all pointed at the shared DB, and let workers collide on unique keys.
+- `str(URL)` renders the password as `***` (SQLAlchemy masks it): hand a DSN to another process or
+  engine with `render_as_string(hide_password=False)`, and escape `%` as `%%` when Alembic consumes it,
+  because it passes the value through configparser.
+
 ## Frontend dependency upgrades (Vite+)
 
 - Upgrading Vite+ means bumping the **catalog pair**: `vite-plus: X` and

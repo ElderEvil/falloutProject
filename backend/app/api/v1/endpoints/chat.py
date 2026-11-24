@@ -4,10 +4,11 @@ from typing import Annotated
 from urllib.parse import quote
 from uuid import UUID
 
-from fastapi import APIRouter, File, Query, UploadFile
+from fastapi import APIRouter, File, HTTPException, Query, UploadFile
 from fastapi.responses import Response
 
 from app.api.deps import CurrentActiveUser, DBSession, OffsetPaginationParams
+from app.core.config import settings
 from app.models.chat_message import ChatMessage as ChatMessageRow
 from app.models.chat_message import ChatMessageRead
 from app.schemas.chat import ChatMessage, DwellerChatResponse, DwellerVoiceChatResponse
@@ -59,7 +60,7 @@ async def get_chat_history(
 @router.post(
     "/{dweller_id}/voice",
     response_model=DwellerVoiceChatResponse,
-    responses={400: {"description": "Empty audio file"}},
+    responses={400: {"description": "Empty audio file"}, 413: {"description": "Audio file too large"}},
 )
 async def voice_chat_with_dweller(
     dweller_id: UUID,
@@ -74,6 +75,12 @@ async def voice_chat_with_dweller(
     Binary responses percent-encode UTF-8 text in X-Transcription and X-Response-Text;
     clients must decode these headers with decodeURIComponent. JSON fields remain plain text.
     """
+    if audio_file.size is not None and audio_file.size > settings.MAX_REQUEST_BODY_BYTES:
+        raise HTTPException(
+            status_code=413,
+            detail=f"Audio upload exceeds the {settings.MAX_REQUEST_BODY_BYTES}-byte limit.",
+        )
+
     result = await conversation_service.process_audio_message(
         db_session=db_session,
         user=user,

@@ -43,6 +43,10 @@ class Settings(BaseSettings):
     USERNAME_CHANGE_COOLDOWN_DAYS: int = 30
     EMAIL_CHANGE_COOLDOWN_DAYS: int = 7
 
+    # The only large request bodies are voice uploads. Cap the transport as well as the transcribed
+    # payload, so neither can be grown into a memory spike.
+    MAX_REQUEST_BODY_BYTES: int = Field(default=10 * 1024 * 1024, ge=1024)
+
     POSTGRES_SERVER: str
     POSTGRES_USER: str
     POSTGRES_PASSWORD: str

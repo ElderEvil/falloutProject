@@ -12,6 +12,7 @@ from sqladmin import Admin
 from sqlalchemy.ext.asyncio import async_sessionmaker
 from sqlmodel.ext.asyncio.session import AsyncSession
 from starlette import status
+from starlette.middleware.body_limit import RequestBodyLimitMiddleware
 from starlette.middleware.gzip import GZipMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 from starlette.responses import JSONResponse
@@ -218,6 +219,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Reject oversized bodies before they are read. The voice route checks the upload size as well.
+app.add_middleware(RequestBodyLimitMiddleware, max_body_size=settings.MAX_REQUEST_BODY_BYTES)
 
 # Compress JSON above 1 KiB. Starlette's default exclusion list already skips text/event-stream,
 # audio and images, so SSE and voice bytes pass through untouched.

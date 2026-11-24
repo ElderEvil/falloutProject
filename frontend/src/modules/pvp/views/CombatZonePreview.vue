@@ -50,12 +50,14 @@ interface SideView {
   fill: string
 }
 
-/** Coarse bands only: the board never publishes exact stats. */
+/** Party bands over the frozen power sum, mirroring `services/pvp/snapshots.py::POWER_BANDS`.
+ *  A band is a matchup property, so the board labels the side and never a single dweller: an
+ *  average can sit above its weakest member, and the two labels then contradict each other.
+ */
 const POWER_BANDS = [
-  { label: 'Elite', min: 165 },
-  { label: 'Hardened', min: 130 },
-  { label: 'Seasoned', min: 95 },
-  { label: 'Fledgling', min: 0 },
+  { label: 'Elite', min: 300 },
+  { label: 'Strong', min: 175 },
+  { label: 'Steady', min: 75 },
 ] as const
 
 const { filter: dwellerFilter } = useDwellerStore()
@@ -93,24 +95,15 @@ const vaultLabel = computed(() =>
   vaultNumber.value === null ? 'Vault —' : `Vault ${String(vaultNumber.value).padStart(3, '0')}`
 )
 
-/** Same scoring the roster ranks by: combat power when present, level and SPECIAL always. */
-function powerScore(dweller: DwellerShort): number {
-  const special =
-    dweller.strength +
-    dweller.perception +
-    dweller.endurance +
-    dweller.charisma +
-    dweller.intelligence +
-    dweller.agility +
-    dweller.luck
-  return (dweller.combat_power ?? 0) + dweller.level * 4 + special
+/** Same scale as the backend: the party's frozen power sum, never a member average. */
+function powerSum(fighters: Fighter[]): number {
+  return fighters.reduce((total, fighter) => total + (fighter.dweller.combat_power ?? 0), 0)
 }
 
 function bandFor(fighters: Fighter[]): string {
   if (!fighters.length) return 'Unrated'
-  const average =
-    fighters.reduce((total, fighter) => total + powerScore(fighter.dweller), 0) / fighters.length
-  return POWER_BANDS.find((band) => average >= band.min)?.label ?? 'Unrated'
+  const total = powerSum(fighters)
+  return POWER_BANDS.find((band) => total >= band.min)?.label ?? 'Light'
 }
 
 function toFighter(dweller: DwellerShort): Fighter {
@@ -135,7 +128,11 @@ function toFighter(dweller: DwellerShort): Fighter {
 const livingRoster = computed(() =>
   [...dwellerFilter.allDwellers].filter((dweller) => dweller.status !== 'dead')
 )
-const ranked = computed(() => [...livingRoster.value].sort((a, b) => powerScore(b) - powerScore(a)))
+const ranked = computed(() =>
+  [...livingRoster.value].sort(
+    (a, b) => (b.combat_power ?? 0) - (a.combat_power ?? 0) || b.level - a.level
+  )
+)
 
 const ownTrio = computed(() => ranked.value.slice(0, PARTY_SIZE).map(toFighter))
 
@@ -442,9 +439,6 @@ onUnmounted(() => {
                     Lv {{ fighter.dweller.level }} · {{ fighter.special }}
                   </p>
                 </div>
-                <Badge variant="outline" class="border-theme-primary/30 text-theme-primary/70">
-                  {{ bandFor([fighter]) }}
-                </Badge>
               </li>
               <li
                 v-if="!ownTrio.length && !rosterSettled"

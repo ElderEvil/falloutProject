@@ -251,7 +251,11 @@ function closeClaimModal(): void {
                             v-if="tab.icon"
                             :icon="tab.icon"
                             class="mr-2 inline"
-                            :style="TAB_CADENCE_COLORS[tab.key] ? { color: TAB_CADENCE_COLORS[tab.key] } : undefined"
+                            :style="
+                              TAB_CADENCE_COLORS[tab.key]
+                                ? { color: TAB_CADENCE_COLORS[tab.key] }
+                                : undefined
+                            "
                             :ariaHidden="true"
                           />
                           {{ tab.label }}

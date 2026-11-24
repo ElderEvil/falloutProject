@@ -11,6 +11,7 @@ from app.core.game_config import game_config
 from app.models.notification import Notification
 from app.services.combat.incident_service import IncidentService
 from app.services.notification_service import NotificationService
+from app.tests.test_services._transaction_helpers import fail_sql
 from app.utils.time import utcnow
 
 PUBLISHING = "app.services.combat.incident_publishing.notification_service.create_and_send"
@@ -207,22 +208,20 @@ async def test_failed_room_unlock_staging_discards_the_parked_recruit(
     # Make the fixture vault durable: the failure below rolls back only the announcement.
     await async_session.commit()
 
-    with (
-        patch(
-            "app.services.notification_service.dweller_crud.count_alive_in_vault",
-            side_effect=RuntimeError("room-unlock summary staging failed"),
-        ),
-        pytest.raises(RuntimeError, match="room-unlock summary staging failed"),
-    ):
-        await NotificationService.notify_radio_new_dweller(async_session, user_id, vault_id, "Rolled Back Recruit")
+    with pytest.raises(RuntimeError, match="room-unlock summary staging failed"):
+        async with fail_sql(
+            async_session,
+            lambda statement: "count(" in statement.lower() and "from dweller" in statement.lower(),
+            "room-unlock summary staging failed",
+        ):
+            await NotificationService.notify_radio_new_dweller(async_session, user_id, vault_id, "Rolled Back Recruit")
 
     mock_ws.send_personal_message.assert_not_called()
     mock_sse.publish.assert_not_called()
     assert "deferred_notification_deliveries" not in async_session.info
 
     # A retry on the same session must deliver its own notice and nothing else.
-    with patch.object(NotificationService, "notify_room_unlocks", new_callable=AsyncMock):
-        await NotificationService.notify_radio_new_dweller(async_session, user_id, vault_id, "Kept Recruit")
+    await NotificationService.notify_radio_new_dweller(async_session, user_id, vault_id, "Kept Recruit")
 
     mock_ws.send_personal_message.assert_called_once()
     payload = mock_ws.send_personal_message.call_args.args[0]

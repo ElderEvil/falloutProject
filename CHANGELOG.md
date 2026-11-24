@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 3.20.4 (2026-11-24)
+
+### Bug Fixes
+
+* **infra:** release the caching and socket corrections merged as chore ([#1518](https://github.com/ElderEvil/falloutProject/issues/1518)) 0143664, closes #1509
+
 ## 3.20.3 (2026-11-24)
 
 ### Bug Fixes

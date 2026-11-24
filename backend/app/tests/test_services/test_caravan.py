@@ -178,6 +178,30 @@ async def test_resolution_pays_a_common_shipment_and_starts_the_cooldown(
 
 
 @pytest.mark.usefixtures("default_world_snapshot")
+async def test_a_departure_that_fails_after_the_debit_leaves_no_trace(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The fee is charged in the departure transaction: a later failure must roll back the whole trip."""
+    location, _state = await _register_place(async_session, vault, dweller)
+    before = vault.bottle_caps
+
+    async def _explode(*_args, **_kwargs):
+        raise RuntimeError("departure failed after the debit")
+
+    monkeypatch.setattr(exploration_service, "_persist_departure_transaction", _explode)
+    with pytest.raises(RuntimeError):
+        await _trade(async_session, vault, dweller, location)
+    await async_session.rollback()
+
+    await async_session.refresh(vault)
+    await async_session.refresh(dweller)
+    assert vault.bottle_caps == before
+    assert dweller.status.value != "exploring"
+    rows = await async_session.execute(select(Exploration).where(Exploration.vault_id == vault.id))
+    assert rows.first() is None
+
+
+@pytest.mark.usefixtures("default_world_snapshot")
 async def test_trade_run_grants_no_xp(async_session: AsyncSession, vault: Vault, dweller: Dweller) -> None:
     location, _state = await _register_place(async_session, vault, dweller)
     exploration = await _trade(async_session, vault, dweller, location)

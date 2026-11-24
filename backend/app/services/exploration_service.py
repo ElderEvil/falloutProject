@@ -445,6 +445,11 @@ class ExplorationService:
         # Snapshot generation commits on row creation; resolve it before staging the storage deduction so supplies,
         # team, and exploration persist in the single departure commit (staging first could strand it).
         snapshot = await world_snapshot_service.get_or_generate(db_session)
+        # One lock order, vault then storage. Settling a return claims the vault and only later takes the
+        # storage row while moving loot, so a departure that locked storage first could wait on that return
+        # in the opposite order and be aborted by Postgres as a deadlock.
+        if fee:
+            await self._charge_caravan_fee(db_session, vault_id, fee)
         # The snapshot commit can stale the pre-read: re-read under FOR UPDATE so a supply spend committed in the
         # window is not overwritten. The row lock holds until the departure commit, keeping re-check and deduction
         # atomic.
@@ -453,8 +458,6 @@ class ExplorationService:
             await db_session.refresh(storage)
         self._require_supplies(storage, stimpaks, radaways)
         self._deduct_storage_supplies(db_session, storage, stimpaks, radaways)
-        if fee:
-            await self._charge_caravan_fee(db_session, vault_id, fee)
         anchor = dwellers[0]
 
         exploration = Exploration(

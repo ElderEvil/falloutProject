@@ -141,7 +141,15 @@ def load_settlement_trade() -> dict[str, dict[str, Any]]:
     with TRADE_FILE.open(encoding="utf-8") as f:
         entries: list[dict[str, Any]] = json.load(f)["places"]
 
+    # A material with no common junk item would pass the enum check and then ship nothing at
+    # resolution time — after the fee was charged. Validate against the same common-item rule the
+    # resolver uses, so a catalog edit fails here instead of costing a player caps.
+    from app.utils.static_data import game_data_store
+
     junk = {member.value for member in JunkTypeEnum}
+    shippable = {
+        str(item.junk_type).lower() for item in game_data_store.junk_items if str(item.rarity).lower() == "common"
+    }
     groups = seeded_place_groups()
     trade: dict[str, dict[str, Any]] = {}
     for entry in entries:
@@ -154,6 +162,8 @@ def load_settlement_trade() -> dict[str, dict[str, Any]]:
             raise ValueError(f"Caravan shipment for {name!r} needs a settlement or city seed place")
         if entry.get("material") not in junk:
             raise ValueError(f"Caravan shipment for {name!r} needs a known junk material")
+        if entry["material"] not in shippable:
+            raise ValueError(f"Caravan shipment for {name!r} names a material with no common junk item")
         band = entry.get("band")
         if not (
             isinstance(band, list)

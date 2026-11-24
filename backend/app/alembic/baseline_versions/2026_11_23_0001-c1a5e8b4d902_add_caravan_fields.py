@@ -1,7 +1,7 @@
 """add caravan purpose and cooldown
 
 Revision ID: c1a5e8b4d902
-Revises: a7d4e1c85b20
+Revises: b1e2f3a4c5d6
 Create Date: 2026-11-23 00:01:00.000000
 
 Trade caravans (issue 1493). No backfill is needed: the purpose defaults to 'clear' (every existing
@@ -21,7 +21,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "c1a5e8b4d902"
-down_revision: str | None = "a7d4e1c85b20"
+down_revision: str | None = "b1e2f3a4c5d6"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

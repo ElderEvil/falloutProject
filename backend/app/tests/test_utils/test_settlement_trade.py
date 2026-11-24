@@ -77,6 +77,23 @@ def test_tiers_fees_and_untradeable_groups() -> None:
     assert trade_caps_cost(get_place_group("factory")) == 0
 
 
+def test_a_material_without_a_common_item_is_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A shipment must name a material the resolver can actually ship, not just a valid enum value."""
+    from types import SimpleNamespace
+
+    from app.utils import place_groups
+    from app.utils.static_data import game_data_store
+
+    without_common = [item for item in game_data_store.junk_items if str(item.rarity).lower() != "common"]
+    monkeypatch.setattr("app.utils.static_data.game_data_store", SimpleNamespace(junk_items=without_common))
+    place_groups.load_settlement_trade.cache_clear()
+    try:
+        with pytest.raises(ValueError, match="no common junk item"):
+            place_groups.load_settlement_trade()
+    finally:
+        place_groups.load_settlement_trade.cache_clear()
+
+
 @pytest.mark.parametrize(
     ("mutate", "match"),
     [

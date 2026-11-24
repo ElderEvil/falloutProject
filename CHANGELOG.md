@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 3.20.3 (2026-11-24)
+
+### Bug Fixes
+
+* **pvp:** give the power bands a reachable scale and one rule ([#1516](https://github.com/ElderEvil/falloutProject/issues/1516)) 02e4242
+
 ## 3.20.2 (2026-11-24)
 
 ### Bug Fixes

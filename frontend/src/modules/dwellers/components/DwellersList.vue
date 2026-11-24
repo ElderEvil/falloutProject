@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, toRef, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, ref, toRef, watch } from 'vue'
 import { Icon } from '@iconify/vue'
 import type { DwellerShort, SpecialKey } from '@/modules/dwellers/models/dweller'
 import {
@@ -50,18 +50,59 @@ const emit = defineEmits<{
   (e: 'clear-filters'): void
 }>()
 
-const pageSize = 20
-const currentPage = ref(1)
-const pageCount = computed(() => Math.ceil(props.dwellers.length / pageSize))
-const pageStart = computed(() => (currentPage.value - 1) * pageSize)
-const pageDwellers = computed(() =>
-  props.dwellers.slice(pageStart.value, pageStart.value + pageSize)
-)
+const PAGE_SIZE = 20
+const visibleCount = ref(PAGE_SIZE)
+const visibleDwellers = computed(() => props.dwellers.slice(0, visibleCount.value))
+const hasMore = computed(() => visibleCount.value < props.dwellers.length)
 
-// Filters and sorting apply to the entire roster before it reaches this component.
+// Reset only when the roster itself is replaced (a new filter/sort/query rebuilds
+// the array) or grows/shrinks. A single dweller's field update arrives in place —
+// same array instance, same length — so it leaves the reader's scroll depth alone.
+// A deep watch would reset on every stat tick, which is exactly the bug this avoids.
 watch([() => props.dwellers, () => props.dwellers.length], () => {
-  currentPage.value = 1
+  visibleCount.value = PAGE_SIZE
 })
+
+const sentinel = ref<HTMLElement | null>(null)
+let observer: IntersectionObserver | null = null
+
+/** Nearest ancestor that scrolls vertically — the roster is nested in page shells, not window. */
+const scrollingAncestor = (el: HTMLElement): HTMLElement | null => {
+  for (let node = el.parentElement; node; node = node.parentElement) {
+    const overflowY = getComputedStyle(node).overflowY
+    if (overflowY === 'auto' || overflowY === 'scroll' || overflowY === 'overlay') return node
+  }
+  return null
+}
+
+const loadMore = () => {
+  if (!hasMore.value) return
+  visibleCount.value = Math.min(visibleCount.value + PAGE_SIZE, props.dwellers.length)
+}
+
+const observeSentinel = (el: HTMLElement | null) => {
+  observer?.disconnect()
+  observer = null
+  if (!el || typeof IntersectionObserver === 'undefined') return
+  observer = new IntersectionObserver(
+    (entries) => {
+      if (!entries.some((entry) => entry.isIntersecting) || !hasMore.value) return
+      loadMore()
+      // The observer fires on intersection *changes* only: re-attach after the
+      // appended rows move the sentinel so a tall viewport keeps filling.
+      void nextTick(() => {
+        if (!observer || !sentinel.value) return
+        observer.unobserve(sentinel.value)
+        observer.observe(sentinel.value)
+      })
+    },
+    { root: scrollingAncestor(el), rootMargin: '200px' }
+  )
+  observer.observe(el)
+}
+
+watch(sentinel, observeSentinel, { flush: 'post' })
+onBeforeUnmount(() => observer?.disconnect())
 
 /** The empty state outranks the view-mode branches: without rows there is nothing to lay out. */
 const showEmptyState = computed(() => !props.isLoading && props.dwellers.length === 0)
@@ -131,7 +172,7 @@ const getRoomStat = (
     </template>
 
     <DwellerListRow
-      v-for="dweller in pageDwellers"
+      v-for="dweller in visibleDwellers"
       v-else
       :key="dweller.id"
       :dweller="dweller"
@@ -202,7 +243,7 @@ const getRoomStat = (
       <DwellerGridItemSkeleton v-for="i in 6" :key="`grid-skeleton-${i}`" />
     </template>
     <DwellerGridItem
-      v-for="dweller in pageDwellers"
+      v-for="dweller in visibleDwellers"
       v-else
       :key="dweller.id"
       :dweller="dweller"
@@ -215,41 +256,28 @@ const getRoomStat = (
 
   <DwellersTable
     v-else
-    :dwellers="pageDwellers"
+    :dwellers="visibleDwellers"
     :rooms="rooms"
     :columns="columns"
     :is-loading="isLoading"
     @view-details="emit('view-details', $event)"
     @open-room="emit('open-room', $event)"
   />
-  <nav
-    v-if="!isLoading && pageCount > 1"
-    aria-label="Dweller pages"
-    class="mt-4 flex items-center justify-end gap-3 text-sm text-theme-primary"
+  <!-- Progress + keyboard "load more" affordance; the sentinel below auto-advances for
+       pointer scrolling. The count is deliberately not a live region: it changes on every
+       append and would announce continuously. -->
+  <div
+    v-if="!isLoading && dwellers.length > 0"
+    class="mt-4 flex flex-col items-center gap-3 text-sm text-theme-primary/70"
   >
-    <span role="status" aria-live="polite">
-      {{ pageStart + 1 }}–{{ Math.min(pageStart + pageSize, dwellers.length) }} of
-      {{ dwellers.length }}
-    </span>
-    <Button
-      variant="outline"
-      size="icon"
-      aria-label="Previous dweller page"
-      :disabled="currentPage === 1"
-      @click="currentPage--"
-    >
-      <Icon icon="mdi:chevron-left" class="h-4 w-4" />
-    </Button>
-    <Button
-      variant="outline"
-      size="icon"
-      aria-label="Next dweller page"
-      :disabled="currentPage === pageCount"
-      @click="currentPage++"
-    >
-      <Icon icon="mdi:chevron-right" class="h-4 w-4" />
-    </Button>
-  </nav>
+    <p class="dweller-progress">Showing {{ visibleDwellers.length }} of {{ dwellers.length }}</p>
+    <template v-if="hasMore">
+      <Button variant="outline" size="sm" @click="loadMore">
+        Show {{ Math.min(PAGE_SIZE, dwellers.length - visibleCount) }} more
+      </Button>
+      <div ref="sentinel" class="dweller-sentinel h-px w-full" aria-hidden="true" />
+    </template>
+  </div>
 </template>
 
 <style scoped>

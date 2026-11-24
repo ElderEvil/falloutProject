@@ -110,7 +110,48 @@ describe('FamilyTreePanel', () => {
     const { wrapper } = mountPanel()
 
     expect(wrapper.text()).toContain('MARRIED')
-    expect(wrapper.text()).toContain('90')
+    expect(wrapper.get('.bond-affinity').text()).toBe('90')
+  })
+
+  it('renders a friendly affinity as a value with no heart glyph', () => {
+    stubStore()
+    const { wrapper } = mountPanel()
+
+    const badge = wrapper.get('.bond-affinity')
+    expect(badge.text()).toBe('90')
+    expect(badge.text()).not.toContain('♥')
+    expect(badge.text()).not.toContain('❤')
+    expect(badge.get('.text-success').text()).toBe('90')
+  })
+
+  it('renders a rival affinity without a heart, in the danger tone', () => {
+    const lineage = {
+      ...mockLineage,
+      partners: [{ ...mockLineage.partners[0]!, relationship_type: 'RIVAL', affinity: -40 }],
+    }
+    stubStore(lineage)
+    const { wrapper } = mountPanel()
+
+    const badge = wrapper.get('.bond-affinity')
+    expect(badge.text()).toBe('-40')
+    expect(badge.text()).not.toContain('♥')
+    expect(badge.get('.text-danger').text()).toBe('-40')
+    expect(wrapper.find('.text-success').exists()).toBe(false)
+  })
+
+  it('keeps a zero affinity neutral instead of friendly', () => {
+    const lineage = {
+      ...mockLineage,
+      partners: [{ ...mockLineage.partners[0]!, relationship_type: 'PARTNER', affinity: 0 }],
+    }
+    stubStore(lineage)
+    const { wrapper } = mountPanel()
+
+    const badge = wrapper.get('.bond-affinity')
+    expect(badge.text()).toBe('0')
+    expect(badge.get('.text-muted-foreground').text()).toBe('0')
+    expect(wrapper.find('.text-success').exists()).toBe(false)
+    expect(wrapper.find('.text-danger').exists()).toBe(false)
   })
 
   it('renders the first name without a literal null when the surname is absent', () => {

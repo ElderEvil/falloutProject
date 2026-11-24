@@ -23,6 +23,10 @@ const { lineage, isLoading, error, load, select } = useLineage(
 const isDead = (member: LineageMember) => member.is_dead
 const partnerStage = (member: LineageMember) => member.relationship_type ?? 'partner'
 
+/** Affinity is -100..100; the badge carries the tone, so a rival never reads as a heart and 0 stays neutral. */
+const affinityTone = (affinity: number) =>
+  affinity === 0 ? 'text-muted-foreground' : affinity < 0 ? 'text-danger' : 'text-success'
+
 const selfAge = computed(() => {
   const age = ctx.dweller.value?.age_group
   return age ? capitalize(age) : ''
@@ -105,7 +109,7 @@ const selfAge = computed(() => {
                       <span class="affinity-bar" aria-hidden="true">
                         <span class="affinity-fill" :style="{ width: member.affinity + '%' }" />
                       </span>
-                      {{ member.affinity }}♥
+                      <span :class="affinityTone(member.affinity)">{{ member.affinity }}</span>
                     </span>
                   </span>
                 </span>

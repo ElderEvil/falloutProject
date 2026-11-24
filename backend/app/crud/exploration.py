@@ -99,12 +99,35 @@ class CRUDExploration(CRUDBase[Exploration, ExplorationCreate, ExplorationUpdate
         )
         return result.first() is not None
 
-    async def get_active_dispatch_location_ids(self, db_session: AsyncSession, *, vault_id: UUID) -> set[UUID]:
-        """Map points this vault currently has a party en route to."""
+    async def has_unfinished_dispatch_to(self, db_session: AsyncSession, *, vault_id: UUID, location_id: UUID) -> bool:
+        """True while a party is still out to, or coming back from, the location.
+
+        The partial unique index covers ACTIVE only, so a returning party frees the index slot while still
+        occupying the destination — fine for clearing, fatal for a caravan's cooldown.
+        """
+        result = await db_session.execute(
+            select(Exploration.id)
+            .where(
+                Exploration.vault_id == vault_id,
+                Exploration.target_location_id == location_id,
+                Exploration.status.in_(IN_PROGRESS_STATUSES),
+            )
+            .limit(1)
+        )
+        return result.first() is not None
+
+    async def get_active_dispatch_location_ids(
+        self,
+        db_session: AsyncSession,
+        *,
+        vault_id: UUID,
+        statuses: tuple[ExplorationStatus, ...] = (ExplorationStatus.ACTIVE,),
+    ) -> set[UUID]:
+        """Map points this vault has a party out to, by the given statuses (ACTIVE by default)."""
         result = await db_session.execute(
             select(Exploration.target_location_id).where(
                 Exploration.vault_id == vault_id,
-                Exploration.status == ExplorationStatus.ACTIVE,
+                Exploration.status.in_(statuses),
                 Exploration.target_location_id.is_not(None),
             )
         )

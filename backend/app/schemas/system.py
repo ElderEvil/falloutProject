@@ -40,6 +40,34 @@ class PresenceResponse(BaseModel):
     last_presence_at: str | None
 
 
+class GameStateResponse(BaseModel):
+    """Current game-loop status for one vault."""
+
+    vault_id: str
+    is_active: bool
+    is_paused: bool
+    total_game_time: int
+    last_tick_time: str
+    offline_time: int
+
+
+class VaultTickResponse(BaseModel):
+    """Manual tick acknowledgement.
+
+    A paused or duplicate tick short-circuits to ``status`` only; a processed
+    tick carries ``vault_id``/``seconds_passed``/``updates``. ``updates`` stays an
+    open map because the tick phases assemble per-phase diagnostics (including
+    per-phase ``error`` keys) that are internal working contracts, not wire
+    schemas.
+    """
+
+    message: str
+    status: str | None = None
+    vault_id: str | None = None
+    seconds_passed: int | None = None
+    updates: dict[str, Any] | None = None
+
+
 class FeaturesResponse(BaseModel):
     """Feature switches clients use to hide what is switched off."""
 

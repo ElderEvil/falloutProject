@@ -120,7 +120,14 @@ class LevelingService:
         from app.crud import vault as crud_vault
         from app.services.notification_service import notification_service
 
-        if levels_gained <= 0 or reward_delivery_is_deferred(db_session):
+        deferred = reward_delivery_is_deferred(db_session)
+        if levels_gained <= 0 or deferred:
+            logger.debug(
+                "level-up surfacing skipped: dweller=%s levels_gained=%s deferred=%s",
+                dweller.id,
+                levels_gained,
+                deferred,
+            )
             return
         if not dweller.vault_id:
             return

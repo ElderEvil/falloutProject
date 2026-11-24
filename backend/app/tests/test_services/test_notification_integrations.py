@@ -2,13 +2,16 @@ from datetime import timedelta
 from unittest.mock import AsyncMock, patch
 
 import pytest
+from sqlalchemy import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
 from app.core.enums import IncidentStatus, IncidentType, NotificationType
 from app.core.game_config import game_config
+from app.models.notification import Notification
 from app.services.combat.incident_service import IncidentService
 from app.services.notification_service import NotificationService
+from app.tests.test_services._transaction_helpers import fail_sql
 from app.utils.time import utcnow
 
 PUBLISHING = "app.services.combat.incident_publishing.notification_service.create_and_send"
@@ -190,6 +193,45 @@ async def test_discard_drops_queued_delivery(async_session: AsyncSession, user_w
     await NotificationService.deliver_deferred_notifications(async_session)
     mock_ws.send_personal_message.assert_not_called()
     mock_sse.publish.assert_not_called()
+
+
+async def test_failed_room_unlock_staging_discards_the_parked_recruit(
+    async_session: AsyncSession, user_with_vault: tuple, channel_mocks
+):
+    """A staging failure after the recruit is parked must not leave a payload in ``db.info``
+    for a later commit to deliver.
+    """
+    user, vault = user_with_vault
+    mock_ws, mock_sse = channel_mocks
+    # A rollback expires loaded instances, so capture the ids the retry query needs.
+    user_id, vault_id = user.id, vault.id
+    # Make the fixture vault durable: the failure below rolls back only the announcement.
+    await async_session.commit()
+
+    with pytest.raises(RuntimeError, match="room-unlock summary staging failed"):
+        async with fail_sql(
+            async_session,
+            lambda statement: "count(" in statement.lower() and "from dweller" in statement.lower(),
+            "room-unlock summary staging failed",
+        ):
+            await NotificationService.notify_radio_new_dweller(async_session, user_id, vault_id, "Rolled Back Recruit")
+
+    mock_ws.send_personal_message.assert_not_called()
+    mock_sse.publish.assert_not_called()
+    assert "deferred_notification_deliveries" not in async_session.info
+
+    # A retry on the same session must deliver its own notice and nothing else.
+    await NotificationService.notify_radio_new_dweller(async_session, user_id, vault_id, "Kept Recruit")
+
+    mock_ws.send_personal_message.assert_called_once()
+    payload = mock_ws.send_personal_message.call_args.args[0]
+    assert "Kept Recruit" in payload["notification"]["message"]
+    assert "Rolled Back Recruit" not in payload["notification"]["message"]
+    assert "deferred_notification_deliveries" not in async_session.info
+
+    rows = (await async_session.execute(select(Notification).where(Notification.user_id == user_id))).scalars().all()
+    assert len(rows) == 1
+    assert "Kept Recruit" in rows[0].message
 
 
 async def test_ws_failure_does_not_block_sse(async_session: AsyncSession, user_with_vault: tuple, send_mocks):

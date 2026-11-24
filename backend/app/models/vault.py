@@ -43,7 +43,8 @@ class VaultBase(SQLModel):
 
     # Radio settings
     # Store as string in database to avoid enum type issues
-    radio_mode: str = Field(default="recruitment", sa_column=Column(String(50)))
+    # The baseline column is nullable, so rows predating the setting must serialise.
+    radio_mode: str | None = Field(default="recruitment", sa_column=Column(String(50), nullable=True))
 
     # String column, not a PG enum, mirroring radio_mode: avoids the enum-type/migration trap.
     vault_mode: str = Field(

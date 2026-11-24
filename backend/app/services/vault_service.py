@@ -11,7 +11,13 @@ from app.crud.broadcast import get_audio_keys_for_vault
 from app.crud.storage import storage as storage_crud
 from app.crud.vault import vault as vault_crud
 from app.models.vault import Vault
-from app.schemas.vault import MedicalTransferResponse, VaultNumber, VaultReadWithNumbers, VaultUpdate
+from app.schemas.vault import (
+    MedicalTransferResponse,
+    VaultCreate,
+    VaultNumber,
+    VaultReadWithNumbers,
+    VaultUpdate,
+)
 from app.services.broadcast_service import delete_audio_keys
 from app.services.resource_manager_service import compute_medical_capacity
 from app.services.rewards.starter_residents import starter_reward_overrides
@@ -38,6 +44,12 @@ class VaultService:
         extra storage with junk stock, and a 36-dweller roster. Expedition test starts add living capacity
         and skip starter objectives. Player experiments use the standard layout with changed starting
         supplies or demographics.
+
+        This is the operation's only transaction boundary: the vault row, its slot, storage, rooms,
+        dwellers, training rows, objectives, themes and items are staged by CRUD with ``commit=False``
+        and committed once here, so a late failure leaves no vault behind. Expedition scenario seeding
+        runs after that commit as an explicitly multi-stage step: its vault survives a failed scenario
+        setup, matching the expedition service's own durable-stage contract.
         """
         scenario = vault_scenario_service.resolve(obj_in.scenario, obj_in.number)
         expedition_start = scenario is not None and scenario.expedition
@@ -46,98 +58,123 @@ class VaultService:
         majority_gender = scenario.majority_gender if scenario else None
         reward_overrides = starter_reward_overrides(majority_gender)
 
-        # Create vault and storage
-        vault_db_obj = await vault_crud.create_with_user_id(
-            db_session=db_session, obj_in=obj_in, user_id=user_id, scenario_key=scenario.key if scenario else None
-        )
-        await vault_crud.create_storage(db_session=db_session, vault_id=vault_db_obj.id)
-        await db_session.refresh(vault_db_obj)
-
-        # Prepare room data
-        game_data_store = await get_static_game_data()
-        rooms = game_data_store.rooms
-        prepared = seeding.prepare_initial_rooms(rooms, vault_db_obj.id, is_boosted, scenario_start=expedition_start)
-
-        # Create rooms and get created production/training/misc rooms
-        vault_db_obj, created = await seeding.create_initial_rooms(db_session, vault_db_obj, prepared)
-        created_production_rooms = created.production
-        created_training_rooms = created.training
-        created_misc_rooms = created.misc
-        created_capacity_rooms = created.capacity
-
-        # Set initial resources to the configured share of max capacity
-        vault_start = game_config.vault_start
-        initial_power = int(vault_db_obj.power_max * vault_start.initial_resource_pct)
-        initial_food = int(vault_db_obj.food_max * vault_start.initial_resource_pct) // ration_divisor
-        initial_water = int(vault_db_obj.water_max * vault_start.initial_resource_pct) // ration_divisor
-
-        vault_db_obj = await vault_crud.update(
-            db_session=db_session,
-            id=vault_db_obj.id,
-            obj_in=VaultUpdate(
-                bottle_caps=vault_start.boosted_initial_caps if is_boosted else vault_db_obj.bottle_caps,
-                power=initial_power,
-                food=initial_food,
-                water=initial_water,
-            ),
-        )
-
-        # Set initial medical supplies on Storage (computed from Medbay/Science Lab rooms)
-        all_rooms = created_production_rooms + created_capacity_rooms + created_training_rooms + created_misc_rooms
-        medical_capacity = compute_medical_capacity(all_rooms)
-        initial_stimpack = min(vault_start.initial_stimpaks, medical_capacity.get("stimpack", 0))
-        initial_radaway = min(vault_start.initial_radaways, medical_capacity.get("radaway", 0))
-        if initial_stimpack > 0 or initial_radaway > 0:
-            await storage_crud.set_medical_supplies(db_session, vault_db_obj.id, initial_stimpack, initial_radaway)
-
-        # Create and assign dwellers
-        await seeding.create_initial_dwellers(
-            db_session,
-            vault_db_obj.id,
-            created_production_rooms,
-            created_training_rooms,
-            created_misc_rooms,
-            created_capacity_rooms,
-            is_boosted,
-            created_crafting_rooms=created.crafting,
-            majority_gender=majority_gender,
-        )
-
-        if is_boosted:
-            await seeding.create_boosted_legendary_dwellers(db_session, vault_db_obj.id)
-
-        # Commit to ensure all dwellers and rooms are persisted before starting training
-        await db_session.commit()
-
-        # Start training sessions for boosted vaults
-        await seeding.start_training_sessions(db_session, vault_db_obj.id, created_training_rooms, is_boosted)
-
-        # Assign initial objectives to the vault (boosted vaults get more objectives)
         from app.crud.objective import objective_crud
-
-        assigned = await objective_crud.assign_initial(
-            db_session,
-            vault_db_obj.id,
-            is_boosted=is_boosted or expedition_start,
-            starter_reward_overrides=reward_overrides,
-        )
-        if assigned == 0:
-            self.logger.warning("No objectives found for vault %s", vault_db_obj.id)
-
+        from app.services.progression.objectives.assignment import ObjectiveAssignmentService
+        from app.services.progression.objectives.notifications import notify_objectives_refreshed
         from app.services.progression.objectives.refresh_service import ensure_current_objectives
 
-        await ensure_current_objectives(db_session, vault_db_obj.id)
+        try:
+            vault_db_obj = await vault_crud.create_with_user_id(
+                db_session=db_session,
+                obj_in=obj_in,
+                user_id=user_id,
+                scenario_key=scenario.key if scenario else None,
+            )
+            await vault_crud.create_storage(db_session=db_session, vault_id=vault_db_obj.id, commit=False)
+            await db_session.refresh(vault_db_obj)
 
-        if is_boosted:
-            await seeding.seed_boosted_theme_unlocks(db_session, vault_db_obj.id)
+            game_data_store = await get_static_game_data()
+            rooms = game_data_store.rooms
+            prepared = seeding.prepare_initial_rooms(
+                rooms, vault_db_obj.id, is_boosted, scenario_start=expedition_start
+            )
 
-        # Create initial weapons, outfits, and (boosted) crafting materials for testing
-        await seeding.create_initial_items(db_session, vault_db_obj.id, is_boosted)
+            vault_db_obj, created = await seeding.create_initial_rooms(db_session, vault_db_obj, prepared, commit=False)
+            created_production_rooms = created.production
+            created_training_rooms = created.training
+            created_misc_rooms = created.misc
+            created_capacity_rooms = created.capacity
+
+            vault_start = game_config.vault_start
+            initial_power = int(vault_db_obj.power_max * vault_start.initial_resource_pct)
+            initial_food = int(vault_db_obj.food_max * vault_start.initial_resource_pct) // ration_divisor
+            initial_water = int(vault_db_obj.water_max * vault_start.initial_resource_pct) // ration_divisor
+
+            vault_db_obj = await vault_crud.update(
+                db_session=db_session,
+                id=vault_db_obj.id,
+                obj_in=VaultUpdate(
+                    bottle_caps=vault_start.boosted_initial_caps if is_boosted else vault_db_obj.bottle_caps,
+                    power=initial_power,
+                    food=initial_food,
+                    water=initial_water,
+                ),
+                commit=False,
+            )
+
+            # Set initial medical supplies on Storage (computed from Medbay/Science Lab rooms)
+            all_rooms = created_production_rooms + created_capacity_rooms + created_training_rooms + created_misc_rooms
+            medical_capacity = compute_medical_capacity(all_rooms)
+            initial_stimpack = min(vault_start.initial_stimpaks, medical_capacity.get("stimpack", 0))
+            initial_radaway = min(vault_start.initial_radaways, medical_capacity.get("radaway", 0))
+            if initial_stimpack > 0 or initial_radaway > 0:
+                await storage_crud.set_medical_supplies(
+                    db_session, vault_db_obj.id, initial_stimpack, initial_radaway, commit=False
+                )
+
+            await seeding.create_initial_dwellers(
+                db_session,
+                vault_db_obj.id,
+                created_production_rooms,
+                created_training_rooms,
+                created_misc_rooms,
+                created_capacity_rooms,
+                is_boosted,
+                created_crafting_rooms=created.crafting,
+                majority_gender=majority_gender,
+            )
+
+            if is_boosted:
+                await seeding.create_boosted_legendary_dwellers(db_session, vault_db_obj.id, commit=False)
+
+            await seeding.start_training_sessions(
+                db_session, vault_db_obj.id, created_training_rooms, is_boosted, commit=False
+            )
+
+            assigned = await objective_crud.assign_initial(
+                db_session,
+                vault_db_obj.id,
+                is_boosted=is_boosted or expedition_start,
+                starter_reward_overrides=reward_overrides,
+                commit=False,
+            )
+            if assigned == 0:
+                self.logger.warning("No objectives found for vault %s", vault_db_obj.id)
+
+            refreshed = await ensure_current_objectives(db_session, vault_db_obj.id, commit=False)
+
+            if is_boosted:
+                await seeding.seed_boosted_theme_unlocks(db_session, vault_db_obj.id, commit=False)
+
+            await seeding.create_initial_items(db_session, vault_db_obj.id, is_boosted, commit=False)
+
+            await db_session.commit()
+        except Exception:
+            ObjectiveAssignmentService.discard_pending_completions(db_session)
+            await db_session.rollback()
+            raise
+        await db_session.refresh(vault_db_obj)
+
+        # Post-commit delivery: completion notices only describe rows this transaction made durable.
+        await ObjectiveAssignmentService(db_session).notify_completions(vault_db_obj.id)
+        if refreshed:
+            await notify_objectives_refreshed(db_session, vault_db_obj.id, refreshed)
 
         if scenario is not None and scenario.expedition:
             await vault_scenario_service.seed(db_session, vault_db_obj, scenario)
 
         return vault_db_obj
+
+    async def create_vault(self, *, db_session: AsyncSession, obj_in: VaultCreate, user_id: UUID) -> Vault:
+        """Create a vault for an administrator and claim its atlas slot in one transaction."""
+        try:
+            vault = await vault_crud.create_with_user_id(db_session=db_session, obj_in=obj_in, user_id=user_id)
+            await db_session.commit()
+        except Exception:
+            await db_session.rollback()
+            raise
+        await db_session.refresh(vault)
+        return vault
 
     async def delete_vault(self, db_session: AsyncSession, vault_id: UUID, *, soft: bool = True) -> Vault:
         """Delete a vault; hard deletion also removes its stored broadcast audio."""
@@ -148,7 +185,6 @@ class VaultService:
         return vault
 
     async def update_vault_resources(self, db_session: AsyncSession, vault_id: UUID) -> Vault:
-        """Update vault resources based on resource manager processing."""
         return await economy.update_vault_resources(db_session, vault_id)
 
     async def transfer_medical_supplies(
@@ -188,7 +224,6 @@ class VaultService:
     async def is_enough_dwellers(
         self, *, db_session: AsyncSession, vault_id: UUID, population_required: int | None
     ) -> bool:
-        """Check if the vault has enough dwellers to perform an operation."""
         return await economy.is_enough_dwellers(
             db_session=db_session, vault_id=vault_id, population_required=population_required
         )
@@ -197,8 +232,7 @@ class VaultService:
     async def is_enough_population_space(*, db_session: AsyncSession, vault_id: UUID, space_required: int) -> bool:
         """Check if the vault has enough space to perform an operation.
 
-        Only counts dwellers that are assigned to rooms (have room_id).
-        Unassigned dwellers don't take up living space.
+        Only assigned dwellers occupy living space.
         """
         return await economy.is_enough_population_space(
             db_session=db_session, vault_id=vault_id, space_required=space_required
@@ -237,7 +271,6 @@ class VaultService:
     async def get_vaults_with_room_and_dweller_count(
         self, *, db_session: AsyncSession, user_id: UUID
     ) -> list[VaultReadWithNumbers]:
-        """List the user's non-deleted vaults with room/dweller counts and resource warnings."""
         return await reads.get_vaults_with_room_and_dweller_count(db_session=db_session, user_id=user_id)
 
     async def get_vault_with_room_and_dweller_count(
@@ -247,5 +280,4 @@ class VaultService:
         return await reads.get_vault_with_room_and_dweller_count(db_session=db_session, vault_id=vault_id)
 
 
-# Singleton instance
 vault_service = VaultService()

@@ -9,6 +9,7 @@ from app import crud
 from app.api.deps import CurrentActiveUser, CurrentSuperuser, DBSession, PaginationParams, get_user_vault_or_403
 from app.models.quest import Quest
 from app.models.team import TeamMember
+from app.models.vault_quest import VaultQuestCompletionLink
 from app.schemas.quest import (
     EligibleDwellerRead,
     QuestCompleteResponse,
@@ -50,11 +51,7 @@ async def read_all_quests(
     _user: CurrentActiveUser,
     pagination: PaginationParams,
 ) -> Sequence[QuestRead]:
-    """Get all available quests (not vault-specific).
-
-    Returns:
-        List of quests.
-    """
+    """Get all available quests (not vault-specific)."""
     return await crud.quest_crud.get_multi(db_session, skip=pagination.skip, limit=pagination.limit)
 
 
@@ -65,11 +62,7 @@ async def create_quest(
     db_session: DBSession,
     _: CurrentSuperuser,
 ) -> Quest:
-    """Create a new quest.
-
-    Returns:
-        The created quest.
-    """
+    """Create a new quest."""
     return await crud.quest_crud.create(db_session, quest_data)
 
 
@@ -80,11 +73,7 @@ async def read_vault_quests(
     user: CurrentActiveUser,
     pagination: PaginationParams,
 ) -> Sequence[QuestRead]:
-    """Get all quests assigned to a specific vault.
-
-    Returns:
-        List of quests for the vault.
-    """
+    """Get all quests assigned to a specific vault."""
     await get_user_vault_or_403(vault_id, user, db_session)
     await quest_service.check_and_complete_quests(db_session, vault_id=vault_id)
     await ensure_current_quest_rotation(db_session, vault_id)
@@ -98,11 +87,7 @@ async def get_available_quests(
     user: CurrentActiveUser,
     pagination: PaginationParams,
 ) -> Sequence[QuestRead]:
-    """Get available quests for a vault (respects chain unlocks, requirements, and the Office rule).
-
-    Returns:
-        List of available quests.
-    """
+    """Get available quests for a vault (respects chain unlocks, requirements, and the Office rule)."""
     await get_user_vault_or_403(vault_id, user, db_session)
     await ensure_current_quest_rotation(db_session, vault_id)
     return await quest_service.get_quests_for_vault(
@@ -117,14 +102,7 @@ async def read_quest(
     vault_id: UUID,
     db_session: DBSession,
 ) -> Quest:
-    """Retrieve a quest by ID within a vault.
-
-    Returns:
-        The requested quest.
-
-    Raises:
-        ResourceNotFoundException: If the quest is not linked to the vault.
-    """
+    """Retrieve a quest by ID within a vault."""
     await get_user_vault_or_403(vault_id, user, db_session)
 
     link = await crud.quest_crud.get_link(db_session, quest_id=quest_id, vault_id=vault_id)
@@ -145,9 +123,6 @@ async def update_quest(
 
     Quests are global templates shared by every vault, so vault ownership cannot
     authorize this write — editing one here would change it for all players.
-
-    Returns:
-        The updated quest.
     """
     return await crud.quest_crud.update(db_session, quest_id, quest_data)
 
@@ -166,7 +141,7 @@ async def delete_quest(
     await crud.quest_crud.delete(db_session, quest_id)
 
 
-@router.post("/{vault_id}/{quest_id}/assign", status_code=201)
+@router.post("/{vault_id}/{quest_id}/assign", response_model=VaultQuestCompletionLink, status_code=201)
 async def assign_quest_to_vault(
     vault_id: UUID,
     quest_id: UUID,
@@ -174,12 +149,8 @@ async def assign_quest_to_vault(
     db_session: DBSession,
     *,
     is_visible: bool = True,
-):
-    """Assign a quest to a vault, making it available for completion.
-
-    Returns:
-        The vault-quest assignment.
-    """
+) -> VaultQuestCompletionLink:
+    """Assign a quest to a vault, making it available for completion."""
     await get_user_vault_or_403(vault_id, user, db_session)
     return await quest_service.assign_quest_to_vault(
         db_session=db_session, quest_id=quest_id, vault_id=vault_id, is_visible=is_visible
@@ -193,11 +164,7 @@ async def claim_quest_rewards(
     user: CurrentActiveUser,
     db_session: DBSession,
 ) -> QuestCompleteResponse:
-    """Claim rewards from a returned quest party.
-
-    Returns:
-        Completion response with granted rewards.
-    """
+    """Claim rewards from a returned quest party."""
     await get_user_vault_or_403(vault_id, user, db_session)
     quest, granted_rewards = await quest_service.claim_quest_rewards(db_session, quest_id, vault_id)
     return QuestCompleteResponse(
@@ -215,11 +182,7 @@ async def get_quest_party(
     user: CurrentActiveUser,
     db_session: DBSession,
 ) -> list[QuestPartyMemberRead]:
-    """Get party members assigned to a quest.
-
-    Returns:
-        List of party members.
-    """
+    """Get party members assigned to a quest."""
     await get_user_vault_or_403(vault_id, user, db_session)
     members = await crud.team_crud.get_quest_team(db_session, quest_id, vault_id)
     return [_to_party_member_read(member, quest_id, vault_id) for member in members]
@@ -237,13 +200,6 @@ async def start_quest(
 
     The UI supplies dweller_ids for timed missions. Bodyless requests support
     state objectives and callers with an existing roster.
-
-    Returns:
-        The started quest.
-
-    Raises:
-        ResourceNotFoundException: If quest not found.
-        ValidationException: If requirements not met or quest cannot be started.
     """
     await get_user_vault_or_403(vault_id, user, db_session)
     await ensure_current_quest_rotation(db_session, vault_id)
@@ -259,10 +215,6 @@ async def get_eligible_dwellers(
     user: CurrentActiveUser,
     db_session: DBSession,
 ) -> list[EligibleDwellerRead]:
-    """Get dwellers eligible for a quest based on requirements.
-
-    Returns:
-        List of eligible dwellers.
-    """
+    """Get dwellers eligible for a quest based on requirements."""
     await get_user_vault_or_403(vault_id, user, db_session)
     return await quest_service.get_eligible_dwellers(db_session, vault_id, quest_id)

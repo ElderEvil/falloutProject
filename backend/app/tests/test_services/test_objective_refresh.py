@@ -1,4 +1,5 @@
 import asyncio
+from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta, timezone
 from uuid import uuid4
 
@@ -8,8 +9,11 @@ from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import AsyncSession as RawAsyncSession
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
+from app import crud
+from app.api import tasks
 from app.core.config import settings
 from app.core.enums import NotificationType, ObjectiveCategoryEnum
+from app.core.event_bus import GameEvent, event_bus
 from app.crud.game_state import game_state_crud
 from app.crud.objective import objective_crud
 from app.models.game_state import GameState
@@ -18,9 +22,15 @@ from app.models.objective import Objective
 from app.models.user import User
 from app.models.vault import Vault
 from app.models.vault_objective import VaultObjectiveProgressLink
+from app.schemas.dweller import DwellerCreate
+from app.schemas.user import UserCreate
+from app.schemas.vault import VaultCreateWithUserID
 from app.services.game_loop_service import game_loop_service
 from app.services.progression.objectives.refresh_service import ensure_current_objectives as _ensure
 from app.services.progression.objectives.refresh_service import objective_periods
+from app.tests.factory.dwellers import create_random_common_dweller
+from app.tests.factory.users import create_fake_user
+from app.tests.factory.vaults import create_fake_vault
 from app.utils.time import utcnow
 
 WATER = {"resource_type": "water"}
@@ -121,6 +131,91 @@ async def test_refresh_keeps_earned_reward_snapshots_and_weekly_has_its_own_peri
     finally:
         await db.rollback()
         await db.execute(text("PRAGMA reverse_unordered_selects = OFF"))
+
+
+async def _seed_two_vault_completions(db, first_id, second_id):
+    """Give the first vault a dweller milestone and the second a level milestone.
+
+    Distinct achievement tracks mean each vault stages a different completion, so a
+    leak into the next refresh is visible rather than deduplicated by objective id.
+    """
+    daily = [_template(ObjectiveCategoryEnum.DAILY, n) for n in range(2)]
+    dwellers = Objective(
+        challenge="Reach 5 Dwellers",
+        reward="10 caps",
+        category="achievement",
+        objective_type="reach",
+        target_entity={"reach_type": "dweller_count"},
+        track_key="reach:dweller_count",
+        target_amount=5,
+        sequence=1,
+    )
+    level = Objective(
+        challenge="Reach Level 3",
+        reward="10 caps",
+        category="achievement",
+        objective_type="reach",
+        target_entity={"reach_type": "level"},
+        track_key="reach:level",
+        target_amount=3,
+        sequence=1,
+    )
+    db.add_all([*daily, dwellers, level])
+    for vault_id, count, dweller_level in ((first_id, 5, 1), (second_id, 1, 3)):
+        for _ in range(count):
+            data = create_random_common_dweller() | {"level": dweller_level}
+            await crud.dweller.create(db, obj_in=DwellerCreate(**data, vault_id=vault_id))
+        state = await game_state_crud.get_or_create(db, vault_id, commit=False)
+        state.daily_objectives_period = OCT19
+        state.weekly_objectives_period = OCT19
+    await db.commit()
+    return dwellers, level
+
+
+async def test_failed_vault_refresh_cannot_leak_completions_into_the_next_vault(async_session, vault, monkeypatch):
+    """One sweep session: a failed refresh must not announce its achievement under the next vault."""
+    db = async_session
+    first_id = vault.id
+    user = await crud.user.create(db, obj_in=UserCreate(**create_fake_user()))
+    second_id = (await crud.vault.create(db, obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id))).id
+    dwellers, level = await _seed_two_vault_completions(db, first_id, second_id)
+    dweller_hex, first_hex = dwellers.id.hex, first_id.hex
+
+    @asynccontextmanager
+    async def fake_task_session():
+        yield db
+
+    monkeypatch.setattr(tasks, "task_session", lambda: fake_task_session())
+    # Fail the first vault's achievement links after its completion is already parked on
+    # the session, so only the failure path decides whether that payload survives.
+
+    def fail_first_vault_links(conn, cursor, statement, parameters, context, executemany):
+        if not statement.startswith("INSERT INTO vaultobjectiveprogresslink"):
+            return
+        rows = parameters if isinstance(parameters, list) else [parameters]
+        for row in rows:
+            values = {str(value).lower().replace("-", "") for value in row or ()}
+            if first_hex in values and dweller_hex in values:
+                raise RuntimeError("first vault refresh failure")
+
+    engine = db.get_bind().engine
+    emitted: list[tuple[object, str]] = []
+
+    async def record(_kind, vault_id, data):
+        emitted.append((vault_id, data["objective_id"]))
+
+    event.listen(engine, "before_cursor_execute", fail_first_vault_links)
+    event_bus.subscribe(GameEvent.OBJECTIVE_COMPLETED, record)
+    try:
+        with pytest.raises(RuntimeError, match="Objective refresh failed for vaults"):
+            await tasks._refresh_objectives()
+    finally:
+        event.remove(engine, "before_cursor_execute", fail_first_vault_links)
+        event_bus.unsubscribe(GameEvent.OBJECTIVE_COMPLETED, record)
+
+    ours = [(vault_id, objective_id) for vault_id, objective_id in emitted if vault_id in (first_id, second_id)]
+    assert ours == [(second_id, str(level.id))]
+    assert "deferred_objective_completions" not in db.info
 
 
 @pytest.mark.integration

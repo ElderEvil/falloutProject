@@ -16,6 +16,7 @@ from app.core.config import settings
 from app.core.email import send_verification_email
 from app.crud.user_profile import profile_crud
 from app.models.user import User
+from app.models.user_profile import UserProfile
 from app.models.vault import Vault
 from app.schemas.user import UserCreate, UserWithTokens
 from app.services.auth_service import auth_service
@@ -148,7 +149,11 @@ class UserService:
         password: str,
         email: EmailStr,
     ) -> UserWithTokens:
-        """Register a new user, verify email, and return tokens."""
+        """Register a new user, verify email, and return tokens.
+
+        The user, profile and verification token are staged by CRUD and committed once here;
+        the verification email and tokens are produced only after that commit.
+        """
         if not settings.USERS_OPEN_REGISTRATION:
             raise AccessDeniedException("Open user registration is forbidden on this server")
 
@@ -157,11 +162,19 @@ class UserService:
             raise ResourceAlreadyExistsException(model=User, name=email)
 
         user_in = UserCreate(username=username, password=password, email=email)
-        user = await crud.user.create(db_session, obj_in=user_in)
+        try:
+            user = await crud.user.create(db_session, obj_in=user_in, commit=False)
+            await profile_crud.create_for_user(db_session, user.id)
 
-        verification_token = security.create_email_verification_token(str(user.id))
-        user.email_verification_token = verification_token
-        await db_session.commit()
+            verification_token = security.create_email_verification_token(str(user.id))
+            user.email_verification_token = verification_token
+            await db_session.commit()
+        except IntegrityError:
+            await db_session.rollback()
+            raise ResourceConflictException(detail="User already exists") from None
+        except Exception:
+            await db_session.rollback()
+            raise
         await db_session.refresh(user)
 
         try:
@@ -183,13 +196,23 @@ class UserService:
             token_type=tokens.token_type,
         )
 
+    async def get_or_create_profile(self, db_session: AsyncSession, user_id: UUID) -> UserProfile:
+        """Return the user's profile, creating it inside this service's transaction."""
+        profile = await profile_crud.get_by_user_id(db_session, user_id)
+        if profile is not None:
+            return profile
+
+        profile = await profile_crud.create_for_user(db_session, user_id)
+        await db_session.commit()
+        await db_session.refresh(profile)
+        return profile
+
     async def get_ai_usage(
         self,
         db_session: AsyncSession,
         redis_client: Redis,
         user_id: str,
     ) -> dict:
-        """Get AI usage stats with Redis caching."""
         import json
 
         from app.core.ai_constants import AI_USAGE_CACHE_KEY

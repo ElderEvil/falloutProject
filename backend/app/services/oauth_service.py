@@ -232,7 +232,13 @@ class OAuthService:
                 await db_session.rollback()
                 raise
             return OAuthCompletion(user=user, purpose="link")
-        return OAuthCompletion(user=await self._resolve_user(db_session, provider, profile), purpose="login")
+        # The service owns the first-login transaction: CRUD stages the rows and this commits
+        # once, after the provider exchange and before the handoff (post-commit delivery).
+        # A conflicting registration attempt is isolated by its own savepoint in _create_user.
+        user = await self._resolve_user(db_session, provider, profile)
+        await db_session.commit()
+        await db_session.refresh(user)
+        return OAuthCompletion(user=user, purpose="login")
 
     async def discard_state(self, state: str, redis_client: Redis) -> None:
         """Consume a state record without exchanging a code (provider denial)."""
@@ -497,13 +503,17 @@ class OAuthService:
     async def _create_user(self, db_session: AsyncSession, provider: OAuthProviderEnum, profile: dict) -> User:
         for username in _username_candidates(_username_base(profile)):
             try:
-                user, _ = await crud.user.create_with_oauth_account(
-                    db_session,
-                    provider=provider.value,
-                    provider_user_id=profile["provider_user_id"],
-                    username=username,
-                    email=profile["email"],
-                )
+                # Each attempt is its own savepoint: a conflicting candidate rolls back only
+                # this attempt, never the caller's staged work or transaction.
+                async with db_session.begin_nested():
+                    user, _ = await crud.user.create_with_oauth_account(
+                        db_session,
+                        provider=provider.value,
+                        provider_user_id=profile["provider_user_id"],
+                        username=username,
+                        email=profile["email"],
+                        commit=False,
+                    )
             except ResourceConflictException:
                 link = await crud.oauth_account.get_by_provider_subject(
                     db_session, provider.value, profile["provider_user_id"]

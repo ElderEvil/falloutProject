@@ -50,12 +50,14 @@ interface SideView {
   fill: string
 }
 
-/** Coarse bands only: the board never publishes exact stats. */
+/** Party bands over the frozen power sum, mirroring `services/pvp/snapshots.py::POWER_BANDS`.
+ *  A band is a matchup property, so the board labels the side and never a single dweller: an
+ *  average can sit above its weakest member, and the two labels then contradict each other.
+ */
 const POWER_BANDS = [
-  { label: 'Elite', min: 165 },
-  { label: 'Hardened', min: 130 },
-  { label: 'Seasoned', min: 95 },
-  { label: 'Fledgling', min: 0 },
+  { label: 'Elite', min: 300 },
+  { label: 'Strong', min: 175 },
+  { label: 'Steady', min: 75 },
 ] as const
 
 const { filter: dwellerFilter } = useDwellerStore()
@@ -78,6 +80,8 @@ let clock: ReturnType<typeof setInterval> | null = null
 let boutTimer: ReturnType<typeof setInterval> | null = null
 let rng = 7
 let journalKey = 0
+/** Monotonic guard: a roster response older than the latest request (or bout) is dropped. */
+let rosterSeq = 0
 
 const rosterSettled = ref(false)
 const vaultId = computed(() => vaultStore.currentVaultId)
@@ -91,24 +95,15 @@ const vaultLabel = computed(() =>
   vaultNumber.value === null ? 'Vault —' : `Vault ${String(vaultNumber.value).padStart(3, '0')}`
 )
 
-/** Same scoring the roster ranks by: combat power when present, level and SPECIAL always. */
-function powerScore(dweller: DwellerShort): number {
-  const special =
-    dweller.strength +
-    dweller.perception +
-    dweller.endurance +
-    dweller.charisma +
-    dweller.intelligence +
-    dweller.agility +
-    dweller.luck
-  return (dweller.combat_power ?? 0) + dweller.level * 4 + special
+/** Same scale as the backend: the party's frozen power sum, never a member average. */
+function powerSum(fighters: Fighter[]): number {
+  return fighters.reduce((total, fighter) => total + (fighter.dweller.combat_power ?? 0), 0)
 }
 
 function bandFor(fighters: Fighter[]): string {
   if (!fighters.length) return 'Unrated'
-  const average =
-    fighters.reduce((total, fighter) => total + powerScore(fighter.dweller), 0) / fighters.length
-  return POWER_BANDS.find((band) => average >= band.min)?.label ?? 'Unrated'
+  const total = powerSum(fighters)
+  return POWER_BANDS.find((band) => total >= band.min)?.label ?? 'Light'
 }
 
 function toFighter(dweller: DwellerShort): Fighter {
@@ -133,7 +128,11 @@ function toFighter(dweller: DwellerShort): Fighter {
 const livingRoster = computed(() =>
   [...dwellerFilter.allDwellers].filter((dweller) => dweller.status !== 'dead')
 )
-const ranked = computed(() => [...livingRoster.value].sort((a, b) => powerScore(b) - powerScore(a)))
+const ranked = computed(() =>
+  [...livingRoster.value].sort(
+    (a, b) => (b.combat_power ?? 0) - (a.combat_power ?? 0) || b.level - a.level
+  )
+)
 
 const ownTrio = computed(() => ranked.value.slice(0, PARTY_SIZE).map(toFighter))
 
@@ -153,8 +152,9 @@ const oppositionTrio = computed(() => oppositionSource.value.map(toFighter))
 const oppositionIsSameVault = computed(
   () => oppositionRoster.value.filter((dweller) => dweller.status !== 'dead').length === 0
 )
+/** The label and the stand-in note share one resolved condition, dead dwellers included. */
 const oppositionLabel = computed(() =>
-  oppositionRoster.value.length ? 'Opposing vault' : `${vaultLabel.value} reserve`
+  oppositionIsSameVault.value ? 'Stand-in trio' : 'Opposing vault'
 )
 
 const sides = computed<SideView[]>(() => [
@@ -214,6 +214,8 @@ const verdictLine = computed(() => {
 })
 
 const canFight = computed(() => ownTrio.value.length > 0 && oppositionTrio.value.length > 0)
+/** One instant drives both the countdown and the button: no gate/button drift. */
+const takeBoutDisabled = computed(() => !canFight.value || !gateOpen.value)
 
 function hpPercent(side: SideView, index: number): number {
   const fighter = side.fighters[index]
@@ -287,6 +289,9 @@ function stepRound(): void {
 }
 
 function startBout(): void {
+  if (!canFight.value || !gateOpen.value) return
+  // Any opposition fetch issued before the bell is stale: it must not swap the trio mid-bout.
+  rosterSeq += 1
   stopBout()
   round.value = 0
   journal.value = []
@@ -328,11 +333,13 @@ onMounted(async () => {
 
     const other = vaultStore.vaults.find((vault) => vault.id !== activeId)
     if (!other) return
+    const seq = ++rosterSeq
     try {
-      oppositionRoster.value = await getDwellersByVault(other.id, { limit: PARTY_SIZE * 2 })
+      const fetched = await getDwellersByVault(other.id, { limit: PARTY_SIZE * 2 })
+      if (seq === rosterSeq) oppositionRoster.value = fetched
     } catch {
       // A preview must still render: the reserve trio stands in for an unreachable vault.
-      oppositionRoster.value = []
+      if (seq === rosterSeq) oppositionRoster.value = []
     }
   } finally {
     rosterSettled.value = true
@@ -432,9 +439,6 @@ onUnmounted(() => {
                     Lv {{ fighter.dweller.level }} · {{ fighter.special }}
                   </p>
                 </div>
-                <Badge variant="outline" class="border-theme-primary/30 text-theme-primary/70">
-                  {{ bandFor([fighter]) }}
-                </Badge>
               </li>
               <li
                 v-if="!ownTrio.length && !rosterSettled"
@@ -501,7 +505,7 @@ onUnmounted(() => {
             <Button
               v-if="phase === 'sealed'"
               class="w-full"
-              :disabled="!canFight"
+              :disabled="takeBoutDisabled"
               @click="startBout"
             >
               <Icon icon="mdi:sword" :ariaHidden="true" />
@@ -510,10 +514,16 @@ onUnmounted(() => {
             <p v-else class="text-center text-xs text-theme-primary/60">
               Bout card is live — see the bout panel.
             </p>
+            <p v-if="!gateOpen && canFight" class="text-center text-xs text-theme-primary/60">
+              The gate opens in {{ sealCountdown }} — both vaults unseal on the same tick.
+            </p>
 
-            <p v-if="oppositionIsSameVault" class="text-xs leading-relaxed text-theme-primary/60">
-              One vault on this account: the reserve trio from the same roster stands in for the
-              challenger.
+            <p
+              v-if="rosterSettled && oppositionIsSameVault"
+              class="text-xs leading-relaxed text-theme-primary/60"
+            >
+              No second vault on this account: the opposing trio is drawn from your own reserve and
+              stands in for a real challenger.
             </p>
           </CardContent>
         </Card>

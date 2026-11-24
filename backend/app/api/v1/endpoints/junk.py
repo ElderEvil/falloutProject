@@ -19,6 +19,7 @@ from app.api.deps import (
 from app.core.game_data import get_static_game_data
 from app.models.junk import Junk
 from app.schemas.junk import JunkCreate, JunkRead, JunkUpdate
+from app.schemas.responses import NULL_BODY_RESPONSES
 from app.services.item_service import item_service
 from app.utils.static_data import StaticGameData
 
@@ -31,11 +32,7 @@ async def create_junk(
     db_session: DBSession,
     _: CurrentSuperuser,
 ) -> Junk:
-    """Create a new junk item (administrators only).
-
-    Returns:
-        The created junk item.
-    """
+    """Create a new junk item (administrators only)."""
     return await crud.junk.create(db_session, junk_data)
 
 
@@ -51,12 +48,6 @@ async def read_junk_list(
     Junk is vault inventory held in storage, not catalog data, so the vault is
     required rather than optional: an unscoped list would enumerate other
     players' materials.
-
-    Returns:
-        List of junk items.
-
-    Raises:
-        AccessDeniedException: If the user doesn't own the vault.
     """
     await get_user_vault_or_403(vault_id, user, db_session)
     return await crud.junk.get_multi_for_vault(db_session, vault_id, skip=pagination.skip, limit=pagination.limit)
@@ -68,14 +59,7 @@ async def read_junk(
     db_session: DBSession,
     user: CurrentActiveUser,
 ) -> Junk:
-    """Retrieve a junk item by ID.
-
-    Returns:
-        The requested junk item.
-
-    Raises:
-        AccessDeniedException: If the user doesn't own the junk item's vault.
-    """
+    """Retrieve a junk item by ID."""
     await verify_item_access(junk_id, Junk, user, db_session)
     return await crud.junk.get(db_session, junk_id)
 
@@ -87,11 +71,7 @@ async def update_junk(
     db_session: DBSession,
     _: CurrentSuperuser,
 ) -> Junk:
-    """Update a junk item (administrators only).
-
-    Returns:
-        The updated junk item.
-    """
+    """Update a junk item (administrators only)."""
     return await crud.junk.update(db_session, junk_id, junk_data)
 
 
@@ -107,24 +87,16 @@ async def delete_junk(
 
 @router.get("/read_data/", response_model=list[JunkCreate])
 async def read_junk_data(data_store: Annotated[StaticGameData, Depends(get_static_game_data)]) -> list[JunkCreate]:
-    """Retrieve static junk item data.
-
-    Returns:
-        List of static junk item definitions.
-    """
+    """Retrieve static junk item data."""
     return data_store.junk_items
 
 
-@router.post("/{junk_id}/sell/", status_code=200, response_model=None)
+@router.post("/{junk_id}/sell/", status_code=200, response_model=None, responses=NULL_BODY_RESPONSES)
 async def sell_junk(
     junk_id: UUID,
     db_session: DBSession,
     user: CurrentActiveUser,
 ) -> None:
-    """Sell a junk item for caps.
-
-    Raises:
-        AccessDeniedException: If the user doesn't own the junk item's vault.
-    """
+    """Sell a junk item for caps."""
     await verify_item_access(junk_id, Junk, user, db_session)
     await item_service.sell_item(db_session, item_id=junk_id, model=Junk)

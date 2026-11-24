@@ -98,6 +98,8 @@ async def reconcile_known_parent_links(
     db_session: AsyncSession,
     vault_id: UUID,
     template_id: str,
+    *,
+    commit: bool = True,
 ) -> None:
     """Link Lucy/Hank or Sarah/Elder Lyons when both templates are in one vault."""
     relevant = [link for link in KNOWN_PARENT_LINKS if template_id in (link.child_template_id, link.parent_template_id)]
@@ -129,4 +131,7 @@ async def reconcile_known_parent_links(
             changed = True
 
     if changed:
-        await db_session.commit()
+        if commit:
+            await db_session.commit()
+        else:
+            await db_session.flush()

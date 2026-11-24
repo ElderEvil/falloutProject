@@ -2,6 +2,30 @@
 
 All notable changes to this project will be documented in this file.
 
+## 3.20.3 (2026-11-24)
+
+### Bug Fixes
+
+* **pvp:** give the power bands a reachable scale and one rule ([#1516](https://github.com/ElderEvil/falloutProject/issues/1516)) 02e4242
+
+## 3.20.2 (2026-11-24)
+
+### Bug Fixes
+
+* **api:** commit each write path once and resolve every response schema ([#1500](https://github.com/ElderEvil/falloutProject/issues/1500)) 08bc6fd
+
+## 3.20.1 (2026-11-24)
+
+### Bug Fixes
+
+* **pvp:** gate the bout on the seal clock and name dwellers in journals ([#1477](https://github.com/ElderEvil/falloutProject/issues/1477)) ([#1510](https://github.com/ElderEvil/falloutProject/issues/1510)) 960e7d4
+
+## 3.20.0 (2026-11-24)
+
+### Features
+
+* **map:** trade caravans — settlements become a material faucet ([#1493](https://github.com/ElderEvil/falloutProject/issues/1493)) ([#1508](https://github.com/ElderEvil/falloutProject/issues/1508)) 2c4d359
+
 ## 3.19.1 (2026-11-23)
 
 ### Bug Fixes

@@ -15,24 +15,18 @@ FIX = "add `commit: bool = True` (keyword-only) and gate the write with `if comm
 DEBT: dict[str, str] = {
     "ai_settings.py": "CRUDAISettings.upsert",
     "base.py": "CRUDBase.create_all CRUDBase.upsert CRUDBase.soft_delete CRUDBase.restore",
-    "dweller.py": "CRUDDweller.persist_new_dweller",
     "exploration.py": "CRUDExploration.add_event CRUDExploration.add_loot CRUDExploration.update_stats",
     "game_state.py": "CRUDGameState.pause CRUDGameState.record_presence CRUDGameState.resume CRUDGameState.update_tick",
     "incident.py": "CRUDIncident.resolve CRUDIncident.spread_to_room CRUDIncident.remove CRUDIncident.remove_all_by_vault",
-    "item_base.py": "CRUDItem.create_many CRUDItem.unequip CRUDItem.scrap",
     "mixins.py": "CompletionMixin.complete",
     "notification.py": "CRUDNotification.mark_as_read CRUDNotification.mark_all_as_read CRUDNotification.dismiss",
     "objective.py": (
-        "CRUDObjective.create_for_vault CRUDObjective.sync_starter_templates "
-        "CRUDObjective.sync_achievement_templates CRUDObjective.assign_initial"
+        "CRUDObjective.create_for_vault CRUDObjective.sync_starter_templates CRUDObjective.sync_achievement_templates"
     ),
     "quest.py": "CRUDQuest.get_multi_for_vault CRUDQuest.create_quest",
-    "relationship.py": "CRUDRelationship.create_with_defaults",
     "room.py": "CRUDRoom.apply_remodel",
-    "storage.py": "CRUDStorage.set_medical_supplies",
-    "user.py": "CRUDUser.create CRUDUser.create_with_oauth_account CRUDUser.authenticate",
-    "user_profile.py": "CRUDUserProfile.create_for_user",
-    "vault.py": "CRUDVault.create_with_user_id CRUDVault.delete CRUDVault.restore",
+    "user.py": "CRUDUser.authenticate",
+    "vault.py": "CRUDVault.delete CRUDVault.restore",
     "vault_slot.py": "CRUDVaultSlot.claim_next",
     "world_location.py": "CRUDWorldLocation.ensure_home_state",
 }

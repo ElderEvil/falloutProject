@@ -776,7 +776,7 @@ describe('MarkerDetailModal', () => {
       await dispatchButton(wrapper)!.trigger('click')
 
       expect(wrapper.emitted('dispatch')).toEqual([
-        [{ dwellerIds: ['dweller-1'], supplies: { stimpaks: 3, radaways: 1 } }],
+        [{ dwellerIds: ['dweller-1'], supplies: { stimpaks: 3, radaways: 1 }, purpose: 'clear' }],
       ])
     })
 
@@ -797,6 +797,86 @@ describe('MarkerDetailModal', () => {
 
       expect(wrapper.emitted('dispatch')).toBeFalsy()
       expect(wrapper.emitted('update:modelValue')![0][0]).toBe(false)
+    })
+  })
+
+  describe('Caravan section (issue 1493)', () => {
+    const caravanState = {
+      material: 'scrap',
+      band: [2, 3],
+      caps_cost: 150,
+      party_cap: 2,
+      cooldown_remaining_seconds: 0,
+      cooldown_total_seconds: 86400,
+      refusal_reason: null as string | null,
+    }
+
+    function mountTrade(overrides: Partial<WastelandLocationWithDwellers> = {}) {
+      return mount(MarkerDetailModal, {
+        props: {
+          modelValue: true,
+          location: createLocation({ action: 'trade', caravan: caravanState, ...overrides }),
+          vaultMarker: null,
+          dwellers: [
+            { dweller_id: 'dweller-1', first_name: 'John', last_name: 'Doe', relation: 'visited', is_unlocked: true },
+            { dweller_id: 'dweller-2', first_name: 'Jane', last_name: null, relation: 'visited', is_unlocked: true },
+          ],
+          maxPartySize: 3,
+          maxStimpaks: 8,
+          maxRadaways: 4,
+        },
+        global: { stubs: { Teleport: { template: '<div><slot /></div>' } } },
+      })
+    }
+
+    it('shows the shipment, the flat fee and the caravan action', () => {
+      const wrapper = mountTrade()
+
+      expect(wrapper.text()).toContain('CARAVAN')
+      expect(wrapper.text()).toContain('Scrap')
+      expect(wrapper.text()).toContain('150 caps')
+      expect(wrapper.text()).toContain('SEND A CARAVAN')
+      expect(wrapper.text()).not.toContain('SEND TEAM')
+    })
+
+    it('drops the supplies sliders a caravan cannot carry and caps the party at the payload', () => {
+      const wrapper = mountTrade()
+
+      expect(wrapper.findAllComponents(SupplySliders)).toHaveLength(0)
+      expect(wrapper.text()).toContain('2')
+    })
+
+    it('emits trade as the purpose', async () => {
+      const wrapper = mountTrade()
+
+      await wrapper.find('.dweller-item').trigger('click')
+      const send = wrapper.findAll('button').find((b) => b.text().includes('Send caravan'))!
+      await send.trigger('click')
+
+      expect(wrapper.emitted('dispatch')![0][0]).toMatchObject({ purpose: 'trade' })
+    })
+
+    it('offers no party section while the settlement is cooling down, and says why', () => {
+      const wrapper = mountTrade({
+        action: 'none',
+        caravan: {
+          ...caravanState,
+          cooldown_remaining_seconds: 3600,
+          refusal_reason: 'No caravan ready yet',
+        },
+      })
+
+      expect(wrapper.text()).toContain('Next caravan')
+      expect(wrapper.text()).toContain('1h')
+      expect(wrapper.text()).not.toContain('SEND A CARAVAN')
+    })
+
+    it('prints a readable badge instead of the raw marker type', () => {
+      const wrapper = mountTrade({ type: 'visited' })
+
+      expect(wrapper.text()).toContain('Visited')
+      expect(wrapper.text()).not.toContain('home_vault')
+      expect(wrapper.text()).not.toContain('discovery')
     })
   })
 })

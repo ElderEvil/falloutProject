@@ -974,6 +974,25 @@ class DispatchConfig(BaseSettings):
     lethal_tier: int = Field(default=2, ge=0, description="Tier at which dispatch damage can kill")
 
 
+class CaravanConfig(BaseSettings):
+    """Trade caravan tuning: the safe, XP-free material faucet at settlements (issue 1493).
+
+    No hold phase and no combat: a caravan departs, arrives, comes home with a shipment. Pacing is
+    the per-settlement cooldown, not a hold, because arrival is positional and a longer run would
+    resolve at the target anyway. A caravan party is capped by ``exploration.dispatch.max_party_size``
+    like any other dispatch — one roster rule, not two.
+    """
+
+    model_config = SettingsConfigDict(env_prefix="EXPLORATION_CARAVAN_")
+
+    caps_cost_settlement: int = Field(default=150, ge=0, description="Fee to trade with a settlement")
+    caps_cost_city: int = Field(default=300, ge=0, description="Fee to trade with a city")
+    # A city hauls the same shipment for twice the fee, so it earns that with a shorter cooldown: the
+    # tier decides how often you may trade, never how much a trip pays (that would break the guardrail).
+    revisit_hours_settlement: int = Field(default=24, ge=1, description="Cooldown after a settlement caravan")
+    revisit_hours_city: int = Field(default=12, ge=1, description="Cooldown after a city caravan")
+
+
 class ExplorationConfig(BaseSettings):
     """Wasteland exploration configuration."""
 
@@ -1035,6 +1054,9 @@ class ExplorationConfig(BaseSettings):
 
     # Dispatch (clearable map points)
     dispatch: DispatchConfig = Field(default_factory=DispatchConfig)
+
+    # Trade caravans (settlements and cities)
+    caravan: CaravanConfig = Field(default_factory=CaravanConfig)
 
     same_rarity_junk_probability: float = Field(
         default=0.4, description="Probability of getting same rarity junk when scrapping", ge=0.0, le=1.0

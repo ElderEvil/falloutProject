@@ -71,5 +71,11 @@ async def test_snapshot_freezes_power_and_level_bonus(
 def test_power_band_is_coarse() -> None:
     assert {band for _, band in POWER_BANDS} <= {"light", "steady", "strong", "elite"}
     assert power_band(0) == "light"
-    assert power_band(500) == "elite"
-    assert power_band(499) == "strong"
+    assert power_band(74) == "light"
+    assert power_band(75) == "steady"
+    assert power_band(174) == "steady"
+    assert power_band(175) == "strong"
+    assert power_band(299) == "strong"
+    assert power_band(300) == "elite"
+    # The top band must be reachable by a legal party: 3 x 134 (Lv50, SPECIAL 10, best weapon).
+    assert power_band(402) == "elite"

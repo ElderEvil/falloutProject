@@ -151,3 +151,34 @@ async def test_failed_claim_rolls_back_reward_and_keeps_objective_claimable(
     assert vault.bottle_caps == initial_caps
     assert link.is_completed is False
     assert link.progress == 1
+
+
+async def test_admin_progress_and_assign_random_keep_the_link_wire_shape(
+    async_client, async_session, superuser_token_headers, vault
+) -> None:
+    objective = Objective(challenge="Collect two caps", reward="50 caps", category="daily", target_amount=2)
+    async_session.add(objective)
+    await async_session.commit()
+
+    progress = await async_client.post(
+        f"/objectives/{vault.id}/{objective.id}/progress", params={"progress": 1}, headers=superuser_token_headers
+    )
+    assert progress.status_code == 200, progress.text
+    body = progress.json()
+    assert set(body) == {
+        "vault_id",
+        "objective_id",
+        "progress",
+        "total",
+        "is_completed",
+        "is_locked",
+        "credited_dweller_ids",
+        "reward_snapshot",
+    }
+    assert body["progress"] == 1
+
+    assigned = await async_client.post(
+        f"/objectives/{vault.id}/assign-random", params={"count": 1}, headers=superuser_token_headers
+    )
+    assert assigned.status_code == 200, assigned.text
+    assert set(assigned.json()) == {"assigned", "message"}

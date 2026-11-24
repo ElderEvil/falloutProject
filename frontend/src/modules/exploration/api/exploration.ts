@@ -18,7 +18,13 @@ export const explorationApi = {
    */
   async dispatchToLocation(
     vaultId: string,
-    payload: { dwellerIds: string[]; locationId: string; stimpaks?: number; radaways?: number }
+    payload: {
+      dwellerIds: string[]
+      locationId: string
+      stimpaks?: number
+      radaways?: number
+      purpose?: 'clear' | 'trade'
+    }
   ): Promise<ExplorationRead> {
     return apiPost<ExplorationRead>(
       '/api/v1/explorations/dispatch',
@@ -27,6 +33,7 @@ export const explorationApi = {
         location_id: payload.locationId,
         stimpaks: payload.stimpaks ?? 0,
         radaways: payload.radaways ?? 0,
+        purpose: payload.purpose ?? 'clear',
       },
       { params: { vault_id: vaultId } }
     )

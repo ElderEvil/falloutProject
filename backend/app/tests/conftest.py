@@ -134,6 +134,12 @@ async def async_session(db_connection: AsyncConnection) -> AsyncSession:  # type
 
     with suppress(Exception):
         await nested.rollback()
+    if not db_connection.in_transaction():
+        pytest.fail(
+            "session isolation lost: this test committed the shared connection's outer transaction, "
+            "so its rows escaped the savepoint and leak into every later test in this worker",
+            pytrace=False,
+        )
     with suppress(Exception):
         await db_connection.rollback()
 

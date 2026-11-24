@@ -44,7 +44,6 @@ class CRUDBase[ModelType: SQLModel, CreateSchemaType: (SQLModel | None), UpdateS
     async def get_by_ids(
         self, list_ids: Sequence[UUID | str], db_session: AsyncSession, include_deleted: bool = False
     ) -> Sequence[ModelType]:
-        """Get items by a list of IDs."""
         query = select(self.model).where(self.model.id.in_(list_ids))
 
         if not include_deleted and hasattr(self.model, "is_deleted"):
@@ -66,7 +65,11 @@ class CRUDBase[ModelType: SQLModel, CreateSchemaType: (SQLModel | None), UpdateS
         return response.scalars().all()
 
     async def create(self, db_session: AsyncSession, obj_in: CreateSchemaType, *, commit: bool = True) -> ModelType:
-        """Create a new item; raises ResourceAlreadyExistsException on unique-violation."""
+        """Create a new item; raises ResourceAlreadyExistsException on unique-violation.
+
+        commit=False gives the caller the transaction: the row is flushed and a conflict
+        propagated, so keep earlier writes by opening a savepoint first.
+        """
         db_obj = self.model.model_validate(obj_in)
         try:
             db_session.add(db_obj)
@@ -75,8 +78,11 @@ class CRUDBase[ModelType: SQLModel, CreateSchemaType: (SQLModel | None), UpdateS
             else:
                 await db_session.flush()
         except IntegrityError as e:
-            await db_session.rollback()
-            raise ResourceAlreadyExistsException(self.model, obj_in.name, headers={"detail": str(e)}) from e
+            if commit:
+                # Standalone semantics: undo our own work before surfacing the conflict.
+                await db_session.rollback()
+            identifier = getattr(obj_in, "name", self.model.__name__)
+            raise ResourceAlreadyExistsException(self.model, identifier, headers={"detail": str(e)}) from e
         if not commit:
             # The caller owns the transaction; flush already populated defaults.
             return db_obj
@@ -91,7 +97,8 @@ class CRUDBase[ModelType: SQLModel, CreateSchemaType: (SQLModel | None), UpdateS
             await db_session.commit()
         except IntegrityError as e:
             await db_session.rollback()
-            raise ResourceAlreadyExistsException(self.model, objs_in[0].name, headers={"detail": str(e)}) from e
+            identifier = getattr(objs_in[0], "name", self.model.__name__)
+            raise ResourceAlreadyExistsException(self.model, identifier, headers={"detail": str(e)}) from e
         return db_objs
 
     async def update(
@@ -102,7 +109,6 @@ class CRUDBase[ModelType: SQLModel, CreateSchemaType: (SQLModel | None), UpdateS
         *,
         commit: bool = True,
     ) -> ModelType:
-        """Update an existing item from a SQLModel instance or dict."""
         db_obj = await self.get(db_session=db_session, id=id)
         update_data = obj_in if isinstance(obj_in, dict) else obj_in.model_dump(exclude_unset=True)
 
@@ -142,7 +148,6 @@ class CRUDBase[ModelType: SQLModel, CreateSchemaType: (SQLModel | None), UpdateS
         return existing_obj
 
     async def exists(self, db_session: AsyncSession, **filters: Any) -> bool:
-        """Check whether any record matches the given filters."""
         query = select(func.count()).select_from(self.model).filter_by(**filters)
         result = await db_session.execute(query)
         return result.scalar() > 0
@@ -207,7 +212,6 @@ class CRUDBase[ModelType: SQLModel, CreateSchemaType: (SQLModel | None), UpdateS
     async def get_deleted(
         self, db_session: AsyncSession, skip: int = 0, limit: int = 100
     ) -> Sequence[Row[Any] | RowMapping | Any]:
-        """List soft-deleted items with skip/limit pagination."""
         if not hasattr(self.model, "is_deleted"):
             return []
 

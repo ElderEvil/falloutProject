@@ -7,21 +7,25 @@ buff and the cooldown are exercised together — the failure modes are the place
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
-from sqlalchemy import func
+from sqlalchemy import event, func
+from sqlalchemy.ext.asyncio import AsyncConnection
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
 from app.core.enums import DeathCauseEnum, DwellerLocationRelationEnum
+from app.core.event_bus import GameEvent, event_bus
 from app.core.game_config import game_config
 from app.crud.vault_slot import vault_slot
 from app.models.collectible import VaultCollectible
 from app.models.dweller import Dweller
+from app.models.exploration import Exploration
 from app.models.vault import Vault
 from app.models.world_location import VaultLocationState, WorldLocation
 from app.options.identity_modifiers import effective_stat
@@ -68,11 +72,17 @@ async def _site(
     return await crud.world_location.get_registry(async_session, state.location_id), state
 
 
-async def _arrive(async_session: AsyncSession, vault: Vault, dweller: Dweller, location: WorldLocation) -> None:
+async def _depart(async_session: AsyncSession, vault: Vault, dweller: Dweller, location: WorldLocation) -> Exploration:
+    """Send one dweller out and age the run to arrival, without resolving it."""
     exploration = await exploration_service.dispatch(async_session, vault.id, [dweller.id], location.id)
     exploration.start_time = utcnow() - timedelta(hours=exploration.duration)
     async_session.add(exploration)
     await async_session.commit()
+    return exploration
+
+
+async def _arrive(async_session: AsyncSession, vault: Vault, dweller: Dweller, location: WorldLocation) -> None:
+    exploration = await _depart(async_session, vault, dweller, location)
     await resolve_dispatch_arrival(async_session, exploration.id)
 
 
@@ -88,6 +98,25 @@ async def _claims(async_session: AsyncSession, vault: Vault, key: str) -> int:
 
 def _buff(stat: str, amount: int, expires_at: datetime) -> dict:
     return {"key": "guns_and_bullets", "stat": stat, "amount": amount, "expires_at": expires_at.isoformat()}
+
+
+@pytest.fixture
+def collectible_events() -> Iterator[list[dict]]:
+    """Record every COLLECTIBLE_FOUND the bus actually delivers during one test.
+
+    A real subscriber, not a mock: the assertion is that evaluators never see the event, which is
+    what a rollback has to guarantee.
+    """
+    delivered: list[dict] = []
+
+    async def record(_event_type: str, _vault_id: UUID, data: dict) -> None:
+        delivered.append(data)
+
+    event_bus.subscribe(GameEvent.COLLECTIBLE_FOUND, record)
+    try:
+        yield delivered
+    finally:
+        event_bus.unsubscribe(GameEvent.COLLECTIBLE_FOUND, record)
 
 
 @pytest.mark.usefixtures("default_world_snapshot")
@@ -146,6 +175,100 @@ async def test_a_reread_after_the_cooldown_refreshes_the_buff_with_no_second_cla
     assert await _claims(async_session, vault, "guns_and_bullets") == 1
     assert other.magazine_buff is not None
     assert other.magazine_buff["key"] == "guns_and_bullets"
+
+
+@pytest.mark.usefixtures("default_world_snapshot")
+async def test_a_late_failure_after_the_claim_and_buff_are_staged_leaves_the_site_unread(
+    async_session: AsyncSession,
+    db_connection: AsyncConnection,
+    vault: Vault,
+    dweller: Dweller,
+    monkeypatch: pytest.MonkeyPatch,
+    collectible_events: list[dict],
+) -> None:
+    """A failure in the return leg must unwind the site marker, the claim and the buff together.
+
+    The run's transaction owner is ``start_return``; everything before it only stages. The injected
+    fault lands on that owner's own write (the transition to RETURNING), so the claim and the buff
+    have already reached the database inside the transaction when it fails.
+    """
+    monkeypatch.setattr(game_config.features, "collectibles", True)
+    location, state = await _site(async_session, vault, dweller)
+    exploration = await _depart(async_session, vault, dweller, location)
+
+    statements: list[str] = []
+
+    def reject_return_leg(_connection, _cursor, statement, _parameters, _context, _executemany) -> None:
+        statements.append(statement)
+        if statement.startswith("UPDATE exploration SET") and "return_started_at" in statement:
+            raise RuntimeError("injected return-leg write failure")
+
+    event.listen(db_connection.sync_connection, "before_cursor_execute", reject_return_leg)
+    try:
+        with pytest.raises(RuntimeError, match="injected return-leg write failure"):
+            await resolve_dispatch_arrival(async_session, exploration.id)
+    finally:
+        event.remove(db_connection.sync_connection, "before_cursor_execute", reject_return_leg)
+
+    # The failing statement is last, and the claim insert and buff update had already run: this is
+    # the ordering the test is about, read off the real SQL rather than off the hook.
+    assert any(statement.startswith("INSERT INTO vaultcollectible") for statement in statements)
+    assert any("UPDATE dweller SET" in statement and "magazine_buff" in statement for statement in statements)
+
+    await async_session.rollback()
+    # Reload from the session: the failed call mutated these objects in memory before it raised.
+    await async_session.refresh(dweller)
+    await async_session.refresh(state)
+    await async_session.refresh(exploration)
+    await async_session.refresh(vault)
+
+    assert dweller.magazine_buff is None
+    assert state.last_read_at is None
+    assert state.searched_at is None
+    assert await _claims(async_session, vault, "guns_and_bullets") == 0
+    assert exploration.total_caps_found == 0
+    assert exploration.is_active()
+    assert collectible_events == []
+
+
+@pytest.mark.usefixtures("default_world_snapshot")
+async def test_a_read_refused_by_the_site_clock_stages_nothing_and_keeps_the_live_buff(
+    async_session: AsyncSession,
+    vault: Vault,
+    dweller: Dweller,
+    monkeypatch: pytest.MonkeyPatch,
+    collectible_events: list[dict],
+) -> None:
+    """A run that lands inside the 24h window is an ordinary rejection: no claim, no buff, no event.
+
+    A salvage point has no one-party guard, but ``uq_exploration_active_target`` still allows only
+    one active run per point, so the clock closing under an in-flight run is modelled directly: the
+    marker is inside its window when the run lands.
+    """
+    monkeypatch.setattr(game_config.features, "collectibles", True)
+    location, state = await _site(async_session, vault, dweller)
+    live_buff = _buff("perception", 2, utcnow() + timedelta(hours=5))
+    dweller.magazine_buff = live_buff
+    async_session.add(dweller)
+    await async_session.commit()
+    exploration = await _depart(async_session, vault, dweller, location)
+    state.last_read_at = utcnow() - timedelta(hours=1)
+    async_session.add(state)
+    await async_session.commit()
+
+    await resolve_dispatch_arrival(async_session, exploration.id)
+    await async_session.refresh(dweller)
+    await async_session.refresh(state)
+    await async_session.refresh(exploration)
+
+    assert dweller.magazine_buff == live_buff
+    assert state.last_read_at is not None
+    assert state.last_read_at < utcnow()
+    assert state.searched_at is None
+    assert await _claims(async_session, vault, "guns_and_bullets") == 0
+    assert collectible_events == []
+    # The refusal still sends the run home: nothing is staged, but the run is not left hanging.
+    assert not exploration.is_active()
 
 
 @pytest.mark.parametrize(

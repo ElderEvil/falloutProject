@@ -132,11 +132,15 @@
     --color-rarity-rare: #4169e1;
     --color-rarity-legendary: #ffd700;
 
-    /* Quest Type Colors */
+    /* Quest Type Colors — hue encodes cadence, saturation encodes urgency:
+       gold = scripted spine, blue = optional narrative, green = renewing,
+       rose = expiring, slate = grind. Each badge owns an explicit fill and ink,
+       so changing --theme-primary never restyles a quest class. */
     --color-quest-main: #ffb000;
-    --color-quest-side: var(--color-gray-800);
-    --color-quest-daily: #00d9ff;
-    --color-quest-event: #9b59b6;
+    --color-quest-side: #2563eb;
+    --color-quest-daily: #10b981;
+    --color-quest-event: #e11d48;
+    --color-quest-repeatable: #64748b;
     --color-quest-locked: #ff6600;
     --color-quest-muted: #666666;
 

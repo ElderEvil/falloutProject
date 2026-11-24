@@ -648,7 +648,7 @@ describe('QuestCard', () => {
     const typeBadge = header.get('[data-slot="badge"]')
     expect(typeBadge.text()).toBe('Side')
     expect(typeBadge.classes()).toEqual(
-      expect.arrayContaining(['bg-quest-side', 'text-theme-primary', 'border-quest-side'])
+      expect.arrayContaining(['bg-quest-side', 'text-white', 'border-quest-side'])
     )
     expect(typeBadge.attributes('style')).toBeUndefined()
   })

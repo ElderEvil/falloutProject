@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 3.20.2 (2026-11-24)
+
+### Bug Fixes
+
+* **api:** commit each write path once and resolve every response schema ([#1500](https://github.com/ElderEvil/falloutProject/issues/1500)) 08bc6fd
+
 ## 3.20.1 (2026-11-24)
 
 ### Bug Fixes

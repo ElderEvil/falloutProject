@@ -1,17 +1,12 @@
-import uuid
-from collections.abc import AsyncIterator
 from uuid import uuid4
 
 import pytest
 import pytest_asyncio
 from sqlalchemy import text
-from sqlalchemy.engine import make_url
-from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
-from sqlalchemy.pool import NullPool
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app import crud
 from app.core import db_locks
-from app.core.config import settings
 from app.core.enums import HazardTeam, IncidentType
 from app.schemas.dweller import DwellerCreate
 from app.schemas.room import RoomCreate
@@ -21,6 +16,8 @@ from app.services.hazard_team_service import QUALIFYING_INCIDENTS, hazard_team_s
 from app.tests.factory.rooms import create_fake_room
 from app.tests.factory.vaults import create_fake_vault
 from app.tests.test_services._hazard_team_helpers import ensure_station
+
+pytest_plugins = ["app.tests.test_alembic._support"]
 
 pytestmark = pytest.mark.integration
 
@@ -39,23 +36,6 @@ _DELETES = (
     "DELETE FROM dweller WHERE vault_id = :vault_id",
     "DELETE FROM vault WHERE id = :vault_id",
 )
-
-
-@pytest_asyncio.fixture(scope="module")
-async def live_pg_engine():
-    uri = str(settings.ASYNC_DATABASE_URI)
-    if make_url(uri).get_backend_name() != "postgresql":
-        pytest.skip("ASYNC_DATABASE_URI is not PostgreSQL; skipping the roster concurrency check")
-
-    engine = create_async_engine(uri, poolclass=NullPool)
-    try:
-        async with engine.connect() as conn:
-            await conn.execute(text("SELECT 1"))
-    except Exception as exc:
-        await engine.dispose()
-        pytest.skip(f"PostgreSQL unavailable: {exc}")
-    yield engine
-    await engine.dispose()
 
 
 @pytest_asyncio.fixture

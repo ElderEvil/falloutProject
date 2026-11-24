@@ -12,14 +12,11 @@ from uuid import uuid4
 import pytest
 import pytest_asyncio
 from sqlalchemy import text
-from sqlalchemy.engine import make_url
-from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker, create_async_engine
-from sqlalchemy.pool import NullPool
+from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
 from app.core import db_locks
-from app.core.config import settings
 from app.core.enums import IncidentType, RoomTypeEnum, SPECIALEnum
 from app.models.team import DISPATCHED_STATUS
 from app.schemas.dweller import DwellerCreate
@@ -30,6 +27,8 @@ from app.services.dweller_service import dweller_service
 from app.services.hazard_team_service import hazard_team_service
 from app.tests.factory.vaults import random_vault_number
 from app.utils.exceptions import ResourceConflictException
+
+pytest_plugins = ["app.tests.test_alembic._support"]
 
 pytestmark = pytest.mark.integration
 
@@ -97,23 +96,6 @@ def _production_room_create(vault_id, *, name: str = "Incident Room", x: int = 1
         size=3,
         coordinate_x=x,
     )
-
-
-@pytest_asyncio.fixture(scope="module")
-async def live_pg_engine() -> AsyncIterator[AsyncEngine]:
-    """Connect to the live PostgreSQL database, skipping when unavailable."""
-    uri = str(settings.ASYNC_DATABASE_URI)
-    if make_url(uri).get_backend_name() != "postgresql":
-        pytest.skip("ASYNC_DATABASE_URI is not PostgreSQL; skipping the station concurrency check")
-    engine = create_async_engine(uri, poolclass=NullPool)
-    try:
-        async with engine.connect() as conn:
-            await conn.execute(text("SELECT 1"))
-    except Exception as exc:
-        await engine.dispose()
-        pytest.skip(f"PostgreSQL unavailable: {exc}")
-    yield engine
-    await engine.dispose()
 
 
 @pytest_asyncio.fixture

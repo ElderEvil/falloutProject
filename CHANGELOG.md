@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 3.24.0 (2026-11-24)
+
+### Features
+
+* **radio:** hold the first broadcast until the day after founding ([#1525](https://github.com/ElderEvil/falloutProject/issues/1525)) c2bba49
+
 ## 3.23.0 (2026-11-24)
 
 ### Features

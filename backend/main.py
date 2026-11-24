@@ -212,6 +212,10 @@ admin = Admin(
     templates_dir=str(Path(__file__).resolve().parent / "app" / "admin" / "templates"),
 )
 
+# Reject oversized bodies before they are read. Registered before CORS so CORS stays outermost and
+# a 413 still carries its headers; the voice route checks the upload size as well.
+app.add_middleware(RequestBodyLimitMiddleware, max_body_size=settings.MAX_REQUEST_BODY_BYTES)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.BACKEND_CORS_ORIGINS,
@@ -219,9 +223,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# Reject oversized bodies before they are read. The voice route checks the upload size as well.
-app.add_middleware(RequestBodyLimitMiddleware, max_body_size=settings.MAX_REQUEST_BODY_BYTES)
 
 # Compress JSON above 1 KiB. Starlette's default exclusion list already skips text/event-stream,
 # audio and images, so SSE and voice bytes pass through untouched.

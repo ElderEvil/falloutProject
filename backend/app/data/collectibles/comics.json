@@ -1,0 +1,38 @@
+[
+ {
+  "key": "grognak_barbarian",
+  "name": "Grognak the Barbarian",
+  "stat": "strength",
+  "amount": 1,
+  "image": "comic_images/grognak.png",
+  "kind": "comic",
+  "set": "comics",
+  "location": "Megaton",
+  "action": "salvage",
+  "description": "A barbarian splits a radscorpion on the cover. The spine is cracked from rereading the good page."
+ },
+ {
+  "key": "astounding_tales",
+  "name": "Astoundingly Awesome Tales",
+  "stat": "luck",
+  "amount": 1,
+  "image": "comic_images/astoundingly_awesome_tales.png",
+  "kind": "comic",
+  "set": "comics",
+  "location": "Diamond City",
+  "action": "salvage",
+  "description": "Tales of a two-headed brahmin that ate a town. The last page is torn out, which feels lucky."
+ },
+ {
+  "key": "silver_shroud",
+  "name": "Silver Shroud",
+  "stat": "charisma",
+  "amount": 1,
+  "image": "comic_images/silver_shroud.png",
+  "kind": "comic",
+  "set": "comics",
+  "location": "Goodneighbor",
+  "action": "salvage",
+  "description": "A masked avenger poses under a streetlamp, pistol up. The back cover still smells of cheap cologne."
+ }
+]

@@ -1,0 +1,20 @@
+[
+ {
+  "set": "comics",
+  "name": "The Full Run",
+  "required": 3,
+  "bonus": {
+   "type": "expedition_loot_pct",
+   "value": 10
+  }
+ },
+ {
+  "set": "bobbleheads",
+  "name": "Full Cabinet",
+  "required": 7,
+  "bonus": {
+   "type": "production_pct",
+   "value": 5
+  }
+ }
+]

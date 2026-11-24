@@ -1,8 +1,10 @@
 import pytest
 
 from app.core.enums import DwellerLocationRelationEnum, LocationTypeEnum
+from app.core.game_config import game_config
 from app.crud.vault_slot import vault_slot
 from app.crud.world_location import world_location as wl_crud
+from app.services.collectible_service import collectible_service
 from app.services.dweller_service import dweller_service
 from app.services.map_service import map_service
 from app.services.world_snapshot_service import world_snapshot_service
@@ -87,3 +89,25 @@ async def test_world_roads_api_is_authenticated_and_reads_the_persisted_layer(
     assert response.json()["roads"] is None
     await async_session.refresh(snapshot)
     assert snapshot.roads is None  # reads do not backfill
+
+
+async def test_get_vault_map_reports_collectible_set_progress(
+    async_client, async_session, superuser_token_headers, vault, dweller, monkeypatch
+) -> None:
+    monkeypatch.setattr(game_config.features, "collectibles", True)
+    for key in ("grognak_barbarian", "astounding_tales"):
+        assert await collectible_service.award(
+            async_session, vault_id=vault.id, dweller=dweller, collectible_key=key
+        )
+    await async_session.commit()
+    response = await async_client.get(f"/map/vault/{vault.id}", headers=superuser_token_headers)
+    assert response.status_code == 200
+    progress = {row["set"]: row for row in response.json()["collectible_sets"]}
+    assert progress["comics"] == {"set": "comics", "name": "The Full Run", "held": 2, "required": 3, "active": False}
+    assert progress["bobbleheads"] == {
+        "set": "bobbleheads",
+        "name": "Full Cabinet",
+        "held": 0,
+        "required": 7,
+        "active": False,
+    }

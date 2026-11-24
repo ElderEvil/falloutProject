@@ -49,6 +49,23 @@ async def test_award_claims_once_and_applies_the_bonus(async_session: AsyncSessi
     assert dweller.collectible_bonus == {"strength": 1}
 
 
+async def test_a_comic_grants_its_own_stat_once_per_vault(async_session: AsyncSession, vault: Vault) -> None:
+    dweller = await _finder(async_session, vault)
+    base = effective_stat(dweller, "luck")
+    assert await collectible_service.award(
+        async_session, vault_id=vault.id, dweller=dweller, collectible_key="astounding_tales"
+    )
+    assert dweller.collectible_bonus == {"luck": 1}
+    assert effective_stat(dweller, "luck") == base + 1
+    assert (
+        await collectible_service.award(
+            async_session, vault_id=vault.id, dweller=dweller, collectible_key="astounding_tales"
+        )
+        is False
+    )
+    assert dweller.collectible_bonus == {"luck": 1}
+
+
 async def test_death_clears_the_bonus_and_revival_keeps_it_cleared(async_session: AsyncSession, vault: Vault) -> None:
     dweller = await _finder(async_session, vault)
     await _award_strength(async_session, vault, dweller)

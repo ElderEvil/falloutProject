@@ -15,10 +15,15 @@ on:
       - 'scripts/pre-push'
       - '.pre-commit-config.yaml'
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   backend-ci:
     name: Backend Tests (${{ matrix.python-version }})
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:

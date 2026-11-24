@@ -11,10 +11,15 @@ on:
       - '.github/workflows/backend-coverage.yml'
   workflow_dispatch:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   backend-coverage:
     name: Backend Tests with Coverage
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     permissions:
       contents: read
       actions: write

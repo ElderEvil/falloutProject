@@ -23,7 +23,9 @@ permissions:
   contents: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  # github.workflow is the *caller's* name inside a reusable workflow, so scope this group to the
+  # build itself; otherwise it collides with Release's group and cancels the run that called it.
+  group: build-${{ github.ref }}-${{ inputs.release_tag }}
   cancel-in-progress: true
 
 jobs:

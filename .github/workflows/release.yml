@@ -16,8 +16,10 @@ on:
         default: auto
 
 concurrency:
+  # A release publishes tags and images; superseding it mid-run can leave a half-published
+  # version. Serialize instead of cancelling.
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   baseline:

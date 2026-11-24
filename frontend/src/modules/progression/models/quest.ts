@@ -196,11 +196,17 @@ function rewardAmount(value: unknown): number {
   return typeof value === 'number' ? value : Number(value) || 0
 }
 
-/** Badge colors and available-card accents. */
+/** Badge colors and available-card accents.
+ *
+ * Each badge owns its fill and its ink, so no quest class borrows `--theme-primary` and
+ * changing the accent cannot restyle a quest type. Hue encodes cadence — gold scripted,
+ * blue optional, green renewing, rose expiring, slate grind — and every pair clears 4.5:1
+ * for the uppercase 11-12px label.
+ */
 export const QUEST_TYPE_COLORS: Record<string, { badge: string; border: string }> = {
   main: { badge: 'bg-quest-main text-black border-quest-main', border: 'var(--color-quest-main)' },
   side: {
-    badge: 'bg-quest-side text-theme-primary border-quest-side',
+    badge: 'bg-quest-side text-white border-quest-side',
     border: 'var(--color-quest-side)',
   },
   daily: {
@@ -212,8 +218,8 @@ export const QUEST_TYPE_COLORS: Record<string, { badge: string; border: string }
     border: 'var(--color-quest-event)',
   },
   repeatable: {
-    badge: 'bg-theme-primary text-black border-theme-primary',
-    border: 'var(--color-theme-primary)',
+    badge: 'bg-quest-repeatable text-white border-quest-repeatable',
+    border: 'var(--color-quest-repeatable)',
   },
 }
 

@@ -178,6 +178,32 @@ async def test_resolution_pays_a_common_shipment_and_starts_the_cooldown(
 
 
 @pytest.mark.usefixtures("default_world_snapshot")
+async def test_a_cooldown_stamped_between_the_pre_check_and_the_fee_still_blocks(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Eligibility is re-checked under the vault lock: the pre-check window is not authoritative."""
+    from app.services.world_snapshot_service import world_snapshot_service
+
+    location, state = await _register_place(async_session, vault, dweller)
+    before = vault.bottle_caps
+    generate = world_snapshot_service.get_or_generate
+
+    async def _stamp_cooldown(*args, **kwargs):
+        snapshot = await generate(*args, **kwargs)
+        state.caravan_available_at = utcnow() + timedelta(hours=1)
+        async_session.add(state)
+        await async_session.commit()
+        return snapshot
+
+    monkeypatch.setattr(world_snapshot_service, "get_or_generate", _stamp_cooldown)
+    with pytest.raises(ValidationException, match="no caravan ready yet"):
+        await _trade(async_session, vault, dweller, location)
+
+    await async_session.refresh(vault)
+    assert vault.bottle_caps == before
+
+
+@pytest.mark.usefixtures("default_world_snapshot")
 async def test_a_departure_that_fails_after_the_debit_leaves_no_trace(
     async_session: AsyncSession, vault: Vault, dweller: Dweller, monkeypatch: pytest.MonkeyPatch
 ) -> None:

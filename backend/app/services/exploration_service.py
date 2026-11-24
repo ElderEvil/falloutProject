@@ -449,7 +449,7 @@ class ExplorationService:
         # storage row while moving loot, so a departure that locked storage first could wait on that return
         # in the opposite order and be aborted by Postgres as a deadlock.
         if fee:
-            await self._charge_caravan_fee(db_session, vault_id, fee)
+            await self._charge_caravan_fee(db_session, vault_id, fee, location=location, state=state, group=group)
         # The snapshot commit can stale the pre-read: re-read under FOR UPDATE so a supply spend committed in the
         # window is not overwritten. The row lock holds until the departure commit, keeping re-check and deduction
         # atomic.
@@ -527,14 +527,26 @@ class ExplorationService:
             raise ValidationException("This settlement has no caravan ready yet")
         return trade_caps_cost(group)
 
-    @staticmethod
-    async def _charge_caravan_fee(db_session: AsyncSession, vault_id: UUID, fee: int) -> None:
-        """Debit the caravan fee under the vault row lock, inside the departure transaction.
+    async def _charge_caravan_fee(
+        self,
+        db_session: AsyncSession,
+        vault_id: UUID,
+        fee: int,
+        *,
+        location: WorldLocation,
+        state: VaultLocationState,
+        group: dict | None,
+    ) -> None:
+        """Re-validate trade eligibility and debit the fee under the vault row lock.
 
-        The lock is taken last and held until the departure commit, so a concurrent second caravan
-        cannot pass on the same caps, and any later failure in this transaction rolls the debit back.
+        The pre-check ran before any lock, and snapshot generation commits in between, so a caravan that
+        was refused a moment ago can be admissible by now (and the reverse: a recalled run stamps no
+        cooldown, so two parties could work one settlement). Re-checking here serializes both caravans of
+        a vault on its row. Any later failure in this transaction rolls the debit back.
         """
         vault = await vault_crud.lock_for_update(db_session, vault_id)
+        await db_session.refresh(state)
+        await self._require_trade(db_session, vault_id, location, state, group)
         if vault.bottle_caps < fee:
             raise ValidationException(f"A caravan costs {fee} caps; the vault holds {vault.bottle_caps}")
         vault.bottle_caps -= fee

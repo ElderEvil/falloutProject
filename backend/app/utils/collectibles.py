@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 from collections import Counter
 from collections.abc import Iterable, Mapping
-from datetime import datetime, timedelta
+from datetime import datetime
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
@@ -18,7 +18,6 @@ from typing import Any
 from app.core.enums import SPECIAL_STATS
 from app.utils.place_groups import get_place_group, group_for_place_name, trade_entry
 from app.utils.places import normalize_place_name
-from app.utils.time import as_utc
 
 DATA_ROOT = Path(__file__).parent.parent / "data" / "collectibles"
 CATALOG_FILES: tuple[tuple[str, Path], ...] = (
@@ -31,12 +30,9 @@ STATIC_ROOT = Path(__file__).parent.parent / "static"
 ACTIONS = frozenset({"clear", "salvage"})
 PRODUCTION_PCT = "production_pct"
 EXPEDITION_LOOT_PCT = "expedition_loot_pct"
-MAGAZINE_BUFF_HOURS = "magazine_buff_hours"
-BONUS_TYPES = frozenset({PRODUCTION_PCT, EXPEDITION_LOOT_PCT, MAGAZINE_BUFF_HOURS})
+MAGAZINE_BOON_INCREMENT = "magazine_boon_increment"
+BONUS_TYPES = frozenset({PRODUCTION_PCT, EXPEDITION_LOOT_PCT, MAGAZINE_BOON_INCREMENT})
 MAGAZINE = "magazine"
-#: A magazine site is reread on a fixed clock, independent of how long its buff lasts: that gap is
-#: what the set bonus pays for (a 12h buff you can renew every 24h, not a 12h cooldown).
-MAGAZINE_COOLDOWN_HOURS = 24
 
 
 def _label(kind: str) -> str:
@@ -71,10 +67,6 @@ def validate_collectibles(
         amount = entry.get("amount")
         if not isinstance(amount, int) or isinstance(amount, bool) or amount < 1:
             raise ValueError(f"{label} {key!r} needs a positive integer amount")
-        if kind == MAGAZINE:
-            duration = entry.get("duration_hours")
-            if not isinstance(duration, int) or isinstance(duration, bool) or duration < 1:
-                raise ValueError(f"{label} {key!r} needs a positive integer duration_hours")
         action = entry.get("action")
         if action not in ACTIONS:
             raise ValueError(f"{label} {key!r} has unknown action {action!r}")
@@ -120,10 +112,10 @@ def validate_sets(entries: list[dict[str, Any]]) -> tuple[dict[str, Any], ...]:
         value = bonus.get("value") if isinstance(bonus, dict) else None
         if not isinstance(value, int | float) or isinstance(value, bool) or value < 0:
             raise ValueError(f"Set {set_id!r} needs a non-negative bonus value")
-        # A buff length is hours, so a fraction has no meaning; the bonus overrides the magazine's
-        # own duration rather than scaling it, so rounding would silently steal playtime.
-        if bonus_type == MAGAZINE_BUFF_HOURS and (not isinstance(value, int) or value < 1):
-            raise ValueError(f"Set {set_id!r} needs whole positive magazine_buff_hours")
+        # The shelf bonus is a whole extra point per magazine: half a point has no meaning, and a
+        # zero increment would make the completed set indistinguishable from an incomplete one.
+        if bonus_type == MAGAZINE_BOON_INCREMENT and (not isinstance(value, int) or value < 1):
+            raise ValueError(f"Set {set_id!r} needs a whole positive magazine_boon_increment")
     return tuple(entries)
 
 
@@ -198,56 +190,49 @@ def _set_of_key() -> dict[str, str]:
     return {entry["key"]: entry["set"] for entry in load_collectibles()}
 
 
-def salvage_ready(
-    entry: Mapping[str, Any],
-    *,
-    searched_at: datetime | None,
-    last_read_at: datetime | None,
-    now: datetime,
-) -> bool:
+def salvage_ready(*, searched_at: datetime | None) -> bool:
     """Whether a salvage collectible can be taken right now.
 
-    A magazine is reread on a fixed 24h clock from the last read; every other collectible is a
-    one-shot salvage whose ``searched_at`` marker never clears. The buff's own length deliberately
-    plays no part here, so a longer buff is strictly better instead of stretching the cooldown.
+    Every salvage collectible — bobblehead, comic and magazine alike — is a one-time find: the
+    site stamps ``searched_at`` on the first claim and never clears it. Dispatch validation, the
+    map's action slot and the arrival resolver all ask this one predicate, so the map cannot offer
+    a search the write path would refuse.
     """
-    if entry["kind"] != MAGAZINE:
-        return searched_at is None
-    if last_read_at is None:
-        return True
-    return as_utc(now) >= as_utc(last_read_at) + timedelta(hours=MAGAZINE_COOLDOWN_HOURS)
+    return searched_at is None
 
 
-def magazine_buff_hours(entry: Mapping[str, Any], held_keys: Iterable[str]) -> int:
-    """A magazine buff's length: a completed set overrides it outright, never multiplies it."""
+def magazine_boon_amount(entry: Mapping[str, Any], held_keys: Iterable[str]) -> int:
+    """The permanent boon one magazine grants: its own amount, plus the completed shelf's increment.
+
+    Derived from the vault's claims at read time — nothing is written when the set completes — so a
+    finder who already holds the other magazines gets the larger boon on the very read that finishes
+    the shelf.
+    """
     held = set_held_counts(held_keys)
-    override = max(
+    increment = max(
         (
             definition["bonus"]["value"]
             for definition in load_sets()
-            if definition["bonus"]["type"] == MAGAZINE_BUFF_HOURS and held[definition["set"]] >= definition["required"]
+            if definition["bonus"]["type"] == MAGAZINE_BOON_INCREMENT
+            and held[definition["set"]] >= definition["required"]
         ),
         default=0,
     )
-    return int(override or entry["duration_hours"])
+    return int(entry["amount"]) + int(increment)
 
 
-def active_magazine_bonus(buff: Mapping[str, Any] | None, stat: str, *, now: datetime) -> int:
-    """The dweller's timed magazine bonus for one stat; 0 once it has expired.
+def magazine_boon_bonus(boon: Mapping[str, Any] | None, stat: str) -> int:
+    """The dweller's permanent magazine bonus for one stat; 0 when the boon is for another stat.
 
-    Expiry is read, never swept: there is no job to forget and no column to drift, so a buff that
-    elapsed while the dweller was idle counts for nothing the moment ``now`` passes it.
+    The boon never expires, so there is no clock to read and no job to run: a hand-edited or
+    malformed row is the only way this returns 0 for a stat the dweller actually holds.
     """
-    if not buff or buff.get("stat") != stat:
+    if not boon or boon.get("stat") != stat:
         return 0
-    amount = buff.get("amount")
+    amount = boon.get("amount")
     if not isinstance(amount, int) or isinstance(amount, bool):
         return 0
-    try:
-        expires_at = datetime.fromisoformat(str(buff.get("expires_at")))
-    except ValueError:
-        return 0
-    return amount if as_utc(now) < as_utc(expires_at) else 0
+    return amount
 
 
 def set_held_counts(held_keys: Iterable[str]) -> Counter[str]:

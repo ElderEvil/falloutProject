@@ -419,12 +419,7 @@ class ExplorationService:
                 group is None
                 or not game_config.features.collectibles
                 or entry is None
-                or not salvage_ready(
-                    entry,
-                    searched_at=state.searched_at,
-                    last_read_at=state.last_read_at,
-                    now=utcnow(),
-                )
+                or not salvage_ready(searched_at=state.searched_at)
             ):
                 raise ValidationException("This location cannot be cleared")
             if len(dweller_ids) != 1:

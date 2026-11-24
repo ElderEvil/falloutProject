@@ -9,7 +9,6 @@ from __future__ import annotations
 import logging
 from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import timedelta
 from typing import Any
 from uuid import UUID
 
@@ -30,7 +29,7 @@ from app.utils.collectibles import (
     MAGAZINE,
     collectible_for_key,
     collectible_for_location,
-    magazine_buff_hours,
+    magazine_boon_amount,
     set_progress,
 )
 from app.utils.collectibles import set_bonus_multiplier as completed_set_multiplier
@@ -64,8 +63,9 @@ class CollectibleService:
         """Claim a collectible for the vault and add its bonus to the finder.
 
         Returns False when the vault already holds the claim; nothing is written then. A magazine
-        writes no permanent bonus — its claim is set progress and its effect is the timed buff that
-        ``award_site_collectible`` applies — so the finder's ``collectible_bonus`` stays untouched.
+        claims like every other collectible and writes the finder's permanent ``magazine_boon``; a
+        bobblehead or comic writes the permanent per-stat ``collectible_bonus`` instead. Either way
+        the bonus is written only after the claim lands, so a lost race leaves the finder untouched.
         """
         entry = collectible_for_key(collectible_key)
         if await collectible_crud.get_by_vault_and_key(db_session, vault_id, collectible_key) is not None:
@@ -91,6 +91,7 @@ class CollectibleService:
             return False
 
         if entry["kind"] == MAGAZINE:
+            await self._apply_magazine_boon(db_session, vault_id=vault_id, dweller=dweller, entry=entry)
             return True
 
         # Mutated only after the claim lands, so a lost race leaves the finder's bonus untouched.
@@ -159,10 +160,9 @@ class CollectibleService:
         """Award the collectible bound to a site to its luckiest survivor.
 
         Staged only: the dispatch transaction owner commits the claim and the bonus, and the
-        notification is parked until that commit. A magazine is the recurring case — its claim is
-        written once per vault and a later read only refreshes the finder's buff — so a return here
-        means "this read counted", for a first read and a renewal alike. Returns None when the
-        feature is off, the site holds nothing, or a one-shot collectible is already claimed.
+        notification is parked until that commit. Every salvage site is a one-time find, so a return
+        here always means the claim was new; None means the feature is off, the site holds nothing,
+        or the vault already holds this collectible.
         """
         if not game_config.features.collectibles:
             return None
@@ -180,27 +180,21 @@ class CollectibleService:
             collectible_key=entry["key"],
             location_id=location.id,
         )
-        magazine = entry["kind"] == MAGAZINE
-        hours = 0
-        if magazine:
-            hours = await self._read_magazine(db_session, vault_id=exploration.vault_id, dweller=finder, entry=entry)
-        elif not claimed:
+        if not claimed:
             return None
+        # A magazine's boon is not always its catalog amount: the completed shelf pays an extra
+        # point, and the boon just written is the single source of truth for what the finder got.
+        amount = entry["amount"]
+        if entry["kind"] == MAGAZINE:
+            amount = int((finder.magazine_boon or {}).get("amount", entry["amount"]))
 
         vault = await crud.vault.get(db_session, exploration.vault_id)
         if vault is not None:
-            if magazine:
-                title = f"{entry['name']} {'read' if claimed else 'reread'}"
-                message = (
-                    f"{finder.display_name} {'read' if claimed else 'reread'} the {entry['name']} at "
-                    f"{location.name}: +{entry['amount']} {entry['stat']} for {hours} hours."
-                )
-            else:
-                title = f"{entry['name']} found"
-                message = (
-                    f"{finder.display_name} found the {entry['name']} at {location.name}: "
-                    f"permanent +{entry['amount']} {entry['stat']}."
-                )
+            title = f"{entry['name']} found"
+            message = (
+                f"{finder.display_name} found the {entry['name']} at {location.name}: "
+                f"permanent +{amount} {entry['stat']}."
+            )
             await notification_service.create_and_send(
                 db_session,
                 user_id=vault.user_id,
@@ -216,29 +210,24 @@ class CollectibleService:
             collectible_key=entry["key"],
             name=entry["name"],
             stat=entry["stat"],
-            amount=entry["amount"],
+            amount=amount,
             dweller_id=finder.id,
             location_name=location.name,
         )
 
-    async def _read_magazine(
+    async def _apply_magazine_boon(
         self, db_session: AsyncSession, *, vault_id: UUID, dweller: Dweller, entry: dict[str, Any]
     ) -> int:
-        """Put the finder's one magazine buff in place and return its length in hours.
+        """Stage the finder's permanent magazine boon and return its amount.
 
-        Called after the claim is staged, so a first read already counts towards the set and gets
-        the set's longer buff. One buff at a time: a newer read replaces the old one outright.
+        Called after the claim is flushed, so the read that completes the shelf already counts and
+        pays the larger boon. No clock and no expiry: a one-time find is kept for good.
         """
-        hours = magazine_buff_hours(entry, await collectible_crud.list_keys(db_session, vault_id))
-        dweller.magazine_buff = {
-            "key": entry["key"],
-            "stat": entry["stat"],
-            "amount": entry["amount"],
-            "expires_at": (utcnow() + timedelta(hours=hours)).isoformat(),
-        }
+        amount = magazine_boon_amount(entry, await collectible_crud.list_keys(db_session, vault_id))
+        dweller.magazine_boon = {"key": entry["key"], "stat": entry["stat"], "amount": amount}
         db_session.add(dweller)
         await db_session.flush()
-        return hours
+        return amount
 
 
 collectible_service = CollectibleService()

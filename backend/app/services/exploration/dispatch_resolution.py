@@ -34,7 +34,7 @@ from app.services.exploration.party_resolution import (
     resolve_party_combat,
 )
 from app.services.notification_service import notification_service
-from app.utils.collectibles import MAGAZINE, collectible_for_location, salvage_ready
+from app.utils.collectibles import collectible_for_location, salvage_ready
 from app.utils.place_groups import effective_place_group, location_xp_for, shipment_items, trade_entry, trade_terms
 from app.utils.place_loot import loot_table
 from app.utils.time import utcnow
@@ -265,18 +265,15 @@ async def _resolve_salvage(
 ) -> None:
     """Resolve a one-dweller salvage at an inert site: the collectible, a small find, a spent site.
 
-    Runs under the vault lock acquired by the caller; the claim, the buff and the site marker are
-    staged and ``start_return`` remains the transaction owner. No combat: salvaging never damages
-    the dweller. A magazine place is reread once its fixed 24h cooldown elapses, so it stamps
-    ``last_read_at`` and stays open; a bobblehead or comic is stamped ``searched_at`` and closes.
+    Runs under the vault lock acquired by the caller; the claim, the finder's boon and the site
+    marker are staged and ``start_return`` remains the transaction owner. No combat: salvaging never
+    damages the dweller. Every salvage collectible is a one-time find, so the place is stamped
+    ``searched_at`` and closes — a magazine included, its effect being a permanent boon rather than
+    a repeatable read.
     """
     now = utcnow()
     entry = collectible_for_location(location.name, action="salvage")
-    if (
-        not game_config.features.collectibles
-        or entry is None
-        or not salvage_ready(entry, searched_at=state.searched_at, last_read_at=state.last_read_at, now=now)
-    ):
+    if not game_config.features.collectibles or entry is None or not salvage_ready(searched_at=state.searched_at):
         await exploration_coordinator.start_return(db_session, exploration.id, arrived=arrived)
         return
     if exploration.team_id is not None:
@@ -288,10 +285,7 @@ async def _resolve_salvage(
         await exploration_coordinator.start_return(db_session, exploration.id, arrived=arrived)
         return
 
-    if entry["kind"] == MAGAZINE:
-        state.last_read_at = now
-    else:
-        state.searched_at = now
+    state.searched_at = now
     db_session.add(state)
     payload = await collectible_service.award_site_collectible(
         db_session, exploration=exploration, location=location, members=members, action="salvage"

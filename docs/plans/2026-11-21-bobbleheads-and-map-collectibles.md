@@ -181,8 +181,8 @@ using `cleared_at`/`reclear_available_at`.
    derivation, API read.
 3. **Salvage:** `searched_at`, dispatch validation, dispatch branch, tests.
 4. **Frontend:** inventory card, reveal modal, Collectibles tab, action labels.
-5. **Later:** magazines (temporary buff) and comics (set bonus) reuse the catalog, award service
-   and salvage branch; no new interaction needed.
+5. **Later:** magazines (one-time find, permanent boon) and comics (set bonus) reuse the catalog,
+   award service and salvage branch; no new interaction needed.
 
 ## Feature intake
 

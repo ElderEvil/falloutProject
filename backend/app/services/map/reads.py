@@ -160,9 +160,9 @@ def _action_for(
     A place the vault has not unlocked, or one with a party already en route, offers nothing:
     the dispatch service refuses both, so advertising an action here would only produce a dead-end
     button. Salvage implies the place is not clearable and the catalog binds a salvage collectible to
-    it; ``salvage_ready`` is the same rule the write path applies, so a magazine place comes back
-    after its 24h read cooldown. The collectible feature flag keeps inert places inert while the
-    content is switched off.
+    it; ``salvage_ready`` is the same rule the write path applies, so a searched place — magazine
+    included — offers nothing ever again. The collectible feature flag keeps inert places inert
+    while the content is switched off.
     """
     if caravan is not None and caravan.refusal_reason is None:
         return "trade"
@@ -174,11 +174,7 @@ def _action_for(
     if group is not None and group.get("clearable"):
         return "clear"
     entry = collectible_for_location(location.name, action="salvage")
-    if (
-        game_config.features.collectibles
-        and entry is not None
-        and salvage_ready(entry, searched_at=state.searched_at, last_read_at=state.last_read_at, now=utcnow())
-    ):
+    if game_config.features.collectibles and entry is not None and salvage_ready(searched_at=state.searched_at):
         return "salvage"
     return "none"
 

@@ -1,14 +1,16 @@
-"""Magazines: a once-per-vault claim, plus a timed buff renewed on a fixed 24h site clock.
+"""Magazines: a one-time find that claims the site and leaves a permanent boon on the finder.
 
-The claim is permanent set progress; the buff is the repeating rhythm and expires on read in
-``effective_stat``. These tests drive the real dispatch arrival so the site marker, the claim, the
-buff and the cooldown are exercised together — the failure modes are the places they can disagree.
+A magazine is not a rhythm: the first arrival claims it for the vault, stamps ``searched_at`` exactly
+like a bobblehead or comic, and the finder keeps +1 to the magazine's stat for good — +2 once the
+shelf is complete. These tests drive the real dispatch arrival, so the site marker, the claim, the
+boon and the closed map action are exercised together; the failure modes are the places they can
+disagree.
 """
 
 from __future__ import annotations
 
 from collections.abc import Iterator
-from datetime import UTC, datetime, timedelta
+from datetime import timedelta
 from types import SimpleNamespace
 from uuid import UUID, uuid4
 
@@ -43,7 +45,8 @@ from app.utils.exceptions import ValidationException
 from app.utils.time import utcnow
 
 SITE = "National Archives"
-NOW = datetime(2026, 11, 24, 12, 0, tzinfo=UTC)
+KEY = "guns_and_bullets"
+BOON = {"key": KEY, "stat": "perception", "amount": 1}
 
 
 async def _dweller(async_session: AsyncSession, vault: Vault, *, luck: int = 5) -> Dweller:
@@ -96,10 +99,6 @@ async def _claims(async_session: AsyncSession, vault: Vault, key: str) -> int:
     ).scalar_one()
 
 
-def _buff(stat: str, amount: int, expires_at: datetime) -> dict:
-    return {"key": "guns_and_bullets", "stat": stat, "amount": amount, "expires_at": expires_at.isoformat()}
-
-
 @pytest.fixture
 def collectible_events() -> Iterator[list[dict]]:
     """Record every COLLECTIBLE_FOUND the bus actually delivers during one test.
@@ -120,10 +119,10 @@ def collectible_events() -> Iterator[list[dict]]:
 
 
 @pytest.mark.usefixtures("default_world_snapshot")
-async def test_a_first_read_claims_once_and_writes_no_permanent_bonus(
+async def test_a_first_read_claims_once_leaves_a_permanent_boon_and_closes_the_site(
     async_session: AsyncSession, vault: Vault, dweller: Dweller, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """The claim is set progress only: a magazine must never leak into ``collectible_bonus``."""
+    """The claim is set progress, the boon is the finder's for good, and the site is spent."""
     monkeypatch.setattr(game_config.features, "collectibles", True)
     location, state = await _site(async_session, vault, dweller)
 
@@ -131,54 +130,43 @@ async def test_a_first_read_claims_once_and_writes_no_permanent_bonus(
     await async_session.refresh(dweller)
     await async_session.refresh(state)
 
-    assert await _claims(async_session, vault, "guns_and_bullets") == 1
+    assert await _claims(async_session, vault, KEY) == 1
+    # A magazine must never leak into the bobblehead/comic column...
     assert dweller.collectible_bonus is None
-    assert dweller.magazine_buff is not None
-    assert (dweller.magazine_buff["key"], dweller.magazine_buff["stat"], dweller.magazine_buff["amount"]) == (
-        "guns_and_bullets",
-        "perception",
-        2,
-    )
-    # The site stays open for a reread: the read clock, never the one-shot salvage marker.
-    assert state.last_read_at is not None
-    assert state.searched_at is None
+    # ...and its own column is the whole boon: no clock, no expiry.
+    assert dweller.magazine_boon == BOON
+    # The site closes exactly like a bobblehead or comic site: one find, then nothing.
+    assert state.searched_at is not None
 
 
 @pytest.mark.usefixtures("default_world_snapshot")
-async def test_a_reread_inside_the_cooldown_is_refused(
+async def test_a_claimed_site_awards_nothing_to_a_second_arrival(
     async_session: AsyncSession, vault: Vault, dweller: Dweller, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    """Once read, the site is not a destination and the award path refuses it outright."""
     monkeypatch.setattr(game_config.features, "collectibles", True)
     location, _state = await _site(async_session, vault, dweller)
     await _arrive(async_session, vault, dweller, location)
-    other = await _dweller(async_session, vault)
+    latecomer = await _dweller(async_session, vault, luck=9)
 
     with pytest.raises(ValidationException, match="cannot be cleared"):
-        await exploration_service.dispatch(async_session, vault.id, [other.id], location.id)
+        await exploration_service.dispatch(async_session, vault.id, [latecomer.id], location.id)
+
+    awarded = await collectible_service.award_site_collectible(
+        async_session,
+        exploration=SimpleNamespace(vault_id=vault.id),
+        location=location,
+        members=[latecomer],
+        action="salvage",
+    )
+
+    assert awarded is None
+    assert latecomer.magazine_boon is None
+    assert await _claims(async_session, vault, KEY) == 1
 
 
 @pytest.mark.usefixtures("default_world_snapshot")
-async def test_a_reread_after_the_cooldown_refreshes_the_buff_with_no_second_claim(
-    async_session: AsyncSession, vault: Vault, dweller: Dweller, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    monkeypatch.setattr(game_config.features, "collectibles", True)
-    location, state = await _site(async_session, vault, dweller)
-    await _arrive(async_session, vault, dweller, location)
-    state.last_read_at = utcnow() - timedelta(hours=25)
-    async_session.add(state)
-    await async_session.commit()
-    other = await _dweller(async_session, vault, luck=9)
-
-    await _arrive(async_session, vault, other, location)
-    await async_session.refresh(other)
-
-    assert await _claims(async_session, vault, "guns_and_bullets") == 1
-    assert other.magazine_buff is not None
-    assert other.magazine_buff["key"] == "guns_and_bullets"
-
-
-@pytest.mark.usefixtures("default_world_snapshot")
-async def test_a_late_failure_after_the_claim_and_buff_are_staged_leaves_the_site_unread(
+async def test_a_late_failure_after_the_claim_and_boon_are_staged_leaves_the_site_unread_and_unclaimed(
     async_session: AsyncSession,
     db_connection: AsyncConnection,
     vault: Vault,
@@ -186,11 +174,11 @@ async def test_a_late_failure_after_the_claim_and_buff_are_staged_leaves_the_sit
     monkeypatch: pytest.MonkeyPatch,
     collectible_events: list[dict],
 ) -> None:
-    """A failure in the return leg must unwind the site marker, the claim and the buff together.
+    """A failure in the return leg must unwind the site marker, the claim and the boon together.
 
     The run's transaction owner is ``start_return``; everything before it only stages. The injected
-    fault lands on that owner's own write (the transition to RETURNING), so the claim and the buff
-    have already reached the database inside the transaction when it fails.
+    fault lands on that owner's own write (the transition to RETURNING), so the site marker, the
+    claim and the boon have already reached the database inside the transaction when it fails.
     """
     monkeypatch.setattr(game_config.features, "collectibles", True)
     location, state = await _site(async_session, vault, dweller)
@@ -210,10 +198,13 @@ async def test_a_late_failure_after_the_claim_and_buff_are_staged_leaves_the_sit
     finally:
         event.remove(db_connection.sync_connection, "before_cursor_execute", reject_return_leg)
 
-    # The failing statement is last, and the claim insert and buff update had already run: this is
-    # the ordering the test is about, read off the real SQL rather than off the hook.
+    # The failing statement is last, and the site marker, the claim insert and the boon update had
+    # already run: this is the ordering the test is about, read off the real SQL, not off the hook.
+    assert any(
+        statement.startswith("UPDATE vaultlocationstate SET") and "searched_at" in statement for statement in statements
+    )
     assert any(statement.startswith("INSERT INTO vaultcollectible") for statement in statements)
-    assert any("UPDATE dweller SET" in statement and "magazine_buff" in statement for statement in statements)
+    assert any(statement.startswith("UPDATE dweller SET") and "magazine_boon" in statement for statement in statements)
 
     await async_session.rollback()
     # Reload from the session: the failed call mutated these objects in memory before it raised.
@@ -222,37 +213,37 @@ async def test_a_late_failure_after_the_claim_and_buff_are_staged_leaves_the_sit
     await async_session.refresh(exploration)
     await async_session.refresh(vault)
 
-    assert dweller.magazine_buff is None
-    assert state.last_read_at is None
+    assert dweller.magazine_boon is None
     assert state.searched_at is None
-    assert await _claims(async_session, vault, "guns_and_bullets") == 0
+    assert await _claims(async_session, vault, KEY) == 0
     assert exploration.total_caps_found == 0
     assert exploration.is_active()
     assert collectible_events == []
 
 
 @pytest.mark.usefixtures("default_world_snapshot")
-async def test_a_read_refused_by_the_site_clock_stages_nothing_and_keeps_the_live_buff(
+async def test_a_run_landing_on_an_already_searched_site_stages_nothing_and_returns_home(
     async_session: AsyncSession,
     vault: Vault,
     dweller: Dweller,
     monkeypatch: pytest.MonkeyPatch,
     collectible_events: list[dict],
 ) -> None:
-    """A run that lands inside the 24h window is an ordinary rejection: no claim, no buff, no event.
+    """A closed site is an ordinary rejection: no claim, no boon change, no event, run comes home.
 
-    A salvage point has no one-party guard, but ``uq_exploration_active_target`` still allows only
-    one active run per point, so the clock closing under an in-flight run is modelled directly: the
-    marker is inside its window when the run lands.
+    ``uq_exploration_active_target`` allows one active run per point, so the site closing under an
+    in-flight run is the only way the marker can already be set on arrival; the marker is modelled
+    directly rather than raced.
     """
     monkeypatch.setattr(game_config.features, "collectibles", True)
     location, state = await _site(async_session, vault, dweller)
-    live_buff = _buff("perception", 2, utcnow() + timedelta(hours=5))
-    dweller.magazine_buff = live_buff
+    live_boon = {"key": "tesla_science", "stat": "intelligence", "amount": 1}
+    dweller.magazine_boon = live_boon
     async_session.add(dweller)
     await async_session.commit()
     exploration = await _depart(async_session, vault, dweller, location)
-    state.last_read_at = utcnow() - timedelta(hours=1)
+    stamp = utcnow() - timedelta(minutes=5)
+    state.searched_at = stamp
     async_session.add(state)
     await async_session.commit()
 
@@ -261,33 +252,32 @@ async def test_a_read_refused_by_the_site_clock_stages_nothing_and_keeps_the_liv
     await async_session.refresh(state)
     await async_session.refresh(exploration)
 
-    assert dweller.magazine_buff == live_buff
-    assert state.last_read_at is not None
-    assert state.last_read_at < utcnow()
-    assert state.searched_at is None
-    assert await _claims(async_session, vault, "guns_and_bullets") == 0
+    assert dweller.magazine_boon == live_boon
+    assert state.searched_at == stamp
+    assert await _claims(async_session, vault, KEY) == 0
     assert collectible_events == []
     # The refusal still sends the run home: nothing is staged, but the run is not left hanging.
     assert not exploration.is_active()
 
 
 @pytest.mark.parametrize(
-    ("held", "hours"),
-    [((), 6), (("tesla_science", "wasteland_survival_guide"), 12)],
-    ids=["single", "complete-set"],
+    ("held", "amount"),
+    [((), 1), (("tesla_science", "wasteland_survival_guide"), 2)],
+    ids=["single", "complete-shelf"],
 )
-async def test_the_buff_is_six_hours_and_the_completed_shelf_overrides_it_to_twelve(
+async def test_the_completed_shelf_upgrades_the_same_boon_from_one_point_to_two(
     async_session: AsyncSession,
     vault: Vault,
     monkeypatch: pytest.MonkeyPatch,
     held: tuple[str, ...],
-    hours: int,
+    amount: int,
 ) -> None:
+    """The shelf pays on the read that completes it, and it upgrades the boon rather than stacking one."""
     monkeypatch.setattr(game_config.features, "collectibles", True)
-    monkeypatch.setattr("app.services.collectible_service.utcnow", lambda: NOW)
     reader = await _dweller(async_session, vault)
     for key in held:
         assert await collectible_service.award(async_session, vault_id=vault.id, dweller=reader, collectible_key=key)
+    base = effective_stat(reader, "perception")
 
     payload = await collectible_service.award_site_collectible(
         async_session,
@@ -298,51 +288,47 @@ async def test_the_buff_is_six_hours_and_the_completed_shelf_overrides_it_to_twe
     )
 
     assert payload is not None
-    assert reader.magazine_buff["expires_at"] == (NOW + timedelta(hours=hours)).isoformat()
+    assert payload.amount == amount
+    assert reader.magazine_boon == {"key": KEY, "stat": "perception", "amount": amount}
+    assert effective_stat(reader, "perception") == base + amount
 
 
-def test_a_live_buff_raises_only_its_own_stat(dweller: Dweller, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr("app.options.identity_modifiers.utcnow", lambda: NOW)
-    perception, intelligence = effective_stat(dweller, "perception"), effective_stat(dweller, "intelligence")
-    dweller.magazine_buff = _buff("perception", 2, NOW + timedelta(hours=6))
+async def test_the_boon_raises_only_the_finders_own_stat(async_session: AsyncSession, vault: Vault) -> None:
+    finder = await _dweller(async_session, vault)
+    bystander = await _dweller(async_session, vault, luck=1)
+    perception, intelligence = effective_stat(finder, "perception"), effective_stat(finder, "intelligence")
+    untouched = effective_stat(bystander, "perception")
 
-    assert effective_stat(dweller, "perception") == perception + 2
-    assert effective_stat(dweller, "intelligence") == intelligence
+    finder.magazine_boon = dict(BOON)
 
-
-def test_an_expired_buff_adds_nothing(dweller: Dweller, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr("app.options.identity_modifiers.utcnow", lambda: NOW)
-    base = effective_stat(dweller, "endurance")
-    dweller.magazine_buff = _buff("endurance", 2, NOW)
-
-    assert effective_stat(dweller, "endurance") == base
+    assert effective_stat(finder, "perception") == perception + 1
+    assert effective_stat(finder, "intelligence") == intelligence
+    # A dweller who never found the magazine is unaffected by another's boon.
+    assert effective_stat(bystander, "perception") == untouched
 
 
 @pytest.mark.parametrize(
-    "buff",
-    [None, {}, {"stat": "perception"}, {"stat": "perception", "amount": 2, "expires_at": "not-a-date"}],
-    ids=["absent", "empty", "no-expiry", "unreadable-expiry"],
+    "boon",
+    [None, {}, {"stat": "perception"}, {"stat": "perception", "amount": "2"}, {"stat": "perception", "amount": True}],
+    ids=["absent", "empty", "no-amount", "unreadable-amount", "boolean-amount"],
 )
-def test_a_missing_or_unreadable_buff_is_neutral(
-    dweller: Dweller, monkeypatch: pytest.MonkeyPatch, buff: dict | None
-) -> None:
+def test_a_missing_or_unreadable_boon_is_neutral(dweller: Dweller, boon: dict | None) -> None:
     """A JSONB column can hold a hand-edited row; reading a stat must not start raising."""
-    monkeypatch.setattr("app.options.identity_modifiers.utcnow", lambda: NOW)
     base = effective_stat(dweller, "perception")
-    dweller.magazine_buff = buff
+    dweller.magazine_boon = boon
 
     assert effective_stat(dweller, "perception") == base
 
 
-async def test_death_clears_the_buff_and_revival_leaves_it_clear(async_session: AsyncSession, vault: Vault) -> None:
+async def test_death_clears_the_boon_and_revival_leaves_it_clear(async_session: AsyncSession, vault: Vault) -> None:
     dweller = await _dweller(async_session, vault)
-    dweller.magazine_buff = _buff("perception", 2, utcnow() + timedelta(hours=6))
+    dweller.magazine_boon = dict(BOON)
     async_session.add(dweller)
     await async_session.commit()
 
     await death_service.mark_as_dead(async_session, dweller, DeathCauseEnum.HEALTH)
     await async_session.refresh(dweller)
-    assert dweller.magazine_buff is None
+    assert dweller.magazine_boon is None
 
     vault.bottle_caps = 999_999
     async_session.add(vault)
@@ -350,12 +336,12 @@ async def test_death_clears_the_buff_and_revival_leaves_it_clear(async_session: 
     user = await crud.user.get(async_session, vault.user_id)
     await death_service.revive_dweller(async_session, dweller.id, user)
     revived = await crud.dweller.get(async_session, dweller.id)
-    assert revived.magazine_buff is None
+    assert revived.magazine_boon is None
 
 
-async def test_cross_vault_recycling_clears_the_buff(async_session: AsyncSession, vault: Vault) -> None:
+async def test_cross_vault_recycling_clears_the_boon(async_session: AsyncSession, vault: Vault) -> None:
     dweller = await _dweller(async_session, vault)
-    dweller.magazine_buff = _buff("perception", 2, utcnow() + timedelta(hours=6))
+    dweller.magazine_boon = dict(BOON)
     async_session.add(dweller)
     await async_session.commit()
     await crud.dweller.soft_delete(async_session, dweller.id)
@@ -367,4 +353,4 @@ async def test_cross_vault_recycling_clears_the_buff(async_session: AsyncSession
         async_session, dweller.id, other_vault.id, reset_stats=False
     )
 
-    assert recycled.magazine_buff is None
+    assert recycled.magazine_boon is None

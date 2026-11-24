@@ -12,9 +12,8 @@ from app.core.game_config import game_config
 from app.options.factions import FactionPerks, perks_for_faction
 from app.options.pet_modifiers import MAX_DAMAGE_PCT_BONUS, pet_modifiers_for
 from app.options.races import RaceModifiers, modifiers_for_race, state_stat_deltas_for
-from app.utils.collectibles import active_magazine_bonus
+from app.utils.collectibles import magazine_boon_bonus
 from app.utils.equipped import equipped_outfit
-from app.utils.time import utcnow
 
 #: Weapon types whose faction perk is a damage bonus, keyed by the weapon-type value.
 _WEAPON_PERK_FIELDS: dict[str, str] = {
@@ -87,10 +86,10 @@ def effective_stat(entity: object, stat: str) -> int:
     Derived on read and never persisted: the stored SPECIAL stays the trained value,
     so removing a race, faction, outfit, or pet cannot leave a permanent stat change behind.
     The outfit and pet are read via ``__dict__`` (no lazy IO, a missing relationship means no
-    bonus), the collectible bonus is a plain column, and the magazine buff is the same column
-    shape with an expiry read against ``now`` — an elapsed buff adds nothing, with no job to run.
+    bonus), and both the collectible bonus and the magazine boon are plain columns with no clock
+    — a magazine is a one-time find, so its point lasts as long as the dweller.
     The result is not capped — a 10 S dweller in a +5 S outfit with a +2 S pet, one Strength
-    bobblehead and a live Guns and Bullets counts as 20.
+    bobblehead and a Guns and Bullets counts as 19.
     """
     if stat not in SPECIAL_STATS:
         raise ValueError(f"Unknown SPECIAL stat: {stat!r}")
@@ -98,7 +97,7 @@ def effective_stat(entity: object, stat: str) -> int:
     outfit_bonus = getattr(outfit, stat, 0) if outfit is not None else 0
     pet_bonus = getattr(pet_modifiers_for(entity), stat)
     collectible_bonus = (getattr(entity, "collectible_bonus", None) or {}).get(stat, 0)
-    magazine_bonus = active_magazine_bonus(getattr(entity, "magazine_buff", None), stat, now=utcnow())
+    magazine_bonus = magazine_boon_bonus(getattr(entity, "magazine_boon", None), stat)
     return max(
         1,
         getattr(entity, stat)

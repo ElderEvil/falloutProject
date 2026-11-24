@@ -22,8 +22,8 @@
   "name": "Complete Shelf",
   "required": 3,
   "bonus": {
-   "type": "magazine_buff_hours",
-   "value": 12
+   "type": "magazine_boon_increment",
+   "value": 1
   }
  }
 ]

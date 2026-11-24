@@ -375,8 +375,8 @@ class DwellerUpdate(DwellerBase):
     # System-written: death passes None here to clear the finder's bobblehead bonus. Never set
     # from player input — DwellerUpdateRequest is the client-facing schema and omits it.
     collectible_bonus: dict[str, int] | None = None
-    # Same rule for the timed magazine buff; only the read path and death/recycle write it.
-    magazine_buff: dict | None = None
+    # Same rule for the permanent magazine boon; only the read path and death/recycle write it.
+    magazine_boon: dict | None = None
     # Canonical state is system-written (death/expiry/revival); deliberately absent from DwellerUpdateRequest.
     lifecycle: LifecycleEnum | None = None
     availability: AvailabilityEnum | None = None

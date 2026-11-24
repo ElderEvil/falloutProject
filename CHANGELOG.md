@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 3.25.0 (2026-11-24)
+
+### Features
+
+* **dwellers:** move collectibles into the equipment tab ([#1526](https://github.com/ElderEvil/falloutProject/issues/1526)) cd47497
+
 ## 3.24.0 (2026-11-24)
 
 ### Features

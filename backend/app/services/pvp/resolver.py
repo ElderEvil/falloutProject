@@ -45,12 +45,17 @@ def _append_hits(
     *,
     round_seq: int,
     attacker: str,
-    attacker_name: str,
+    members: list[dict[str, Any]],
     targets: list[dict[str, Any]],
     damage: int,
 ) -> None:
-    """Split one side's round damage across the opposing party, in fixed member order."""
+    """Split one side's round damage across the opposing party, in fixed member order.
+
+    Each line names one attacking dweller, rotating the roster by round and target index so the
+    whole party speaks over a duel. The pick is a pure index, never RNG, so replays are exact.
+    """
     for index, (target, share) in enumerate(zip(targets, split_damage(damage, len(targets)), strict=True)):
+        actor = members[(round_seq - 1 + index) % len(members)]["name"]
         journal.append(
             (
                 (round_seq, _KIND_RANK["hit"], _SIDE_RANK[attacker], index),
@@ -59,9 +64,9 @@ def _append_hits(
                     "kind": "hit",
                     "side": attacker,
                     "damage": share,
-                    "actor": attacker_name,
+                    "actor": actor,
                     "target": target["name"],
-                    "message": f"{attacker_name} hits {target['name']} for {share}.",
+                    "message": f"{actor} hits {target['name']} for {share}.",
                 },
             )
         )
@@ -93,7 +98,7 @@ def resolve_duel(challenger: dict[str, Any], defender: dict[str, Any]) -> DuelRe
             entries,
             round_seq=round_seq,
             attacker=CHALLENGER,
-            attacker_name=challenger["vault_name"],
+            members=challenger["members"],
             targets=defender["members"],
             damage=challenger_damage,
         )
@@ -101,7 +106,7 @@ def resolve_duel(challenger: dict[str, Any], defender: dict[str, Any]) -> DuelRe
             entries,
             round_seq=round_seq,
             attacker=DEFENDER,
-            attacker_name=defender["vault_name"],
+            members=defender["members"],
             targets=challenger["members"],
             damage=defender_damage,
         )

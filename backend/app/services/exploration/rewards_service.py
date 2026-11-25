@@ -357,8 +357,9 @@ class RewardsService:
         # Get dweller
         dweller_obj = await dweller_crud.get(db_session, exploration.dweller_id)
         # The report is built from `total_distance`, so settle it before anything is credited.
+        # Assigning is enough: the run is already tracked by this session, and adding it here would
+        # leave a dirty row for the post-commit world-event rollback to expire.
         exploration.total_distance = self._journey_distance(exploration)
-        db_session.add(exploration)
 
         # Transfer caps to vault
         total_caps = exploration.total_caps_found

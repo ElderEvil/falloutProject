@@ -37,7 +37,8 @@ export const usePvpStore = defineStore('pvp', () => {
     } catch (error) {
       // A passive caller (the vault banner) passes ``silent``: a failed background load must not
       // raise a toast in front of a player who never asked for the board.
-      if (version === loadVersion) handleStoreError(error, 'Failed to load The Pit', !options.silent)
+      if (version === loadVersion)
+        handleStoreError(error, 'Failed to load The Pit', !options.silent)
       return false
     } finally {
       if (version === loadVersion) loading.value = false

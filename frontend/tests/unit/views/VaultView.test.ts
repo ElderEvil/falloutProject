@@ -49,6 +49,11 @@ const stubs = {
   },
   GameControlPanel: true,
   RadioNewsWidget: true,
+  RaidBanner: {
+    name: 'RaidBanner',
+    template: '<div data-testid="raid-banner" />',
+    props: ['vaultId'],
+  },
   IncidentAlert: true,
   UnassignedDwellers: true,
   WastelandPanel: true,
@@ -137,6 +142,14 @@ describe('VaultView', () => {
     const { filter } = await mountLoadedVault()
 
     expect(filter.fetchAllDwellers).toHaveBeenCalledWith('vault-1')
+  })
+
+  it('renders the raid entry banner for the loaded vault', async () => {
+    const { wrapper } = await mountLoadedVault()
+
+    const banner = wrapper.find('[data-testid="raid-banner"]')
+    expect(banner.exists()).toBe(true)
+    expect(wrapper.findComponent({ name: 'RaidBanner' }).props('vaultId')).toBe('vault-1')
   })
 
   it('drops a superseded vault load before it reads the old vault', async () => {

@@ -107,6 +107,11 @@ class CollectibleService:
     ) -> list[DwellerCollectibleRead]:
         """The dweller's found collectibles in its current vault, catalog-joined for the API."""
         claims = await collectible_crud.list_for_dweller(db_session, vault_id, dweller_id)
+        # Magazine amounts come from the finder, not the catalog: the completed shelf pays an extra
+        # point, and recycling clears the boon while the vault's claim stays behind. A cleared boon
+        # reads as 0 so the list never promises a bonus the dweller no longer holds.
+        finder = await crud.dweller.get(db_session, dweller_id)
+        boons = (finder.magazine_boon if finder else None) or {}
         reads: list[DwellerCollectibleRead] = []
         for claim in claims:
             try:
@@ -118,12 +123,18 @@ class CollectibleService:
                     vault_id,
                 )
                 continue
+            amount = entry["amount"]
+            if entry["kind"] == MAGAZINE:
+                held = boons.get(entry["key"])
+                held_amount = held.get("amount") if isinstance(held, dict) else None
+                is_counted = isinstance(held_amount, int) and not isinstance(held_amount, bool)
+                amount = held_amount if is_counted else 0
             reads.append(
                 DwellerCollectibleRead(
                     key=entry["key"],
                     name=entry["name"],
                     stat=entry["stat"],
-                    amount=entry["amount"],
+                    amount=amount,
                     image=entry["image"],
                     location=entry["location"],
                     found_at=claim.found_at,

@@ -73,8 +73,11 @@ onBeforeUnmount(() => {
         />
         <Icon v-else icon="mdi:robot-happy" class="h-20 w-20 text-theme-primary/40" />
         <p class="mt-2 text-sm font-bold text-theme-primary">{{ item.name }}</p>
-        <p class="text-xs font-bold tracking-[0.08em] text-theme-primary/80">
+        <p v-if="item.amount > 0" class="text-xs font-bold tracking-[0.08em] text-theme-primary/80">
           PERMANENT +{{ item.amount }} {{ item.stat.toUpperCase() }}
+        </p>
+        <p v-else class="text-xs font-bold tracking-[0.08em] text-theme-primary/50">
+          BONUS REMOVED
         </p>
         <p class="mt-1 text-[0.7rem] text-theme-primary/50">Found at {{ item.location }}</p>
       </li>

@@ -331,6 +331,42 @@ async def test_a_second_magazine_adds_to_the_first_instead_of_replacing_it(
     assert effective_stat(reader, "intelligence") == intelligence + 1
 
 
+async def test_the_collectible_list_reports_the_live_magazine_boon(
+    async_session: AsyncSession, vault: Vault, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The list must show the paid shelf amount, not the catalog's base point."""
+    monkeypatch.setattr(game_config.features, "collectibles", True)
+    reader = await _dweller(async_session, vault)
+    for key in ("guns_and_bullets", "tesla_science", "wasteland_survival_guide"):
+        assert await collectible_service.award(async_session, vault_id=vault.id, dweller=reader, collectible_key=key)
+
+    reads = await collectible_service.list_for_dweller(async_session, vault_id=vault.id, dweller_id=reader.id)
+
+    # The completed shelf pays +2, and every finder of it holds that same live amount.
+    assert {read.key: read.amount for read in reads} == {
+        "guns_and_bullets": 2,
+        "tesla_science": 2,
+        "wasteland_survival_guide": 2,
+    }
+
+
+async def test_the_collectible_list_reports_a_cleared_magazine_boon_as_zero(
+    async_session: AsyncSession, vault: Vault, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Recycling clears the boon but leaves the vault's claim; the list must not promise it."""
+    monkeypatch.setattr(game_config.features, "collectibles", True)
+    reader = await _dweller(async_session, vault)
+    assert await collectible_service.award(async_session, vault_id=vault.id, dweller=reader, collectible_key=KEY)
+    reader.magazine_boon = None
+    async_session.add(reader)
+    await async_session.commit()
+
+    reads = await collectible_service.list_for_dweller(async_session, vault_id=vault.id, dweller_id=reader.id)
+
+    row = next(read for read in reads if read.key == KEY)
+    assert row.amount == 0
+
+
 async def test_the_boon_raises_only_the_finders_own_stat(async_session: AsyncSession, vault: Vault) -> None:
     finder = await _dweller(async_session, vault)
     bystander = await _dweller(async_session, vault, luck=1)

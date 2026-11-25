@@ -171,6 +171,27 @@ describe('ExplorerCard', () => {
     wrapper.unmount()
   })
 
+  it('shows the pack on a dispatched run, not only on a free roam', () => {
+    // Dispatch runs are the common case; capacity comes from the run's snapshot Strength, so the
+    // strip belongs on them too. Hiding it here once made the pack invisible for most expeditions.
+    const wrapper = mount(ExplorerCard, {
+      props: {
+        exploration: {
+          ...exploration,
+          target_location_id: 'loc-9',
+          carry_capacity: 21,
+          pack_slots_used: 3,
+        },
+        dweller,
+      },
+    })
+
+    expect(wrapper.find('.pack-strip').exists()).toBe(true)
+    expect(wrapper.find('.pack-count').text()).toBe('3 / 21')
+
+    wrapper.unmount()
+  })
+
   it('links dispatched explorers to their map marker', () => {
     const wrapper = mount(ExplorerCard, {
       props: { exploration: { ...exploration, target_location_id: 'loc-9' }, dweller },

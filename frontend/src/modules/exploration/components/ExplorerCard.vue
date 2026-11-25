@@ -180,8 +180,10 @@ const party = computed<(DwellerShort | Dweller)[]>(() => {
       <span class="progress-time">{{ timeRemaining }}</span>
     </div>
 
-    <!-- Pack capacity: a quiet status row between mission progress and the stat grid -->
-    <ExplorationPackStrip v-if="!isParty" :exploration="exploration" />
+    <!-- Pack capacity: a quiet status row between mission progress and the stat grid. Every run
+         carries a pack, dispatch and party runs included — the capacity comes from the run's
+         snapshot Strength, so it is never a solo-only figure. -->
+    <ExplorationPackStrip :exploration="exploration" />
 
     <!-- Stats Grid -->
     <div class="stats-grid">

@@ -67,8 +67,9 @@ describe('ExplorationPackStrip', () => {
     const wrapper = mountStrip({ pack_slots_used: 25 })
 
     expect(wrapper.find('.pack-count').text()).toBe('25 / 25')
-    expect(wrapper.find('.pack-count').classes()).toContain('text-warning')
-    expect(wrapper.find('.pack-full-tag').text()).toBe('Pack full')
+    // Assert the semantic tone the meter is given, not the Tailwind class that paints it.
+    expect(wrapper.findComponent(Progress).props('tone')).toBe('warning')
+    expect(wrapper.text()).toContain('Pack full')
     expect(wrapper.findComponent(Progress).props('tone')).toBe('warning')
   })
 

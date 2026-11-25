@@ -114,7 +114,9 @@ const navItems = computed((): NavItem[] => {
       path: `/vault/${vaultId.value}/world-event`,
     })
   }
-  if (featureFlags.pvpDuels) {
+  // Debug affordance only (#1474): the player entry is the vault raid banner, so
+  // this shortcut is compiled out of production builds.
+  if (featureFlags.pvpDuels && import.meta.env.DEV) {
     navItems.push({
       id: 'pvp',
       label: 'The Pit',

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vite-plus/test'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vite-plus/test'
 import { mount, flushPromises } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import { createRouter, createMemoryHistory } from 'vue-router'
@@ -25,7 +25,6 @@ describe('SidePanel', () => {
   beforeEach(async () => {
     pinia = createPinia()
     setActivePinia(pinia)
-
     router = createRouter({
       history: createMemoryHistory(),
       routes: [
@@ -47,6 +46,9 @@ describe('SidePanel', () => {
     await router.push('/vault/vault-1')
   })
 
+  // `import.meta.env.DEV` is stubbed per test; never leak it into the next one.
+  afterEach(() => vi.unstubAllEnvs())
+
   it('uses a labelled navigation landmark', () => {
     const wrapper = mount(SidePanel, { global: { plugins: [router, pinia] } })
 
@@ -67,6 +69,7 @@ describe('SidePanel', () => {
     })
 
     it('shows The Pit only when duels are enabled', async () => {
+      vi.stubEnv('DEV', true)
       const flags = useFeatureFlagsStore()
       const wrapper = mount(SidePanel, { global: { plugins: [router, pinia] } })
       expect(wrapper.text()).not.toContain('The Pit')
@@ -74,6 +77,28 @@ describe('SidePanel', () => {
       flags.pvpDuels = true
       await wrapper.vm.$nextTick()
       expect(wrapper.text()).toContain('The Pit')
+    })
+
+    describe('The Pit dev-only shortcut', () => {
+      afterEach(() => vi.unstubAllEnvs())
+
+      it('is present in a development build', () => {
+        vi.stubEnv('DEV', true)
+        useFeatureFlagsStore().pvpDuels = true
+
+        const wrapper = mount(SidePanel, { global: { plugins: [router, pinia] } })
+
+        expect(wrapper.text()).toContain('The Pit')
+      })
+
+      it('is compiled out of production builds even with duels enabled', () => {
+        vi.stubEnv('DEV', false)
+        useFeatureFlagsStore().pvpDuels = true
+
+        const wrapper = mount(SidePanel, { global: { plugins: [router, pinia] } })
+
+        expect(wrapper.text()).not.toContain('The Pit')
+      })
     })
 
     it('marks only the most-specific vault route as active', async () => {

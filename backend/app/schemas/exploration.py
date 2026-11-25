@@ -51,6 +51,9 @@ class ExplorationRead(ExplorationBase):
     recalled_early: bool
     events: list[dict]
     loot_collected: list[dict]
+    # Derived from Strength and the carried loot, never stored.
+    carry_capacity: int
+    pack_slots_used: int
     total_distance: int
     total_caps_found: int
     enemies_encountered: int

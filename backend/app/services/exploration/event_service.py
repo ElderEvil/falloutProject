@@ -152,9 +152,12 @@ def apply_loot_find(
     rarity: str,
     item_type: str,
     caps: int,
-) -> None:
-    """Record one loot find: stash the item, add caps, count medical supplies."""
-    exploration.add_loot(
+) -> bool:
+    """Record one loot find: stash the item, add caps, count medical supplies.
+
+    A full pack refuses the find whole and, on an active run, sends the dweller home; caps still count.
+    """
+    added = exploration.add_loot(
         item_name=item_name,
         quantity=1,
         rarity=rarity,
@@ -164,11 +167,22 @@ def apply_loot_find(
     # Update stats
     exploration.total_caps_found += caps
 
+    if not added:
+        exploration.add_event(
+            event_type=ExplorationEventType.PACK_FULL,
+            description=f"Pack full — the {item_name} stays behind.",
+        )
+        # A second refusal in the same tick must not restart the trip home.
+        if exploration.is_active():
+            exploration.start_return()
+        return False
+
     # Counter only: the find is already logged by the single loot entry above
     if item_type == "stimpak":
         exploration.stimpaks += 1
     elif item_type == "radaway":
         exploration.radaways += 1
+    return True
 
 
 async def auto_use_supplies(db_session: AsyncSession, exploration: Exploration) -> list[dict]:
@@ -364,7 +378,7 @@ class EventService:
         caps = loot_data.caps
 
         # Add item to collected loot
-        apply_loot_find(
+        added = apply_loot_find(
             exploration,
             item_name=item.name,
             rarity=item.rarity,
@@ -372,6 +386,10 @@ class EventService:
             caps=caps,
         )
         exploration.total_distance += random.randint(1, 5)
+
+        # A find left behind because the pack was full cannot also be worn.
+        if not added:
+            return []
 
         followups: list[dict] = []
         if item_type in {"weapon", "outfit"}:

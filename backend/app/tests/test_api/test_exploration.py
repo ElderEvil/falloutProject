@@ -223,6 +223,26 @@ async def test_get_exploration_details(async_client, superuser_token_headers, as
     assert response.json()["id"] == str(run.id)
 
 
+async def test_get_exploration_details_reports_pack_capacity(
+    async_client, superuser_token_headers, async_session, vault, dweller
+) -> None:
+    run = await _send(async_session, vault, dweller)
+    run.dweller_strength = 3
+    run.add_loot(item_name="Desk Fan", quantity=2, rarity="Common", item_type="junk")
+    run.add_loot(item_name="Stimpak", rarity="Common", item_type="stimpak")
+    async_session.add(run)
+    await async_session.commit()
+
+    response = await async_client.get(f"/explorations/{run.id}", headers=superuser_token_headers)
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["dweller_strength"] == 3
+    # 15 + 2 * 3; the stimpak rides in the pouch and the Desk Fan stack takes two slots.
+    assert data["carry_capacity"] == 21
+    assert data["pack_slots_used"] == 2
+
+
 async def test_get_exploration_progress(async_client, superuser_token_headers, async_session, vault, dweller) -> None:
     run = await _send(async_session, vault, dweller)
     response = await async_client.get(f"/explorations/{run.id}/progress", headers=superuser_token_headers)

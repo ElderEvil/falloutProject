@@ -157,6 +157,20 @@ describe('ExplorerCard', () => {
     expect(wrapper.emitted('recall')).toEqual([['exploration-1']])
   })
 
+  it('renders the pack capacity strip beside the mission stats', () => {
+    const wrapper = mount(ExplorerCard, {
+      props: {
+        exploration: { ...exploration, carry_capacity: 25, pack_slots_used: 4 },
+        dweller,
+      },
+    })
+
+    expect(wrapper.find('.pack-strip').exists()).toBe(true)
+    expect(wrapper.find('.pack-count').text()).toBe('4 / 25')
+
+    wrapper.unmount()
+  })
+
   it('links dispatched explorers to their map marker', () => {
     const wrapper = mount(ExplorerCard, {
       props: { exploration: { ...exploration, target_location_id: 'loc-9' }, dweller },

@@ -25,6 +25,7 @@ import {
 } from '@/core/components/ui/tooltip'
 import { getItemIcon } from '@/core/models/items'
 import ExplorationStatusBadges from './ExplorationStatusBadges.vue'
+import ExplorationPackStrip from './ExplorationPackStrip.vue'
 import ExplorerActions from './ExplorerActions.vue'
 import PartyRoster from './PartyRoster.vue'
 
@@ -178,6 +179,9 @@ const party = computed<(DwellerShort | Dweller)[]>(() => {
       <Progress :model-value="progressPercentage" class="h-2" />
       <span class="progress-time">{{ timeRemaining }}</span>
     </div>
+
+    <!-- Pack capacity: a quiet status row between mission progress and the stat grid -->
+    <ExplorationPackStrip v-if="!isParty" :exploration="exploration" />
 
     <!-- Stats Grid -->
     <div class="stats-grid">

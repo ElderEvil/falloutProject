@@ -47,6 +47,8 @@ export interface LootItem {
   rarity: string
   item_type?: string // 'junk', 'weapon', or 'outfit'
   found_at: string
+  /** Carried in a gear slot rather than the pack; excluded from pack slots used. */
+  equipped?: boolean
 }
 
 export interface Exploration {
@@ -78,6 +80,10 @@ export interface Exploration {
   dweller_luck: number
   stimpaks: number
   radaways: number
+  /** Strength-based pack budget (15 + 2 x Strength); shown by ExplorationPackStrip. */
+  carry_capacity: number
+  /** Pack slots consumed by carried loot, as counted by the backend. */
+  pack_slots_used: number
   health?: number
   radiation?: number
   /** Authoritative registry position for spatial runs; absent on legacy runs. */

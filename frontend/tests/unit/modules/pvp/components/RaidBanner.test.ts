@@ -4,6 +4,7 @@ import { createPinia, setActivePinia } from 'pinia'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import RaidBanner from '@/modules/pvp/components/RaidBanner.vue'
 import { usePvpStore } from '@/modules/pvp/stores/pvp'
+import { useFeatureFlagsStore } from '@/core/stores/featureFlags'
 import type { PvpBoardEntry, PvpDuel } from '@/modules/pvp/services/pvpDuelService'
 import type { DefineComponent } from 'vue'
 
@@ -50,10 +51,13 @@ async function mountBanner() {
 
 describe('RaidBanner', () => {
   let store: ReturnType<typeof usePvpStore>
+  let flags: ReturnType<typeof useFeatureFlagsStore>
 
   beforeEach(() => {
     setActivePinia(createPinia())
     store = usePvpStore()
+    flags = useFeatureFlagsStore()
+    flags.pvpDuels = true
     // The banner only advertises state; the load itself is covered elsewhere.
     vi.spyOn(store, 'load').mockResolvedValue(true)
   })
@@ -69,10 +73,34 @@ describe('RaidBanner', () => {
     expect(wrapper.text()).toBe('')
   })
 
-  it('loads the duel board for its own vault on mount', async () => {
+  it('loads the duel board for its own vault, silently', async () => {
     await mountBanner()
 
-    expect(store.load).toHaveBeenCalledWith('vault-1')
+    expect(store.load).toHaveBeenCalledWith('vault-1', undefined, { silent: true })
+  })
+
+  it('does nothing at all while the duels flag is off', async () => {
+    flags.pvpDuels = false
+    store.board = [boardEntry('duel-1')]
+
+    const wrapper = await mountBanner()
+
+    // A banner would advertise a surface whose endpoints 404, and the load would toast the player.
+    expect(wrapper.find('a').exists()).toBe(false)
+    expect(store.load).not.toHaveBeenCalled()
+  })
+
+  it('starts advertising once the flag arrives after mount', async () => {
+    flags.pvpDuels = false
+    const wrapper = await mountBanner()
+    expect(store.load).not.toHaveBeenCalled()
+
+    store.board = [boardEntry('duel-1')]
+    flags.pvpDuels = true
+    await flushPromises()
+
+    expect(store.load).toHaveBeenCalledWith('vault-1', undefined, { silent: true })
+    expect(wrapper.find('a').text()).toContain('1 CHALLENGE AWAITS A DEFENDER')
   })
 
   it('advertises a single waiting challenge and links to the arena route', async () => {

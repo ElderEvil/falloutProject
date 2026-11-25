@@ -13,7 +13,11 @@ export const usePvpStore = defineStore('pvp', () => {
   let loadVersion = 0
   let operationVersion = 0
 
-  async function load(vaultId: string, requestedDuel?: string): Promise<boolean> {
+  async function load(
+    vaultId: string,
+    requestedDuel?: string,
+    options: { silent?: boolean } = {}
+  ): Promise<boolean> {
     const version = ++loadVersion
     operationVersion++
     acting.value = false
@@ -31,7 +35,9 @@ export const usePvpStore = defineStore('pvp', () => {
       displayedDuel.value = displayed
       return true
     } catch (error) {
-      if (version === loadVersion) handleStoreError(error, 'Failed to load The Pit')
+      // A passive caller (the vault banner) passes ``silent``: a failed background load must not
+      // raise a toast in front of a player who never asked for the board.
+      if (version === loadVersion) handleStoreError(error, 'Failed to load The Pit', !options.silent)
       return false
     } finally {
       if (version === loadVersion) loading.value = false

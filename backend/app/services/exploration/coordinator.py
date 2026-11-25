@@ -89,6 +89,12 @@ class ExplorationCoordinator:
         if exploration.return_time_remaining_seconds() > 0:
             raise ValidationException(detail=ERROR_NOT_ARRIVED)
 
+        # Cache the identifiers the post-commit block needs: the world-event contribution rolls back
+        # on failure, which expires this run, and reading an expired attribute outside the greenlet
+        # raises MissingGreenlet. The ids cannot change, so read them while the row is loaded.
+        vault_id = exploration.vault_id
+        dweller_id = exploration.dweller_id
+
         recalled_early = exploration.recalled_early
         progress = exploration.exploring_progress_percentage()
 
@@ -114,19 +120,22 @@ class ExplorationCoordinator:
         await rewards_service.deliver_pending_reward_events(db_session)
 
         # Post-commit: the run is already terminal, so a retry cannot double-credit. A failure here must
-        # not undo a finalised run, hence its own commit/rollback.
+        # not undo a finalised run, hence its own commit/rollback — which expires the run, so everything
+        # after this point works from the ids cached above rather than the instance.
         from app.services.world_event_service import world_event_service
 
         try:
             await world_event_service.record_contribution(
-                db_session, exploration.vault_id, _contribution_weight(exploration), kind="expedition"
+                db_session, vault_id, _contribution_weight(exploration), kind="expedition"
             )
             await db_session.commit()
         except Exception:
             logger.exception("world event contribution (expedition) failed")
             await db_session.rollback()
 
-        await self._notify_arrival(db_session, exploration, rewards)
+        # Ids, not the instance: the world-event rollback above may have expired the run, and reading an
+        # expired attribute outside the greenlet is how this path raised MissingGreenlet.
+        await self._notify_arrival(db_session, exploration_id, vault_id, dweller_id, rewards)
         await event_service.publish_sse(
             exploration,
             "exploration_recalled" if recalled_early else "exploration_complete",
@@ -135,20 +144,31 @@ class ExplorationCoordinator:
 
         return rewards
 
-    async def _notify_arrival(self, db_session: AsyncSession, exploration: Exploration, rewards: RewardsSchema) -> None:
-        """Send the arrival notification; best-effort, never breaks finalization."""
+    async def _notify_arrival(
+        self,
+        db_session: AsyncSession,
+        exploration_id: UUID,
+        vault_id: UUID,
+        dweller_id: UUID,
+        rewards: RewardsSchema,
+    ) -> None:
+        """Send the arrival notification; best-effort, never breaks finalization.
+
+        Takes ids rather than the run: this runs after the world-event block, whose rollback can
+        expire the instance, and an expired attribute cannot be loaded outside the greenlet.
+        """
 
         async def send(user_id: UUID) -> None:
-            dweller = await dweller_crud.get(db_session, exploration.dweller_id)
+            dweller = await dweller_crud.get(db_session, dweller_id)
             dweller_name = f"{dweller.first_name} {dweller.last_name or ''}".strip()
             await notification_service.notify_exploration_complete(
                 db_session,
                 user_id=user_id,
-                vault_id=exploration.vault_id,
+                vault_id=vault_id,
                 dweller_id=dweller.id,
                 dweller_name=dweller_name,
                 meta_data={
-                    "exploration_id": str(exploration.id),
+                    "exploration_id": str(exploration_id),
                     "caps_earned": rewards.caps,
                     "xp_earned": rewards.experience,
                     "items_found": len(rewards.items),
@@ -160,9 +180,9 @@ class ExplorationCoordinator:
 
         await notification_service.notify_owner(
             db_session,
-            exploration.vault_id,
+            vault_id,
             sender=send,
-            context=f"exploration complete vault={exploration.vault_id} dweller={exploration.dweller_id}",
+            context=f"exploration complete vault={vault_id} dweller={dweller_id}",
         )
 
 

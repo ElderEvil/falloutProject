@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 3.31.2 (2026-11-25)
+
+### Bug Fixes
+
+* **exploration:** end the deferred-return banner when nothing is left to resolve ([#1545](https://github.com/ElderEvil/falloutProject/issues/1545)) 35d4165
+
 ## 3.31.1 (2026-11-25)
 
 ### Bug Fixes

@@ -569,9 +569,58 @@ jobs:
         if: ${{ !inputs.preflight_only }}
         run: |
           ssh -o ConnectTimeout=20 -o ServerAliveInterval=15 -o ServerAliveCountMax=3 -i ~/.ssh/hetzner_key ${{ secrets.HETZNER_USER }}@${{ secrets.HETZNER_HOST }} << 'SHELL'
-            set -e
+            set -euo pipefail
+            job=ai-gateway-smoke
 
-            kubectl exec deployment/backend -n fallout -- python3 -c 'import asyncio; from app.core.config import settings; from app.core.logfire_config import configure_logfire, is_logfire_enabled; from app.services.ai_service import get_ai_service; assert settings.ai_provider_mode == "gateway", "AI Gateway is not configured"; assert settings.logfire_enabled, "LOGFIRE_TOKEN is not configured"; configure_logfire(); service = get_ai_service(); assert service.using_gateway and service.is_available(), "AI Gateway model is unavailable"; result = asyncio.run(service.chat_completion_with_usage([{"role": "user", "content": "Reply with exactly: gateway-production-check"}])); assert result.text, "Gateway returned an empty response"; assert is_logfire_enabled(), "Logfire instrumentation did not initialize"; print("Gateway and Logfire verification request completed")'
+            # Run the probe in its own Job, built from the backend pod spec but with the
+            # serving process removed and a 1Gi limit. Exec'ing python into the live API
+            # container shares its 512Mi cgroup and OOMKills the app it is verifying.
+            kubectl -n fallout delete job "$job" --ignore-not-found
+            kubectl -n fallout get deployment backend -o json | python3 -c '
+          import json, sys
+
+          deployment = json.load(sys.stdin)
+          pod = deployment["spec"]["template"]["spec"]
+          pod["restartPolicy"] = "Never"
+          pod["initContainers"] = []
+          container = next(c for c in pod["containers"] if c["name"] == "backend")
+          for key in ("args", "ports", "livenessProbe", "readinessProbe", "startupProbe"):
+              container.pop(key, None)
+          container["command"] = ["python3", "-c", "import asyncio; from app.core.config import settings; from app.core.logfire_config import configure_logfire, is_logfire_enabled; from app.services.ai_service import get_ai_service; assert settings.ai_provider_mode == \"gateway\", \"AI Gateway is not configured\"; assert settings.logfire_enabled, \"LOGFIRE_TOKEN is not configured\"; configure_logfire(); service = get_ai_service(); assert service.using_gateway and service.is_available(), \"AI Gateway model is unavailable\"; result = asyncio.run(service.chat_completion_with_usage([{\"role\": \"user\", \"content\": \"Reply with exactly: gateway-production-check\"}])); assert result.text, \"Gateway returned an empty response\"; assert is_logfire_enabled(), \"Logfire instrumentation did not initialize\"; print(\"Gateway and Logfire verification request completed\")"]
+          container["resources"] = {
+              "requests": {"cpu": "250m", "memory": "256Mi"},
+              "limits": {"cpu": "1", "memory": "1Gi"},
+          }
+          pod["containers"] = [container]
+          print(json.dumps({
+              "apiVersion": "batch/v1",
+              "kind": "Job",
+              "metadata": {"name": "ai-gateway-smoke", "namespace": "fallout"},
+              "spec": {
+                  "backoffLimit": 0,
+                  "activeDeadlineSeconds": 300,
+                  "ttlSecondsAfterFinished": 120,
+                  "template": {"metadata": {"labels": {"app": "ai-gateway-smoke"}}, "spec": pod},
+              },
+          }))
+          ' | kubectl apply -f -
+
+            attempt=0
+            while [ "$attempt" -lt 66 ]; do
+              succeeded=$(kubectl -n fallout get "job/$job" -o jsonpath='{.status.succeeded}' || true)
+              failed=$(kubectl -n fallout get "job/$job" -o jsonpath='{.status.failed}' || true)
+              [ "$succeeded" = "1" ] && break
+              [ "$failed" = "1" ] && break
+              sleep 5
+              attempt=$((attempt + 1))
+            done
+
+            kubectl -n fallout logs "job/$job" --tail=100 || true
+            if [ "$succeeded" != "1" ]; then
+              kubectl -n fallout delete job "$job" --ignore-not-found
+              exit 1
+            fi
+            kubectl -n fallout delete job "$job" --ignore-not-found
           SHELL
 
       - name: Keep public traffic closed

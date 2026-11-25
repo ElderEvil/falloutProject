@@ -159,6 +159,11 @@ class Exploration(BaseUUIDModel, ExplorationBase, TimeStampMixin, table=True):
         needed = exploration_carry.pack_slots({"quantity": quantity})
         return self.pack_slots_used + needed <= self.carry_capacity
 
+    @property
+    def is_pack_full(self) -> bool:
+        """Whether the pack has no slots left; the tick sends the dweller home."""
+        return self.pack_slots_used >= self.carry_capacity
+
     def elapsed_time_seconds(self) -> int:
         """Calculate elapsed time in seconds, frozen while an encounter pauses the journey."""
         now = self.paused_at or utcnow()

@@ -52,12 +52,13 @@ async def test_the_find_that_fills_the_pack_exactly_still_fits(
     assert apply_loot_find(run, item_name="Desk Fan", rarity="Common", item_type="junk", caps=0) is True
 
     assert run.pack_slots_used == run.carry_capacity == 17
+    assert run.is_pack_full is True
     assert len(run.loot_collected) == 17
     assert run.status == ExplorationStatus.ACTIVE
     assert _pack_full_events(run) == []
 
 
-async def test_the_next_find_is_refused_logs_one_event_and_starts_the_return(
+async def test_the_next_find_is_refused_logs_one_event_and_leaves_the_run_active(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
 ) -> None:
     run = await _active_run(async_session, vault, dweller, strength=1)
@@ -76,29 +77,29 @@ async def test_the_next_find_is_refused_logs_one_event_and_starts_the_return(
     assert events[0]["description"] == "Pack full — the Wonderglue stays behind."
     # Caps are found even when the item is left behind.
     assert run.total_caps_found == 9
-    assert run.status == ExplorationStatus.RETURNING
-    assert run.return_started_at is not None
-    assert run.return_completes_at is not None
+    # The loot path never owns the run lifecycle; the game tick sends the dweller home.
+    assert run.status == ExplorationStatus.ACTIVE
+    assert run.return_started_at is None
+    assert run.return_completes_at is None
+    assert run.recalled_early is False
 
 
-async def test_a_second_refusal_logs_but_does_not_restart_the_trip_home(
+async def test_a_second_refusal_logs_again_and_still_leaves_the_run_active(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
 ) -> None:
     run = await _active_run(async_session, vault, dweller, strength=1)
     _fill_pack(run, 17)
-    apply_loot_find(run, item_name="Wonderglue", rarity="Common", item_type="junk", caps=0)
-    started_at = run.return_started_at
-    completes_at = run.return_completes_at
 
+    assert apply_loot_find(run, item_name="Wonderglue", rarity="Common", item_type="junk", caps=0) is False
     assert apply_loot_find(run, item_name="Duct tape", rarity="Common", item_type="junk", caps=0) is False
 
     assert len(_pack_full_events(run)) == 2
-    assert run.status == ExplorationStatus.RETURNING
-    assert run.return_started_at == started_at
-    assert run.return_completes_at == completes_at
+    assert run.status == ExplorationStatus.ACTIVE
+    assert run.return_started_at is None
+    assert run.return_completes_at is None
 
 
-async def test_a_full_pack_does_not_send_home_a_run_already_returning(
+async def test_a_full_pack_does_not_touch_an_already_returning_run(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
 ) -> None:
     run = await _active_run(async_session, vault, dweller, strength=1)

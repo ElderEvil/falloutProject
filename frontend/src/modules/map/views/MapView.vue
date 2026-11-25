@@ -667,7 +667,9 @@ const hasNoData = computed(
                         :ariaHidden="true"
                       />
                       {{ activeSiteGroup?.label ?? activeSiteType }}
-                      <button
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
                         type="button"
                         class="inline-flex size-4 items-center justify-center rounded-full text-theme-primary/70 transition-colors hover:bg-theme-primary/20 hover:text-theme-primary focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-theme-primary"
                         aria-label="Clear site type filter"
@@ -675,7 +677,7 @@ const hasNoData = computed(
                         @click="clearSiteTypeFilter"
                       >
                         <Icon icon="mdi:close" class="size-3" :ariaHidden="true" />
-                      </button>
+                      </Button>
                     </span>
                     <span
                       v-if="readyOnly"
@@ -683,7 +685,9 @@ const hasNoData = computed(
                     >
                       <Icon icon="mdi:flag-checkered" class="size-3.5" :ariaHidden="true" />
                       Ready to clear
-                      <button
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
                         type="button"
                         class="inline-flex size-4 items-center justify-center rounded-full text-theme-primary/70 transition-colors hover:bg-theme-primary/20 hover:text-theme-primary focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-theme-primary"
                         aria-label="Clear ready-to-clear filter"
@@ -691,7 +695,7 @@ const hasNoData = computed(
                         @click="readyOnly = false"
                       >
                         <Icon icon="mdi:close" class="size-3" :ariaHidden="true" />
-                      </button>
+                      </Button>
                     </span>
                     <Button variant="ghost" size="xs" @click="clearMapFilters">Clear all</Button>
                   </div>

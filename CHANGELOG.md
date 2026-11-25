@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## 3.31.0 (2026-11-25)
+
+### Features
+
+* **pvp:** give async raids a vault-home entry and hide the panel shortcut ([#1542](https://github.com/ElderEvil/falloutProject/issues/1542)) f861c7b, closes #1474
+* **world-event:** make the relay page readable with icons ([#1543](https://github.com/ElderEvil/falloutProject/issues/1543)) 4ae913a
+
 ## 3.30.0 (2026-11-25)
 
 ### Features

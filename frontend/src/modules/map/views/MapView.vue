@@ -89,13 +89,15 @@ const activeSiteType = computed(() =>
     ? siteTypeFilter.value
     : null
 )
+const activeSiteGroup = computed(
+  () => siteGroupOptions.value.find((group) => group.key === activeSiteType.value) ?? null
+)
 // reka-ui's Select modelValue is AcceptableValue and reserves empty strings;
 // bridge the nullable key at the Select boundary.
 const siteTypeFilterSelect = computed<AcceptableValue>({
   get: () => siteTypeFilter.value ?? 'all',
   set: (value: AcceptableValue) => {
     siteTypeFilter.value = value === null || value === 'all' ? null : String(value)
-    if (siteTypeFilter.value) readyOnly.value = false
   },
 })
 
@@ -256,7 +258,19 @@ const readyLocationIds = computed(() => {
 
 function toggleReadyPlaces() {
   readyOnly.value = !readyOnly.value
-  if (readyOnly.value) siteTypeFilter.value = null
+}
+
+const activeMapFilterCount = computed(
+  () => Number(activeSiteType.value !== null) + Number(readyOnly.value)
+)
+
+function clearSiteTypeFilter() {
+  siteTypeFilter.value = null
+}
+
+function clearMapFilters() {
+  siteTypeFilter.value = null
+  readyOnly.value = false
 }
 
 function openExploration(explorationId?: string) {
@@ -534,12 +548,17 @@ const hasNoData = computed(
                 :value="partiesOut"
                 label="Parties out"
                 tooltip="Groups travelling to a chosen expedition site"
+                hover-text="Open expeditions"
+                @click="openExploration()"
               />
               <PageHeaderMetric
                 icon="mdi:flag-checkered"
                 :value="readyLocationIds.length"
                 label="Ready to clear"
                 tooltip="Discovered sites with conditions met that no party is visiting"
+                :hover-text="readyOnly ? 'Clear ready filter' : 'Filter ready places'"
+                :disabled="readyLocationIds.length === 0 && !readyOnly"
+                @click="toggleReadyPlaces"
               />
             </template>
           </PageHeader>
@@ -596,18 +615,15 @@ const hasNoData = computed(
               @vault-info="handleVaultInfo"
               @dweller-click="onDwellerClick"
               @party-click="openExploration"
+              @clear-filters="clearMapFilters"
             >
               <template #filters>
-                <div
-                  class="flex flex-col gap-2 border-b border-theme-primary/20 p-3"
-                  role="group"
-                  aria-label="Map filters"
-                >
+                <div class="flex min-w-0 flex-1 flex-wrap items-center gap-2">
                   <Select v-if="siteGroupOptions.length" v-model="siteTypeFilterSelect">
                     <SelectTrigger
                       aria-label="Filter by site type"
                       size="sm"
-                      class="w-full text-xs"
+                      class="w-40 text-xs sm:w-48"
                     >
                       <SelectValue placeholder="All sites" />
                     </SelectTrigger>
@@ -628,6 +644,7 @@ const hasNoData = computed(
                   <Button
                     :variant="readyOnly ? 'default' : 'outline'"
                     size="sm"
+                    class="shrink-0"
                     :aria-pressed="readyOnly"
                     :disabled="readyLocationIds.length === 0 && !readyOnly"
                     @click="toggleReadyPlaces"
@@ -635,6 +652,53 @@ const hasNoData = computed(
                     <Icon icon="mdi:flag-checkered" class="size-4" />
                     Ready to clear
                   </Button>
+                  <div
+                    v-if="activeMapFilterCount"
+                    class="flex flex-wrap items-center gap-1.5 sm:ml-auto"
+                    aria-live="polite"
+                  >
+                    <span
+                      v-if="activeSiteType"
+                      class="inline-flex h-6 items-center gap-1 rounded-full border border-theme-primary/40 bg-surface-sunken pl-2 pr-1 text-xs text-theme-primary"
+                    >
+                      <Icon
+                        :icon="activeSiteGroup?.icon ?? 'mdi:filter-outline'"
+                        class="size-3.5"
+                        :ariaHidden="true"
+                      />
+                      {{ activeSiteGroup?.label ?? activeSiteType }}
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        type="button"
+                        class="inline-flex size-4 items-center justify-center rounded-full text-theme-primary/70 transition-colors hover:bg-theme-primary/20 hover:text-theme-primary focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-theme-primary"
+                        aria-label="Clear site type filter"
+                        title="Clear site type filter"
+                        @click="clearSiteTypeFilter"
+                      >
+                        <Icon icon="mdi:close" class="size-3" :ariaHidden="true" />
+                      </Button>
+                    </span>
+                    <span
+                      v-if="readyOnly"
+                      class="inline-flex h-6 items-center gap-1 rounded-full border border-theme-primary/40 bg-surface-sunken pl-2 pr-1 text-xs text-theme-primary"
+                    >
+                      <Icon icon="mdi:flag-checkered" class="size-3.5" :ariaHidden="true" />
+                      Ready to clear
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        type="button"
+                        class="inline-flex size-4 items-center justify-center rounded-full text-theme-primary/70 transition-colors hover:bg-theme-primary/20 hover:text-theme-primary focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-theme-primary"
+                        aria-label="Clear ready-to-clear filter"
+                        title="Clear ready-to-clear filter"
+                        @click="readyOnly = false"
+                      >
+                        <Icon icon="mdi:close" class="size-3" :ariaHidden="true" />
+                      </Button>
+                    </span>
+                    <Button variant="ghost" size="xs" @click="clearMapFilters">Clear all</Button>
+                  </div>
                 </div>
               </template>
               <template v-if="authStore.isSuperuser" #tools>

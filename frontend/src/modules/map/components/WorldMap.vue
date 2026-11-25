@@ -74,6 +74,8 @@ const emit = defineEmits<{
   (e: 'party-click', explorationId: string): void
   /** Free-roam explorer clicked: open its dweller popover at screen x/y. */
   (e: 'dweller-click', payload: { track: ExplorerTrack; x: number; y: number }): void
+  /** Active filters left no non-home places: the overlay asks to reset them. */
+  (e: 'clear-filters'): void
 }>()
 
 // ── Marker visibility filter ─────────────────────────────────────
@@ -90,6 +92,16 @@ const matchesReadyFilter = (loc: WastelandLocationWithDwellers) =>
 const knownLocations = computed(() =>
   props.locations.filter((loc) => isKnownLocation(loc) && matchesReadyFilter(loc))
 )
+// Home is never hidden by either filter, so an empty site-filtered list means
+// every other place is filtered out. The map keeps showing home; tell the
+// player why the rest disappeared and offer one click back.
+const siteFilteredKnownLocations = computed(() =>
+  knownLocations.value.filter((loc) => matchesSiteTypeFilter(loc, props.siteTypeFilter))
+)
+const filtersHideOtherPlaces = computed(() => {
+  if (props.siteTypeFilter === null && props.readyLocationIds === null) return false
+  return siteFilteredKnownLocations.value.every((loc) => loc.type === 'home_vault')
+})
 
 // Fog/mask grid resolution follows the backend snapshot when loaded, so fog
 // cells align with rendered terrain cells; defaults preserve current behavior.
@@ -510,6 +522,9 @@ function handleTouchEnd(event: TouchEvent) {
 
 <template>
   <div class="world-map-layout">
+    <div v-if="$slots.filters" class="map-controls-row" role="group" aria-label="Map filters">
+      <slot name="filters" />
+    </div>
     <div
       ref="containerRef"
       class="world-map-container crt-screen touch-none"
@@ -722,6 +737,12 @@ function handleTouchEnd(event: TouchEvent) {
         <span v-if="isZoomed" class="zoom-level">{{ Math.round(zoom * 100) }}%</span>
       </div>
 
+      <div v-if="filtersHideOtherPlaces" class="map-filter-empty" role="status">
+        <Icon icon="mdi:filter-off-outline" class="size-4 shrink-0" :ariaHidden="true" />
+        <span>No other places match these filters.</span>
+        <Button size="xs" variant="outline" @click="emit('clear-filters')">Clear filters</Button>
+      </div>
+
       <section
         v-if="chosenExplorers.length"
         class="absolute bottom-2 right-2 z-20 w-[calc(100%-1rem)] max-w-72 rounded border border-theme-primary bg-surface p-2 text-sm shadow-lg"
@@ -776,7 +797,6 @@ function handleTouchEnd(event: TouchEvent) {
       @marker-select="onPanelMarkerSelect"
     >
       <template #toggle-label="{ count }">Places and sites · {{ count }}</template>
-      <template v-if="$slots.filters" #filters><slot name="filters" /></template>
       <template #legend><MapLegend :group-colors="groupColors" /></template>
     </MarkerListPanel>
   </div>
@@ -794,6 +814,18 @@ function handleTouchEnd(event: TouchEvent) {
   position: static;
   display: block;
   min-width: 0;
+}
+
+/* Filters belong to the map, not the index: the row sits above the pane at
+   every width so changing a filter never means scrolling away from the map. */
+.map-controls-row {
+  display: flex;
+  grid-column: 1 / -1;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0 2px;
 }
 
 .world-map-layout :deep(.map-index .marker-list-panel) {
@@ -893,6 +925,33 @@ function handleTouchEnd(event: TouchEvent) {
   stroke-width: 0.6;
   stroke-linecap: round;
   stroke-linejoin: round;
+}
+
+/* Filter result callout: the pane still shows home, so explain the empty
+   surroundings and give the reset one click without covering pan gestures. */
+.map-filter-empty {
+  position: absolute;
+  bottom: 10px;
+  left: 50%;
+  z-index: 15;
+  display: flex;
+  max-width: calc(100% - 1rem);
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 5px 8px;
+  border: 1px solid var(--color-theme-primary);
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--color-terminal-background) 92%, transparent);
+  color: var(--color-theme-primary);
+  font-size: 11px;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.map-filter-empty :deep(button) {
+  pointer-events: auto;
 }
 
 /* Zoom controls overlay */

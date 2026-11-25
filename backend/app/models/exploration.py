@@ -11,6 +11,7 @@ from sqlmodel import Field, SQLModel
 
 from app.core.enums import ExpeditionRunStatus, ExplorationPurpose, ExplorationStatus
 from app.models.base import BaseUUIDModel, TimeStampMixin
+from app.utils import exploration_carry
 from app.utils.serialize import serialize_naive_utc_datetime
 from app.utils.time import as_utc, utcnow
 from app.utils.types import UTCDateTime
@@ -142,6 +143,26 @@ class Exploration(BaseUUIDModel, ExplorationBase, TimeStampMixin, table=True):
     def is_completed(self) -> bool:
         """Check if exploration is completed."""
         return self.status == ExplorationStatus.COMPLETED
+
+    @property
+    def carry_capacity(self) -> int:
+        """Slots the explorer's pack holds, derived from Strength at departure."""
+        return exploration_carry.carry_capacity(self.dweller_strength)
+
+    @property
+    def pack_slots_used(self) -> int:
+        """Slots currently taken by the carried loot."""
+        return exploration_carry.pack_slots_used(self.loot_collected)
+
+    def has_pack_room(self, quantity: int = 1) -> bool:
+        """Whether one more find of this quantity fits; finds are never split."""
+        needed = exploration_carry.pack_slots({"quantity": quantity})
+        return self.pack_slots_used + needed <= self.carry_capacity
+
+    @property
+    def is_pack_full(self) -> bool:
+        """Whether the pack has no slots left; the tick sends the dweller home."""
+        return self.pack_slots_used >= self.carry_capacity
 
     def elapsed_time_seconds(self) -> int:
         """Calculate elapsed time in seconds, frozen while an encounter pauses the journey."""
@@ -297,19 +318,21 @@ class Exploration(BaseUUIDModel, ExplorationBase, TimeStampMixin, table=True):
         orm.attributes.flag_modified(self, "events")
         return event
 
-    def add_loot(self, item_name: str, quantity: int = 1, rarity: str = "common", item_type: str = "junk") -> None:
-        """Add loot to the collected items."""
-        self.loot_collected.append(
-            {
-                "item_name": item_name,
-                "quantity": quantity,
-                "rarity": rarity,
-                "item_type": item_type,
-                "found_at": serialize_naive_utc_datetime(utcnow()),
-            }
-        )
+    def add_loot(self, item_name: str, quantity: int = 1, rarity: str = "common", item_type: str = "junk") -> bool:
+        """Add loot to the collected items, refusing it whole when the pack has no room."""
+        entry = {
+            "item_name": item_name,
+            "quantity": quantity,
+            "rarity": rarity,
+            "item_type": item_type,
+            "found_at": serialize_naive_utc_datetime(utcnow()),
+        }
+        if exploration_carry.pack_slots(entry) > 0 and not self.has_pack_room(quantity):
+            return False
+        self.loot_collected.append(entry)
         # Flag the field as modified so SQLAlchemy tracks the change
         orm.attributes.flag_modified(self, "loot_collected")
+        return True
 
 
 # Statuses that still accept room resolutions; at most one open run per exploration and per vault+site (partial unique

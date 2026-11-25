@@ -192,6 +192,13 @@ async def _process_single_exploration(db_session: AsyncSession, stats: Explorati
     if await crud_expedition_run.get_open_for_exploration(db_session, exploration.id) is not None:
         return
 
+    # A full pack ends the trip early; the loot path only logs refusals, this phase owns the return.
+    if exploration.is_active() and exploration.is_pack_full:
+        await exploration_service.start_return(db_session, exploration.id, recalled=True)
+        stats["returning"] += 1
+        logger.info(f"Exploration {exploration.id} pack full; dweller {exploration.dweller_id} is returning home")
+        return
+
     # Try to generate an event
     event_generated = exploration_service.generate_event(exploration)
     if event_generated:

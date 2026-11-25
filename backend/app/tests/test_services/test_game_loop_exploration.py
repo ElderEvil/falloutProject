@@ -112,3 +112,57 @@ async def test_process_explorations_danger_event_updates_enemies(async_session, 
     assert result["events_generated"] == 1
     await async_session.refresh(exploration)
     assert exploration.enemies_encountered == 1
+
+
+async def _fill_pack(async_session, exploration, *, strength: int = 1) -> None:
+    exploration.dweller_strength = strength
+    for index in range(exploration.carry_capacity):
+        assert exploration.add_loot(item_name=f"Junk {index}", rarity="Common", item_type="junk") is True
+    async_session.add(exploration)
+    await async_session.commit()
+
+
+async def test_pack_full_tick_sends_the_dweller_home_once(async_session, vault, dweller):
+    exploration = await _start_exploration(async_session, vault, dweller)
+    await _fill_pack(async_session, exploration)
+
+    first = await game_loop_service._process_explorations(async_session, vault.id)
+
+    await async_session.refresh(exploration)
+    assert first["returning"] == 1
+    assert exploration.status == ExplorationStatus.RETURNING
+    assert exploration.recalled_early is True
+    assert exploration.return_started_at is not None
+    assert exploration.return_completes_at is not None
+
+    # Keep the return leg open, then prove a second tick starts nothing new.
+    exploration.return_completes_at = utcnow() + timedelta(hours=1)
+    async_session.add(exploration)
+    await async_session.commit()
+    completes_at = exploration.return_completes_at
+
+    second = await game_loop_service._process_explorations(async_session, vault.id)
+
+    await async_session.refresh(exploration)
+    assert second["returning"] == 0
+    assert exploration.status == ExplorationStatus.RETURNING
+    assert exploration.return_completes_at == completes_at
+
+
+async def test_pack_full_tick_leaves_an_already_returning_run_alone(async_session, vault, dweller):
+    exploration = await _start_exploration(async_session, vault, dweller)
+    await _fill_pack(async_session, exploration)
+    await exploration_service.start_return(async_session, exploration.id, recalled=True)
+
+    await async_session.refresh(exploration)
+    started_at = exploration.return_started_at
+    completes_at = exploration.return_completes_at
+
+    result = await game_loop_service._process_explorations(async_session, vault.id)
+
+    await async_session.refresh(exploration)
+    assert result["returning"] == 0
+    assert exploration.status == ExplorationStatus.RETURNING
+    assert exploration.recalled_early is True
+    assert exploration.return_started_at == started_at
+    assert exploration.return_completes_at == completes_at

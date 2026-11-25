@@ -12,6 +12,7 @@ class ExplorationEventType(StrEnum):
 
     COMBAT = "combat"
     LOOT = "loot"
+    PACK_FULL = "pack_full"
     DANGER = "danger"
     REST = "rest"
     DISCOVERY = "discovery"

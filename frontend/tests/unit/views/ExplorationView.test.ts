@@ -659,6 +659,54 @@ describe('ExplorationView', () => {
     expect(modal().props('pendingOnly')).toBe(true)
   })
 
+  it('opens a queued report with no decision when the overflow was settled already', async () => {
+    // The report was written while an overflow item was pending; by the time it is opened the
+    // backend reports none, so the modal must not advertise "Resolve Later" over a stale list.
+    vi.mocked(explorationStore.fetchPendingOverflow).mockResolvedValue([])
+    addPendingReport({
+      explorationId: 'exploration-settled',
+      vaultId: 'vault-123',
+      dwellerId: 'dweller-1',
+      dwellerName: 'Christina Reid',
+      rewards: {
+        caps: 18,
+        items: [],
+        overflow_items: [
+          {
+            item_name: 'Shovel',
+            quantity: 1,
+            rarity: 'Rare',
+            found_at: '2026-01-01T00:00:00Z',
+          },
+        ],
+        experience: 18,
+        distance: 0,
+        enemies_defeated: 0,
+        events_encountered: 0,
+      },
+    })
+
+    wrapper = mount(ExplorationView, {
+      global: {
+        stubs: {
+          SidePanel: true,
+          QuestPartyCard: true,
+          ExplorationRewardsModal: {
+            name: 'ExplorationRewardsModal',
+            template: '<div class="rewards-modal-mock" v-if="show" />',
+            props: ['show', 'rewards', 'dwellerName', 'explorationId', 'pendingOnly'],
+            emits: ['close', 'resolved'],
+          },
+        },
+      },
+    })
+    await flushPromises()
+
+    const modal = wrapper.findComponent({ name: 'ExplorationRewardsModal' })
+    expect(modal.props('show')).toBe(true)
+    expect(modal.props('rewards').overflow_items).toEqual([])
+  })
+
   it('does not reopen a report that was acknowledged when SSE replays', async () => {
     acknowledgeReport('exploration-replayed')
 

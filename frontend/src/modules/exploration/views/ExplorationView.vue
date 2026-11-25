@@ -118,8 +118,18 @@ function showNextPendingReport(): boolean {
     pendingReports.value.find((report) => deferredReportIds.value.includes(report.explorationId)) ??
     pendingReports.value[0]
   if (!next) return false
+  // The queued report carries the overflow list it was written with. If the decision was settled
+  // since — another tab, a direct take — advertising "Resolve Later" over it is a dead end: open
+  // with the backend's current answer instead.
+  const pending = pendingOverflow.value.find(
+    (overflow) => overflow.exploration_id === next.explorationId
+  )
   isPendingOverflowModal.value = false
-  openRewards(next.rewards, next.dwellerName, next.explorationId)
+  openRewards(
+    { ...next.rewards, overflow_items: pending?.unclaimed_loot ?? [] },
+    next.dwellerName,
+    next.explorationId
+  )
   return true
 }
 

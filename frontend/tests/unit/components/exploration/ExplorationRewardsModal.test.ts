@@ -53,6 +53,7 @@ describe('ExplorationRewardsModal', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     vi.clearAllMocks()
+
     mockResolve.mockReset()
     mockResolve.mockResolvedValue({ caps_granted: 0, unclaimed_loot: [] })
   })
@@ -324,4 +325,18 @@ describe('ExplorationRewardsModal', () => {
 
     expect(wrapper.find('.returned-supplies').exists()).toBe(false)
   })
+
+  it('shows a pending storage decision above the reward summary, not below the fold', async () => {
+    const wrapper = mountModal()
+    await flushPromises()
+
+    // The decision is the actionable part; opening it under a full grid of reward cards left the
+    // player with nothing to click but "Resolve Later".
+    const text = wrapper.text()
+    expect(text).toContain('Total party XP')
+    expect(text.indexOf('Storage Full — Needs Decision')).toBeLessThan(
+      text.indexOf('Total party XP')
+    )
+  })
+
 })

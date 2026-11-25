@@ -706,6 +706,15 @@ async def test_dispatch_arrival_death_trims_haul(
     junk_types = {item["name"]: str(item["junk_type"]).lower() for item in catalog_service.load_junk_items()}
     assert junk_types[exploration.loot_collected[0]["item_name"]] == "adhesive"  # the signature roll survives
 
+    # The event must report the haul the run keeps, not the roll: the dead member's half is gone, and
+    # a log that still promises it reads as a reward the player never receives.
+    event = exploration.events[-1]
+    assert event["loot"]["outcome"] == "cleared"
+    assert event["loot"]["caps"] == exploration.total_caps_found == 170
+    assert event["loot"]["items"] == [entry["item_name"] for entry in exploration.loot_collected]
+    assert "casualties cost" in event["description"]
+    assert "170 caps" in event["description"]
+
 
 @pytest.mark.usefixtures("default_world_snapshot")
 async def test_dispatch_arrival_party_wipe_survives_finalize(

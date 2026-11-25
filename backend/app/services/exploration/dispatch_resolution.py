@@ -117,6 +117,10 @@ async def resolve_dispatch_arrival(db_session: AsyncSession, exploration_id: UUI
             survivors.append(fresh)
 
     collectible_payload = None
+    # Snapshot before this arrival's haul lands: apply_party_haul_loss trims caps and loot in place,
+    # so the arrival event has to report the remainder, not the roll.
+    caps_before = exploration.total_caps_found
+    loot_before = len(exploration.loot_collected)
     if victory:
         exploration.total_caps_found += caps
         for item, item_type in loot_rolls:
@@ -161,16 +165,26 @@ async def resolve_dispatch_arrival(db_session: AsyncSession, exploration_id: UUI
             )
 
     if victory and deaths < party_size:
-        haul = [item.name for item, _item_type in loot_rolls]
-        summary = f"Cleared {location.name}: +{caps} caps"
+        # The haul the run keeps: what the party carried back after the casualties took their share.
+        retained_caps = exploration.total_caps_found - caps_before
+        haul = [entry["item_name"] for entry in exploration.loot_collected[loot_before:]]
+        summary = f"Cleared {location.name}: +{retained_caps} caps"
         if haul:
             summary += f" and {len(haul)} item(s)"
+        if deaths:
+            lost_caps = caps - retained_caps
+            lost_items = len(loot_rolls) - len(haul)
+            summary += (
+                f"; casualties cost {lost_caps} caps and {lost_items} item(s)"
+                if lost_caps or lost_items
+                else "; casualties took no haul"
+            )
         log_arrival_event(
             exploration,
             location,
             outcome="cleared",
             description=f"{summary}.",
-            caps=caps,
+            caps=retained_caps,
             items=haul,
             damage=total_damage,
         )

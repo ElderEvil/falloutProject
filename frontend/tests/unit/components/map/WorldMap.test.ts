@@ -225,10 +225,13 @@ describe('WorldMap', () => {
     it('renders place markers at the smaller place glyph and body scale only', async () => {
       const [location] = createLocations(1)
       const place = { ...location, type: 'visited' as const }
+      // The home vault rides the same locations list, but it is the player's own
+      // marker: it keeps its full body and only follows the place glyph scale.
+      const home = { ...location, id: 'loc-home', name: 'Home Vault', type: 'home_vault' as const }
 
       const wrapper = mount(WorldMap, {
         props: {
-          locations: [place],
+          locations: [place, home],
           vaultMarkers: createVaultMarkers(1),
           selectedMarkerId: null,
           fogDisabled: true,
@@ -239,10 +242,12 @@ describe('WorldMap', () => {
 
       const markers = wrapper.findAllComponents(MapMarkerStub)
       const placeMarker = markers.find((marker) => marker.props('name') === place.name)!
+      const homeMarker = markers.find((marker) => marker.props('name') === home.name)!
       const vaultMarker = markers.find((marker) => marker.props('name') === 'Unknown vault')!
 
       expect(placeMarker.props('iconScale')).toBe(PLACE_MARKER_GLYPH_SCALE)
       expect(placeMarker.props('bodyScale')).toBe(PLACE_MARKER_BODY_SCALE)
+      expect(homeMarker.props('bodyScale')).toBe(1)
       expect(vaultMarker.props('iconScale')).toBeUndefined()
       expect(vaultMarker.props('bodyScale')).toBe(PLACE_MARKER_BODY_SCALE)
     })

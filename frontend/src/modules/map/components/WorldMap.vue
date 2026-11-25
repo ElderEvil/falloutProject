@@ -562,7 +562,7 @@ function handleTouchEnd(event: TouchEvent) {
         <MapMarker
           :scale="markerScale"
           :icon-scale="PLACE_MARKER_GLYPH_SCALE"
-          :body-scale="PLACE_MARKER_BODY_SCALE"
+          :body-scale="loc.type === 'home_vault' ? 1 : PLACE_MARKER_BODY_SCALE"
           v-for="loc in renderedLocationsIndividual"
           :key="`loc-${loc.id}`"
           :x="loc.coord_x"

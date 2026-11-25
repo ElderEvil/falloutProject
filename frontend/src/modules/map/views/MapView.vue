@@ -615,6 +615,7 @@ const hasNoData = computed(
               @vault-info="handleVaultInfo"
               @dweller-click="onDwellerClick"
               @party-click="openExploration"
+              @clear-filters="clearMapFilters"
             >
               <template #filters>
                 <div class="flex min-w-0 flex-1 flex-wrap items-center gap-2">

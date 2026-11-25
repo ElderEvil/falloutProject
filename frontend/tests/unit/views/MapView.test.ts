@@ -151,7 +151,7 @@ describe('MapView', () => {
               'fogDisabled',
               'readyLocationIds',
             ],
-            emits: ['marker-click', 'update:selectedMarkerId', 'vault-info'],
+            emits: ['marker-click', 'update:selectedMarkerId', 'vault-info', 'clear-filters'],
           },
           MarkerDetailModal: {
             name: 'MarkerDetailModal',
@@ -1036,6 +1036,31 @@ describe('MapView', () => {
 
       const clearAll = wrapper.findAll('button').find((b) => b.text() === 'Clear all')!
       await clearAll.trigger('click')
+      await flushPromises()
+
+      expect(worldMapProps(wrapper).siteTypeFilter).toBeNull()
+      expect(worldMapProps(wrapper).readyLocationIds).toBeNull()
+    })
+
+    it('clears filters from the map callout', async () => {
+      seedSites()
+      localStorage.setItem('map:site-type-filter', 'gas_station')
+      mapStore.locations[0]!.clear_state = {
+        clearable: true,
+        cleared: false,
+        clear_count: 0,
+        tier: 1,
+        time_remaining_seconds: 0,
+      }
+      const wrapper = mountView()
+      await flushPromises()
+      await wrapper
+        .findAll('button')
+        .find((b) => b.text() === 'Ready to clear')!
+        .trigger('click')
+      await flushPromises()
+
+      wrapper.findComponent({ name: 'WorldMap' }).vm.$emit('clear-filters')
       await flushPromises()
 
       expect(worldMapProps(wrapper).siteTypeFilter).toBeNull()

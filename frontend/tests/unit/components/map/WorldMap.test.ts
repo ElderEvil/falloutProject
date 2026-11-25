@@ -1234,6 +1234,47 @@ describe('WorldMap', () => {
       expect(wrapper.findComponent(MarkerListPanelStub).find('.filter-probe').exists()).toBe(false)
     })
 
+    it('offers to clear filters when they hide every non-home place', async () => {
+      const base = createLocations(1)[0]
+      const locations = [
+        { ...base, id: 'home', type: 'home_vault' as const },
+        { ...base, id: 'depot', type: 'discovery' as const, group_key: 'military' },
+      ]
+      const wrapper = mount(WorldMap, {
+        props: {
+          locations,
+          vaultMarkers: [],
+          selectedMarkerId: null,
+          siteTypeFilter: 'research',
+        },
+        global: { stubs: defaultStubs },
+      })
+
+      const banner = wrapper.get('.map-filter-empty')
+      expect(banner.text()).toContain('No other places match these filters.')
+      await banner.get('button').trigger('click')
+      expect(wrapper.emitted('clear-filters')).toHaveLength(1)
+    })
+
+    it('keeps the callout hidden while filters still leave another place', () => {
+      const base = createLocations(1)[0]
+      const locations = [
+        { ...base, id: 'home', type: 'home_vault' as const },
+        { ...base, id: 'depot', type: 'discovery' as const, group_key: 'military' },
+      ]
+      const wrapper = mount(WorldMap, {
+        props: {
+          locations,
+          vaultMarkers: [],
+          selectedMarkerId: null,
+          siteTypeFilter: 'military',
+        },
+        global: { stubs: defaultStubs },
+      })
+
+      expect(wrapper.find('.map-filter-empty').exists()).toBe(false)
+    })
+
     it('passes locations to the panel and no unrelated vault signals', () => {
       const locations = createLocations(2)
       const wrapper = mount(WorldMap, {

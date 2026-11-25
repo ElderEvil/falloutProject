@@ -153,6 +153,32 @@ describe('RoomIncidentDetail', () => {
     )
   })
 
+  it('trims a confirmed squad when the fight loses slots underneath it', async () => {
+    const wrapper = await mountDetail({
+      dwellers: [
+        dweller({ id: 'd1', first_name: 'Alice', combat_power: 10 }),
+        dweller({ id: 'd2', first_name: 'Bob', combat_power: 90 }),
+        dweller({ id: 'd3', first_name: 'Cara', combat_power: 50 }),
+      ],
+    })
+
+    await clickButton(wrapper, 'Suggest squad')
+    expect(wrapper.text()).toContain('Send 3 selected')
+
+    // A poll reports four helpers already in the fight, leaving two of six slots: the staged
+    // three must shrink rather than ask for a slot the fight no longer has.
+    getIncidentTeam.mockReturnValue(['x1', 'x2', 'x3', 'x4'].map(teamMember))
+    await wrapper.setProps({
+      incident: incident({ id: 'incident-1', progress: { current: 40, target: 100, label: 'Threat' } }),
+    })
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Send 2 selected')
+    await clickButton(wrapper, 'Send 2 selected')
+
+    expect(assignResponders).toHaveBeenCalledWith('vault-1', 'incident-1', ['d2', 'd3'], 'test-token')
+  })
+
   it('stages only the highest-power helpers and clears the selection after sending', async () => {
     const wrapper = await mountDetail({
       dwellers: [

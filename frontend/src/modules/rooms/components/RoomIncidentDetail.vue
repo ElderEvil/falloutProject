@@ -216,6 +216,13 @@ watch(availableResponders, (available) => {
   const availableIds = new Set(available.map((dweller) => dweller.id))
   selectedResponderIds.value = selectedResponderIds.value.filter((id) => availableIds.has(id))
 })
+// Capacity can shrink under an open selection too, when a poll reports helpers who joined
+// meanwhile. Trim to the surviving slots so the confirmed squad never outsizes the fight.
+watch(remainingRosterSlots, (slots) => {
+  if (selectedResponderIds.value.length > slots) {
+    selectedResponderIds.value = selectedResponderIds.value.slice(0, slots)
+  }
+})
 
 const send = async (dwellerIds: string[]) => {
   if (!authStore.token || !dwellerIds.length) return
@@ -229,9 +236,15 @@ const send = async (dwellerIds: string[]) => {
 
 const sendSelected = async () => {
   if (isAssigning.value || !responderTeamsLoaded.value || !selectedResponders.value.length) return
+  // Clamp at the boundary as well: the watcher trims reactively, but the request itself must never
+  // carry more dwellers than the fight has slots for.
+  const dwellerIds = selectedResponders.value
+    .slice(0, remainingRosterSlots.value)
+    .map((dweller) => dweller.id)
+  if (!dwellerIds.length) return
   isSendingSquad.value = true
   try {
-    await send(selectedResponders.value.map((dweller) => dweller.id))
+    await send(dwellerIds)
     clearSelection()
   } finally {
     isSendingSquad.value = false

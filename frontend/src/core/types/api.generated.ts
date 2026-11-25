@@ -18376,7 +18376,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["BroadcastRead"] | null;
+                    "application/json": components["schemas"]["BroadcastRead"];
                 };
             };
             /** @description Validation Error */

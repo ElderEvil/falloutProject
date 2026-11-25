@@ -24,7 +24,7 @@ class CRUDWorldEvent(CRUDBase[WorldEvent, None, None]):
         finished = await db_session.execute(
             select(self.model)
             .where(col(self.model.status).in_([WorldEventStatus.COMPLETED, WorldEventStatus.EXPIRED]))
-            .order_by(col(self.model.ends_at).desc())
+            .order_by(col(self.model.updated_at).desc())
             .limit(1)
         )
         return finished.scalar_one_or_none()

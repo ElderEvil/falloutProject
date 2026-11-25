@@ -229,6 +229,27 @@ async def test_completion_records_when_the_event_finished(async_session: AsyncSe
     assert event.finished_at < event.ends_at
 
 
+async def test_advance_preserves_future_schedule(async_session: AsyncSession, monkeypatch) -> None:
+    monkeypatch.setattr(game_config.features, "world_events", True)
+    event = await seed_event(
+        async_session,
+        status=WorldEventStatus.SCHEDULED,
+        window=(timedelta(days=1), timedelta(days=8)),
+    )
+    assert await svc.advance(async_session) is None
+    assert list((await async_session.execute(select(WorldEvent))).scalars()) == [event]
+    await async_session.refresh(event)
+    assert event.status == WorldEventStatus.SCHEDULED
+
+
+async def test_completed_event_gets_its_quiet_day_from_the_orm_update(async_session: AsyncSession, monkeypatch) -> None:
+    monkeypatch.setattr(game_config.features, "world_events", True)
+    await seed_event(async_session, target=1, progress=1)
+    assert await svc.advance(async_session) == "completed"
+    assert await svc.advance(async_session) is None
+    assert len(list((await async_session.execute(select(WorldEvent))).scalars())) == 1
+
+
 async def test_advance_completion_notifies_participants_only(async_session: AsyncSession) -> None:
     event = await seed_event(async_session, target=10, progress=10)
     participants = [await _create_vault(async_session) for _ in range(2)]

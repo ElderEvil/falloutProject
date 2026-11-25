@@ -1223,6 +1223,17 @@ describe('WorldMap', () => {
       expect(wrapper.findComponent(MarkerListPanelStub).exists()).toBe(true)
     })
 
+    it('keeps filter controls above the map instead of inside the index', () => {
+      const wrapper = mount(WorldMap, {
+        props: { locations: createLocations(2), vaultMarkers: [], selectedMarkerId: null },
+        global: { stubs: defaultStubs },
+        slots: { filters: '<div class="filter-probe">Filters</div>' },
+      })
+
+      expect(wrapper.find('.map-controls-row .filter-probe').exists()).toBe(true)
+      expect(wrapper.findComponent(MarkerListPanelStub).find('.filter-probe').exists()).toBe(false)
+    })
+
     it('passes locations to the panel and no unrelated vault signals', () => {
       const locations = createLocations(2)
       const wrapper = mount(WorldMap, {

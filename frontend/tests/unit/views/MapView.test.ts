@@ -879,6 +879,43 @@ describe('MapView', () => {
       await ready.trigger('click')
       expect(wrapper.findComponent({ name: 'WorldMap' }).props('readyLocationIds')).toBeNull()
     })
+
+    it('makes the header counters actionable', async () => {
+      vi.spyOn(mapStore, 'fetchMap').mockResolvedValue(undefined)
+      mapStore.locations = [
+        {
+          ...mockLocation,
+          id: 'ready',
+          clear_state: {
+            clearable: true,
+            cleared: false,
+            clear_count: 0,
+            tier: 1,
+            time_remaining_seconds: 0,
+          },
+        },
+      ]
+      mapStore.isLoading = false
+      const wrapper = mountView(true)
+      await flushPromises()
+
+      await wrapper.get('[aria-label="Open expeditions: 0"]').trigger('click')
+      expect(mockPush).toHaveBeenCalledWith({
+        name: 'exploration',
+        params: { id: 'vault-1' },
+      })
+
+      await wrapper.get('[aria-label="Filter ready places: 1"]').trigger('click')
+      await flushPromises()
+      expect(wrapper.findComponent({ name: 'WorldMap' }).props('readyLocationIds')).toEqual([
+        'ready',
+      ])
+
+      await wrapper.get('[aria-label="Clear ready filter: 1"]').trigger('click')
+      await flushPromises()
+      expect(wrapper.findComponent({ name: 'WorldMap' }).props('readyLocationIds')).toBeNull()
+      wrapper.unmount()
+    })
   })
 
   describe('admin fog debug tool', () => {
@@ -943,7 +980,7 @@ describe('MapView', () => {
     const worldMapProps = (wrapper: ReturnType<typeof mountView>) =>
       wrapper.findComponent({ name: 'WorldMap' }).props()
 
-    it('clears the ready filter when selecting a site type', async () => {
+    it('combines the ready filter with a site type and shows removable chips', async () => {
       seedSites()
       mapStore.locations[0]!.clear_state = {
         clearable: true,
@@ -960,8 +997,49 @@ describe('MapView', () => {
       wrapper.findComponent({ name: 'Select' }).vm.$emit('update:modelValue', 'gas_station')
       await flushPromises()
       expect(worldMapProps(wrapper).siteTypeFilter).toBe('gas_station')
+      expect(worldMapProps(wrapper).readyLocationIds).not.toBeNull()
+      expect(ready.attributes('aria-pressed')).toBe('true')
+      // Both active filters surface as chips above the map.
+      expect(wrapper.find('[aria-label="Clear site type filter"]').exists()).toBe(true)
+      expect(wrapper.find('[aria-label="Clear ready-to-clear filter"]').exists()).toBe(true)
+
+      await wrapper.get('[aria-label="Clear site type filter"]').trigger('click')
+      await flushPromises()
+      expect(worldMapProps(wrapper).siteTypeFilter).toBeNull()
+      expect(worldMapProps(wrapper).readyLocationIds).not.toBeNull()
+
+      await wrapper.get('[aria-label="Clear ready-to-clear filter"]').trigger('click')
+      await flushPromises()
       expect(worldMapProps(wrapper).readyLocationIds).toBeNull()
-      expect(ready.attributes('aria-pressed')).toBe('false')
+      expect(wrapper.find('[aria-label="Clear site type filter"]').exists()).toBe(false)
+    })
+
+    it('clears every active filter from the command bar', async () => {
+      seedSites()
+      localStorage.setItem('map:site-type-filter', 'gas_station')
+      mapStore.locations[0]!.clear_state = {
+        clearable: true,
+        cleared: false,
+        clear_count: 0,
+        tier: 1,
+        time_remaining_seconds: 0,
+      }
+      const wrapper = mountView()
+      await flushPromises()
+      await wrapper
+        .findAll('button')
+        .find((b) => b.text() === 'Ready to clear')!
+        .trigger('click')
+      await flushPromises()
+      expect(worldMapProps(wrapper).siteTypeFilter).toBe('gas_station')
+      expect(worldMapProps(wrapper).readyLocationIds).not.toBeNull()
+
+      const clearAll = wrapper.findAll('button').find((b) => b.text() === 'Clear all')!
+      await clearAll.trigger('click')
+      await flushPromises()
+
+      expect(worldMapProps(wrapper).siteTypeFilter).toBeNull()
+      expect(worldMapProps(wrapper).readyLocationIds).toBeNull()
     })
 
     it('passes a stored site-type filter down to the map', async () => {

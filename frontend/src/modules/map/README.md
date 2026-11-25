@@ -8,11 +8,11 @@ Wasteland map module. Displays a schematic SVG map of the wasteland with locatio
 
 ## Key Files
 
-- `views/MapView.vue` — main map view with SidePanel + polling
+- `views/MapView.vue` — main map view with SidePanel + polling, the filter command bar and actionable header counters
 - `stores/map.ts` — map state management (locations, vault markers, polling)
 - `services/mapService.ts` — API service layer for map endpoints
 - `models/map.ts` — TypeScript type aliases for map schemas
-- `components/WorldMap.vue` — inline SVG map with grid lines and markers
+- `components/WorldMap.vue` — inline SVG map with grid lines and markers, plus the on-map filter command bar above the pane
 - `components/AtlasTerrain.vue` — renders terrain from the backend world snapshot
 - `components/AtlasRoads.vue` — renders backend highway/country centerlines below fog,
   with zoom-aware detail. All road paint composites through one isolated opacity group

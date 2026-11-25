@@ -510,6 +510,9 @@ function handleTouchEnd(event: TouchEvent) {
 
 <template>
   <div class="world-map-layout">
+    <div v-if="$slots.filters" class="map-controls-row" role="group" aria-label="Map filters">
+      <slot name="filters" />
+    </div>
     <div
       ref="containerRef"
       class="world-map-container crt-screen touch-none"
@@ -776,7 +779,6 @@ function handleTouchEnd(event: TouchEvent) {
       @marker-select="onPanelMarkerSelect"
     >
       <template #toggle-label="{ count }">Places and sites · {{ count }}</template>
-      <template v-if="$slots.filters" #filters><slot name="filters" /></template>
       <template #legend><MapLegend :group-colors="groupColors" /></template>
     </MarkerListPanel>
   </div>
@@ -794,6 +796,18 @@ function handleTouchEnd(event: TouchEvent) {
   position: static;
   display: block;
   min-width: 0;
+}
+
+/* Filters belong to the map, not the index: the row sits above the pane at
+   every width so changing a filter never means scrolling away from the map. */
+.map-controls-row {
+  display: flex;
+  grid-column: 1 / -1;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0 2px;
 }
 
 .world-map-layout :deep(.map-index .marker-list-panel) {

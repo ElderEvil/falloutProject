@@ -28,7 +28,7 @@
         "img-src": "'self' asset: blob: data: https://fallout-api.evillab.tech",
         "style-src": "'self' 'unsafe-inline'",
         "font-src": "'self' data:",
-        "media-src": "'self' blob: data: https://fallout-api.evillab.tech",
+        "media-src": "'self' blob: data: https://fallout-api.evillab.tech https://s3-api.evillab.tech https://s3.evillab.dev",
         "object-src": "'none'"
       },
       "devCsp": {
@@ -37,7 +37,7 @@
         "img-src": "'self' asset: blob: data: http://localhost:8000 https://fallout-api.evillab.tech",
         "style-src": "'self' 'unsafe-inline'",
         "font-src": "'self' data:",
-        "media-src": "'self' blob: data: http://localhost:8000 https://fallout-api.evillab.tech",
+        "media-src": "'self' blob: data: http://localhost:8000 https://fallout-api.evillab.tech https://s3-api.evillab.tech https://s3.evillab.dev",
         "object-src": "'none'"
       }
     }

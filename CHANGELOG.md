@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 3.28.1 (2026-11-25)
+
+### Bug Fixes
+
+* **web:** let the app load broadcast audio from the RustFS host ([#1536](https://github.com/ElderEvil/falloutProject/issues/1536)) 8139954
+
 ## 3.28.0 (2026-11-25)
 
 ### Features

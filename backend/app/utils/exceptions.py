@@ -270,13 +270,6 @@ class BroadcastRateLimitException(DomainError):
     default_detail = "Manual broadcast regeneration limit reached."
 
 
-class BroadcastNotYetAiringException(DomainError):
-    """Raised when a vault tries to air a broadcast before its first scheduled day."""
-
-    status_code = status.HTTP_409_CONFLICT
-    default_detail = "The first broadcast airs the day after the vault is founded."
-
-
 class BucketNotFoundError(DomainError):
     """Raised when a storage bucket is not found or cannot be created."""
 

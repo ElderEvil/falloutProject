@@ -11,22 +11,22 @@ from app.services.broadcast_service import get_or_create_daily, regenerate, vaul
 router = APIRouter(tags=["Vault Radio Hour"])
 
 
-@router.get("/vaults/{vault_id}/radio-news", response_model=BroadcastRead | None)
+@router.get("/vaults/{vault_id}/radio-news", response_model=BroadcastRead)
 async def get_vault_radio_news(
     vault_id: UUID,
     user: CurrentActiveUser,
     db_session: DBSession,
-) -> BroadcastRead | None:
+) -> BroadcastRead:
     """Return today's broadcast, generating it once if none exists for the UTC day.
 
-    A vault founded today returns `null`: it has nothing to report until tomorrow's airing.
+    Every vault airs on every UTC day, including the day it was founded, so this never
+    returns `null` for an existing vault.
     """
     vault = await get_user_vault_or_403(vault_id, user, db_session)
     return await get_or_create_daily(
         db_session,
         vault_id,
         vault_data=vault_stats_from_db(vault),
-        vault_created_at=vault.created_at,
     )
 
 
@@ -42,5 +42,4 @@ async def regenerate_vault_radio_news(
         db_session,
         vault_id,
         vault_data=vault_stats_from_db(vault),
-        vault_created_at=vault.created_at,
     )

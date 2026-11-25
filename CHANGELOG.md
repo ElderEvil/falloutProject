@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 3.31.5 (2026-11-25)
+
+### Bug Fixes
+
+* **exploration:** report the miles a spatial journey walked and log its arrival ([#1549](https://github.com/ElderEvil/falloutProject/issues/1549)) 053a38c
+
 ## 3.31.4 (2026-11-25)
 
 ### Bug Fixes

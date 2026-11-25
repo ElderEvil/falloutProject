@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 3.31.3 (2026-11-25)
+
+### Bug Fixes
+
+* **exploration:** return pack and activity in the explorer list ([#1547](https://github.com/ElderEvil/falloutProject/issues/1547)) 1f68b58
+
 ## 3.31.2 (2026-11-25)
 
 ### Bug Fixes

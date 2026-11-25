@@ -222,7 +222,10 @@ class WorldEventService:
         """Seed the initial/next weekly relay, preserving any existing schedule."""
         if not game_config.features.world_events or await world_event_crud.has_scheduled(db_session):
             return None
-        if current is not None and (current.updated_at or current.ends_at) + timedelta(days=1) > now:
+        # The quiet day starts when the previous event actually finished, not when its window was
+        # due to close: a relay that hits its target on day two leaves one idle day, not six.
+        # Rows that finished before ``finished_at`` existed fall back to their window end.
+        if current is not None and (current.finished_at or current.ends_at) + timedelta(days=1) > now:
             return None
         return WorldEvent(
             kind="WASTELAND_RELAY",
@@ -238,6 +241,7 @@ class WorldEventService:
     async def _advance_active(self, db_session: AsyncSession, event: WorldEvent, now: datetime) -> str | None:
         if event.progress_amount >= event.target_amount:
             event.status = WorldEventStatus.COMPLETED
+            event.finished_at = now
             db_session.add(event)
             await self._notify_completed(db_session, event)
             return "completed"
@@ -249,6 +253,7 @@ class WorldEventService:
             db_session.add(event)
             return "extended"
         event.status = WorldEventStatus.EXPIRED
+        event.finished_at = now
         db_session.add(event)
         return "expired"
 

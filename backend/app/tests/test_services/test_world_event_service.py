@@ -39,6 +39,7 @@ async def seed_event(
     personal_min: int = 10,
     kind: str = KIND,
     reward: list[dict] | None = None,
+    finished: timedelta | None = None,
 ) -> WorldEvent:
     now = utcnow()
     event = WorldEvent(
@@ -52,6 +53,7 @@ async def seed_event(
         starts_at=now + window[0],
         ends_at=now + window[1],
         status=status,
+        finished_at=None if finished is None else now + finished,
     )
     async_session.add(event)
     await async_session.commit()
@@ -170,13 +172,12 @@ async def test_advance_creates_first_event_only_when_enabled(async_session: Asyn
 
 async def test_advance_creates_next_event_after_a_day_off(async_session: AsyncSession, monkeypatch) -> None:
     monkeypatch.setattr(game_config.features, "world_events", True)
-    event = await seed_event(
+    await seed_event(
         async_session,
         status=WorldEventStatus.EXPIRED,
         window=(timedelta(days=-9), timedelta(days=-2)),
+        finished=timedelta(days=-2),
     )
-    event.updated_at = utcnow() - timedelta(days=2)
-    await async_session.commit()
     assert await svc.advance(async_session) == "activated"
     rows = list((await async_session.execute(select(WorldEvent))).scalars())
     assert len(rows) == 2
@@ -191,14 +192,41 @@ async def test_next_event_waits_one_day_after_completion(
     async_session: AsyncSession, monkeypatch, finished_ago: timedelta, expected: str | None
 ) -> None:
     monkeypatch.setattr(game_config.features, "world_events", True)
+    # Completed early: the window still had six days to run, the quiet day starts at completion.
+    await seed_event(
+        async_session,
+        status=WorldEventStatus.COMPLETED,
+        window=(timedelta(days=-7), timedelta(days=1)),
+        finished=-finished_ago,
+    )
+    assert await svc.advance(async_session) == expected
+
+
+async def test_late_write_to_a_finished_event_does_not_postpone_the_next_relay(
+    async_session: AsyncSession, monkeypatch
+) -> None:
+    monkeypatch.setattr(game_config.features, "world_events", True)
     event = await seed_event(
         async_session,
         status=WorldEventStatus.COMPLETED,
         window=(timedelta(days=-7), timedelta(days=-6)),
+        finished=timedelta(days=-2),
     )
-    event.updated_at = utcnow() - finished_ago
+    # Any later write moves ``updated_at``; the quiet day must not restart because of it.
+    event.description = "Edited after the fact."
     await async_session.commit()
-    assert await svc.advance(async_session) == expected
+    assert await svc.advance(async_session) == "activated"
+
+
+async def test_completion_records_when_the_event_finished(async_session: AsyncSession) -> None:
+    event = await seed_event(async_session, window=(timedelta(days=-1), timedelta(days=6)), target=10, progress=10)
+    before = utcnow()
+    assert await svc.advance(async_session) == "completed"
+    await async_session.refresh(event)
+    assert event.finished_at is not None
+    assert before <= event.finished_at <= utcnow()
+    # ends_at keeps describing the window, not the moment the relay was done.
+    assert event.finished_at < event.ends_at
 
 
 async def test_advance_completion_notifies_participants_only(async_session: AsyncSession) -> None:

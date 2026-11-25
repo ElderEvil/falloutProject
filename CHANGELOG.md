@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 3.29.1 (2026-11-25)
+
+### Bug Fixes
+
+* **map:** shrink the place marker body, not just its glyph ([#1535](https://github.com/ElderEvil/falloutProject/issues/1535)) 0d3d6e5
+
 ## 3.29.0 (2026-11-25)
 
 ### Features

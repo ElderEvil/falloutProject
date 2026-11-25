@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 3.26.0 (2026-11-25)
+
+### Features
+
+* **collectibles:** magazines as a one-time find with a permanent boon ([#1521](https://github.com/ElderEvil/falloutProject/issues/1521)) 05110d3
+
 ## 3.25.0 (2026-11-24)
 
 ### Features

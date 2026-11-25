@@ -1,5 +1,5 @@
 from contextlib import ExitStack, asynccontextmanager, contextmanager
-from datetime import UTC, datetime, timedelta
+from datetime import timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -19,6 +19,7 @@ from app.utils.exceptions import (
     BroadcastRateLimitException,
     TTSProviderException,
 )
+from app.utils.time import utcnow
 
 VAULT_DATA = {
     "number": 1,
@@ -66,7 +67,7 @@ def _pipeline(*, openrouter: MagicMock | None = None, elevenlabs: MagicMock | No
 
 async def _daily_row(db, vault, audio_key: str | None = None, *, days_ago: int = 0) -> Broadcast:
     row = await create_broadcast(db, vault_id=vault.id, title="Old", script="Old script", audio_key=audio_key)
-    row.created_at = datetime.now(UTC).replace(tzinfo=None) - timedelta(days=days_ago)
+    row.created_at = utcnow() - timedelta(days=days_ago)
     await db.commit()
     return row
 
@@ -105,7 +106,7 @@ async def test_daily_broadcast_created_once(async_session, vault):
 
 
 async def test_daily_broadcast_airs_on_the_founding_day(async_session, vault):
-    vault.created_at = datetime.now(UTC).replace(tzinfo=None)
+    vault.created_at = utcnow()
     async_session.add(vault)
     await async_session.commit()
 
@@ -118,7 +119,7 @@ async def test_daily_broadcast_airs_on_the_founding_day(async_session, vault):
 
 
 async def test_daily_broadcast_airs_for_an_older_vault(async_session, vault):
-    vault.created_at = datetime.now(UTC).replace(tzinfo=None) - timedelta(days=1)
+    vault.created_at = utcnow() - timedelta(days=1)
     async_session.add(vault)
     await async_session.commit()
 
@@ -129,7 +130,7 @@ async def test_daily_broadcast_airs_for_an_older_vault(async_session, vault):
 
 
 async def test_regenerate_on_the_founding_day_is_limited_only_by_the_rate_limit(async_session, vault):
-    vault.created_at = datetime.now(UTC).replace(tzinfo=None)
+    vault.created_at = utcnow()
     async_session.add(vault)
     await async_session.commit()
 

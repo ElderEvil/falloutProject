@@ -341,4 +341,10 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
 
+# Host used when RUSTFS_HOSTNAME is unset. Public storage URLs fall back to this
+# endpoint too, so any Content-Security-Policy that plays stored audio must allow
+# it as well (guarded by app/tests/test_infra/test_asset_csp.py).
+DEFAULT_RUSTFS_HOSTNAME = "s3.evillab.dev"
+
+
 settings = Settings()

@@ -6,7 +6,7 @@ import boto3
 from botocore.config import Config
 from botocore.exceptions import ClientError
 
-from app.core.config import settings
+from app.core.config import DEFAULT_RUSTFS_HOSTNAME, settings
 from app.utils.exceptions import BucketNotFoundError, FileDownloadError, FileUploadError
 from app.utils.image_processing import generate_thumbnail
 
@@ -52,7 +52,7 @@ class RustFSAdapter:
 
     def _get_endpoint_url(self) -> str:
         """Internal S3 endpoint for boto3 client connections."""
-        hostname = getattr(settings, "RUSTFS_HOSTNAME", None) or "s3.evillab.dev"
+        hostname = getattr(settings, "RUSTFS_HOSTNAME", None) or DEFAULT_RUSTFS_HOSTNAME
         port = getattr(settings, "RUSTFS_PORT", "")
         use_https = getattr(settings, "RUSTFS_USE_HTTPS", False)
         scheme = "https" if use_https else "http"

@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 3.29.0 (2026-11-25)
+
+### Features
+
+* **pvp:** wire exhibition duels into the vault UI ([#1537](https://github.com/ElderEvil/falloutProject/issues/1537)) 3e509bf
+
 ## 3.28.2 (2026-11-25)
 
 ### Bug Fixes

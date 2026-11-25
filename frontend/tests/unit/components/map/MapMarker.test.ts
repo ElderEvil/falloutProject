@@ -59,6 +59,37 @@ describe('MapMarker', () => {
     expect(wrapper.find('circle.marker-backing').attributes('r')).toBe('4.2')
   })
 
+  it('shrinks disc, rings, portrait and label together when bodyScale is set', () => {
+    const wrapper = mount(MapMarker, {
+      props: {
+        x: 10,
+        y: 20,
+        name: 'Gas Station',
+        type: 'visited',
+        iconScale: PLACE_MARKER_GLYPH_SCALE,
+        bodyScale: 0.72,
+        selected: true,
+        exploring: true,
+      },
+      global: {
+        stubs: { Icon: true },
+      },
+    })
+
+    // Body geometry follows the factor, the glyph keeps its own size and the
+    // hit area stays full, so a smaller marker never costs an easier click.
+    expect(wrapper.find('circle.marker-backing').attributes('r')).toBe('3.024')
+    expect(wrapper.find('circle.marker-select-ring').attributes('r')).toBe('2.232')
+    expect(wrapper.find('circle.marker-exploring-ring').attributes('r')).toBe('2.232')
+    expect(wrapper.find('circle.marker-hit-area').attributes('r')).toBe('6')
+    expect(wrapper.findComponent(Icon).props('width')).toBe(
+      `${MARKER_GLYPH_SIZE * PLACE_MARKER_GLYPH_SCALE}px`
+    )
+    const label = wrapper.find('text.marker-label')
+    expect(label.attributes('y')).toBe('-2.448')
+    expect(label.attributes('style')).toContain('font-size: 1.728px')
+  })
+
   it('renders an enlarged transparent hit area beneath the icon', () => {
     const wrapper = mount(MapMarker, {
       props: {

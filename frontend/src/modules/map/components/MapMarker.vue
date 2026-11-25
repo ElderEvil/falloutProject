@@ -28,6 +28,12 @@ interface Props {
   scale?: number
   /** Glyph-only scale; the backing disc and hit area stay full size. */
   iconScale?: number
+  /**
+   * Body scale: shrinks the disc, rings, badges, portrait and label together.
+   * The glyph keeps its own size (see `iconScale`) and the hit area stays full,
+   * so a smaller marker reads tighter without becoming harder to click.
+   */
+  bodyScale?: number
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -41,6 +47,7 @@ const props = withDefaults(defineProps<Props>(), {
   interactive: true,
   scale: 1,
   iconScale: 1,
+  bodyScale: 1,
 })
 
 const emit = defineEmits<{
@@ -78,6 +85,16 @@ const shouldPulse = computed(() => isDiscovery.value && !isLocked.value && props
 // shrink-wraps each icon to its artwork) but honoured by Firefox.
 const glyphSize = computed(() => MARKER_GLYPH_SIZE * props.iconScale)
 const glyphSizeCss = computed(() => `${glyphSize.value}px`)
+
+// Every body dimension derives from one factor so disc, rings, badge, portrait
+// and label shrink as a single unit instead of drifting out of proportion.
+// Rounded to three decimals: float noise in an SVG radius attr is just noise.
+const body = (value: number): number => Math.round(value * props.bodyScale * 1000) / 1000
+const discRadius = computed(() => body(4.2))
+const ringRadius = computed(() => body(3.1))
+const portraitSize = computed(() => body(6.2))
+const labelY = computed(() => -body(3.4))
+const labelStyle = computed<CSSProperties>(() => ({ fontSize: `${body(2.4)}px` }))
 const portraitClipId = useId()
 
 // Explorer thumbnail: normalise the backend static path and fall back to the
@@ -131,25 +148,25 @@ const tooltipText = computed(() => {
     <circle class="marker-hit-area" r="6" fill="transparent" />
     <title>{{ tooltipText }}</title>
     <!-- Dark knockout disc: keeps the glyph and rings legible over any terrain -->
-    <circle class="marker-backing" r="4.2" />
-    <circle v-if="selected" class="marker-select-ring" r="3.1" />
-    <circle v-if="selected" class="marker-select-ping" r="3.1" />
-    <circle v-if="exploring" class="marker-exploring-ring" r="3.1" />
+    <circle class="marker-backing" :r="discRadius" />
+    <circle v-if="selected" class="marker-select-ring" :r="ringRadius" />
+    <circle v-if="selected" class="marker-select-ping" :r="ringRadius" />
+    <circle v-if="exploring" class="marker-exploring-ring" :r="ringRadius" />
 
     <!-- Glyph, rendered natively in SVG (no <foreignObject>) so it lands the same
          in every engine. Dweller thumbnails use <image> + a circular clip. -->
     <template v-if="showPortrait">
       <defs>
         <clipPath :id="portraitClipId">
-          <circle r="3.1" />
+          <circle :r="ringRadius" />
         </clipPath>
       </defs>
       <image
         :href="portraitUrl ?? undefined"
-        x="-3.1"
-        y="-3.1"
-        width="6.2"
-        height="6.2"
+        :x="-portraitSize / 2"
+        :y="-portraitSize / 2"
+        :width="portraitSize"
+        :height="portraitSize"
         :clip-path="`url(#${portraitClipId})`"
         preserveAspectRatio="xMidYMin slice"
         @error="portraitFailed = true"
@@ -169,6 +186,7 @@ const tooltipText = computed(() => {
     <g
       v-if="!isLocked && (cleared || cooldown)"
       :class="cooldown ? 'marker-cooldown-badge' : 'marker-cleared-badge'"
+      :transform="`scale(${bodyScale})`"
       aria-hidden="true"
     >
       <circle cx="2.7" cy="-2.7" r="1.6" class="marker-cleared-badge-bg" />
@@ -178,16 +196,22 @@ const tooltipText = computed(() => {
       />
     </g>
     <!-- Label: hidden by default, shown on hover/focus/selected via CSS -->
-    <text class="marker-label" x="0" y="-3.4" text-anchor="middle" aria-hidden="true">{{
-      displayLabel
-    }}</text>
+    <text
+      class="marker-label"
+      x="0"
+      :y="labelY"
+      :style="labelStyle"
+      text-anchor="middle"
+      aria-hidden="true"
+      >{{ displayLabel }}</text
+    >
   </g>
 </template>
 
 <style scoped>
 .map-marker {
   --marker-accent: var(--color-theme-primary);
-  --marker-glow: 1.2px;
+  --marker-glow: 0.7px;
 
   transition: transform 150ms ease;
 }
@@ -223,7 +247,7 @@ const tooltipText = computed(() => {
 .marker-backing {
   fill: color-mix(in srgb, var(--color-terminal-background) 90%, transparent);
   stroke: var(--marker-accent);
-  stroke-width: 0.45;
+  stroke-width: 0.35;
   filter: drop-shadow(0 0 var(--marker-glow) var(--marker-accent));
   pointer-events: none;
 }

@@ -16,6 +16,7 @@ import type {
 } from '../models/map'
 import {
   EXPEDITION_SITE_ICON,
+  PLACE_MARKER_BODY_SCALE,
   PLACE_MARKER_GLYPH_SCALE,
   locationMarkerIcon,
 } from '../models/markerTypeMeta'
@@ -576,6 +577,7 @@ function handleTouchEnd(event: TouchEvent) {
         <MapMarker
           :scale="markerScale"
           :icon-scale="PLACE_MARKER_GLYPH_SCALE"
+          :body-scale="loc.type === 'home_vault' ? 1 : PLACE_MARKER_BODY_SCALE"
           v-for="loc in renderedLocationsIndividual"
           :key="`loc-${loc.id}`"
           :x="loc.coord_x"
@@ -629,6 +631,7 @@ function handleTouchEnd(event: TouchEvent) {
              the map is zoomed past the declutter threshold -->
         <MapMarker
           :scale="markerScale"
+          :body-scale="PLACE_MARKER_BODY_SCALE"
           v-for="hint in renderedVaultHints"
           :key="hint.key"
           :x="hint.coord_x"

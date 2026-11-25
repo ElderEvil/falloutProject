@@ -232,7 +232,35 @@ class CollectibleService:
         dweller.magazine_boon = boons
         db_session.add(dweller)
         await db_session.flush()
+        if amount > entry["amount"]:
+            # This read completed the shelf. Boons are written at claim time, so finders who came
+            # before the shelf closed are still holding the smaller amount; raise them now, once.
+            await self._upgrade_shelf_boons(db_session, vault_id=vault_id, amount=amount)
         return amount
+
+    async def _upgrade_shelf_boons(self, db_session: AsyncSession, *, vault_id: UUID, amount: int) -> None:
+        """Raise every already-claimed magazine boon in the vault to the completed-shelf amount.
+
+        A set completes once per vault, so this sweep runs at most once and never has to unwind:
+        claims are permanent, so the shelf cannot come undone.
+        """
+        raised = 0
+        for holder in await crud.dweller.get_all_in_vault(db_session, vault_id):
+            boons = holder.magazine_boon
+            if not boons:
+                continue
+            upgraded = {
+                key: {**held, "amount": amount}
+                for key, held in boons.items()
+                if isinstance(held, dict) and int(held.get("amount", 0)) < amount
+            }
+            if not upgraded:
+                continue
+            holder.magazine_boon = {**boons, **upgraded}
+            db_session.add(holder)
+            raised += 1
+        if raised:
+            await db_session.flush()
 
 
 collectible_service = CollectibleService()

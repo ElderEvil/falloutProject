@@ -293,6 +293,28 @@ async def test_the_completed_shelf_upgrades_the_same_boon_from_one_point_to_two(
     assert effective_stat(reader, "perception") == base + amount
 
 
+async def test_completing_the_shelf_raises_the_boons_claimed_before_it_closed(
+    async_session: AsyncSession, vault: Vault, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The shelf pays every holder, not just the finder who happened to complete it."""
+    monkeypatch.setattr(game_config.features, "collectibles", True)
+    early = await _dweller(async_session, vault)
+    late = await _dweller(async_session, vault)
+    base = effective_stat(early, "perception")
+
+    assert await collectible_service.award(
+        async_session, vault_id=vault.id, dweller=early, collectible_key="guns_and_bullets"
+    )
+    assert (early.magazine_boon or {})["guns_and_bullets"]["amount"] == 1
+    assert effective_stat(early, "perception") == base + 1
+
+    for key in ("tesla_science", "wasteland_survival_guide"):
+        assert await collectible_service.award(async_session, vault_id=vault.id, dweller=late, collectible_key=key)
+
+    assert (early.magazine_boon or {})["guns_and_bullets"]["amount"] == 2
+    assert effective_stat(early, "perception") == base + 2
+
+
 async def test_a_second_magazine_adds_to_the_first_instead_of_replacing_it(
     async_session: AsyncSession, vault: Vault, monkeypatch: pytest.MonkeyPatch
 ) -> None:

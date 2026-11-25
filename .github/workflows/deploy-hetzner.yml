@@ -267,7 +267,8 @@ jobs:
               RATE_LIMIT_WINDOW=60 \
               SECURITY_TRUSTED_PROXIES='["10.42.0.0/16"]' \
               SECURITY_TRUSTED_PROXY_DEPTH=1 \
-              SECURITY_REDIS_FAIL_OPEN=true
+              SECURITY_REDIS_FAIL_OPEN=true \
+              FEATURE_PVP_DUELS=true
           SHELL
 
       - name: Prepare maintenance and database backup

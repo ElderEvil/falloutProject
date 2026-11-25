@@ -30,6 +30,10 @@ PRODUCTION_RUSTFS_PUBLIC_HOST = "s3-api.evillab.tech"
 
 MEDIA_SRC_PATTERN = re.compile(r"media-src\s+([^;]+);")
 
+# nginx.conf serves the SPA from three server blocks; every one of them must carry the policy.
+EXPECTED_NGINX_BLOCKS = 3
+TAURI_POLICY_NAMES = ("csp", "devCsp")
+
 
 def _env_example() -> dict[str, str]:
     values: dict[str, str] = {}
@@ -84,13 +88,27 @@ def _emitted_audio_hosts() -> dict[str, str]:
 
 def _nginx_media_policies() -> list[str]:
     policies = MEDIA_SRC_PATTERN.findall(NGINX_CONF.read_text(encoding="utf-8"))
-    assert policies, "nginx.conf declares no media-src directive"
+    # Every server block must carry the directive: a block that silently loses it would leave the
+    # remaining policies covering each other and both web tests still green.
+    assert len(policies) == EXPECTED_NGINX_BLOCKS, (
+        f"nginx.conf declares media-src {len(policies)} time(s), expected one per server block "
+        f"({EXPECTED_NGINX_BLOCKS}); a block that drops the directive serves audio no player can load"
+    )
     return policies
 
 
 def _tauri_media_policies() -> dict[str, str]:
     security = json.loads(TAURI_CONF.read_text(encoding="utf-8"))["app"]["security"]
-    return {name: security[name]["media-src"] for name in ("csp", "devCsp") if name in security}
+    # `csp` alone is not coverage: the dev server and the packaged app read different policies, so
+    # a missing `devCsp` has to fail here rather than silently pass on `csp`.
+    missing = [name for name in TAURI_POLICY_NAMES if name not in security]
+    assert not missing, f"tauri.conf.json is missing {missing}; the desktop app needs both policies"
+    policies: dict[str, str] = {}
+    for name in TAURI_POLICY_NAMES:
+        policy = security[name]
+        assert "media-src" in policy, f"tauri.conf.json {name} declares no media-src directive"
+        policies[name] = policy["media-src"]
+    return policies
 
 
 def test_web_media_policy_allows_every_host_a_broadcast_can_come_from() -> None:

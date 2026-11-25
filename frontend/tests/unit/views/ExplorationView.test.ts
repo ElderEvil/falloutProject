@@ -504,6 +504,58 @@ describe('ExplorationView', () => {
     expect(modal().props('pendingOnly')).toBe(true)
   })
 
+  it('clears a deferred return the backend no longer reports, and says so', async () => {
+    const clearance = [
+      {
+        exploration_id: 'exploration-overflow',
+        dweller_id: 'dweller-1',
+        unclaimed_loot: [
+          {
+            item_name: 'Wonderglue',
+            quantity: 1,
+            rarity: 'Common',
+            found_at: '2026-01-01T00:00:00Z',
+          },
+        ],
+      },
+    ]
+    vi.mocked(explorationStore.fetchPendingOverflow).mockResolvedValue(clearance)
+
+    wrapper = mount(ExplorationView, {
+      global: {
+        stubs: {
+          SidePanel: true,
+          QuestPartyCard: true,
+          ExplorationRewardsModal: {
+            name: 'ExplorationRewardsModal',
+            template: '<div class="rewards-modal-mock" v-if="show" />',
+            props: ['show', 'rewards', 'dwellerName', 'explorationId', 'pendingOnly'],
+            emits: ['close', 'resolved'],
+          },
+        },
+      },
+    })
+    await flushPromises()
+
+    const modal = () => wrapper.findComponent({ name: 'ExplorationRewardsModal' })
+    // Player walks away from the storage decision: the return is remembered.
+    modal().vm.$emit('close', true)
+    await flushPromises()
+    expect(wrapper.find('.deferred-overflow-banner').exists()).toBe(true)
+
+    // The decisions were settled elsewhere, so the backend reports nothing pending.
+    vi.mocked(explorationStore.fetchPendingOverflow).mockResolvedValue([])
+
+    await wrapper.find('.deferred-overflow-banner button').trigger('click')
+    await flushPromises()
+
+    expect(modal().props('show')).toBe(false)
+    expect(wrapper.find('.deferred-overflow-banner').exists()).toBe(false)
+    expect(mockToast.info).toHaveBeenCalledWith(
+      'Nothing left to resolve — those storage decisions were already settled.'
+    )
+  })
+
   it('still shows a queued return report when unresolved returns cannot load', async () => {
     addPendingReport({
       explorationId: 'exploration-report',
@@ -552,7 +604,7 @@ describe('ExplorationView', () => {
     }
     vi.mocked(explorationStore.fetchPendingOverflow)
       .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([
+      .mockResolvedValue([
         {
           exploration_id: 'exploration-report-overflow',
           dweller_id: 'dweller-1',

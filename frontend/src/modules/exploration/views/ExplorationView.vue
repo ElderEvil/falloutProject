@@ -6,6 +6,7 @@ import { useRoute } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { Icon } from '@iconify/vue'
 import { useAuthStore } from '@/modules/auth/stores/auth'
+import { useToast } from '@/core/composables/useToast'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { getDwellerDisplayName } from '@/modules/dwellers/models/dweller'
@@ -42,6 +43,7 @@ import { useExplorationFinish } from '../composables/useExplorationFinish'
 
 const route = useRoute()
 const authStore = useAuthStore()
+const toast = useToast()
 const vaultStore = useVaultStore()
 const { isCollapsed } = useSidePanel()
 const { filter: dwellerStore } = useDwellerStore()
@@ -78,9 +80,16 @@ const { isLoading: explorationLoading, error: explorationError } = storeToRefs(e
 const isPendingOverflowModal = ref(false)
 const pendingOverflow = ref<PendingOverflow[]>([])
 const deferredReportIds = ref<string[]>([])
+// Only ids the player can still act on: an id the backend no longer reports as pending, and that has
+// no queued report left, would render a banner whose button leads nowhere.
+const actionableDeferredReportIds = computed(() => {
+  const actionable = new Set(pendingOverflow.value.map((pending) => pending.exploration_id))
+  for (const report of pendingReports.value) actionable.add(report.explorationId)
+  return deferredReportIds.value.filter((id) => actionable.has(id))
+})
 const deferredReturnCount = computed(() => {
   const ids = new Set(pendingOverflow.value.map((pending) => pending.exploration_id))
-  for (const id of deferredReportIds.value) ids.add(id)
+  for (const id of actionableDeferredReportIds.value) ids.add(id)
   return ids.size
 })
 const deferredOverflowLabel = computed(
@@ -104,14 +113,14 @@ const {
 
 const { pendingReports } = usePendingReports(vaultId)
 
-function showNextPendingReport(): void {
+function showNextPendingReport(): boolean {
   const next =
     pendingReports.value.find((report) => deferredReportIds.value.includes(report.explorationId)) ??
     pendingReports.value[0]
-  if (next) {
-    isPendingOverflowModal.value = false
-    openRewards(next.rewards, next.dwellerName, next.explorationId)
-  }
+  if (!next) return false
+  isPendingOverflowModal.value = false
+  openRewards(next.rewards, next.dwellerName, next.explorationId)
+  return true
 }
 
 function showPendingOverflow(pending: PendingOverflow): void {
@@ -141,8 +150,22 @@ function showNextPendingOverflow(): boolean {
 }
 
 function reviewDeferredReturns(): void {
+  void reviewDeferredReturnsAfterRefresh()
+}
+
+async function reviewDeferredReturnsAfterRefresh(): Promise<void> {
+  // Re-read before deciding: the storage decisions may have been settled in another tab or by the
+  // server since this banner was drawn, and opening a dead modal is worse than saying so.
+  await refreshPendingOverflow()
+  deferredReportIds.value = actionableDeferredReportIds.value
   if (showNextPendingOverflow()) return
-  showNextPendingReport()
+  if (showNextPendingReport()) return
+  notifyNothingToResolve()
+}
+
+function notifyNothingToResolve(): void {
+  deferredReportIds.value = []
+  toast.info('Nothing left to resolve — those storage decisions were already settled.')
 }
 
 function removePendingOverflow(explorationId: string): void {
@@ -155,6 +178,8 @@ async function refreshPendingOverflow(): Promise<void> {
   if (!vaultId.value || !authStore.token) return
   try {
     pendingOverflow.value = await explorationStore.fetchPendingOverflow(vaultId.value)
+    // Drop ids that are no longer backed by either a pending overflow or a queued report.
+    deferredReportIds.value = actionableDeferredReportIds.value
   } catch (error) {
     notifyErrorOnce(error, 'Could not load unresolved returns')
   }

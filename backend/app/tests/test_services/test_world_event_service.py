@@ -7,6 +7,7 @@ from sqlmodel import select
 
 from app import crud
 from app.core.enums import NotificationType, WorldEventStatus
+from app.core.game_config import game_config
 from app.models.notification import Notification
 from app.models.vault import Vault
 from app.models.world_event import WorldEvent, WorldEventParticipation
@@ -155,6 +156,29 @@ async def test_advance_activates_due_event_but_never_a_second(async_session: Asy
     await async_session.refresh(other)
     assert event.status == WorldEventStatus.ACTIVE
     assert other.status == WorldEventStatus.SCHEDULED
+
+
+async def test_advance_creates_first_event_only_when_enabled(async_session: AsyncSession, monkeypatch) -> None:
+    assert await svc.advance(async_session) is None
+    monkeypatch.setattr(game_config.features, "world_events", True)
+    assert await svc.advance(async_session) == "activated"
+    rows = list((await async_session.execute(select(WorldEvent))).scalars())
+    assert len(rows) == 1
+    assert (rows[0].kind, rows[0].status, rows[0].personal_min) == ("WASTELAND_RELAY", WorldEventStatus.ACTIVE, 5)
+    assert await svc.advance(async_session) is None
+
+
+async def test_advance_creates_next_event_after_a_day_off(async_session: AsyncSession, monkeypatch) -> None:
+    monkeypatch.setattr(game_config.features, "world_events", True)
+    await seed_event(
+        async_session,
+        status=WorldEventStatus.EXPIRED,
+        window=(timedelta(days=-9), timedelta(days=-2)),
+    )
+    assert await svc.advance(async_session) == "activated"
+    rows = list((await async_session.execute(select(WorldEvent))).scalars())
+    assert len(rows) == 2
+    assert sum(row.status == WorldEventStatus.ACTIVE for row in rows) == 1
 
 
 async def test_advance_completion_notifies_participants_only(async_session: AsyncSession) -> None:

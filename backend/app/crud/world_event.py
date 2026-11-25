@@ -77,6 +77,13 @@ class CRUDWorldEvent(CRUDBase[WorldEvent, None, None]):
         )
         return result.scalar_one_or_none()
 
+    async def has_scheduled(self, db_session: AsyncSession) -> bool:
+        """True when any future or due SCHEDULED row already exists."""
+        result = await db_session.execute(
+            select(self.model.id).where(self.model.status == WorldEventStatus.SCHEDULED).limit(1)
+        )
+        return result.scalar_one_or_none() is not None
+
     async def get_participation(
         self, db_session: AsyncSession, event_id: UUID, vault_id: UUID
     ) -> WorldEventParticipation | None:

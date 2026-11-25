@@ -99,6 +99,20 @@ describe('RoomIncidentDetail', () => {
     updated_at: null,
   })
 
+  const clickButton = async (wrapper: Awaited<ReturnType<typeof mountDetail>>, text: string) => {
+    const button = wrapper.findAll('button').find((entry) => entry.text().includes(text))
+    expect(button, `button "${text}"`).toBeDefined()
+    await button!.trigger('click')
+  }
+
+  const suggestAndSend = async (
+    wrapper: Awaited<ReturnType<typeof mountDetail>>,
+    count: number
+  ) => {
+    await clickButton(wrapper, 'Suggest squad')
+    await clickButton(wrapper, `Send ${count} selected`)
+  }
+
   it('names the threat above the scene progress', async () => {
     const text = (await mountDetail()).text()
     expect(text).toContain('RAIDER ATTACK')
@@ -111,7 +125,7 @@ describe('RoomIncidentDetail', () => {
     expect(wrapper.find('[aria-label="Battle log"]').exists()).toBe(true)
   })
 
-  it('offers the strongest adults as the best team and sends them together', async () => {
+  it('suggests the strongest adults, then sends the reviewed squad', async () => {
     const wrapper = await mountDetail({
       dwellers: [
         dweller({ id: 'd1', first_name: 'Alice', combat_power: 10 }),
@@ -121,8 +135,15 @@ describe('RoomIncidentDetail', () => {
       ],
     })
 
-    expect(wrapper.text()).toContain('Send strongest 3')
-    await wrapper.find('button').trigger('click')
+    expect(wrapper.text()).toContain('Suggest squad')
+    expect(assignResponders).not.toHaveBeenCalled()
+    await clickButton(wrapper, 'Suggest squad')
+    // The suggestion stages a selection; nothing is dispatched until confirmed.
+    expect(assignResponders).not.toHaveBeenCalled()
+    expect(
+      wrapper.findAll('button').filter((button) => button.text().includes('Selected'))
+    ).toHaveLength(3)
+    await clickButton(wrapper, 'Send 3 selected')
 
     expect(assignResponders).toHaveBeenCalledWith(
       'vault-1',
@@ -130,6 +151,52 @@ describe('RoomIncidentDetail', () => {
       ['d2', 'd3', 'd1'],
       'test-token'
     )
+  })
+
+  it('trims a confirmed squad when the fight loses slots underneath it', async () => {
+    const wrapper = await mountDetail({
+      dwellers: [
+        dweller({ id: 'd1', first_name: 'Alice', combat_power: 10 }),
+        dweller({ id: 'd2', first_name: 'Bob', combat_power: 90 }),
+        dweller({ id: 'd3', first_name: 'Cara', combat_power: 50 }),
+      ],
+    })
+
+    await clickButton(wrapper, 'Suggest squad')
+    expect(wrapper.text()).toContain('Send 3 selected')
+
+    // A poll reports four helpers already in the fight, leaving two of six slots: the staged
+    // three must shrink rather than ask for a slot the fight no longer has.
+    getIncidentTeam.mockReturnValue(['x1', 'x2', 'x3', 'x4'].map(teamMember))
+    await wrapper.setProps({
+      incident: incident({ id: 'incident-1', progress: { current: 40, target: 100, label: 'Threat' } }),
+    })
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Send 2 selected')
+    await clickButton(wrapper, 'Send 2 selected')
+
+    expect(assignResponders).toHaveBeenCalledWith('vault-1', 'incident-1', ['d2', 'd3'], 'test-token')
+  })
+
+  it('stages only the highest-power helpers and clears the selection after sending', async () => {
+    const wrapper = await mountDetail({
+      dwellers: [
+        dweller({ id: 'd1', first_name: 'Alice', combat_power: 10 }),
+        dweller({ id: 'd2', first_name: 'Bob', combat_power: 90 }),
+      ],
+    })
+
+    await clickButton(wrapper, 'Suggest squad')
+    // Deselect the weaker of the two suggestions (Bob is first, Alice second).
+    const selected = wrapper
+      .findAll('button')
+      .filter((button) => button.text().includes('Selected'))
+    await selected[1].trigger('click')
+    await clickButton(wrapper, 'Send 1 selected')
+
+    expect(assignResponders).toHaveBeenCalledWith('vault-1', 'incident-1', ['d2'], 'test-token')
+    expect(wrapper.text()).not.toContain('Send 1 selected')
   })
 
   it('ranks the entire list by unrounded power and then display name without changing the source list', async () => {
@@ -148,7 +215,7 @@ describe('RoomIncidentDetail', () => {
       'Bob Smith',
     ])
     expect(dwellers.map((candidate) => candidate.id)).toEqual(['d1', 'd2', 'd3', 'd4'])
-    await wrapper.find('button').trigger('click')
+    await suggestAndSend(wrapper, 3)
     expect(assignResponders).toHaveBeenCalledWith(
       'vault-1',
       'incident-1',
@@ -169,7 +236,7 @@ describe('RoomIncidentDetail', () => {
     })
 
     expect(wrapper.findAllComponents(DwellerListRow)).toHaveLength(3)
-    await wrapper.find('button').trigger('click')
+    await suggestAndSend(wrapper, 3)
     expect(assignResponders).toHaveBeenCalledWith(
       'vault-1',
       'incident-1',
@@ -202,7 +269,7 @@ describe('RoomIncidentDetail', () => {
       'Finished Smith',
       'Free Smith',
     ])
-    await wrapper.find('button').trigger('click')
+    await suggestAndSend(wrapper, 2)
     expect(assignResponders).toHaveBeenCalledWith(
       'vault-1',
       'incident-1',
@@ -220,8 +287,10 @@ describe('RoomIncidentDetail', () => {
     })
 
     const text = wrapper.text()
-    expect(text).toContain('Send strongest 1')
+    expect(text).toContain('Suggest squad')
     expect(text).toContain('Bob')
+    await suggestAndSend(wrapper, 1)
+    expect(assignResponders).toHaveBeenCalledWith('vault-1', 'incident-1', ['d2'], 'test-token')
   })
 
   it('excludes dead, away and child dwellers from the send list', async () => {
@@ -237,11 +306,11 @@ describe('RoomIncidentDetail', () => {
     expect(wrapper.text()).toContain('All available adults are already defending or away.')
   })
 
-  it('sends a single dweller from the responder list', async () => {
+  it('sends a selected single dweller from the responder list', async () => {
     const wrapper = await mountDetail({ dwellers: [dweller({ id: 'd1', first_name: 'Alice' })] })
 
-    const buttons = wrapper.findAll('button')
-    await buttons[buttons.length - 1].trigger('click')
+    await clickButton(wrapper, 'Select')
+    await clickButton(wrapper, 'Send 1 selected')
 
     expect(assignResponders).toHaveBeenCalledWith('vault-1', 'incident-1', ['d1'], 'test-token')
   })
@@ -275,11 +344,11 @@ describe('RoomIncidentDetail', () => {
       ],
     })
 
-    const buttons = wrapper.findAll('button')
-    await buttons[0].trigger('click')
+    await clickButton(wrapper, 'Suggest squad')
+    await clickButton(wrapper, 'Send 2 selected')
     await wrapper.vm.$nextTick()
 
-    // Both controls must be inert until the first request settles.
+    // Every control must be inert until the first request settles.
     expect(
       wrapper.findAll('button').every((button) => button.attributes('disabled') !== undefined)
     ).toBe(true)
@@ -332,8 +401,8 @@ describe('RoomIncidentDetail', () => {
       ],
     })
 
-    const buttons = wrapper.findAll('button')
-    await buttons[buttons.length - 1].trigger('click')
+    await clickButton(wrapper, 'Select')
+    await clickButton(wrapper, 'Send 1 selected')
 
     expect(assignResponders).toHaveBeenCalledWith('vault-1', 'incident-1', ['d2'], 'test-token')
   })
@@ -348,7 +417,7 @@ describe('RoomIncidentDetail', () => {
       ],
     })
 
-    await wrapper.find('button').trigger('click')
+    await suggestAndSend(wrapper, 2)
 
     expect(assignResponders).toHaveBeenCalledWith(
       'vault-1',
@@ -365,7 +434,7 @@ describe('RoomIncidentDetail', () => {
     })
 
     expect(wrapper.findAllComponents(DwellerListRow)).toHaveLength(0)
-    expect(wrapper.text()).not.toContain('Send best')
+    expect(wrapper.text()).not.toContain('Suggest squad')
     expect(assignResponders).not.toHaveBeenCalled()
   })
 
@@ -379,8 +448,8 @@ describe('RoomIncidentDetail', () => {
       ],
     })
 
-    expect(wrapper.text()).toContain('Send strongest 1')
-    await wrapper.find('button').trigger('click')
+    expect(wrapper.text()).toContain('Suggest squad')
+    await suggestAndSend(wrapper, 1)
 
     expect(assignResponders).toHaveBeenCalledWith('vault-1', 'incident-1', ['d6'], 'test-token')
   })
@@ -393,11 +462,11 @@ describe('RoomIncidentDetail', () => {
       dwellers: [dweller({ id: 'd7', first_name: 'Gus', room_id: 'room-2' })],
     })
 
-    const buttons = wrapper.findAll('button')
-    await buttons[buttons.length - 1].trigger('click')
+    const suggest = wrapper.findAll('button').find((button) => button.text() === 'Suggest squad')
+    expect(suggest?.attributes('disabled')).toBeDefined()
+    await suggest!.trigger('click')
 
-    expect(wrapper.text()).not.toContain('Send best')
-    expect(buttons.every((button) => button.attributes('disabled') !== undefined)).toBe(true)
+    expect(wrapper.text()).not.toContain('selected')
     expect(assignResponders).not.toHaveBeenCalled()
   })
 
@@ -456,7 +525,7 @@ describe('RoomIncidentDetail', () => {
 
       expect(wrapper.findAllComponents(DwellerListRow)).toHaveLength(1)
       expect(wrapper.text()).not.toContain('Waiting for incident teams')
-      await wrapper.get('button').trigger('click')
+      await suggestAndSend(wrapper, 1)
       expect(assignResponders).toHaveBeenCalledWith('vault-1', 'incident-1', ['d1'], 'test-token')
     }
   )
@@ -466,7 +535,7 @@ describe('RoomIncidentDetail', () => {
     unloadedTeams.add('incident-2')
     const wrapper = await mountDetail({ dwellers: [dweller()] })
 
-    await wrapper.get('button').trigger('click')
+    await suggestAndSend(wrapper, 1)
     expect(assignResponders).toHaveBeenCalledWith('vault-1', 'incident-1', ['d1'], 'test-token')
   })
 
@@ -534,7 +603,7 @@ describe('RoomIncidentDetail', () => {
     expect(wrapper.findAllComponents(DwellerListRow)).toHaveLength(0)
   })
 
-  it('shows working/idle status and posting, then sends nearby inhabitants instead of distant high power', async () => {
+  it('shows status, posting and proximity in list order, then suggests by combat power', async () => {
     const rooms = [
       {
         id: 'room-1',
@@ -606,14 +675,11 @@ describe('RoomIncidentDetail', () => {
     expect(rows[1].text()).toContain('Diner')
     expect(rows[1].text()).toContain('Same floor')
     expect(rows[1].text()).toContain('90/100')
-    await wrapper
-      .findAll('button')
-      .find((button) => button.text() === 'Send nearby 3')!
-      .trigger('click')
+    await suggestAndSend(wrapper, 3)
     expect(assignResponders).toHaveBeenCalledWith(
       'vault-1',
       'incident-1',
-      ['near-idle', 'near-worker', 'middle'],
+      ['far', 'near-worker', 'middle'],
       'test-token'
     )
   })

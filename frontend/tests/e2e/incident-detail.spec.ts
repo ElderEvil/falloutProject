@@ -32,7 +32,7 @@ for (const [width, height] of [
 
     const scene = page.getByRole('region', { name: 'Incident live status' })
     await expect(scene).toBeVisible()
-    await expect(page.getByRole('button', { name: /Send strongest/ })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Suggest squad' })).toBeVisible()
     const body = page.locator('#modal-body')
     const metrics = await body.evaluate((element) => ({
       clientHeight: element.clientHeight,

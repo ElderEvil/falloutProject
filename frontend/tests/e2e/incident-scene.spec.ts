@@ -20,9 +20,13 @@ for (const [width, count] of [
     await page.setViewportSize({ width, height: 900 })
     await page.goto(`/tests/e2e/fixtures/incident-scene.html?responders=${count}`)
     const scene = page.getByRole('region', { name: 'Incident live status' })
+    const visible = Math.min(count, 6)
     await expect(scene).toContainText(`RESPONDERS · ${count}`)
-    await expect(scene.locator('.dweller-name-badge')).toHaveCount(count)
-    await expect(scene.locator('.dweller-health')).toHaveCount(count)
+    await expect(scene.locator('.dweller-name-badge')).toHaveCount(visible)
+    await expect(scene.locator('.dweller-health')).toHaveCount(visible)
+    if (count > visible) {
+      await expect(scene.locator('.incident-overflow')).toHaveText(`+${count - visible}`)
+    }
     await expect(scene.getByAltText('Deathclaw', { exact: true })).toBeVisible()
     await expect(scene.locator('.floating-effect').first().locator('..')).toHaveCSS(
       'overflow-y',

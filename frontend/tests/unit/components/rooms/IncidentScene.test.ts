@@ -455,4 +455,43 @@ describe('Incident room preview', () => {
     expect(wrapper.text()).not.toContain('DISPATCHED')
     expect(wrapper.text()).not.toContain('No responders assigned')
   })
+
+  it('caps the lane at six readable fighters and reports the hidden helpers', () => {
+    const dwellers = Array.from({ length: 8 }, (_, index) =>
+      dweller({ id: `d${index}`, first_name: `Defender${index}` })
+    )
+    const wrapper = mountScene({ dwellers })
+
+    expect(wrapper.findAll('.incident-responder')).toHaveLength(6)
+    expect(wrapper.text()).toContain('RESPONDERS · 8')
+    const overflow = wrapper.get('.incident-overflow')
+    expect(overflow.text()).toBe('+2')
+    expect(overflow.attributes('aria-label')).toContain('Defender6')
+    expect(overflow.attributes('aria-label')).toContain('Defender7')
+  })
+
+  it('scales a large dweller with the same body ratio as the room preview', () => {
+    const wrapper = mountScene({
+      dwellers: [
+        dweller({
+          thumbnail_url: '/static/portraits/mutant.png',
+          visual_attributes: { race: 'super_mutant' },
+        }),
+      ],
+    })
+
+    expect(wrapper.get('.incident-actor').attributes('style')).toContain(
+      '--dweller-body-scale: 1.18'
+    )
+  })
+
+  it('anchors the portrait to the lane floor instead of the top of the frame', () => {
+    const wrapper = mountScene({
+      dwellers: [dweller({ thumbnail_url: '/static/portraits/alice.png' })],
+    })
+
+    expect(wrapper.get('.incident-dweller-portrait').attributes('style')).toContain(
+      'object-position: center bottom'
+    )
+  })
 })

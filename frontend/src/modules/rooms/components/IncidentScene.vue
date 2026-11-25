@@ -6,7 +6,7 @@ import { Progress } from '@/core/components/ui/progress'
 import DwellerNameBadge from '@/modules/dwellers/components/DwellerNameBadge.vue'
 import DwellerPortrait from '@/modules/dwellers/components/DwellerPortrait.vue'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
-import { getEffectiveMaxHealth } from '@/modules/dwellers/models/dweller'
+import { getDwellerPortraitScale, getEffectiveMaxHealth } from '@/modules/dwellers/models/dweller'
 import {
   IncidentType,
   getIncidentParticipants,
@@ -196,11 +196,26 @@ const isHumanoidThreat = computed(() =>
 const fireFlames = ['hazard-flame--side', 'hazard-flame--main', 'hazard-flame--tail'] as const
 // Responders shrink to share the scene lane at any roster size; the lane never
 // becomes a scroll container (a scrollbar beside the fighters read as a bug).
-const isCompact = computed(() => responders.value.length > 3)
+// Past this cap the row stops shrinking: the scene keeps readable sprites and
+// the extra defenders stay in the fight (and the header count), shown as a
+// compact +N chip instead of cards too small to read.
+const MAX_VISIBLE_RESPONDERS = 6
+const visibleResponders = computed(() => responders.value.slice(0, MAX_VISIBLE_RESPONDERS))
+const hiddenResponders = computed(() => responders.value.slice(MAX_VISIBLE_RESPONDERS))
+const hiddenNames = computed(() => hiddenResponders.value.map((responder) => responder.name))
+const isCompact = computed(() => visibleResponders.value.length > 3)
 const responderSizeClass = computed(() => {
-  const count = responders.value.length
+  const count = visibleResponders.value.length
   if (count === 3) return 'responder-cell--3'
   return count > 3 ? 'responder-cell--4' : ''
+})
+// The portrait frame keeps the room's 2:3 body ratio and body-size scale, so a
+// super mutant reads larger and a figure never floats above the lane floor when
+// the cell gets narrow. The frame owns the geometry; the artwork fills it.
+const actorStyle = (responder: IncidentParticipant) => ({
+  '--dweller-body-scale': String(
+    responder.dweller ? getDwellerPortraitScale(responder.dweller) : 1
+  ),
 })
 </script>
 
@@ -248,7 +263,7 @@ const responderSizeClass = computed(() => {
         <!-- Keep responders spread across their half of the scene instead of clustering left. -->
         <div class="flex w-full min-w-0 items-end justify-evenly gap-1 pt-6 pb-1 sm:gap-2">
           <div
-            v-for="responder in responders"
+            v-for="responder in visibleResponders"
             :key="responder.id"
             class="incident-responder relative flex min-w-0 flex-col items-center gap-1"
             :class="[
@@ -279,7 +294,8 @@ const responderSizeClass = computed(() => {
               {{ healthCeiling(responder.dweller) }} HP</span
             >
             <div
-              class="relative flex h-[var(--scene-actor-height)] w-full items-end justify-center"
+              class="incident-actor relative flex items-end justify-center"
+              :style="actorStyle(responder)"
             >
               <CombatantMotion
                 :fighter-id="responder.id"
@@ -292,8 +308,10 @@ const responderSizeClass = computed(() => {
                   :thumbnail-url="responder.dweller.thumbnail_url"
                   :alt="responder.name"
                   image-class="incident-dweller-portrait h-full w-full object-contain drop-shadow-lg"
+                  object-position="center bottom"
                   fallback-class="size-10 text-theme-primary"
                   :zoom="false"
+                  prefer-thumbnail
                 />
                 <UserRound
                   v-else
@@ -313,6 +331,13 @@ const responderSizeClass = computed(() => {
               />
             </div>
           </div>
+          <span
+            v-if="hiddenResponders.length"
+            class="incident-overflow self-end rounded bg-black/85 px-1.5 py-0.5 text-[0.6rem] font-semibold text-theme-primary ring-1 ring-theme-primary/40"
+            :title="`${hiddenResponders.length} more responders: ${hiddenNames.join(', ')}`"
+            :aria-label="`${hiddenResponders.length} more responders: ${hiddenNames.join(', ')}`"
+            >+{{ hiddenResponders.length }}</span
+          >
           <span
             v-if="!responders.length"
             class="self-center rounded bg-black/80 p-2 text-center text-xs text-theme-primary"
@@ -450,8 +475,14 @@ const responderSizeClass = computed(() => {
 .scene-lanes.lane-wide {
   grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
 }
-.responder-frame {
-  height: var(--scene-actor-height);
+/* A room-style portrait frame: the height sets the body size (scaled by the
+   dweller's small/medium/large body), the 2:3 ratio sets the width, and the
+   cell width only clamps it. Anchoring the artwork to the bottom keeps every
+   fighter on the same floor line when a crowded row narrows the frame. */
+.incident-actor {
+  height: calc(var(--scene-actor-height) * var(--dweller-body-scale, 1));
+  width: calc(var(--scene-actor-height) * var(--dweller-body-scale, 1) * 2 / 3);
+  max-width: 100%;
 }
 /* Cells keep their preferred width while the lane has room (justify-evenly
    spreads the spare space) and shrink below it when the roster grows, so the

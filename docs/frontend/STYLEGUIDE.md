@@ -356,7 +356,7 @@ Frame ratios in use:
 | Preview portrait | `RoomDwellerSlot` | `--portrait-frame-aspect` (2:3) | inherited from the frame |
 | Portrait image | `DwellerPortrait` | caller frame | `object-fit: contain`; never sizes the frame |
 | Arena ring | `ArenaRing` | 2:1 | `min-height: 250px` |
-| Incident scene | `IncidentScene` | 5:2 | `min-height: 20rem`, `max-height: 22.5rem`; shared 7rem actor frame, humanoid threats match dweller height |
+| Incident scene | `IncidentScene` | 5:2 | `min-height: 20rem`, `max-height: 22.5rem`; 7rem shared body height in a room-style 2:3 portrait frame, humanoid threats match dweller height, six visible responders then a `+N` overflow chip |
 
 `frontend/tests/e2e/sizing-contract.spec.ts` samples every animation frame and fails if a first
 painted frame disagrees with the settled geometry. It runs in Chromium and Firefox: Firefox resolves

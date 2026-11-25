@@ -6,14 +6,12 @@ export type RadioNewsBroadcast = components['schemas']['BroadcastRead']
 
 /**
  * Fetch today's broadcast; the server generates it on the first call of the UTC day.
- *
- * Returns null for a vault founded today: the first broadcast airs tomorrow.
  */
 export async function fetchRadioNews(
   vaultId: string,
   options: ApiRequestOptions = {}
-): Promise<RadioNewsBroadcast | null> {
-  return apiGet<RadioNewsBroadcast | null>(`/api/v1/vaults/${vaultId}/radio-news`, options)
+): Promise<RadioNewsBroadcast> {
+  return apiGet<RadioNewsBroadcast>(`/api/v1/vaults/${vaultId}/radio-news`, options)
 }
 
 /** Regenerate (re-render) the daily broadcast; rate-limited to 3/UTC day. */

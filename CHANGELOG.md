@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 3.31.4 (2026-11-25)
+
+### Bug Fixes
+
+* **collectibles:** report the live magazine boon in the dweller list ([#1548](https://github.com/ElderEvil/falloutProject/issues/1548)) cc43884
+
 ## 3.31.3 (2026-11-25)
 
 ### Bug Fixes

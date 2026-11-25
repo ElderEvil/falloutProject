@@ -8453,6 +8453,10 @@ export interface components {
             stimpaks: number;
             /** Radaways */
             radaways: number;
+            /** Carry Capacity */
+            carry_capacity: number;
+            /** Pack Slots Used */
+            pack_slots_used: number;
             /** World Version */
             world_version?: number | null;
             /** Origin X */

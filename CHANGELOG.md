@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 3.27.2 (2026-11-25)
+
+### Bug Fixes
+
+* **exploration:** show the pack on dispatched runs too ([#1531](https://github.com/ElderEvil/falloutProject/issues/1531)) d57d78b
+
 ## 3.27.1 (2026-11-25)
 
 ### Bug Fixes

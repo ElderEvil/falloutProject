@@ -6,6 +6,7 @@ import PageContentRail from '@/core/components/common/PageContentRail.vue'
 import PageHeader from '@/core/components/common/PageHeader.vue'
 import VaultPageShell from '@/core/components/common/VaultPageShell.vue'
 import TerminalLoadingState from '@/core/components/common/TerminalLoadingState.vue'
+import TerminalMetric from '@/core/components/common/TerminalMetric.vue'
 import { Progress } from '@/core/components/ui/progress'
 import { Button } from '@/core/components/ui/button'
 import { useCountdown } from '@/core/composables/useCountdown'
@@ -33,6 +34,31 @@ const countdownLabel = computed(() => {
 })
 
 const progressPercent = computed(() => store.progressPercent)
+
+const STATUS_ICONS: Record<string, string> = {
+  ACTIVE: 'mdi:access-point',
+  COMPLETED: 'mdi:check-decagram',
+  EXPIRED: 'mdi:close-octagon-outline',
+}
+
+const statusText = computed(() => store.event?.status ?? 'UNKNOWN')
+const statusIcon = computed(() => STATUS_ICONS[statusText.value] ?? 'mdi:help-circle-outline')
+const statusTone = computed<'primary' | 'danger'>(() =>
+  statusText.value === 'EXPIRED' ? 'danger' : 'primary'
+)
+
+const rewardSummary = computed(() => {
+  const rewards = store.event?.reward ?? []
+  return rewards
+    .map((item) => {
+      const rewardType = String(item.reward_type ?? '').toLowerCase()
+      const amount = item.amount
+      if (amount === null || amount === undefined || amount === '') return rewardType
+      return `${String(amount)} ${rewardType}`.trim()
+    })
+    .filter((label) => label.length > 0)
+    .join(' + ')
+})
 
 async function claim() {
   const ok = await store.claim(vaultId.value)
@@ -71,9 +97,29 @@ usePolling(() => store.load(vaultId.value, { silent: true }), {
 
         <template v-else-if="store.event">
           <div class="rounded border-2 border-terminal-green/40 bg-surface-raised p-6">
-            <h2 class="text-2xl font-bold">{{ store.event.title }}</h2>
+            <div class="flex flex-wrap items-center gap-3">
+              <h2 class="text-2xl font-bold">{{ store.event.title }}</h2>
+              <span
+                class="status-chip inline-flex items-center gap-1.5 rounded border border-terminal-green/40 px-2 py-0.5 text-xs font-bold tracking-[0.12em]"
+              >
+                <Icon
+                  :icon="statusIcon"
+                  class="h-3.5 w-3.5"
+                  :class="statusTone === 'danger' ? 'text-danger' : 'text-terminal-green'"
+                  ariaHidden="true"
+                />
+                {{ statusText }}
+              </span>
+            </div>
             <p v-if="store.event.description" class="mt-2 text-sm text-terminal-green/80">
               {{ store.event.description }}
+            </p>
+            <p
+              v-if="rewardSummary"
+              class="reward-line mt-2 flex items-center gap-1.5 text-sm text-terminal-green/80"
+            >
+              <Icon icon="mdi:coins" class="h-4 w-4 text-(--color-caps)" ariaHidden="true" />
+              <span>{{ rewardSummary }}</span>
             </p>
 
             <div class="mt-6">
@@ -84,26 +130,25 @@ usePolling(() => store.load(vaultId.value, { silent: true }), {
               <Progress :model-value="progressPercent" label="Event progress" />
             </div>
 
-            <dl class="mt-6 grid grid-cols-2 gap-4 text-sm sm:grid-cols-4">
-              <div>
-                <dt class="text-terminal-green/60">Your contribution</dt>
-                <dd class="text-lg font-bold">
-                  {{ store.event.contribution }} / {{ store.event.personal_min }}
-                </dd>
-              </div>
-              <div>
-                <dt class="text-terminal-green/60">Vaults</dt>
-                <dd class="text-lg font-bold">{{ store.event.participant_count }}</dd>
-              </div>
-              <div>
-                <dt class="text-terminal-green/60">Status</dt>
-                <dd class="text-lg font-bold">{{ store.event.status ?? 'UNKNOWN' }}</dd>
-              </div>
-              <div>
-                <dt class="text-terminal-green/60">Ends</dt>
-                <dd class="text-lg font-bold">{{ countdownLabel }}</dd>
-              </div>
-            </dl>
+            <div class="event-metrics mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
+              <TerminalMetric
+                label="YOUR CONTRIBUTION"
+                icon="mdi:account-star"
+                :value="`${store.event.contribution} / ${store.event.personal_min}`"
+              />
+              <TerminalMetric
+                label="VAULTS"
+                icon="mdi:account-group"
+                :value="store.event.participant_count"
+              />
+              <TerminalMetric
+                label="STATUS"
+                :icon="statusIcon"
+                :tone="statusTone"
+                :value="statusText"
+              />
+              <TerminalMetric label="ENDS" icon="mdi:clock-outline" :value="countdownLabel" />
+            </div>
 
             <div class="mt-6 flex items-center gap-4">
               <Button :disabled="!store.event.can_claim || store.claiming" @click="claim">

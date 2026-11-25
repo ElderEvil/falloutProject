@@ -198,6 +198,7 @@ class WorldEventService:
             event = await world_event_crud.get_for_update(db_session, current.id)
             if event is not None and event.status == WorldEventStatus.ACTIVE:
                 return await self._advance_active(db_session, event, now)
+            return None
 
         scheduled = await world_event_crud.get_next_scheduled(db_session, at=now)
         if scheduled is None:

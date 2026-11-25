@@ -4,7 +4,10 @@ import { mount, type VueWrapper } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import WorldMap from '@/modules/map/components/WorldMap.vue'
 import { MAX_ZOOM } from '@/modules/map/composables/useMapZoomPan'
-import { PLACE_MARKER_GLYPH_SCALE } from '@/modules/map/models/markerTypeMeta'
+import {
+  PLACE_MARKER_BODY_SCALE,
+  PLACE_MARKER_GLYPH_SCALE,
+} from '@/modules/map/models/markerTypeMeta'
 import { bearingDegrees } from '@/modules/map/utils/bearing'
 import { isExploredTile } from '@/modules/map/utils/fog'
 import { ATLAS_TILES, registryToTile } from '@/modules/map/utils/atlasProjection'
@@ -39,6 +42,7 @@ const MapMarkerStub = {
     risk: null,
     baseDifficulty: null,
     iconScale: null,
+    bodyScale: null,
   },
   template: '<g class="map-marker map-marker-stub" />',
 }
@@ -218,7 +222,7 @@ describe('WorldMap', () => {
       expect(markers).toHaveLength(5)
     })
 
-    it('renders place markers at the smaller place glyph scale only', async () => {
+    it('renders place markers at the smaller place glyph and body scale only', async () => {
       const [location] = createLocations(1)
       const place = { ...location, type: 'visited' as const }
 
@@ -238,7 +242,9 @@ describe('WorldMap', () => {
       const vaultMarker = markers.find((marker) => marker.props('name') === 'Unknown vault')!
 
       expect(placeMarker.props('iconScale')).toBe(PLACE_MARKER_GLYPH_SCALE)
+      expect(placeMarker.props('bodyScale')).toBe(PLACE_MARKER_BODY_SCALE)
       expect(vaultMarker.props('iconScale')).toBeUndefined()
+      expect(vaultMarker.props('bodyScale')).toBe(PLACE_MARKER_BODY_SCALE)
     })
 
     it('renders the site-type archetype icon on a grouped location marker', async () => {

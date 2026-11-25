@@ -22,6 +22,14 @@ export const MARKER_GLYPH_SIZE = 5.4
 /** Place markers render at 67% glyph size now that roads share the atlas. */
 export const PLACE_MARKER_GLYPH_SCALE = 0.67
 
+/**
+ * Place markers draw on a 72% body: the backing disc, selection rings, badges
+ * and label shrink together, while the glyph keeps its size so the archetype
+ * icon stays legible inside a smaller footprint. The invisible hit area does
+ * not shrink — smaller visuals must not cost easier clicking.
+ */
+export const PLACE_MARKER_BODY_SCALE = 0.72
+
 export const MARKER_TYPES: readonly MarkerTypeMeta[] = [
   { type: 'home_vault', icon: 'mdi:home-city', label: 'Home Vault' },
   { type: 'origin', icon: 'mdi:flag', label: 'Origin' },

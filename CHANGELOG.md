@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 3.28.2 (2026-11-25)
+
+### Bug Fixes
+
+* **deploy:** run the AI gateway smoke check in its own Job, not inside the API pod ([#1534](https://github.com/ElderEvil/falloutProject/issues/1534)) 99f82ea
+
 ## 3.28.1 (2026-11-25)
 
 ### Bug Fixes

@@ -1,14 +1,22 @@
 <script setup lang="ts">
 import { computed, onMounted } from 'vue'
 import { Icon } from '@iconify/vue'
+import { useFeatureFlagsStore } from '@/core/stores/featureFlags'
 import { useWorldEventStore } from '../stores/worldEvent'
 
 const props = defineProps<{ vaultId: string }>()
 const store = useWorldEventStore()
+const flags = useFeatureFlagsStore()
 
 const to = computed(() => `/vault/${props.vaultId}/world-event`)
 
-onMounted(() => store.load(props.vaultId, { silent: true }))
+onMounted(async () => {
+  // The API 404s while the event ships dark, so asking anyway costs a failed request on every
+  // vault load and a console error the banner never shows. Read the flag before asking.
+  if (!flags.loaded) await flags.fetchFlags()
+  if (!flags.worldEvents) return
+  await store.load(props.vaultId, { silent: true })
+})
 </script>
 
 <template>

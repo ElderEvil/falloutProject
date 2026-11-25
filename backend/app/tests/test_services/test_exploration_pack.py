@@ -1,5 +1,7 @@
 """Pack capacity behaviour while an exploration is running."""
 
+from types import SimpleNamespace
+
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.enums import ExplorationStatus
@@ -7,7 +9,7 @@ from app.models.dweller import Dweller
 from app.models.exploration import Exploration
 from app.models.vault import Vault
 from app.schemas.exploration_event import ExplorationEventType
-from app.services.exploration.event_service import apply_loot_find
+from app.services.exploration.event_service import apply_loot_find, event_service
 from app.services.exploration_service import exploration_service
 
 
@@ -82,6 +84,22 @@ async def test_the_next_find_is_refused_logs_one_event_and_leaves_the_run_active
     assert run.return_started_at is None
     assert run.return_completes_at is None
     assert run.recalled_early is False
+
+
+async def test_a_refused_find_hands_its_record_back_for_live_delivery(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller
+) -> None:
+    """The refusal is saved and also published: a live subscriber sees what stayed behind."""
+    run = await _active_run(async_session, vault, dweller, strength=1)
+    _fill_pack(run, run.carry_capacity)
+    loot = SimpleNamespace(
+        loot=SimpleNamespace(item=SimpleNamespace(name="Combat Rifle", rarity="Common"), item_type="junk", caps=0)
+    )
+
+    records = await event_service._handle_loot_event(async_session, run, loot)
+
+    assert [record["type"] for record in records] == [ExplorationEventType.PACK_FULL]
+    assert "Combat Rifle" in records[0]["description"]
 
 
 async def test_a_second_refusal_logs_again_and_still_leaves_the_run_active(

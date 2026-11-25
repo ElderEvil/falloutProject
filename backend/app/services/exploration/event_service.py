@@ -384,9 +384,10 @@ class EventService:
         )
         exploration.total_distance += random.randint(1, 5)
 
-        # A find left behind because the pack was full cannot also be worn.
+        # A find left behind because the pack was full cannot also be worn. Its refusal is the
+        # record add_event just appended, so hand it back: the batch is what gets published live.
         if not added:
-            return []
+            return [exploration.events[-1]] if exploration.events else []
 
         followups: list[dict] = []
         if item_type in {"weapon", "outfit"}:

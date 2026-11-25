@@ -54,8 +54,7 @@ onBeforeUnmount(() => {
     <p v-if="loading" class="text-sm text-theme-primary/60">Loading collectibles…</p>
     <p v-else-if="error" class="text-sm text-theme-danger">{{ error }}</p>
     <p v-else-if="items.length === 0" class="text-sm leading-6 text-theme-primary/60">
-      No bobbleheads yet. Clear a site or search the wasteland — the finder keeps the bonus for
-      life.
+      No collectibles yet. Clear a site or search the wasteland.
     </p>
 
     <ul v-else class="grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -77,7 +76,7 @@ onBeforeUnmount(() => {
           PERMANENT +{{ item.amount }} {{ item.stat.toUpperCase() }}
         </p>
         <p v-else class="text-xs font-bold tracking-[0.08em] text-theme-primary/50">
-          BONUS REMOVED
+          BONUS REMOVED · {{ item.stat.toUpperCase() }}
         </p>
         <p class="mt-1 text-[0.7rem] text-theme-primary/50">Found at {{ item.location }}</p>
       </li>

@@ -7044,7 +7044,7 @@ export interface components {
         };
         /**
          * DwellerCollectibleRead
-         * @description One bobblehead a dweller found, joined with its catalog entry.
+         * @description One collectible a dweller found, joined with its catalog entry.
          */
         DwellerCollectibleRead: {
             /** Key */
@@ -7053,7 +7053,10 @@ export interface components {
             name: string;
             /** Stat */
             stat: string;
-            /** Amount */
+            /**
+             * Amount
+             * @description Live permanent bonus the finder holds; 0 when it was cleared
+             */
             amount: number;
             /** Image */
             image: string;

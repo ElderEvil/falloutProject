@@ -240,6 +240,20 @@ def magazine_boon_bonus(boon: Mapping[str, Any] | None, stat: str) -> int:
     return total
 
 
+def held_magazine_boon_amount(boon: Mapping[str, Any] | None, key: str) -> int:
+    """The amount one held magazine currently pays its holder; 0 when cleared or unreadable.
+
+    Readback and award notifications both report what the finder holds, not the catalog: the
+    completed shelf pays an extra point, and recycling clears the boon while the vault's claim
+    stays behind. A malformed entry reads as 0 so one bad row cannot fail the whole list.
+    """
+    held = (boon or {}).get(key)
+    amount = held.get("amount") if isinstance(held, Mapping) else None
+    if isinstance(amount, int) and not isinstance(amount, bool):
+        return amount
+    return 0
+
+
 def set_held_counts(held_keys: Iterable[str]) -> Counter[str]:
     """Claims per set; a key no longer in the catalog counts for nothing."""
     set_of_key = _set_of_key()

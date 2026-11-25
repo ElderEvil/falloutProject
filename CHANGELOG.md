@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 3.28.0 (2026-11-25)
+
+### Features
+
+* **map:** move filters onto the map and make counters actionable ([#1532](https://github.com/ElderEvil/falloutProject/issues/1532)) 5f55a05
+
 ## 3.27.3 (2026-11-25)
 
 ### Bug Fixes

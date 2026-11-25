@@ -251,6 +251,16 @@ async def test_dispatch_arrival_win_clears_state_loot_and_notifies(
     payload = deliver.await_args.args[1]
     assert payload["notification"]["notification_type"] == NotificationType.LOCATION_CLEARED
 
+    # The run must explain itself in the report: arrival loot skips apply_loot_find's logging,
+    # so without this the journey finished with zero events and the player read "0 events".
+    assert len(exploration.events) == 1
+    event = exploration.events[0]
+    assert event["type"] == "dispatch"
+    assert event["loot"]["outcome"] == "cleared"
+    assert event["loot"]["caps"] == exploration.total_caps_found
+    assert event["location_name"] == "Red Rocket"
+    assert "Red Rocket" in event["description"]
+
 
 @pytest.mark.usefixtures("default_world_snapshot")
 async def test_dispatch_zero_reward_clear_stores_zero_not_null(
@@ -489,6 +499,15 @@ async def test_dispatch_arrival_loss_no_clear_no_loot_no_notification(
     _outcome, expected_damage = resolve_party_combat(members, difficulty)
     assert dweller.health == 100 - expected_damage
     assert await _cleared_notifications(async_session) == []
+
+    # A repelled party still records the journey: the player is told what happened and where.
+    assert len(exploration.events) == 1
+    event = exploration.events[0]
+    assert event["type"] == "dispatch"
+    assert event["loot"]["outcome"] == "repelled"
+    assert event["loot"]["caps"] == 0
+    assert "Repelled at Red Rocket" in event["description"]
+    assert event["health_loss"] == expected_damage
 
 
 @pytest.mark.usefixtures("default_world_snapshot")

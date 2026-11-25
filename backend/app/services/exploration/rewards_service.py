@@ -1,6 +1,7 @@
 """Rewards application for completed explorations."""
 
 import logging
+import math
 from typing import Any, TypedDict
 from uuid import UUID
 
@@ -319,6 +320,31 @@ class RewardsService:
             )
         return experience
 
+    @staticmethod
+    def _journey_distance(exploration: Exploration) -> int:
+        """Miles covered by a spatial journey, measured from the path it walked.
+
+        Spatial runs move through the world snapshot — they update `pos_x`/`pos_y` and append to
+        `trail`, and never touch `total_distance`, which only the legacy event generator increments.
+        The trail is therefore the only record of how far the run went: the farthest point it reached,
+        counted twice when it came home along the same line.
+        """
+        if exploration.world_version is None or not exploration.trail:
+            return exploration.total_distance
+        if exploration.origin_x is None or exploration.origin_y is None:
+            return exploration.total_distance
+        origin = (exploration.origin_x, exploration.origin_y)
+        farthest = max(
+            (
+                math.dist(origin, (float(step["x"]), float(step["y"])))
+                for step in exploration.trail
+                if "x" in step and "y" in step
+            ),
+            default=0.0,
+        )
+        legs = 2 if exploration.return_started_at is not None else 1
+        return max(exploration.total_distance, round(farthest * legs))
+
     async def apply_rewards(
         self,
         db_session: AsyncSession,
@@ -330,6 +356,9 @@ class RewardsService:
         """Apply rewards to vault and dweller."""
         # Get dweller
         dweller_obj = await dweller_crud.get(db_session, exploration.dweller_id)
+        # The report is built from `total_distance`, so settle it before anything is credited.
+        exploration.total_distance = self._journey_distance(exploration)
+        db_session.add(exploration)
 
         # Transfer caps to vault
         total_caps = exploration.total_caps_found

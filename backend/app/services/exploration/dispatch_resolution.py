@@ -160,6 +160,37 @@ async def resolve_dispatch_arrival(db_session: AsyncSession, exploration_id: UUI
                 db_session, exploration=exploration, location=location, members=survivors
             )
 
+    if victory and deaths < party_size:
+        haul = [item.name for item, _item_type in loot_rolls]
+        summary = f"Cleared {location.name}: +{caps} caps"
+        if haul:
+            summary += f" and {len(haul)} item(s)"
+        log_arrival_event(
+            exploration,
+            location,
+            outcome="cleared",
+            description=f"{summary}.",
+            caps=caps,
+            items=haul,
+            damage=total_damage,
+        )
+    elif victory:
+        log_arrival_event(
+            exploration,
+            location,
+            outcome="wiped",
+            description=f"Wiped at {location.name}; the point stays uncleared.",
+            damage=total_damage,
+        )
+    else:
+        log_arrival_event(
+            exploration,
+            location,
+            outcome="repelled",
+            description=f"Repelled at {location.name}; no loot taken.",
+            damage=total_damage,
+        )
+
     db_session.add(exploration)
     # Flush the loot/clear-state work before the return leg re-locks the run:
     # start_return's vault claim re-reads the exploration with populate_existing,
@@ -200,6 +231,34 @@ def _roll_dispatch_loot(
         for entry in table["items"]
     ]
     return caps, rolls
+
+
+def log_arrival_event(
+    exploration: Exploration,
+    location: WorldLocation,
+    *,
+    outcome: str,
+    description: str,
+    caps: int = 0,
+    items: list[str] | None = None,
+    damage: int = 0,
+) -> None:
+    """Record one dispatch arrival in the journey log.
+
+    Arrival loot goes straight through ``apply_loot_find``, which only logs *refused* finds, so a
+    successful dispatch used to finish with an empty event list — the report then read "0 events"
+    over a run that cleared a location. One event per arrival fixes the narrative.
+    """
+    exploration.add_event(
+        event_type="dispatch",
+        description=description,
+        loot={"outcome": outcome, "caps": caps, "items": items or []},
+        location_name=location.name,
+        location_id=location.id,
+        coord_x=location.coord_x,
+        coord_y=location.coord_y,
+        health_loss=damage or None,
+    )
 
 
 def _collectible_payload(award: CollectibleAward) -> dict:
@@ -246,8 +305,16 @@ async def _resolve_trade(
 
     low, high = entry["band"]
     item = common[0]
-    for _ in range(random.randint(low, high)):
+    shipment = random.randint(low, high)
+    for _ in range(shipment):
         apply_loot_find(exploration, item_name=item.name, rarity="common", item_type="junk", caps=0)
+    log_arrival_event(
+        exploration,
+        location,
+        outcome="trade",
+        description=f"Traded with the caravan at {location.name}: {shipment} x {item.name}.",
+        items=[item.name] * shipment,
+    )
     state.caravan_available_at = now + timedelta(hours=trade_terms(group)[1])
     db_session.add(state)
     db_session.add(exploration)
@@ -290,8 +357,16 @@ async def _resolve_salvage(
     payload = await collectible_service.award_site_collectible(
         db_session, exploration=exploration, location=location, members=members, action="salvage"
     )
+    find = random.randint(5, 20)
     if payload is not None:
-        exploration.total_caps_found += random.randint(5, 20)
+        exploration.total_caps_found += find
+    log_arrival_event(
+        exploration,
+        location,
+        outcome="salvage",
+        description=(f"Salvaged {location.name}: {payload.name if payload else 'nothing recoverable'}."),
+        caps=find if payload is not None else 0,
+    )
     db_session.add(exploration)
     await db_session.flush()
     await exploration_coordinator.start_return(db_session, exploration.id, arrived=arrived)

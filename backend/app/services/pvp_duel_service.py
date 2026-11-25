@@ -117,6 +117,16 @@ class PvpDuelService:
         await db_session.commit()
         return entries
 
+    async def get_open(self, db_session: AsyncSession, vault_id: UUID) -> PvpDuelRead | None:
+        """Return this vault's open challenge so any device can restore it."""
+        now = utcnow()
+        open_duels = await pvp_duel_crud.list_open_by_challenger(db_session, vault_id)
+        await pvp_duel_crud.expire_open(db_session, [duel.id for duel in open_duels if duel.expires_at <= now], now)
+        current = next((duel for duel in open_duels if duel.expires_at > now), None)
+        result = _read(current) if current is not None else None
+        await db_session.commit()
+        return result
+
     async def get(self, db_session: AsyncSession, vault_id: UUID, duel_id: UUID) -> PvpDuelRead:
         """Full duel for replay; only its two participants may read it."""
         duel = await self._duel_for_vault(db_session, vault_id, duel_id)

@@ -64,6 +64,17 @@ async def accept_pvp_duel(
     return await pvp_duel_service.accept(db_session, vault_id, duel_id, dweller_ids=body.dweller_ids)
 
 
+@router.get("/current", response_model=PvpDuelRead | None)
+async def get_current_pvp_duel(
+    vault_id: UUID,
+    user: CurrentActiveUser,
+    db_session: DBSession,
+) -> PvpDuelRead | None:
+    """Return this vault's open challenge, if any."""
+    await get_user_vault_or_403(vault_id, user, db_session)
+    return await pvp_duel_service.get_open(db_session, vault_id)
+
+
 @router.get("/{duel_id}", response_model=PvpDuelRead)
 async def get_pvp_duel(
     vault_id: UUID,

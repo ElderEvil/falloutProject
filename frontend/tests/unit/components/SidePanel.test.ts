@@ -3,6 +3,7 @@ import { mount, flushPromises } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import { createRouter, createMemoryHistory } from 'vue-router'
 import SidePanel from '@/core/components/common/SidePanel.vue'
+import { useFeatureFlagsStore } from '@/core/stores/featureFlags'
 
 // Keep the real module surface (`reactiveOmit` etc. are used by the shadcn
 // primitives SidePanel now renders) and override only the persisted ref.
@@ -63,6 +64,16 @@ describe('SidePanel', () => {
       const hotkeys = wrapper.findAll('.hotkey-badge').map((badge) => badge.text())
 
       expect(hotkeys).toEqual(['1', '2', '3', '4', '5', '6', '7', '8', '9'])
+    })
+
+    it('shows The Pit only when duels are enabled', async () => {
+      const flags = useFeatureFlagsStore()
+      const wrapper = mount(SidePanel, { global: { plugins: [router, pinia] } })
+      expect(wrapper.text()).not.toContain('The Pit')
+
+      flags.pvpDuels = true
+      await wrapper.vm.$nextTick()
+      expect(wrapper.text()).toContain('The Pit')
     })
 
     it('marks only the most-specific vault route as active', async () => {

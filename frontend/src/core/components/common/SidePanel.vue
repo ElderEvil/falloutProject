@@ -114,6 +114,14 @@ const navItems = computed((): NavItem[] => {
       path: `/vault/${vaultId.value}/world-event`,
     })
   }
+  if (featureFlags.pvpDuels) {
+    navItems.push({
+      id: 'pvp',
+      label: 'The Pit',
+      icon: 'mdi:sword-cross',
+      path: `/vault/${vaultId.value}/pvp`,
+    })
+  }
 
   return navItems
 })

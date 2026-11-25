@@ -16,6 +16,7 @@ import { aiSettingsRoutes } from '@/modules/ai-settings/routes'
 import { tradingRoutes } from '@/modules/trading/routes'
 import { contaminationTeamRoutes } from '@/modules/contamination-team/routes'
 import { worldEventRoutes } from '@/modules/world-event/routes'
+import { pvpRoutes } from '@/modules/pvp/routes'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -37,6 +38,7 @@ const router = createRouter({
     // Contamination team module routes
     ...contaminationTeamRoutes,
     ...worldEventRoutes,
+    ...pvpRoutes,
     // Progression module routes (training, quests, objectives)
     ...progressionRoutes,
     // Radio module routes
@@ -93,15 +95,6 @@ const router = createRouter({
               devDescription: 'Browse creature, raider, pet, item, and dweller artwork.',
             },
             component: () => import('@/core/views/AssetGalleryView.vue'),
-          },
-          {
-            path: '/dev/combat-zone',
-            name: 'combat-zone-preview',
-            meta: {
-              devTitle: 'Combat Zone',
-              devDescription: 'Preview The Pit duel UI with real vault dwellers.',
-            },
-            component: () => import('@/modules/pvp/views/CombatZonePreview.vue'),
           },
         ]
       : []),

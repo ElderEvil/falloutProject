@@ -19,7 +19,12 @@ describe('Feature flags store', () => {
   })
 
   it('shares one request between concurrent callers', async () => {
-    vi.mocked(apiGet).mockResolvedValue({ race_mechanics: true, faction_mechanics: true, world_events: false })
+    vi.mocked(apiGet).mockResolvedValue({
+      race_mechanics: true,
+      faction_mechanics: true,
+      world_events: false,
+      pvp_duels: false,
+    })
     const store = useFeatureFlagsStore()
 
     // The filter panel and the roster mount together; both must see the resolved flags.
@@ -36,7 +41,12 @@ describe('Feature flags store', () => {
     await store.fetchFlags()
     expect(store.loaded).toBe(false)
 
-    vi.mocked(apiGet).mockResolvedValue({ race_mechanics: true, faction_mechanics: true, world_events: false })
+    vi.mocked(apiGet).mockResolvedValue({
+      race_mechanics: true,
+      faction_mechanics: true,
+      world_events: false,
+      pvp_duels: false,
+    })
     await store.fetchFlags()
     expect(store.factionMechanics).toBe(true)
   })

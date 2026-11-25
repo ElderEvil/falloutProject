@@ -229,6 +229,11 @@ function processNotification(notificationData: InboxNotification) {
         : notificationData.message
     )
   }
+  if (notificationData.meta_data?.duel_id) {
+    if (notificationData.notification_type === 'combat_victory')
+      toast.success(notificationData.message)
+    if (notificationData.notification_type === 'combat_defeat') toast.info(notificationData.message)
+  }
   // A recipe unlock is asynchronous (scrapping happens elsewhere); announce it (progression red line).
   if (notificationData.notification_type === 'recipe_unlocked') {
     toast.success(notificationData.message)
@@ -252,14 +257,20 @@ watch(currentSseEvent, (evt) => {
   if (notification) processNotification(notification)
 })
 
-const fetchNotifications = async (catchUp = false) => {
+const fetchNotifications = async (catchUp = false, recoverDuels = false) => {
   const token = authStore.token
   if (!token) return
   const loaded = await inboxStore.loadRecent()
   if (authStore.token !== token) return
-  if (catchUp)
+  if (catchUp || recoverDuels)
     loaded
       .filter((notification) => !inboxStore.isRead(notification))
+      .filter(
+        (notification) =>
+          catchUp ||
+          (['combat_victory', 'combat_defeat'].includes(notification.notification_type) &&
+            !!notification.meta_data?.duel_id)
+      )
       .reverse()
       .forEach(processNotification)
   loaded.forEach((notification) => seenNotificationIds.add(notification.id))
@@ -386,8 +397,7 @@ const getPriorityColor = (priority: string): string => {
 
 onMounted(() => {
   window.addEventListener('keydown', handleKeydown)
-  fetchUnreadCount()
-  fetchNotifications()
+  void fetchNotifications(false, true).then(fetchUnreadCount)
   if (authStore.token) {
     startSse()
   }

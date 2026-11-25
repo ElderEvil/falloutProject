@@ -2,7 +2,6 @@
 import { computed, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { Icon } from '@iconify/vue'
-import { useLocalStorage } from '@vueuse/core'
 import PageHeader from '@/core/components/common/PageHeader.vue'
 import VaultPageShell from '@/core/components/common/VaultPageShell.vue'
 import { Badge } from '@/core/components/ui/badge'
@@ -15,37 +14,31 @@ import {
   CardTitle,
 } from '@/core/components/ui/card'
 import { useToast } from '@/core/composables/useToast'
-import { handleStoreError } from '@/core/utils/errorHandler'
-import { parseUtcMs } from '@/core/utils/time'
+import { formatDateTime } from '@/core/utils/format'
 import { getDwellerDisplayName, type DwellerShort } from '@/modules/dwellers/models/dweller'
-import { getDwellersByVault } from '@/modules/dwellers/services/dwellerService'
+import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { useVaultStore } from '@/modules/vault/stores/vault'
-import { pvpDuelApi, type PvpDuel } from '../api/pvpDuels'
+import { usePvpStore } from '../stores/pvp'
 
 const route = useRoute()
 const vaultStore = useVaultStore()
+const pvpStore = usePvpStore()
+const { filter: dwellerFilter } = useDwellerStore()
 const toast = useToast()
-const openDuelIds = useLocalStorage<Record<string, string>>('pvp:open-duel-ids', {})
 const vaultId = computed(() => route.params.id as string)
 const vaultLabel = computed(() => {
   const vault = vaultStore.vaults.find((candidate) => candidate.id === vaultId.value)
   return vault ? `Vault ${vault.number}` : 'Your vault'
 })
 
-const roster = ref<DwellerShort[]>([])
 const selectedIds = ref<string[]>([])
-const board = ref<Awaited<ReturnType<typeof pvpDuelApi.list>>>([])
-const currentDuel = ref<PvpDuel | null>(null)
-const activeDuel = ref<PvpDuel | null>(null)
-const loading = ref(true)
-const acting = ref(false)
-let loadVersion = 0
-
+const roster = computed(() =>
+  dwellerFilter.allDwellers.filter((dweller) => dweller.status !== 'dead')
+)
 const selectedCount = computed(() => selectedIds.value.length)
-const hasOpenChallenge = computed(() => currentDuel.value?.status === 'OPEN')
-const journal = computed(() => activeDuel.value?.journal ?? [])
+const journal = computed(() => pvpStore.displayedDuel?.journal ?? [])
 const winnerName = computed(() => {
-  const duel = activeDuel.value
+  const duel = pvpStore.displayedDuel
   if (!duel?.outcome) return ''
   return duel.outcome === 'challenger'
     ? duel.challenger_party.vault_name
@@ -64,71 +57,31 @@ function toggleDweller(id: string): void {
   }
 }
 
-function formatExpiry(value: string): string {
-  return new Date(parseUtcMs(value)).toLocaleString()
-}
-
 async function load(): Promise<void> {
-  const version = ++loadVersion
-  loading.value = true
-  try {
-    if (!vaultStore.vaults.length) await vaultStore.fetchVaults()
-    const id = vaultId.value
-    const [dwellers, entries] = await Promise.all([getDwellersByVault(id), pvpDuelApi.list(id)])
-    if (version !== loadVersion) return
-    roster.value = dwellers.filter((dweller) => dweller.status !== 'dead')
-    const rosterIds = new Set(roster.value.map((dweller) => dweller.id))
-    const retained = selectedIds.value.filter((selected) => rosterIds.has(selected))
-    selectedIds.value = retained.length
-      ? retained
-      : roster.value.slice(0, 3).map((dweller) => dweller.id)
-    board.value = entries
-    const requestedDuel = route.query.duel
-    const fromNotification = typeof requestedDuel === 'string'
-    const duelId = fromNotification ? requestedDuel : openDuelIds.value[id]
-    activeDuel.value = duelId ? await pvpDuelApi.get(id, duelId) : null
-    currentDuel.value =
-      !fromNotification && activeDuel.value?.status === 'OPEN' ? activeDuel.value : null
-    if (!fromNotification) {
-      if (currentDuel.value) openDuelIds.value[id] = currentDuel.value.duel_id
-      else delete openDuelIds.value[id]
-    }
-  } catch (error) {
-    handleStoreError(error, 'Failed to load The Pit')
-  } finally {
-    if (version === loadVersion) loading.value = false
-  }
+  const id = vaultId.value
+  const requestedDuel = route.query.duel
+  const [loaded] = await Promise.all([
+    pvpStore.load(id, typeof requestedDuel === 'string' ? requestedDuel : undefined),
+    dwellerFilter.fetchAllDwellers(id),
+  ])
+  if (!loaded || id !== vaultId.value) return
+  const rosterIds = new Set(roster.value.map((dweller) => dweller.id))
+  const retained = selectedIds.value.filter((selected) => rosterIds.has(selected))
+  selectedIds.value = retained.length
+    ? retained
+    : roster.value.slice(0, 3).map((dweller) => dweller.id)
 }
 
 async function postChallenge(): Promise<void> {
-  if (!selectedCount.value || acting.value) return
-  acting.value = true
-  try {
-    const duel = await pvpDuelApi.post(vaultId.value, selectedIds.value)
-    currentDuel.value = duel
-    activeDuel.value = duel
-    openDuelIds.value[vaultId.value] = duel.duel_id
-    toast.success('Challenge posted to the duel board')
-  } catch (error) {
-    handleStoreError(error, 'Failed to post the challenge')
-  } finally {
-    acting.value = false
-  }
+  if (!selectedCount.value || pvpStore.acting) return
+  const duel = await pvpStore.post(vaultId.value, selectedIds.value)
+  if (duel) toast.success('Challenge posted to the duel board')
 }
 
 async function acceptChallenge(duelId: string): Promise<void> {
-  if (!selectedCount.value || acting.value) return
-  acting.value = true
-  try {
-    activeDuel.value = await pvpDuelApi.accept(vaultId.value, duelId, selectedIds.value)
-    if (openDuelIds.value[vaultId.value] === duelId) delete openDuelIds.value[vaultId.value]
-    board.value = board.value.filter((entry) => entry.duel_id !== duelId)
-    toast.success('Duel settled')
-  } catch (error) {
-    handleStoreError(error, 'Failed to accept the challenge')
-  } finally {
-    acting.value = false
-  }
+  if (!selectedCount.value || pvpStore.acting) return
+  const duel = await pvpStore.accept(vaultId.value, duelId, selectedIds.value)
+  if (duel) toast.success('Duel settled')
 }
 
 watch([vaultId, () => route.query.duel], load, { immediate: true })
@@ -143,7 +96,12 @@ watch([vaultId, () => route.query.duel], load, { immediate: true })
         subtitle="Cross-vault exhibition duels using frozen party snapshots"
       >
         <template #actions>
-          <Button variant="outline" size="sm" :disabled="loading || acting" @click="load">
+          <Button
+            variant="outline"
+            size="sm"
+            :disabled="pvpStore.loading || pvpStore.acting"
+            @click="load"
+          >
             <Icon icon="mdi:refresh" :ariaHidden="true" />
             Refresh
           </Button>
@@ -166,7 +124,9 @@ watch([vaultId, () => route.query.duel], load, { immediate: true })
               :variant="selectedIds.includes(dweller.id) ? 'default' : 'outline'"
               class="h-auto justify-start px-3 py-2 text-left"
               :aria-pressed="selectedIds.includes(dweller.id)"
-              :disabled="acting || (!selectedIds.includes(dweller.id) && selectedCount >= 3)"
+              :disabled="
+                pvpStore.acting || (!selectedIds.includes(dweller.id) && selectedCount >= 3)
+              "
               @click="toggleDweller(dweller.id)"
             >
               <span class="flex min-w-0 flex-col">
@@ -177,30 +137,35 @@ watch([vaultId, () => route.query.duel], load, { immediate: true })
               </span>
             </Button>
           </div>
-          <p v-if="!loading && !roster.length" class="text-sm text-muted-foreground">
+          <p v-if="!pvpStore.loading && !roster.length" class="text-sm text-muted-foreground">
             No living dwellers are available.
           </p>
           <div class="flex flex-wrap items-center gap-3">
-            <Button :disabled="!selectedCount || hasOpenChallenge || acting" @click="postChallenge">
+            <Button
+              :disabled="!selectedCount || pvpStore.hasOpenChallenge || pvpStore.acting"
+              @click="postChallenge"
+            >
               <Icon icon="mdi:sword" :ariaHidden="true" />
-              {{ acting ? 'Working…' : 'Post challenge' }}
+              {{ pvpStore.acting ? 'Working…' : 'Post challenge' }}
             </Button>
             <span class="text-xs text-muted-foreground">{{ selectedCount }} / 3 selected</span>
-            <span v-if="hasOpenChallenge" class="text-xs text-muted-foreground">
+            <span v-if="pvpStore.hasOpenChallenge" class="text-xs text-muted-foreground">
               Your current challenge must settle or expire before another can be posted.
             </span>
           </div>
         </CardContent>
       </Card>
 
-      <Card v-if="currentDuel">
+      <Card v-if="pvpStore.ownOpenDuel">
         <CardHeader>
           <CardTitle>Your open challenge</CardTitle>
-          <CardDescription> Expires {{ formatExpiry(currentDuel.expires_at) }} </CardDescription>
+          <CardDescription>
+            Expires {{ formatDateTime(pvpStore.ownOpenDuel.expires_at) }}
+          </CardDescription>
         </CardHeader>
         <CardContent class="flex flex-wrap items-center gap-3">
-          <Badge variant="outline">{{ currentDuel.challenger_party.power_band }}</Badge>
-          <span>{{ currentDuel.challenger_party.member_names.join(', ') }}</span>
+          <Badge variant="outline">{{ pvpStore.ownOpenDuel.challenger_party.power_band }}</Badge>
+          <span>{{ pvpStore.ownOpenDuel.challenger_party.member_names.join(', ') }}</span>
         </CardContent>
       </Card>
 
@@ -210,13 +175,15 @@ watch([vaultId, () => route.query.duel], load, { immediate: true })
           <CardDescription>Accepting settles the duel immediately on the server.</CardDescription>
         </CardHeader>
         <CardContent>
-          <p v-if="loading" class="text-sm text-muted-foreground">Loading the duel board…</p>
-          <p v-else-if="!board.length" class="text-sm text-muted-foreground">
+          <p v-if="pvpStore.loading" class="text-sm text-muted-foreground">
+            Loading the duel board…
+          </p>
+          <p v-else-if="!pvpStore.board.length" class="text-sm text-muted-foreground">
             No challenges are waiting. Post yours for another vault to answer.
           </p>
           <ul v-else class="flex flex-col gap-3">
             <li
-              v-for="entry in board"
+              v-for="entry in pvpStore.board"
               :key="entry.duel_id"
               class="flex flex-col gap-3 rounded border border-border p-3 sm:flex-row sm:items-center"
             >
@@ -225,10 +192,13 @@ watch([vaultId, () => route.query.duel], load, { immediate: true })
                 <p class="text-sm text-muted-foreground">{{ entry.member_names.join(', ') }}</p>
                 <p class="text-xs text-muted-foreground">
                   {{ entry.power_band }} · {{ entry.party_size }} fighters · expires
-                  {{ formatExpiry(entry.expires_at) }}
+                  {{ formatDateTime(entry.expires_at) }}
                 </p>
               </div>
-              <Button :disabled="!selectedCount || acting" @click="acceptChallenge(entry.duel_id)">
+              <Button
+                :disabled="!selectedCount || pvpStore.acting"
+                @click="acceptChallenge(entry.duel_id)"
+              >
                 Accept
               </Button>
             </li>
@@ -236,7 +206,11 @@ watch([vaultId, () => route.query.duel], load, { immediate: true })
         </CardContent>
       </Card>
 
-      <Card v-if="activeDuel?.status === 'ACCEPTED' && activeDuel.defender_party">
+      <Card
+        v-if="
+          pvpStore.displayedDuel?.status === 'ACCEPTED' && pvpStore.displayedDuel.defender_party
+        "
+      >
         <CardHeader>
           <CardTitle>{{ winnerName }} wins</CardTitle>
           <CardDescription>Authoritative result and replay from the server.</CardDescription>
@@ -244,15 +218,15 @@ watch([vaultId, () => route.query.duel], load, { immediate: true })
         <CardContent class="flex flex-col gap-4">
           <div class="grid gap-3 sm:grid-cols-2">
             <div class="rounded border border-border p-3">
-              <p class="font-bold">{{ activeDuel.challenger_party.vault_name }}</p>
+              <p class="font-bold">{{ pvpStore.displayedDuel.challenger_party.vault_name }}</p>
               <p class="text-sm text-muted-foreground">
-                {{ activeDuel.challenger_party.member_names.join(', ') }}
+                {{ pvpStore.displayedDuel.challenger_party.member_names.join(', ') }}
               </p>
             </div>
             <div class="rounded border border-border p-3">
-              <p class="font-bold">{{ activeDuel.defender_party.vault_name }}</p>
+              <p class="font-bold">{{ pvpStore.displayedDuel.defender_party.vault_name }}</p>
               <p class="text-sm text-muted-foreground">
-                {{ activeDuel.defender_party.member_names.join(', ') }}
+                {{ pvpStore.displayedDuel.defender_party.member_names.join(', ') }}
               </p>
             </div>
           </div>

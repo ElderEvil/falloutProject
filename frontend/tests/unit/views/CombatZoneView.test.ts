@@ -6,11 +6,12 @@ import { createIconifyMock, createToastMock } from '../helpers/mocks'
 import CombatZoneView from '@/modules/pvp/views/CombatZoneView.vue'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
-import type { PvpDuel } from '@/modules/pvp/api/pvpDuels'
+import type { PvpDuel } from '@/modules/pvp/services/pvpDuelService'
 
 const route = reactive({ params: { id: 'vault-a' }, query: {} as Record<string, string> })
 const api = vi.hoisted(() => ({
   list: vi.fn(),
+  current: vi.fn(),
   get: vi.fn(),
   post: vi.fn(),
   accept: vi.fn(),
@@ -23,7 +24,7 @@ vi.mock('vue-router', async () => ({
 }))
 vi.mock('@iconify/vue', () => createIconifyMock())
 vi.mock('@/core/composables/useToast', () => ({ useToast: () => createToastMock() }))
-vi.mock('@/modules/pvp/api/pvpDuels', () => ({ pvpDuelApi: api }))
+vi.mock('@/modules/pvp/services/pvpDuelService', () => ({ pvpDuelService: api }))
 vi.mock('@/modules/dwellers/services/dwellerService', () => ({ getDwellersByVault: getDwellers }))
 
 function dweller(id: string, name: string): DwellerShort {
@@ -102,7 +103,6 @@ describe('CombatZoneView', () => {
     vi.clearAllMocks()
     route.params.id = 'vault-a'
     route.query = {}
-    localStorage.clear()
     const vaultStore = useVaultStore()
     vaultStore.vaults = [
       { id: 'vault-a', number: 7 },
@@ -110,6 +110,7 @@ describe('CombatZoneView', () => {
     ] as typeof vaultStore.vaults
     getDwellers.mockResolvedValue(roster)
     api.list.mockResolvedValue([boardEntry])
+    api.current.mockResolvedValue(null)
     api.get.mockResolvedValue(settled)
     api.post.mockResolvedValue(posted)
     api.accept.mockResolvedValue(settled)
@@ -120,6 +121,7 @@ describe('CombatZoneView', () => {
     await flushPromises()
 
     expect(api.list).toHaveBeenCalledWith('vault-a')
+    expect(api.current).toHaveBeenCalledWith('vault-a')
     expect(wrapper.text()).toContain('Vault 7')
     expect(wrapper.text()).toContain('Ada')
     expect(wrapper.text()).toContain('3 / 3 selected')
@@ -151,13 +153,13 @@ describe('CombatZoneView', () => {
     expect(wrapper.text()).toContain('No challenges are waiting')
   })
 
-  it('restores a remembered open challenge after a reload', async () => {
-    localStorage.setItem('pvp:open-duel-ids', JSON.stringify({ 'vault-a': 'duel-open' }))
-    api.get.mockResolvedValue(posted)
+  it('restores the server-owned open challenge on any device', async () => {
+    api.current.mockResolvedValue(posted)
     const wrapper = mountView()
     await flushPromises()
 
-    expect(api.get).toHaveBeenCalledWith('vault-a', 'duel-open')
+    expect(api.current).toHaveBeenCalledWith('vault-a')
+    expect(api.get).not.toHaveBeenCalled()
     expect(wrapper.text()).toContain('Your open challenge')
   })
 
@@ -168,6 +170,45 @@ describe('CombatZoneView', () => {
 
     expect(api.get).toHaveBeenCalledWith('vault-a', 'duel-settled')
     expect(wrapper.text()).toContain('Vault 8 wins')
+  })
+
+  it('ignores a delayed duel read from the previous vault', async () => {
+    route.query = { duel: 'duel-settled' }
+    let resolveDuel!: (value: PvpDuel) => void
+    api.get.mockImplementation(
+      () =>
+        new Promise<PvpDuel>((resolve) => {
+          resolveDuel = resolve
+        })
+    )
+    const wrapper = mountView()
+    await vi.waitFor(() => expect(api.get).toHaveBeenCalled())
+    route.params.id = 'vault-b'
+    route.query = {}
+    await flushPromises()
+    resolveDuel(settled)
+    await flushPromises()
+
+    expect(wrapper.text()).not.toContain('Vault 8 wins')
+  })
+
+  it('does not apply a posted challenge after the vault changes', async () => {
+    let resolvePost!: (value: PvpDuel) => void
+    api.post.mockImplementation(
+      () =>
+        new Promise<PvpDuel>((resolve) => {
+          resolvePost = resolve
+        })
+    )
+    const wrapper = mountView()
+    await flushPromises()
+    await button(wrapper, 'Post challenge').trigger('click')
+    route.params.id = 'vault-b'
+    await flushPromises()
+    resolvePost(posted)
+    await flushPromises()
+
+    expect(wrapper.text()).not.toContain('Your open challenge')
   })
 
   it('ignores a roster response from the previous vault', async () => {

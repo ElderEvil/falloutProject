@@ -6,8 +6,9 @@ export type PvpBoardEntry = components['schemas']['PvpDuelBoardEntry']
 
 const base = (vaultId: string) => `/api/v1/vaults/${vaultId}/pvp-duels`
 
-export const pvpDuelApi = {
+export const pvpDuelService = {
   list: (vaultId: string) => apiGet<PvpBoardEntry[]>(base(vaultId)),
+  current: (vaultId: string) => apiGet<PvpDuel | null>(`${base(vaultId)}/current`),
   get: (vaultId: string, duelId: string) => apiGet<PvpDuel>(`${base(vaultId)}/${duelId}`),
   post: (vaultId: string, dwellerIds: string[]) =>
     apiPost<PvpDuel>(base(vaultId), { dweller_ids: dwellerIds }),

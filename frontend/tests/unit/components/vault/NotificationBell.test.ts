@@ -1411,4 +1411,31 @@ describe('NotificationBell popup accessibility', () => {
 
     expect(useNotificationInboxStore().recentNotifications).toEqual([])
   })
+
+  it.each(['combat_victory', 'combat_defeat'])(
+    'recovers an unread %s duel result once without double-counting it',
+    async (notification_type) => {
+      useToast().toasts.value = []
+      const wrapper = await mountBell([
+        {
+          id: `duel-${notification_type}`,
+          vault_id: 'vault-1',
+          notification_type,
+          title: 'Exhibition duel result',
+          message: 'The duel result is ready to replay',
+          priority: 'normal',
+          is_read: false,
+          created_at: '2026-11-01T10:00:00',
+          meta_data: { duel_id: 'duel-1' },
+        },
+      ])
+
+      const matching = useToast().toasts.value.filter(
+        (toast) => toast.message === 'The duel result is ready to replay'
+      )
+      expect(matching).toHaveLength(1)
+      expect(useNotificationInboxStore().unreadCount).toBe(1)
+      wrapper.unmount()
+    }
+  )
 })

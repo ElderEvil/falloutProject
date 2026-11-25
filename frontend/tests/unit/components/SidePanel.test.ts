@@ -68,9 +68,11 @@ describe('SidePanel', () => {
 
     it('shows The Pit only when duels are enabled', async () => {
       const flags = useFeatureFlagsStore()
-      flags.pvpDuels = true
       const wrapper = mount(SidePanel, { global: { plugins: [router, pinia] } })
+      expect(wrapper.text()).not.toContain('The Pit')
 
+      flags.pvpDuels = true
+      await wrapper.vm.$nextTick()
       expect(wrapper.text()).toContain('The Pit')
     })
 

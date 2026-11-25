@@ -5553,6 +5553,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/vaults/{vault_id}/pvp-duels/current": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Current Pvp Duel
+         * @description Return this vault's open challenge, if any.
+         */
+        get: operations["get_current_pvp_duel_api_v1_vaults__vault_id__pvp_duels_current_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/vaults/{vault_id}/pvp-duels/{duel_id}": {
         parameters: {
             query?: never;
@@ -21063,6 +21083,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PvpDuelRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_current_pvp_duel_api_v1_vaults__vault_id__pvp_duels_current_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                vault_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PvpDuelRead"] | null;
                 };
             };
             /** @description Validation Error */

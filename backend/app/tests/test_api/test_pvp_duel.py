@@ -26,16 +26,17 @@ async def owner_fixture(user: User) -> AsyncGenerator[User]:
         app.dependency_overrides.pop(get_current_active_user, None)
 
 
-async def test_flag_off_returns_404_on_all_four_routes(async_client, owner, vault, monkeypatch) -> None:
+async def test_flag_off_returns_404_on_all_five_routes(async_client, owner, vault, monkeypatch) -> None:
     monkeypatch.setattr(game_config.features, "pvp_duels", False)
     duel_id = uuid4()
     responses = [
         await async_client.get(f"/vaults/{vault.id}/pvp-duels"),
+        await async_client.get(f"/vaults/{vault.id}/pvp-duels/current"),
         await async_client.post(f"/vaults/{vault.id}/pvp-duels", json={}),
         await async_client.post(f"/vaults/{vault.id}/pvp-duels/{duel_id}/accept", json={}),
         await async_client.get(f"/vaults/{vault.id}/pvp-duels/{duel_id}"),
     ]
-    assert [response.status_code for response in responses] == [404, 404, 404, 404]
+    assert [response.status_code for response in responses] == [404, 404, 404, 404, 404]
 
 
 async def test_post_board_accept_and_replay(
@@ -46,6 +47,9 @@ async def test_post_board_accept_and_replay(
     assert posted.status_code == 201, posted.text
     duel_id = posted.json()["duel_id"]
     assert posted.json()["challenger_party"]["member_names"] == [dweller.display_name]
+    current = await async_client.get(f"/vaults/{vault.id}/pvp-duels/current")
+    assert current.status_code == 200
+    assert current.json()["duel_id"] == duel_id
     own_board = await async_client.get(f"/vaults/{vault.id}/pvp-duels")
     assert own_board.status_code == 200
     assert own_board.json() == []
@@ -80,6 +84,9 @@ async def test_post_board_accept_and_replay(
     assert body["defender_party"]["vault_name"]
     assert body["journal"][-1]["kind"] == "outcome"
     assert body["accepted_at"] is not None
+    current = await async_client.get(f"/vaults/{vault.id}/pvp-duels/current")
+    assert current.status_code == 200
+    assert current.json() is None
 
 
 async def test_post_rejects_a_party_outside_one_to_three(async_client, vault, dweller, owner) -> None:

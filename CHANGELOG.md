@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 3.27.1 (2026-11-25)
+
+### Bug Fixes
+
+* **rooms:** fit incident responders and review helper squads ([#1530](https://github.com/ElderEvil/falloutProject/issues/1530)) db3ee95
+
 ## 3.27.0 (2026-11-25)
 
 ### Features

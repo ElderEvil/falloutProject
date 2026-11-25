@@ -231,7 +231,6 @@ const tryClose = () => emit('close', requiresResolution.value)
         </div>
       </div>
 
-      <!-- Returned Supplies -->
       <!-- Rewards Grid -->
       <div
         v-if="!pendingOnly"
@@ -294,6 +293,7 @@ const tryClose = () => emit('close', requiresResolution.value)
         <p>No items found during this exploration</p>
       </div>
 
+      <!-- Returned Supplies -->
       <div v-if="returnedSupplies.length > 0" class="returned-supplies mt-6">
         <h3 class="panel-header text-lg font-bold text-theme-primary">
           <span class="flex items-center gap-2">

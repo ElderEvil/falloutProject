@@ -7,7 +7,7 @@ import {
   ACTIVE_EXPLORATIONS_REFRESH_MS,
   useExplorationStore,
 } from '@/modules/exploration/stores/exploration'
-import type { Exploration } from '@/modules/exploration/stores/exploration'
+import type { Exploration, PendingOverflow } from '@/modules/exploration/stores/exploration'
 import type { ExplorationPartyMember } from '@/modules/exploration/api/exploration'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { useQuestStore } from '@/modules/progression/stores/quest'
@@ -544,9 +544,20 @@ describe('ExplorationView', () => {
     expect(wrapper.find('.deferred-overflow-banner').exists()).toBe(true)
 
     // The decisions were settled elsewhere, so the backend reports nothing pending.
-    vi.mocked(explorationStore.fetchPendingOverflow).mockResolvedValue([])
+    let resolvePending!: (value: PendingOverflow[]) => void
+    vi.mocked(explorationStore.fetchPendingOverflow).mockImplementation(
+      () =>
+        new Promise<PendingOverflow[]>((resolve) => {
+          resolvePending = resolve
+        })
+    )
 
     await wrapper.find('.deferred-overflow-banner button').trigger('click')
+    const reviewButton = wrapper.find('.deferred-overflow-banner button')
+    expect(reviewButton.text()).toBe('Checking…')
+    expect(reviewButton.attributes('disabled')).toBeDefined()
+
+    resolvePending([])
     await flushPromises()
 
     expect(modal().props('show')).toBe(false)
@@ -554,6 +565,49 @@ describe('ExplorationView', () => {
     expect(mockToast.info).toHaveBeenCalledWith(
       'Nothing left to resolve — those storage decisions were already settled.'
     )
+  })
+
+  it('drops a local deferred id after its queued report is acknowledged elsewhere', async () => {
+    vi.mocked(explorationStore.fetchPendingOverflow).mockResolvedValue([])
+    addPendingReport({
+      explorationId: 'exploration-settled-elsewhere',
+      vaultId: 'vault-123',
+      dwellerId: 'dweller-1',
+      dwellerName: 'Christina Reid',
+      rewards: {
+        caps: 18,
+        items: [],
+        experience: 18,
+        distance: 0,
+        enemies_defeated: 0,
+        events_encountered: 0,
+      },
+    })
+    wrapper = mount(ExplorationView, {
+      global: {
+        stubs: {
+          SidePanel: true,
+          QuestPartyCard: true,
+          ExplorationRewardsModal: {
+            name: 'ExplorationRewardsModal',
+            template: '<div class="rewards-modal-mock" v-if="show" />',
+            props: ['show', 'rewards', 'dwellerName', 'explorationId', 'pendingOnly'],
+            emits: ['close', 'resolved'],
+          },
+        },
+      },
+    })
+    await flushPromises()
+
+    const modal = () => wrapper.findComponent({ name: 'ExplorationRewardsModal' })
+    modal().vm.$emit('close', true)
+    await flushPromises()
+    expect(wrapper.find('.deferred-overflow-banner').exists()).toBe(true)
+
+    acknowledgeReport('exploration-settled-elsewhere')
+    await flushPromises()
+
+    expect(wrapper.find('.deferred-overflow-banner').exists()).toBe(false)
   })
 
   it('still shows a queued return report when unresolved returns cannot load', async () => {
@@ -851,6 +905,7 @@ describe('ExplorationView', () => {
 
     const modal = () => wrapper.findComponent({ name: 'ExplorationRewardsModal' })
     expect(modal().props('pendingOnly')).toBe(false)
+    expect(modal().props('rewards').overflow_items).toHaveLength(1)
 
     modal().vm.$emit('close', true)
     await flushPromises()
@@ -862,5 +917,6 @@ describe('ExplorationView', () => {
 
     expect(modal().props('show')).toBe(true)
     expect(modal().props('explorationId')).toBe('exploration-deferred-report')
+    expect(modal().props('rewards').overflow_items).toHaveLength(1)
   })
 })

@@ -333,10 +333,10 @@ describe('ExplorationRewardsModal', () => {
     // The decision is the actionable part; opening it under a full grid of reward cards left the
     // player with nothing to click but "Resolve Later".
     const text = wrapper.text()
+    expect(text).toContain('Storage Full — Needs Decision')
     expect(text).toContain('Total party XP')
     expect(text.indexOf('Storage Full — Needs Decision')).toBeLessThan(
       text.indexOf('Total party XP')
     )
   })
-
 })

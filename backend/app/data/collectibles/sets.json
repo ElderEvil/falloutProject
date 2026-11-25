@@ -16,5 +16,14 @@
    "type": "production_pct",
    "value": 5
   }
+ },
+ {
+  "set": "magazines",
+  "name": "Complete Shelf",
+  "required": 3,
+  "bonus": {
+   "type": "magazine_boon_increment",
+   "value": 1
+  }
  }
 ]

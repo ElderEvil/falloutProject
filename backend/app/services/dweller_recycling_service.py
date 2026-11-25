@@ -70,6 +70,7 @@ class DwellerRecyclingService:
         dweller.vault_id = target_vault_id
         dweller.room_id = None  # Always clear room_id when vault changes
         dweller.collectible_bonus = None
+        dweller.magazine_boon = None
 
         # Reset stats if requested
         if reset_stats:

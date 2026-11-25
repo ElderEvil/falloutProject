@@ -81,6 +81,7 @@ class DeathService:
                     bio_entries=bio_entries,
                     room_id=None,  # Remove from room
                     collectible_bonus=None,
+                    magazine_boon=None,
                     is_permanently_dead=permanent,
                     lifecycle=LifecycleEnum.DEAD_PERMANENT if permanent else LifecycleEnum.DEAD_REVIVABLE,
                     availability=AvailabilityEnum.ARCHIVE if permanent else AvailabilityEnum.VAULT,

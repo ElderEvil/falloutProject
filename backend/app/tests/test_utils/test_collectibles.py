@@ -8,6 +8,7 @@ from app.utils.collectibles import (
     collectible_for_location,
     load_collectibles,
     load_sets,
+    magazine_boon_amount,
     validate_collectibles,
     validate_sets,
 )
@@ -22,7 +23,24 @@ def _entry(**overrides: object) -> dict[str, object]:
         "image": "comic_images/grognak.png",
         "kind": "comic",
         "set": "comics",
-        "location": "Megaton",
+        "location": "Zion Canyon",
+        "action": "salvage",
+        "description": "Test.",
+    }
+    entry.update(overrides)
+    return entry
+
+
+def _magazine(**overrides: object) -> dict[str, object]:
+    entry: dict[str, object] = {
+        "key": "test_magazine",
+        "name": "Test Magazine",
+        "stat": "perception",
+        "amount": 1,
+        "image": "magazine_images/guns_and_bullets.png",
+        "kind": "magazine",
+        "set": "magazines",
+        "location": "National Archives",
         "action": "salvage",
         "description": "Test.",
     }
@@ -57,6 +75,30 @@ def test_the_bobblehead_catalog_covers_every_special_stat_once() -> None:
     assert {entry["key"] for entry in bobbleheads if entry["action"] == "salvage"} == {"perception", "endurance"}
 
 
+def test_the_magazine_catalog_grants_one_point_and_binds_inert_places() -> None:
+    """A magazine is a one-time find: a flat +1 with the shelf worth an extra point, no duration."""
+    magazines = [entry for entry in load_collectibles() if entry["kind"] == "magazine"]
+
+    assert {entry["key"] for entry in magazines} == {"guns_and_bullets", "tesla_science", "wasteland_survival_guide"}
+    assert {entry["amount"] for entry in magazines} == {1}
+    assert all("duration_hours" not in entry for entry in magazines)
+    assert all(collectible_for_location(str(entry["location"]), action="salvage") == entry for entry in magazines)
+
+
+def test_a_magazine_needs_no_duration_to_validate() -> None:
+    """The mechanic is permanent, so a magazine row without a clock is the correct shape."""
+    assert validate_collectibles([_magazine()], kind="magazine") == (_magazine(),)
+
+
+def test_a_magazine_boon_is_one_point_and_two_with_the_complete_shelf() -> None:
+    """``held_keys`` is the vault's claims *after* this one lands, exactly as the read path asks."""
+    entry = next(entry for entry in load_collectibles() if entry["key"] == "guns_and_bullets")
+
+    assert magazine_boon_amount(entry, ("guns_and_bullets",)) == 1
+    assert magazine_boon_amount(entry, ("guns_and_bullets", "tesla_science")) == 1
+    assert magazine_boon_amount(entry, ("guns_and_bullets", "tesla_science", "wasteland_survival_guide")) == 2
+
+
 def test_every_catalog_image_exists() -> None:
     assert all((STATIC_ROOT / str(entry["image"])).is_file() for entry in load_collectibles())
 
@@ -66,6 +108,7 @@ def test_set_definitions_load_from_disk() -> None:
 
     assert definitions["comics"]["bonus"] == {"type": "expedition_loot_pct", "value": 10}
     assert definitions["bobbleheads"]["bonus"] == {"type": "production_pct", "value": 5}
+    assert definitions["magazines"]["bonus"] == {"type": "magazine_boon_increment", "value": 1}
     assert sum(definition["required"] for definition in definitions.values()) == len(load_collectibles())
 
 
@@ -75,6 +118,7 @@ def test_set_definitions_load_from_disk() -> None:
         ({"stat": "charisma_plus"}, "unknown stat"),
         ({"location": "Nowhere At All"}, "unknown seeded place"),
         ({"location": "Poseidon Energy"}, "does not match its place archetype"),
+        ({"location": "Megaton"}, "a caravan destination hides its salvage"),
         ({"image": "comic_images/missing.png"}, "missing image"),
         ({"description": "  "}, "needs a description"),
         ({"set": "mystery"}, "references unknown set"),
@@ -97,6 +141,9 @@ def test_validation_rejects_duplicate_keys() -> None:
         ({"required": 0}, "positive integer"),
         ({"bonus": {"type": "loot_pct", "value": 10}}, "unknown bonus type"),
         ({"bonus": {"type": "expedition_loot_pct", "value": -1}}, "non-negative bonus value"),
+        # The shelf increment is whole points: a fraction has no meaning and zero does nothing.
+        ({"bonus": {"type": "magazine_boon_increment", "value": 1.5}}, "whole positive magazine_boon_increment"),
+        ({"bonus": {"type": "magazine_boon_increment", "value": 0}}, "whole positive magazine_boon_increment"),
     ],
 )
 def test_set_validation_rejects_bad_rows(overrides: dict[str, object], message: str) -> None:

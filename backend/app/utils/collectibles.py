@@ -1,7 +1,7 @@
-"""Collectible catalog: SPECIAL bobbleheads, comics, and the sets they complete.
+"""Collectible catalog: SPECIAL bobbleheads, comics, magazines, and the sets they complete.
 
-Layer-safe (no DB, no services): adding a collectible is a data edit, not a migration. Both
-catalogs are validated at load so a bad placement fails loud instead of shipping inert, and a set
+Layer-safe (no DB, no services): adding a collectible is a data edit, not a migration. Every
+catalog is validated at load so a bad placement fails loud instead of shipping inert, and a set
 whose bonus could be paid twice or never completed is an authoring error, not a silent no-op.
 """
 
@@ -10,25 +10,29 @@ from __future__ import annotations
 import json
 from collections import Counter
 from collections.abc import Iterable, Mapping
+from datetime import datetime
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
 from app.core.enums import SPECIAL_STATS
-from app.utils.place_groups import get_place_group, group_for_place_name
+from app.utils.place_groups import get_place_group, group_for_place_name, trade_entry
 from app.utils.places import normalize_place_name
 
 DATA_ROOT = Path(__file__).parent.parent / "data" / "collectibles"
 CATALOG_FILES: tuple[tuple[str, Path], ...] = (
     ("bobblehead", DATA_ROOT / "bobbleheads.json"),
     ("comic", DATA_ROOT / "comics.json"),
+    ("magazine", DATA_ROOT / "magazines.json"),
 )
 SETS_FILE = DATA_ROOT / "sets.json"
 STATIC_ROOT = Path(__file__).parent.parent / "static"
 ACTIONS = frozenset({"clear", "salvage"})
 PRODUCTION_PCT = "production_pct"
 EXPEDITION_LOOT_PCT = "expedition_loot_pct"
-BONUS_TYPES = frozenset({PRODUCTION_PCT, EXPEDITION_LOOT_PCT})
+MAGAZINE_BOON_INCREMENT = "magazine_boon_increment"
+BONUS_TYPES = frozenset({PRODUCTION_PCT, EXPEDITION_LOOT_PCT, MAGAZINE_BOON_INCREMENT})
+MAGAZINE = "magazine"
 
 
 def _label(kind: str) -> str:
@@ -73,6 +77,13 @@ def validate_collectibles(
             raise ValueError(f"{label} {key!r} references unknown seeded place {entry.get('location')!r}")
         if bool(group.get("clearable")) != (action == "clear"):
             raise ValueError(f"{label} {key!r} action {action!r} does not match its place archetype")
+        # The map owns one action slot per place and a ready caravan outranks a search, so a
+        # salvage site that also trades can hide its own collectible behind the trade button.
+        if action == "salvage" and trade_entry(entry["location"]) is not None:
+            raise ValueError(
+                f"{label} {key!r} sits on tradeable place {entry.get('location')!r}; "
+                "a caravan destination hides its salvage behind the trade action"
+            )
         image = entry.get("image")
         if not image or not (static_root / image).is_file():
             raise ValueError(f"{label} {key!r} references missing image {image!r}")
@@ -101,6 +112,10 @@ def validate_sets(entries: list[dict[str, Any]]) -> tuple[dict[str, Any], ...]:
         value = bonus.get("value") if isinstance(bonus, dict) else None
         if not isinstance(value, int | float) or isinstance(value, bool) or value < 0:
             raise ValueError(f"Set {set_id!r} needs a non-negative bonus value")
+        # The shelf bonus is a whole extra point per magazine: half a point has no meaning, and a
+        # zero increment would make the completed set indistinguishable from an incomplete one.
+        if bonus_type == MAGAZINE_BOON_INCREMENT and (not isinstance(value, int) or value < 1):
+            raise ValueError(f"Set {set_id!r} needs a whole positive magazine_boon_increment")
     return tuple(entries)
 
 
@@ -173,6 +188,56 @@ def collectible_for_location(location_name: str, *, action: str | None = None) -
 @lru_cache(maxsize=1)
 def _set_of_key() -> dict[str, str]:
     return {entry["key"]: entry["set"] for entry in load_collectibles()}
+
+
+def salvage_ready(*, searched_at: datetime | None) -> bool:
+    """Whether a salvage collectible can be taken right now.
+
+    Every salvage collectible — bobblehead, comic and magazine alike — is a one-time find: the
+    site stamps ``searched_at`` on the first claim and never clears it. Dispatch validation, the
+    map's action slot and the arrival resolver all ask this one predicate, so the map cannot offer
+    a search the write path would refuse.
+    """
+    return searched_at is None
+
+
+def magazine_boon_amount(entry: Mapping[str, Any], held_keys: Iterable[str]) -> int:
+    """The permanent boon one magazine grants: its own amount, plus the completed shelf's increment.
+
+    Derived from the vault's claims at read time — nothing is written when the set completes — so a
+    finder who already holds the other magazines gets the larger boon on the very read that finishes
+    the shelf.
+    """
+    held = set_held_counts(held_keys)
+    increment = max(
+        (
+            definition["bonus"]["value"]
+            for definition in load_sets()
+            if definition["bonus"]["type"] == MAGAZINE_BOON_INCREMENT
+            and held[definition["set"]] >= definition["required"]
+        ),
+        default=0,
+    )
+    return int(entry["amount"]) + int(increment)
+
+
+def magazine_boon_bonus(boon: Mapping[str, Any] | None, stat: str) -> int:
+    """The dweller's permanent magazine bonus for one stat, summed over every magazine they hold.
+
+    The column is keyed by magazine because one finder can pick up more than one: a second find must
+    add to the first rather than replace it, which is the whole point of a permanent boon. Nothing
+    expires, so there is no clock to read; a malformed or unknown entry contributes nothing.
+    """
+    if not boon:
+        return 0
+    total = 0
+    for held in boon.values():
+        if not isinstance(held, Mapping) or held.get("stat") != stat:
+            continue
+        amount = held.get("amount")
+        if isinstance(amount, int) and not isinstance(amount, bool):
+            total += amount
+    return total
 
 
 def set_held_counts(held_keys: Iterable[str]) -> Counter[str]:

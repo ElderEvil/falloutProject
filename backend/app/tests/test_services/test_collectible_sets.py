@@ -83,7 +83,7 @@ async def test_the_flag_off_pays_nothing_at_a_full_set(
 
     assert await _multiplier(async_session, vault, EXPEDITION_LOOT_PCT) == 1.0
     progress = await collectible_service.set_progress(async_session, vault_id=vault.id)
-    assert {row.set: row.active for row in progress} == {"comics": False, "bobbleheads": False}
+    assert {row.set: row.active for row in progress} == {"comics": False, "bobbleheads": False, "magazines": False}
 
 
 async def test_a_claim_whose_finder_is_gone_still_counts(

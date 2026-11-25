@@ -19,7 +19,9 @@ Decisions fixed by the maintainer:
 
 ## Player loop
 
-1. Map offers **Search** at Megaton, Diamond City and Goodneighbor while the collectibles flag is on.
+1. Map offers **Search** at Zion Canyon, Griffith Observatory and the Commonwealth while the
+   collectibles flag is on. A salvage site never trades: a ready caravan outranks a search in the
+   map's single action slot, which would hide the collectible behind the trade button.
 2. A solo dispatch salvages the site and awards its comic to the dweller.
 3. The finder gains `+1` of the comic's SPECIAL immediately (`collectible_bonus`, shared with
    bobbleheads).
@@ -34,9 +36,9 @@ Decisions fixed by the maintainer:
 
 | key | stat | place | action |
 |---|---|---|---|
-| `grognak_barbarian` | strength | Megaton | salvage |
-| `astounding_tales` | luck | Diamond City | salvage |
-| `silver_shroud` | charisma | Goodneighbor | salvage |
+| `grognak_barbarian` | strength | Zion Canyon | salvage |
+| `astounding_tales` | luck | Griffith Observatory | salvage |
+| `silver_shroud` | charisma | the Commonwealth | salvage |
 
 `backend/app/data/collectibles/sets.json`:
 

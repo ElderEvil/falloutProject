@@ -12,6 +12,7 @@ from app.core.game_config import game_config
 from app.options.factions import FactionPerks, perks_for_faction
 from app.options.pet_modifiers import MAX_DAMAGE_PCT_BONUS, pet_modifiers_for
 from app.options.races import RaceModifiers, modifiers_for_race, state_stat_deltas_for
+from app.utils.collectibles import magazine_boon_bonus
 from app.utils.equipped import equipped_outfit
 
 #: Weapon types whose faction perk is a damage bonus, keyed by the weapon-type value.
@@ -80,13 +81,15 @@ def identity_modifiers_for(entity: object) -> IdentityModifiers:
 
 
 def effective_stat(entity: object, stat: str) -> int:
-    """A dweller's stat after identity, outfit, pet and bobblehead modifiers, floored at 1.
+    """A dweller's stat after identity, outfit, pet, collectible and magazine modifiers, floored at 1.
 
     Derived on read and never persisted: the stored SPECIAL stays the trained value,
     so removing a race, faction, outfit, or pet cannot leave a permanent stat change behind.
     The outfit and pet are read via ``__dict__`` (no lazy IO, a missing relationship means no
-    bonus), the collectible bonus is a plain column, and the result is not capped — a 10 S
-    dweller in a +5 S outfit with a +2 S pet and one Strength bobblehead counts as 18.
+    bonus), and both the collectible bonus and the magazine boon are plain columns with no clock
+    — a magazine is a one-time find, so its point lasts as long as the dweller.
+    The result is not capped — a 10 S dweller in a +5 S outfit with a +2 S pet, one Strength
+    bobblehead and a Guns and Bullets counts as 19.
     """
     if stat not in SPECIAL_STATS:
         raise ValueError(f"Unknown SPECIAL stat: {stat!r}")
@@ -94,13 +97,15 @@ def effective_stat(entity: object, stat: str) -> int:
     outfit_bonus = getattr(outfit, stat, 0) if outfit is not None else 0
     pet_bonus = getattr(pet_modifiers_for(entity), stat)
     collectible_bonus = (getattr(entity, "collectible_bonus", None) or {}).get(stat, 0)
+    magazine_bonus = magazine_boon_bonus(getattr(entity, "magazine_boon", None), stat)
     return max(
         1,
         getattr(entity, stat)
         + getattr(identity_modifiers_for(entity), stat)
         + outfit_bonus
         + pet_bonus
-        + collectible_bonus,
+        + collectible_bonus
+        + magazine_bonus,
     )
 
 

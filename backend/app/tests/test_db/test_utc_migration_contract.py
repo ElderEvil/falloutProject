@@ -83,7 +83,8 @@ async def test_timestamp_inventory_matches_migrated_schema(utc_connection: Async
         for column in table.c
         if isinstance(column.type, UTCDateTime)
     }
-    # Pinned totals: the world-event, pvpduel, collectible and caravan migrations add their columns here.
+    # Pinned totals: the world-event, pvpduel, collectible and caravan migrations add their columns
+    # here; the magazine migration adds only the JSONB boon, which is not a UTC producer.
     assert len(expected) == 145
     assert len({table for table, _ in expected}) == 45
     rows = await utc_connection.execute(

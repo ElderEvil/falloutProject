@@ -1,4 +1,4 @@
-"""Award collectibles: the durable vault claim, the finder's permanent bonus, and set bonuses.
+"""Award collectibles: the durable vault claim, the finder's permanent bonus, magazines, and sets.
 
 Every write is staged; the caller's transaction owner commits. Dispatch awards run inside the
 existing vault claim and are published from ``start_return``, never from here.
@@ -9,6 +9,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Sequence
 from dataclasses import dataclass
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy.exc import IntegrityError
@@ -24,7 +25,13 @@ from app.models.exploration import Exploration
 from app.models.world_location import WorldLocation
 from app.schemas.collectible import CollectibleSetProgressRead, DwellerCollectibleRead
 from app.services.notification_service import notification_service
-from app.utils.collectibles import collectible_for_key, collectible_for_location, set_progress
+from app.utils.collectibles import (
+    MAGAZINE,
+    collectible_for_key,
+    collectible_for_location,
+    magazine_boon_amount,
+    set_progress,
+)
 from app.utils.collectibles import set_bonus_multiplier as completed_set_multiplier
 from app.utils.time import utcnow
 
@@ -55,7 +62,10 @@ class CollectibleService:
     ) -> bool:
         """Claim a collectible for the vault and add its bonus to the finder.
 
-        Returns False when the vault already holds the claim; nothing is written then.
+        Returns False when the vault already holds the claim; nothing is written then. A magazine
+        claims like every other collectible and writes the finder's permanent ``magazine_boon``; a
+        bobblehead or comic writes the permanent per-stat ``collectible_bonus`` instead. Either way
+        the bonus is written only after the claim lands, so a lost race leaves the finder untouched.
         """
         entry = collectible_for_key(collectible_key)
         if await collectible_crud.get_by_vault_and_key(db_session, vault_id, collectible_key) is not None:
@@ -79,6 +89,10 @@ class CollectibleService:
         except IntegrityError:
             logger.info("Vault %s already claimed %r; another award won the race", vault_id, entry["key"])
             return False
+
+        if entry["kind"] == MAGAZINE:
+            await self._apply_magazine_boon(db_session, vault_id=vault_id, dweller=dweller, entry=entry)
+            return True
 
         # Mutated only after the claim lands, so a lost race leaves the finder's bonus untouched.
         bonus = dict(dweller.collectible_bonus or {})
@@ -146,8 +160,9 @@ class CollectibleService:
         """Award the collectible bound to a site to its luckiest survivor.
 
         Staged only: the dispatch transaction owner commits the claim and the bonus, and the
-        notification is parked until that commit. Returns the event payload, or None when the
-        feature is off, the site holds nothing, or the vault already has the claim.
+        notification is parked until that commit. Every salvage site is a one-time find, so a return
+        here always means the claim was new; None means the feature is off, the site holds nothing,
+        or the vault already holds this collectible.
         """
         if not game_config.features.collectibles:
             return None
@@ -158,28 +173,38 @@ class CollectibleService:
         if not living:
             return None
         finder = min(living, key=lambda member: (-member.luck, str(member.id)))
-        if not await self.award(
+        claimed = await self.award(
             db_session,
             vault_id=exploration.vault_id,
             dweller=finder,
             collectible_key=entry["key"],
             location_id=location.id,
-        ):
+        )
+        if not claimed:
             return None
+        # A magazine's boon is not always its catalog amount: the completed shelf pays an extra
+        # point, and the boon just written is the single source of truth for what the finder got.
+        amount = entry["amount"]
+        if entry["kind"] == MAGAZINE:
+            held = (finder.magazine_boon or {}).get(entry["key"])
+            if isinstance(held, dict):
+                amount = int(held.get("amount", entry["amount"]))
 
         vault = await crud.vault.get(db_session, exploration.vault_id)
         if vault is not None:
+            title = f"{entry['name']} found"
+            message = (
+                f"{finder.display_name} found the {entry['name']} at {location.name}: "
+                f"permanent +{amount} {entry['stat']}."
+            )
             await notification_service.create_and_send(
                 db_session,
                 user_id=vault.user_id,
                 vault_id=vault.id,
                 notification_type=NotificationType.COLLECTIBLE_FOUND,
                 priority=NotificationPriority.NORMAL,
-                title=f"{entry['name']} found",
-                message=(
-                    f"{finder.display_name} found the {entry['name']} at {location.name}: "
-                    f"permanent +{entry['amount']} {entry['stat']}."
-                ),
+                title=title,
+                message=message,
                 meta_data={"collectible_key": entry["key"], "dweller_id": str(finder.id)},
                 commit=False,
             )
@@ -187,10 +212,55 @@ class CollectibleService:
             collectible_key=entry["key"],
             name=entry["name"],
             stat=entry["stat"],
-            amount=entry["amount"],
+            amount=amount,
             dweller_id=finder.id,
             location_name=location.name,
         )
+
+    async def _apply_magazine_boon(
+        self, db_session: AsyncSession, *, vault_id: UUID, dweller: Dweller, entry: dict[str, Any]
+    ) -> int:
+        """Stage the finder's permanent magazine boon and return its amount.
+
+        Called after the claim is flushed, so the read that completes the shelf already counts and
+        pays the larger boon. No clock and no expiry: a one-time find is kept for good.
+        """
+        amount = magazine_boon_amount(entry, await collectible_crud.list_keys(db_session, vault_id))
+        # Keyed by magazine, not replaced: a dweller who finds a second one keeps the first.
+        boons = dict(dweller.magazine_boon or {})
+        boons[entry["key"]] = {"stat": entry["stat"], "amount": amount}
+        dweller.magazine_boon = boons
+        db_session.add(dweller)
+        await db_session.flush()
+        if amount > entry["amount"]:
+            # This read completed the shelf. Boons are written at claim time, so finders who came
+            # before the shelf closed are still holding the smaller amount; raise them now, once.
+            await self._upgrade_shelf_boons(db_session, vault_id=vault_id, amount=amount)
+        return amount
+
+    async def _upgrade_shelf_boons(self, db_session: AsyncSession, *, vault_id: UUID, amount: int) -> None:
+        """Raise every already-claimed magazine boon in the vault to the completed-shelf amount.
+
+        A set completes once per vault, so this sweep runs at most once and never has to unwind:
+        claims are permanent, so the shelf cannot come undone.
+        """
+        raised = 0
+        for holder in await crud.dweller.get_all_in_vault(db_session, vault_id):
+            boons = holder.magazine_boon
+            if not boons:
+                continue
+            upgraded = {
+                key: {**held, "amount": amount}
+                for key, held in boons.items()
+                if isinstance(held, dict) and int(held.get("amount", 0)) < amount
+            }
+            if not upgraded:
+                continue
+            holder.magazine_boon = {**boons, **upgraded}
+            db_session.add(holder)
+            raised += 1
+        if raised:
+            await db_session.flush()
 
 
 collectible_service = CollectibleService()

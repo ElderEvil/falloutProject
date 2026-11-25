@@ -85,7 +85,8 @@ class VaultLocationState(BaseUUIDModel, VaultLocationStateBase, TimeStampMixin, 
     cleared_at: datetime | None = Field(sa_type=UTCDateTime, default=None)
     reclear_available_at: datetime | None = Field(sa_type=UTCDateTime, default=None)
     clear_count: int = Field(default=0, ge=0, description="Successful clears; drives escalation tier")
-    # One-time salvage marker for inert places that hold a bobblehead.
+    # One-time salvage marker for inert places that hold a bobblehead, comic or magazine: the
+    # first claim stamps it and the place is never searchable again.
     searched_at: datetime | None = Field(sa_type=UTCDateTime, default=None)
     # Caravan cooldown (issue 1493): separate from reclear_available_at, because trading and clearing are
     # different clocks and must not be able to starve each other. NULL means "never traded".

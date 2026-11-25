@@ -19,6 +19,9 @@ from app.utils.time import utcnow
         ("Museum of Freedom", "landmark", True, False, False, "none"),
         ("Museum of Freedom", "landmark", True, True, False, "salvage"),
         ("Museum of Freedom", "landmark", True, True, True, "none"),
+        # A magazine site is a one-time find like any other: searched once, silent forever.
+        ("National Archives", "landmark", True, True, False, "salvage"),
+        ("National Archives", "landmark", True, True, True, "none"),
         ("Arefu", "settlement", True, True, False, "none"),
     ],
 )

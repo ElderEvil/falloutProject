@@ -34,13 +34,10 @@ const emit = defineEmits<{ playbackComplete: [incidentId: string] }>()
 
 const authStore = useAuthStore()
 const incidentStore = useIncidentStore()
-const assigningDwellerId = ref<string | null>(null)
-const isSendingBest = ref(false)
-// One assignment at a time: both handlers post to the same endpoint, so a second
-// in-flight request would race the first.
-const isAssigning = computed(
-  () => props.finishing || assigningDwellerId.value !== null || isSendingBest.value
-)
+const isSendingSquad = ref(false)
+// One assignment at a time: the confirm posts to the same endpoint as any
+// in-flight response, so a second request would race the first.
+const isAssigning = computed(() => props.finishing || isSendingSquad.value)
 
 const threatLabel = computed(() => threatName(props.incident.type))
 const icon = computed(() => getIncidentIcon(props.incident.type))
@@ -133,10 +130,42 @@ const helperBatchSize = computed(() => Math.min(3, remainingRosterSlots.value))
 const bestResponders = computed(() =>
   [...availableResponders.value].sort(comparePower).slice(0, helperBatchSize.value)
 )
-const nearbyResponders = computed(() =>
-  availableResponders.value
-    .filter((dweller) => Number.isFinite(distanceFromIncident(dweller)))
-    .slice(0, helperBatchSize.value)
+// Suggestions stage a reviewed selection instead of dispatching three dwellers on
+// one click. The list shows each candidate's posting, proximity and power, so the
+// overseer can swap or drop anyone before confirming.
+const selectedResponderIds = ref<string[]>([])
+const selectedResponders = computed(() =>
+  selectedResponderIds.value
+    .map((id) => availableResponders.value.find((dweller) => dweller.id === id))
+    .filter((dweller): dweller is DwellerShort => Boolean(dweller))
+)
+const isSelected = (dwellerId: string) => selectedResponderIds.value.includes(dwellerId)
+const isSelectionFull = computed(
+  () => selectedResponderIds.value.length >= remainingRosterSlots.value
+)
+const rosterDetails = ref<HTMLDetailsElement | null>(null)
+const clearSelection = () => {
+  selectedResponderIds.value = []
+}
+const suggestSquad = () => {
+  if (isAssigning.value || !responderTeamsLoaded.value || !remainingRosterSlots.value) return
+  selectedResponderIds.value = bestResponders.value.map((dweller) => dweller.id)
+  if (rosterDetails.value) rosterDetails.value.open = true
+}
+const toggleResponder = (dwellerId: string) => {
+  if (isAssigning.value || !responderTeamsLoaded.value) return
+  if (isSelected(dwellerId)) {
+    selectedResponderIds.value = selectedResponderIds.value.filter((id) => id !== dwellerId)
+    return
+  }
+  if (isSelectionFull.value) return
+  selectedResponderIds.value = [...selectedResponderIds.value, dwellerId]
+}
+// A poll can remove (or return) candidates under an open selection; keep only
+// still-available dwellers so a stale id is never sent.
+watch(
+  () => props.incident.id,
+  () => clearSelection()
 )
 // Rounds run on the vault tick, so the journal starts empty by design; the
 // overlay explains whether the next tick will fight or whether help is needed.
@@ -180,6 +209,13 @@ const loadTeam = async (): Promise<void> => {
 
 onMounted(loadTeam)
 watch(() => props.incident.id, loadTeam)
+// A poll can remove (or return) candidates under an open selection; keep only
+// still-available dwellers so a stale id is never sent.
+watch(availableResponders, (available) => {
+  if (!selectedResponderIds.value.length) return
+  const availableIds = new Set(available.map((dweller) => dweller.id))
+  selectedResponderIds.value = selectedResponderIds.value.filter((id) => availableIds.has(id))
+})
 
 const send = async (dwellerIds: string[]) => {
   if (!authStore.token || !dwellerIds.length) return
@@ -191,25 +227,14 @@ const send = async (dwellerIds: string[]) => {
   )
 }
 
-const sendGroup = async (candidates: DwellerShort[]) => {
-  if (isAssigning.value || !responderTeamsLoaded.value || !candidates.length) return
-  isSendingBest.value = true
+const sendSelected = async () => {
+  if (isAssigning.value || !responderTeamsLoaded.value || !selectedResponders.value.length) return
+  isSendingSquad.value = true
   try {
-    await send(candidates.map((dweller) => dweller.id))
+    await send(selectedResponders.value.map((dweller) => dweller.id))
+    clearSelection()
   } finally {
-    isSendingBest.value = false
-  }
-}
-const sendBestDefenders = () => sendGroup(bestResponders.value)
-const sendNearbyDefenders = () => sendGroup(nearbyResponders.value)
-
-const assignResponder = async (dwellerId: string) => {
-  if (isAssigning.value || !responderTeamsLoaded.value || !remainingRosterSlots.value) return
-  assigningDwellerId.value = dwellerId
-  try {
-    await send([dwellerId])
-  } finally {
-    assigningDwellerId.value = null
+    isSendingSquad.value = false
   }
 }
 </script>
@@ -233,31 +258,45 @@ const assignResponder = async (dwellerId: string) => {
     <IncidentBattleLog :events="incident.events" />
     <p v-if="awaitingLabel" class="text-xs text-terminal-green-dim">{{ awaitingLabel }}</p>
 
-    <div v-if="bestResponders.length" class="flex flex-wrap items-center gap-2">
-      <Button
-        v-if="nearbyResponders.length"
-        variant="default"
-        size="sm"
-        :disabled="isAssigning || !responderTeamsLoaded"
-        @click="sendNearbyDefenders"
-      >
-        Send nearby {{ nearbyResponders.length }}
-      </Button>
+    <div v-if="availableResponders.length" class="flex flex-wrap items-center gap-2">
       <Button
         variant="outline"
         size="sm"
-        :disabled="isAssigning || !responderTeamsLoaded"
-        @click="sendBestDefenders"
+        :disabled="isAssigning || !responderTeamsLoaded || !remainingRosterSlots"
+        title="Picks the highest-power available helpers. Review and adjust before sending."
+        @click="suggestSquad"
       >
-        <Icon v-if="isSendingBest" icon="mdi:loading" class="mr-1 animate-spin" />
-        Send strongest {{ bestResponders.length }}
+        Suggest squad
+      </Button>
+      <Button
+        v-if="selectedResponders.length"
+        variant="default"
+        size="sm"
+        :disabled="isAssigning || !responderTeamsLoaded"
+        @click="sendSelected"
+      >
+        <Icon v-if="isSendingSquad" icon="mdi:loading" class="mr-1 animate-spin" />
+        Send {{ selectedResponders.length }} selected
+      </Button>
+      <Button
+        v-if="selectedResponders.length"
+        variant="ghost"
+        size="sm"
+        :disabled="isAssigning"
+        @click="clearSelection"
+      >
+        Clear
       </Button>
       <span class="hidden text-xs text-muted-foreground sm:inline"
         >{{ remainingRosterSlots }} helper slots available</span
       >
     </div>
 
-    <details v-if="availableResponders.length" class="border-t border-border pt-2">
+    <details
+      v-if="availableResponders.length"
+      ref="rosterDetails"
+      class="border-t border-border pt-2"
+    >
       <summary class="cursor-pointer text-xs text-muted-foreground">
         Add helper · {{ availableResponders.length }} available
       </summary>
@@ -268,6 +307,7 @@ const assignResponder = async (dwellerId: string) => {
           :dweller="dweller"
           :clickable="false"
           class="flex-wrap gap-2 [&_.dweller-identity]:w-auto [&_.dweller-identity]:flex-1"
+          :class="{ 'border-theme-primary/60': isSelected(dweller.id) }"
         >
           <template #middle>
             <div
@@ -294,15 +334,14 @@ const assignResponder = async (dwellerId: string) => {
             <Button
               variant="secondary"
               size="sm"
-              :disabled="isAssigning || !responderTeamsLoaded || !remainingRosterSlots"
-              @click="assignResponder(dweller.id)"
+              :disabled="
+                isAssigning || !responderTeamsLoaded || (!isSelected(dweller.id) && isSelectionFull)
+              "
+              :aria-pressed="isSelected(dweller.id)"
+              @click="toggleResponder(dweller.id)"
             >
-              <Icon
-                v-if="assigningDwellerId === dweller.id"
-                icon="mdi:loading"
-                class="mr-1 animate-spin"
-              />
-              Send
+              <Icon v-if="isSelected(dweller.id)" icon="mdi:check" class="mr-1" />
+              {{ isSelected(dweller.id) ? 'Selected' : 'Select' }}
             </Button>
           </template>
         </DwellerListRow>

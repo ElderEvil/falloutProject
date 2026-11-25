@@ -84,7 +84,12 @@ for (const width of [390, 1280]) {
           `/tests/e2e/fixtures/incident-scene.html?responders=${count}${longNames ? '&longNames' : ''}`
         )
         const scene = page.getByRole('region', { name: 'Incident live status' })
-        await expect(scene.locator('.incident-responder')).toHaveCount(count)
+        const visible = Math.min(count, 6)
+        await expect(scene.locator('.incident-responder')).toHaveCount(visible)
+        await expect(scene).toContainText(`RESPONDERS · ${count}`)
+        if (count > visible) {
+          await expect(scene.locator('.incident-overflow')).toHaveText(`+${count - visible}`)
+        }
         expectNoOverflow(await measure(page))
         await expect(scene.locator('.incident-responder').last()).toBeInViewport()
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(

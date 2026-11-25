@@ -135,7 +135,7 @@ class ExplorationCoordinator:
 
         # Ids, not the instance: the world-event rollback above may have expired the run, and reading an
         # expired attribute outside the greenlet is how this path raised MissingGreenlet.
-        await self._notify_arrival(db_session, exploration.id, vault_id, dweller_id, rewards)
+        await self._notify_arrival(db_session, exploration_id, vault_id, dweller_id, rewards)
         await event_service.publish_sse(
             exploration,
             "exploration_recalled" if recalled_early else "exploration_complete",

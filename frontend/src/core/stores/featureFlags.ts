@@ -11,6 +11,7 @@ export const useFeatureFlagsStore = defineStore('featureFlags', () => {
   const raceMechanics = ref(true)
   const factionMechanics = ref(false)
   const worldEvents = ref(false)
+  const pvpDuels = ref(false)
   const loaded = ref(false)
 
   // Concurrent callers share one request; a failed fetch stays unloaded so a later mount retries.
@@ -24,6 +25,7 @@ export const useFeatureFlagsStore = defineStore('featureFlags', () => {
         raceMechanics.value = flags.race_mechanics
         factionMechanics.value = flags.faction_mechanics
         worldEvents.value = flags.world_events
+        pvpDuels.value = flags.pvp_duels
         loaded.value = true
       } catch (error) {
         handleStoreError(error, 'Failed to load feature flags', false)
@@ -34,5 +36,5 @@ export const useFeatureFlagsStore = defineStore('featureFlags', () => {
     return inFlight
   }
 
-  return { raceMechanics, factionMechanics, worldEvents, loaded, fetchFlags }
+  return { raceMechanics, factionMechanics, worldEvents, pvpDuels, loaded, fetchFlags }
 })

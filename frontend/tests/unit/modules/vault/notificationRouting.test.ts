@@ -59,6 +59,16 @@ describe('getNotificationRoute', () => {
     ).toBe('/vault/vault-1/quests')
   })
 
+  it('opens a settled duel from its combat notification', () => {
+    expect(
+      getNotificationRoute({
+        vault_id: 'vault-1',
+        notification_type: 'combat_victory',
+        meta_data: { duel_id: 'duel-1' },
+      })
+    ).toBe('/vault/vault-1/pvp?duel=duel-1')
+  })
+
   it('routes a location_cleared notification to the map', () => {
     expect(
       getNotificationRoute({

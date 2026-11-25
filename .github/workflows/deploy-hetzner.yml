@@ -586,7 +586,7 @@ jobs:
           container = next(c for c in pod["containers"] if c["name"] == "backend")
           for key in ("args", "ports", "livenessProbe", "readinessProbe", "startupProbe"):
               container.pop(key, None)
-          container["command"] = ["python3", "-m", "app.cli.verify_ai_gateway"]
+          container["command"] = ["python3", "-c", "import asyncio; from app.core.config import settings; from app.core.logfire_config import configure_logfire, is_logfire_enabled; from app.services.ai_service import get_ai_service; assert settings.ai_provider_mode == \"gateway\", \"AI Gateway is not configured\"; assert settings.logfire_enabled, \"LOGFIRE_TOKEN is not configured\"; configure_logfire(); service = get_ai_service(); assert service.using_gateway and service.is_available(), \"AI Gateway model is unavailable\"; result = asyncio.run(service.chat_completion_with_usage([{\"role\": \"user\", \"content\": \"Reply with exactly: gateway-production-check\"}])); assert result.text, \"Gateway returned an empty response\"; assert is_logfire_enabled(), \"Logfire instrumentation did not initialize\"; print(\"Gateway and Logfire verification request completed\")"]
           container["resources"] = {
               "requests": {"cpu": "250m", "memory": "256Mi"},
               "limits": {"cpu": "1", "memory": "1Gi"},
@@ -605,13 +605,21 @@ jobs:
           }))
           ' | kubectl apply -f -
 
-            if ! kubectl -n fallout wait --for=condition=complete "job/$job" --timeout=330s; then
-              kubectl -n fallout logs "job/$job" --tail=100 || true
+            attempt=0
+            while [ "$attempt" -lt 66 ]; do
+              succeeded=$(kubectl -n fallout get "job/$job" -o jsonpath='{.status.succeeded}' || true)
+              failed=$(kubectl -n fallout get "job/$job" -o jsonpath='{.status.failed}' || true)
+              [ "$succeeded" = "1" ] && break
+              [ "$failed" = "1" ] && break
+              sleep 5
+              attempt=$((attempt + 1))
+            done
+
+            kubectl -n fallout logs "job/$job" --tail=100 || true
+            if [ "$succeeded" != "1" ]; then
               kubectl -n fallout delete job "$job" --ignore-not-found
               exit 1
             fi
-
-            kubectl -n fallout logs "job/$job" --tail=50
             kubectl -n fallout delete job "$job" --ignore-not-found
           SHELL
 

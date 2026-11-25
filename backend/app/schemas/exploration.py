@@ -99,11 +99,19 @@ class ExplorationReadShort(SQLModel):
     return_started_at: OptionalUTCDateTimeJSON
     return_completes_at: OptionalUTCDateTimeJSON
     duration: int
+    # The explorer cards render recent activity, item count and pack fill from the list payload,
+    # so these must stay in the short schema; omitting them reads as "no loot, empty pack".
+    events: list[dict]
+    loot_collected: list[dict]
     total_distance: int
     total_caps_found: int
     enemies_encountered: int
     stimpaks: int
     radaways: int
+    # Derived from Strength and the carried loot, never stored.
+    carry_capacity: int
+    pack_slots_used: int
+    dweller_strength: int
     # Authoritative registry position for spatial runs (map markers); null on legacy runs.
     pos_x: float | None = None
     pos_y: float | None = None

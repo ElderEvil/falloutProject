@@ -243,6 +243,37 @@ async def test_get_exploration_details_reports_pack_capacity(
     assert data["pack_slots_used"] == 2
 
 
+async def test_list_explorations_reports_pack_and_activity(
+    async_client, superuser_token_headers, async_session, vault, dweller
+) -> None:
+    """The list payload feeds the explorer card; it must carry loot, events and pack figures."""
+    run = await _send(async_session, vault, dweller)
+    run.dweller_strength = 3
+    run.add_loot(item_name="Desk Fan", quantity=2, rarity="Common", item_type="junk")
+    run.add_loot(item_name="Stimpak", rarity="Common", item_type="stimpak")
+    async_session.add(run)
+    await async_session.commit()
+    await crud.exploration.add_event(
+        async_session,
+        exploration_id=run.id,
+        event_type="loot_found",
+        description="Found a cool item",
+        loot={"item": {"name": "Desk Fan", "rarity": "Common", "value": 10}, "caps": 15},
+    )
+
+    response = await async_client.get(
+        f"/explorations/vault/{vault.id}?active_only=true", headers=superuser_token_headers
+    )
+
+    assert response.status_code == 200
+    row = next(item for item in response.json() if item["id"] == str(run.id))
+    assert row["dweller_strength"] == 3
+    assert row["carry_capacity"] == 21
+    assert row["pack_slots_used"] == 2
+    assert [item["item_name"] for item in row["loot_collected"]] == ["Desk Fan", "Stimpak"]
+    assert [event["description"] for event in row["events"]] == ["Found a cool item"]
+
+
 async def test_get_exploration_progress(async_client, superuser_token_headers, async_session, vault, dweller) -> None:
     run = await _send(async_session, vault, dweller)
     response = await async_client.get(f"/explorations/{run.id}/progress", headers=superuser_token_headers)

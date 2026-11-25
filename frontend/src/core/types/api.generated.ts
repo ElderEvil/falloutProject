@@ -8536,6 +8536,14 @@ export interface components {
             return_completes_at: string | null;
             /** Duration */
             duration: number;
+            /** Events */
+            events: {
+                [key: string]: unknown;
+            }[];
+            /** Loot Collected */
+            loot_collected: {
+                [key: string]: unknown;
+            }[];
             /** Total Distance */
             total_distance: number;
             /** Total Caps Found */
@@ -8546,6 +8554,12 @@ export interface components {
             stimpaks: number;
             /** Radaways */
             radaways: number;
+            /** Carry Capacity */
+            carry_capacity: number;
+            /** Pack Slots Used */
+            pack_slots_used: number;
+            /** Dweller Strength */
+            dweller_strength: number;
             /** Pos X */
             pos_x?: number | null;
             /** Pos Y */

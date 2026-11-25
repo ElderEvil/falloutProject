@@ -11,6 +11,7 @@ import {
   explorationApi,
   type ExplorationCompleteResponse,
   type ExplorationPartyMember,
+  type ExplorationReadShort,
   type ExplorationSendRequest,
 } from '../api/exploration'
 import type { ExplorationEventType } from '@/modules/exploration/models/exploration'
@@ -69,15 +70,17 @@ export interface Exploration {
   total_distance: number
   total_caps_found: number
   enemies_encountered: number
-  created_at: string
-  updated_at: string
+  // The list payload (`ExplorationReadShort`) omits timestamps and the non-Strength SPECIAL
+  // snapshot; only a full detail read carries them. Nothing on a list surface reads them.
+  created_at?: string
+  updated_at?: string
   dweller_strength: number
-  dweller_perception: number
-  dweller_endurance: number
-  dweller_charisma: number
-  dweller_intelligence: number
-  dweller_agility: number
-  dweller_luck: number
+  dweller_perception?: number
+  dweller_endurance?: number
+  dweller_charisma?: number
+  dweller_intelligence?: number
+  dweller_agility?: number
+  dweller_luck?: number
   stimpaks: number
   radaways: number
   /** Strength-based pack budget (15 + 2 x Strength); shown by ExplorationPackStrip. */
@@ -89,6 +92,20 @@ export interface Exploration {
   /** Authoritative registry position for spatial runs; absent on legacy runs. */
   pos_x?: number | null
   pos_y?: number | null
+}
+
+/**
+ * Convert a list row once, at the wire boundary. The generated short type is the source of truth
+ * for which fields the list actually returns; `events`/`loot_collected` arrive as loose dicts and
+ * are narrower here so the card can render them without reading `undefined`.
+ */
+export function fromExplorationShort(row: ExplorationReadShort): Exploration {
+  return {
+    ...row,
+    // Generated schema types `dict` lists as loose records; the wire objects are the UI shapes.
+    events: row.events as unknown as ExplorationEvent[],
+    loot_collected: row.loot_collected as unknown as LootItem[],
+  }
 }
 
 export interface ExplorationProgress {
@@ -423,10 +440,9 @@ export const useExplorationStore = defineStore('exploration', () => {
       error.value = null
     }
     try {
-      const fetched = (await explorationApi.getExplorationsByVault(
-        vaultId,
-        activeOnly
-      )) as unknown as Exploration[]
+      const fetched = (await explorationApi.getExplorationsByVault(vaultId, activeOnly)).map(
+        fromExplorationShort
+      )
 
       explorations.value = fetched
       // Update active explorations map

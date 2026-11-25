@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 3.30.0 (2026-11-25)
+
+### Features
+
+* **world-event:** schedule the cooperative relay ([#1541](https://github.com/ElderEvil/falloutProject/issues/1541)) 336f23c
+
 ## 3.29.1 (2026-11-25)
 
 ### Bug Fixes

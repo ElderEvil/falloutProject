@@ -122,7 +122,7 @@ async def read_dweller_collectibles(
     user: CurrentActiveUser,
     db_session: DBSession,
 ) -> list[DwellerCollectibleRead]:
-    """Bobbleheads this dweller found in its current vault.
+    """Collectibles this dweller found in its current vault.
 
     Scoped to both the dweller and its current vault: recycling keeps the dweller UUID, so an
     ownership check alone would expose a previous vault's claims.
@@ -130,7 +130,7 @@ async def read_dweller_collectibles(
     dweller = await verify_dweller_access(dweller_id, user, db_session)
     if dweller.vault_id is None:
         return []
-    return await collectible_service.list_for_dweller(db_session, vault_id=dweller.vault_id, dweller_id=dweller.id)
+    return await collectible_service.list_for_dweller(db_session, dweller=dweller)
 
 
 @router.get("/{dweller_id}/lineage", response_model=LineageResponse)

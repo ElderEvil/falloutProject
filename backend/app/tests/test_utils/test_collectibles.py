@@ -6,6 +6,7 @@ from app.core.enums import SPECIAL_STATS
 from app.utils.collectibles import (
     STATIC_ROOT,
     collectible_for_location,
+    held_magazine_boon_amount,
     load_collectibles,
     load_sets,
     magazine_boon_amount,
@@ -97,6 +98,14 @@ def test_a_magazine_boon_is_one_point_and_two_with_the_complete_shelf() -> None:
     assert magazine_boon_amount(entry, ("guns_and_bullets",)) == 1
     assert magazine_boon_amount(entry, ("guns_and_bullets", "tesla_science")) == 1
     assert magazine_boon_amount(entry, ("guns_and_bullets", "tesla_science", "wasteland_survival_guide")) == 2
+
+
+def test_a_held_magazine_amount_reads_the_live_boon_and_treats_cleared_or_bad_data_as_zero() -> None:
+    """The list reports what the finder holds now, not what the catalog once promised."""
+    key = "guns_and_bullets"
+    assert held_magazine_boon_amount({key: {"stat": "perception", "amount": 2}}, key) == 2
+    assert held_magazine_boon_amount(None, key) == 0
+    assert held_magazine_boon_amount({key: {"amount": "two"}}, key) == 0
 
 
 def test_every_catalog_image_exists() -> None:

@@ -29,6 +29,7 @@ from app.utils.collectibles import (
     MAGAZINE,
     collectible_for_key,
     collectible_for_location,
+    held_magazine_boon_amount,
     magazine_boon_amount,
     set_progress,
 )
@@ -102,11 +103,20 @@ class CollectibleService:
         await db_session.flush()
         return True
 
-    async def list_for_dweller(
-        self, db_session: AsyncSession, *, vault_id: UUID, dweller_id: UUID
-    ) -> list[DwellerCollectibleRead]:
-        """The dweller's found collectibles in its current vault, catalog-joined for the API."""
-        claims = await collectible_crud.list_for_dweller(db_session, vault_id, dweller_id)
+    async def list_for_dweller(self, db_session: AsyncSession, *, dweller: Dweller) -> list[DwellerCollectibleRead]:
+        """The dweller's found collectibles in its current vault, catalog-joined for the API.
+
+        Callers pass the dweller they already authorized: ``verify_dweller_access`` returns the
+        eager-loaded row, so reading it again here would only add statements.
+
+        Magazine amounts come from the finder's live ``magazine_boon``, not the catalog: the
+        completed shelf pays an extra point, and recycling clears the boon while the vault's
+        claim stays behind. A cleared boon reads as 0 so the list never promises a lost bonus.
+        """
+        vault_id = dweller.vault_id
+        if vault_id is None:
+            return []
+        claims = await collectible_crud.list_for_dweller(db_session, vault_id, dweller.id)
         reads: list[DwellerCollectibleRead] = []
         for claim in claims:
             try:
@@ -118,12 +128,15 @@ class CollectibleService:
                     vault_id,
                 )
                 continue
+            amount = entry["amount"]
+            if entry["kind"] == MAGAZINE:
+                amount = held_magazine_boon_amount(dweller.magazine_boon, entry["key"])
             reads.append(
                 DwellerCollectibleRead(
                     key=entry["key"],
                     name=entry["name"],
                     stat=entry["stat"],
-                    amount=entry["amount"],
+                    amount=amount,
                     image=entry["image"],
                     location=entry["location"],
                     found_at=claim.found_at,
@@ -186,9 +199,7 @@ class CollectibleService:
         # point, and the boon just written is the single source of truth for what the finder got.
         amount = entry["amount"]
         if entry["kind"] == MAGAZINE:
-            held = (finder.magazine_boon or {}).get(entry["key"])
-            if isinstance(held, dict):
-                amount = int(held.get("amount", entry["amount"]))
+            amount = held_magazine_boon_amount(finder.magazine_boon, entry["key"]) or entry["amount"]
 
         vault = await crud.vault.get(db_session, exploration.vault_id)
         if vault is not None:

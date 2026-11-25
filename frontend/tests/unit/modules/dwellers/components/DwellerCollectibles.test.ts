@@ -50,13 +50,32 @@ describe('DwellerCollectibles', () => {
     expect(wrapper.find('img').attributes('src')).toContain('bobblehead_images/strength.png')
   })
 
+  it('shows a cleared magazine boon as removed rather than a zero bonus', async () => {
+    vi.mocked(getDwellerCollectibles).mockResolvedValue([
+      {
+        ...found,
+        key: 'guns_and_bullets',
+        name: 'Guns and Bullets',
+        stat: 'perception',
+        amount: 0,
+      },
+    ])
+
+    const wrapper = mountCollectibles()
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Guns and Bullets')
+    expect(wrapper.text()).toContain('BONUS REMOVED · PERCEPTION')
+    expect(wrapper.text()).not.toContain('PERMANENT +0')
+  })
+
   it('shows the empty state when the dweller has found nothing', async () => {
     vi.mocked(getDwellerCollectibles).mockResolvedValue([])
 
     const wrapper = mountCollectibles()
     await flushPromises()
 
-    expect(wrapper.text()).toContain('No bobbleheads yet')
+    expect(wrapper.text()).toContain('No collectibles yet')
     expect(wrapper.find('img').exists()).toBe(false)
   })
 
@@ -67,6 +86,6 @@ describe('DwellerCollectibles', () => {
     await flushPromises()
 
     expect(wrapper.text()).toContain('network down')
-    expect(wrapper.text()).not.toContain('No bobbleheads yet')
+    expect(wrapper.text()).not.toContain('No collectibles yet')
   })
 })

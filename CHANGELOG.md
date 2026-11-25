@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 3.27.0 (2026-11-25)
+
+### Features
+
+* **exploration:** a strength-based pack, 25 slots at the midpoint ([#1529](https://github.com/ElderEvil/falloutProject/issues/1529)) 96be6bc, closes #1528 #1528 #1528
+
 ## 3.26.0 (2026-11-25)
 
 ### Features

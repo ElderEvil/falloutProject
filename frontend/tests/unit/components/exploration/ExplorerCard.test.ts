@@ -7,6 +7,8 @@ import { Progress } from '@/core/components/ui/progress'
 import ExplorerCard from '@/modules/exploration/components/ExplorerCard.vue'
 import ExplorerActions from '@/modules/exploration/components/ExplorerActions.vue'
 import type { Exploration } from '@/modules/exploration/stores/exploration'
+import { fromExplorationShort } from '@/modules/exploration/stores/exploration'
+import type { ExplorationReadShort } from '@/modules/exploration/api/exploration'
 import type { Dweller, DwellerShort } from '@/modules/dwellers/models/dweller'
 
 vi.mock('vue-router', () => createRouterMock({ params: { id: 'vault-1' } }))
@@ -198,6 +200,67 @@ describe('ExplorerCard', () => {
     })
 
     expect(wrapper.find('.view-on-map').attributes('href')).toBe('/vault/vault-1/map?place=loc-9')
+  })
+
+  it('renders pack, item count and recent activity from the real list payload', () => {
+    // The explorer list serves ExplorationReadShort. Reading it through the detail-only fields
+    // used to show "0 / 15", no item count and no activity; keep this fixture on the list shape.
+    const listRow: ExplorationReadShort = {
+      id: 'exploration-1',
+      vault_id: 'vault-1',
+      dweller_id: 'dweller-1',
+      status: 'active',
+      start_time: '2026-01-01T00:00:00Z',
+      end_time: null,
+      return_started_at: null,
+      return_completes_at: null,
+      duration: 8,
+      events: [
+        {
+          type: 'loot',
+          description: 'Found a desk fan',
+          timestamp: '2026-01-01T00:10:00Z',
+          time_elapsed_hours: 0.5,
+        },
+      ],
+      loot_collected: [
+        {
+          item_name: 'Desk Fan',
+          quantity: 2,
+          rarity: 'Common',
+          item_type: 'junk',
+          found_at: '2026-01-01T00:10:00Z',
+        },
+        {
+          item_name: 'Stimpak',
+          quantity: 1,
+          rarity: 'Common',
+          item_type: 'stimpak',
+          found_at: '2026-01-01T00:20:00Z',
+        },
+      ],
+      total_distance: 6,
+      total_caps_found: 30,
+      enemies_encountered: 1,
+      stimpaks: 2,
+      radaways: 0,
+      dweller_strength: 3,
+      carry_capacity: 21,
+      pack_slots_used: 2,
+    }
+
+    const wrapper = mount(ExplorerCard, {
+      props: { exploration: fromExplorationShort(listRow), dweller },
+    })
+
+    expect(wrapper.find('.pack-count').text()).toBe('2 / 21')
+    const itemsMetric = wrapper
+      .findAll('.terminal-metric')
+      .find((metric) => metric.text().includes('Items'))
+    expect(itemsMetric?.text()).toContain('2')
+    expect(wrapper.find('.recent-events').text()).toContain('Found a desk fan')
+
+    wrapper.unmount()
   })
 
   it('links free-roam explorers to the plain map', () => {

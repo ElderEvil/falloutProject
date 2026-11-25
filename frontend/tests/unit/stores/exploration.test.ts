@@ -344,6 +344,40 @@ describe('Exploration Store', () => {
       expect(Object.keys(store.activeExplorations)).toHaveLength(2)
     })
 
+    it('keeps the pack figures and activity the list payload now carries', async () => {
+      const store = useExplorationStore()
+      vi.mocked(explorationApi.getExplorationsByVault).mockResolvedValueOnce([
+        {
+          ...mockExploration,
+          events: [
+            {
+              type: 'loot',
+              description: 'Found a desk fan',
+              timestamp: '2025-01-01T00:10:00Z',
+              time_elapsed_hours: 1,
+            },
+          ],
+          loot_collected: [
+            {
+              item_name: 'Desk Fan',
+              quantity: 2,
+              rarity: 'Common',
+              found_at: '2025-01-01T00:10:00Z',
+            },
+          ],
+          carry_capacity: 21,
+          pack_slots_used: 2,
+        },
+      ])
+
+      const [run] = await store.fetchExplorationsByVault('vault-1', true)
+
+      expect(run.carry_capacity).toBe(21)
+      expect(run.pack_slots_used).toBe(2)
+      expect(run.loot_collected).toHaveLength(1)
+      expect(run.events[0]?.description).toBe('Found a desk fan')
+    })
+
     it('should fetch all explorations when activeOnly is false', async () => {
       const store = useExplorationStore()
       const explorations = [

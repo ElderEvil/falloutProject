@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 3.27.3 (2026-11-25)
+
+### Bug Fixes
+
+* **radio:** air a broadcast on the founding day and never show a player with nothing to play ([#1533](https://github.com/ElderEvil/falloutProject/issues/1533)) f6838b5
+
 ## 3.27.2 (2026-11-25)
 
 ### Bug Fixes

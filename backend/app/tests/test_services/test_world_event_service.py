@@ -7,6 +7,7 @@ from sqlmodel import select
 
 from app import crud
 from app.core.enums import NotificationType, WorldEventStatus
+from app.core.game_config import game_config
 from app.models.notification import Notification
 from app.models.vault import Vault
 from app.models.world_event import WorldEvent, WorldEventParticipation
@@ -38,6 +39,7 @@ async def seed_event(
     personal_min: int = 10,
     kind: str = KIND,
     reward: list[dict] | None = None,
+    finished: timedelta | None = None,
 ) -> WorldEvent:
     now = utcnow()
     event = WorldEvent(
@@ -51,6 +53,7 @@ async def seed_event(
         starts_at=now + window[0],
         ends_at=now + window[1],
         status=status,
+        finished_at=None if finished is None else now + finished,
     )
     async_session.add(event)
     await async_session.commit()
@@ -155,6 +158,75 @@ async def test_advance_activates_due_event_but_never_a_second(async_session: Asy
     await async_session.refresh(other)
     assert event.status == WorldEventStatus.ACTIVE
     assert other.status == WorldEventStatus.SCHEDULED
+
+
+async def test_advance_creates_first_event_only_when_enabled(async_session: AsyncSession, monkeypatch) -> None:
+    assert await svc.advance(async_session) is None
+    monkeypatch.setattr(game_config.features, "world_events", True)
+    assert await svc.advance(async_session) == "activated"
+    rows = list((await async_session.execute(select(WorldEvent))).scalars())
+    assert len(rows) == 1
+    assert (rows[0].kind, rows[0].status, rows[0].personal_min) == ("WASTELAND_RELAY", WorldEventStatus.ACTIVE, 5)
+    assert await svc.advance(async_session) is None
+
+
+async def test_advance_creates_next_event_after_a_day_off(async_session: AsyncSession, monkeypatch) -> None:
+    monkeypatch.setattr(game_config.features, "world_events", True)
+    await seed_event(
+        async_session,
+        status=WorldEventStatus.EXPIRED,
+        window=(timedelta(days=-9), timedelta(days=-2)),
+        finished=timedelta(days=-2),
+    )
+    assert await svc.advance(async_session) == "activated"
+    rows = list((await async_session.execute(select(WorldEvent))).scalars())
+    assert len(rows) == 2
+    assert sum(row.status == WorldEventStatus.ACTIVE for row in rows) == 1
+
+
+@pytest.mark.parametrize(
+    ("finished_ago", "expected"),
+    [(timedelta(hours=2), None), (timedelta(days=2), "activated")],
+)
+async def test_next_event_waits_one_day_after_completion(
+    async_session: AsyncSession, monkeypatch, finished_ago: timedelta, expected: str | None
+) -> None:
+    monkeypatch.setattr(game_config.features, "world_events", True)
+    # Completed early: the window still had six days to run, the quiet day starts at completion.
+    await seed_event(
+        async_session,
+        status=WorldEventStatus.COMPLETED,
+        window=(timedelta(days=-7), timedelta(days=1)),
+        finished=-finished_ago,
+    )
+    assert await svc.advance(async_session) == expected
+
+
+async def test_late_write_to_a_finished_event_does_not_postpone_the_next_relay(
+    async_session: AsyncSession, monkeypatch
+) -> None:
+    monkeypatch.setattr(game_config.features, "world_events", True)
+    event = await seed_event(
+        async_session,
+        status=WorldEventStatus.COMPLETED,
+        window=(timedelta(days=-7), timedelta(days=-6)),
+        finished=timedelta(days=-2),
+    )
+    # Any later write moves ``updated_at``; the quiet day must not restart because of it.
+    event.description = "Edited after the fact."
+    await async_session.commit()
+    assert await svc.advance(async_session) == "activated"
+
+
+async def test_completion_records_when_the_event_finished(async_session: AsyncSession) -> None:
+    event = await seed_event(async_session, window=(timedelta(days=-1), timedelta(days=6)), target=10, progress=10)
+    before = utcnow()
+    assert await svc.advance(async_session) == "completed"
+    await async_session.refresh(event)
+    assert event.finished_at is not None
+    assert before <= event.finished_at <= utcnow()
+    # ends_at keeps describing the window, not the moment the relay was done.
+    assert event.finished_at < event.ends_at
 
 
 async def test_advance_completion_notifies_participants_only(async_session: AsyncSession) -> None:

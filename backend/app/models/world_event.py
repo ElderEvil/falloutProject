@@ -40,6 +40,12 @@ class WorldEventBase(SQLModel):
     )
     # Set when ends_at was pushed back; NULL until the first extension.
     extended_at: datetime | None = Field(sa_type=UTCDateTime, default=None)
+    # When the event actually reached COMPLETED or EXPIRED. ends_at is the window's nominal
+    # endpoint, which a completed event can beat by days, so the quiet day before the next relay
+    # is measured from here. NULL means "no terminal transition recorded" — open events and rows
+    # that finished before this column existed — and the quiet day falls back to ends_at.
+    # ``updated_at`` is not a substitute: any later write to the row moves it.
+    finished_at: datetime | None = Field(sa_type=UTCDateTime, default=None)
 
 
 class WorldEvent(BaseUUIDModel, WorldEventBase, TimeStampMixin, table=True):

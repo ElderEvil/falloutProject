@@ -85,7 +85,9 @@ async def test_timestamp_inventory_matches_migrated_schema(utc_connection: Async
     }
     # Pinned totals: the world-event, pvpduel, collectible and caravan migrations add their columns
     # here; the magazine migration adds only the JSONB boon, which is not a UTC producer.
-    assert len(expected) == 145
+    # ``worldevent.finished_at`` is the newest UTC column: it records the terminal transition, so
+    # the quiet day before the next relay is measured from it rather than from ends_at.
+    assert len(expected) == 146
     assert len({table for table, _ in expected}) == 45
     rows = await utc_connection.execute(
         text(

@@ -9,6 +9,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.enums import WorldEventStatus
+from app.core.game_config import game_config
 from app.crud import world_event as world_event_crud
 from app.models.world_event import WorldEvent, WorldEventParticipation
 from app.schemas.world_event import WorldEventClaimRead, WorldEventRead
@@ -200,7 +201,11 @@ class WorldEventService:
 
         scheduled = await world_event_crud.get_next_scheduled(db_session, at=now)
         if scheduled is None:
-            return None
+            scheduled = await self._schedule_next(db_session, current, now)
+            if scheduled is None:
+                return None
+            db_session.add(scheduled)
+            await db_session.flush()
         event = await world_event_crud.get_for_update(db_session, scheduled.id)
         if event is None or event.status != WorldEventStatus.SCHEDULED:
             return None
@@ -211,9 +216,32 @@ class WorldEventService:
         db_session.add(event)
         return "activated"
 
+    async def _schedule_next(
+        self, db_session: AsyncSession, current: WorldEvent | None, now: datetime
+    ) -> WorldEvent | None:
+        """Seed the initial/next weekly relay, preserving any existing schedule."""
+        if not game_config.features.world_events or await world_event_crud.has_scheduled(db_session):
+            return None
+        # The quiet day starts when the previous event actually finished, not when its window was
+        # due to close: a relay that hits its target on day two leaves one idle day, not six.
+        # Rows that finished before ``finished_at`` existed fall back to their window end.
+        if current is not None and (current.finished_at or current.ends_at) + timedelta(days=1) > now:
+            return None
+        return WorldEvent(
+            kind="WASTELAND_RELAY",
+            title="Wasteland Relay",
+            description="Every expedition strengthens the relay between our vaults.",
+            target_amount=100,
+            personal_min=5,
+            reward=[{"reward_type": "caps", "amount": 250}],
+            starts_at=now,
+            ends_at=now + timedelta(days=7),
+        )
+
     async def _advance_active(self, db_session: AsyncSession, event: WorldEvent, now: datetime) -> str | None:
         if event.progress_amount >= event.target_amount:
             event.status = WorldEventStatus.COMPLETED
+            event.finished_at = now
             db_session.add(event)
             await self._notify_completed(db_session, event)
             return "completed"
@@ -225,6 +253,7 @@ class WorldEventService:
             db_session.add(event)
             return "extended"
         event.status = WorldEventStatus.EXPIRED
+        event.finished_at = now
         db_session.add(event)
         return "expired"
 

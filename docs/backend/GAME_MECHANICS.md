@@ -331,6 +331,10 @@ response without sending its own notification, so the two paths must not be desc
 progression-visibility red line applies to both. The as-built design record is
 `docs/archive/features/WORLD_EVENTS.md`; the code and this section are the source of truth.
 
+With `world_events` enabled, an empty schedule seeds a seven-day **Wasteland Relay** (100 shared expedition
+units, 5 per vault, 250 caps). A finished event gets one day off before the next relay. Existing scheduled rows
+are preserved, and a disabled flag never auto-creates events.
+
 ## Relationship affinity
 
 Affinity moves in both directions while a pair shares Living Quarters. Each tick computes one signed change

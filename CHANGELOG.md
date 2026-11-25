@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 3.31.6 (2026-11-25)
+
+### Bug Fixes
+
+* **world-event:** skip the banner request while the feature is dark ([#1551](https://github.com/ElderEvil/falloutProject/issues/1551)) 241ea03
+
 ## 3.31.5 (2026-11-25)
 
 ### Bug Fixes

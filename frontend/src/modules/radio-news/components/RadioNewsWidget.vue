@@ -6,6 +6,7 @@ import { Badge } from '@/core/components/ui/badge'
 import { Button } from '@/core/components/ui/button'
 import { Slider } from '@/core/components/ui/slider'
 import { useToast } from '@/core/composables/useToast'
+import { getErrorMessage } from '@/core/utils/errorHandler'
 import { parseUtcMs } from '@/core/utils/time'
 import { fetchRadioNews, regenerateRadioNews, type RadioNewsBroadcast } from '../api/radioNews'
 
@@ -14,8 +15,6 @@ const isInline = computed(() => props.inline ?? false)
 const emit = defineEmits<{ newBroadcast: [broadcast: RadioNewsBroadcast] }>()
 const toast = useToast()
 const broadcast = ref<RadioNewsBroadcast | null>(null)
-const isLoading = ref(true)
-const error = ref<string | null>(null)
 const isPlaying = ref(false)
 const audioEl = shallowRef<HTMLAudioElement | null>(null)
 const volume = useLocalStorage('radio_news_volume', 75, {
@@ -96,7 +95,11 @@ const isToday = computed(() => {
 const isNew = computed(() => isToday.value && !hasPlayed.value)
 const isAudioAvailable = computed(() => !!broadcast.value?.audio_url)
 const hasScript = computed(() => !!broadcast.value?.script)
-const showTextBroadcast = computed(() => !isAudioAvailable.value && hasScript.value)
+const isTranscriptOnly = computed(() => !isAudioAvailable.value && hasScript.value)
+// Nothing to listen to and nothing to read: the widget stays out of the HUD entirely.
+const hasBroadcast = computed(
+  () => broadcast.value !== null && (isAudioAvailable.value || hasScript.value)
+)
 const title = computed(() => broadcast.value?.title?.trim() || 'Vault Radio Hour')
 const broadcastDate = computed(() => {
   const createdAt = broadcast.value?.created_at
@@ -111,27 +114,21 @@ const broadcastDate = computed(() => {
 const loadBroadcast = async () => {
   const requestVersion = ++loadVersion
   const requestedVaultId = props.vaultId
-  isLoading.value = true
-  error.value = null
   today.value = utcDayStart()
   try {
     const data = await fetchRadioNews(requestedVaultId)
     if (requestVersion !== loadVersion) return
-    // A vault founded today has no broadcast yet; the server answers null rather than generating one.
-    if (broadcast.value?.id !== data?.id) stopAudio()
+    if (broadcast.value?.id !== data.id) stopAudio()
     broadcast.value = data
-    if (!data) {
-      hasPlayed.value = false
-      return
-    }
     hasPlayed.value = data.id ? isPlayedToday(data.id) : false
     emit('newBroadcast', data)
-  } catch (err) {
+  } catch (error) {
     if (requestVersion !== loadVersion) return
+    // Nothing to render: the widget simply stays out of the HUD.
+    console.warn(
+      `[radio-news] Failed to load broadcast for vault ${requestedVaultId}: ${getErrorMessage(error)}`
+    )
     toast.warning('Broadcast unavailable')
-    error.value = err instanceof Error ? err.message : 'Failed to load broadcast'
-  } finally {
-    if (requestVersion === loadVersion) isLoading.value = false
   }
 }
 
@@ -305,7 +302,6 @@ watch(
     isRegenerating.value = false
     stopAudio()
     broadcast.value = null
-    error.value = null
     void loadBroadcast()
   }
 )
@@ -324,8 +320,9 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div ref="rootRef" class="radio-news-widget">
-    <!-- Tuner trigger: the only thing that lives in the HUD, so the control bar stays compact. -->
+  <div v-if="hasBroadcast" ref="rootRef" class="radio-news-widget">
+    <!-- Tuner trigger: the only thing that lives in the HUD, so the control bar stays compact.
+         It exists only when there is something to listen to or read. -->
     <Button
       ref="triggerRef"
       type="button"
@@ -354,22 +351,7 @@ onBeforeUnmount(() => {
           />
         </span>
 
-        <span v-if="isLoading" class="radio-news-widget__loading flex items-center gap-2">
-          <span
-            class="h-2 w-12 animate-pulse rounded-full bg-theme-primary/30 motion-reduce:animate-none"
-          />
-          <span class="text-[0.6rem] font-bold uppercase tracking-[0.2em] text-theme-primary/70">
-            Tuning
-          </span>
-        </span>
-        <span
-          v-else-if="error && !broadcast"
-          class="radio-news-widget__error flex max-w-[10rem] items-center gap-1 text-xs text-danger"
-        >
-          <Icon icon="mdi:alert-circle-outline" class="h-4 w-4 shrink-0" />
-          <span class="truncate">{{ error }}</span>
-        </span>
-        <span v-else class="radio-news-widget__badge flex flex-col items-start leading-none">
+        <span class="radio-news-widget__badge flex flex-col items-start leading-none">
           <span
             class="text-[0.55rem] font-bold uppercase tracking-[0.22em]"
             :class="isNew ? 'text-theme-primary' : 'text-theme-primary/60'"
@@ -378,7 +360,7 @@ onBeforeUnmount(() => {
           </span>
         </span>
         <span
-          v-if="!isLoading && broadcast && !isInline"
+          v-if="broadcast && !isInline"
           class="hidden max-w-[11rem] truncate text-[0.65rem] font-semibold sm:block"
         >
           {{ isPlaying ? 'On air' : isPaused ? 'Paused' : title }}
@@ -410,6 +392,7 @@ onBeforeUnmount(() => {
         >
           <div class="flex min-w-0 items-center gap-2">
             <span
+              v-if="isAudioAvailable"
               class="h-2 w-2 shrink-0 rounded-full motion-reduce:animate-none"
               :class="
                 isPlaying
@@ -428,7 +411,7 @@ onBeforeUnmount(() => {
             </span>
           </div>
           <div class="flex shrink-0 items-center gap-2">
-            <div class="flex items-end gap-0.5" aria-hidden="true">
+            <div v-if="isAudioAvailable" class="flex items-end gap-0.5" aria-hidden="true">
               <span
                 v-for="(bar, index) in SIGNAL_BARS"
                 :key="bar.key"
@@ -439,7 +422,10 @@ onBeforeUnmount(() => {
                 ]"
               />
             </div>
-            <span class="text-[0.55rem] uppercase tracking-widest text-theme-primary/50">
+            <span
+              v-if="isAudioAvailable"
+              class="text-[0.55rem] uppercase tracking-widest text-theme-primary/50"
+            >
               {{ isPlaying ? 'On air' : isPaused ? 'Paused' : 'Standby' }}
             </span>
             <Button
@@ -455,30 +441,7 @@ onBeforeUnmount(() => {
           </div>
         </header>
 
-        <div
-          v-if="isLoading"
-          class="flex items-center gap-2 px-4 py-6 text-xs uppercase tracking-widest text-theme-primary/60"
-        >
-          <Icon icon="mdi:loading" class="h-4 w-4 animate-spin" />
-          Receiving transmission
-        </div>
-
-        <div v-else-if="error && !broadcast" class="space-y-3 px-4 py-5">
-          <p class="radio-news-widget__error-text m-0 text-xs leading-relaxed text-danger">
-            {{ error }}
-          </p>
-          <Button
-            variant="outline"
-            size="sm"
-            class="radio-news-widget__retry"
-            @click="loadBroadcast"
-          >
-            <Icon icon="mdi:refresh" class="h-4 w-4" />
-            <span>Retry</span>
-          </Button>
-        </div>
-
-        <template v-else-if="broadcast">
+        <template v-if="broadcast">
           <div class="space-y-3 px-4 py-3">
             <div class="flex items-start justify-between gap-3">
               <div class="min-w-0">
@@ -503,6 +466,7 @@ onBeforeUnmount(() => {
 
             <!-- Tuning dial: the needle slides while the broadcast plays. -->
             <div
+              v-if="isAudioAvailable"
               class="radio-news-widget__dial relative overflow-hidden rounded border border-theme-primary/20 bg-surface-sunken/70 px-3 pb-1 pt-2"
               aria-hidden="true"
             >
@@ -529,9 +493,8 @@ onBeforeUnmount(() => {
               </div>
             </div>
 
-            <div class="flex items-stretch gap-2">
+            <div v-if="isAudioAvailable" class="flex items-stretch gap-2">
               <Button
-                v-if="isAudioAvailable"
                 variant="outline"
                 size="sm"
                 class="radio-news-widget__play-btn flex-1 border-theme-primary/40"
@@ -547,7 +510,6 @@ onBeforeUnmount(() => {
                 <span class="text-xs font-semibold">{{ playLabel }}</span>
               </Button>
               <Button
-                v-if="isAudioAvailable"
                 variant="outline"
                 size="icon-sm"
                 class="border-theme-primary/30"
@@ -558,12 +520,6 @@ onBeforeUnmount(() => {
               >
                 <Icon icon="mdi:skip-previous" />
               </Button>
-              <div
-                v-else
-                class="flex flex-1 items-center justify-center rounded border border-dashed border-theme-primary/30 px-2 text-[0.55rem] font-bold uppercase tracking-widest text-theme-primary/50"
-              >
-                Transcript only
-              </div>
               <Button
                 variant="outline"
                 size="sm"
@@ -627,12 +583,13 @@ onBeforeUnmount(() => {
               </span>
             </div>
 
-            <!-- Transcript doubles as the live caption while audio plays. -->
+            <!-- Transcript doubles as the live caption while audio plays; without audio it
+                 is the whole card — no player chrome, no dial, no volume. -->
             <section
               class="radio-news-widget__transcript rounded border border-theme-primary/20 bg-surface-sunken/50 p-3"
               :class="{
                 'radio-news-widget__caption border-theme-primary/40': isPlaying,
-                'radio-news-widget__text-panel': showTextBroadcast,
+                'radio-news-widget__text-panel': isTranscriptOnly,
               }"
               :aria-live="isPlaying ? 'polite' : undefined"
             >
@@ -643,12 +600,6 @@ onBeforeUnmount(() => {
                   <Icon icon="mdi:text-box-outline" class="h-3.5 w-3.5" />
                   {{ title }}
                 </h4>
-                <span
-                  v-if="showTextBroadcast"
-                  class="shrink-0 text-[0.55rem] uppercase tracking-widest text-warning"
-                >
-                  Audio unavailable
-                </span>
               </header>
               <p
                 class="m-0 max-h-32 overflow-y-auto whitespace-pre-wrap text-[0.7rem] leading-relaxed text-theme-primary/85 sm:max-h-40"
@@ -656,21 +607,28 @@ onBeforeUnmount(() => {
                 {{ broadcast.script }}
               </p>
             </section>
+
+            <!-- A read-only card still needs a way back to audio, so regeneration
+                 sits outside the player chrome. -->
+            <div v-if="isTranscriptOnly" class="flex justify-end">
+              <Button
+                variant="outline"
+                size="sm"
+                class="radio-news-widget__regenerate-btn border-theme-primary/30 text-theme-primary/80"
+                :disabled="isRegenerating"
+                aria-label="Regenerate the broadcast"
+                @click="onRegenerate"
+              >
+                <Icon
+                  :icon="isRegenerating ? 'mdi:loading' : 'mdi:refresh'"
+                  class="h-4 w-4"
+                  :class="{ 'animate-spin': isRegenerating }"
+                />
+                <span class="text-xs font-semibold">Regenerate</span>
+              </Button>
+            </div>
           </div>
         </template>
-
-        <div
-          v-else
-          class="radio-news-widget__off-air space-y-1 px-4 py-5 text-xs leading-relaxed text-theme-primary/70"
-        >
-          <p
-            class="m-0 flex items-center gap-1.5 font-bold uppercase tracking-widest text-theme-primary/60"
-          >
-            <Icon icon="mdi:weather-night" class="h-4 w-4" />
-            Off air
-          </p>
-          <p class="m-0">The first broadcast airs tomorrow, once the vault has a day to report.</p>
-        </div>
       </aside>
     </Teleport>
   </div>

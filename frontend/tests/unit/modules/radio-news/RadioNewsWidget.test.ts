@@ -164,6 +164,23 @@ describe('RadioNewsWidget', () => {
   })
 
   it('marks a transcript-only broadcast read when it arrives while the console is open', async () => {
+    mockApiGet.mockResolvedValueOnce(makeBroadcast()).mockResolvedValueOnce(makeEmptyBroadcast())
+
+    const wrapper = mount(RadioNewsWidget, {
+      props: { vaultId: 'vault-1' },
+    })
+    await flushPromises()
+    await wrapper.find('.radio-news-widget__toggle').trigger('click')
+
+    // The next broadcast lands while the console is already open.
+    await wrapper.setProps({ vaultId: 'vault-2' })
+    await flushPromises()
+
+    expect(localStorage.getItem('radio_news_played')).toContain('broadcast-empty')
+    expect(wrapper.find('.radio-news-widget__badge').text()).toContain('Radio')
+  })
+
+  it('stays out of the HUD while the first broadcast is loading', async () => {
     let resolveLoad!: (value: unknown) => void
     mockApiGet.mockImplementation(
       () =>
@@ -175,23 +192,15 @@ describe('RadioNewsWidget', () => {
     const wrapper = mount(RadioNewsWidget, {
       props: { vaultId: 'vault-1' },
     })
-    await wrapper.find('.radio-news-widget__toggle').trigger('click')
 
-    resolveLoad(makeEmptyBroadcast())
+    // No empty tuner flash before data arrives: the widget is simply absent.
+    expect(wrapper.find('.radio-news-widget__toggle').exists()).toBe(false)
+    expect(wrapper.find('#radio-news-panel').exists()).toBe(false)
+
+    resolveLoad(makeBroadcast())
     await flushPromises()
 
-    expect(localStorage.getItem('radio_news_played')).toContain('broadcast-empty')
-    expect(wrapper.find('.radio-news-widget__badge').text()).toContain('Radio')
-  })
-
-  it('shows a loading skeleton on initial mount', async () => {
-    mockApiGet.mockResolvedValue(undefined as never)
-
-    const wrapper = mount(RadioNewsWidget, {
-      props: { vaultId: 'vault-1' },
-    })
-
-    expect(wrapper.find('.radio-news-widget__loading').exists()).toBe(true)
+    expect(wrapper.find('.radio-news-widget__toggle').exists()).toBe(true)
   })
 
   it('renders a badge when a broadcast loads', async () => {
@@ -208,24 +217,31 @@ describe('RadioNewsWidget', () => {
     expect(badge.text()).toContain('New Broadcast')
   })
 
-  it('stays off air for a vault founded today', async () => {
-    mockApiGet.mockResolvedValue(null)
+  it('renders a founding-day broadcast like any other broadcast', async () => {
+    const foundingDay = makeBroadcast({
+      id: 'broadcast-founding-day',
+      title: 'Vault 111 Signs On',
+    })
+    mockApiGet.mockResolvedValue(foundingDay)
 
     const wrapper = mount(RadioNewsWidget, {
       props: { vaultId: 'vault-1' },
     })
     await flushPromises()
 
-    // The badge must not claim a new broadcast when the server returned nothing.
-    expect(wrapper.find('.radio-news-widget__badge').text()).not.toContain('New Broadcast')
+    // There is no off-air special case any more: the payload is a normal broadcast.
+    expect(wrapper.find('.radio-news-widget__off-air').exists()).toBe(false)
+    expect(wrapper.find('.radio-news-widget__badge').text()).toContain('New Broadcast')
 
     await wrapper.find('.radio-news-widget__toggle').trigger('click')
     await flushPromises()
 
-    const offAir = wrapper.find('.radio-news-widget__off-air')
-    expect(offAir.exists()).toBe(true)
-    expect(offAir.text()).toContain('first broadcast airs tomorrow')
-    expect(wrapper.find('.radio-news-widget__error').exists()).toBe(false)
+    expect(wrapper.find('.radio-news-widget__title').text()).toBe('Vault 111 Signs On')
+    expect(wrapper.find('.radio-news-widget__play-btn').text()).toContain('Play')
+    expect(wrapper.find('.radio-news-widget__transcript').text()).toContain(
+      'Population stands at 23.'
+    )
+    expect(wrapper.emitted('newBroadcast')?.[0]).toEqual([foundingDay])
   })
 
   it('derives the toggle name from its visible content', async () => {
@@ -274,6 +290,24 @@ describe('RadioNewsWidget', () => {
 
     expect(wrapper.emitted('newBroadcast')).toBeTruthy()
     expect(wrapper.emitted('newBroadcast')![0]).toEqual([broadcast])
+  })
+
+  it('shows the full player for a playable broadcast', async () => {
+    mockApiGet.mockResolvedValue(makeBroadcast())
+
+    const wrapper = mount(RadioNewsWidget, {
+      props: { vaultId: 'vault-1' },
+    })
+    await flushPromises()
+    await wrapper.find('.radio-news-widget__toggle').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.find('[aria-label="Play broadcast"]').exists()).toBe(true)
+    expect(wrapper.find('.radio-news-widget__dial').exists()).toBe(true)
+    expect(wrapper.findComponent(Slider).exists()).toBe(true)
+    expect(wrapper.find('[aria-label="Mute broadcast"]').exists()).toBe(true)
+    expect(wrapper.find('[aria-label="Regenerate the broadcast"]').exists()).toBe(true)
+    expect(wrapper.find('.radio-news-widget__transcript').exists()).toBe(true)
   })
 
   it('shows a play button when audio_url is present', async () => {
@@ -504,7 +538,7 @@ describe('RadioNewsWidget', () => {
     wrapper.unmount()
   })
 
-  it('shows a text-only panel when audio_url is null but script exists', async () => {
+  it('renders only the transcript card when a broadcast has no audio', async () => {
     mockApiGet.mockResolvedValue(makeEmptyBroadcast())
 
     const wrapper = mount(RadioNewsWidget, {
@@ -517,8 +551,14 @@ describe('RadioNewsWidget', () => {
     expect(wrapper.find('.radio-news-widget__text-panel').text()).toContain(
       'No broadcast available today'
     )
-    // No play button
+    // No player chrome at all: no dial, no play/pause, no volume, no player shell.
+    expect(wrapper.find('.radio-news-widget__dial').exists()).toBe(false)
     expect(wrapper.find('.radio-news-widget__play-btn').exists()).toBe(false)
+    expect(wrapper.find('.radio-news-widget__volume').exists()).toBe(false)
+    expect(wrapper.findComponent(Slider).exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('Audio unavailable')
+    // Regeneration survives, outside the player chrome.
+    expect(wrapper.find('[aria-label="Regenerate the broadcast"]').exists()).toBe(true)
   })
 
   it('does not show a play button when audio_url is null', async () => {
@@ -565,8 +605,9 @@ describe('RadioNewsWidget', () => {
     expect(wrapper.find('.radio-news-widget__caption').text()).toContain('Vault 111 Evening News')
   })
 
-  it('shows error state when fetch fails and no broadcast exists', async () => {
+  it('stays out of the HUD and logs the vault context when the broadcast request fails', async () => {
     mockApiGet.mockRejectedValue(new Error('network'))
+    const warning = vi.spyOn(console, 'warn').mockImplementation(() => {})
 
     const wrapper = mount(RadioNewsWidget, {
       props: { vaultId: 'vault-1' },
@@ -574,9 +615,13 @@ describe('RadioNewsWidget', () => {
 
     await flushPromises()
 
-    const errorEl = wrapper.find('.radio-news-widget__error')
-    expect(errorEl.exists()).toBe(true)
-    expect(errorEl.text()).toContain('network')
+    // Nothing to listen to and nothing to read: no trigger, no empty console.
+    expect(wrapper.find('.radio-news-widget__toggle').exists()).toBe(false)
+    expect(wrapper.find('#radio-news-panel').exists()).toBe(false)
+    expect(warning).toHaveBeenCalledWith(
+      '[radio-news] Failed to load broadcast for vault vault-1: network'
+    )
+    warning.mockRestore()
   })
 
   it('does not autoplay on mount', async () => {

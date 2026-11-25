@@ -1,5 +1,5 @@
 from contextlib import ExitStack, asynccontextmanager, contextmanager
-from datetime import UTC, datetime, timedelta
+from datetime import timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -16,10 +16,10 @@ from app.services.broadcast_service import (
     vault_stats_from_db,
 )
 from app.utils.exceptions import (
-    BroadcastNotYetAiringException,
     BroadcastRateLimitException,
     TTSProviderException,
 )
+from app.utils.time import utcnow
 
 VAULT_DATA = {
     "number": 1,
@@ -67,7 +67,7 @@ def _pipeline(*, openrouter: MagicMock | None = None, elevenlabs: MagicMock | No
 
 async def _daily_row(db, vault, audio_key: str | None = None, *, days_ago: int = 0) -> Broadcast:
     row = await create_broadcast(db, vault_id=vault.id, title="Old", script="Old script", audio_key=audio_key)
-    row.created_at = datetime.now(UTC).replace(tzinfo=None) - timedelta(days=days_ago)
+    row.created_at = utcnow() - timedelta(days=days_ago)
     await db.commit()
     return row
 
@@ -105,40 +105,44 @@ async def test_daily_broadcast_created_once(async_session, vault):
     assert ((first.id, len(rows)), rows[0].trigger) == ((second.id, 1), "daily")
 
 
-async def test_daily_broadcast_waits_until_the_day_after_founding(async_session, vault):
+async def test_daily_broadcast_airs_on_the_founding_day(async_session, vault):
+    vault.created_at = utcnow()
+    async_session.add(vault)
+    await async_session.commit()
+
     with _pipeline():
-        result = await get_or_create_daily(
-            async_session,
-            vault.id,
-            vault_data=VAULT_DATA,
-            vault_created_at=datetime.now(UTC).replace(tzinfo=None),
-        )
+        result = await get_or_create_daily(async_session, vault.id, vault_data=VAULT_DATA)
+
     rows = (await async_session.exec(select(Broadcast))).all()
-    assert (result, rows) == (None, [])
-
-
-async def test_daily_broadcast_airs_once_the_vault_is_a_day_old(async_session, vault):
-    with _pipeline():
-        result = await get_or_create_daily(
-            async_session,
-            vault.id,
-            vault_data=VAULT_DATA,
-            vault_created_at=datetime.now(UTC).replace(tzinfo=None) - timedelta(days=1),
-        )
     assert result is not None
+    assert (result.trigger, len(rows)) == ("daily", 1)
+
+
+async def test_daily_broadcast_airs_for_an_older_vault(async_session, vault):
+    vault.created_at = utcnow() - timedelta(days=1)
+    async_session.add(vault)
+    await async_session.commit()
+
+    with _pipeline():
+        result = await get_or_create_daily(async_session, vault.id, vault_data=VAULT_DATA)
+
     assert result.trigger == "daily"
 
 
-async def test_regenerate_before_the_first_airing_is_refused(async_session, vault):
-    with _pipeline(), pytest.raises(BroadcastNotYetAiringException):
-        await regenerate(
-            async_session,
-            vault.id,
-            vault_data=VAULT_DATA,
-            vault_created_at=datetime.now(UTC).replace(tzinfo=None),
-        )
+async def test_regenerate_on_the_founding_day_is_limited_only_by_the_rate_limit(async_session, vault):
+    vault.created_at = utcnow()
+    async_session.add(vault)
+    await async_session.commit()
+
+    with _pipeline():
+        for _ in range(MAX_REGENERATIONS_PER_DAY):
+            result = await regenerate(async_session, vault.id, vault_data=VAULT_DATA)
+            assert result.trigger == "manual"
+        with pytest.raises(BroadcastRateLimitException):
+            await regenerate(async_session, vault.id, vault_data=VAULT_DATA)
+
     rows = (await async_session.exec(select(Broadcast))).all()
-    assert rows == []
+    assert len(rows) == MAX_REGENERATIONS_PER_DAY
 
 
 async def test_daily_broadcast_without_explicit_context_uses_vault_stats(async_session, vault):

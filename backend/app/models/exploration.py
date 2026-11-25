@@ -237,12 +237,39 @@ class Exploration(BaseUUIDModel, ExplorationBase, TimeStampMixin, table=True):
         now = self.paused_at or utcnow()
         return max(0, int((self.return_completes_at - now).total_seconds()))
 
+    def journey_distance(self) -> int:
+        """Miles covered by a spatial run, measured from the path it walked.
+
+        Spatial runs move through the world snapshot — they update `pos_x`/`pos_y` and append to
+        `trail`, and never touch `total_distance`, which only the legacy event generator increments.
+        The trail is therefore the only record: the farthest point the run reached, counted twice
+        when it came home along the same line, since the return leg retraces that path.
+        """
+        if self.world_version is None or not self.trail:
+            return self.total_distance
+        if self.origin_x is None or self.origin_y is None:
+            return self.total_distance
+        origin = (self.origin_x, self.origin_y)
+        farthest = max(
+            (
+                math.dist(origin, (float(step["x"]), float(step["y"])))
+                for step in self.trail
+                if "x" in step and "y" in step
+            ),
+            default=0.0,
+        )
+        legs = 2 if self.return_started_at is not None else 1
+        return max(self.total_distance, round(farthest * legs))
+
     def finalize_return(self) -> None:
         """Finish the run once the dweller is home, preserving the outcome."""
         if self.recalled_early:
             self.recall()
         else:
             self.complete()
+        # Settle the distance here, with the rest of the terminal outcome: the report is built from
+        # it, and a spatial run would otherwise arrive home claiming 0 miles.
+        self.total_distance = self.journey_distance()
 
     def should_generate_event(self, last_event_time: datetime | None = None) -> bool:
         """Check if a new event should be generated (every ~10 minutes)."""

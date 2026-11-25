@@ -120,7 +120,8 @@ class ExplorationCoordinator:
         await rewards_service.deliver_pending_reward_events(db_session)
 
         # Post-commit: the run is already terminal, so a retry cannot double-credit. A failure here must
-        # not undo a finalised run, hence its own commit/rollback.
+        # not undo a finalised run, hence its own commit/rollback — which expires the run, so everything
+        # after this point works from the ids cached above rather than the instance.
         from app.services.world_event_service import world_event_service
 
         try:
@@ -132,6 +133,8 @@ class ExplorationCoordinator:
             logger.exception("world event contribution (expedition) failed")
             await db_session.rollback()
 
+        # Ids, not the instance: the world-event rollback above may have expired the run, and reading an
+        # expired attribute outside the greenlet is how this path raised MissingGreenlet.
         await self._notify_arrival(db_session, exploration.id, vault_id, dweller_id, rewards)
         await event_service.publish_sse(
             exploration,

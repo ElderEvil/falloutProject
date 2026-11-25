@@ -222,7 +222,7 @@ class WorldEventService:
         """Seed the initial/next weekly relay, preserving any existing schedule."""
         if not game_config.features.world_events or await world_event_crud.has_scheduled(db_session):
             return None
-        if current is not None and current.ends_at + timedelta(days=1) > now:
+        if current is not None and (current.updated_at or current.ends_at) + timedelta(days=1) > now:
             return None
         return WorldEvent(
             kind="WASTELAND_RELAY",

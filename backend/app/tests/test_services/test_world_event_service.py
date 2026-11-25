@@ -170,15 +170,35 @@ async def test_advance_creates_first_event_only_when_enabled(async_session: Asyn
 
 async def test_advance_creates_next_event_after_a_day_off(async_session: AsyncSession, monkeypatch) -> None:
     monkeypatch.setattr(game_config.features, "world_events", True)
-    await seed_event(
+    event = await seed_event(
         async_session,
         status=WorldEventStatus.EXPIRED,
         window=(timedelta(days=-9), timedelta(days=-2)),
     )
+    event.updated_at = utcnow() - timedelta(days=2)
+    await async_session.commit()
     assert await svc.advance(async_session) == "activated"
     rows = list((await async_session.execute(select(WorldEvent))).scalars())
     assert len(rows) == 2
     assert sum(row.status == WorldEventStatus.ACTIVE for row in rows) == 1
+
+
+@pytest.mark.parametrize(
+    ("finished_ago", "expected"),
+    [(timedelta(hours=2), None), (timedelta(days=2), "activated")],
+)
+async def test_next_event_waits_one_day_after_completion(
+    async_session: AsyncSession, monkeypatch, finished_ago: timedelta, expected: str | None
+) -> None:
+    monkeypatch.setattr(game_config.features, "world_events", True)
+    event = await seed_event(
+        async_session,
+        status=WorldEventStatus.COMPLETED,
+        window=(timedelta(days=-7), timedelta(days=-6)),
+    )
+    event.updated_at = utcnow() - finished_ago
+    await async_session.commit()
+    assert await svc.advance(async_session) == expected
 
 
 async def test_advance_completion_notifies_participants_only(async_session: AsyncSession) -> None:

@@ -209,6 +209,7 @@ describe('CombatZoneView', () => {
     await flushPromises()
 
     expect(wrapper.text()).not.toContain('Your open challenge')
+    expect(button(wrapper, 'Post challenge').attributes('disabled')).toBeUndefined()
   })
 
   it('ignores a roster response from the previous vault', async () => {

@@ -11,9 +11,12 @@ export const usePvpStore = defineStore('pvp', () => {
   const acting = ref(false)
   const hasOpenChallenge = computed(() => ownOpenDuel.value?.status === 'OPEN')
   let loadVersion = 0
+  let operationVersion = 0
 
   async function load(vaultId: string, requestedDuel?: string): Promise<boolean> {
     const version = ++loadVersion
+    operationVersion++
+    acting.value = false
     loading.value = true
     try {
       const [entries, current] = await Promise.all([
@@ -37,6 +40,7 @@ export const usePvpStore = defineStore('pvp', () => {
 
   async function post(vaultId: string, dwellerIds: string[]): Promise<PvpDuel | null> {
     const version = loadVersion
+    const operation = ++operationVersion
     acting.value = true
     try {
       const duel = await pvpDuelService.post(vaultId, dwellerIds)
@@ -48,7 +52,7 @@ export const usePvpStore = defineStore('pvp', () => {
       if (version === loadVersion) handleStoreError(error, 'Failed to post the challenge')
       return null
     } finally {
-      if (version === loadVersion) acting.value = false
+      if (operation === operationVersion) acting.value = false
     }
   }
 
@@ -58,6 +62,7 @@ export const usePvpStore = defineStore('pvp', () => {
     dwellerIds: string[]
   ): Promise<PvpDuel | null> {
     const version = loadVersion
+    const operation = ++operationVersion
     acting.value = true
     try {
       const duel = await pvpDuelService.accept(vaultId, duelId, dwellerIds)
@@ -69,7 +74,7 @@ export const usePvpStore = defineStore('pvp', () => {
       if (version === loadVersion) handleStoreError(error, 'Failed to accept the challenge')
       return null
     } finally {
-      if (version === loadVersion) acting.value = false
+      if (operation === operationVersion) acting.value = false
     }
   }
 

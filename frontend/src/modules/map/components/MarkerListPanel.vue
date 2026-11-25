@@ -273,7 +273,9 @@ function onListKeydown(event: KeyboardEvent) {
                 </div>
               </div>
 
-              <div v-if="groups.length === 0" class="empty-state">No markers yet</div>
+              <div v-if="groups.length === 0" class="empty-state">
+                {{ activeFilterCount ? 'No markers match these filters' : 'No markers yet' }}
+              </div>
             </div>
           </TabsContent>
         </div>

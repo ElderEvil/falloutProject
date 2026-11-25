@@ -324,6 +324,21 @@ describe('MarkerListPanel', () => {
 
       expect(wrapper.text()).toContain('No markers yet')
     })
+
+    it('explains that an empty result is caused by the active filters', () => {
+      const wrapper = mount(MarkerListPanel, {
+        props: {
+          locations: [],
+          vaultMarkers: [],
+          activeFilterCount: 1,
+          open: true,
+        },
+        global: { stubs: { Icon: IconStub } },
+      })
+
+      expect(wrapper.text()).toContain('No markers match these filters')
+      expect(wrapper.text()).not.toContain('No markers yet')
+    })
   })
 
   describe('Vault group styling', () => {

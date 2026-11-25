@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 3.31.1 (2026-11-25)
+
+### Bug Fixes
+
+* **world-event:** harden relay scheduling boundaries ([#1546](https://github.com/ElderEvil/falloutProject/issues/1546)) 9597d2c
+
 ## 3.31.0 (2026-11-25)
 
 ### Features

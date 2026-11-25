@@ -164,9 +164,7 @@ describe('RadioNewsWidget', () => {
   })
 
   it('marks a transcript-only broadcast read when it arrives while the console is open', async () => {
-    mockApiGet
-      .mockResolvedValueOnce(makeBroadcast())
-      .mockResolvedValueOnce(makeEmptyBroadcast())
+    mockApiGet.mockResolvedValueOnce(makeBroadcast()).mockResolvedValueOnce(makeEmptyBroadcast())
 
     const wrapper = mount(RadioNewsWidget, {
       props: { vaultId: 'vault-1' },
@@ -607,8 +605,9 @@ describe('RadioNewsWidget', () => {
     expect(wrapper.find('.radio-news-widget__caption').text()).toContain('Vault 111 Evening News')
   })
 
-  it('stays out of the HUD when the broadcast request fails', async () => {
+  it('stays out of the HUD and logs the vault context when the broadcast request fails', async () => {
     mockApiGet.mockRejectedValue(new Error('network'))
+    const warning = vi.spyOn(console, 'warn').mockImplementation(() => {})
 
     const wrapper = mount(RadioNewsWidget, {
       props: { vaultId: 'vault-1' },
@@ -619,6 +618,10 @@ describe('RadioNewsWidget', () => {
     // Nothing to listen to and nothing to read: no trigger, no empty console.
     expect(wrapper.find('.radio-news-widget__toggle').exists()).toBe(false)
     expect(wrapper.find('#radio-news-panel').exists()).toBe(false)
+    expect(warning).toHaveBeenCalledWith(
+      '[radio-news] Failed to load broadcast for vault vault-1: network'
+    )
+    warning.mockRestore()
   })
 
   it('does not autoplay on mount', async () => {

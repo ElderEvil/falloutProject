@@ -6,6 +6,7 @@ import { Badge } from '@/core/components/ui/badge'
 import { Button } from '@/core/components/ui/button'
 import { Slider } from '@/core/components/ui/slider'
 import { useToast } from '@/core/composables/useToast'
+import { getErrorMessage } from '@/core/utils/errorHandler'
 import { parseUtcMs } from '@/core/utils/time'
 import { fetchRadioNews, regenerateRadioNews, type RadioNewsBroadcast } from '../api/radioNews'
 
@@ -121,9 +122,12 @@ const loadBroadcast = async () => {
     broadcast.value = data
     hasPlayed.value = data.id ? isPlayedToday(data.id) : false
     emit('newBroadcast', data)
-  } catch {
+  } catch (error) {
     if (requestVersion !== loadVersion) return
     // Nothing to render: the widget simply stays out of the HUD.
+    console.warn(
+      `[radio-news] Failed to load broadcast for vault ${requestedVaultId}: ${getErrorMessage(error)}`
+    )
     toast.warning('Broadcast unavailable')
   }
 }

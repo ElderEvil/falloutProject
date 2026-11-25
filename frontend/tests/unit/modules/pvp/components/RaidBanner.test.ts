@@ -82,6 +82,7 @@ describe('RaidBanner', () => {
   it('does nothing at all while the duels flag is off', async () => {
     flags.pvpDuels = false
     store.board = [boardEntry('duel-1')]
+    store.stateVaultId = 'vault-1'
 
     const wrapper = await mountBanner()
 
@@ -96,6 +97,7 @@ describe('RaidBanner', () => {
     expect(store.load).not.toHaveBeenCalled()
 
     store.board = [boardEntry('duel-1')]
+    store.stateVaultId = 'vault-1'
     flags.pvpDuels = true
     await flushPromises()
 
@@ -103,8 +105,19 @@ describe('RaidBanner', () => {
     expect(wrapper.find('a').text()).toContain('1 CHALLENGE AWAITS A DEFENDER')
   })
 
+  it('never shows another vault challenge', async () => {
+    // The store keeps the last loaded vault's board; this banner is for vault-1.
+    store.board = [boardEntry('duel-from-vault-2')]
+    store.stateVaultId = 'vault-2'
+
+    const wrapper = await mountBanner()
+
+    expect(wrapper.find('a').exists()).toBe(false)
+  })
+
   it('advertises a single waiting challenge and links to the arena route', async () => {
     store.board = [boardEntry('duel-1')]
+    store.stateVaultId = 'vault-1'
 
     const wrapper = await mountBanner()
     const link = wrapper.find('a')
@@ -116,6 +129,7 @@ describe('RaidBanner', () => {
 
   it('pluralises the copy for several waiting challenges', async () => {
     store.board = [boardEntry('duel-1'), boardEntry('duel-2'), boardEntry('duel-3')]
+    store.stateVaultId = 'vault-1'
 
     const wrapper = await mountBanner()
 
@@ -124,6 +138,7 @@ describe('RaidBanner', () => {
 
   it('advertises the vault own open challenge', async () => {
     store.ownOpenDuel = ownDuel('OPEN')
+    store.stateVaultId = 'vault-1'
 
     const wrapper = await mountBanner()
 
@@ -134,6 +149,7 @@ describe('RaidBanner', () => {
   it('prefers the defence invitation over the vault own open challenge', async () => {
     store.board = [boardEntry('duel-1')]
     store.ownOpenDuel = ownDuel('OPEN')
+    store.stateVaultId = 'vault-1'
 
     const wrapper = await mountBanner()
 
@@ -143,6 +159,7 @@ describe('RaidBanner', () => {
 
   it('renders nothing once the vault own challenge is no longer open', async () => {
     store.ownOpenDuel = ownDuel('ACCEPTED')
+    store.stateVaultId = 'vault-1'
 
     const wrapper = await mountBanner()
 

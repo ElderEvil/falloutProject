@@ -15,6 +15,8 @@ const to = computed(() => `/vault/${props.vaultId}/pvp`)
 const message = computed(() => {
   // With duels off the endpoints 404, so the banner would advertise a dead surface.
   if (!flags.pvpDuels) return null
+  // The store keeps the last loaded vault's board; never present it as this vault's.
+  if (store.stateVaultId !== props.vaultId) return null
   const waiting = store.board.length
   if (waiting === 1) return '1 CHALLENGE AWAITS A DEFENDER'
   if (waiting > 1) return `${waiting} CHALLENGES AWAIT A DEFENDER`

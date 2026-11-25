@@ -180,6 +180,57 @@ const tryClose = () => emit('close', requiresResolution.value)
         rewards
       </div>
 
+      <!-- Overflow Items (Storage Full) -->
+      <div v-if="hasOverflow" class="mb-8">
+        <h3 class="panel-header text-lg font-bold text-theme-primary">
+          <span class="flex items-center gap-2">
+            <Icon icon="mdi:package-variant-closed-remove" />
+            {{
+              legacyOverflow ? 'Storage Full — Items Left Behind' : 'Storage Full — Needs Decision'
+            }}
+          </span>
+        </h3>
+        <p v-if="legacyOverflow" class="text-sm text-theme-primary/70">
+          This report predates overflow resolution. These items were left behind.
+        </p>
+        <div v-else class="flex flex-col gap-3">
+          <ExplorationItemRow
+            v-for="(item, index) in unclaimed"
+            :key="`${item.item_name}-${index}`"
+            :item="item"
+          >
+            <div class="overflow-actions flex shrink-0 gap-2">
+              <Button
+                size="sm"
+                :disabled="busyIndex !== null"
+                @click="resolveOverflow('take', index)"
+              >
+                <Icon v-if="busyIndex === index" icon="mdi:loading" class="animate-spin" />
+                Take
+              </Button>
+              <Button
+                size="sm"
+                variant="secondary"
+                :disabled="busyIndex !== null"
+                @click="resolveOverflow('sell', index)"
+              >
+                Sell
+              </Button>
+            </div>
+          </ExplorationItemRow>
+          <Button
+            v-if="unclaimed.length > 1"
+            size="sm"
+            variant="secondary"
+            class="sell-all-btn self-end"
+            :disabled="busyIndex !== null"
+            @click="sellAll"
+          >
+            Sell all remaining
+          </Button>
+        </div>
+      </div>
+
       <!-- Rewards Grid -->
       <div
         v-if="!pendingOnly"
@@ -240,57 +291,6 @@ const tryClose = () => emit('close', requiresResolution.value)
       >
         <Icon icon="mdi:package-variant-closed" class="h-16 w-16" />
         <p>No items found during this exploration</p>
-      </div>
-
-      <!-- Overflow Items (Storage Full) -->
-      <div v-if="hasOverflow" class="mt-6">
-        <h3 class="panel-header text-lg font-bold text-theme-primary">
-          <span class="flex items-center gap-2">
-            <Icon icon="mdi:package-variant-closed-remove" />
-            {{
-              legacyOverflow ? 'Storage Full — Items Left Behind' : 'Storage Full — Needs Decision'
-            }}
-          </span>
-        </h3>
-        <p v-if="legacyOverflow" class="text-sm text-theme-primary/70">
-          This report predates overflow resolution. These items were left behind.
-        </p>
-        <div v-else class="flex flex-col gap-3">
-          <ExplorationItemRow
-            v-for="(item, index) in unclaimed"
-            :key="`${item.item_name}-${index}`"
-            :item="item"
-          >
-            <div class="overflow-actions flex shrink-0 gap-2">
-              <Button
-                size="sm"
-                :disabled="busyIndex !== null"
-                @click="resolveOverflow('take', index)"
-              >
-                <Icon v-if="busyIndex === index" icon="mdi:loading" class="animate-spin" />
-                Take
-              </Button>
-              <Button
-                size="sm"
-                variant="secondary"
-                :disabled="busyIndex !== null"
-                @click="resolveOverflow('sell', index)"
-              >
-                Sell
-              </Button>
-            </div>
-          </ExplorationItemRow>
-          <Button
-            v-if="unclaimed.length > 1"
-            size="sm"
-            variant="secondary"
-            class="sell-all-btn self-end"
-            :disabled="busyIndex !== null"
-            @click="sellAll"
-          >
-            Sell all remaining
-          </Button>
-        </div>
       </div>
 
       <!-- Returned Supplies -->

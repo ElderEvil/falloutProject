@@ -77,8 +77,9 @@ describe('ExplorationPackStrip', () => {
       pack_slots_used: undefined,
       loot_collected: [
         loot('Scrap', { quantity: 2 }),
-        loot('Stimpak', { quantity: 3 }),
-        loot('RadAway', { quantity: 2 }),
+        loot('Stimpak', { quantity: 3, item_type: 'stimpak' }),
+        loot('RadAway', { quantity: 2, item_type: 'radaway' }),
+        loot('Old Stim', { quantity: 1, item_type: undefined, item_name: 'Stimpak' }),
         loot('Combat Rifle', { item_type: 'weapon', equipped: true }),
       ],
     })

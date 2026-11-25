@@ -15,12 +15,17 @@ const MAX_ICONS = 10
 // Keep this filter in step with the backend pack rule in
 // backend/app/utils/exploration_carry.py: capacity is 15 + 2 x Strength, and
 // equipped gear plus stimpaks/radaways (the medical pouch) never take pack slots.
+const POUCH_ITEM_TYPES = new Set(['stimpak', 'radaway'])
+
+const isPouchItem = (item: LootItem) => {
+  const type = (item.item_type ?? '').trim().toLowerCase()
+  if (type) return POUCH_ITEM_TYPES.has(type)
+  // Legacy entries may predate item_type; the name is the only signal left.
+  return POUCH_ITEM_TYPES.has((item.item_name ?? '').trim().toLowerCase())
+}
+
 const packItems = computed<LootItem[]>(() =>
-  (props.exploration.loot_collected ?? []).filter((item) => {
-    if (item.equipped) return false
-    const name = item.item_name?.trim().toLowerCase() ?? ''
-    return !name.startsWith('stimpak') && !name.startsWith('radaway')
-  })
+  (props.exploration.loot_collected ?? []).filter((item) => !item.equipped && !isPouchItem(item))
 )
 
 const derivedSlotsUsed = computed(() =>

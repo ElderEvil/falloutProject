@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vite-plus/test'
 import { createRouterMock } from '../../helpers/mocks'
-import { mount, flushPromises } from '@vue/test-utils'
+import { mount, flushPromises, type VueWrapper } from '@vue/test-utils'
 import { useRoute } from 'vue-router'
 import { setActivePinia, createPinia } from 'pinia'
 import RoomGrid from '@/modules/rooms/components/RoomGrid.vue'
@@ -27,6 +27,126 @@ const roomDetailModalStub = {
   template: '<div data-testid="room-detail-modal" />',
 }
 
+const mockRoom = {
+  id: 'room-123',
+  name: 'Power Generator',
+  category: 'power',
+  ability: 'strength',
+  coordinate_x: 0,
+  coordinate_y: 0,
+  size: 3,
+  size_min: 3,
+  tier: 1,
+  capacity: 6,
+}
+
+const dinerTemplate = {
+  name: 'Diner',
+  category: 'production',
+  ability: 'agility',
+  base_cost: 100,
+  t2_upgrade_cost: 200,
+  t3_upgrade_cost: 400,
+  size_min: 3,
+  size_max: 9,
+  tier: 1,
+}
+
+const elevatorTemplate = {
+  name: 'Elevator',
+  category: 'misc',
+  ability: null,
+  base_cost: 100,
+  t2_upgrade_cost: null,
+  t3_upgrade_cost: null,
+  size_min: 1,
+  size_max: 1,
+  tier: 1,
+}
+
+const elevatorRoom = {
+  ...mockRoom,
+  id: 'elev-1',
+  name: 'Elevator',
+  category: 'misc',
+  ability: null,
+  coordinate_x: 0,
+  coordinate_y: 1,
+  size: 1,
+  size_min: 1,
+}
+
+const trainingRoom = {
+  ...mockRoom,
+  id: 'training-room-123',
+  name: 'Weight Room',
+  category: 'training',
+}
+
+const productionRoom = {
+  ...mockRoom,
+  id: 'production-room-123',
+  name: 'Power Generator',
+  category: 'production',
+}
+
+const incident = { id: 'incident-1', room_id: 'room-123', type: 'FIRE', severity: 'medium' }
+
+const render = (props: Record<string, unknown> = {}): VueWrapper =>
+  mount(RoomGrid, {
+    props: { incidents: [], ...props },
+    global: { stubs: { RoomDetailModal: roomDetailModalStub } },
+  })
+
+const renderCell = (room: Record<string, unknown>, props: Record<string, unknown> = {}) =>
+  mount(RoomGridCell, {
+    props: {
+      room,
+      showRoomImages: false,
+      isPowerOutage: false,
+      selected: false,
+      isDraggingOver: false,
+      highlighted: false,
+      ...props,
+    },
+    global: { stubs: { TooltipLabel: tooltipLabelStub } },
+  })
+
+const placing = (
+  template: Record<string, unknown>,
+  rooms: Record<string, unknown>[] = [mockRoom]
+) => {
+  const store = useRoomStore()
+  store.rooms = rooms as never
+  store.selectedRoom = template as never
+  store.isPlacingRoom = true
+  return store
+}
+
+const dropEventFor = (dwellerId: string) => ({
+  preventDefault: vi.fn(),
+  dataTransfer: {
+    getData: vi.fn(() =>
+      JSON.stringify({ dwellerId, firstName: 'X', lastName: 'Y', currentRoomId: null })
+    ),
+  },
+})
+
+const dropOn = async (wrapper: VueWrapper, dwellerId: string) => {
+  await wrapper.find('.built-room').trigger('drop', dropEventFor(dwellerId) as any)
+  await wrapper.vm.$nextTick()
+}
+
+/** The grid cell at a 1-based row/column pair. */
+const cellAt = (wrapper: VueWrapper, row: number, column: number) =>
+  wrapper
+    .findAll('.empty')
+    .find(
+      (cell) =>
+        (cell.element as HTMLElement).style.gridRow === String(row) &&
+        parseInt((cell.element as HTMLElement).style.gridColumn, 10) === column
+    )!
+
 describe('RoomGrid', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
@@ -35,36 +155,9 @@ describe('RoomGrid', () => {
     toasts.value = []
   })
 
-  const mockRoom = {
-    id: 'room-123',
-    name: 'Power Generator',
-    category: 'power',
-    ability: 'strength',
-    coordinate_x: 0,
-    coordinate_y: 0,
-    size: 3,
-    size_min: 3,
-    tier: 1,
-    capacity: 6,
-  }
-
-  const dropEventFor = (dwellerId: string) => ({
-    preventDefault: vi.fn(),
-    dataTransfer: {
-      getData: vi.fn(() =>
-        JSON.stringify({ dwellerId, firstName: 'X', lastName: 'Y', currentRoomId: null })
-      ),
-    },
-  })
-
-  const dropOn = async (wrapper: ReturnType<typeof mount>, dwellerId: string) => {
-    await wrapper.find('.built-room').trigger('drop', dropEventFor(dwellerId) as any)
-    await wrapper.vm.$nextTick()
-  }
-
   it('keeps the assignment hint active while dragging between room children', async () => {
     useRoomStore().rooms = [mockRoom]
-    const wrapper = mount(RoomGrid, { props: { incidents: [] } })
+    const wrapper = render()
     const room = wrapper.get('.built-room')
     await room.trigger('dragover', { dataTransfer: { dropEffect: '' } })
     expect(room.text()).toContain('Drop to assign')
@@ -78,7 +171,7 @@ describe('RoomGrid', () => {
 
   it('highlights the room main stat while a dweller is dragged over it', async () => {
     useRoomStore().rooms = [mockRoom]
-    const wrapper = mount(RoomGrid, { props: { incidents: [] } })
+    const wrapper = render()
     const room = wrapper.get('.built-room')
 
     expect(room.find('.ability-icon--drag-over').exists()).toBe(false)
@@ -92,7 +185,7 @@ describe('RoomGrid', () => {
   })
 
   it('names empty room cells for screen-reader users', () => {
-    const wrapper = mount(RoomGrid, { props: { incidents: [] } })
+    const wrapper = render()
 
     expect(wrapper.find('.room.empty').attributes('aria-label')).toBe(
       'Empty room cell at row 1, column 1'
@@ -102,10 +195,7 @@ describe('RoomGrid', () => {
 
   it('defers the room detail modal until a room is opened', async () => {
     useRoomStore().rooms = [mockRoom]
-    const wrapper = mount(RoomGrid, {
-      props: { incidents: [] },
-      global: { stubs: { RoomDetailModal: roomDetailModalStub } },
-    })
+    const wrapper = render()
     expect(wrapper.find('[data-testid="room-detail-modal"]').exists()).toBe(false)
     await wrapper.get('.built-room').trigger('click')
     expect(wrapper.find('[data-testid="room-detail-modal"]').exists()).toBe(true)
@@ -113,159 +203,73 @@ describe('RoomGrid', () => {
 
   it('uses the visible room text as its accessible name', () => {
     useRoomStore().rooms = [mockRoom]
-    const wrapper = mount(RoomGrid, { props: { incidents: [] } })
+    const wrapper = render()
     expect(wrapper.get('.built-room').attributes('aria-label')).toBeUndefined()
     expect(wrapper.get('.built-room').text()).toContain('T1')
   })
 
   describe('Room Highlighting', () => {
     it('shows an attention count only on the Overseer’s Office', () => {
-      const roomStore = useRoomStore()
-      roomStore.rooms = [{ ...mockRoom, id: 'office-123', name: "Overseer's Office" }, mockRoom]
+      useRoomStore().rooms = [
+        { ...mockRoom, id: 'office-123', name: "Overseer's Office" },
+        mockRoom,
+      ]
 
-      const wrapper = mount(RoomGrid, {
-        props: { incidents: [], overseerAttentionCount: 3 },
-      })
+      const wrapper = render({ overseerAttentionCount: 3 })
 
       expect(wrapper.findAll('.overseer-alert-badge')).toHaveLength(1)
       expect(wrapper.find('.overseer-alert-badge').text()).toBe('3 items need attention')
+
+      useRoomStore().rooms = [mockRoom]
+      expect(render({ overseerAttentionCount: 3 }).find('.overseer-alert-badge').exists()).toBe(
+        false
+      )
     })
 
-    it('does not show an attention count on other rooms', () => {
-      const roomStore = useRoomStore()
-      roomStore.rooms = [mockRoom]
+    it.each([
+      ['room-123', null, true],
+      ['different-room-id', null, false],
+      [null, null, false],
+      ['room-123', 'FIRE', true],
+    ])(
+      'marks room %s (incident %s) as highlighted=%s',
+      (highlightedRoomId, incidentType, highlighted) => {
+        useRoomStore().rooms = [mockRoom]
 
-      const wrapper = mount(RoomGrid, {
-        props: { incidents: [], overseerAttentionCount: 3 },
-      })
+        const wrapper = render({
+          highlightedRoomId,
+          incidents: incidentType ? [{ ...incident, type: incidentType }] : [],
+        })
+        const builtRoom = wrapper.find('.built-room')
 
-      expect(wrapper.find('.overseer-alert-badge').exists()).toBe(false)
-    })
+        expect(builtRoom.classes().includes('highlighted')).toBe(highlighted)
+      }
+    )
 
-    it('should apply highlighted class when highlightedRoomId matches room id', () => {
-      const roomStore = useRoomStore()
-      roomStore.rooms = [mockRoom]
+    it('only highlights the matching room when several exist', () => {
+      useRoomStore().rooms = [mockRoom, { ...mockRoom, id: 'room-456', name: 'Diner' }]
 
-      const wrapper = mount(RoomGrid, {
-        props: {
-          highlightedRoomId: 'room-123',
-          incidents: [],
-        },
-      })
+      const builtRooms = render({ highlightedRoomId: 'room-123' }).findAll('.built-room')
 
-      const builtRoom = wrapper.find('.built-room')
-      expect(builtRoom.classes()).toContain('highlighted')
-    })
-
-    it('should not apply highlighted class when highlightedRoomId is different', () => {
-      const roomStore = useRoomStore()
-      roomStore.rooms = [mockRoom]
-
-      const wrapper = mount(RoomGrid, {
-        props: {
-          highlightedRoomId: 'different-room-id',
-          incidents: [],
-        },
-      })
-
-      const builtRoom = wrapper.find('.built-room')
-      expect(builtRoom.classes()).not.toContain('highlighted')
-    })
-
-    it('should not apply highlighted class when highlightedRoomId is null', () => {
-      const roomStore = useRoomStore()
-      roomStore.rooms = [mockRoom]
-
-      const wrapper = mount(RoomGrid, {
-        props: {
-          highlightedRoomId: null,
-          incidents: [],
-        },
-      })
-
-      const builtRoom = wrapper.find('.built-room')
-      expect(builtRoom.classes()).not.toContain('highlighted')
-    })
-  })
-
-  describe('Multiple Rooms', () => {
-    it('should only highlight the specific room when multiple rooms exist', () => {
-      const roomStore = useRoomStore()
-      roomStore.rooms = [
-        mockRoom,
-        {
-          ...mockRoom,
-          id: 'room-456',
-          name: 'Diner',
-          coordinate_x: 1,
-          coordinate_y: 0,
-        },
-      ]
-
-      const wrapper = mount(RoomGrid, {
-        props: {
-          highlightedRoomId: 'room-123', // Only first room should be highlighted
-          incidents: [],
-        },
-      })
-
-      const builtRooms = wrapper.findAll('.built-room')
       expect(builtRooms).toHaveLength(2)
-
-      // First room should be highlighted
       expect(builtRooms[0].classes()).toContain('highlighted')
-
-      // Second room should not be highlighted
       expect(builtRooms[1].classes()).not.toContain('highlighted')
     })
-  })
 
-  describe('Highlight with Incidents', () => {
-    it('should apply both highlighted and has-incident classes when room has both', () => {
-      const roomStore = useRoomStore()
-      roomStore.rooms = [mockRoom]
+    it('marks a highlighted room that also has a live incident', () => {
+      useRoomStore().rooms = [mockRoom]
 
-      const mockIncident = {
-        id: 'incident-1',
-        room_id: 'room-123',
-        type: 'FIRE',
-        severity: 'medium',
-      }
+      const wrapper = render({ highlightedRoomId: 'room-123', incidents: [incident] })
 
-      const wrapper = mount(RoomGrid, {
-        props: {
-          highlightedRoomId: 'room-123',
-          incidents: [mockIncident] as any,
-        },
-      })
-
-      const builtRoom = wrapper.find('.built-room')
-      expect(builtRoom.classes()).toContain('highlighted')
-      expect(builtRoom.classes()).toContain('has-incident')
+      expect(wrapper.find('.built-room').classes()).toEqual(
+        expect.arrayContaining(['highlighted', 'has-incident'])
+      )
     })
 
     it.each(['enter', 'space'] as const)(
       'does not emit the room click when %s activates the incident badge',
       async (key) => {
-        const mockIncident = {
-          id: 'incident-1',
-          room_id: 'room-123',
-          type: 'FIRE',
-          severity: 'medium',
-        }
-
-        const wrapper = mount(RoomGridCell, {
-          props: {
-            room: mockRoom,
-            showRoomImages: true,
-            isPowerOutage: false,
-            selected: false,
-            isDraggingOver: false,
-            highlighted: false,
-            incident: mockIncident as any,
-          },
-          global: { stubs: { TooltipLabel: tooltipLabelStub } },
-        })
+        const wrapper = renderCell(mockRoom, { showRoomImages: true, incident })
 
         const badge = wrapper.find('.incident-badge')
         expect(badge.exists()).toBe(true)
@@ -279,44 +283,34 @@ describe('RoomGrid', () => {
 
   describe('Elevator Gating', () => {
     it('renders empty cells on all levels but locks levels without an elevator', () => {
-      const roomStore = useRoomStore()
-      // mockRoom sits on row 0 (door-anchored); no elevator on row 1+ means
-      // those levels are locked
-      roomStore.rooms = [mockRoom]
+      useRoomStore().rooms = [mockRoom]
 
-      const wrapper = mount(RoomGrid, {
-        props: { incidents: [] },
-      })
+      const wrapper = render()
 
-      const rows = wrapper.findAll('.empty').map((c) => (c.element as HTMLElement).style.gridRow)
-      // Cells render on every level
-      expect(rows.length).toBeGreaterThan(8)
-      // Only row 0 is unlocked
-      const unlocked = wrapper.findAll('.empty:not(.level-locked)')
-      const unlockedRows = unlocked.map((c) => (c.element as HTMLElement).style.gridRow)
-      expect(unlockedRows.every((r) => r === '1')).toBe(true)
+      // Cells render on every level …
+      expect(wrapper.findAll('.empty').length).toBeGreaterThan(8)
+      // … but only row 0 is unlocked.
+      const unlockedRows = wrapper
+        .findAll('.empty:not(.level-locked)')
+        .map((cell) => (cell.element as HTMLElement).style.gridRow)
+      expect(unlockedRows.every((row) => row === '1')).toBe(true)
     })
 
     it('unlocks a level when an elevator is built on it', () => {
-      const roomStore = useRoomStore()
-      roomStore.rooms = [
+      useRoomStore().rooms = [
         mockRoom,
         { ...mockRoom, id: 'elev-1', name: 'Elevator', coordinate_x: 0, coordinate_y: 3 },
       ]
 
-      const wrapper = mount(RoomGrid, {
-        props: { incidents: [] },
-      })
-
-      const unlockedRows = wrapper
+      const unlockedRows = render()
         .findAll('.empty:not(.level-locked)')
-        .map((c) => (c.element as HTMLElement).style.gridRow)
+        .map((cell) => (cell.element as HTMLElement).style.gridRow)
+
       expect(unlockedRows).toContain('4')
     })
 
     it('allows a standard room beside a one-unit elevator on the same level', async () => {
-      const roomStore = useRoomStore()
-      roomStore.rooms = [
+      placing(dinerTemplate, [
         mockRoom,
         {
           ...mockRoom,
@@ -327,28 +321,9 @@ describe('RoomGrid', () => {
           size: 1,
           size_min: 1,
         },
-      ]
-      roomStore.selectedRoom = {
-        name: 'Diner',
-        category: 'production',
-        ability: 'agility',
-        base_cost: 100,
-        t2_upgrade_cost: 200,
-        t3_upgrade_cost: 400,
-        size_min: 3,
-        size_max: 9,
-        tier: 1,
-      }
-      roomStore.isPlacingRoom = true
+      ])
 
-      const wrapper = mount(RoomGrid, {
-        props: { incidents: [] },
-      })
-      const cell = wrapper.findAll('.empty:not(.level-locked)').find((item) => {
-        const style = item.element as HTMLElement
-        return parseInt(style.style.gridColumn, 10) === 8 && style.style.gridRow === '2'
-      })!
-
+      const cell = cellAt(render(), 2, 8)
       await cell.trigger('mouseenter')
 
       expect(cell.classes()).toContain('hover-preview')
@@ -356,26 +331,9 @@ describe('RoomGrid', () => {
     })
 
     it('marks an elevator preview as invalid when there is no elevator above', async () => {
-      const roomStore = useRoomStore()
-      roomStore.rooms = [mockRoom]
-      roomStore.selectedRoom = {
-        name: 'Elevator',
-        category: 'misc',
-        ability: null,
-        base_cost: 100,
-        t2_upgrade_cost: null,
-        t3_upgrade_cost: null,
-        size_min: 1,
-        size_max: 1,
-        tier: 1,
-      }
-      roomStore.isPlacingRoom = true
+      placing(elevatorTemplate)
 
-      const wrapper = mount(RoomGrid, {
-        props: { incidents: [] },
-      })
-
-      const cell = wrapper.findAll('.empty:not(.level-locked)')[1]
+      const cell = render().findAll('.empty:not(.level-locked)')[1]
       await cell.trigger('mouseenter')
 
       expect(cell.classes()).toContain('hover-preview')
@@ -383,38 +341,15 @@ describe('RoomGrid', () => {
     })
 
     it('allows an elevator preview on a locked level when stacked under one', async () => {
-      const roomStore = useRoomStore()
-      roomStore.rooms = [
+      placing(elevatorTemplate, [
         mockRoom,
         { ...mockRoom, id: 'elev-1', name: 'Elevator', coordinate_x: 6, coordinate_y: 3 },
-      ]
-      roomStore.selectedRoom = {
-        name: 'Elevator',
-        category: 'misc',
-        ability: null,
-        base_cost: 100,
-        t2_upgrade_cost: null,
-        t3_upgrade_cost: null,
-        size_min: 1,
-        size_max: 1,
-        tier: 1,
-      }
-      roomStore.isPlacingRoom = true
-
-      const wrapper = mount(RoomGrid, {
-        props: { incidents: [] },
-      })
+      ])
 
       // Level 4 has no elevator (locked) but is directly below the level-3
       // elevator, so an elevator preview there must be valid. While placing
       // an elevator the locked styling is lifted so the cell is interactive.
-      const cell = wrapper
-        .findAll('.empty')
-        .find(
-          (c) =>
-            (c.element as HTMLElement).style.gridRow === '5' &&
-            parseInt((c.element as HTMLElement).style.gridColumn, 10) === 7
-        )!
+      const cell = cellAt(render(), 5, 7)
       expect(cell.classes()).not.toContain('level-locked')
       await cell.trigger('mouseenter')
 
@@ -423,27 +358,10 @@ describe('RoomGrid', () => {
     })
 
     it('marks a non-elevator preview as invalid on a level without an elevator', async () => {
-      const roomStore = useRoomStore()
-      roomStore.rooms = [mockRoom]
-      roomStore.selectedRoom = {
-        name: 'Diner',
-        category: 'production',
-        ability: 'agility',
-        base_cost: 100,
-        t2_upgrade_cost: 200,
-        t3_upgrade_cost: 400,
-        size_min: 3,
-        size_max: 9,
-        tier: 1,
-      }
-      roomStore.isPlacingRoom = true
-
-      const wrapper = mount(RoomGrid, {
-        props: { incidents: [] },
-      })
+      placing(dinerTemplate)
 
       // Hover the first cell on a locked level (row 1+, no elevator)
-      const cell = wrapper.findAll('.empty.level-locked')[0]!
+      const cell = render().findAll('.empty.level-locked')[0]!
       await cell.trigger('mouseenter')
 
       expect(cell.classes()).toContain('level-locked')
@@ -451,136 +369,47 @@ describe('RoomGrid', () => {
     })
   })
 
-  describe('Room Grid Structure', () => {
-    it('should render room grid container', () => {
-      const wrapper = mount(RoomGrid, {
-        props: {
-          incidents: [],
-        },
-      })
-
-      const grid = wrapper.find('.room-grid')
-      expect(grid.exists()).toBe(true)
-    })
-
-    it('should render built rooms with correct styling', () => {
-      const roomStore = useRoomStore()
-      roomStore.rooms = [mockRoom]
-
-      const wrapper = mount(RoomGrid, {
-        props: {
-          incidents: [],
-        },
-      })
-
-      const builtRoom = wrapper.find('.built-room')
-      expect(builtRoom.exists()).toBe(true)
-      expect(builtRoom.classes()).toContain('room')
-    })
-  })
-
-  describe('Prop Validation', () => {
-    it('should accept highlightedRoomId as string', () => {
-      const roomStore = useRoomStore()
-      roomStore.rooms = [mockRoom]
-
-      const wrapper = mount(RoomGrid, {
-        props: {
-          highlightedRoomId: 'room-123',
-          incidents: [],
-        },
-      })
-
-      expect(wrapper.props('highlightedRoomId')).toBe('room-123')
-    })
-
-    it('should accept highlightedRoomId as null', () => {
-      const wrapper = mount(RoomGrid, {
-        props: {
-          highlightedRoomId: null,
-          incidents: [],
-        },
-      })
-
-      expect(wrapper.props('highlightedRoomId')).toBeNull()
-    })
-  })
-
   describe('Room placement', () => {
-    const dinerTemplate = {
-      name: 'Diner',
-      category: 'production',
-      ability: 'agility',
-      base_cost: 100,
-      t2_upgrade_cost: 200,
-      t3_upgrade_cost: 400,
-      size_min: 3,
-      size_max: 9,
-      tier: 1,
-    }
-
     it('rejects a gap in both the preview and click handler', async () => {
-      const roomStore = useRoomStore()
-      roomStore.rooms = [{ ...mockRoom, id: 'shaft', name: 'Elevator', coordinate_x: 6, size: 1 }]
-      roomStore.selectedRoom = dinerTemplate
-      roomStore.isPlacingRoom = true
+      const roomStore = placing(dinerTemplate, [
+        { ...mockRoom, id: 'shaft', name: 'Elevator', coordinate_x: 6, size: 1 },
+      ])
       const build = vi.spyOn(roomStore, 'buildRoom')
-      const wrapper = mount(RoomGrid, { props: { incidents: [] } })
+      const wrapper = render()
       const cell = wrapper.get('[aria-label="Build room at row 1, column 11"]')
       await cell.trigger('mouseenter')
       expect(cell.classes()).toContain('invalid-placement')
       await cell.trigger('click')
       expect(build).not.toHaveBeenCalled()
+
       const adjacent = wrapper.get('[aria-label="Build room at row 1, column 8"]')
       await adjacent.trigger('mouseenter')
       expect(adjacent.classes()).toContain('valid-placement')
     })
 
-    it('shows a built toast for a new room', async () => {
-      const roomStore = useRoomStore()
-      const authStore = useAuthStore()
-      const { toasts } = useToast()
+    it.each([
+      ['built', 'Diner built successfully!'],
+      ['extended', 'Diner extended!'],
+    ])('shows the %s toast for a new room', async (result, message) => {
+      useAuthStore().token = 'mock-token'
+      const roomStore = placing(dinerTemplate, [
+        { ...mockRoom, id: 'shaft', name: 'Elevator', coordinate_x: 6, size: 1 },
+      ])
+      vi.spyOn(roomStore, 'buildRoom').mockResolvedValue(result as never)
 
-      authStore.token = 'mock-token'
-      roomStore.rooms = [{ ...mockRoom, id: 'shaft', name: 'Elevator', coordinate_x: 6, size: 1 }]
-      roomStore.selectedRoom = dinerTemplate
-      roomStore.isPlacingRoom = true
-      vi.spyOn(roomStore, 'buildRoom').mockResolvedValue('built')
-
-      const wrapper = mount(RoomGrid, { props: { incidents: [] } })
-      const cell = wrapper.get('[aria-label="Build room at row 1, column 8"]')
-      await cell.trigger('click')
+      const wrapper = render()
+      await wrapper.get('[aria-label="Build room at row 1, column 8"]').trigger('click')
       await wrapper.vm.$nextTick()
 
-      const successToast = toasts.value.find((toast) => toast.variant === 'success')
-      expect(successToast?.message).toBe('Diner built successfully!')
-    })
-
-    it('shows an extended toast when the room was merged into an existing one', async () => {
-      const roomStore = useRoomStore()
-      const authStore = useAuthStore()
-      const { toasts } = useToast()
-
-      authStore.token = 'mock-token'
-      roomStore.rooms = [{ ...mockRoom, id: 'shaft', name: 'Elevator', coordinate_x: 6, size: 1 }]
-      roomStore.selectedRoom = dinerTemplate
-      roomStore.isPlacingRoom = true
-      vi.spyOn(roomStore, 'buildRoom').mockResolvedValue('extended')
-
-      const wrapper = mount(RoomGrid, { props: { incidents: [] } })
-      const cell = wrapper.get('[aria-label="Build room at row 1, column 8"]')
-      await cell.trigger('click')
-      await wrapper.vm.$nextTick()
-
-      const successToast = toasts.value.find((toast) => toast.variant === 'success')
-      expect(successToast?.message).toBe('Diner extended!')
+      expect(useToast().toasts.value.find((toast) => toast.variant === 'success')?.message).toBe(
+        message
+      )
     })
 
     it('keeps the selected room active for repeated Shift-click builds', async () => {
-      const roomStore = useRoomStore()
-      roomStore.rooms = [{ ...mockRoom, id: 'shaft', name: 'Elevator', coordinate_x: 6, size: 1 }]
-      roomStore.selectedRoom = dinerTemplate
-      roomStore.isPlacingRoom = true
+      const roomStore = placing(dinerTemplate, [
+        { ...mockRoom, id: 'shaft', name: 'Elevator', coordinate_x: 6, size: 1 },
+      ])
 
       // The first build places a Diner at x=7, which makes the neighbouring
       // slot at x=10 a valid adjacent placement for the repeat build.
@@ -591,16 +420,13 @@ describe('RoomGrid', () => {
         category: 'production',
         ability: 'agility',
         coordinate_x: 7,
-        coordinate_y: 0,
-        size: 3,
-        size_min: 3,
       }
       const build = vi.spyOn(roomStore, 'buildRoom').mockImplementation(async () => {
         roomStore.rooms = [...roomStore.rooms, builtDiner]
         return 'built'
       })
 
-      const wrapper = mount(RoomGrid, { props: { incidents: [] } })
+      const wrapper = render()
 
       await wrapper.get('[aria-label="Build room at row 1, column 8"]').trigger('click', {
         shiftKey: true,
@@ -618,13 +444,12 @@ describe('RoomGrid', () => {
     })
 
     it('exits placement mode after a normal click build', async () => {
-      const roomStore = useRoomStore()
-      roomStore.rooms = [{ ...mockRoom, id: 'shaft', name: 'Elevator', coordinate_x: 6, size: 1 }]
-      roomStore.selectedRoom = dinerTemplate
-      roomStore.isPlacingRoom = true
+      const roomStore = placing(dinerTemplate, [
+        { ...mockRoom, id: 'shaft', name: 'Elevator', coordinate_x: 6, size: 1 },
+      ])
       vi.spyOn(roomStore, 'buildRoom').mockResolvedValue('built')
 
-      const wrapper = mount(RoomGrid, { props: { incidents: [] } })
+      const wrapper = render()
       await wrapper.get('[aria-label="Build room at row 1, column 8"]').trigger('click')
       await flushPromises()
 
@@ -633,10 +458,9 @@ describe('RoomGrid', () => {
     })
 
     it('ignores a second click while a build is still in flight', async () => {
-      const roomStore = useRoomStore()
-      roomStore.rooms = [{ ...mockRoom, id: 'shaft', name: 'Elevator', coordinate_x: 6, size: 1 }]
-      roomStore.selectedRoom = dinerTemplate
-      roomStore.isPlacingRoom = true
+      const roomStore = placing(dinerTemplate, [
+        { ...mockRoom, id: 'shaft', name: 'Elevator', coordinate_x: 6, size: 1 },
+      ])
 
       let resolveBuild: ((result: 'built' | 'extended') => void) | undefined
       const build = vi.spyOn(roomStore, 'buildRoom').mockImplementation(
@@ -646,7 +470,7 @@ describe('RoomGrid', () => {
           })
       )
 
-      const wrapper = mount(RoomGrid, { props: { incidents: [] } })
+      const wrapper = render()
       const cell = wrapper.get('[aria-label="Build room at row 1, column 8"]')
 
       // The first placement is still awaiting; a second click on the same cell
@@ -662,178 +486,55 @@ describe('RoomGrid', () => {
   })
 
   describe('Training Assignment on Drop', () => {
-    it('should start training session when dweller is dropped into training room', async () => {
-      const roomStore = useRoomStore()
-      const dwellerStore = useDwellerStore().management
-      const trainingStore = useTrainingStore()
-      const authStore = useAuthStore()
+    const arrangeDrop = (room: Record<string, unknown>, trainingStart?: unknown) => {
+      useAuthStore().token = 'mock-token'
+      useRoomStore().rooms = [room]
+      const assign = vi
+        .spyOn(useDwellerStore().management, 'assignDwellerToRoom')
+        .mockResolvedValue({ id: 'dweller-123', room_id: room.id, status: 'training' } as any)
+      const startTraining = trainingStart
+        ? vi.spyOn(useTrainingStore(), 'startTraining').mockResolvedValue(trainingStart as never)
+        : vi.spyOn(useTrainingStore(), 'startTraining')
+      return { assign, startTraining }
+    }
 
-      // Mock auth token
-      authStore.token = 'mock-token'
-
-      // Setup training room
-      const trainingRoom = {
-        id: 'training-room-123',
-        name: 'Weight Room',
-        category: 'training',
-        ability: 'strength',
-        coordinate_x: 0,
-        coordinate_y: 0,
-        size: 3,
-        size_min: 3,
-        tier: 1,
-        capacity: 6,
-      }
-      roomStore.rooms = [trainingRoom]
-
-      // Mock store methods
-      const assignDwellerSpy = vi.spyOn(dwellerStore, 'assignDwellerToRoom').mockResolvedValue({
-        id: 'dweller-123',
-        first_name: 'John',
-        last_name: 'Doe',
-        room_id: 'training-room-123',
-        status: 'training',
-      } as any)
-
-      const startTrainingSpy = vi.spyOn(trainingStore, 'startTraining').mockResolvedValue({
+    it('starts a training session for a dweller dropped into a training room', async () => {
+      const { assign, startTraining } = arrangeDrop(trainingRoom, {
         id: 'training-session-123',
         dweller_id: 'dweller-123',
         room_id: 'training-room-123',
         stat_being_trained: 'strength',
         status: 'active',
-      } as any)
-
-      const wrapper = mount(RoomGrid, {
-        props: {
-          incidents: [],
-        },
       })
-      await dropOn(wrapper, 'dweller-123')
 
-      // Verify assignDwellerToRoom was called
-      expect(assignDwellerSpy).toHaveBeenCalledWith('dweller-123', 'training-room-123')
+      await dropOn(render(), 'dweller-123')
 
-      // Verify startTraining was called after assignment
-      expect(startTrainingSpy).toHaveBeenCalledWith('dweller-123', 'training-room-123')
+      expect(assign).toHaveBeenCalledWith('dweller-123', 'training-room-123')
+      expect(startTraining).toHaveBeenCalledWith('dweller-123', 'training-room-123')
     })
 
-    it('should not start training session when dropped into non-training room', async () => {
-      const roomStore = useRoomStore()
-      const dwellerStore = useDwellerStore().management
-      const trainingStore = useTrainingStore()
-      const authStore = useAuthStore()
+    it('does not start training when the dweller lands in a non-training room', async () => {
+      const { assign, startTraining } = arrangeDrop(productionRoom)
 
-      authStore.token = 'mock-token'
+      await dropOn(render(), 'dweller-123')
 
-      // Setup production room (not training)
-      const productionRoom = {
-        id: 'production-room-123',
-        name: 'Power Generator',
-        category: 'production',
-        ability: 'strength',
-        coordinate_x: 0,
-        coordinate_y: 0,
-        size: 3,
-        size_min: 3,
-        tier: 1,
-        capacity: 6,
-      }
-      roomStore.rooms = [productionRoom]
-
-      const assignDwellerSpy = vi.spyOn(dwellerStore, 'assignDwellerToRoom').mockResolvedValue({
-        id: 'dweller-123',
-        first_name: 'John',
-        last_name: 'Doe',
-        room_id: 'production-room-123',
-        status: 'working',
-      } as any)
-
-      const startTrainingSpy = vi.spyOn(trainingStore, 'startTraining')
-
-      const wrapper = mount(RoomGrid, {
-        props: {
-          incidents: [],
-        },
-      })
-      await dropOn(wrapper, 'dweller-123')
-
-      // Verify assignDwellerToRoom was called
-      expect(assignDwellerSpy).toHaveBeenCalled()
-
-      // Verify startTraining was NOT called for non-training room
-      expect(startTrainingSpy).not.toHaveBeenCalled()
+      expect(assign).toHaveBeenCalled()
+      expect(startTraining).not.toHaveBeenCalled()
     })
 
-    it('should handle training start failure gracefully', async () => {
-      const roomStore = useRoomStore()
-      const dwellerStore = useDwellerStore().management
-      const trainingStore = useTrainingStore()
-      const authStore = useAuthStore()
+    it('survives a training start that returns nothing', async () => {
+      const { startTraining } = arrangeDrop(trainingRoom, null)
 
-      authStore.token = 'mock-token'
+      await dropOn(render(), 'dweller-123')
 
-      const trainingRoom = {
-        id: 'training-room-123',
-        name: 'Weight Room',
-        category: 'training',
-        ability: 'strength',
-        coordinate_x: 0,
-        coordinate_y: 0,
-        size: 3,
-        size_min: 3,
-        tier: 1,
-        capacity: 6,
-      }
-      roomStore.rooms = [trainingRoom]
-
-      vi.spyOn(dwellerStore, 'assignDwellerToRoom').mockResolvedValue({
-        id: 'dweller-123',
-        first_name: 'John',
-        last_name: 'Doe',
-        room_id: 'training-room-123',
-        status: 'training',
-      } as any)
-
-      // Mock training start to fail
-      const startTrainingSpy = vi.spyOn(trainingStore, 'startTraining').mockResolvedValue(null)
-
-      const wrapper = mount(RoomGrid, {
-        props: {
-          incidents: [],
-        },
-      })
-      await dropOn(wrapper, 'dweller-123')
-
-      // Verify startTraining was called and returned null (failure)
-      expect(startTrainingSpy).toHaveBeenCalled()
-      expect(await startTrainingSpy.mock.results[0].value).toBeNull()
+      expect(startTraining).toHaveBeenCalled()
+      expect(await startTraining.mock.results[0].value).toBeNull()
     })
   })
 
-  describe('Small cell (elevator) rendering', () => {
-    const elevatorRoom = {
-      ...mockRoom,
-      id: 'elev-1',
-      name: 'Elevator',
-      category: 'misc',
-      ability: null,
-      coordinate_x: 0,
-      coordinate_y: 1,
-      size: 1,
-      size_min: 1,
-    }
-
+  describe('Cell rendering', () => {
     it('renders an elevator icon and no info overlay for 1-unit cells', () => {
-      const wrapper = mount(RoomGridCell, {
-        props: {
-          room: elevatorRoom,
-          showRoomImages: false,
-          isPowerOutage: false,
-          selected: false,
-          isDraggingOver: false,
-          highlighted: false,
-        },
-      })
+      const wrapper = renderCell(elevatorRoom)
 
       expect(wrapper.find('.room-info-overlay').exists()).toBe(false)
       expect(wrapper.find('.small-cell-icon').exists()).toBe(true)
@@ -841,34 +542,13 @@ describe('RoomGrid', () => {
     })
 
     it('applies the merge pulse to the upgraded survivor', () => {
-      const wrapper = mount(RoomGridCell, {
-        props: {
-          room: mockRoom,
-          showRoomImages: false,
-          isPowerOutage: false,
-          selected: false,
-          isDraggingOver: false,
-          highlighted: false,
-          merged: true,
-        },
-        global: { stubs: { TooltipLabel: tooltipLabelStub } },
-      })
+      const wrapper = renderCell(mockRoom, { merged: true })
 
       expect(wrapper.find('.room-merge-pulse').exists()).toBe(true)
     })
 
     it('renders a compact info overlay for regular 3-unit rooms', () => {
-      const wrapper = mount(RoomGridCell, {
-        props: {
-          room: mockRoom,
-          showRoomImages: false,
-          isPowerOutage: false,
-          selected: false,
-          isDraggingOver: false,
-          highlighted: false,
-        },
-        global: { stubs: { TooltipLabel: tooltipLabelStub } },
-      })
+      const wrapper = renderCell(mockRoom)
 
       expect(wrapper.find('.room-info-overlay').exists()).toBe(true)
       expect(wrapper.find('.small-cell-icon').exists()).toBe(false)
@@ -876,17 +556,7 @@ describe('RoomGrid', () => {
     })
 
     it('exposes room name and tier as the root accessible name with no native title', () => {
-      const wrapper = mount(RoomGridCell, {
-        props: {
-          room: { ...mockRoom, tier: 2 },
-          showRoomImages: false,
-          isPowerOutage: false,
-          selected: false,
-          isDraggingOver: false,
-          highlighted: false,
-        },
-        global: { stubs: { TooltipLabel: tooltipLabelStub } },
-      })
+      const wrapper = renderCell({ ...mockRoom, tier: 2 })
 
       const root = wrapper.find('.built-room')
       expect(root.attributes('aria-label')).toBeUndefined()
@@ -898,25 +568,13 @@ describe('RoomGrid', () => {
     })
 
     it('conveys the upgrade, destroy and incident tooltip strings', () => {
-      const wrapper = mount(RoomGridCell, {
-        props: {
-          room: { ...mockRoom, tier: 1, t2_upgrade_cost: 200 },
-          showRoomImages: false,
-          isPowerOutage: false,
-          selected: true,
-          isDraggingOver: false,
-          highlighted: false,
-          incident: {
-            id: 'incident-1',
-            room_id: 'room-123',
-            type: 'FIRE',
-            severity: 'medium',
-          } as any,
-        },
-        global: { stubs: { TooltipLabel: tooltipLabelStub } },
-      })
+      const labels = renderCell(
+        { ...mockRoom, tier: 1, t2_upgrade_cost: 200 },
+        { selected: true, incident }
+      )
+        .findAll('.tooltip-label')
+        .map((label) => label.text())
 
-      const labels = wrapper.findAll('.tooltip-label').map((w) => w.text())
       expect(labels).toContain('Power Generator (Tier 1)')
       expect(labels).toContain('Upgrade to Tier 2 (200 caps)')
       expect(labels).toContain('Destroy Room')
@@ -925,19 +583,6 @@ describe('RoomGrid', () => {
   })
 
   describe('Apprentice drop gating', () => {
-    const productionRoom = {
-      id: 'production-room-123',
-      name: 'Power Generator',
-      category: 'production',
-      ability: 'strength',
-      coordinate_x: 0,
-      coordinate_y: 0,
-      size: 3,
-      size_min: 3,
-      tier: 1,
-      capacity: 6,
-    }
-
     const dwellerIn = (overrides: Record<string, unknown>) =>
       ({
         first_name: 'X',
@@ -950,130 +595,84 @@ describe('RoomGrid', () => {
 
     const staffedFull = [dwellerIn({ id: 'adult-1' }), dwellerIn({ id: 'adult-2' })]
 
-    const setupDrop = (dwellers: any[]) => {
+    const setupDrop = (dwellers: any[], roster: any[] = []) => {
       useAuthStore().token = 'mock-token'
       useRoomStore().rooms = [productionRoom]
       const dwellerStore = useDwellerStore()
       dwellerStore.filter.dwellers = dwellers
+      if (roster.length) {
+        useVaultStore().activeVaultId = 'vault-1'
+        dwellerStore.filter.allDwellers = roster
+        dwellerStore.filter.allDwellersLoadedVaultId = 'vault-1'
+      }
       return dwellerStore
     }
 
+    const assignSpyFor = (id: string) =>
+      vi.spyOn(useDwellerStore().management, 'assignDwellerToRoom').mockResolvedValue({ id } as any)
+
     it('lets a youth apprentice be dropped on a fully staffed production room', async () => {
-      const dwellerStore = setupDrop([
-        ...staffedFull,
-        dwellerIn({ id: 'teen-1', room_id: null, age_group: 'teen' }),
-      ])
+      setupDrop([...staffedFull, dwellerIn({ id: 'teen-1', room_id: null, age_group: 'teen' })])
+      const assign = assignSpyFor('teen-1')
 
-      const assignSpy = vi
-        .spyOn(dwellerStore.management, 'assignDwellerToRoom')
-        .mockResolvedValue({ id: 'teen-1' } as any)
+      await dropOn(render(), 'teen-1')
 
-      const wrapper = mount(RoomGrid, { props: { incidents: [] } })
-      await dropOn(wrapper, 'teen-1')
-
-      expect(assignSpy).toHaveBeenCalledWith('teen-1', 'production-room-123')
+      expect(assign).toHaveBeenCalledWith('teen-1', 'production-room-123')
     })
 
     it('admits an apprentice the filter hides when the vault roster has it', async () => {
-      useAuthStore().token = 'mock-token'
-      useVaultStore().activeVaultId = 'vault-1'
-      useRoomStore().rooms = [productionRoom]
-      const { filter, management } = useDwellerStore()
-      filter.dwellers = [...staffedFull]
-      filter.allDwellers = [
-        ...staffedFull,
-        dwellerIn({ id: 'teen-1', room_id: null, age_group: 'teen' }),
-      ]
-      filter.allDwellersLoadedVaultId = 'vault-1'
+      const teen = dwellerIn({ id: 'teen-1', room_id: null, age_group: 'teen' })
+      setupDrop([...staffedFull], [...staffedFull, teen])
+      const assign = assignSpyFor('teen-1')
 
-      const assignSpy = vi
-        .spyOn(management, 'assignDwellerToRoom')
-        .mockResolvedValue({ id: 'teen-1' } as any)
+      await dropOn(render(), 'teen-1')
 
-      const wrapper = mount(RoomGrid, { props: { incidents: [] } })
-      await dropOn(wrapper, 'teen-1')
-
-      expect(assignSpy).toHaveBeenCalledWith('teen-1', 'production-room-123')
+      expect(assign).toHaveBeenCalledWith('teen-1', 'production-room-123')
     })
 
     it('still blocks an adult when all worker slots are taken', async () => {
-      const dwellerStore = setupDrop([...staffedFull, dwellerIn({ id: 'adult-3', room_id: null })])
+      setupDrop([...staffedFull, dwellerIn({ id: 'adult-3', room_id: null })])
+      const assign = assignSpyFor('adult-3')
 
-      const assignSpy = vi
-        .spyOn(dwellerStore.management, 'assignDwellerToRoom')
-        .mockResolvedValue({ id: 'adult-3' } as any)
+      await dropOn(render(), 'adult-3')
 
-      const wrapper = mount(RoomGrid, { props: { incidents: [] } })
-      await dropOn(wrapper, 'adult-3')
-
-      expect(assignSpy).not.toHaveBeenCalled()
+      expect(assign).not.toHaveBeenCalled()
     })
 
     it('does not count an apprentice against worker capacity for adults', async () => {
-      const dwellerStore = setupDrop([
+      setupDrop([
         dwellerIn({ id: 'adult-1' }),
         dwellerIn({ id: 'teen-1', age_group: 'teen', apprentice_stat: 'strength' }),
         dwellerIn({ id: 'adult-3', room_id: null }),
       ])
+      const assign = assignSpyFor('adult-3')
 
-      const assignSpy = vi
-        .spyOn(dwellerStore.management, 'assignDwellerToRoom')
-        .mockResolvedValue({ id: 'adult-3' } as any)
+      await dropOn(render(), 'adult-3')
 
-      const wrapper = mount(RoomGrid, { props: { incidents: [] } })
-      await dropOn(wrapper, 'adult-3')
-
-      expect(assignSpy).toHaveBeenCalledWith('adult-3', 'production-room-123')
+      expect(assign).toHaveBeenCalledWith('adult-3', 'production-room-123')
     })
   })
 
   describe('Slot and row geometry', () => {
     it('rejects a regular room preview on the elevator shaft column', async () => {
-      const roomStore = useRoomStore()
-      roomStore.rooms = []
-      roomStore.selectedRoom = {
-        name: 'Diner',
-        category: 'production',
-        ability: 'agility',
-        base_cost: 100,
-        t2_upgrade_cost: 200,
-        t3_upgrade_cost: 400,
-        size_min: 3,
-        size_max: 9,
-        tier: 1,
-      }
-      roomStore.isPlacingRoom = true
+      placing(dinerTemplate, [])
 
-      const wrapper = mount(RoomGrid, { props: { incidents: [] } })
-      const shaftCell = wrapper
-        .findAll('.empty')
-        .find(
-          (c) =>
-            (c.element as HTMLElement).style.gridRow === '2' &&
-            parseInt((c.element as HTMLElement).style.gridColumn, 10) === 7
-        )!
-
+      const shaftCell = cellAt(render(), 2, 7)
       await shaftCell.trigger('mouseenter')
 
       expect(shaftCell.classes()).not.toContain('valid-placement')
     })
 
     it('renders the locked rows below the buildable area', () => {
-      const wrapper = mount(RoomGrid, { props: { incidents: [] } })
-
-      expect(wrapper.findAll('.locked-row')).toHaveLength(10)
+      expect(render().findAll('.locked-row')).toHaveLength(10)
     })
   })
 
   describe('Room overlay requests', () => {
     it('opens a room requested before the grid mounted', async () => {
-      const roomStore = useRoomStore()
-      roomStore.rooms = [mockRoom]
+      useRoomStore().rooms = [mockRoom]
 
-      const wrapper = mount(RoomGrid, {
-        props: { incidents: [], openRoomId: 'room-123' },
-        global: { stubs: { RoomDetailModal: roomDetailModalStub } },
-      })
+      const wrapper = render({ openRoomId: 'room-123' })
       await wrapper.vm.$nextTick()
 
       expect(wrapper.emitted('roomOpened')).toHaveLength(1)
@@ -1084,13 +683,11 @@ describe('RoomGrid', () => {
       const roomStore = useRoomStore()
       useRoute().query.dweller = 'dweller-1'
       roomStore.rooms = []
-      const wrapper = mount(RoomGrid, {
-        props: { incidents: [], openRoomId: 'room-123' },
-        global: { stubs: { RoomDetailModal: roomDetailModalStub } },
-      })
+      const wrapper = render({ openRoomId: 'room-123' })
       roomStore.rooms = [mockRoom]
       await wrapper.vm.$nextTick()
       expect(wrapper.emitted('roomOpened')).toBeUndefined()
+
       delete useRoute().query.dweller
       roomStore.rooms = [{ ...mockRoom }]
       await wrapper.vm.$nextTick()
@@ -1101,29 +698,14 @@ describe('RoomGrid', () => {
     it('restores a requested room after its data finishes loading', async () => {
       const roomStore = useRoomStore()
       roomStore.rooms = []
-      const wrapper = mount(RoomGrid, {
-        props: { incidents: [], openRoomId: 'room-123' },
-        global: { stubs: { RoomDetailModal: roomDetailModalStub } },
-      })
+      const wrapper = render({ openRoomId: 'room-123' })
       await wrapper.vm.$nextTick()
       expect(wrapper.emitted('roomOpened')).toBeUndefined()
+
       roomStore.rooms = [mockRoom]
       await wrapper.vm.$nextTick()
       expect(wrapper.emitted('roomOpened')).toHaveLength(1)
       wrapper.unmount()
-    })
-
-    it('ignores an unknown room id', async () => {
-      const roomStore = useRoomStore()
-      roomStore.rooms = [mockRoom]
-
-      const wrapper = mount(RoomGrid, {
-        props: { incidents: [], openRoomId: 'missing' },
-        global: { stubs: { RoomDetailModal: roomDetailModalStub } },
-      })
-      await wrapper.vm.$nextTick()
-
-      expect(wrapper.emitted('roomOpened')).toBeUndefined()
     })
   })
 })

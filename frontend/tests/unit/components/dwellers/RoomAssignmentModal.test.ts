@@ -10,6 +10,7 @@ import type { Dweller } from '@/modules/dwellers/models/dweller'
 
 vi.mock('@/core/plugins/axios', () => ({ default: { get: vi.fn(), post: vi.fn() } }))
 vi.mock('@/core/audio/audioManager', () => ({ audioManager: { play: vi.fn() } }))
+
 const dweller = {
   id: 'dweller-1',
   first_name: 'Martha',
@@ -29,6 +30,7 @@ const dweller = {
   pet: null,
   identity_modifiers: {},
 } as Dweller
+
 const room = (id: string, name: string, ability = 'intelligence') => ({
   id,
   name,
@@ -38,8 +40,14 @@ const room = (id: string, name: string, ability = 'intelligence') => ({
   size: 3,
   size_min: 3,
 })
-let rooms = [room('lab', 'Science Lab'), room('power', 'Power Generator', 'strength')]
+
+const defaultRooms = () => [
+  room('lab', 'Science Lab'),
+  room('power', 'Power Generator', 'strength'),
+]
+let rooms = defaultRooms()
 let residents: unknown[] = []
+
 const mountPicker = async (changes: Partial<Dweller> = {}) => {
   const wrapper = mount(RoomAssignmentModal, {
     props: { open: true, vaultId: 'vault-1', dweller: { ...dweller, ...changes } },
@@ -56,10 +64,27 @@ const mountPicker = async (changes: Partial<Dweller> = {}) => {
   return wrapper
 }
 
+const choiceButtons = (wrapper: Awaited<ReturnType<typeof mountPicker>>) =>
+  wrapper.findAll('button[aria-label*=", tier "]')
+
+const clickText = async (wrapper: Awaited<ReturnType<typeof mountPicker>>, text: string) => {
+  await wrapper
+    .findAll('button')
+    .find((button) => button.text() === text)!
+    .trigger('click')
+  await flushPromises()
+}
+
+const deferred = <T>() => {
+  let resolve!: (value: T) => void
+  const promise = new Promise<T>((settle) => (resolve = settle))
+  return { promise, resolve }
+}
+
 beforeEach(() => {
   setActivePinia(createPinia())
   useAuthStore().token = 'test-token'
-  rooms = [room('lab', 'Science Lab'), room('power', 'Power Generator', 'strength')]
+  rooms = defaultRooms()
   residents = []
   vi.mocked(axios.get)
     .mockReset()
@@ -70,9 +95,6 @@ beforeEach(() => {
     .mockReset()
     .mockResolvedValue({ data: { ...dweller, room: rooms[0] } })
 })
-
-const choiceButtons = (wrapper: Awaited<ReturnType<typeof mountPicker>>) =>
-  wrapper.findAll('button[aria-label*=", tier "]')
 
 describe('dweller-first room assignment', () => {
   it('compares effective SPECIAL and requires explicit confirmation before posting', async () => {
@@ -85,11 +107,7 @@ describe('dweller-first room assignment', () => {
     expect(choices[0].attributes('aria-pressed')).toBe('true')
     expect(wrapper.text()).toContain('contributes to this room')
     expect(axios.post).not.toHaveBeenCalled()
-    await wrapper
-      .findAll('button')
-      .find((button) => button.text() === 'Confirm assignment')!
-      .trigger('click')
-    await flushPromises()
+    await clickText(wrapper, 'Confirm assignment')
     expect(axios.post).toHaveBeenCalledWith('/api/v1/dwellers/dweller-1/move_to/power')
     expect(wrapper.emitted('assigned')).toHaveLength(1)
     expect(wrapper.emitted('update:open')).toEqual([[false]])
@@ -126,11 +144,7 @@ describe('dweller-first room assignment', () => {
     const wrapper = await mountPicker()
     expect(wrapper.find('[role="alert"]').text()).toContain('Network unavailable')
     expect(wrapper.text()).not.toContain('No production rooms yet')
-    await wrapper
-      .findAll('button')
-      .find((button) => button.text() === 'Try again')!
-      .trigger('click')
-    await flushPromises()
+    await clickText(wrapper, 'Try again')
     expect(choiceButtons(wrapper)).toHaveLength(2)
   })
 
@@ -140,11 +154,7 @@ describe('dweller-first room assignment', () => {
     })
     const wrapper = await mountPicker()
     await choiceButtons(wrapper)[0].trigger('click')
-    await wrapper
-      .findAll('button')
-      .find((button) => button.text() === 'Confirm assignment')!
-      .trigger('click')
-    await flushPromises()
+    await clickText(wrapper, 'Confirm assignment')
     expect(wrapper.find('[role="alert"]').text()).toContain('Not enough population space')
     expect(choiceButtons(wrapper)[0].attributes('aria-pressed')).toBe('true')
     expect(wrapper.emitted('assigned')).toBeUndefined()
@@ -152,56 +162,51 @@ describe('dweller-first room assignment', () => {
 
   it('explains an empty vault and blocks away dwellers', async () => {
     rooms = []
-    const empty = await mountPicker()
-    expect(empty.text()).toContain('Build one in the vault')
+    expect((await mountPicker()).text()).toContain('Build one in the vault')
+
     rooms = [room('lab', 'Science Lab')]
     const away = await mountPicker({ status: 'exploring' })
     expect(away.text()).toContain('away from the vault')
     expect(choiceButtons(away)[0].attributes('disabled')).toBeDefined()
   })
+
   it.each(['rooms', 'dwellers'])(
     'does not show choices after a superseded %s fetch',
     async (source) => {
-      let resolveFirst!: (value: { data: unknown[] }) => void
+      const first = deferred<{ data: unknown[] }>()
       let held = false
       vi.mocked(axios.get).mockImplementation(async (url) => {
         const isRooms = String(url).includes('/rooms/')
         if (!held && (source === 'rooms' ? isRooms : !isRooms)) {
           held = true
-          return new Promise((resolve) => {
-            resolveFirst = resolve
-          })
+          return first.promise
         }
         return { data: isRooms ? rooms : residents }
       })
       const wrapper = await mountPicker()
       if (source === 'rooms') await useRoomStore().fetchRooms('vault-2', 'test-token')
       else await useDwellerStore().filter.fetchAllDwellers('vault-2')
-      resolveFirst({ data: source === 'rooms' ? rooms : residents })
+
+      first.resolve({ data: source === 'rooms' ? rooms : residents })
       await flushPromises()
+
       expect(wrapper.find('[role="alert"]').exists()).toBe(true)
       expect(choiceButtons(wrapper)).toHaveLength(0)
     }
   )
 
   it('blocks shell dismissal while an assignment is pending', async () => {
-    let finish!: (value: unknown) => void
-    vi.mocked(axios.post).mockImplementationOnce(
-      () =>
-        new Promise((resolve) => {
-          finish = resolve
-        })
-    )
+    const post = deferred<unknown>()
+    vi.mocked(axios.post).mockImplementationOnce(() => post.promise)
     const wrapper = await mountPicker()
     await choiceButtons(wrapper)[0].trigger('click')
-    await wrapper
-      .findAll('button')
-      .find((button) => button.text() === 'Confirm assignment')!
-      .trigger('click')
+    await clickText(wrapper, 'Confirm assignment')
+
     wrapper.findComponent({ name: 'TerminalModal' }).vm.$emit('update:open', false)
     await flushPromises()
     expect(wrapper.emitted('update:open')).toBeUndefined()
-    finish({ data: dweller })
+
+    post.resolve({ data: dweller })
     await flushPromises()
     expect(wrapper.emitted('update:open')).toEqual([[false]])
   })
@@ -216,6 +221,7 @@ it('offers adult storage protection while keeping youth in production', async ()
   expect(adult.text()).toContain('vault-wide weapon protection')
   expect(adult.text()).toContain('housing space')
   adult.unmount()
+
   const youth = await mountPicker({ age_group: 'teen' })
   expect(choiceButtons(youth).some((button) => button.text().includes('Storage Room'))).toBe(false)
   youth.unmount()

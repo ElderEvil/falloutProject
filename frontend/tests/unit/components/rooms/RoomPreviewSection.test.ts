@@ -1,6 +1,8 @@
-import { mount } from '@vue/test-utils'
-import { describe, expect, it } from 'vite-plus/test'
+import { afterEach, describe, expect, it } from 'vite-plus/test'
+import { enableAutoUnmount, mount } from '@vue/test-utils'
 import RoomPreviewSection from '@/modules/rooms/components/RoomPreviewSection.vue'
+
+enableAutoUnmount(afterEach)
 
 const dweller = (id: string, name: string) => ({
   id,
@@ -20,9 +22,7 @@ const baseProps = {
 }
 
 const mountPreview = (props: Record<string, unknown> = {}) =>
-  mount(RoomPreviewSection, {
-    props: { ...baseProps, ...props },
-  })
+  mount(RoomPreviewSection, { props: { ...baseProps, ...props } })
 
 describe('RoomPreviewSection image aspect', () => {
   it('waits for the room image aspect before rendering the sprite overlay', async () => {
@@ -38,7 +38,6 @@ describe('RoomPreviewSection image aspect', () => {
 
     expect(image.attributes('style') ?? '').not.toContain('display: none')
     expect(wrapper.find('.dweller-sprites-overlay').exists()).toBe(true)
-    wrapper.unmount()
   })
 })
 
@@ -53,9 +52,7 @@ describe('RoomPreviewSection pets', () => {
       ],
     })
 
-    const pet = wrapper.get('.combat-pet')
-    expect(pet.get('img').attributes('alt')).toContain('Dogmeat')
-    wrapper.unmount()
+    expect(wrapper.get('.combat-pet').get('img').attributes('alt')).toContain('Dogmeat')
   })
 })
 
@@ -69,7 +66,6 @@ describe('RoomPreviewSection client slot', () => {
     expect(wrapper.emitted('assignClient')).toEqual([[]])
     expect(wrapper.emitted('assignWorker')).toBeUndefined()
     expect(wrapper.emitted('assignApprentice')).toBeUndefined()
-    wrapper.unmount()
   })
 
   it('uses the same name badge and unassign event for an occupied client', async () => {
@@ -84,29 +80,28 @@ describe('RoomPreviewSection client slot', () => {
     await wrapper.get('button[aria-label="Unassign Lucy from Barbershop"]').trigger('click')
     expect(wrapper.emitted('unassign')).toEqual([['client']])
     expect(wrapper.emitted('activate')).toBeUndefined()
-    wrapper.unmount()
   })
 })
 
 describe('RoomPreviewSection unassign affordance (issue #1083)', () => {
-  it('emits the worker ID when unassign is activated', async () => {
-    const wrapper = mountPreview()
-    const button = wrapper.get('button[aria-label="Unassign Ada "]')
-    await button.trigger('click')
-    expect(wrapper.emitted('unassign')).toEqual([['d1']])
-    expect(wrapper.emitted('activate')).toBeUndefined()
-    wrapper.unmount()
-  })
+  it.each([
+    ['a worker', { assignedDwellers: [dweller('d1', 'Ada')] }, 'Ada', 'd1'],
+    [
+      'the apprentice',
+      {
+        showApprenticeSlot: true,
+        assignedDwellers: [{ ...dweller('a1', 'Ash'), apprentice_stat: 'strength' }],
+      },
+      'Ash',
+      'a1',
+    ],
+  ])('emits the ID when %s unassign is activated', async (_label, props, name, id) => {
+    const wrapper = mountPreview(props as Record<string, unknown>)
 
-  it('emits the apprentice ID when unassign is activated', async () => {
-    const wrapper = mountPreview({
-      showApprenticeSlot: true,
-      assignedDwellers: [{ ...dweller('a1', 'Ash'), apprentice_stat: 'strength' }],
-    })
-    await wrapper.get('button[aria-label="Unassign Ash "]').trigger('click')
-    expect(wrapper.emitted('unassign')).toEqual([['a1']])
+    await wrapper.get(`button[aria-label="Unassign ${name} "]`).trigger('click')
+
+    expect(wrapper.emitted('unassign')).toEqual([[id]])
     expect(wrapper.emitted('activate')).toBeUndefined()
-    wrapper.unmount()
   })
 
   it('orders workers before the dedicated apprentice slot', () => {
@@ -127,7 +122,6 @@ describe('RoomPreviewSection unassign affordance (issue #1083)', () => {
     expect(wrapper.get('.apprentice-marker').text()).toContain('S')
     expect(wrapper.get('.apprentice-marker').attributes('aria-label')).toContain('strength')
     expect(wrapper.get('.apprentice-slot').attributes('class')).toContain('slot-filled')
-    wrapper.unmount()
   })
 
   it('renders visible silhouette placeholders for empty worker and apprentice slots', () => {
@@ -137,19 +131,19 @@ describe('RoomPreviewSection unassign affordance (issue #1083)', () => {
       assignedDwellers: [],
     })
 
-    const workerSilhouette = wrapper.get('.scene-empty-worker .empty-dweller-silhouette')
     expect(wrapper.get('.dweller-sprites-overlay').attributes('style')).toContain(
       'FOS_Dw_Default_Human_Male.webp'
     )
-    expect(workerSilhouette.element.tagName).toBe('SPAN')
+    expect(wrapper.get('.scene-empty-worker .empty-dweller-silhouette').element.tagName).toBe(
+      'SPAN'
+    )
     expect(wrapper.get('.scene-empty-worker .empty-dweller-plus').exists()).toBe(true)
-    expect(
-      wrapper.get('.scene-empty-apprentice .empty-dweller-silhouette').attributes('class')
-    ).toContain('empty-dweller-silhouette--apprentice')
-    expect(
-      wrapper.get('.scene-empty-apprentice .empty-dweller-silhouette').attributes('style')
-    ).toContain('FOS_Dw_Default_Human_Teen_Male_SkinBrown_HairBrown.webp')
-    wrapper.unmount()
+
+    const apprentice = wrapper.get('.scene-empty-apprentice .empty-dweller-silhouette')
+    expect(apprentice.attributes('class')).toContain('empty-dweller-silhouette--apprentice')
+    expect(apprentice.attributes('style')).toContain(
+      'FOS_Dw_Default_Human_Teen_Male_SkinBrown_HairBrown.webp'
+    )
   })
 
   it('fits assigned portraits inside the slot without the card zoom', () => {
@@ -166,7 +160,6 @@ describe('RoomPreviewSection unassign affordance (issue #1083)', () => {
     const button = wrapper.get('button[aria-label="Open Ada "]')
     expect(button.find('.portrait-clip-all').exists()).toBe(true)
     expect(button.get('img').attributes('class')).not.toContain('default-portrait-zoom')
-    wrapper.unmount()
   })
 
   it('hides worker assignment actions in a read-only preview', () => {
@@ -175,7 +168,6 @@ describe('RoomPreviewSection unassign affordance (issue #1083)', () => {
     expect(wrapper.find('button[aria-label="Assign worker"]').exists()).toBe(false)
     expect(wrapper.find('.empty-dweller-plus').exists()).toBe(false)
     expect(wrapper.get('button[aria-label="Open Ada "]').exists()).toBe(true)
-    wrapper.unmount()
   })
 
   it('labels workers and the apprentice above their portraits', () => {
@@ -193,7 +185,6 @@ describe('RoomPreviewSection unassign affordance (issue #1083)', () => {
       'Ash',
     ])
     expect(wrapper.get('.dweller-name-badge').attributes('title')).toBe('Ada Lovelace')
-    wrapper.unmount()
   })
 
   it('scales portraits by age and race like the arena', () => {
@@ -210,6 +201,5 @@ describe('RoomPreviewSection unassign affordance (issue #1083)', () => {
     expect(styles[0]).toContain('--dweller-body-scale: 1')
     expect(styles[1]).toContain('--dweller-body-scale: 0.8')
     expect(styles[2]).toContain('--dweller-body-scale: 1.18')
-    wrapper.unmount()
   })
 })

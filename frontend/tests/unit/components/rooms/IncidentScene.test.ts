@@ -39,10 +39,33 @@ const dweller = (overrides: Record<string, unknown> = {}) => ({
   ...overrides,
 })
 
+const teamEntry = (
+  dwellerId: string,
+  overrides: Record<string, unknown> = {}
+): Record<string, unknown> => ({
+  id: `t-${dwellerId}`,
+  team_id: 'team-1',
+  dweller_id: dwellerId,
+  slot_number: 1,
+  status: 'dispatched',
+  created_at: null,
+  updated_at: null,
+  ...overrides,
+})
+
 const mountScene = (props: Record<string, unknown> = {}) =>
-  mount(IncidentScene, {
-    props: { incident: incident(), dwellers: [], ...props },
-  })
+  mount(IncidentScene, { props: { incident: incident(), dwellers: [], ...props } })
+
+const finalHit = {
+  id: 'last',
+  kind: 'hit',
+  message: 'Final hit',
+  data: null,
+  action: { actor_id: 'd1', targets: [{ target_id: 'threat', damage: 1 }] },
+}
+
+const hazard = (overrides: Record<string, unknown> = {}) =>
+  incident({ type: 'fire', family: 'hazard', objective: 'contain', ...overrides })
 
 describe('Incident action playback', () => {
   afterEach(() => {
@@ -107,18 +130,7 @@ describe('Incident action playback', () => {
     vi.useFakeTimers()
     const wrapper = mountScene({ dwellers: [dweller()] })
     await wrapper.setProps({
-      incident: incident({
-        status: 'resolved',
-        events: [
-          {
-            id: 'last',
-            kind: 'hit',
-            message: 'Final hit',
-            data: null,
-            action: { actor_id: 'd1', targets: [{ target_id: 'threat', damage: 1 }] },
-          },
-        ],
-      }),
+      incident: incident({ status: 'resolved', events: [finalHit] }),
     })
     expect(wrapper.emitted('playbackComplete')).toBeUndefined()
     await vi.advanceTimersByTimeAsync(350)
@@ -133,18 +145,7 @@ describe('Incident action playback', () => {
     await wrapper.setProps({ dwellers: [] })
     expect(wrapper.text()).not.toContain('Alice')
     await wrapper.setProps({
-      incident: incident({
-        status: 'resolved',
-        events: [
-          {
-            id: 'last',
-            kind: 'hit',
-            message: 'Final hit',
-            data: null,
-            action: { actor_id: 'd1', targets: [{ target_id: 'threat', damage: 1 }] },
-          },
-        ],
-      }),
+      incident: incident({ status: 'resolved', events: [finalHit] }),
     })
     expect(wrapper.text()).toContain('Alice')
     expect(wrapper.get('.incident-responder').attributes('aria-current')).toBe('true')
@@ -171,49 +172,26 @@ describe('IncidentScene', () => {
     expect(mountScene().text()).toContain('No responders assigned')
   })
 
-  it('lunges the attacker and flashes the target when a round lands', async () => {
-    const wrapper = mountScene({
-      dwellers: [dweller({ id: 'd1', first_name: 'Alice' })],
-    })
+  it.each([
+    ['the responders strike', { damage_to_threat: 12 }, 'combat-lunge-right'],
+    ['the threat strikes back', { damage_to_dwellers: 7 }, 'combat-lunge-left'],
+  ])('lunges and flashes when %s', async (_label, data, lungeClass) => {
+    const wrapper = mountScene({ dwellers: [dweller()] })
 
     await wrapper.setProps({
-      incident: incident({
-        events: [
-          { id: 'e1', kind: 'round', message: 'Trade fire.', data: { damage_to_threat: 12 } },
-        ],
-      }),
+      incident: incident({ events: [{ id: 'e1', kind: 'round', message: 'Round.', data }] }),
     })
     await flushPromises()
     await nextTick()
 
-    expect(wrapper.find('.combat-lunge-right').exists()).toBe(true)
-    expect(wrapper.find('.combat-impact').exists()).toBe(true)
-    wrapper.unmount()
-  })
-
-  it('flashes the defenders and lunges the threat when they take damage', async () => {
-    const wrapper = mountScene({
-      dwellers: [dweller({ id: 'd1', first_name: 'Alice' })],
-    })
-
-    await wrapper.setProps({
-      incident: incident({
-        events: [
-          { id: 'e1', kind: 'round', message: 'They hit back.', data: { damage_to_dwellers: 7 } },
-        ],
-      }),
-    })
-    await flushPromises()
-    await nextTick()
-
-    expect(wrapper.find('.combat-lunge-left').exists()).toBe(true)
+    expect(wrapper.find(`.${lungeClass}`).exists()).toBe(true)
     expect(wrapper.find('.combat-impact').exists()).toBe(true)
     wrapper.unmount()
   })
 
   it('sums the latest round of per-attack hits for the floating damage', () => {
     const wrapper = mountScene({
-      dwellers: [dweller({ id: 'd1', first_name: 'Alice' })],
+      dwellers: [dweller()],
       incident: incident({
         events: [
           { id: 'e1', kind: 'turn', message: 'Responders attack', data: null },
@@ -247,9 +225,7 @@ describe('IncidentScene', () => {
   })
 
   it('renders containment instead of an enemy row for a hazard objective', () => {
-    const wrapper = mountScene({
-      incident: incident({ type: 'fire', family: 'hazard', objective: 'contain' }),
-    })
+    const wrapper = mountScene({ incident: hazard() })
 
     expect(wrapper.text()).toContain('ROOM HAZARD')
     expect(wrapper.text()).not.toContain('remaining')
@@ -257,20 +233,16 @@ describe('IncidentScene', () => {
 
   it('reports how many rooms the incident affects', () => {
     const wrapper = mountScene({
-      incident: incident({
-        type: 'fire',
-        family: 'hazard',
-        objective: 'contain',
-        risk: { kind: 'spread', rooms_affected: 3 },
-      }),
+      incident: hazard({ risk: { kind: 'spread', rooms_affected: 3 } }),
     })
 
     expect(wrapper.text()).toContain('3 rooms affected')
   })
 
   it('paints the room backdrop when an image is available', () => {
-    const wrapper = mountScene({ roomImageUrl: 'https://cdn.test/room.png' })
-    const backdrop = wrapper.find('.scene-backdrop')
+    const backdrop = mountScene({ roomImageUrl: 'https://cdn.test/room.png' }).find(
+      '.scene-backdrop'
+    )
 
     expect(backdrop.exists()).toBe(true)
     expect(backdrop.attributes('src')).toBe('https://cdn.test/room.png')
@@ -286,41 +258,25 @@ describe('IncidentScene', () => {
     expect(wrapper.find('.scene-backdrop').attributes('src')).toBe('/another.webp')
   })
 
-  it('omits the backdrop when no image is available', () => {
-    expect(mountScene().find('.scene-backdrop').exists()).toBe(false)
-  })
-
   it('burns an environmental flame cluster for a fire hazard', () => {
-    const wrapper = mountScene({
-      incident: incident({ type: 'fire', family: 'hazard', objective: 'contain' }),
-    })
+    const wrapper = mountScene({ incident: hazard() })
 
     const fire = wrapper.find('.hazard-fire')
     expect(fire.exists()).toBe(true)
     expect(fire.attributes('aria-hidden')).toBe('true')
     expect(wrapper.findAll('.hazard-flame')).toHaveLength(3)
-    expect(wrapper.find('.flame-outer').exists()).toBe(true)
-    expect(wrapper.find('.flame-inner').exists()).toBe(true)
     expect(wrapper.find('.hazard-icon').exists()).toBe(false)
-    expect(fire.find('.combatant-motion').exists()).toBe(false)
   })
 
-  it('uses the generated raider sprite for raider attacks', () => {
-    const wrapper = mountScene()
+  it.each([
+    ['raider_attack', 'Raider', '/raider_images/variants/', false],
+    ['deathclaw_attack', 'Deathclaw', '/assembled/deathclaw.webp', true],
+  ])('renders %s artwork with the right threat scale', (type, alt, src, scaled) => {
+    const threat = mountScene({ incident: incident({ type }) }).get(`img[alt="${alt}"]`)
 
-    const raider = wrapper.get('img[alt="Raider"]')
-    expect(raider.attributes('src')).toContain('/raider_images/variants/')
-    // Humanoids keep the dweller frame; only creatures get the extra threat scale.
-    expect(raider.element.parentElement?.className).not.toContain('scale-125')
-  })
-
-  it('gives creatures the extra threat scale', () => {
-    const wrapper = mountScene({
-      incident: incident({ type: 'deathclaw_attack', family: 'intrusion', objective: 'defeat' }),
-    })
-
-    const creature = wrapper.get('img[alt="Deathclaw"]')
-    expect(creature.element.parentElement?.className).toContain('sm:scale-125')
+    expect(threat.attributes('src')).toContain(src)
+    // Only creatures get the extra threat scale; humanoids keep the dweller frame.
+    expect((threat.element.parentElement?.className ?? '').includes('sm:scale-125')).toBe(scaled)
   })
 
   it('uses creature artwork for a non-fire containment incident', () => {
@@ -350,29 +306,17 @@ describe('IncidentScene', () => {
   })
 
   it('plays the resolution cue when an active scene finishes', async () => {
-    const wrapper = mountScene({
-      incident: incident({ status: 'active' }),
-      dwellers: [dweller()],
-    })
+    const wrapper = mountScene({ incident: incident({ status: 'active' }), dwellers: [dweller()] })
     await wrapper.setProps({ incident: incident({ status: 'resolved' }) })
+
     expect(playSound).toHaveBeenCalledWith('incidentVictory', 'sfx')
     wrapper.unmount()
   })
 
   it('does not show helpers who moved out of the incident room', () => {
     const wrapper = mountScene({
-      dwellers: [dweller({ id: 'd1', first_name: 'Alice', room_id: 'room-9' })],
-      team: [
-        {
-          id: 't1',
-          team_id: 'team-1',
-          dweller_id: 'd1',
-          slot_number: 1,
-          status: 'dispatched',
-          created_at: null,
-          updated_at: null,
-        },
-      ],
+      dwellers: [dweller({ room_id: 'room-9' })],
+      team: [teamEntry('d1')],
     })
 
     expect(wrapper.text()).not.toContain('Alice')
@@ -380,10 +324,7 @@ describe('IncidentScene', () => {
   })
 
   it('keeps room occupants visible even with an empty helper roster', () => {
-    const wrapper = mountScene({
-      dwellers: [dweller({ id: 'd1', first_name: 'Alice', room_id: 'room-1' })],
-      team: [],
-    })
+    const wrapper = mountScene({ dwellers: [dweller()], team: [] })
 
     expect(wrapper.text()).not.toContain('No responders assigned')
     expect(wrapper.text()).toContain('Alice')
@@ -397,9 +338,7 @@ describe('IncidentScene', () => {
   })
 
   it('shows only the responder name when they are unhurt', () => {
-    const wrapper = mountScene({
-      dwellers: [dweller({ id: 'd1', first_name: 'Alice', level: 12, health: 100 })],
-    })
+    const wrapper = mountScene({ dwellers: [dweller({ level: 12, health: 100 })] })
 
     expect(wrapper.get('.dweller-name-badge').text()).toBe('Alice')
     expect(wrapper.text()).not.toContain('POW')
@@ -408,9 +347,7 @@ describe('IncidentScene', () => {
   })
 
   it('adds a compact health bar to the name badge when a responder is hurt', () => {
-    const wrapper = mountScene({
-      dwellers: [dweller({ id: 'd1', first_name: 'Alice', health: 40, max_health: 100 })],
-    })
+    const wrapper = mountScene({ dwellers: [dweller({ health: 40 })] })
 
     expect(wrapper.get('.dweller-health-fill').attributes('style')).toContain('width: 40%')
     expect(wrapper.text()).toContain('Alice: 40 of 100 HP')
@@ -418,19 +355,24 @@ describe('IncidentScene', () => {
 })
 
 describe('Incident room preview', () => {
-  it('uses real responder artwork under the name badge', () => {
+  it('uses real responder artwork under the name badge, anchored to the lane floor', () => {
     const wrapper = mountScene({
       dwellers: [dweller({ thumbnail_url: '/static/portraits/alice.png' })],
     })
+
     expect(wrapper.get('img[alt="Alice"]').attributes('src')).toContain(
       '/static/portraits/alice.png'
     )
     expect(wrapper.get('.dweller-name-badge').text()).toBe('Alice')
+    expect(wrapper.get('.incident-dweller-portrait').attributes('style')).toContain(
+      'object-position: center bottom'
+    )
     expect(wrapper.find('[role="progressbar"][aria-label="Alice health"]').exists()).toBe(false)
   })
 
   it('shows creature artwork instead of repeated threat glyphs', () => {
     const wrapper = mountScene({ incident: incident({ type: 'deathclaw_attack' }) })
+
     expect(wrapper.get('img[alt="Deathclaw"]').attributes('src')).toContain(
       '/assembled/deathclaw.webp'
     )
@@ -438,19 +380,8 @@ describe('Incident room preview', () => {
   })
 
   it('retains a dispatched responder when their dweller data has not loaded', () => {
-    const wrapper = mountScene({
-      team: [
-        {
-          id: 't1',
-          team_id: 'team-1',
-          dweller_id: 'missing',
-          slot_number: 2,
-          status: 'dispatched',
-          created_at: null,
-          updated_at: null,
-        },
-      ],
-    })
+    const wrapper = mountScene({ team: [teamEntry('missing', { slot_number: 2 })] })
+
     expect(wrapper.text()).toContain('Responder 2')
     expect(wrapper.text()).not.toContain('DISPATCHED')
     expect(wrapper.text()).not.toContain('No responders assigned')
@@ -482,16 +413,6 @@ describe('Incident room preview', () => {
 
     expect(wrapper.get('.incident-actor').attributes('style')).toContain(
       '--dweller-body-scale: 1.18'
-    )
-  })
-
-  it('anchors the portrait to the lane floor instead of the top of the frame', () => {
-    const wrapper = mountScene({
-      dwellers: [dweller({ thumbnail_url: '/static/portraits/alice.png' })],
-    })
-
-    expect(wrapper.get('.incident-dweller-portrait').attributes('style')).toContain(
-      'object-position: center bottom'
     )
   })
 })

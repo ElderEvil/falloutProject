@@ -1,40 +1,33 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
-import { ref } from 'vue'
+import { ref, type Ref } from 'vue'
 import { FEEDBACK_TIMING_MS } from '@/core/config/feedback'
 import { useRoomRush } from '@/modules/rooms/composables/useRoomRush'
 import type { Room, RoomRushResult } from '@/modules/rooms/models/room'
 
 const { mockStore, notifyErrorOnce, playSound, stopSound, showFeedback } = vi.hoisted(() => ({
-  mockStore: {
-    fetchRushQuote: vi.fn(),
-    rushRoom: vi.fn(),
-  },
+  mockStore: { fetchRushQuote: vi.fn(), rushRoom: vi.fn() },
   notifyErrorOnce: vi.fn(),
   playSound: vi.fn(),
   stopSound: vi.fn(),
   showFeedback: vi.fn(),
 }))
 
-vi.mock('@/modules/rooms/stores/room', () => ({
-  useRoomStore: () => mockStore,
-}))
+vi.mock('@/modules/rooms/stores/room', () => ({ useRoomStore: () => mockStore }))
 
 vi.mock('@/core/utils/errorHandler', () => ({
   getErrorMessage: (error: unknown) => (error instanceof Error ? error.message : 'Unknown error'),
   notifyErrorOnce,
 }))
 
-vi.mock('@/core/composables/useSound', () => ({
-  useSound: () => ({ playSound, stopSound }),
-}))
-
+vi.mock('@/core/composables/useSound', () => ({ useSound: () => ({ playSound, stopSound }) }))
 vi.mock('@/core/composables/useVaultBoyFeedback', () => ({
   useVaultBoyFeedback: () => ({ show: showFeedback }),
 }))
 
 const room = { id: 'room-1', name: 'Power Generator' } as Room
+const emptyPayout = { power: 0, food: 0, water: 0, stimpack: 0, radaway: 0 }
 const quote = {
   can_rush: true,
   blocked_reason: null,
@@ -45,7 +38,7 @@ const quote = {
   avg_ability: 8,
   avg_luck: 7,
   worker_count: 2,
-  payout: { power: 12, food: 0, water: 0, stimpack: 0, radaway: 0 },
+  payout: { ...emptyPayout, power: 12 },
   caps_chance: 35,
   eligible_incidents: ['fire'],
   next_stack_penalty: 10,
@@ -53,7 +46,7 @@ const quote = {
 
 const result: RoomRushResult = {
   outcome: 'success',
-  payout: { power: 12, food: 0, water: 0, stimpack: 0, radaway: 0 },
+  payout: { ...emptyPayout, power: 12 },
   caps: 120,
   xp_per_worker: 25,
   happiness_delta: 10,
@@ -62,6 +55,37 @@ const result: RoomRushResult = {
   stacks_after: 3,
   next_fail_chance: 33,
   message: 'The rush succeeded.',
+}
+
+const failure: RoomRushResult = {
+  ...result,
+  outcome: 'failure',
+  payout: emptyPayout,
+  caps: 0,
+  xp_per_worker: 0,
+  happiness_delta: -10,
+  incident_type: 'fire',
+}
+
+const deferred = <T>() => {
+  let resolve!: (value: T) => void
+  const promise = new Promise<T>((settle) => (resolve = settle))
+  return { promise, resolve }
+}
+
+/** Mount the composable with the rush dialog already open on `quoteReply`. */
+const openRush = async (
+  quoteReply: typeof quote = quote,
+  {
+    open = ref(true),
+    selected = ref<Room | null>(room),
+  }: { open?: Ref<boolean>; selected?: Ref<Room | null> } = {}
+) => {
+  mockStore.fetchRushQuote.mockResolvedValueOnce(quoteReply)
+  const state = useRoomRush(selected, ref('vault-1'), open)
+  state.requestRush()
+  await flushPromises()
+  return state
 }
 
 describe('useRoomRush', () => {
@@ -73,7 +97,6 @@ describe('useRoomRush', () => {
   it('does not load a quote until the rush popup opens', async () => {
     const state = useRoomRush(ref(room), ref('vault-1'), ref(true))
     await flushPromises()
-
     expect(mockStore.fetchRushQuote).not.toHaveBeenCalled()
 
     mockStore.fetchRushQuote.mockResolvedValueOnce(quote)
@@ -93,10 +116,7 @@ describe('useRoomRush', () => {
   })
 
   it('closes the popup and stops rush music on cancel', async () => {
-    mockStore.fetchRushQuote.mockResolvedValueOnce(quote)
-    const state = useRoomRush(ref(room), ref('vault-1'), ref(true))
-    state.requestRush()
-    await flushPromises()
+    const state = await openRush()
 
     state.cancelRush()
 
@@ -105,12 +125,28 @@ describe('useRoomRush', () => {
     expect(stopSound).toHaveBeenCalledWith('rushMode')
   })
 
-  it('delays the success cue and feedback, then plays the resource cue', async () => {
-    mockStore.fetchRushQuote.mockResolvedValueOnce(quote)
-    mockStore.rushRoom.mockResolvedValueOnce(result)
-    const state = useRoomRush(ref(room), ref('vault-1'), ref(true))
-    state.requestRush()
-    await flushPromises()
+  it.each([
+    {
+      label: 'success',
+      outcome: result,
+      cue: 'rushSuccess',
+      animation: 'rush-success',
+      title: 'RUSH OK',
+      message: '+12 POWER · +120 CAPS · +10 HAPPINESS · +25 XP',
+      resourceCue: true,
+    },
+    {
+      label: 'failure',
+      outcome: failure,
+      cue: 'rushFail',
+      animation: 'rush-failure',
+      title: 'RUSH FAIL',
+      message: 'FIRE · −10 HAPPINESS',
+      resourceCue: false,
+    },
+  ])('delays the $label cue and feedback', async (row) => {
+    const state = await openRush()
+    mockStore.rushRoom.mockResolvedValueOnce(row.outcome)
     vi.useFakeTimers()
 
     try {
@@ -126,52 +162,16 @@ describe('useRoomRush', () => {
 
       await vi.advanceTimersByTimeAsync(FEEDBACK_TIMING_MS.rushDelay)
 
-      expect(playSound).toHaveBeenCalledWith('rushSuccess', 'sfx')
-      expect(playSound).toHaveBeenCalledWith('resourceCollected', 'sfx')
-      expect(showFeedback).toHaveBeenCalledWith(
-        {
-          animation: 'rush-success',
-          title: 'RUSH OK',
-          message: '+12 POWER · +120 CAPS · +10 HAPPINESS · +25 XP',
-          vaultId: 'vault-1',
-          durationMs: FEEDBACK_TIMING_MS.rushDuration,
-        },
-        { priority: true }
+      expect(playSound).toHaveBeenCalledWith(row.cue, 'sfx')
+      expect(playSound.mock.calls.some(([key]) => key === 'resourceCollected')).toBe(
+        row.resourceCue
       )
-    } finally {
-      vi.useRealTimers()
-    }
-  })
-
-  it('plays the failure cue without the resource cue after the delay', async () => {
-    mockStore.fetchRushQuote.mockResolvedValueOnce(quote)
-    mockStore.rushRoom.mockResolvedValueOnce({
-      ...result,
-      outcome: 'failure',
-      payout: { power: 0, food: 0, water: 0, stimpack: 0, radaway: 0 },
-      caps: 0,
-      xp_per_worker: 0,
-      happiness_delta: -10,
-      incident_type: 'fire',
-    })
-    const state = useRoomRush(ref(room), ref('vault-1'), ref(true))
-    state.requestRush()
-    await flushPromises()
-    vi.useFakeTimers()
-
-    try {
-      await state.confirmRush()
-      expect(showFeedback).not.toHaveBeenCalled()
-
-      await vi.advanceTimersByTimeAsync(FEEDBACK_TIMING_MS.rushDelay)
-
-      expect(playSound).toHaveBeenCalledWith('rushFail', 'sfx')
-      expect(playSound).not.toHaveBeenCalledWith('resourceCollected', 'sfx')
       expect(showFeedback).toHaveBeenCalledWith(
         expect.objectContaining({
-          animation: 'rush-failure',
-          title: 'RUSH FAIL',
-          message: 'FIRE · −10 HAPPINESS',
+          animation: row.animation,
+          title: row.title,
+          message: row.message,
+          vaultId: 'vault-1',
           durationMs: FEEDBACK_TIMING_MS.rushDuration,
         }),
         { priority: true }
@@ -182,8 +182,8 @@ describe('useRoomRush', () => {
   })
 
   it('surfaces a quote failure inside the popup', async () => {
-    mockStore.fetchRushQuote.mockRejectedValueOnce(new Error('Quote unavailable'))
     const state = useRoomRush(ref(room), ref('vault-1'), ref(true))
+    mockStore.fetchRushQuote.mockRejectedValueOnce(new Error('Quote unavailable'))
     state.requestRush()
     await flushPromises()
 
@@ -194,11 +194,8 @@ describe('useRoomRush', () => {
   })
 
   it('keeps the popup open and reports a rush failure', async () => {
-    mockStore.fetchRushQuote.mockResolvedValueOnce(quote)
+    const state = await openRush()
     mockStore.rushRoom.mockRejectedValueOnce(new Error('Incident active'))
-    const state = useRoomRush(ref(room), ref('vault-1'), ref(true))
-    state.requestRush()
-    await flushPromises()
 
     await state.confirmRush()
 
@@ -209,14 +206,9 @@ describe('useRoomRush', () => {
   })
 
   it('ignores an older quote after switching rooms', async () => {
-    let resolveOld!: (value: typeof quote) => void
+    const old = deferred<typeof quote>()
     mockStore.fetchRushQuote
-      .mockImplementationOnce(
-        () =>
-          new Promise((resolve) => {
-            resolveOld = resolve
-          })
-      )
+      .mockImplementationOnce(() => old.promise)
       .mockResolvedValueOnce({ ...quote, fail_chance: 45, success_chance: 55 })
     const selectedRoom = ref<Room | null>(room)
     const state = useRoomRush(selectedRoom, ref('vault-1'), ref(true))
@@ -229,50 +221,31 @@ describe('useRoomRush', () => {
 
     expect(state.quote.value?.fail_chance).toBe(45)
 
-    resolveOld(quote)
+    old.resolve(quote)
     await flushPromises()
 
     expect(state.quote.value?.fail_chance).toBe(45)
   })
 
-  it('shows the storage-full message and refuses to rush a blocked quote', async () => {
-    mockStore.fetchRushQuote.mockResolvedValueOnce({
+  it.each([
+    ['resources_full', 'Vault storage for this resource is full.'],
+    ['no_yield', 'This rush would produce nothing right now.'],
+  ])('refuses a blocked quote (%s) with its message', async (blockedReason, message) => {
+    const state = await openRush({
       ...quote,
       can_rush: false,
-      blocked_reason: 'resources_full',
-      payout: { power: 0, food: 0, water: 0, stimpack: 0, radaway: 0 },
+      blocked_reason: blockedReason,
+      payout: emptyPayout,
     })
-    const state = useRoomRush(ref(room), ref('vault-1'), ref(true))
-    state.requestRush()
-    await flushPromises()
 
-    expect(state.blockedMessage.value).toBe('Vault storage for this resource is full.')
-    await state.confirmRush()
-    expect(mockStore.rushRoom).not.toHaveBeenCalled()
-  })
-
-  it('shows the no-yield message and refuses to rush a blocked quote', async () => {
-    mockStore.fetchRushQuote.mockResolvedValueOnce({
-      ...quote,
-      can_rush: false,
-      blocked_reason: 'no_yield',
-      payout: { power: 0, food: 0, water: 0, stimpack: 0, radaway: 0 },
-    })
-    const state = useRoomRush(ref(room), ref('vault-1'), ref(true))
-    state.requestRush()
-    await flushPromises()
-
-    expect(state.blockedMessage.value).toBe('This rush would produce nothing right now.')
+    expect(state.blockedMessage.value).toBe(message)
     await state.confirmRush()
     expect(mockStore.rushRoom).not.toHaveBeenCalled()
   })
 
   it('closes the popup when the parent room closes', async () => {
-    mockStore.fetchRushQuote.mockResolvedValueOnce(quote)
     const open = ref(true)
-    const state = useRoomRush(ref(room), ref('vault-1'), open)
-    state.requestRush()
-    await flushPromises()
+    const state = await openRush(quote, { open })
     expect(state.showRushDialog.value).toBe(true)
 
     open.value = false
@@ -282,14 +255,9 @@ describe('useRoomRush', () => {
   })
 
   it('ignores a rush response from a closed modal session', async () => {
-    let resolveRush!: (value: RoomRushResult) => void
+    const rush = deferred<RoomRushResult>()
     mockStore.fetchRushQuote.mockResolvedValue(quote)
-    mockStore.rushRoom.mockImplementationOnce(
-      () =>
-        new Promise((resolve) => {
-          resolveRush = resolve
-        })
-    )
+    mockStore.rushRoom.mockImplementationOnce(() => rush.promise)
     const open = ref(true)
     const state = useRoomRush(ref(room), ref('vault-1'), open)
     state.requestRush()
@@ -300,7 +268,7 @@ describe('useRoomRush', () => {
     await flushPromises()
     open.value = true
     await flushPromises()
-    resolveRush(result)
+    rush.resolve(result)
     await pending
 
     expect(showFeedback).not.toHaveBeenCalled()

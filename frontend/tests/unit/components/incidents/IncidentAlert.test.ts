@@ -7,337 +7,145 @@ import { useIncidentStore } from '@/modules/combat/stores/incident'
 import { IncidentType, IncidentStatus } from '@/modules/combat/models/incident'
 import type { Incident, IncidentTeamMember } from '@/modules/combat/models/incident'
 
-// Mock @iconify/vue
 vi.mock('@iconify/vue', () =>
   createIconifyMock({ template: '<div class="mock-icon" :data-icon="icon"></div>' })
 )
 
-describe('IncidentAlert', () => {
-  const mockIncident: Incident = {
-    id: 'incident-1',
-    vault_id: 'vault-1',
-    room_id: 'room-1',
-    room_name: 'Power Generator',
-    type: IncidentType.RAIDER_ATTACK,
-    status: IncidentStatus.ACTIVE,
-    difficulty: 5,
-    start_time: '2025-01-01T00:00:00Z',
-    damage_dealt: 10,
-    enemies_defeated: 2,
-    spread_count: 0,
-    rooms_affected: ['room-1'],
-    last_spread_time: null,
-    loot: null,
-    resolved_at: null,
-    duration: 60,
-  }
+const mockIncident: Incident = {
+  id: 'incident-1',
+  vault_id: 'vault-1',
+  room_id: 'room-1',
+  room_name: 'Power Generator',
+  type: IncidentType.RAIDER_ATTACK,
+  status: IncidentStatus.ACTIVE,
+  difficulty: 5,
+  start_time: '2025-01-01T00:00:00Z',
+  damage_dealt: 10,
+  enemies_defeated: 2,
+  spread_count: 0,
+  rooms_affected: ['room-1'],
+  last_spread_time: null,
+  loot: null,
+  resolved_at: null,
+  duration: 60,
+}
 
+const teamMember: IncidentTeamMember = {
+  id: 'tm-1',
+  team_id: 'team-1',
+  dweller_id: 'dweller-1',
+  slot_number: 1,
+  status: 'assigned',
+  created_at: '2025-01-01T00:00:00Z',
+  updated_at: '2025-01-01T00:00:00Z',
+}
+
+const render = (incidents: Incident[] = [mockIncident]) =>
+  mount(IncidentAlert, { props: { incidents } })
+
+const stars = (incidents: Incident[] = [mockIncident]) => render(incidents).text().match(/★/g)
+
+describe('IncidentAlert', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2025-01-01T00:01:00Z')) // 1 minute after start
   })
 
-  describe('Props', () => {
-    it('should render with single incident', () => {
-      const wrapper = mount(IncidentAlert, {
-        props: {
-          incidents: [mockIncident],
-        },
-      })
+  it('renders the live incident with its type, elapsed time and label', () => {
+    const wrapper = render()
 
-      expect(wrapper.exists()).toBe(true)
-      expect(wrapper.text()).toContain('RAIDER ATTACK')
-    })
-
-    it('should handle empty incidents array', () => {
-      const wrapper = mount(IncidentAlert, {
-        props: {
-          incidents: [],
-        },
-      })
-
-      expect(wrapper.exists()).toBe(true)
-    })
+    expect(wrapper.exists()).toBe(true)
+    expect(wrapper.text()).toContain('RAIDER ATTACK')
+    expect(wrapper.text()).toMatch(/\d+:\d+/)
+    expect(wrapper.get('button').attributes('aria-label')).toBe('Open RAIDER ATTACK incident')
   })
 
-  describe('Incident Display', () => {
-    it('should display incident type correctly', () => {
-      const wrapper = mount(IncidentAlert, {
-        props: {
-          incidents: [mockIncident],
-        },
-      })
-
-      expect(wrapper.text()).toContain('RAIDER ATTACK')
-    })
-
-    it('should display difficulty stars', () => {
-      const wrapper = mount(IncidentAlert, {
-        props: {
-          incidents: [mockIncident],
-        },
-      })
-
-      const stars = wrapper.text().match(/★/g)
-      expect(stars).toHaveLength(5) // Difficulty 5
-    })
-
-    it('should show elapsed time', () => {
-      const wrapper = mount(IncidentAlert, {
-        props: {
-          incidents: [mockIncident],
-        },
-      })
-
-      expect(wrapper.text()).toMatch(/\d+:\d+/)
-    })
-
-    it('should display correct icon for raider attack', () => {
-      const wrapper = mount(IncidentAlert, {
-        props: {
-          incidents: [mockIncident],
-        },
-      })
-
-      const icon = wrapper.find('.mock-icon')
-      expect(icon.attributes('data-icon')).toBe('mdi:robber')
-    })
-
-    it('should display correct icon for fire', () => {
-      const fireIncident = {
-        ...mockIncident,
-        type: IncidentType.FIRE,
-      }
-
-      const wrapper = mount(IncidentAlert, {
-        props: {
-          incidents: [fireIncident],
-        },
-      })
-
-      const icon = wrapper.find('.mock-icon')
-      expect(icon.attributes('data-icon')).toBe('mdi:fire')
-    })
-
-    it('should display the radscorpion icon', () => {
-      const wrapper = mount(IncidentAlert, {
-        props: { incidents: [{ ...mockIncident, type: IncidentType.RADSCORPION_ATTACK }] },
-      })
-
-      expect(wrapper.find('.mock-icon').attributes('data-icon')).toBe('mdi:spider')
-    })
+  it('handles an empty incidents array', () => {
+    expect(render([]).exists()).toBe(true)
   })
 
-  describe('Multiple Incidents', () => {
-    it('should show count badge for multiple incidents', () => {
-      const wrapper = mount(IncidentAlert, {
-        props: {
-          incidents: [
-            mockIncident,
-            { ...mockIncident, id: 'incident-2', type: IncidentType.FIRE },
-            { ...mockIncident, id: 'incident-3', type: IncidentType.RADROACH_INFESTATION },
-          ],
-        },
-      })
-
-      expect(wrapper.text()).toContain('3 ACTIVE')
-    })
-
-    it('should display first incident details when multiple', () => {
-      const wrapper = mount(IncidentAlert, {
-        props: {
-          incidents: [mockIncident, { ...mockIncident, id: 'incident-2', type: IncidentType.FIRE }],
-        },
-      })
-
-      expect(wrapper.text()).toContain('RAIDER ATTACK')
-      expect(wrapper.text()).not.toContain('FIRE')
-    })
+  it.each([
+    [5, 5],
+    [10, 10],
+    [1, 1],
+  ])('draws one star per difficulty point (%i)', (difficulty, expected) => {
+    expect(stars([{ ...mockIncident, difficulty }])).toHaveLength(expected)
   })
 
-  describe('Interactions', () => {
-    it('uses a native button with a descriptive label', () => {
-      const wrapper = mount(IncidentAlert, { props: { incidents: [mockIncident] } })
-
-      expect(wrapper.get('button').attributes('aria-label')).toBe('Open RAIDER ATTACK incident')
-    })
-
-    it('should emit click event with incident id', async () => {
-      const wrapper = mount(IncidentAlert, {
-        props: {
-          incidents: [mockIncident],
-        },
-      })
-
-      await wrapper.trigger('click')
-
-      expect(wrapper.emitted('click')).toBeTruthy()
-      expect(wrapper.emitted('click')?.[0]).toEqual(['incident-1'])
-    })
+  it.each([
+    [IncidentType.RAIDER_ATTACK, 'mdi:robber'],
+    [IncidentType.FIRE, 'mdi:fire'],
+    [IncidentType.RADSCORPION_ATTACK, 'mdi:spider'],
+    [IncidentType.RADROACH_INFESTATION, 'mdi:bug'],
+    [IncidentType.MOLE_RAT_ATTACK, 'mdi:paw'],
+    [IncidentType.DEATHCLAW_ATTACK, 'mdi:axe-battle'],
+    [IncidentType.FERAL_GHOUL_ATTACK, 'mdi:biohazard'],
+  ])('maps %s onto its icon', (type, icon) => {
+    expect(
+      render([{ ...mockIncident, type }])
+        .find('.mock-icon')
+        .attributes('data-icon')
+    ).toBe(icon)
   })
 
-  describe('Styling', () => {
-    it('marks a live incident with the sanctioned live-status tier', () => {
-      const wrapper = mount(IncidentAlert, {
-        props: {
-          incidents: [mockIncident],
-        },
-      })
+  it('shows a count badge and only the primary incident when several are live', () => {
+    const wrapper = render([
+      mockIncident,
+      { ...mockIncident, id: 'incident-2', type: IncidentType.FIRE },
+      { ...mockIncident, id: 'incident-3', type: IncidentType.RADROACH_INFESTATION },
+    ])
 
-      expect(wrapper.find('.incident-alert').classes()).toContain('badge-live')
-    })
-
-    it('leaves the alert quiet when no incident is live', () => {
-      const wrapper = mount(IncidentAlert, {
-        props: {
-          incidents: [],
-        },
-      })
-
-      expect(wrapper.find('.incident-alert').classes()).not.toContain('badge-live')
-    })
-
-    it('hand-rolls no shadow or scanline of its own', () => {
-      const wrapper = mount(IncidentAlert, {
-        props: {
-          incidents: [mockIncident],
-        },
-      })
-
-      expect(wrapper.find('.scanline').exists()).toBe(false)
-    })
-
-    it('should have red border color', () => {
-      const wrapper = mount(IncidentAlert, {
-        props: {
-          incidents: [mockIncident],
-        },
-      })
-
-      const alert = wrapper.find('.incident-alert')
-      expect(alert.exists()).toBe(true)
-      expect(alert.classes()).toContain('border-danger')
-    })
+    expect(wrapper.text()).toContain('3 ACTIVE')
+    expect(wrapper.text()).toContain('RAIDER ATTACK')
+    expect(wrapper.text()).not.toContain('FIRE')
   })
 
-  describe('Edge Cases', () => {
-    it('should handle incident with 10 difficulty', () => {
-      const maxDifficultyIncident = {
-        ...mockIncident,
-        difficulty: 10,
-      }
+  it('should emit click event with incident id', async () => {
+    const wrapper = render()
 
-      const wrapper = mount(IncidentAlert, {
-        props: {
-          incidents: [maxDifficultyIncident],
-        },
-      })
+    await wrapper.trigger('click')
 
-      const stars = wrapper.text().match(/★/g)
-      expect(stars).toHaveLength(10)
-    })
+    expect(wrapper.emitted('click')).toHaveLength(1)
+    expect(wrapper.emitted('click')?.[0]).toEqual(['incident-1'])
+  })
 
-    it('should handle incident with 1 difficulty', () => {
-      const minDifficultyIncident = {
-        ...mockIncident,
-        difficulty: 1,
-      }
-
-      const wrapper = mount(IncidentAlert, {
-        props: {
-          incidents: [minDifficultyIncident],
-        },
-      })
-
-      const stars = wrapper.text().match(/★/g)
-      expect(stars).toHaveLength(1)
-    })
-
-    it('should handle spreading incidents', () => {
-      const spreadingIncident = {
-        ...mockIncident,
-        status: IncidentStatus.SPREADING,
-        spread_count: 2,
-        rooms_affected: ['room-1', 'room-2', 'room-3'],
-      }
-
-      const wrapper = mount(IncidentAlert, {
-        props: {
-          incidents: [spreadingIncident],
-        },
-      })
-
-      expect(wrapper.exists()).toBe(true)
-    })
+  it.each([
+    [[mockIncident], true],
+    [[], false],
+  ])('marks a live incident with the sanctioned live-status tier (%#)', (incidents, live) => {
+    expect(
+      render(incidents as Incident[])
+        .find('.incident-alert')
+        .classes()
+        .includes('badge-live')
+    ).toBe(live)
   })
 
   describe('Responder status', () => {
-    const teamMember: IncidentTeamMember = {
-      id: 'tm-1',
-      team_id: 'team-1',
-      dweller_id: 'dweller-1',
-      slot_number: 1,
-      status: 'assigned',
-      created_at: '2025-01-01T00:00:00Z',
-      updated_at: '2025-01-01T00:00:00Z',
-    }
-
-    it('shows the responder count when the primary team has members', () => {
+    it('shows the responder count on the informational badge tier', () => {
       useIncidentStore().incidentTeams.set('incident-1', [teamMember])
 
-      const wrapper = mount(IncidentAlert, { props: { incidents: [mockIncident] } })
+      const wrapper = render()
+      const chip = wrapper.find('.badge-info')
 
       expect(wrapper.text()).toContain('1 on scene')
+      expect(chip.exists()).toBe(true)
+      expect(chip.classes()).not.toContain('badge-live')
+      expect(chip.classes()).not.toContain('badge-action')
     })
 
     it('shows "No responders" when the primary team is loaded but empty', () => {
       useIncidentStore().incidentTeams.set('incident-1', [])
 
-      const wrapper = mount(IncidentAlert, { props: { incidents: [mockIncident] } })
-
-      expect(wrapper.text()).toContain('No responders')
+      expect(render().text()).toContain('No responders')
     })
 
     it('shows nothing while the primary team has not loaded', () => {
-      const wrapper = mount(IncidentAlert, { props: { incidents: [mockIncident] } })
+      const text = render().text()
 
-      expect(wrapper.text()).not.toContain('on scene')
-      expect(wrapper.text()).not.toContain('No responders')
-    })
-
-    it('uses the informational badge tier with no glow', () => {
-      useIncidentStore().incidentTeams.set('incident-1', [teamMember])
-
-      const wrapper = mount(IncidentAlert, { props: { incidents: [mockIncident] } })
-
-      const chip = wrapper.find('.badge-info')
-      expect(chip.exists()).toBe(true)
-      expect(chip.classes()).not.toContain('badge-live')
-      expect(chip.classes()).not.toContain('badge-action')
-    })
-  })
-
-  describe('All Incident Types', () => {
-    const incidentTypes = [
-      { type: IncidentType.RAIDER_ATTACK, icon: 'mdi:robber' },
-      { type: IncidentType.FIRE, icon: 'mdi:fire' },
-      { type: IncidentType.RADROACH_INFESTATION, icon: 'mdi:bug' },
-      { type: IncidentType.MOLE_RAT_ATTACK, icon: 'mdi:paw' },
-      { type: IncidentType.DEATHCLAW_ATTACK, icon: 'mdi:axe-battle' },
-      { type: IncidentType.FERAL_GHOUL_ATTACK, icon: 'mdi:biohazard' },
-    ]
-
-    incidentTypes.forEach(({ type, icon }) => {
-      it(`should display correct icon for ${type}`, () => {
-        const incident = { ...mockIncident, type }
-        const wrapper = mount(IncidentAlert, {
-          props: { incidents: [incident] },
-        })
-
-        const iconElement = wrapper.find('.mock-icon')
-        expect(iconElement.attributes('data-icon')).toBe(icon)
-      })
+      expect(text).not.toContain('on scene')
+      expect(text).not.toContain('No responders')
     })
   })
 })

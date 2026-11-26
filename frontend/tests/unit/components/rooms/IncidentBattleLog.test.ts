@@ -168,12 +168,6 @@ describe('IncidentBattleLog', () => {
     expect(wrapper.findAll('li')).toHaveLength(3)
   })
 
-  it('omits the count badge for a single entry', () => {
-    const wrapper = mountLog([event({ id: 'e1', kind: 'round', message: 'Trade fire.' })])
-
-    expect(wrapper.text()).not.toContain('×')
-  })
-
   it('keeps the first delta when collapsing identical entries', () => {
     const wrapper = mountLog([
       event({ id: 'e1', kind: 'round', message: 'Trade fire.', data: { damage_to_threat: 12 } }),

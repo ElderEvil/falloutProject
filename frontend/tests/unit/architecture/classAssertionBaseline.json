@@ -1,5 +1,5 @@
 {
-  "count": 34,
+  "count": 33,
   "files": [
     "components/common/EquippableItemCard.test.ts",
     "components/common/PageContentRail.test.ts",
@@ -18,7 +18,6 @@
     "components/dwellers/DwellersList.test.ts",
     "components/dwellers/DwellerStats.test.ts",
     "components/dwellers/DwellerStatusBadge.test.ts",
-    "components/dwellers/UnassignedDwellers.test.ts",
     "components/incidents/IncidentAlert.test.ts",
     "components/map/MapMarker.test.ts",
     "components/map/MarkerListPanel.test.ts",

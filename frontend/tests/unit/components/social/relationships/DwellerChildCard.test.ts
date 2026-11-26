@@ -2,28 +2,19 @@ import { describe, it, expect, vi } from 'vite-plus/test'
 import { createIconifyMock } from '../../../helpers/mocks'
 import { mount } from '@vue/test-utils'
 import DwellerChildCard from '@/modules/social/components/relationships/DwellerChildCard.vue'
+import { makeDweller } from '../../../helpers/dwellerFixtures'
 
 vi.mock('@iconify/vue', () => createIconifyMock())
 
-const child = {
+const child = makeDweller({
   id: 'c1',
   first_name: 'Kid',
   last_name: 'Smith',
   age_group: 'child',
   gender: 'male',
   rarity: 'common',
-  health: 80,
-  max_health: 100,
   happiness: 90,
-  strength: 5,
-  perception: 5,
-  endurance: 5,
-  charisma: 5,
-  intelligence: 5,
-  agility: 5,
-  luck: 5,
-  thumbnail_url: null,
-}
+})
 
 function mountCard(props = {}) {
   return mount(DwellerChildCard, {

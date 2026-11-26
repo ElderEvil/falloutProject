@@ -31,14 +31,19 @@ describe('DwellerAppearance', () => {
       { hair_style: 'ponytail', headgear: 'helmet', accessory: 'watch', object_held: 'rifle' },
       age_group
     )
+
     expect(wrapper.text()).toContain('Ponytail')
     expect(wrapper.text()).not.toContain('Helmet')
     expect(wrapper.text()).not.toContain('Watch')
     expect(wrapper.text()).not.toContain('Rifle')
   })
 
-  it('shows the empty state when only identity fields exist', async () => {
-    const wrapper = mountAppearance({ race: 'human' })
+  it.each([
+    ['only identity fields', { race: 'human' }],
+    ['no visual attributes at all', null],
+    ['every non-identity field empty', { race: 'human', hair_style: null, eye_color: '' }],
+  ])('shows the empty state when there are %s', async (_name, visualAttributes) => {
+    const wrapper = mountAppearance(visualAttributes as Record<string, unknown> | null)
 
     await nextTick()
 
@@ -46,35 +51,18 @@ describe('DwellerAppearance', () => {
     expect(wrapper.text()).toContain('No appearance yet')
   })
 
-  it('shows the empty state when there are no visual attributes at all', async () => {
-    const wrapper = mountAppearance(null)
+  it.each([
+    [{ race: 'super_mutant', state_of_being: 'behemoth', height: 'tall' }, 'Behemoth'],
+    [{ race: 'synth', state_of_being: 'gen_1', hair_style: 'ponytail' }, 'Gen I'],
+  ] as const)('renders state of being %o as a text row', async (visualAttributes, state) => {
+    const wrapper = mountAppearance(visualAttributes as unknown as Record<string, unknown>)
 
     await nextTick()
 
-    expect(wrapper.find('.appearance-content').exists()).toBe(false)
-    expect(wrapper.text()).toContain('No appearance yet')
-  })
-
-  it('shows the empty state when every non-identity field is empty', async () => {
-    const wrapper = mountAppearance({ race: 'human', hair_style: null, eye_color: '' })
-
-    await nextTick()
-
-    expect(wrapper.find('.appearance-content').exists()).toBe(false)
-    expect(wrapper.text()).toContain('No appearance yet')
-  })
-
-  it('renders state of being as a text row instead of a badge', async () => {
-    const wrapper = mountAppearance({
-      race: 'super_mutant',
-      state_of_being: 'behemoth',
-      height: 'tall',
-    })
-
-    await nextTick()
-
+    expect(wrapper.find('.appearance-content').exists()).toBe(true)
+    expect(wrapper.find('[aria-label="Dweller identity"]').exists()).toBe(false)
     expect(wrapper.text()).toContain('State:')
-    expect(wrapper.text()).toContain('Behemoth')
+    expect(wrapper.text()).toContain(state)
     expect(wrapper.find('.badge-state-marker').exists()).toBe(false)
   })
 
@@ -84,22 +72,6 @@ describe('DwellerAppearance', () => {
     await nextTick()
 
     expect(wrapper.findAll('button')).toHaveLength(0)
-  })
-
-  it('renders synth generation as a text row instead of a badge', async () => {
-    const wrapper = mountAppearance({
-      race: 'synth',
-      state_of_being: 'gen_1',
-      hair_style: 'ponytail',
-    })
-
-    await nextTick()
-
-    expect(wrapper.find('.appearance-content').exists()).toBe(true)
-    expect(wrapper.find('[aria-label="Dweller identity"]').exists()).toBe(false)
-    expect(wrapper.text()).toContain('State:')
-    expect(wrapper.text()).toContain('Gen I')
-    expect(wrapper.find('.badge-state-marker').exists()).toBe(false)
   })
 
   it('renders generated attributes once they are substantial', async () => {

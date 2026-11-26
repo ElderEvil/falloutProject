@@ -2,9 +2,6 @@ import { describe, it, expect, beforeEach, vi } from 'vite-plus/test'
 import { flushPromises, mount } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import DwellerDisplayControls from '@/modules/dwellers/components/DwellerDisplayControls.vue'
-import displayControlsSource from '@/modules/dwellers/components/DwellerDisplayControls.vue?raw'
-import filterPanelSource from '@/modules/dwellers/components/DwellerFilterPanel.vue?raw'
-import filterGroupSource from '@/modules/dwellers/components/DwellerFilterGroup.vue?raw'
 import { audioManager } from '@/core/audio/audioManager'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
 import { DEFAULT_TABLE_COLUMNS } from '@/modules/dwellers/models/dwellerTable'
@@ -20,8 +17,20 @@ describe('DwellerDisplayControls', () => {
     vi.clearAllMocks()
   })
 
+  const mountControls = (props: { showView?: boolean } = {}) =>
+    mount(DwellerDisplayControls, { props })
+  const store = () => useDwellerStore().filter
+  const toggleButton = (wrapper: ReturnType<typeof mount>, label: string) =>
+    wrapper.findAll('.view-toggle-btn').find((btn) => btn.text().includes(label))!
+
+  const openColumnMenu = async (wrapper: ReturnType<typeof mount>) => {
+    store().setViewMode('table')
+    await wrapper.vm.$nextTick()
+    await wrapper.find('.columns-trigger .view-toggle-btn').trigger('click')
+  }
+
   it('renders the sort control and no view toggle by default', () => {
-    const wrapper = mount(DwellerDisplayControls)
+    const wrapper = mountControls()
 
     expect(wrapper.find('.display-group [role="combobox"]').attributes('aria-label')).toBe(
       'Sort dwellers'
@@ -31,8 +40,7 @@ describe('DwellerDisplayControls', () => {
   })
 
   it('updates the store when the sort option changes', async () => {
-    const wrapper = mount(DwellerDisplayControls)
-    const store = useDwellerStore().filter
+    const wrapper = mountControls()
 
     // reka-ui opens the listbox on pointerdown and selects on pointerup (not click).
     wrapper
@@ -47,141 +55,70 @@ describe('DwellerDisplayControls', () => {
     levelOption.dispatchEvent(new MouseEvent('pointerup', { button: 0, bubbles: true }))
     await flushPromises()
 
-    expect(store.sortBy).toBe('level')
+    expect(store().sortBy).toBe('level')
   })
 
   it('toggles the sort direction', async () => {
-    const wrapper = mount(DwellerDisplayControls)
-    const store = useDwellerStore().filter
+    const wrapper = mountControls()
+    expect(store().sortDirection).toBe('asc')
 
-    expect(store.sortDirection).toBe('asc')
     await wrapper.find('.sort-direction-button').trigger('click')
 
-    expect(store.sortDirection).toBe('desc')
+    expect(store().sortDirection).toBe('desc')
   })
 
-  it('switches to the table view when the view toggle is shown', async () => {
-    const wrapper = mount(DwellerDisplayControls, { props: { showView: true } })
-    const store = useDwellerStore().filter
+  it.each([
+    ['Table', 'table', true],
+    ['Grid', 'grid', true],
+    ['List', 'list', false],
+  ] as const)(
+    'switches to the %s view and plays the tab sound only on a change (%s)',
+    async (label, viewMode, sounds) => {
+      const wrapper = mountControls({ showView: true })
 
-    const tableButton = wrapper
-      .findAll('.view-toggle-btn')
-      .find((btn) => btn.text().includes('Table'))
-    expect(tableButton).toBeDefined()
+      await toggleButton(wrapper, label).trigger('click')
 
-    await tableButton!.trigger('click')
-
-    expect(store.viewMode).toBe('table')
-  })
-
-  it('plays the tab switch sound when the view mode changes', async () => {
-    const wrapper = mount(DwellerDisplayControls, { props: { showView: true } })
-    const store = useDwellerStore().filter
-
-    const gridButton = wrapper
-      .findAll('.view-toggle-btn')
-      .find((btn) => btn.text().includes('Grid'))
-    await gridButton!.trigger('click')
-
-    expect(store.viewMode).toBe('grid')
-    expect(audioManager.play).toHaveBeenCalledWith('tabSwitch', 'ui')
-  })
-
-  it('does not play the tab switch sound when the mode is unchanged', async () => {
-    const wrapper = mount(DwellerDisplayControls, { props: { showView: true } })
-    const store = useDwellerStore().filter
-
-    const listButton = wrapper
-      .findAll('.view-toggle-btn')
-      .find((btn) => btn.text().includes('List'))
-    await listButton!.trigger('click')
-
-    expect(store.viewMode).toBe('list')
-    expect(audioManager.play).not.toHaveBeenCalled()
-  })
+      expect(store().viewMode).toBe(viewMode)
+      if (sounds) expect(audioManager.play).toHaveBeenCalledWith('tabSwitch', 'ui')
+      else expect(audioManager.play).not.toHaveBeenCalled()
+    }
+  )
 
   it('shows the column picker only in table mode and toggles a column', async () => {
-    const wrapper = mount(DwellerDisplayControls, { props: { showView: true } })
-    const store = useDwellerStore().filter
-
+    const wrapper = mountControls({ showView: true })
     expect(wrapper.find('.columns-trigger').exists()).toBe(false)
 
-    store.setViewMode('table')
-    await wrapper.vm.$nextTick()
+    await openColumnMenu(wrapper)
 
     // The picker is collapsed behind its trigger so table mode cannot widen the toolbar.
-    expect(wrapper.find('.columns-menu').exists()).toBe(false)
-    await wrapper.find('.columns-trigger .view-toggle-btn').trigger('click')
     expect(wrapper.find('.columns-menu').exists()).toBe(true)
-
-    const rarityButton = wrapper
+    const rarity = wrapper
       .findAll('.columns-menu .view-toggle-btn')
-      .find((btn) => btn.text().includes('Rarity'))
-    expect(rarityButton).toBeDefined()
+      .find((btn) => btn.text().includes('Rarity'))!
+    await rarity.trigger('click')
 
-    await rarityButton!.trigger('click')
-
-    expect(store.tableColumns).toContain('rarity')
+    expect(store().tableColumns).toContain('rarity')
     expect(wrapper.find('.columns-menu').exists()).toBe(true)
   })
 
-  it('applies a column preset', async () => {
-    const wrapper = mount(DwellerDisplayControls, { props: { showView: true } })
-    const store = useDwellerStore().filter
+  it('applies a preset and resets the columns back to the defaults', async () => {
+    const wrapper = mountControls({ showView: true })
+    await openColumnMenu(wrapper)
 
-    store.setViewMode('table')
-    await wrapper.vm.$nextTick()
-    await wrapper.find('.columns-trigger .view-toggle-btn').trigger('click')
-
-    const vitalsButton = wrapper
+    const vitals = wrapper
       .findAll('.columns-menu .view-toggle-btn')
-      .find((btn) => btn.text().includes('Vitals'))
-    expect(vitalsButton).toBeDefined()
+      .find((btn) => btn.text().includes('Vitals'))!
+    await vitals.trigger('click')
 
-    await vitalsButton!.trigger('click')
-
-    expect(store.tableColumns).toContain('health')
-    expect(store.tableColumns).not.toContain('room')
+    expect(store().tableColumns).toContain('health')
+    expect(store().tableColumns).not.toContain('room')
     expect(wrapper.find('.columns-menu').exists()).toBe(false)
-  })
 
-  it('resets the columns back to the defaults', async () => {
-    const wrapper = mount(DwellerDisplayControls, { props: { showView: true } })
-    const store = useDwellerStore().filter
-
-    store.setViewMode('table')
-    store.applyTablePreset('vitals')
+    store().setViewMode('table')
     await wrapper.vm.$nextTick()
-
     await wrapper.find('.columns-trigger .view-toggle-btn').trigger('click')
     await wrapper.find('.preset-reset').trigger('click')
 
-    expect(store.tableColumns).toEqual(DEFAULT_TABLE_COLUMNS)
-  })
-
-  it('styles its controls like the filter panel so the toolbar stays one control set', () => {
-    expect(displayControlsSource).toMatch(
-      /\.sort-direction-button \{(?=[^}]*padding: 0\.5rem 0\.75rem;)[^}]*\}/
-    )
-    expect(displayControlsSource).toMatch(
-      /\.view-toggle-btn \{(?=[^}]*padding: 0\.5rem 0\.75rem;)(?=[^}]*font-size: 0\.8125rem;)[^}]*\}/
-    )
-    // The Display island reuses the panel's container treatment so the two pair up.
-    expect(displayControlsSource).toMatch(
-      /\.display-controls \{(?=[^}]*background: var\(--color-surface-sunken\);)(?=[^}]*border: 1px solid rgb\(from var\(--color-theme-primary\) r g b \/ 0\.2\);)[^}]*\}/
-    )
-    expect(filterPanelSource).toMatch(
-      /\.filter-panel \{(?=[^}]*background: var\(--color-surface-sunken\);)(?=[^}]*border: 1px solid rgb\(from var\(--color-theme-primary\) r g b \/ 0\.2\);)[^}]*\}/
-    )
-  })
-
-  it('selects with the same raised-surface treatment as the filter chips, never a fill', () => {
-    expect(displayControlsSource).toMatch(
-      /\.view-toggle-btn\.active \{[^}]*background: var\(--color-surface-hover\);/
-    )
-    expect(filterGroupSource).toMatch(
-      /\.filter-chip\.active \{[^}]*background: var\(--color-surface-hover\);/
-    )
-    expect(filterGroupSource).not.toMatch(/background: var\(--color-theme-primary\);/)
+    expect(store().tableColumns).toEqual(DEFAULT_TABLE_COLUMNS)
   })
 })

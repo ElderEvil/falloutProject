@@ -52,30 +52,19 @@ describe('DwellerRoleMatch', () => {
     expect(wrapper.find('.role-match-off').exists()).toBe(true)
   })
 
-  it('renders nothing in living quarters, which house rather than produce', () => {
-    const wrapper = mountMatch({
-      room: { id: 'room-3', name: 'Living Quarters', category: 'capacity', ability: 'agility' },
-    } as never)
-
-    expect(wrapper.find('.role-match').exists()).toBe(false)
-  })
-
-  it('renders nothing in a training room, which trains its ability by design', () => {
-    const wrapper = mountMatch({
-      room: { id: 'room-4', name: 'Weight Room', category: 'training', ability: 'strength' },
-    } as never)
-
-    expect(wrapper.find('.role-match').exists()).toBe(false)
-  })
-
-  it('renders nothing for an unassigned dweller', () => {
-    const wrapper = mountMatch({ room: null } as never)
-
-    expect(wrapper.find('.role-match').exists()).toBe(false)
-  })
-
-  it('renders nothing for youth, whose room ability is the apprenticeship by construction', () => {
-    const wrapper = mountMatch({ age_group: 'teen' } as never)
+  it.each([
+    [
+      'living quarters, which house rather than produce',
+      { room: { id: 'room-3', name: 'Living Quarters', category: 'capacity', ability: 'agility' } },
+    ],
+    [
+      'a training room, which trains its ability by design',
+      { room: { id: 'room-4', name: 'Weight Room', category: 'training', ability: 'strength' } },
+    ],
+    ['an unassigned dweller', { room: null }],
+    ['youth, whose room ability is the apprenticeship by construction', { age_group: 'teen' }],
+  ] as const)('renders nothing for %s', (_name, overrides) => {
+    const wrapper = mountMatch(overrides as Partial<Dweller>)
 
     expect(wrapper.find('.role-match').exists()).toBe(false)
   })

@@ -25,34 +25,30 @@ function mountAlertLine(overrides: Partial<Dweller> = {}) {
 }
 
 describe('DwellerAlertLine', () => {
-  it('renders nothing for a healthy dweller with a room', () => {
-    const wrapper = mountAlertLine()
+  it.each([
+    ['a healthy dweller with a room', {}],
+    ['a lightly damaged dweller', { health: 70 }],
+    ['a deceased dweller', { is_dead: true, health: 0, room: null }],
+  ] as const)('renders nothing for %s', (_name, overrides) => {
+    const wrapper = mountAlertLine(overrides as Partial<Dweller>)
 
     expect(wrapper.findAll('.alert-chip')).toHaveLength(0)
   })
 
-  it('flags severe injury below half of max health', () => {
-    const wrapper = mountAlertLine({ health: 30, radiation: 20 })
-
-    const text = wrapper.text()
-    expect(text).toContain('Injured')
-    expect(text).toContain('30/80 HP')
-  })
-
-  it('flags a damaged, heavily-irradiated dweller the effective ceiling would hide', () => {
+  it.each([
+    ['severe injury below half of max health', { health: 30, radiation: 20 }, '30/80 HP'],
     // 35/100 HP with 40 radiation: effective max 60, so 35 sits above 60/2 and the
     // radiation-reduced threshold missed it; the absolute half rule catches it.
-    const wrapper = mountAlertLine({ health: 35, radiation: 40 })
+    [
+      'a damaged, heavily-irradiated dweller the effective ceiling would hide',
+      { health: 35, radiation: 40 },
+      '35/60 HP',
+    ],
+  ])('flags %s', (_name, overrides, hp) => {
+    const wrapper = mountAlertLine(overrides as Partial<Dweller>)
 
     expect(wrapper.text()).toContain('Injured')
-    expect(wrapper.text()).toContain('35/60 HP')
-  })
-
-  it('stays silent for a lightly damaged dweller', () => {
-    const wrapper = mountAlertLine({ health: 70 })
-
-    expect(wrapper.text()).not.toContain('Injured')
-    expect(wrapper.findAll('.alert-chip')).toHaveLength(0)
+    expect(wrapper.text()).toContain(hp)
   })
 
   it('flags radiation', () => {
@@ -67,17 +63,13 @@ describe('DwellerAlertLine', () => {
     expect(wrapper.text()).toContain('Unhappy — 30%')
   })
 
-  it('flags an unassigned dweller with a single short label', () => {
-    const adult = mountAlertLine({ room: null, status: 'idle' })
-    expect(adult.find('.alert-chip').text()).toBe('Unassigned')
+  it.each(['adult', 'child'])(
+    'flags an unassigned %s dweller with a single short label',
+    (age_group) => {
+      const wrapper = mountAlertLine({ room: null, status: 'idle', age_group } as Partial<Dweller>)
 
-    const youth = mountAlertLine({ room: null, status: 'idle', age_group: 'child' })
-    expect(youth.find('.alert-chip').text()).toBe('Unassigned')
-  })
-
-  it('stays silent for a deceased dweller', () => {
-    const wrapper = mountAlertLine({ is_dead: true, health: 0, room: null })
-
-    expect(wrapper.findAll('.alert-chip')).toHaveLength(0)
-  })
+      expect(wrapper.findAll('.alert-chip')).toHaveLength(1)
+      expect(wrapper.get('.alert-chip').text()).toBe('Unassigned')
+    }
+  )
 })

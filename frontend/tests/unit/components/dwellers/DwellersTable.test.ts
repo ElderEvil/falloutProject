@@ -1,42 +1,15 @@
 import { describe, it, expect } from 'vite-plus/test'
 import { mount } from '@vue/test-utils'
 import DwellersTable from '@/modules/dwellers/components/table/DwellersTable.vue'
-import type { DwellerShort } from '@/modules/dwellers/models/dweller'
+import { makeDweller } from '../../helpers/dwellerFixtures'
 import type { DwellerTableColumnId } from '@/modules/dwellers/models/dwellerTable'
 import type { Room } from '@/modules/rooms/models/room'
-
-function makeDweller(overrides: Partial<DwellerShort> = {}): DwellerShort {
-  return {
-    id: 'dweller-1',
-    first_name: 'Sarah',
-    last_name: 'Lyons',
-    thumbnail_url: null,
-    level: 5,
-    health: 80,
-    max_health: 100,
-    radiation: 0,
-    happiness: 75,
-    room_id: 'room-1',
-    status: 'working',
-    age_group: 'adult',
-    gender: 'female',
-    rarity: 'rare',
-    strength: 8,
-    perception: 4,
-    endurance: 4,
-    charisma: 4,
-    intelligence: 4,
-    agility: 4,
-    luck: 4,
-    ...overrides,
-  }
-}
 
 const rooms = [{ id: 'room-1', name: 'Arena', category: 'arena', ability: 'strength' } as Room]
 
 function mountTable(
   columns: DwellerTableColumnId[],
-  dwellers = [makeDweller()],
+  dwellers = [makeDweller({ room_id: 'room-1' })],
   isLoading = false
 ) {
   return mount(DwellersTable, {

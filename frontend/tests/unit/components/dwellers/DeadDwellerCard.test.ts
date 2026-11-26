@@ -24,24 +24,21 @@ const stubs = {
 }
 
 describe('DeadDwellerCard revival controls', () => {
-  it('offers REVIVE for a revivable death (standard vault)', () => {
+  it.each([
+    ['a revivable death (standard vault)', {}, 'REVIVE', 'PERMANENTLY DEAD'],
+    [
+      'a permanent death (survival vault)',
+      { is_permanently_dead: true, days_until_permanent: null },
+      'PERMANENTLY DEAD',
+      'REVIVE',
+    ],
+  ] as const)('offers the right control for %s', (_name, patch, shown, hidden) => {
     const wrapper = mount(DeadDwellerCard, {
-      props: { dweller: revivableDweller },
+      props: { dweller: { ...revivableDweller, ...patch } },
       global: { stubs },
     })
 
-    expect(wrapper.text()).toContain('REVIVE')
-  })
-
-  it('shows no REVIVE affordance for a permanent death (survival vault)', () => {
-    const wrapper = mount(DeadDwellerCard, {
-      props: {
-        dweller: { ...revivableDweller, is_permanently_dead: true, days_until_permanent: null },
-      },
-      global: { stubs },
-    })
-
-    expect(wrapper.text()).toContain('PERMANENTLY DEAD')
-    expect(wrapper.text()).not.toContain('REVIVE')
+    expect(wrapper.text()).toContain(shown)
+    expect(wrapper.text()).not.toContain(hidden)
   })
 })

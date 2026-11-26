@@ -4,175 +4,85 @@ import { setActivePinia, createPinia } from 'pinia'
 import DwellerGridItem from '@/modules/dwellers/components/grid/DwellerGridItem.vue'
 import HealthRadiationBar from '@/core/components/common/HealthRadiationBar.vue'
 
+const mockDweller = {
+  id: '123',
+  first_name: 'John',
+  last_name: 'Doe',
+  level: 5,
+  health: 80,
+  max_health: 100,
+  happiness: 75,
+  strength: 8,
+  perception: 6,
+  endurance: 7,
+  charisma: 5,
+  intelligence: 4,
+  agility: 6,
+  luck: 7,
+  status: 'working',
+  room_id: 'room-123',
+}
+
 describe('DwellerGridItem', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
   })
 
-  const mockDweller = {
-    id: '123',
-    first_name: 'John',
-    last_name: 'Doe',
-    level: 5,
-    health: 80,
-    max_health: 100,
-    happiness: 75,
-    strength: 8,
-    perception: 6,
-    endurance: 7,
-    charisma: 5,
-    intelligence: 4,
-    agility: 6,
-    luck: 7,
-    status: 'working',
-    room_id: 'room-123',
-  }
+  type ItemProps = InstanceType<typeof DwellerGridItem>['$props']
 
-  const mockRoom = {
-    id: 'room-123',
-    name: 'Power Generator',
-    ability: 'strength',
-  }
-
-  describe('Job Stat Display', () => {
-    const mockStat = {
-      icon: 'mdi:arm-flex',
-      label: 'STR',
-      value: 8,
-      isPower: false,
-    }
-
-    it('should display relevant stat when dweller has room assignment', () => {
-      const wrapper = mount(DwellerGridItem, {
-        props: {
-          dweller: mockDweller,
-          roomName: mockRoom.name,
-          roomStat: mockStat,
-        },
-      })
-
-      expect(wrapper.text()).toContain('STR')
-      expect(wrapper.text()).toContain('8')
+  const mountItem = (overrides: Partial<ItemProps> = {}) =>
+    mount(DwellerGridItem, {
+      props: { dweller: mockDweller as never, roomName: 'Power Generator', ...overrides },
     })
 
-    it('should display the stat icon for the room', () => {
-      const wrapper = mount(DwellerGridItem, {
-        props: {
-          dweller: mockDweller,
-          roomName: mockRoom.name,
-          roomStat: { ...mockStat, icon: 'mdi:test-tube' },
-        },
-      })
+  describe('job stat', () => {
+    it.each([
+      ['STR', 8, false, 'success'],
+      ['INT', 5, false, 'warning'],
+      ['CHA', 2, false, 'danger'],
+      ['Power', 18, true, 'warning'],
+    ] as const)('renders %s %i in the %s tone', (label, value, isPower, tone) => {
+      const wrapper = mountItem({ roomStat: { icon: 'mdi:test-tube', label, value, isPower } })
 
-      const jobStat = wrapper.find('.job-stat')
-      expect(jobStat.exists()).toBe(true)
+      expect(wrapper.get('.job-stat').text()).toContain(label)
+      expect(wrapper.get('.job-stat').text()).toContain(value.toString())
       expect(wrapper.find('.job-stat-icon').exists()).toBe(true)
+      expect(wrapper.get('.job-stat-value').classes()).toContain(`text-${tone}`)
     })
 
-    it('should not display job stat when roomStat is absent', () => {
-      const wrapper = mount(DwellerGridItem, {
-        props: {
-          dweller: mockDweller,
-        },
-      })
+    it('renders no job stat when the room has no stat', () => {
+      const wrapper = mountItem()
 
-      const jobStat = wrapper.find('.job-stat')
-      expect(jobStat.exists()).toBe(false)
+      expect(wrapper.find('.job-stat').exists()).toBe(false)
     })
 
-    it('should apply success token for high stats (7-10)', () => {
-      const wrapper = mount(DwellerGridItem, {
-        props: {
-          dweller: mockDweller,
-          roomName: mockRoom.name,
-          roomStat: { ...mockStat, value: 8 },
-        },
+    it.each([
+      ['mdi:eye', 'PER', 6],
+      ['mdi:heart', 'END', 7],
+      ['mdi:account-voice', 'CHA', 5],
+      ['mdi:brain', 'INT', 4],
+      ['mdi:run', 'AGI', 6],
+      ['mdi:four-leaf-clover', 'LCK', 7],
+    ])('renders the provided %s label and value', (icon, label, value) => {
+      const wrapper = mountItem({
+        roomName: 'Test Room',
+        roomStat: { icon, label, value, isPower: false },
       })
 
-      const statValue = wrapper.find('.job-stat-value')
-      expect(statValue.classes()).toContain('text-success')
-    })
-
-    it('should apply warning token for medium stats (4-6)', () => {
-      const wrapper = mount(DwellerGridItem, {
-        props: {
-          dweller: mockDweller,
-          roomName: 'Science Lab',
-          roomStat: { icon: 'mdi:brain', label: 'INT', value: 5, isPower: false },
-        },
-      })
-
-      const statValue = wrapper.find('.job-stat-value')
-      expect(statValue.classes()).toContain('text-warning')
-    })
-
-    it('should apply danger token for low stats (1-3)', () => {
-      const wrapper = mount(DwellerGridItem, {
-        props: {
-          dweller: mockDweller,
-          roomName: 'Radio Station',
-          roomStat: { icon: 'mdi:broadcast', label: 'CHA', value: 2, isPower: false },
-        },
-      })
-
-      const statValue = wrapper.find('.job-stat-value')
-      expect(statValue.classes()).toContain('text-danger')
-    })
-
-    it('should apply warning token for combat power (arena) stats', () => {
-      const wrapper = mount(DwellerGridItem, {
-        props: {
-          dweller: mockDweller,
-          roomName: 'Arena',
-          roomStat: { icon: 'mdi:sword-cross', label: 'Power', value: 18, isPower: true },
-        },
-      })
-
-      const statValue = wrapper.find('.job-stat-value')
-      expect(statValue.classes()).toContain('text-warning')
-    })
-
-    it('should render the provided label and value', () => {
-      const testCases = [
-        { stat: { icon: 'mdi:arm-flex', label: 'STR', value: 8, isPower: false } },
-        { stat: { icon: 'mdi:eye', label: 'PER', value: 6, isPower: false } },
-        { stat: { icon: 'mdi:heart', label: 'END', value: 7, isPower: false } },
-        { stat: { icon: 'mdi:account-voice', label: 'CHA', value: 5, isPower: false } },
-        { stat: { icon: 'mdi:brain', label: 'INT', value: 4, isPower: false } },
-        { stat: { icon: 'mdi:run', label: 'AGI', value: 6, isPower: false } },
-        { stat: { icon: 'mdi:four-leaf-clover', label: 'LCK', value: 7, isPower: false } },
-      ]
-
-      testCases.forEach(({ stat }) => {
-        const wrapper = mount(DwellerGridItem, {
-          props: {
-            dweller: mockDweller,
-            roomName: 'Test Room',
-            roomStat: stat,
-          },
-        })
-
-        const jobStat = wrapper.find('.job-stat')
-        expect(jobStat.text()).toContain(stat.label)
-        expect(jobStat.text()).toContain(stat.value.toString())
-      })
+      expect(wrapper.get('.job-stat').text()).toContain(label)
+      expect(wrapper.get('.job-stat').text()).toContain(value.toString())
     })
   })
 
   it('uses radiation as an absolute share of maximum health', () => {
-    const wrapper = mount(DwellerGridItem, {
-      props: { dweller: { ...mockDweller, max_health: 200, radiation: 25 } },
-    })
+    const wrapper = mountItem({ dweller: { ...mockDweller, max_health: 200, radiation: 25 } })
 
     expect(wrapper.findComponent(HealthRadiationBar).props('radiation')).toBe(12.5)
   })
 
   it('floats health and assigned SPECIAL progress over the portrait', () => {
-    const wrapper = mount(DwellerGridItem, {
-      props: {
-        dweller: mockDweller,
-        roomStat: { icon: 'mdi:arm-flex', label: 'STR', value: 8, isPower: false },
-      },
+    const wrapper = mountItem({
+      roomStat: { icon: 'mdi:arm-flex', label: 'STR', value: 8, isPower: false },
     })
 
     const meters = wrapper.get('.portrait-meters')
@@ -184,14 +94,8 @@ describe('DwellerGridItem', () => {
   })
 
   it('anchors scaled portraits to the bottom of the grid frame', () => {
-    const wrapper = mount(DwellerGridItem, {
-      props: {
-        dweller: {
-          ...mockDweller,
-          age_group: 'teen',
-          thumbnail_url: '/static/portrait.webp',
-        },
-      },
+    const wrapper = mountItem({
+      dweller: { ...mockDweller, age_group: 'teen', thumbnail_url: '/static/portrait.webp' },
     })
 
     expect(wrapper.get('img').attributes('style')).toContain('object-position: center bottom')
@@ -201,14 +105,12 @@ describe('DwellerGridItem', () => {
     ['teen', 'human', 'thumbnail-image--small', '0.8'],
     ['adult', 'super_mutant', 'thumbnail-image--large', '1.18'],
   ])('scales %s %s portraits to reflect body size', (age_group, race, scaleClass, scale) => {
-    const wrapper = mount(DwellerGridItem, {
-      props: {
-        dweller: {
-          ...mockDweller,
-          age_group,
-          visual_attributes: { race },
-          thumbnail_url: '/static/portrait.webp',
-        },
+    const wrapper = mountItem({
+      dweller: {
+        ...mockDweller,
+        age_group,
+        visual_attributes: { race },
+        thumbnail_url: '/static/portrait.webp',
       },
     })
 
@@ -217,41 +119,22 @@ describe('DwellerGridItem', () => {
     expect(image.attributes('style')).toContain(`--portrait-scale: ${scale}`)
   })
 
-  describe('Component Structure', () => {
-    it('should render dweller name', () => {
-      const wrapper = mount(DwellerGridItem, {
-        props: {
-          dweller: mockDweller,
-        },
-      })
+  it('renders the dweller name and level', () => {
+    const wrapper = mountItem()
 
-      expect(wrapper.text()).toContain('John Doe')
-    })
-
-    it('should render level information', () => {
-      const wrapper = mount(DwellerGridItem, {
-        props: {
-          dweller: mockDweller,
-        },
-      })
-
-      expect(wrapper.text()).toContain('5') // Level
-    })
+    expect(wrapper.text()).toContain('John Doe')
+    expect(wrapper.text()).toContain('5')
   })
 
-  describe('Default portrait', () => {
-    it('does not render the legacy AI portrait action', () => {
-      const wrapper = mount(DwellerGridItem, {
-        props: {
-          dweller: {
-            ...mockDweller,
-            thumbnail_url: '/static/dweller_thumbnails/base/FOS_Dw_Default_Human_Male.webp',
-            is_default_portrait: true,
-          },
-        },
-      })
-
-      expect(wrapper.find('.ai-generate-button').exists()).toBe(false)
+  it('does not render the legacy AI portrait action', () => {
+    const wrapper = mountItem({
+      dweller: {
+        ...mockDweller,
+        thumbnail_url: '/static/dweller_thumbnails/base/FOS_Dw_Default_Human_Male.webp',
+        is_default_portrait: true,
+      },
     })
+
+    expect(wrapper.find('.ai-generate-button').exists()).toBe(false)
   })
 })

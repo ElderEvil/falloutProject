@@ -10075,6 +10075,8 @@ export interface components {
             coord_x: number;
             /** Coord Y */
             coord_y: number;
+            /** Owner Username */
+            owner_username: string;
             /**
              * Is Mine
              * @default false

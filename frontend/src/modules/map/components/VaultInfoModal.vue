@@ -8,21 +8,30 @@ import TerminalMetric from '@/core/components/common/TerminalMetric.vue'
 import TerminalLoadingState from '@/core/components/common/TerminalLoadingState.vue'
 import TerminalEmptyState from '@/core/components/common/TerminalEmptyState.vue'
 import type { VaultWithNumbers } from '@/modules/vault/stores/vault'
+import type { PlayerVaultMarkerRead } from '../models/map'
 import { formatDateTime } from '@/core/utils/format'
 
 interface Props {
   vault: VaultWithNumbers | null
+  /** Discovery marker for a real player vault, so the panel can name its owner. */
+  marker?: PlayerVaultMarkerRead | null
   loading?: boolean
 }
 
-const props = withDefaults(defineProps<Props>(), { loading: false })
+const props = withDefaults(defineProps<Props>(), { marker: null, loading: false })
 
 // Single open-state contract: the parent owns visibility via v-model:open.
 const open = defineModel<boolean>('open', { required: true })
 
-const modalTitle = computed(() => (props.vault ? `Vault ${props.vault.number}` : 'Vault Record'))
+const modalTitle = computed(() => {
+  const number = props.vault?.number ?? props.marker?.number
+  return number ? `Vault ${number}` : 'Vault Record'
+})
 
 const updatedAt = computed(() => (props.vault ? formatDateTime(props.vault.updated_at) : ''))
+const markerCoords = computed(() =>
+  props.marker ? `${props.marker.coord_x}, ${props.marker.coord_y}` : 'Unavailable'
+)
 
 // Local descriptor list so the three resource rows share one template block.
 const RESOURCE_ROWS = [
@@ -42,14 +51,57 @@ const resourcePercentage = (current: number, maximum: number) =>
       <TerminalLoadingState v-if="loading" message="Accessing vault records..." />
 
       <TerminalEmptyState
-        v-else-if="!vault"
+        v-else-if="!vault && !marker"
         icon="mdi:alert-circle-outline"
         title="Vault unavailable"
         description="This vault's record could not be loaded. Close the panel and try again from the map."
         compact
       />
 
+      <div v-else-if="!vault" class="space-y-4">
+        <p class="text-xs font-bold tracking-[0.12em] text-theme-primary/60">VAULT SIGNAL</p>
+        <div class="rounded border border-theme-primary/20 bg-surface-sunken p-4">
+          <p class="text-xs font-bold tracking-[0.12em] text-theme-primary/60">OVERSEER</p>
+          <p class="mt-1 text-lg font-bold">
+            {{ marker?.owner_username }}
+            <span v-if="marker?.is_mine" class="text-theme-primary/60">(you)</span>
+          </p>
+          <p class="mt-2 text-sm leading-6 text-theme-primary/75">
+            <template v-if="marker?.is_mine">This is your vault.</template>
+            <template v-else>
+              This vault belongs to {{ marker?.owner_username }}. Its resources stay private to its
+              overseer; only the vault and its owner are shared on the atlas.
+            </template>
+          </p>
+          <div class="mt-4 grid grid-cols-2 gap-3 border-t border-theme-primary/20 pt-4">
+            <TerminalMetric
+              icon="mdi:map-marker"
+              label="MAP COORDINATES"
+              :value="markerCoords"
+              compact
+            />
+            <TerminalMetric
+              icon="mdi:pound-box-outline"
+              label="VAULT NUMBER"
+              :value="marker?.number ?? ''"
+              compact
+            />
+          </div>
+        </div>
+      </div>
+
       <div v-else class="space-y-4">
+        <div
+          v-if="marker"
+          class="flex items-center justify-between gap-3 border-b border-theme-primary/20 pb-3"
+        >
+          <span class="text-xs font-bold tracking-[0.12em] text-theme-primary/60">OVERSEER</span>
+          <span class="text-sm font-bold">
+            {{ marker.owner_username }}
+            <span v-if="marker.is_mine" class="text-theme-primary/60">(you)</span>
+          </span>
+        </div>
+
         <p class="text-right text-xs text-theme-primary/60">Updated {{ updatedAt }}</p>
 
         <div class="grid grid-cols-2 gap-2 lg:grid-cols-4">

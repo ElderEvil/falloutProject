@@ -124,6 +124,7 @@ class PlayerVaultMarkerRead(SQLModel):
     number: int
     coord_x: float
     coord_y: float
+    owner_username: str
     is_mine: bool = False
 
 

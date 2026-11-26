@@ -69,7 +69,7 @@
        stylesheet so the critical-path CSS budget is unaffected). */
     --color-happiness-high: #00ff00;
 
-    /* The Pit's exhibition accent. Pinned amber across themes: the fnv primary is
+    /* Vault Raids' exhibition accent. Pinned amber across themes: the fnv primary is
        the same hue but theme-scoped, and a sanctioned duel keeps its amber in a
        green vault. Values only here — components use the generated utilities. */
     --color-pit-amber: #ffb700;

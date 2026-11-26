@@ -68,18 +68,18 @@ describe('SidePanel', () => {
       expect(hotkeys).toEqual(['1', '2', '3', '4', '5', '6', '7', '8', '9'])
     })
 
-    it('shows The Pit only when duels are enabled', async () => {
+    it('shows Vault Raids only when duels are enabled', async () => {
       vi.stubEnv('DEV', true)
       const flags = useFeatureFlagsStore()
       const wrapper = mount(SidePanel, { global: { plugins: [router, pinia] } })
-      expect(wrapper.text()).not.toContain('The Pit')
+      expect(wrapper.text()).not.toContain('Vault Raids')
 
       flags.pvpDuels = true
       await wrapper.vm.$nextTick()
-      expect(wrapper.text()).toContain('The Pit')
+      expect(wrapper.text()).toContain('Vault Raids')
     })
 
-    describe('The Pit dev-only shortcut', () => {
+    describe('Vault Raids dev-only shortcut', () => {
       afterEach(() => vi.unstubAllEnvs())
 
       it('is present in a development build', () => {
@@ -88,7 +88,7 @@ describe('SidePanel', () => {
 
         const wrapper = mount(SidePanel, { global: { plugins: [router, pinia] } })
 
-        expect(wrapper.text()).toContain('The Pit')
+        expect(wrapper.text()).toContain('Vault Raids')
       })
 
       it('is compiled out of production builds even with duels enabled', () => {
@@ -97,7 +97,7 @@ describe('SidePanel', () => {
 
         const wrapper = mount(SidePanel, { global: { plugins: [router, pinia] } })
 
-        expect(wrapper.text()).not.toContain('The Pit')
+        expect(wrapper.text()).not.toContain('Vault Raids')
       })
     })
 

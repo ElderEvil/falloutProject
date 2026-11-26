@@ -3,7 +3,7 @@ import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { reactive } from 'vue'
 import { createIconifyMock, createToastMock } from '../helpers/mocks'
-import CombatZoneView from '@/modules/pvp/views/CombatZoneView.vue'
+import VaultRaidsView from '@/modules/pvp/views/VaultRaidsView.vue'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
 import type { PvpDuel } from '@/modules/pvp/services/pvpDuelService'
@@ -78,7 +78,7 @@ const boardEntry = {
 }
 
 function mountView() {
-  return mount(CombatZoneView, {
+  return mount(VaultRaidsView, {
     global: {
       stubs: {
         VaultPageShell: { template: '<main><slot /></main>' },
@@ -109,7 +109,7 @@ function button(wrapper: VueWrapper, label: string) {
   return match!
 }
 
-describe('CombatZoneView', () => {
+describe('VaultRaidsView', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     vi.clearAllMocks()
@@ -133,6 +133,7 @@ describe('CombatZoneView', () => {
 
     expect(api.list).toHaveBeenCalledWith('vault-a')
     expect(api.current).toHaveBeenCalledWith('vault-a')
+    expect(wrapper.text()).toContain('Vault Raids')
     expect(wrapper.text()).toContain('Vault 7')
     expect(wrapper.text()).toContain('Ada')
     expect(wrapper.text()).toContain('3 / 3 selected')
@@ -158,7 +159,7 @@ describe('CombatZoneView', () => {
 
     expect(api.accept).toHaveBeenCalledWith('vault-a', 'duel-settled', ['d1', 'd2', 'd3'])
     expect(wrapper.text()).toContain('Vault 8 wins')
-    expect(wrapper.text()).toContain('Authoritative result and replay from the server.')
+    expect(wrapper.text()).toContain('Result and round-by-round replay from the server.')
     expect(wrapper.text()).toContain('No challenges are waiting')
   })
 

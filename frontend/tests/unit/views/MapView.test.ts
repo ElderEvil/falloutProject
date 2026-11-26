@@ -126,8 +126,7 @@ describe('MapView', () => {
 
   const detail = (wrapper: ReturnType<typeof mountView>) =>
     wrapper.findComponent({ name: 'MarkerDetailModal' })
-  const map = (wrapper: ReturnType<typeof mountView>) =>
-    wrapper.findComponent({ name: 'WorldMap' })
+  const map = (wrapper: ReturnType<typeof mountView>) => wrapper.findComponent({ name: 'WorldMap' })
 
   beforeEach(() => {
     localStorage.setItem('token', 'test-token')
@@ -171,7 +170,13 @@ describe('MapView', () => {
               'fogDisabled',
               'readyLocationIds',
             ],
-            emits: ['marker-click', 'update:selectedMarkerId', 'vault-info', 'clear-filters'],
+            emits: [
+              'marker-click',
+              'update:selectedMarkerId',
+              'vault-info',
+              'player-vault-info',
+              'clear-filters',
+            ],
           },
           MarkerDetailModal: {
             name: 'MarkerDetailModal',
@@ -192,7 +197,7 @@ describe('MapView', () => {
           VaultInfoModal: {
             name: 'VaultInfoModal',
             template: '<div class="vault-info-stub"></div>',
-            props: ['open', 'vault', 'loading'],
+            props: ['open', 'vault', 'marker', 'loading'],
             emits: ['update:open'],
           },
           teleport: true,
@@ -390,9 +395,53 @@ describe('MapView', () => {
       expect(mockPush).not.toHaveBeenCalled()
     })
 
+    it('passes the vault owner record to the summary panel', async () => {
+      const marker = {
+        vault_id: 'vault-2',
+        number: 121,
+        coord_x: 40,
+        coord_y: 8,
+        owner_username: 'alice',
+        is_mine: true,
+      }
+      const { modal } = await openVaultInfo([vaultSummary], () => {
+        mapStore.playerVaults = [marker] as never
+      })
+
+      expect(modal.props('marker')).toEqual(marker)
+    })
+
+    it('opens a found player vault record without hydrating own vaults', async () => {
+      seed()
+      const vaultStore = seedVaults([])
+      const fetchSpy = vi.spyOn(vaultStore, 'fetchVaults')
+      const marker = {
+        vault_id: 'v-other',
+        number: 200,
+        coord_x: 90,
+        coord_y: 60,
+        owner_username: 'bob',
+        is_mine: false,
+      }
+      const wrapper = mountView()
+      await flushPromises()
+      map(wrapper).vm.$emit('player-vault-info', marker)
+      await flushPromises()
+
+      const modal = wrapper.findComponent({ name: 'VaultInfoModal' })
+      expect(modal.props('open')).toBe(true)
+      expect(modal.props('marker')).toEqual(marker)
+      expect(modal.props('vault')).toBeNull()
+      expect(modal.props('loading')).toBe(false)
+      expect(fetchSpy).not.toHaveBeenCalled()
+    })
+
     it.each([
       ['an empty store', []],
-      ['a stale store missing the selected vault', [{ ...vaultSummary, id: 'vault-other', number: 999 }]],
+      [
+        'a stale store missing the selected vault',
+        [{ ...vaultSummary, id: 'vault-other', number: 999 }],
+      ],
     ])('hydrates the vault list from %s', async (_, seeded) => {
       let fetchSpy!: ReturnType<typeof vi.spyOn>
       const { modal } = await openVaultInfo(seeded, (vaultStore) => {
@@ -822,7 +871,10 @@ describe('MapView', () => {
       mapStore.locations[0]!.clear_state = readyState as never
       const wrapper = mountView()
       await flushPromises()
-      await wrapper.findAll('button').find((b) => b.text() === 'Ready to clear')!.trigger('click')
+      await wrapper
+        .findAll('button')
+        .find((b) => b.text() === 'Ready to clear')!
+        .trigger('click')
       await flushPromises()
       return wrapper
     }
@@ -834,7 +886,12 @@ describe('MapView', () => {
       await flushPromises()
       expect(worldMapProps(wrapper).siteTypeFilter).toBe('gas_station')
       expect(worldMapProps(wrapper).readyLocationIds).not.toBeNull()
-      expect(wrapper.findAll('button').find((b) => b.text() === 'Ready to clear')!.attributes('aria-pressed')).toBe('true')
+      expect(
+        wrapper
+          .findAll('button')
+          .find((b) => b.text() === 'Ready to clear')!
+          .attributes('aria-pressed')
+      ).toBe('true')
       // Both active filters surface as chips above the map.
       expect(wrapper.find('[aria-label="Clear site type filter"]').exists()).toBe(true)
       expect(wrapper.find('[aria-label="Clear ready-to-clear filter"]').exists()).toBe(true)
@@ -860,7 +917,10 @@ describe('MapView', () => {
       expect(worldMapProps(wrapper).readyLocationIds).not.toBeNull()
 
       if (source === 'clearAllButton') {
-        await wrapper.findAll('button').find((b) => b.text() === 'Clear all')!.trigger('click')
+        await wrapper
+          .findAll('button')
+          .find((b) => b.text() === 'Clear all')!
+          .trigger('click')
       } else {
         map(wrapper).vm.$emit('clear-filters')
       }

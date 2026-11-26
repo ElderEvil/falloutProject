@@ -479,6 +479,13 @@ function dwellerDisplayName(first: string, last: string | null) {
         <section class="border-l-2 border-theme-primary/50 bg-surface p-4">
           <p class="text-xs font-bold tracking-[0.12em] text-theme-primary/60">SITE NOTES</p>
           <p class="mt-2 text-sm leading-6 text-theme-primary/85">{{ description }}</p>
+          <p
+            v-if="isVaultMarker"
+            class="mt-3 border-t border-theme-primary/20 pt-3 text-xs leading-5 text-theme-primary/60"
+          >
+            No overseer is recorded for this signal. It is not a travel destination — exhibition
+            duels are arranged from your vault's raid board.
+          </p>
         </section>
 
         <section v-if="isClearable" class="border-t border-theme-primary/20 pt-4">

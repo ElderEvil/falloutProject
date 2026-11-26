@@ -91,9 +91,9 @@ watch([vaultId, () => route.query.duel], load, { immediate: true })
   <VaultPageShell rail terminal>
     <div class="flex flex-col gap-6">
       <PageHeader
-        title="The Pit"
+        title="Vault Raids"
         icon="mdi:sword-cross"
-        subtitle="Cross-vault exhibition duels using frozen party snapshots"
+        subtitle="Exhibition duels between vaults — nobody is hurt and nothing is wagered."
       >
         <template #actions>
           <Button
@@ -112,8 +112,8 @@ watch([vaultId, () => route.query.duel], load, { immediate: true })
         <CardHeader>
           <CardTitle>Your exhibition party</CardTitle>
           <CardDescription>
-            Choose 1–3 dwellers from {{ vaultLabel }}. Duels do not injure dwellers or grant
-            rewards.
+            Choose 1–3 dwellers from {{ vaultLabel }}. They fight from a frozen snapshot, so a duel
+            cannot injure them or change their assignment.
           </CardDescription>
         </CardHeader>
         <CardContent class="flex flex-col gap-4">
@@ -164,7 +164,9 @@ watch([vaultId, () => route.query.duel], load, { immediate: true })
           </CardDescription>
         </CardHeader>
         <CardContent class="flex flex-wrap items-center gap-3">
-          <Badge variant="outline">{{ pvpStore.ownOpenDuel.challenger_party.power_band }}</Badge>
+          <Badge variant="outline" class="capitalize">
+            {{ pvpStore.ownOpenDuel.challenger_party.power_band }} band
+          </Badge>
           <span>{{ pvpStore.ownOpenDuel.challenger_party.member_names.join(', ') }}</span>
         </CardContent>
       </Card>
@@ -172,7 +174,9 @@ watch([vaultId, () => route.query.duel], load, { immediate: true })
       <Card>
         <CardHeader>
           <CardTitle>Open challenges</CardTitle>
-          <CardDescription>Accepting settles the duel immediately on the server.</CardDescription>
+          <CardDescription>
+            Answering settles the duel immediately. Your selected party is the defending side.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <p v-if="pvpStore.loading" class="text-sm text-muted-foreground">
@@ -191,8 +195,8 @@ watch([vaultId, () => route.query.duel], load, { immediate: true })
                 <p class="font-bold">{{ entry.challenger_vault_name }}</p>
                 <p class="text-sm text-muted-foreground">{{ entry.member_names.join(', ') }}</p>
                 <p class="text-xs text-muted-foreground">
-                  {{ entry.power_band }} · {{ entry.party_size }} fighters · expires
-                  {{ formatDateTime(entry.expires_at) }}
+                  <span class="capitalize">{{ entry.power_band }}</span> band ·
+                  {{ entry.party_size }} dwellers · expires {{ formatDateTime(entry.expires_at) }}
                 </p>
               </div>
               <Button
@@ -213,7 +217,7 @@ watch([vaultId, () => route.query.duel], load, { immediate: true })
       >
         <CardHeader>
           <CardTitle>{{ winnerName }} wins</CardTitle>
-          <CardDescription>Authoritative result and replay from the server.</CardDescription>
+          <CardDescription>Result and round-by-round replay from the server.</CardDescription>
         </CardHeader>
         <CardContent class="flex flex-col gap-4">
           <div class="grid gap-3 sm:grid-cols-2">

@@ -120,7 +120,7 @@ const navItems = computed((): NavItem[] => {
   if (featureFlags.pvpDuels && import.meta.env.DEV) {
     navItems.push({
       id: 'pvp',
-      label: 'The Pit',
+      label: 'Vault Raids',
       icon: 'mdi:sword-cross',
       path: `/vault/${vaultId.value}/pvp`,
     })

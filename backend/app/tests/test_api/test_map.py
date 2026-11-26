@@ -4,6 +4,7 @@ from app.core.enums import DwellerLocationRelationEnum, LocationTypeEnum
 from app.core.game_config import game_config
 from app.crud.vault_slot import vault_slot
 from app.crud.world_location import world_location as wl_crud
+from app.models.user import User
 from app.services.collectible_service import collectible_service
 from app.services.dweller_service import dweller_service
 from app.services.map_service import map_service
@@ -50,6 +51,8 @@ async def test_get_vault_map_includes_discoverable_player_vaults(
     assert mine is not None
     assert mine["number"] == vault.number
     assert mine["is_mine"] is True
+    owner = await async_session.get(User, vault.user_id)
+    assert mine["owner_username"] == owner.username
     assert all(0 < pv["coord_x"] < 160 and 0 < pv["coord_y"] < 160 for pv in player_vaults)
 
 

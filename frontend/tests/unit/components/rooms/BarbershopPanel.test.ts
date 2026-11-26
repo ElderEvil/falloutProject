@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { enableAutoUnmount, flushPromises } from '@vue/test-utils'
+import { enableAutoUnmount, flushPromises, type VueWrapper } from '@vue/test-utils'
 import { mountWithSetup } from '../../helpers/mountWithSetup'
 import BarbershopPanel from '@/modules/rooms/components/BarbershopPanel.vue'
 import { barbershopApi } from '@/modules/rooms/api/barbershop'
@@ -27,9 +27,7 @@ const store = vi.hoisted(() => ({
     fetchAllDwellers: vi.fn(),
   },
   management: { assignDwellerToRoom: vi.fn(), unassignDwellerFromRoom: vi.fn() },
-  generation: {
-    generateDwellerPortrait: vi.fn(),
-  },
+  generation: { generateDwellerPortrait: vi.fn() },
 }))
 
 vi.mock('@/modules/dwellers/stores/dweller', async () => {
@@ -80,10 +78,14 @@ const dweller = (overrides: Partial<DwellerShort> = {}): DwellerShort =>
   }) as DwellerShort
 
 const barberDweller = (): DwellerShort =>
+  dweller({ id: BARBER_ID, first_name: 'Boris', last_name: 'Barber', gender: 'female' })
+
+const elder = () =>
   dweller({
-    id: BARBER_ID,
-    first_name: 'Boris',
-    last_name: 'Barber',
+    id: ELDER_ID,
+    first_name: 'Eve',
+    last_name: 'Elder',
+    age_group: 'elder',
     gender: 'female',
   })
 
@@ -111,24 +113,52 @@ const changeResponse = (
   ...overrides,
 })
 
+const seedRoster = (dwellers: DwellerShort[]) => {
+  store.filter.allDwellers = [...dwellers]
+  store.filter.dwellers = [...dwellers]
+}
+
 const mountPanel = (clients: DwellerShort[] = [dweller()], barber = barberDweller()) => {
   const assigned = [barber, ...clients]
-  store.filter.allDwellers = [...assigned]
-  store.filter.dwellers = [...assigned]
+  seedRoster(assigned)
   return mountWithSetup(BarbershopPanel, {
-    props: {
-      vaultId: 'vault-1',
-      room: room(),
-      assignedDwellers: assigned,
-    },
+    props: { vaultId: 'vault-1', room: room(), assignedDwellers: assigned },
   })
 }
 
-const portraitSrc = (wrapper: ReturnType<typeof mountWithSetup>): string =>
+/** An unstaffed panel whose picker reads from `roster`. */
+const mountEmpty = (roster: DwellerShort[] = []) => {
+  store.filter.dwellers = roster
+  return mountWithSetup(BarbershopPanel, {
+    props: { vaultId: 'vault-1', room: room(), assignedDwellers: [] },
+  })
+}
+
+const openPicker = async (wrapper: VueWrapper, slot: 'worker' | 'client') => {
+  await wrapper.get(`button[aria-label^="Choose ${slot}"]`).trigger('click')
+  await flushPromises()
+}
+
+const pick = async (wrapper: VueWrapper, testId: string) => {
+  await wrapper.get(`[data-testid="${testId}"]`).trigger('click')
+  await flushPromises()
+}
+
+const slot = (wrapper: VueWrapper, name: 'Worker' | 'Client') =>
+  wrapper.get(`[aria-label="${name} slot"]`).text()
+
+const feeText = (wrapper: VueWrapper) => wrapper.get('[data-testid="barbershop-change-fee"]').text()
+
+const portraitSrc = (wrapper: VueWrapper): string =>
   wrapper.get('[data-testid="barbershop-portrait"] img').attributes('src') ?? ''
 
-const saveButton = (wrapper: ReturnType<typeof mountWithSetup>) =>
+const saveButton = (wrapper: VueWrapper) =>
   wrapper.get('[data-testid="barbershop-save"]').element as HTMLButtonElement
+
+const waitingIds = (wrapper: VueWrapper) =>
+  wrapper
+    .findAll('[data-testid="barbershop-waiting-row"]')
+    .map((row) => row.attributes('data-dweller-id'))
 
 describe('BarbershopPanel', () => {
   beforeEach(() => {
@@ -148,43 +178,36 @@ describe('BarbershopPanel', () => {
 
   it('shows worker and client slots even when the room is empty', async () => {
     vi.mocked(barbershopApi.getStatus).mockResolvedValue(status({ staffed: false }))
-    const wrapper = mountWithSetup(BarbershopPanel, {
-      props: { vaultId: 'vault-1', room: room(), assignedDwellers: [] },
-    })
+    const wrapper = mountEmpty()
     await flushPromises()
+
     expect(wrapper.get('button[aria-label^="Choose worker"]').text()).toContain('Add worker')
     expect(wrapper.get('button[aria-label^="Choose client"]').text()).toContain('Add client')
   })
 
   it('assigns a client directly from its slot without also filling the worker slot', async () => {
     const client = dweller({ room_id: null })
-    store.filter.dwellers = [client]
     store.management.assignDwellerToRoom.mockResolvedValue({ ...client, room_id: 'room-1' })
-    const wrapper = mountWithSetup(BarbershopPanel, {
-      props: { vaultId: 'vault-1', room: room(), assignedDwellers: [] },
-    })
+    const wrapper = mountEmpty([client])
     await flushPromises()
-    await wrapper.get('button[aria-label^="Choose client"]').trigger('click')
-    await flushPromises()
-    await wrapper.get('[data-testid="barbershop-client-option"]').trigger('click')
-    await flushPromises()
+
+    await openPicker(wrapper, 'client')
+    await pick(wrapper, 'barbershop-client-option')
+
     expect(store.management.assignDwellerToRoom).toHaveBeenCalledWith(ADULT_ID, 'room-1')
-    expect(wrapper.get('[aria-label="Client slot"]').text()).toContain('Ada')
+    expect(slot(wrapper, 'Client')).toContain('Ada')
     expect(wrapper.get('button[aria-label^="Choose worker"]').text()).toContain('Add worker')
     expect(wrapper.emitted('changed')).toHaveLength(1)
   })
 
   it('keeps an empty slot and the picker open when assignment fails', async () => {
-    store.filter.dwellers = [dweller({ room_id: null })]
     store.management.assignDwellerToRoom.mockRejectedValueOnce(new Error('Room is full'))
-    const wrapper = mountWithSetup(BarbershopPanel, {
-      props: { vaultId: 'vault-1', room: room(), assignedDwellers: [] },
-    })
+    const wrapper = mountEmpty([dweller({ room_id: null })])
     await flushPromises()
-    await wrapper.get('button[aria-label^="Choose worker"]').trigger('click')
-    await flushPromises()
-    await wrapper.get('[data-testid="barbershop-barber-option"]').trigger('click')
-    await flushPromises()
+
+    await openPicker(wrapper, 'worker')
+    await pick(wrapper, 'barbershop-barber-option')
+
     expect(wrapper.get('button[aria-label^="Choose worker"]').text()).toContain('Add worker')
     expect(wrapper.get('[role="alert"]').text()).toContain('Room is full')
     expect(wrapper.find('[data-testid="barbershop-barber-option"]').exists()).toBe(true)
@@ -193,24 +216,19 @@ describe('BarbershopPanel', () => {
 
   it('ignores an assignment completion after switching rooms', async () => {
     const client = dweller({ room_id: null })
-    store.filter.dwellers = [client]
     let finish!: (value: Dweller) => void
     store.management.assignDwellerToRoom.mockImplementationOnce(
-      () =>
-        new Promise((resolve) => {
-          finish = resolve
-        })
+      () => new Promise((resolve) => (finish = resolve))
     )
-    const wrapper = mountWithSetup(BarbershopPanel, {
-      props: { vaultId: 'vault-1', room: room(), assignedDwellers: [] },
-    })
+    const wrapper = mountEmpty([client])
     await flushPromises()
-    await wrapper.get('button[aria-label^="Choose client"]').trigger('click')
-    await flushPromises()
-    await wrapper.get('[data-testid="barbershop-client-option"]').trigger('click')
+
+    await openPicker(wrapper, 'client')
+    await pick(wrapper, 'barbershop-client-option')
     await wrapper.setProps({ room: room({ id: 'room-2' }), assignedDwellers: [] })
     finish({ ...client, room_id: 'room-1' } as Dweller)
     await flushPromises()
+
     expect(wrapper.get('button[aria-label^="Choose client"]').text()).toContain('Add client')
     expect(wrapper.get('button[aria-label^="Choose worker"]').text()).toContain('Add worker')
     expect(wrapper.emitted('changed')).toBeUndefined()
@@ -219,19 +237,18 @@ describe('BarbershopPanel', () => {
   it('ignores old status after switching rooms', async () => {
     let finish!: (value: BarbershopStatus) => void
     vi.mocked(barbershopApi.getStatus).mockImplementationOnce(
-      () =>
-        new Promise((resolve) => {
-          finish = resolve
-        })
+      () => new Promise((resolve) => (finish = resolve))
     )
     const wrapper = mountPanel()
     vi.mocked(barbershopApi.getStatus).mockResolvedValue(
       status({ room_id: 'room-2', vault_caps: 250 })
     )
+
     await wrapper.setProps({ room: room({ id: 'room-2' }), assignedDwellers: [] })
     await flushPromises()
     finish(status({ vault_caps: 9999 }))
     await flushPromises()
+
     expect(wrapper.get('[data-testid="barbershop-caps"]').text()).toBe('250')
   })
 
@@ -239,23 +256,29 @@ describe('BarbershopPanel', () => {
     store.management.unassignDwellerFromRoom.mockResolvedValue({})
     const wrapper = mountPanel()
     await flushPromises()
+
     await wrapper.get('button[aria-label="Unassign Boris Barber from Barbershop"]').trigger('click')
     await flushPromises()
+
     expect(store.management.unassignDwellerFromRoom).toHaveBeenCalledWith(BARBER_ID)
     expect(wrapper.get('button[aria-label^="Choose worker"]').text()).toContain('Add worker')
-    expect(wrapper.get('[aria-label="Client slot"]').text()).toContain('Ada')
+    expect(slot(wrapper, 'Client')).toContain('Ada')
   })
 
   it('shows roster-load errors with a retry instead of an empty-picker message', async () => {
     const wrapper = mountPanel()
     await flushPromises()
     store.filter.fetchAllDwellers.mockRejectedValueOnce(new Error('Roster unavailable'))
-    await wrapper.get('button[aria-label^="Choose worker"]').trigger('click')
-    await flushPromises()
+
+    await openPicker(wrapper, 'worker')
     expect(wrapper.get('[role="alert"]').text()).toContain('Roster unavailable')
-    const retry = wrapper.findAll('button').find((button) => button.text() === 'Retry dwellers')!
-    await retry.trigger('click')
+
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === 'Retry dwellers')!
+      .trigger('click')
     await flushPromises()
+
     expect(wrapper.find('[role="alert"]').exists()).toBe(false)
     expect(wrapper.findAll('[data-testid="barbershop-barber-option"]')).toHaveLength(2)
   })
@@ -267,32 +290,31 @@ describe('BarbershopPanel', () => {
     store.filter.fetchAllDwellers.mockImplementation(async () => {
       store.filter.allDwellers = [worker, client]
     })
-    const wrapper = mountWithSetup(BarbershopPanel, {
-      props: { vaultId: 'vault-1', room: room(), assignedDwellers: [] },
-    })
+    const wrapper = mountEmpty([client])
     await flushPromises()
-    await wrapper.get('button[aria-label^="Choose worker"]').trigger('click')
-    await flushPromises()
-    await wrapper.get('[data-testid="barbershop-barber-option"]').trigger('click')
-    await flushPromises()
+
+    await openPicker(wrapper, 'worker')
+    await pick(wrapper, 'barbershop-barber-option')
     await wrapper.setProps({ assignedDwellers: [{ ...client, room_id: 'room-1' }] })
-    expect(wrapper.get('[aria-label="Worker slot"]').text()).toContain('Boris')
+
+    expect(slot(wrapper, 'Worker')).toContain('Boris')
   })
 
   it('keeps the worker selected when unassignment is rejected', async () => {
     store.management.unassignDwellerFromRoom.mockRejectedValueOnce(new Error('Worker is busy'))
     const wrapper = mountPanel()
     await flushPromises()
+
     await wrapper.get('button[aria-label="Unassign Boris Barber from Barbershop"]').trigger('click')
     await flushPromises()
+
     expect(wrapper.get('[role="alert"]').text()).toContain('Worker is busy')
-    expect(wrapper.get('[aria-label="Worker slot"]').text()).toContain('Boris')
+    expect(slot(wrapper, 'Worker')).toContain('Boris')
     expect(wrapper.emitted('changed')).toBeUndefined()
   })
 
   it('shows neutral status placeholders until the Barbershop status loads', async () => {
     vi.mocked(barbershopApi.getStatus).mockReturnValue(new Promise<BarbershopStatus>(() => {}))
-
     const wrapper = mountPanel()
     await flushPromises()
 
@@ -302,7 +324,6 @@ describe('BarbershopPanel', () => {
 
   it('shows the assignment hint and disables saving while unstaffed', async () => {
     vi.mocked(barbershopApi.getStatus).mockResolvedValue(status({ staffed: false }))
-
     const wrapper = mountPanel()
     await flushPromises()
 
@@ -313,57 +334,29 @@ describe('BarbershopPanel', () => {
   })
 
   it('puts the barber and customer in exclusive chairs and leaves everyone else waiting', async () => {
-    const wrapper = mountPanel([
-      dweller({ id: ADULT_ID, first_name: 'Ada' }),
-      dweller({
-        id: ELDER_ID,
-        first_name: 'Eve',
-        last_name: 'Elder',
-        age_group: 'elder',
-        gender: 'female',
-      }),
-    ])
+    const wrapper = mountPanel([dweller({ id: ADULT_ID, first_name: 'Ada' }), elder()])
     await flushPromises()
 
-    expect(wrapper.get('[aria-label="Worker slot"]').text()).toContain('Boris')
-    expect(wrapper.get('[aria-label="Client slot"]').text()).toContain('Ada')
+    expect(slot(wrapper, 'Worker')).toContain('Boris')
+    expect(slot(wrapper, 'Client')).toContain('Ada')
     expect(wrapper.get('[data-testid="barbershop-waiting-row"]').text()).toContain('Eve Elder')
-    expect(
-      wrapper
-        .find(`[data-testid="barbershop-waiting-row"][data-dweller-id="${BARBER_ID}"]`)
-        .exists()
-    ).toBe(false)
-    expect(
-      wrapper.find(`[data-testid="barbershop-waiting-row"][data-dweller-id="${ADULT_ID}"]`).exists()
-    ).toBe(false)
+    expect(waitingIds(wrapper)).toEqual([ELDER_ID])
   })
 
   it('never offers the barber as a customer in the waiting room', async () => {
-    const wrapper = mountPanel([
-      dweller({ id: ADULT_ID, first_name: 'Ada' }),
-      dweller({
-        id: ELDER_ID,
-        first_name: 'Eve',
-        last_name: 'Elder',
-        age_group: 'elder',
-        gender: 'female',
-      }),
-    ])
+    const wrapper = mountPanel([dweller({ id: ADULT_ID, first_name: 'Ada' }), elder()])
     await flushPromises()
 
-    await wrapper.get('button[aria-label^="Choose worker"]').trigger('click')
-    await flushPromises()
+    await openPicker(wrapper, 'worker')
     await wrapper
       .get(`[data-testid="barbershop-barber-option"][data-dweller-id="${ADULT_ID}"]`)
       .trigger('click')
     await flushPromises()
 
-    expect(wrapper.get('[aria-label="Worker slot"]').text()).toContain('Ada')
-    expect(wrapper.get('[aria-label="Client slot"]').text()).toContain('Eve')
+    expect(slot(wrapper, 'Worker')).toContain('Ada')
+    expect(slot(wrapper, 'Client')).toContain('Eve')
     expect(wrapper.get('[data-testid="barbershop-waiting-row"]').text()).toContain('Boris Barber')
-    expect(
-      wrapper.find(`[data-testid="barbershop-waiting-row"][data-dweller-id="${ADULT_ID}"]`).exists()
-    ).toBe(false)
+    expect(waitingIds(wrapper)).not.toContain(ADULT_ID)
   })
 
   it('does not allow children, non-humans or the dead into customer chairs', async () => {
@@ -379,15 +372,11 @@ describe('BarbershopPanel', () => {
     ])
     await flushPromises()
 
-    const waitingIds = wrapper
-      .findAll('[data-testid="barbershop-waiting-row"]')
-      .map((row) => row.attributes('data-dweller-id'))
-    expect(waitingIds).not.toContain(CHILD_ID)
-    expect(waitingIds).not.toContain(GHOUL_ID)
-    expect(waitingIds).not.toContain(DEAD_ID)
+    expect(waitingIds(wrapper)).not.toContain(CHILD_ID)
+    expect(waitingIds(wrapper)).not.toContain(GHOUL_ID)
+    expect(waitingIds(wrapper)).not.toContain(DEAD_ID)
 
-    await wrapper.get('button[aria-label^="Choose worker"]').trigger('click')
-    await flushPromises()
+    await openPicker(wrapper, 'worker')
     const barberIds = wrapper
       .findAll('[data-testid="barbershop-barber-option"]')
       .map((row) => row.attributes('data-dweller-id'))
@@ -399,34 +388,19 @@ describe('BarbershopPanel', () => {
   it('allows a Gen-3 synth into a customer chair', async () => {
     const synthId = '66666666-6666-4666-8666-666666666666'
     const waitingSynthId = '77777777-7777-4777-8777-777777777777'
+    const synth = {
+      race: 'synth',
+      state_of_being: 'gen_3',
+      skin_tone: 'Pale',
+      hair_color: 'Blonde',
+    }
     const wrapper = mountPanel([
-      dweller({
-        id: synthId,
-        first_name: 'Synth',
-        visual_attributes: {
-          race: 'synth',
-          state_of_being: 'gen_3',
-          skin_tone: 'Pale',
-          hair_color: 'Blonde',
-        },
-      }),
-      dweller({
-        id: waitingSynthId,
-        first_name: 'Waiting Synth',
-        visual_attributes: {
-          race: 'synth',
-          state_of_being: 'gen_3',
-          skin_tone: 'Pale',
-          hair_color: 'Blonde',
-        },
-      }),
+      dweller({ id: synthId, first_name: 'Synth', visual_attributes: synth }),
+      dweller({ id: waitingSynthId, first_name: 'Waiting Synth', visual_attributes: synth }),
     ])
     await flushPromises()
 
-    const waitingIds = wrapper
-      .findAll('[data-testid="barbershop-waiting-row"]')
-      .map((row) => row.attributes('data-dweller-id'))
-    expect(waitingIds).toContain(waitingSynthId)
+    expect(waitingIds(wrapper)).toContain(waitingSynthId)
   })
 
   it('keeps saving disabled until an appearance value actually changes', async () => {
@@ -434,13 +408,13 @@ describe('BarbershopPanel', () => {
     await flushPromises()
 
     expect(saveButton(wrapper).disabled).toBe(true)
-    expect(wrapper.get('[data-testid="barbershop-change-fee"]').text()).toBe('0 caps')
+    expect(feeText(wrapper)).toBe('0 caps')
     expect(wrapper.get('[data-testid="barbershop-save"]').text()).toContain('No changes to save')
 
     await wrapper.get('[data-testid="barbershop-skin-swatch"][data-value="Tan"]').trigger('click')
 
     expect(saveButton(wrapper).disabled).toBe(false)
-    expect(wrapper.get('[data-testid="barbershop-change-fee"]').text()).toBe('200 caps')
+    expect(feeText(wrapper)).toBe('200 caps')
     expect(wrapper.get('[data-testid="barbershop-save"]').text()).toContain(
       'Save appearance (200 caps)'
     )
@@ -451,10 +425,10 @@ describe('BarbershopPanel', () => {
     await flushPromises()
 
     await wrapper.get('[data-testid="barbershop-hair-swatch"][data-value="Black"]').trigger('click')
-    expect(wrapper.get('[data-testid="barbershop-change-fee"]').text()).toBe('150 caps')
+    expect(feeText(wrapper)).toBe('150 caps')
 
     await wrapper.get('[data-testid="barbershop-skin-swatch"][data-value="Brown"]').trigger('click')
-    expect(wrapper.get('[data-testid="barbershop-change-fee"]').text()).toBe('350 caps')
+    expect(feeText(wrapper)).toBe('350 caps')
     expect(wrapper.get('[data-testid="barbershop-save"]').text()).toContain(
       'Save appearance (350 caps)'
     )
@@ -466,9 +440,7 @@ describe('BarbershopPanel', () => {
       thumbnail_url:
         '/static/dweller_thumbnails/variants/adult/FOS_Dw_Default_Human_Male_SkinTan_HairBlonde.webp',
     })
-    vi.mocked(barbershopApi.changeAppearance).mockResolvedValue(
-      changeResponse(updated, { fee: 200, remaining_caps: 800 })
-    )
+    vi.mocked(barbershopApi.changeAppearance).mockResolvedValue(changeResponse(updated))
 
     const wrapper = mountPanel()
     await flushPromises()
@@ -484,7 +456,7 @@ describe('BarbershopPanel', () => {
     })
     expect(applyCaps).toHaveBeenCalledWith('vault-1', 800)
     expect(wrapper.get('[data-testid="barbershop-caps"]').text()).toBe('800')
-    expect(wrapper.get('[data-testid="barbershop-change-fee"]').text()).toBe('0 caps')
+    expect(feeText(wrapper)).toBe('0 caps')
     expect(saveButton(wrapper).disabled).toBe(true)
     expect(wrapper.emitted('changed')).toHaveLength(1)
   })
@@ -494,10 +466,9 @@ describe('BarbershopPanel', () => {
       visual_attributes: { race: 'human', skin_tone: 'Tan', hair_color: 'Blonde' },
     })
     let resolveChange!: (value: unknown) => void
-    const pending = new Promise((resolve) => {
-      resolveChange = resolve
-    })
-    vi.mocked(barbershopApi.changeAppearance).mockReturnValueOnce(pending as never)
+    vi.mocked(barbershopApi.changeAppearance).mockReturnValueOnce(
+      new Promise((resolve) => (resolveChange = resolve)) as never
+    )
 
     const wrapper = mountPanel()
     await flushPromises()
@@ -506,7 +477,7 @@ describe('BarbershopPanel', () => {
     await wrapper.get('[data-testid="barbershop-skin-swatch"][data-value="Tan"]').trigger('click')
     await wrapper.get('[data-testid="barbershop-save"]').trigger('click')
     useVaultStore().clearSession()
-    resolveChange(changeResponse(updated, { fee: 200, remaining_caps: 800 }))
+    resolveChange(changeResponse(updated))
     await flushPromises()
 
     expect(applyCaps).not.toHaveBeenCalled()
@@ -544,70 +515,67 @@ describe('BarbershopPanel', () => {
     expect(store.filter.detailedDwellers[ADULT_ID]).toEqual(updated)
   })
 
-  it('generates a custom portrait for a curated dweller and switches the preview to it', async () => {
-    const curated = dweller()
-    const generated = {
-      ...curated,
-      thumbnail_url: '/static/dweller_images/custom/ada-gen.webp',
-      is_default_portrait: false,
-    } as Dweller
-    const refreshed = {
-      ...curated,
-      thumbnail_url: '/static/dweller_images/custom/ada-fresh.webp',
-      is_default_portrait: false,
-    } as Dweller
+  it.each([
+    {
+      label: 'a curated dweller',
+      expectedAction: 'Generate custom portrait',
+      start: () => dweller(),
+      refreshedId: ADULT_ID,
+      asserts: (wrapper: VueWrapper) => {
+        expect(wrapper.emitted('changed')).toHaveLength(1)
+      },
+    },
+    {
+      label: 'an existing custom portrait',
+      expectedAction: 'Regenerate custom portrait',
+      start: () =>
+        dweller({
+          is_default_portrait: false,
+          thumbnail_url: '/static/dweller_images/custom/ada.webp',
+        }),
+      refreshedId: ADULT_ID,
+      asserts: (wrapper: VueWrapper) => {
+        expect(store.generation.generateDwellerPortrait).toHaveBeenCalledWith(ADULT_ID)
+        expect(store.filter.fetchDwellerDetails).toHaveBeenCalledWith(ADULT_ID, true)
+        expect(wrapper.emitted('changed')).toHaveLength(1)
+      },
+    },
+  ])(
+    'generates a custom portrait for $label, refreshes details and cache-busts the preview',
+    async (row) => {
+      const start = row.start()
+      const generated = {
+        ...start,
+        thumbnail_url: '/static/dweller_images/custom/ada-gen.webp',
+        is_default_portrait: false,
+      } as Dweller
+      const refreshed = {
+        ...start,
+        thumbnail_url: '/static/dweller_images/custom/ada-fresh.webp',
+        is_default_portrait: false,
+      } as Dweller
+      store.generation.generateDwellerPortrait.mockResolvedValue(generated)
+      store.filter.fetchDwellerDetails.mockImplementation(async (id: string) => {
+        store.filter.detailedDwellers[id] = refreshed
+        return refreshed
+      })
 
-    store.generation.generateDwellerPortrait.mockResolvedValue(generated)
-    store.filter.fetchDwellerDetails.mockResolvedValue(refreshed)
+      const wrapper = mountPanel([start])
+      await flushPromises()
 
-    const wrapper = mountPanel([curated])
-    await flushPromises()
+      const action = wrapper.get('[data-testid="barbershop-regenerate"]')
+      expect(action.text()).toBe(row.expectedAction)
+      await action.trigger('click')
+      await flushPromises()
 
-    const action = wrapper.get('[data-testid="barbershop-regenerate"]')
-    expect(action.text()).toContain('Generate custom portrait')
-
-    await action.trigger('click')
-    await flushPromises()
-
-    expect(portraitSrc(wrapper)).toContain('ada-fresh.webp?v=1')
-    expect(
-      store.filter.allDwellers.find((entry) => entry.id === ADULT_ID)?.is_default_portrait
-    ).toBe(false)
-    expect(wrapper.emitted('changed')).toHaveLength(1)
-  })
-
-  it('regenerates a custom portrait, refreshes details and cache-busts the preview', async () => {
-    const custom = dweller({
-      is_default_portrait: false,
-      thumbnail_url: '/static/dweller_images/custom/ada.webp',
-    })
-    const generated = {
-      ...custom,
-      thumbnail_url: '/static/dweller_images/custom/ada-gen.webp',
-    } as Dweller
-    const refreshed = {
-      ...custom,
-      thumbnail_url: '/static/dweller_images/custom/ada-fresh.webp',
-    } as Dweller
-
-    store.generation.generateDwellerPortrait.mockResolvedValue(generated)
-    store.filter.fetchDwellerDetails.mockImplementation(async (id: string) => {
-      store.filter.detailedDwellers[id] = refreshed
-      return refreshed
-    })
-
-    const wrapper = mountPanel([custom])
-    await flushPromises()
-
-    await wrapper.get('[data-testid="barbershop-regenerate"]').trigger('click')
-    await flushPromises()
-
-    expect(store.generation.generateDwellerPortrait).toHaveBeenCalledWith(ADULT_ID)
-    expect(store.filter.fetchDwellerDetails).toHaveBeenCalledWith(ADULT_ID, true)
-    expect(portraitSrc(wrapper)).toContain('ada-fresh.webp?v=1')
-    expect(store.filter.allDwellers.find((entry) => entry.id === ADULT_ID)?.thumbnail_url).toBe(
-      '/static/dweller_images/custom/ada-fresh.webp'
-    )
-    expect(wrapper.emitted('changed')).toHaveLength(1)
-  })
+      expect(portraitSrc(wrapper)).toContain('ada-fresh.webp?v=1')
+      expect(
+        store.filter.allDwellers.find((entry) => entry.id === row.refreshedId)?.thumbnail_url
+      ).toBe('/static/dweller_images/custom/ada-fresh.webp')
+      expect(
+        store.filter.allDwellers.find((entry) => entry.id === row.refreshedId)?.is_default_portrait
+      ).toBe(false)
+      row.asserts(wrapper)
+    }
+  )
 })

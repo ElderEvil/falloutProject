@@ -91,6 +91,18 @@ function mountView() {
   })
 }
 
+function deferred<T>() {
+  let resolve!: (value: T) => void
+  const promise = new Promise<T>((settle) => (resolve = settle))
+  return { promise, resolve }
+}
+
+async function mountLoaded() {
+  const wrapper = mountView()
+  await flushPromises()
+  return wrapper
+}
+
 function button(wrapper: VueWrapper, label: string) {
   const match = wrapper.findAll('button').find((candidate) => candidate.text().includes(label))
   expect(match, `button containing ${label}`).toBeTruthy()
@@ -117,8 +129,7 @@ describe('CombatZoneView', () => {
   })
 
   it('loads the roster, board and current challenge with a default party', async () => {
-    const wrapper = mountView()
-    await flushPromises()
+    const wrapper = await mountLoaded()
 
     expect(api.list).toHaveBeenCalledWith('vault-a')
     expect(api.current).toHaveBeenCalledWith('vault-a')
@@ -129,8 +140,7 @@ describe('CombatZoneView', () => {
   })
 
   it('posts the selected party and shows the open challenge', async () => {
-    const wrapper = mountView()
-    await flushPromises()
+    const wrapper = await mountLoaded()
     await button(wrapper, 'Bram').trigger('click')
     await button(wrapper, 'Dax').trigger('click')
     await button(wrapper, 'Post challenge').trigger('click')
@@ -142,8 +152,7 @@ describe('CombatZoneView', () => {
   })
 
   it('accepts a board challenge and renders the authoritative replay', async () => {
-    const wrapper = mountView()
-    await flushPromises()
+    const wrapper = await mountLoaded()
     await button(wrapper, 'Accept').trigger('click')
     await flushPromises()
 
@@ -155,8 +164,7 @@ describe('CombatZoneView', () => {
 
   it('restores the server-owned open challenge on any device', async () => {
     api.current.mockResolvedValue(posted)
-    const wrapper = mountView()
-    await flushPromises()
+    const wrapper = await mountLoaded()
 
     expect(api.current).toHaveBeenCalledWith('vault-a')
     expect(api.get).not.toHaveBeenCalled()
@@ -165,8 +173,7 @@ describe('CombatZoneView', () => {
 
   it('opens a duel linked from a notification', async () => {
     route.query = { duel: 'duel-settled' }
-    const wrapper = mountView()
-    await flushPromises()
+    const wrapper = await mountLoaded()
 
     expect(api.get).toHaveBeenCalledWith('vault-a', 'duel-settled')
     expect(wrapper.text()).toContain('Vault 8 wins')
@@ -174,38 +181,27 @@ describe('CombatZoneView', () => {
 
   it('ignores a delayed duel read from the previous vault', async () => {
     route.query = { duel: 'duel-settled' }
-    let resolveDuel!: (value: PvpDuel) => void
-    api.get.mockImplementation(
-      () =>
-        new Promise<PvpDuel>((resolve) => {
-          resolveDuel = resolve
-        })
-    )
-    const wrapper = mountView()
+    const duel = deferred<PvpDuel>()
+    api.get.mockImplementation(() => duel.promise)
+    const wrapper = await mountLoaded()
     await vi.waitFor(() => expect(api.get).toHaveBeenCalled())
     route.params.id = 'vault-b'
     route.query = {}
     await flushPromises()
-    resolveDuel(settled)
+    duel.resolve(settled)
     await flushPromises()
 
     expect(wrapper.text()).not.toContain('Vault 8 wins')
   })
 
   it('does not apply a posted challenge after the vault changes', async () => {
-    let resolvePost!: (value: PvpDuel) => void
-    api.post.mockImplementation(
-      () =>
-        new Promise<PvpDuel>((resolve) => {
-          resolvePost = resolve
-        })
-    )
-    const wrapper = mountView()
-    await flushPromises()
+    const post = deferred<PvpDuel>()
+    api.post.mockImplementation(() => post.promise)
+    const wrapper = await mountLoaded()
     await button(wrapper, 'Post challenge').trigger('click')
     route.params.id = 'vault-b'
     await flushPromises()
-    resolvePost(posted)
+    post.resolve(posted)
     await flushPromises()
 
     expect(wrapper.text()).not.toContain('Your open challenge')
@@ -213,18 +209,14 @@ describe('CombatZoneView', () => {
   })
 
   it('ignores a roster response from the previous vault', async () => {
-    let resolveFirst!: (value: DwellerShort[]) => void
+    const first = deferred<DwellerShort[]>()
     getDwellers.mockImplementation((id: string) =>
-      id === 'vault-a'
-        ? new Promise<DwellerShort[]>((resolve) => {
-            resolveFirst = resolve
-          })
-        : Promise.resolve(otherRoster)
+      id === 'vault-a' ? first.promise : Promise.resolve(otherRoster)
     )
     const wrapper = mountView()
     route.params.id = 'vault-b'
     await flushPromises()
-    resolveFirst(roster)
+    first.resolve(roster)
     await flushPromises()
 
     expect(wrapper.text()).toContain('Xena')

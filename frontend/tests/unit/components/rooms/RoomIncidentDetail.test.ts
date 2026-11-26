@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from 'vite-plus/test'
-import { mount, flushPromises } from '@vue/test-utils'
+import { mount, flushPromises, type VueWrapper } from '@vue/test-utils'
 import { reactive } from 'vue'
 import RoomIncidentDetail from '@/modules/rooms/components/RoomIncidentDetail.vue'
 import DwellerListRow from '@/modules/dwellers/components/DwellerListRow.vue'
@@ -55,14 +55,19 @@ const dweller = (overrides: Record<string, unknown> = {}) => ({
   ...overrides,
 })
 
+const teamMember = (dwellerId: string): IncidentTeamMember => ({
+  id: `tm-${dwellerId}`,
+  team_id: 'team-1',
+  dweller_id: dwellerId,
+  slot_number: 1,
+  status: 'assigned',
+  created_at: null,
+  updated_at: null,
+})
+
 const mountDetail = async (props: Record<string, unknown> = {}, flush = true) => {
   const wrapper = mount(RoomIncidentDetail, {
-    props: {
-      incident: incident(),
-      vaultId: 'vault-1',
-      dwellers: [],
-      ...props,
-    },
+    props: { incident: incident(), vaultId: 'vault-1', dwellers: [], ...props },
     global: {
       stubs: {
         UButton: {
@@ -77,6 +82,23 @@ const mountDetail = async (props: Record<string, unknown> = {}, flush = true) =>
   return wrapper
 }
 
+const clickButton = async (wrapper: VueWrapper, text: string) => {
+  const button = wrapper.findAll('button').find((entry) => entry.text().includes(text))
+  expect(button, `button "${text}"`).toBeDefined()
+  await button!.trigger('click')
+}
+
+const suggestAndSend = async (wrapper: VueWrapper, count: number) => {
+  await clickButton(wrapper, 'Suggest squad')
+  await clickButton(wrapper, `Send ${count} selected`)
+}
+
+const expectSent = (ids: string[]) =>
+  expect(assignResponders).toHaveBeenCalledWith('vault-1', 'incident-1', ids, 'test-token')
+
+const suggestedNames = (wrapper: VueWrapper) =>
+  wrapper.findAllComponents(DwellerListRow).map((row) => row.get('h3').text())
+
 describe('RoomIncidentDetail', () => {
   beforeEach(() => {
     assignResponders.mockReset()
@@ -88,30 +110,6 @@ describe('RoomIncidentDetail', () => {
     activeIncidents.length = 0
     unloadedTeams.clear()
   })
-
-  const teamMember = (dwellerId: string): IncidentTeamMember => ({
-    id: `tm-${dwellerId}`,
-    team_id: 'team-1',
-    dweller_id: dwellerId,
-    slot_number: 1,
-    status: 'assigned',
-    created_at: null,
-    updated_at: null,
-  })
-
-  const clickButton = async (wrapper: Awaited<ReturnType<typeof mountDetail>>, text: string) => {
-    const button = wrapper.findAll('button').find((entry) => entry.text().includes(text))
-    expect(button, `button "${text}"`).toBeDefined()
-    await button!.trigger('click')
-  }
-
-  const suggestAndSend = async (
-    wrapper: Awaited<ReturnType<typeof mountDetail>>,
-    count: number
-  ) => {
-    await clickButton(wrapper, 'Suggest squad')
-    await clickButton(wrapper, `Send ${count} selected`)
-  }
 
   it('names the threat above the scene progress', async () => {
     const text = (await mountDetail()).text()
@@ -145,12 +143,7 @@ describe('RoomIncidentDetail', () => {
     ).toHaveLength(3)
     await clickButton(wrapper, 'Send 3 selected')
 
-    expect(assignResponders).toHaveBeenCalledWith(
-      'vault-1',
-      'incident-1',
-      ['d2', 'd3', 'd1'],
-      'test-token'
-    )
+    expectSent(['d2', 'd3', 'd1'])
   })
 
   it('trims a confirmed squad when the fight loses slots underneath it', async () => {
@@ -169,14 +162,17 @@ describe('RoomIncidentDetail', () => {
     // three must shrink rather than ask for a slot the fight no longer has.
     getIncidentTeam.mockReturnValue(['x1', 'x2', 'x3', 'x4'].map(teamMember))
     await wrapper.setProps({
-      incident: incident({ id: 'incident-1', progress: { current: 40, target: 100, label: 'Threat' } }),
+      incident: incident({
+        id: 'incident-1',
+        progress: { current: 40, target: 100, label: 'Threat' },
+      }),
     })
     await flushPromises()
 
     expect(wrapper.text()).toContain('Send 2 selected')
     await clickButton(wrapper, 'Send 2 selected')
 
-    expect(assignResponders).toHaveBeenCalledWith('vault-1', 'incident-1', ['d2', 'd3'], 'test-token')
+    expectSent(['d2', 'd3'])
   })
 
   it('stages only the highest-power helpers and clears the selection after sending', async () => {
@@ -195,7 +191,7 @@ describe('RoomIncidentDetail', () => {
     await selected[1].trigger('click')
     await clickButton(wrapper, 'Send 1 selected')
 
-    expect(assignResponders).toHaveBeenCalledWith('vault-1', 'incident-1', ['d2'], 'test-token')
+    expectSent(['d2'])
     expect(wrapper.text()).not.toContain('Send 1 selected')
   })
 
@@ -208,20 +204,10 @@ describe('RoomIncidentDetail', () => {
     ]
     const wrapper = await mountDetail({ dwellers })
 
-    expect(wrapper.findAllComponents(DwellerListRow).map((row) => row.get('h3').text())).toEqual([
-      'Zed Smith',
-      'Aaron',
-      'Alice Smith',
-      'Bob Smith',
-    ])
+    expect(suggestedNames(wrapper)).toEqual(['Zed Smith', 'Aaron', 'Alice Smith', 'Bob Smith'])
     expect(dwellers.map((candidate) => candidate.id)).toEqual(['d1', 'd2', 'd3', 'd4'])
     await suggestAndSend(wrapper, 3)
-    expect(assignResponders).toHaveBeenCalledWith(
-      'vault-1',
-      'incident-1',
-      ['d2', 'd4', 'd1'],
-      'test-token'
-    )
+    expectSent(['d2', 'd4', 'd1'])
   })
 
   it('backfills the best three after excluding an already rostered dweller with stale room data', async () => {
@@ -237,12 +223,7 @@ describe('RoomIncidentDetail', () => {
 
     expect(wrapper.findAllComponents(DwellerListRow)).toHaveLength(3)
     await suggestAndSend(wrapper, 3)
-    expect(assignResponders).toHaveBeenCalledWith(
-      'vault-1',
-      'incident-1',
-      ['d2', 'd3', 'd4'],
-      'test-token'
-    )
+    expectSent(['d2', 'd3', 'd4'])
   })
 
   it('excludes responders committed to another live incident but allows completed members', async () => {
@@ -265,17 +246,9 @@ describe('RoomIncidentDetail', () => {
       ],
     })
 
-    expect(wrapper.findAllComponents(DwellerListRow).map((row) => row.get('h3').text())).toEqual([
-      'Finished Smith',
-      'Free Smith',
-    ])
+    expect(suggestedNames(wrapper)).toEqual(['Finished Smith', 'Free Smith'])
     await suggestAndSend(wrapper, 2)
-    expect(assignResponders).toHaveBeenCalledWith(
-      'vault-1',
-      'incident-1',
-      ['d3', 'd4'],
-      'test-token'
-    )
+    expectSent(['d3', 'd4'])
   })
 
   it('keeps a dweller already in the incident room out of the send list', async () => {
@@ -286,11 +259,10 @@ describe('RoomIncidentDetail', () => {
       ],
     })
 
-    const text = wrapper.text()
-    expect(text).toContain('Suggest squad')
-    expect(text).toContain('Bob')
+    expect(wrapper.text()).toContain('Suggest squad')
+    expect(wrapper.text()).toContain('Bob')
     await suggestAndSend(wrapper, 1)
-    expect(assignResponders).toHaveBeenCalledWith('vault-1', 'incident-1', ['d2'], 'test-token')
+    expectSent(['d2'])
   })
 
   it('excludes dead, away and child dwellers from the send list', async () => {
@@ -312,7 +284,7 @@ describe('RoomIncidentDetail', () => {
     await clickButton(wrapper, 'Select')
     await clickButton(wrapper, 'Send 1 selected')
 
-    expect(assignResponders).toHaveBeenCalledWith('vault-1', 'incident-1', ['d1'], 'test-token')
+    expectSent(['d1'])
   })
 
   it('keeps the battle log and manual helper list behind disclosures', async () => {
@@ -364,25 +336,29 @@ describe('RoomIncidentDetail', () => {
     expect(fetchIncidentTeam).toHaveBeenCalledWith('vault-1', 'incident-1')
   })
 
-  it('renders the designated team by name in the scene', async () => {
-    getIncidentTeam.mockReturnValue([teamMember('d1')])
+  it.each([
+    ['an assigned responder', teamMember('d1'), ['POW 10', 'HELPER', 'Lv 7']],
+    ['a dispatched responder', { ...teamMember('d1'), status: 'dispatched' }, ['DISPATCHED']],
+  ])('renders %s by name only', async (_label, member, forbidden) => {
+    getIncidentTeam.mockReturnValue([member])
     const wrapper = await mountDetail({
-      dwellers: [dweller({ room_id: 'room-1', id: 'd1', first_name: 'Alice', combat_power: 10 })],
+      dwellers: [dweller({ room_id: 'room-1', id: 'd1', first_name: 'Alice', level: 7 })],
     })
 
     expect(wrapper.text()).toContain('Alice')
-    expect(wrapper.text()).not.toContain('POW 10')
-    expect(wrapper.text()).not.toContain('HELPER')
+    forbidden.forEach((fragment) => expect(wrapper.text()).not.toContain(fragment))
   })
 
-  it('renders a dispatched responder by name in the scene', async () => {
-    getIncidentTeam.mockReturnValue([{ ...teamMember('d1'), status: 'dispatched' }])
+  it('shows a helper once, in the scene, without a return note', async () => {
+    getIncidentTeam.mockReturnValue([{ ...teamMember('d1'), origin_room_id: 'origin' }])
     const wrapper = await mountDetail({
-      dwellers: [dweller({ room_id: 'room-1', id: 'd1', first_name: 'Alice', combat_power: 10 })],
+      rooms: [{ id: 'origin', name: 'Original Diner' }],
+      dwellers: [dweller({ room_id: 'room-1' })],
     })
 
     expect(wrapper.text()).toContain('Alice')
-    expect(wrapper.text()).not.toContain('DISPATCHED')
+    expect(wrapper.text()).not.toContain('HELPER')
+    expect(wrapper.text()).not.toContain('Returns to')
   })
 
   it('keeps a named placeholder for team members missing from the dweller list', async () => {
@@ -404,7 +380,7 @@ describe('RoomIncidentDetail', () => {
     await clickButton(wrapper, 'Select')
     await clickButton(wrapper, 'Send 1 selected')
 
-    expect(assignResponders).toHaveBeenCalledWith('vault-1', 'incident-1', ['d2'], 'test-token')
+    expectSent(['d2'])
   })
 
   it('sends only the best defenders, not the current team', async () => {
@@ -419,12 +395,7 @@ describe('RoomIncidentDetail', () => {
 
     await suggestAndSend(wrapper, 2)
 
-    expect(assignResponders).toHaveBeenCalledWith(
-      'vault-1',
-      'incident-1',
-      ['d2', 'd3'],
-      'test-token'
-    )
+    expectSent(['d2', 'd3'])
   })
 
   it('does not re-send a dweller already on the team', async () => {
@@ -442,16 +413,16 @@ describe('RoomIncidentDetail', () => {
     getIncidentTeam.mockReturnValue(['d1', 'd2', 'd3', 'd4', 'd5'].map((id) => teamMember(id)))
     const wrapper = await mountDetail({
       dwellers: [
-        dweller({ id: 'd6', first_name: 'Fay', room_id: 'room-2', combat_power: 90 }),
-        dweller({ id: 'd7', first_name: 'Gus', room_id: 'room-2', combat_power: 80 }),
-        dweller({ id: 'd8', first_name: 'Hal', room_id: 'room-2', combat_power: 70 }),
+        dweller({ id: 'd6', first_name: 'Fay', combat_power: 90 }),
+        dweller({ id: 'd7', first_name: 'Gus', combat_power: 80 }),
+        dweller({ id: 'd8', first_name: 'Hal', combat_power: 70 }),
       ],
     })
 
     expect(wrapper.text()).toContain('Suggest squad')
     await suggestAndSend(wrapper, 1)
 
-    expect(assignResponders).toHaveBeenCalledWith('vault-1', 'incident-1', ['d6'], 'test-token')
+    expectSent(['d6'])
   })
 
   it('does not send when the roster is already full', async () => {
@@ -509,9 +480,7 @@ describe('RoomIncidentDetail', () => {
       activeIncidents.push(incident({ id: 'incident-2', vault_id: 'vault-1' }))
       unloadedTeams.add(unknownTeamId)
       // The store resolves a failed fetch without inserting a team cache entry.
-      const wrapper = await mountDetail({
-        dwellers: [dweller()],
-      })
+      const wrapper = await mountDetail({ dwellers: [dweller()] })
 
       expect(wrapper.findAllComponents(DwellerListRow)).toHaveLength(0)
       expect(wrapper.findAll('button')).toHaveLength(0)
@@ -526,7 +495,7 @@ describe('RoomIncidentDetail', () => {
       expect(wrapper.findAllComponents(DwellerListRow)).toHaveLength(1)
       expect(wrapper.text()).not.toContain('Waiting for incident teams')
       await suggestAndSend(wrapper, 1)
-      expect(assignResponders).toHaveBeenCalledWith('vault-1', 'incident-1', ['d1'], 'test-token')
+      expectSent(['d1'])
     }
   )
 
@@ -536,17 +505,7 @@ describe('RoomIncidentDetail', () => {
     const wrapper = await mountDetail({ dwellers: [dweller()] })
 
     await suggestAndSend(wrapper, 1)
-    expect(assignResponders).toHaveBeenCalledWith('vault-1', 'incident-1', ['d1'], 'test-token')
-  })
-
-  it('keeps the scene name-only for an on-scene team member', async () => {
-    getIncidentTeam.mockReturnValue([teamMember('d1')])
-    const wrapper = await mountDetail({
-      dwellers: [dweller({ room_id: 'room-1', id: 'd1', first_name: 'Alice', level: 7 })],
-    })
-
-    expect(wrapper.text()).toContain('Alice')
-    expect(wrapper.text()).not.toContain('Lv 7')
+    expectSent(['d1'])
   })
 
   it('shows the level of available responders', async () => {
@@ -557,38 +516,22 @@ describe('RoomIncidentDetail', () => {
     expect(wrapper.text()).toContain('· Lv 9')
   })
 
-  it('hints that the first round runs on the next vault tick', async () => {
+  it.each([
+    ['no rounds yet', [], true],
+    ['a fought round', [{ id: 'e1', kind: 'round', message: 'Trade fire.', data: null }], false],
+    [
+      'a containment event',
+      [{ id: 'e1', kind: 'containment', message: 'Foam spreads.', data: null }],
+      false,
+    ],
+  ])('handles the pending-round hint for %s', async (_label, events, pending) => {
     getIncidentTeam.mockReturnValue([teamMember('d1')])
     const wrapper = await mountDetail({
       dwellers: [dweller({ room_id: 'room-1', id: 'd1', first_name: 'Alice' })],
-      incident: incident({ events: [] }),
+      incident: incident({ events }),
     })
 
-    expect(wrapper.text()).toContain('First round runs on the next vault tick.')
-  })
-
-  it('hides the pending-round hint once a round has been fought', async () => {
-    getIncidentTeam.mockReturnValue([teamMember('d1')])
-    const wrapper = await mountDetail({
-      dwellers: [dweller({ room_id: 'room-1', id: 'd1', first_name: 'Alice' })],
-      incident: incident({
-        events: [{ id: 'e1', kind: 'round', message: 'Trade fire.', data: null }],
-      }),
-    })
-
-    expect(wrapper.text()).not.toContain('First round runs')
-  })
-
-  it('treats a containment event as a fought round', async () => {
-    getIncidentTeam.mockReturnValue([teamMember('d1')])
-    const wrapper = await mountDetail({
-      dwellers: [dweller({ id: 'd1', first_name: 'Alice' })],
-      incident: incident({
-        events: [{ id: 'e1', kind: 'containment', message: 'Foam spreads.', data: null }],
-      }),
-    })
-
-    expect(wrapper.text()).not.toContain('First round runs')
+    expect(wrapper.text().includes('First round runs on the next vault tick.')).toBe(pending)
   })
 
   it('asks for help when the room has no responders yet', async () => {
@@ -596,6 +539,7 @@ describe('RoomIncidentDetail', () => {
 
     expect(wrapper.text()).toContain('No responders in the room')
   })
+
   it('shows occupants alongside helpers even when the helper team is empty', async () => {
     const wrapper = await mountDetail({ dwellers: [dweller({ room_id: 'room-1' })] })
     expect(wrapper.text()).not.toContain('RESIDENT')
@@ -664,24 +608,19 @@ describe('RoomIncidentDetail', () => {
         }),
       ],
     })
-    const rows = wrapper.findAllComponents(DwellerListRow)
-    expect(rows.map((row) => row.get('h3').text())).toEqual([
+    expect(suggestedNames(wrapper)).toEqual([
       'Idle Smith',
       'Worker Smith',
       'Middle Smith',
       'Strong Smith',
     ])
-    expect(rows[1].text()).toContain('Working')
-    expect(rows[1].text()).toContain('Diner')
-    expect(rows[1].text()).toContain('Same floor')
-    expect(rows[1].text()).toContain('90/100')
+    const worker = wrapper.findAllComponents(DwellerListRow)[1]
+    expect(worker.text()).toContain('Working')
+    expect(worker.text()).toContain('Diner')
+    expect(worker.text()).toContain('Same floor')
+    expect(worker.text()).toContain('90/100')
     await suggestAndSend(wrapper, 3)
-    expect(assignResponders).toHaveBeenCalledWith(
-      'vault-1',
-      'incident-1',
-      ['far', 'near-worker', 'middle'],
-      'test-token'
-    )
+    expectSent(['far', 'near-worker', 'middle'])
   })
 
   it('keeps other-room residents and Arena fighters out of the helper list', async () => {
@@ -693,20 +632,7 @@ describe('RoomIncidentDetail', () => {
         dweller({ id: 'free', first_name: 'Free', room_id: null, status: 'idle' }),
       ],
     })
-    expect(wrapper.findAllComponents(DwellerListRow).map((row) => row.get('h3').text())).toEqual([
-      'Free Smith',
-    ])
+    expect(suggestedNames(wrapper)).toEqual(['Free Smith'])
     expect(wrapper.text()).toContain('Unassigned')
-  })
-
-  it('shows a helper once, in the scene', async () => {
-    getIncidentTeam.mockReturnValue([{ ...teamMember('d1'), origin_room_id: 'origin' }])
-    const wrapper = await mountDetail({
-      rooms: [{ id: 'origin', name: 'Original Diner' }],
-      dwellers: [dweller({ room_id: 'room-1' })],
-    })
-    expect(wrapper.text()).toContain('Alice')
-    expect(wrapper.text()).not.toContain('HELPER')
-    expect(wrapper.text()).not.toContain('Returns to')
   })
 })

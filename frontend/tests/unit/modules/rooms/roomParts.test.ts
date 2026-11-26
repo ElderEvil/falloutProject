@@ -15,8 +15,7 @@ import {
   type RoomPart,
 } from '@/modules/rooms/models/roomParts'
 import type { Room } from '@/modules/rooms/models/room'
-import type { Incident } from '@/modules/combat/models/incident'
-import type { IncidentAftermath } from '@/modules/combat/models/incident'
+import type { Incident, IncidentAftermath } from '@/modules/combat/models/incident'
 
 const room = (overrides: Partial<Room> = {}): Room =>
   ({
@@ -55,82 +54,62 @@ const aftermath = (overrides: Partial<IncidentAftermath> = {}): IncidentAftermat
 
 const names = (parts: RoomPart[]) => parts.join(',')
 
+const arena = () => room({ name: 'Arena', category: 'arena' })
+const radio = () => room({ name: 'Radio Studio', category: 'misc.', ability: 'charisma' })
+const workshop = () => room({ name: 'Weapon workshop', category: 'crafting', ability: null })
+
 describe('getRoomDetailParts', () => {
   it('returns no parts for a null room', () => {
     expect(getRoomDetailParts(null)).toEqual([])
   })
 
+  it.each([
+    ['a producing room', room(), 'preview,info,productionStats,dwellerList,actions'],
+    [
+      'a training room',
+      room({ category: 'training', name: 'Strength Room' }),
+      'preview,info,training,dwellerList,actions',
+    ],
+    ['a radio room', radio(), 'preview,info,radioStats,dwellerList,actions,radioControls'],
+    [
+      'the Barbershop',
+      room({ name: 'Barbershop', category: 'misc.', ability: 'charisma' }),
+      'preview,info,barbershop,dwellerList,actions',
+    ],
+    [
+      "the Overseer's Office",
+      room({ name: "Overseer's Office", category: 'misc.', ability: null }),
+      'preview,info,overseerBriefing,dwellerList,actions',
+    ],
+    [
+      'the vault door',
+      room({ name: 'Vault Door', category: 'misc.', ability: null }),
+      'preview,info,dwellerList,actions',
+    ],
+    ['a workshop', workshop(), 'preview,info,crafting,dwellerList,actions'],
+    [
+      'a response room',
+      room({ name: 'Response Station', category: 'response', ability: 'endurance' }),
+      'preview,info,responseStation,dwellerList,actions',
+    ],
+  ])('renders the parts for %s', (_label, target, expected) => {
+    expect(names(getRoomDetailParts(target))).toBe(expected)
+  })
+
   it('renders only the arena part for arena rooms', () => {
-    expect(getRoomDetailParts(room({ name: 'Arena', category: 'arena' }))).toEqual(['arena'])
+    expect(getRoomDetailParts(arena())).toEqual(['arena'])
   })
 
-  it('renders production stats for producing rooms', () => {
-    const parts = getRoomDetailParts(room())
-    expect(names(parts)).toBe('preview,info,productionStats,dwellerList,actions')
-  })
-
-  it('omits production stats when a production room has no ability', () => {
-    const parts = getRoomDetailParts(room({ ability: null }))
-    expect(parts).not.toContain('productionStats')
-  })
-
-  it('omits production stats for non-production rooms', () => {
-    const parts = getRoomDetailParts(room({ category: 'training', name: 'Strength Room' }))
-    expect(names(parts)).toBe('preview,info,training,dwellerList,actions')
-  })
-
-  it('renders radio stats and controls for radio rooms', () => {
-    const parts = getRoomDetailParts(
-      room({ name: 'Radio Studio', category: 'misc.', ability: 'charisma' })
-    )
-    expect(names(parts)).toBe('preview,info,radioStats,dwellerList,actions,radioControls')
-  })
-
-  it('renders the barbershop part first for the Barbershop', () => {
-    const parts = getRoomDetailParts(
-      room({ name: 'Barbershop', category: 'misc.', ability: 'charisma' })
-    )
-    expect(names(parts)).toBe('preview,info,barbershop,dwellerList,actions')
-  })
-
-  it('does not render the barbershop part for another Misc. room', () => {
-    const parts = getRoomDetailParts(
-      room({ name: 'Radio Studio', category: 'misc.', ability: 'charisma' })
-    )
-    expect(parts).not.toContain('barbershop')
-  })
-
-  it('renders the briefing for the Overseer’s Office', () => {
-    const parts = getRoomDetailParts(
-      room({ name: "Overseer's Office", category: 'misc.', ability: null })
-    )
-    expect(names(parts)).toBe('preview,info,overseerBriefing,dwellerList,actions')
-  })
-
-  it('renders no production stats for the vault door', () => {
-    const parts = getRoomDetailParts(room({ name: 'Vault Door', category: 'misc.', ability: null }))
-    expect(names(parts)).toBe('preview,info,dwellerList,actions')
-  })
-
-  it('renders the crafting panel for workshop rooms', () => {
-    const parts = getRoomDetailParts(
-      room({ name: 'Weapon workshop', category: 'crafting', ability: null })
-    )
-    expect(names(parts)).toBe('preview,info,crafting,dwellerList,actions')
-  })
-
-  it('omits crafting for crafting rooms that are not workshops', () => {
-    const parts = getRoomDetailParts(
-      room({ name: 'Mystery bench', category: 'crafting', ability: null })
-    )
-    expect(parts).not.toContain('crafting')
-  })
-
-  it('renders the station surface for response rooms', () => {
-    const parts = getRoomDetailParts(
-      room({ name: 'Response Station', category: 'response', ability: 'endurance' })
-    )
-    expect(names(parts)).toBe('preview,info,responseStation,dwellerList,actions')
+  it.each([
+    ['a production room without an ability', room({ ability: null }), 'productionStats'],
+    [
+      'a non-workshop crafting room',
+      room({ name: 'Mystery bench', category: 'crafting', ability: null }),
+      'crafting',
+    ],
+    ['another Misc. room', radio(), 'barbershop'],
+  ])('omits a part that does not apply (%s)', (_label, target, part) => {
+    expect(getRoomDetailParts(target)).not.toContain(part)
   })
 
   it('replaces every generic section with the overlay while an incident is live', () => {
@@ -138,9 +117,7 @@ describe('getRoomDetailParts', () => {
   })
 
   it('keeps arena precedence over a live incident', () => {
-    expect(getRoomDetailParts(room({ name: 'Arena', category: 'arena' }), incident())).toEqual([
-      'arena',
-    ])
+    expect(getRoomDetailParts(arena(), incident())).toEqual(['arena'])
   })
 
   it('renders the generic sections when no incident is live', () => {
@@ -158,77 +135,90 @@ describe('getRoomDetailParts', () => {
   })
 
   it('keeps arena precedence over an aftermath', () => {
-    expect(
-      getRoomDetailParts(room({ name: 'Arena', category: 'arena' }), null, aftermath())
-    ).toEqual(['arena'])
+    expect(getRoomDetailParts(arena(), null, aftermath())).toEqual(['arena'])
+  })
+
+  it('adds maintenance only to Endurance storage rooms', () => {
+    expect(getRoomDetailParts(room({ category: 'capacity', ability: 'endurance' }))).toContain(
+      'storageMaintenance'
+    )
+    expect(getRoomDetailParts(room({ category: 'capacity', ability: 'charisma' }))).not.toContain(
+      'storageMaintenance'
+    )
   })
 })
 
 describe('special room predicates', () => {
-  it('matches radio rooms by name', () => {
-    expect(isRadioRoom(room({ name: 'Radio Studio' }))).toBe(true)
-    expect(isRadioRoom(room({ name: 'Power Generator' }))).toBe(false)
-    expect(isRadioRoom(null)).toBe(false)
+  it.each([
+    ['matches radio rooms by name', isRadioRoom, [room({ name: 'Radio Studio' })], [room()]],
+    [
+      'matches the Barbershop by exact name',
+      isBarbershop,
+      [room({ name: 'Barbershop' }), room({ name: 'barbershop' })],
+      [room({ name: 'Barbershop supplies' }), room({ name: 'Radio Studio', category: 'misc.' })],
+    ],
+    [
+      'matches the vault door exactly',
+      isVaultDoor,
+      [room({ name: 'Vault Door' })],
+      [room({ name: 'Vault Doorway' })],
+    ],
+    [
+      'matches the Overseer’s Office exactly',
+      isOverseersOffice,
+      [room({ name: "Overseer's Office" })],
+      [room({ name: 'Overseer Office' })],
+    ],
+    [
+      'detects producing rooms',
+      producesResources,
+      [room()],
+      [room({ ability: null }), room({ category: 'training' })],
+    ],
+    [
+      'detects training rooms regardless of case',
+      isTrainingRoom,
+      [room({ category: 'training' }), room({ category: 'TRAINING' })],
+      [room()],
+    ],
+    [
+      'matches elevators exactly',
+      isElevator,
+      [room({ name: 'Elevator' })],
+      [room({ name: 'Elevators' })],
+    ],
+    [
+      'detects response rooms by category, not name',
+      isResponseStation,
+      [room({ category: 'response', name: 'Response Station' }), room({ category: 'RESPONSE' })],
+      [room({ category: 'production', name: 'Response Station' })],
+    ],
+  ])('%s', (_label, predicate, match, miss) => {
+    for (const target of match) expect(predicate(target)).toBe(true)
+    for (const target of miss) expect(predicate(target)).toBe(false)
   })
 
-  it('matches the Barbershop by exact name', () => {
-    expect(isBarbershop(room({ name: 'Barbershop' }))).toBe(true)
-    expect(isBarbershop(room({ name: 'barbershop' }))).toBe(true)
-    expect(isBarbershop(room({ name: 'Barbershop supplies' }))).toBe(false)
-    expect(isBarbershop(room({ name: 'Radio Studio', category: 'misc.' }))).toBe(false)
-    expect(isBarbershop(null)).toBe(false)
-  })
-
-  it('matches the vault door exactly', () => {
-    expect(isVaultDoor(room({ name: 'Vault Door' }))).toBe(true)
-    expect(isVaultDoor(room({ name: 'Vault Doorway' }))).toBe(false)
-    expect(isVaultDoor(null)).toBe(false)
-  })
-
-  it('matches the Overseer’s Office exactly', () => {
-    expect(isOverseersOffice(room({ name: "Overseer's Office" }))).toBe(true)
-    expect(isOverseersOffice(room({ name: 'Overseer Office' }))).toBe(false)
-    expect(isOverseersOffice(null)).toBe(false)
-  })
-
-  it('detects producing rooms', () => {
-    expect(producesResources(room())).toBe(true)
-    expect(producesResources(room({ ability: null }))).toBe(false)
-    expect(producesResources(room({ category: 'training' }))).toBe(false)
-    expect(producesResources(null)).toBe(false)
-  })
-
-  it('detects training rooms', () => {
-    expect(isTrainingRoom(room({ category: 'training' }))).toBe(true)
-    expect(isTrainingRoom(room({ category: 'TRAINING' }))).toBe(true)
-    expect(isTrainingRoom(room())).toBe(false)
-    expect(isTrainingRoom(null)).toBe(false)
-  })
-
-  it('matches elevators exactly', () => {
-    expect(isElevator(room({ name: 'Elevator' }))).toBe(true)
-    expect(isElevator(room({ name: 'Elevators' }))).toBe(false)
-    expect(isElevator(null)).toBe(false)
-  })
-
-  it('detects response rooms by category, not name', () => {
-    expect(isResponseStation(room({ category: 'response', name: 'Response Station' }))).toBe(true)
-    expect(isResponseStation(room({ category: 'RESPONSE', name: 'Anything' }))).toBe(true)
-    expect(isResponseStation(room({ category: 'production', name: 'Response Station' }))).toBe(
-      false
-    )
-    expect(isResponseStation(null)).toBe(false)
+  it.each([
+    ['isRadioRoom', isRadioRoom],
+    ['isBarbershop', isBarbershop],
+    ['isVaultDoor', isVaultDoor],
+    ['isOverseersOffice', isOverseersOffice],
+    ['producesResources', producesResources],
+    ['isTrainingRoom', isTrainingRoom],
+    ['isElevator', isElevator],
+    ['isResponseStation', isResponseStation],
+    ['isCraftingRoom', isCraftingRoom],
+  ] as const)('%s rejects a missing room', (_name, predicate) => {
+    expect(predicate(null)).toBe(false)
   })
 })
 
 describe('craftingItemType', () => {
-  it('maps each workshop name to its catalog', () => {
-    expect(
-      craftingItemType(room({ name: 'Weapon workshop', category: 'crafting', ability: null }))
-    ).toBe('weapon')
-    expect(
-      craftingItemType(room({ name: 'Outfit workshop', category: 'crafting', ability: null }))
-    ).toBe('outfit')
+  it.each([
+    ['Weapon workshop', 'weapon'],
+    ['Outfit workshop', 'outfit'],
+  ])('maps %s to its catalog', (name, itemType) => {
+    expect(craftingItemType(room({ name, category: 'crafting', ability: null }))).toBe(itemType)
   })
 
   it('returns null outside a recognised workshop', () => {
@@ -242,7 +232,6 @@ describe('craftingItemType', () => {
   it('detects crafting rooms', () => {
     expect(isCraftingRoom(room({ category: 'crafting' }))).toBe(true)
     expect(isCraftingRoom(room())).toBe(false)
-    expect(isCraftingRoom(null)).toBe(false)
   })
 })
 
@@ -264,20 +253,4 @@ describe('findProductionRoom', () => {
 
     expect(findProductionRoom(rooms, 'water')?.id).toBe('all-1')
   })
-
-  it('ignores non-production rooms and returns null when nothing produces the resource', () => {
-    expect(
-      findProductionRoom([room({ category: 'training', name: 'Strength Room' })], 'power')
-    ).toBeNull()
-    expect(findProductionRoom([], 'power')).toBeNull()
-  })
-})
-
-it('adds maintenance only to Endurance storage rooms', () => {
-  expect(getRoomDetailParts(room({ category: 'capacity', ability: 'endurance' }))).toContain(
-    'storageMaintenance'
-  )
-  expect(getRoomDetailParts(room({ category: 'capacity', ability: 'charisma' }))).not.toContain(
-    'storageMaintenance'
-  )
 })

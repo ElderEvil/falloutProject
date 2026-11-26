@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vite-plus/test'
-import { mount, flushPromises } from '@vue/test-utils'
+import { mount, flushPromises, type VueWrapper } from '@vue/test-utils'
 import { computed, defineComponent, h, ref } from 'vue'
 import ArenaPreview from '@/modules/rooms/components/ArenaPreview.vue'
 import DwellerPortrait from '@/modules/dwellers/components/DwellerPortrait.vue'
@@ -141,6 +141,16 @@ const mountPreview = async (initial: ArenaRoomState) => {
   return wrapper
 }
 
+const buttonByText = (wrapper: VueWrapper, text: string) =>
+  wrapper.findAll('button').find((button) => button.text() === text)
+
+const startButton = (wrapper: VueWrapper) => buttonByText(wrapper, 'START FIGHT')!
+
+const modeButtons = (wrapper: VueWrapper) =>
+  wrapper.get('nav[aria-label="Match mode"]').findAll('button')
+
+const creatureKey = (key: string) => arenaStoreMock.creatures.find((entry) => entry.key === key)!
+
 describe('ArenaPreview', () => {
   beforeEach(() => {
     emitted.length = 0
@@ -158,7 +168,7 @@ describe('ArenaPreview', () => {
     controller.stopFight.mockClear()
   })
 
-  it('renders both teams and their meters in setup', async () => {
+  it('renders both teams and their meters in setup, then the ring once the fight starts', async () => {
     const wrapper = await mountPreview(state())
 
     expect(wrapper.find('.arena-preview').exists()).toBe(true)
@@ -168,6 +178,13 @@ describe('ArenaPreview', () => {
     expect(wrapper.findAll('.combatant-meters')).toHaveLength(2)
     expect(wrapper.get('[aria-label="Arena preview"]').text()).toContain('a')
     expect(wrapper.get('[aria-label="Arena preview"]').text()).toContain('b')
+
+    stateRef.value = { ...state(), fight_started: true }
+    await flushPromises()
+
+    expect(wrapper.find('.arena-ring').exists()).toBe(true)
+    expect(wrapper.find('.arena-preview').exists()).toBe(false)
+    expect(wrapper.findAll('.fighter-meters')).toHaveLength(2)
   })
 
   it('keeps an equipped pet visible from arena setup through the fight', async () => {
@@ -182,7 +199,6 @@ describe('ArenaPreview', () => {
     await flushPromises()
     expect(wrapper.get('.arena-ring img[alt="CX404, a’s pet"]').exists()).toBe(true)
     expect(wrapper.findAll('.fighter-meters')).toHaveLength(2)
-    wrapper.unmount()
   })
 
   it.each(['duel', 'brawl'] as const)('hides Hunt presets in %s', async (mode) => {
@@ -197,12 +213,7 @@ describe('ArenaPreview', () => {
 
   it('offers Start fight directly while setup remains a local draft', async () => {
     const wrapper = await mountPreview(state())
-    expect(
-      wrapper
-        .findAll('button')
-        .find((button) => button.text() === 'START FIGHT')!
-        .attributes('disabled')
-    ).toBeUndefined()
+    expect(startButton(wrapper).attributes('disabled')).toBeUndefined()
     expect(controller.startFight).not.toHaveBeenCalled()
     expect(arenaStoreMock.setFighters).not.toHaveBeenCalled()
   })
@@ -225,20 +236,13 @@ describe('ArenaPreview', () => {
     const wrapper = await mountPreview(initial)
     currentMatch.selectMode('training')
     currentMatch.toggleCreaturePicker(0)
-    currentMatch.selectCreature(
-      arenaStoreMock.creatures.find((entry) => entry.key === 'training-eyebot')!
-    )
+    currentMatch.selectCreature(creatureKey('training-eyebot'))
     stateRef.value = { ...initial }
     await flushPromises()
     expect(currentMatch.mode).toBe('training')
     expect(currentMatch.opponentKeys).toEqual(['training-eyebot'])
     expect(currentMatch.canStart).toBe(false)
-    expect(
-      wrapper
-        .findAll('button')
-        .find((button) => button.text() === 'START FIGHT')!
-        .attributes('disabled')
-    ).toBeDefined()
+    expect(startButton(wrapper).attributes('disabled')).toBeDefined()
     expect(arenaStoreMock.setFighters).not.toHaveBeenCalled()
   })
 
@@ -337,38 +341,24 @@ describe('ArenaPreview', () => {
     expect(wrapper.findAll('.arena-dweller-silhouette')).toHaveLength(2)
   })
 
-  it('switches to the ring once the fight starts', async () => {
-    const wrapper = await mountPreview(state({ fight_started: true }))
-
-    expect(wrapper.find('.arena-ring').exists()).toBe(true)
-    expect(wrapper.find('.arena-preview').exists()).toBe(false)
-    expect(wrapper.findAll('.fighter-meters')).toHaveLength(2)
-  })
-
-  it('keeps setup actions read-only', async () => {
-    const wrapper = await mountPreview(state())
-
+  it('keeps setup activation read-only and forwards it during the fight', async () => {
+    const setup = await mountPreview(state())
     expect(
-      wrapper.get('button[aria-label^="Use Aimed Shot for a"]').attributes('disabled')
+      setup.get('button[aria-label^="Use Aimed Shot for a"]').attributes('disabled')
     ).toBeDefined()
-  })
 
-  it('passes fighter skill activation through during the fight', async () => {
-    const wrapper = await mountPreview(state({ fight_started: true }))
-    expect(
-      wrapper
-        .get('button[aria-label^="Use Aimed Shot for a"] [data-skill-icon]')
-        .attributes('data-skill-icon')
-    ).toBe('gun-rifle')
+    const fighting = await mountPreview(state({ fight_started: true }))
+    const control = fighting.get('button[aria-label^="Use Aimed Shot for a"]')
+    expect(control.get('[data-skill-icon]').attributes('data-skill-icon')).toBe('gun-rifle')
 
-    await wrapper.get('button[aria-label^="Use Aimed Shot for a"]').trigger('click')
+    await control.trigger('click')
 
     expect(emitted).toContainEqual({ event: 'skill', args: ['a'] })
   })
 
   it('switches the shared stage to four dweller slots for Team fight', async () => {
     const wrapper = await mountPreview(state())
-    const modes = wrapper.get('nav[aria-label="Match mode"]').findAll('button')
+    const modes = modeButtons(wrapper)
     expect(modes).toHaveLength(4)
     await modes.find((button) => button.text().includes('Team fight'))!.trigger('click')
     expect(currentMatch.mode).toBe('brawl')
@@ -377,17 +367,14 @@ describe('ArenaPreview', () => {
 
   it('disables modes the server has not unlocked', async () => {
     const wrapper = await mountPreview(state({ available_modes: ['duel'] }))
-    const modes = wrapper.get('nav[aria-label="Match mode"]').findAll('button')
+    const modes = modeButtons(wrapper)
     expect(modes[0].attributes('disabled')).toBeUndefined()
     for (const button of modes.slice(1)) expect(button.attributes('disabled')).toBeDefined()
   })
 
   it('starts the match directly from the shared setup', async () => {
     const wrapper = await mountPreview(state())
-    await wrapper
-      .findAll('button')
-      .find((button) => button.text() === 'START FIGHT')!
-      .trigger('click')
+    await startButton(wrapper).trigger('click')
     await flushPromises()
     expect(controller.startFight).toHaveBeenCalledWith(
       expect.objectContaining({ mode: 'duel', fighterAId: 'a', fighterBId: 'b' })
@@ -424,20 +411,16 @@ describe('ArenaPreview', () => {
       state({ mode: 'hunt', fighter_b_id: null, team_a: [fighter('a'), fighter('c')], team_b: [] })
     )
     currentMatch.toggleCreaturePicker(1)
-    currentMatch.selectCreature(arenaStoreMock.creatures.find((entry) => entry.key === 'bloatfly')!)
+    currentMatch.selectCreature(creatureKey('bloatfly'))
     expect(currentMatch.teamB[0]).toBeNull()
     expect(currentMatch.teamB[1]?.name).toBe('Bloatfly')
     currentMatch.toggleCreaturePicker(0)
-    currentMatch.selectCreature(
-      arenaStoreMock.creatures.find((entry) => entry.key === 'deathclaw')!
-    )
+    currentMatch.selectCreature(creatureKey('deathclaw'))
     currentMatch.clearCreature('deathclaw')
     expect(currentMatch.teamB[0]).toBeNull()
     expect(currentMatch.teamB[1]?.name).toBe('Bloatfly')
     currentMatch.toggleCreaturePicker(0)
-    currentMatch.selectCreature(
-      arenaStoreMock.creatures.find((entry) => entry.key === 'deathclaw')!
-    )
+    currentMatch.selectCreature(creatureKey('deathclaw'))
     await currentMatch.startFight()
     expect(controller.startFight).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -467,7 +450,7 @@ describe('ArenaPreview', () => {
     expect(currentMatch.creaturePickerOptions.every((entry) => entry.is_robot)).toBe(true)
     for (const [index, key] of ['training-eyebot', 'training-protectron'].entries()) {
       currentMatch.toggleCreaturePicker(index)
-      currentMatch.selectCreature(arenaStoreMock.creatures.find((entry) => entry.key === key)!)
+      currentMatch.selectCreature(creatureKey(key))
     }
     await flushPromises()
     expect(wrapper.findAll('button[aria-label^="Select bot"]')).toHaveLength(2)

@@ -86,35 +86,28 @@ async def test_the_next_find_is_refused_logs_one_event_and_leaves_the_run_active
     assert run.recalled_early is False
 
 
-async def test_a_refused_find_hands_its_record_back_for_live_delivery(
+async def test_a_refused_find_logs_once_per_attempt_and_hands_its_record_back(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
 ) -> None:
-    """The refusal is saved and also published: a live subscriber sees what stayed behind."""
+    """Each refusal is saved and published: a live subscriber sees what stayed behind."""
     run = await _active_run(async_session, vault, dweller, strength=1)
     _fill_pack(run, run.carry_capacity)
+    assert apply_loot_find(run, item_name="Wonderglue", rarity="Common", item_type="junk", caps=0) is False
+    assert apply_loot_find(run, item_name="Duct tape", rarity="Common", item_type="junk", caps=0) is False
+    assert len(_pack_full_events(run)) == 2
+
     loot = SimpleNamespace(
         loot=SimpleNamespace(item=SimpleNamespace(name="Combat Rifle", rarity="Common"), item_type="junk", caps=0)
     )
-
     records = await event_service._handle_loot_event(async_session, run, loot)
 
     assert [record["type"] for record in records] == [ExplorationEventType.PACK_FULL]
     assert "Combat Rifle" in records[0]["description"]
-
-
-async def test_a_second_refusal_logs_again_and_still_leaves_the_run_active(
-    async_session: AsyncSession, vault: Vault, dweller: Dweller
-) -> None:
-    run = await _active_run(async_session, vault, dweller, strength=1)
-    _fill_pack(run, 17)
-
-    assert apply_loot_find(run, item_name="Wonderglue", rarity="Common", item_type="junk", caps=0) is False
-    assert apply_loot_find(run, item_name="Duct tape", rarity="Common", item_type="junk", caps=0) is False
-
-    assert len(_pack_full_events(run)) == 2
+    # The loot path never owns the run lifecycle; the game tick sends the dweller home.
     assert run.status == ExplorationStatus.ACTIVE
     assert run.return_started_at is None
     assert run.return_completes_at is None
+    assert run.recalled_early is False
 
 
 async def test_a_full_pack_does_not_touch_an_already_returning_run(

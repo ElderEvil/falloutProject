@@ -1,4 +1,3 @@
-from collections.abc import Awaitable, Callable
 from datetime import timedelta
 from unittest.mock import AsyncMock, patch
 
@@ -7,126 +6,48 @@ import pytest_asyncio
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.core.enums import OutfitTypeEnum, RarityEnum, WeaponSubtypeEnum, WeaponTypeEnum, WorldEventStatus
-from app.crud.vault import vault as vault_crud
+from app.core.enums import OutfitTypeEnum, RarityEnum, WorldEventStatus
 from app.models.dweller import Dweller
 from app.models.exploration import Exploration
 from app.models.junk import Junk
 from app.models.outfit import Outfit
-from app.models.storage import Storage
 from app.models.vault import Vault
 from app.models.weapon import Weapon
 from app.models.world_event import WorldEvent, WorldEventParticipation
-from app.schemas.exploration_event import (
-    ItemSchema,
-    LootEventSchema,
-    LootSchema,
-    OutfitSchema,
-    WeaponSchema,
-)
+from app.schemas.exploration_event import ItemSchema, LootEventSchema, LootSchema, OutfitSchema
 from app.services.exploration.coordinator import exploration_coordinator
 from app.services.exploration.event_service import event_service
 from app.services.exploration.rewards_service import rewards_service
 from app.services.exploration_service import exploration_service
 from app.services.world_event_service import world_event_service
+from app.tests.factory.exploration_loot import (
+    equip_outfit as _equip_outfit,
+)
+from app.tests.factory.exploration_loot import (
+    equip_weapon as _equip_weapon,
+)
+from app.tests.factory.exploration_loot import (
+    process_loot_event as _process_loot_event,
+)
+from app.tests.factory.exploration_loot import (
+    vault_storage_factory,
+)
+from app.tests.factory.exploration_loot import (
+    weapon_loot_event as _weapon_loot_event,
+)
 from app.utils.exceptions import ValidationException
 from app.utils.time import utcnow
+
+
+@pytest_asyncio.fixture
+async def make_vault_storage(async_session: AsyncSession, vault: Vault):
+    return await vault_storage_factory(async_session, vault)
+
 
 JUNK_LOOT = LootEventSchema(
     description="Found some Wonderglue",
     loot=LootSchema(item=ItemSchema(name="Wonderglue", rarity="Common", value=5), item_type="junk", caps=0),
 )
-
-
-async def _ensure_vault_storage(async_session: AsyncSession, vault_id) -> Storage:
-    result = await async_session.execute(select(Storage).where(Storage.vault_id == vault_id))
-    storage = result.scalar_one_or_none()
-    if storage is None:
-        storage = await vault_crud.create_storage(db_session=async_session, vault_id=vault_id)
-    return storage
-
-
-@pytest_asyncio.fixture
-async def make_vault_storage(async_session: AsyncSession, vault: Vault) -> Callable[[int], Awaitable[Storage]]:
-    """Factory for the test vault's storage, emptied and sized via max_space."""
-    storage = await _ensure_vault_storage(async_session, vault.id)
-
-    async def _make(max_space: int = 10) -> Storage:
-        storage.max_space = max_space
-        storage.used_space = 0
-        async_session.add(storage)
-        await async_session.flush()
-        return storage
-
-    return _make
-
-
-async def _equip_weapon(
-    async_session: AsyncSession,
-    dweller: Dweller,
-    *,
-    name: str,
-    rarity: RarityEnum,
-    damage_min: int,
-    damage_max: int,
-    value: int = 10,
-) -> Weapon:
-    weapon = Weapon(
-        name=name,
-        rarity=rarity,
-        value=value,
-        weapon_type=WeaponTypeEnum.GUN,
-        weapon_subtype=WeaponSubtypeEnum.PISTOL,
-        stat="agility",
-        damage_min=damage_min,
-        damage_max=damage_max,
-        dweller_id=dweller.id,
-    )
-    async_session.add(weapon)
-    await async_session.flush()
-    return weapon
-
-
-async def _equip_outfit(
-    async_session: AsyncSession,
-    dweller: Dweller,
-    *,
-    name: str,
-    rarity: RarityEnum,
-    value: int,
-    outfit_type: OutfitTypeEnum,
-) -> Outfit:
-    outfit = Outfit(name=name, rarity=rarity, value=value, outfit_type=outfit_type, dweller_id=dweller.id)
-    async_session.add(outfit)
-    await async_session.flush()
-    return outfit
-
-
-def _weapon_loot_event(name: str, rarity: str, damage_min: int, damage_max: int, value: int) -> LootEventSchema:
-    item = WeaponSchema(
-        name=name,
-        rarity=rarity,
-        value=value,
-        weapon_type="MELEE",
-        weapon_subtype="BLUNT",
-        stat="strength",
-        damage_min=damage_min,
-        damage_max=damage_max,
-    )
-    return LootEventSchema(description=f"Found a {name}", loot=LootSchema(item=item, item_type="weapon", caps=5))
-
-
-async def _process_loot_event(async_session: AsyncSession, exploration, loot_event: LootEventSchema) -> AsyncMock:
-    with (
-        patch("app.services.exploration.event_service.event_generator.generate_event", return_value=loot_event),
-        patch("app.services.exploration.event_service.sse_manager.publish", new_callable=AsyncMock),
-        patch(
-            "app.services.exploration.event_service.notification_service.notify_exploration_update",
-            new_callable=AsyncMock,
-        ) as notify,
-    ):
-        await event_service.process_event(async_session, exploration)
-    return notify
 
 
 async def _finish(async_session: AsyncSession, exploration, *, recalled: bool = False, **fields) -> None:
@@ -143,17 +64,29 @@ async def _finish(async_session: AsyncSession, exploration, *, recalled: bool = 
     await async_session.commit()
 
 
+async def _looted_run(async_session: AsyncSession, vault: Vault, dweller: Dweller, *loot: tuple):
+    """A free-roam run carrying the loot entries under test, as (name, quantity, rarity, type) rows."""
+    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
+    for name, quantity, rarity, item_type in loot:
+        exploration.add_loot(item_name=name, quantity=quantity, rarity=rarity, item_type=item_type)
+    async_session.add(exploration)
+    await async_session.flush()
+    await async_session.refresh(exploration)
+    return exploration
+
+
 async def test_transfer_skips_medical_loot_entries(
     async_session: AsyncSession, vault: Vault, dweller: Dweller, make_vault_storage
 ) -> None:
     await make_vault_storage(5)
-    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
-    exploration.add_loot(item_name="Stimpak", quantity=1, rarity="Common", item_type="stimpak")
-    exploration.add_loot(item_name="RadAway", quantity=1, rarity="Common", item_type="radaway")
-    exploration.add_loot(item_name="Wonderglue", quantity=1, rarity="Common", item_type="junk")
-    async_session.add(exploration)
-    await async_session.flush()
-    await async_session.refresh(exploration)
+    exploration = await _looted_run(
+        async_session,
+        vault,
+        dweller,
+        ("Stimpak", 1, "Common", "stimpak"),
+        ("RadAway", 1, "Common", "radaway"),
+        ("Wonderglue", 1, "Common", "junk"),
+    )
     result = await rewards_service._transfer_loot_to_storage(async_session, exploration)
     assert [item["item_type"] for item in result["transferred"]] == ["junk"]
     junk_names = {
@@ -167,11 +100,12 @@ async def test_transfer_missing_weapon_data_holds_item_as_overflow(
     async_session: AsyncSession, vault: Vault, dweller: Dweller, make_vault_storage
 ) -> None:
     storage = await make_vault_storage()
-    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
-    exploration.add_loot(item_name="NonExistentWeapon12345", quantity=1, rarity="Legendary", item_type="weapon")
-    async_session.add(exploration)
-    await async_session.flush()
-    await async_session.refresh(exploration)
+    exploration = await _looted_run(
+        async_session,
+        vault,
+        dweller,
+        ("NonExistentWeapon12345", 1, "Legendary", "weapon"),
+    )
     result = await rewards_service._transfer_loot_to_storage(async_session, exploration)
     assert result["transferred"] == []
     assert [item["item_name"] for item in result["overflow"]] == ["NonExistentWeapon12345"]
@@ -184,11 +118,12 @@ async def test_transfer_invalid_rarity_defaults_to_common(
 ) -> None:
     storage = await make_vault_storage()
     await async_session.flush()
-    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
-    exploration.add_loot(item_name="Test Item", quantity=1, rarity="InvalidRarity", item_type="junk")
-    async_session.add(exploration)
-    await async_session.flush()
-    await async_session.refresh(exploration)
+    exploration = await _looted_run(
+        async_session,
+        vault,
+        dweller,
+        ("Test Item", 1, "InvalidRarity", "junk"),
+    )
     result = await rewards_service._transfer_loot_to_storage(async_session, exploration)
     assert len(result["transferred"]) == 1
     assert result["transferred"][0]["item_name"] == "Test Item"

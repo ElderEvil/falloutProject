@@ -337,14 +337,6 @@ async def test_location_detail_prefers_canonical_description_then_group_lore(asy
     assert detail.description == "Canonical lore"
 
 
-async def _elapsed_red_rocket(async_session, vault, dweller):
-    await _register(async_session, dweller, "Red Rocket")
-    state = await _state_for(async_session, vault, "Red Rocket")
-    state.reclear_available_at = utcnow() - timedelta(hours=1)
-    await async_session.commit()
-    return state
-
-
 async def test_sweep_reclears_only_elapsed_rows_and_notifies_once(async_session, vault, dweller):
     await _register(async_session, dweller, "Red Rocket")
     state = await _state_for(async_session, vault, "Red Rocket")
@@ -426,11 +418,7 @@ async def test_expedition_sites_ready_catalog(async_session, vault):
             round(site.coord_y * WORLD_SCALE, 1),
             site.min_dweller_level,
         )
-    assert {site_id: marker.room_total for site_id, marker in sites.items()} == {
-        "red_rocket": 3,
-        "super_duper_mart": 4,
-        **dict.fromkeys(_ONE_ROOM_SITES, 1),
-    }
+    assert {site_id: marker.room_total for site_id, marker in sites.items()} == _READY_SITES
 
 
 @pytest.mark.parametrize(

@@ -404,8 +404,10 @@ describe('MarkerListPanel', () => {
 
 describe('MarkerListPanel — sets tab', () => {
   it('shows the sets tab only while sets exist and falls back to places when they vanish', async () => {
+    // `open` is required: without it the panel renders `display: none` and every
+    // visibility assertion below would be checked against a hidden tree.
     const wrapper = mountPanel(
-      { hasSets: true },
+      { hasSets: true, open: true },
       { slots: { legend: '<p>Full map legend</p>', sets: '<p>Set progress body</p>' } }
     )
     expect(wrapper.findAll('[role="tab"]').map((tab) => tab.text())).toEqual([

@@ -133,6 +133,23 @@ describe('Map Store', () => {
       expect(store.collectibleSets).toEqual(sets)
     })
 
+    it('clears the previous vault map data when a switch fails part-way', async () => {
+      const store = useMapStore()
+      const sets = [{ set: 'comics', name: 'Comics', held: 4, required: 4, active: true }]
+      vi.mocked(mapService.getVaultMap).mockResolvedValueOnce({
+        ...mockMapResponse,
+        collectible_sets: sets,
+      })
+      await store.fetchMap('vault-1')
+
+      vi.mocked(mapService.getVaultMap).mockRejectedValueOnce(new Error('offline'))
+      await store.fetchMap('vault-2')
+
+      expect(store.error).toBe('Failed to load map')
+      expect(store.locations).toEqual([])
+      expect(store.collectibleSets).toEqual([])
+    })
+
     it('stores the place-group catalog and indexes it by key', async () => {
       const groups = [
         {

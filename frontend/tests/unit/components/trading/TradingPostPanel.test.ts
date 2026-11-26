@@ -65,10 +65,18 @@ const result = (overrides: Partial<TradeResultResponse> = {}): TradeResultRespon
   ...overrides,
 })
 
-const findButton = (wrapper: ReturnType<typeof mountWithSetup>, label: string) =>
-  wrapper.findAll('button').find((button) => button.text().includes(label))!
+function findButton(wrapper: ReturnType<typeof mountWithSetup>, label: string) {
+  const found = wrapper.findAll('button').find((button) => button.text().includes(label))
+  if (!found) throw new Error(`No button labelled "${label}"`)
+  return found
+}
 
-const mountPanel = (vaultId = 'vault-1') => mountWithSetup(TradingPostPanel, { props: { vaultId } })
+/** Mounts the panel and lets its market load settle. */
+const mountPanel = async (vaultId = 'vault-1') => {
+  const wrapper = mountWithSetup(TradingPostPanel, { props: { vaultId } })
+  await flushPromises()
+  return wrapper
+}
 
 describe('TradingPostPanel', () => {
   beforeEach(() => {
@@ -87,8 +95,7 @@ describe('TradingPostPanel', () => {
         bottle_caps: 500,
       })
     )
-    const wrapper = mountPanel()
-    await flushPromises()
+    const wrapper = await mountPanel()
 
     expect(tradingService.getMarket).toHaveBeenCalledWith('vault-1')
     expect(wrapper.text()).toContain('500 caps')
@@ -98,8 +105,7 @@ describe('TradingPostPanel', () => {
   })
 
   it('shows empty-state hints when there is nothing to trade', async () => {
-    const wrapper = mountPanel()
-    await flushPromises()
+    const wrapper = await mountPanel()
 
     expect(wrapper.text()).toContain('Soft-delete a dweller to list them here.')
     expect(wrapper.text()).toContain('No dwellers on the market right now.')
@@ -108,8 +114,7 @@ describe('TradingPostPanel', () => {
   it('sells a listed dweller and refreshes the market', async () => {
     vi.mocked(tradingService.getMarket).mockResolvedValue(market({ my_listings: [offer()] }))
     vi.mocked(tradingService.sellDweller).mockResolvedValue(result())
-    const wrapper = mountPanel()
-    await flushPromises()
+    const wrapper = await mountPanel()
 
     await findButton(wrapper, 'Sell').trigger('click')
     await flushPromises()
@@ -122,8 +127,7 @@ describe('TradingPostPanel', () => {
   it('buys a market dweller and reports the price', async () => {
     vi.mocked(tradingService.getMarket).mockResolvedValue(market({ market_offers: [offer()] }))
     vi.mocked(tradingService.buyDweller).mockResolvedValue(result({ bottle_caps: 400 }))
-    const wrapper = mountPanel()
-    await flushPromises()
+    const wrapper = await mountPanel()
 
     await findButton(wrapper, 'Buy').trigger('click')
     await flushPromises()
@@ -137,8 +141,7 @@ describe('TradingPostPanel', () => {
     vi.mocked(tradingService.getMarket).mockResolvedValue(
       market({ market_offers: [offer({ price: 900 })], bottle_caps: 500 })
     )
-    const wrapper = mountPanel()
-    await flushPromises()
+    const wrapper = await mountPanel()
 
     expect(findButton(wrapper, 'Buy').attributes('disabled')).toBeDefined()
   })
@@ -156,8 +159,7 @@ describe('TradingPostPanel', () => {
         market_offers: [offer({ dweller: dweller({ id: 'dweller-2' }) })],
       })
     )
-    const wrapper = mountPanel()
-    await flushPromises()
+    const wrapper = await mountPanel()
 
     const sellButton = findButton(wrapper, 'Sell')
     await sellButton.trigger('click')
@@ -178,15 +180,13 @@ describe('TradingPostPanel', () => {
 
   it('reports a market load failure through the toast', async () => {
     vi.mocked(tradingService.getMarket).mockRejectedValue(new Error('boom'))
-    const wrapper = mountPanel()
-    await flushPromises()
+    const wrapper = await mountPanel()
 
     expect(mockToast.error).toHaveBeenCalledWith('boom')
   })
 
   it('refetches the market when the vault changes', async () => {
-    const wrapper = mountPanel()
-    await flushPromises()
+    const wrapper = await mountPanel()
 
     await wrapper.setProps({ vaultId: 'vault-2' })
     await flushPromises()

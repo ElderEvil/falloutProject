@@ -262,15 +262,9 @@ async def test_advance_completion_notifies_participants_only(async_session: Asyn
     notified = await _completed_notifications(async_session)
     assert sorted(notified) == sorted(participant.id for participant in participants)
     assert bystander.id not in notified
-
-
-async def test_second_advance_does_not_renotify(async_session: AsyncSession) -> None:
-    event = await seed_event(async_session, target=10, progress=10)
-    vault = await _create_vault(async_session)
-    await _seed_participation(async_session, event, vault.id, 10)
-    await svc.advance(async_session)
-    await svc.advance(async_session)
-    assert len(await _completed_notifications(async_session)) == 1
+    # A second advance must not re-notify anyone.
+    assert await svc.advance(async_session) is None
+    assert await _completed_notifications(async_session) == notified
 
 
 async def test_advance_extends_once_then_expires(async_session: AsyncSession) -> None:

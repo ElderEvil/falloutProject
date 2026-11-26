@@ -49,6 +49,16 @@ const spaceData = {
   radaway: 0,
 }
 
+/** Every bucket the storage payload carries, empty. */
+const noItems = () => ({ weapons: [], outfits: [], junk: [], items: [], pets: [] })
+
+const withSupplies = (...items: Record<string, unknown>[]) => ({ ...noItems(), items })
+
+const lunchbox = { id: 'box-1', name: 'Lunchbox', item_type: 'lunchbox', value: 500 }
+const petCarrier = { id: 'carrier-1', name: 'Pet Carrier', item_type: 'pet_carrier', value: 10 }
+
+const lunchboxResult = { items: [], dweller: { name: 'Lucy', rarity: 'rare' } }
+
 const petFixture = (overrides: Record<string, unknown> = {}) => ({
   id: 'pet-1',
   name: 'Dogmeat',
@@ -92,11 +102,7 @@ describe('StorageView', () => {
     localStorage.setItem('token', 'test-token')
     localStorage.setItem(
       'user',
-      JSON.stringify({
-        id: 'test-user-id',
-        username: 'testuser',
-        email: 'test@example.com',
-      })
+      JSON.stringify({ id: 'test-user-id', username: 'testuser', email: 'test@example.com' })
     )
 
     useAuthStore()
@@ -139,6 +145,15 @@ describe('StorageView', () => {
     await flushPromises()
   }
 
+  /** Mount with one sealed supply, switch to its tab and open the preview. */
+  async function openPreview(item: Record<string, unknown>) {
+    const wrapper = await mountWith(withSupplies(item))
+    await clickTab(wrapper, 'Supplies')
+    wrapper.findComponent({ name: 'StorageItemCard' }).vm.$emit('open')
+    await flushPromises()
+    return wrapper
+  }
+
   it.each([
     ['rusting', 0, 0.02],
     ['stable', 2, 0],
@@ -146,18 +161,16 @@ describe('StorageView', () => {
   ] as const)(
     'shows the %s maintenance badge with workers and trial odds',
     async (mode, workers, chance) => {
-      const wrapper = await mountWith(
-        { weapons: [], outfits: [], junk: [], items: [], pets: [] },
-        {
-          enabled: true,
-          mode,
-          worker_count: workers,
-          total_endurance: workers * 10,
-          protection_pct: Math.min(workers * 50, 100),
-          hourly_chance: chance,
-          trial_interval_seconds: 3600,
-        }
-      )
+      const wrapper = await mountWith(noItems(), {
+        enabled: true,
+        mode,
+        worker_count: workers,
+        total_endurance: workers * 10,
+        protection_pct: Math.min(workers * 50, 100),
+        hourly_chance: chance,
+        trial_interval_seconds: 3600,
+      })
+
       expect(wrapper.text()).toContain(mode.charAt(0).toUpperCase() + mode.slice(1))
       expect(wrapper.text()).toContain(
         `${workers} workers · ${(chance * 100).toFixed(1)}% per trial`
@@ -167,7 +180,8 @@ describe('StorageView', () => {
   )
 
   it('hides the maintenance badge when disabled', async () => {
-    const wrapper = await mountWith({ weapons: [], outfits: [], junk: [], items: [], pets: [] })
+    const wrapper = await mountWith(noItems())
+
     expect(wrapper.text()).not.toContain('per trial')
     wrapper.unmount()
   })
@@ -176,16 +190,7 @@ describe('StorageView', () => {
     vi.mocked(axios.post).mockResolvedValue({
       data: { reward_type: 'pet_carrier', pet: petFixture({ name: 'Husky', rarity: 'rare' }) },
     })
-    const wrapper = await mountWith({
-      weapons: [],
-      outfits: [],
-      junk: [],
-      pets: [],
-      items: [{ id: 'carrier-1', name: 'Pet Carrier', item_type: 'pet_carrier', value: 10 }],
-    })
-    await clickTab(wrapper, 'Supplies')
-    wrapper.findComponent({ name: 'StorageItemCard' }).vm.$emit('open')
-    await flushPromises()
+    const wrapper = await openPreview(petCarrier)
 
     const modal = wrapper.findComponent(PetCarrierOpenModal)
     expect(modal.props('show')).toBe(true)
@@ -202,23 +207,15 @@ describe('StorageView', () => {
   })
 
   it('keeps a lunchbox unopened when its sealed preview is dismissed', async () => {
-    vi.mocked(axios.post).mockResolvedValue({
-      data: { items: [], dweller: { name: 'Lucy', rarity: 'rare' } },
-    })
-    const wrapper = await mountWith({
-      weapons: [],
-      outfits: [],
-      junk: [],
-      pets: [],
-      items: [{ id: 'box-1', name: 'Lunchbox', item_type: 'lunchbox', value: 500 }],
-    })
-    await clickTab(wrapper, 'Supplies')
-    wrapper.findComponent({ name: 'StorageItemCard' }).vm.$emit('open')
-    await flushPromises()
+    vi.mocked(axios.post).mockResolvedValue({ data: lunchboxResult })
+    const wrapper = await openPreview(lunchbox)
+
     expect(wrapper.findComponent(LunchboxOpenModal).props('show')).toBe(true)
     expect(axios.post).not.toHaveBeenCalled()
+
     wrapper.findComponent(LunchboxOpenModal).vm.$emit('close')
     await flushPromises()
+
     expect(axios.post).not.toHaveBeenCalled()
     expect(wrapper.findComponent(LunchboxOpenModal).props('show')).toBe(false)
     wrapper.unmount()
@@ -232,16 +229,8 @@ describe('StorageView', () => {
           finish = resolve
         })
     )
-    const wrapper = await mountWith({
-      weapons: [],
-      outfits: [],
-      junk: [],
-      pets: [],
-      items: [{ id: 'box-1', name: 'Lunchbox', item_type: 'lunchbox', value: 500 }],
-    })
-    await clickTab(wrapper, 'Supplies')
-    wrapper.findComponent({ name: 'StorageItemCard' }).vm.$emit('open')
-    await flushPromises()
+    const wrapper = await openPreview(lunchbox)
+
     const modal = wrapper.findComponent(LunchboxOpenModal)
     modal.vm.$emit('reveal')
     modal.vm.$emit('reveal')
@@ -250,14 +239,17 @@ describe('StorageView', () => {
     expect(axios.post).toHaveBeenCalledWith('/api/v1/storage/vault/vault-1/lunchbox/open', {
       item_id: 'box-1',
     })
+
     modal.vm.$emit('close')
     await flushPromises()
     expect(modal.props('show')).toBe(true)
     expect(modal.props('opening')).toBe(true)
-    finish({ data: { items: [], dweller: { name: 'Lucy', rarity: 'rare' } } })
+
+    finish({ data: lunchboxResult })
     await flushPromises()
     expect(modal.props('opening')).toBe(false)
     expect(modal.props('result')?.dweller.name).toBe('Lucy')
+
     modal.vm.$emit('close')
     await flushPromises()
     expect(vaultStore.refreshVault).toHaveBeenCalledWith('vault-1')
@@ -266,25 +258,16 @@ describe('StorageView', () => {
 
   it('keeps opening errors in the sealed preview and lets the player retry', async () => {
     vi.mocked(axios.post).mockRejectedValueOnce(new Error('Not enough storage'))
-    const wrapper = await mountWith({
-      weapons: [],
-      outfits: [],
-      junk: [],
-      pets: [],
-      items: [{ id: 'box-1', name: 'Lunchbox', item_type: 'lunchbox', value: 500 }],
-    })
-    await clickTab(wrapper, 'Supplies')
-    wrapper.findComponent({ name: 'StorageItemCard' }).vm.$emit('open')
-    await flushPromises()
+    const wrapper = await openPreview(lunchbox)
+
     const modal = wrapper.findComponent(LunchboxOpenModal)
     modal.vm.$emit('reveal')
     await flushPromises()
     expect(modal.props('show')).toBe(true)
     expect(modal.props('result')).toBeNull()
     expect(modal.props('error')).toBe('Not enough storage')
-    vi.mocked(axios.post).mockResolvedValueOnce({
-      data: { items: [], dweller: { name: 'Lucy', rarity: 'rare' } },
-    })
+
+    vi.mocked(axios.post).mockResolvedValueOnce({ data: lunchboxResult })
     modal.vm.$emit('reveal')
     await flushPromises()
     expect(modal.props('error')).toBeNull()
@@ -296,14 +279,11 @@ describe('StorageView', () => {
     'keeps surviving cards mounted during a %s refresh',
     async (action) => {
       const items = {
+        ...noItems(),
         weapons: [
           { id: 'w1', name: 'Pistol', rarity: 'common', value: 10 },
           { id: 'w2', name: 'Rifle', rarity: 'common', value: 20 },
         ],
-        outfits: [],
-        junk: [],
-        items: [],
-        pets: [],
       }
       const wrapper = await mountWith(items)
       const cards = wrapper.findAllComponents({ name: 'StorageItemCard' })
@@ -317,6 +297,7 @@ describe('StorageView', () => {
           finishRefresh = resolve
         })
       })
+
       cards[0]!.vm.$emit(action)
       await flushPromises()
       expect(wrapper.text()).not.toContain('Loading storage...')
@@ -326,6 +307,7 @@ describe('StorageView', () => {
         await button.trigger('click')
       }
       expect(axios.post).toHaveBeenCalledTimes(1)
+
       finishRefresh({ data: { ...items, weapons: [items.weapons[1]] } })
       await flushPromises()
       expect(wrapper.findAllComponents({ name: 'StorageItemCard' })[0]!.element).toBe(survivor)
@@ -340,11 +322,8 @@ describe('StorageView', () => {
 
   it('does not show a load error when a tick supersedes a sell refresh', async () => {
     const items = {
+      ...noItems(),
       weapons: [{ id: 'w1', name: 'Pistol', rarity: 'common', value: 10 }],
-      outfits: [],
-      junk: [],
-      items: [],
-      pets: [],
     }
     const wrapper = await mountWith(items)
     const pending: Array<{ url: string; resolve: (response: { data: unknown }) => void }> = []
@@ -355,11 +334,13 @@ describe('StorageView', () => {
         })
     )
     vi.mocked(axios.post).mockResolvedValue({ data: {} })
+
     wrapper.findComponent({ name: 'StorageItemCard' }).vm.$emit('sell')
     await flushPromises()
     expect(pending).toHaveLength(3)
     useStorageStore().refreshIfActive('vault-1')
     expect(pending).toHaveLength(6)
+
     const complete = ({ url, resolve }: (typeof pending)[number]) =>
       resolve({
         data: url.endsWith('/maintenance')
@@ -373,6 +354,7 @@ describe('StorageView', () => {
     pending.slice(0, 3).forEach(complete)
     await flushPromises()
     expect(mockToast.error).not.toHaveBeenCalled()
+
     wrapper.unmount()
     vi.mocked(axios.get).mockClear()
     useStorageStore().refreshIfActive('vault-1')
@@ -381,10 +363,7 @@ describe('StorageView', () => {
 
   it('renders returned pets with name and art in the pets tab', async () => {
     const wrapper = await mountWith({
-      weapons: [],
-      outfits: [],
-      junk: [],
-      items: [],
+      ...noItems(),
       pets: [
         petFixture(),
         petFixture({ id: 'pet-2', name: 'CX404', image_url: null, rarity: 'rare' }),
@@ -392,7 +371,6 @@ describe('StorageView', () => {
     })
 
     expect(wrapper.text()).toContain('Pets (2)')
-
     await clickTab(wrapper, 'Pets')
 
     // Name + rarity render on the card
@@ -414,11 +392,8 @@ describe('StorageView', () => {
 
   it('shows the pets empty state when no pets are stored', async () => {
     const wrapper = await mountWith({
-      weapons: [],
-      outfits: [],
+      ...noItems(),
       junk: [{ id: 'j1', name: 'Desk Fan', rarity: 'common', value: 10 }],
-      items: [],
-      pets: [],
     })
 
     await clickTab(wrapper, 'Pets')
@@ -428,13 +403,7 @@ describe('StorageView', () => {
   })
 
   it('offers header help about vault storage', async () => {
-    const wrapper = await mountWith({
-      weapons: [],
-      outfits: [],
-      junk: [],
-      items: [],
-      pets: [],
-    })
+    const wrapper = await mountWith(noItems())
 
     // PageHelp loads asynchronously, so poll instead of assuming mountWith's
     // single flush settles the dynamic import.
@@ -444,6 +413,7 @@ describe('StorageView', () => {
     expect(wrapper.text()).not.toContain(
       'Storage workers pool END across the vault, including equipment bonuses.'
     )
+
     await wrapper.find('button[aria-label="About Vault Storage"]').trigger('click')
     await flushPromises()
     expect(document.body.textContent?.replace(/\s+/g, ' ')).toContain(

@@ -2,88 +2,35 @@ import { describe, it, expect } from 'vite-plus/test'
 import { mount } from '@vue/test-utils'
 import FormattedChangeDescription from '@/modules/profile/components/FormattedChangeDescription.vue'
 
+const render = (description: string) =>
+  mount(FormattedChangeDescription, { props: { description } })
+
 describe('FormattedChangeDescription', () => {
-  describe('Plain Text Parsing', () => {
-    it('should render plain text without formatting', () => {
-      const wrapper = mount(FormattedChangeDescription, {
-        props: {
-          description: 'This is plain text',
-        },
-      })
-
-      expect(wrapper.text()).toBe('This is plain text')
+  describe('plain text', () => {
+    it.each([
+      ['plain text without formatting', 'This is plain text', 'This is plain text'],
+      ['text starting with "h" (regression test for infinite loop)', 'hello world', 'hello world'],
+      ['a single character "h"', 'h', 'h'],
+      ['multiple "h" characters', 'hhhhh', 'hhhhh'],
+      [
+        'text with many "h" characters scattered throughout',
+        'the happy horse has huge horns',
+        'the happy horse has huge horns',
+      ],
+      ['an empty string', '', ''],
+      ['a whitespace-only string', '   ', ''],
+    ])('renders %s verbatim', (_label, description, expected) => {
+      expect(render(description).text()).toBe(expected)
     })
 
-    it('should handle text starting with "h" (regression test for infinite loop)', () => {
-      const wrapper = mount(FormattedChangeDescription, {
-        props: {
-          description: 'hello world',
-        },
-      })
-
-      expect(wrapper.text()).toBe('hello world')
-      expect(wrapper.find('span').exists()).toBe(true)
-    })
-
-    it('should handle single character "h"', () => {
-      const wrapper = mount(FormattedChangeDescription, {
-        props: {
-          description: 'h',
-        },
-      })
-
-      expect(wrapper.text()).toBe('h')
-    })
-
-    it('should handle multiple "h" characters', () => {
-      const wrapper = mount(FormattedChangeDescription, {
-        props: {
-          description: 'hhhhh',
-        },
-      })
-
-      expect(wrapper.text()).toBe('hhhhh')
-    })
-
-    it('should handle text with many "h" characters scattered throughout', () => {
-      const wrapper = mount(FormattedChangeDescription, {
-        props: {
-          description: 'the happy horse has huge horns',
-        },
-      })
-
-      expect(wrapper.text()).toBe('the happy horse has huge horns')
-    })
-
-    it('should handle empty string', () => {
-      const wrapper = mount(FormattedChangeDescription, {
-        props: {
-          description: '',
-        },
-      })
-
-      expect(wrapper.text()).toBe('')
-    })
-
-    it('should handle whitespace-only string', () => {
-      const wrapper = mount(FormattedChangeDescription, {
-        props: {
-          description: '   ',
-        },
-      })
-
-      // Vue's .text() method normalizes whitespace, so whitespace-only becomes empty
-      expect(wrapper.text()).toBe('')
+    it('wraps plain text in a span', () => {
+      expect(render('hello world').find('span').exists()).toBe(true)
     })
   })
 
-  describe('Code Block Parsing', () => {
-    it('should render code blocks with backticks', () => {
-      const wrapper = mount(FormattedChangeDescription, {
-        props: {
-          description: 'Use `const x = 5` in your code',
-        },
-      })
+  describe('code blocks', () => {
+    it('renders a code block with backticks alongside its prose', () => {
+      const wrapper = render('Use `const x = 5` in your code')
 
       expect(wrapper.text()).toContain('Use')
       expect(wrapper.text()).toContain('const x = 5')
@@ -92,38 +39,23 @@ describe('FormattedChangeDescription', () => {
       expect(wrapper.find('code').text()).toBe('const x = 5')
     })
 
-    it('should handle multiple code blocks', () => {
-      const wrapper = mount(FormattedChangeDescription, {
-        props: {
-          description: 'Use `var1` and `var2` together',
-        },
-      })
+    it('renders each backticked segment as its own code block', () => {
+      const codeElements = render('Use `var1` and `var2` together').findAll('code')
 
-      const codeElements = wrapper.findAll('code')
-      expect(codeElements.length).toBe(2)
-      expect(codeElements[0].text()).toBe('var1')
-      expect(codeElements[1].text()).toBe('var2')
+      expect(codeElements.map((element) => element.text())).toEqual(['var1', 'var2'])
     })
 
-    it('should handle code block at start of text', () => {
-      const wrapper = mount(FormattedChangeDescription, {
-        props: {
-          description: '`hello` is a greeting',
-        },
-      })
+    it('renders a code block at the start of the text', () => {
+      const wrapper = render('`hello` is a greeting')
 
       expect(wrapper.find('code').text()).toBe('hello')
       expect(wrapper.text()).toContain('is a greeting')
     })
   })
 
-  describe('Bold Text Parsing', () => {
-    it('should render bold text with double asterisks', () => {
-      const wrapper = mount(FormattedChangeDescription, {
-        props: {
-          description: 'This is **bold** text',
-        },
-      })
+  describe('bold text', () => {
+    it('renders bold text with double asterisks alongside its prose', () => {
+      const wrapper = render('This is **bold** text')
 
       expect(wrapper.text()).toContain('This is')
       expect(wrapper.text()).toContain('bold')
@@ -132,116 +64,71 @@ describe('FormattedChangeDescription', () => {
       expect(wrapper.find('strong').text()).toBe('bold')
     })
 
-    it('should handle multiple bold segments', () => {
-      const wrapper = mount(FormattedChangeDescription, {
-        props: {
-          description: '**First** and **Second** are bold',
-        },
-      })
+    it('renders each bold segment as its own strong element', () => {
+      const strongElements = render('**First** and **Second** are bold').findAll('strong')
 
-      const strongElements = wrapper.findAll('strong')
-      expect(strongElements.length).toBe(2)
-      expect(strongElements[0].text()).toBe('First')
-      expect(strongElements[1].text()).toBe('Second')
+      expect(strongElements.map((element) => element.text())).toEqual(['First', 'Second'])
     })
 
-    it('should handle bold text at start', () => {
-      const wrapper = mount(FormattedChangeDescription, {
-        props: {
-          description: '**Bold** at the start',
-        },
-      })
+    it('renders bold text at the start of the text', () => {
+      const wrapper = render('**Bold** at the start')
 
       expect(wrapper.find('strong').text()).toBe('Bold')
       expect(wrapper.text()).toContain('at the start')
     })
   })
 
-  describe('URL Parsing', () => {
-    it('should render https URLs as links', () => {
-      const wrapper = mount(FormattedChangeDescription, {
-        props: {
-          description: 'Visit https://example.com for more info',
-        },
-      })
+  describe('URL parsing', () => {
+    it.each([
+      ['https', 'Visit https://example.com for more info'],
+      ['http', 'Check http://example.com out'],
+    ])('renders %s URLs as links', (scheme, description) => {
+      const link = render(description).find('a')
 
-      const link = wrapper.find('a')
       expect(link.exists()).toBe(true)
-      expect(link.text()).toBe('https://example.com')
-      expect(link.attributes('href')).toBe('https://example.com')
-      expect(link.attributes('target')).toBe('_blank')
+      expect(link.text()).toBe(`${scheme}://example.com`)
+      expect(link.attributes('href')).toBe(`${scheme}://example.com`)
     })
 
-    it('should render http URLs as links', () => {
-      const wrapper = mount(FormattedChangeDescription, {
-        props: {
-          description: 'Check http://example.com out',
-        },
-      })
-
-      const link = wrapper.find('a')
-      expect(link.exists()).toBe(true)
-      expect(link.text()).toBe('http://example.com')
-      expect(link.attributes('href')).toBe('http://example.com')
+    it('opens links in a new tab', () => {
+      expect(render('Visit https://example.com for more info').find('a').attributes('target')).toBe(
+        '_blank'
+      )
     })
 
-    it('should handle multiple URLs', () => {
-      const wrapper = mount(FormattedChangeDescription, {
-        props: {
-          description: 'Visit https://site1.com and https://site2.com',
-        },
-      })
+    it('renders each URL as its own link', () => {
+      const links = render('Visit https://site1.com and https://site2.com').findAll('a')
 
-      const links = wrapper.findAll('a')
-      expect(links.length).toBe(2)
-      expect(links[0].text()).toBe('https://site1.com')
-      expect(links[1].text()).toBe('https://site2.com')
+      expect(links.map((link) => link.text())).toEqual(['https://site1.com', 'https://site2.com'])
     })
 
-    it('should handle URL at start of text', () => {
-      const wrapper = mount(FormattedChangeDescription, {
-        props: {
-          description: 'https://example.com is great',
-        },
-      })
+    it('renders a URL at the start of the text', () => {
+      const wrapper = render('https://example.com is great')
 
-      const link = wrapper.find('a')
-      expect(link.text()).toBe('https://example.com')
+      expect(wrapper.find('a').text()).toBe('https://example.com')
       expect(wrapper.text()).toContain('is great')
     })
   })
 
-  describe('Mixed Formatting', () => {
-    it('should handle bold, code, and URL together', () => {
-      const wrapper = mount(FormattedChangeDescription, {
-        props: {
-          description: '**Bold** with `code` and https://example.com',
-        },
-      })
+  describe('mixed formatting', () => {
+    it('renders bold, code and a URL together', () => {
+      const wrapper = render('**Bold** with `code` and https://example.com')
 
       expect(wrapper.find('strong').text()).toBe('Bold')
       expect(wrapper.find('code').text()).toBe('code')
       expect(wrapper.find('a').text()).toBe('https://example.com')
     })
 
-    it('should handle text with "h" and formatting', () => {
-      const wrapper = mount(FormattedChangeDescription, {
-        props: {
-          description: 'hello **world** and `http` test',
-        },
-      })
+    it('renders bold and code next to text containing "h"', () => {
+      const wrapper = render('hello **world** and `http` test')
 
       expect(wrapper.text()).toContain('hello')
       expect(wrapper.find('strong').text()).toBe('world')
       expect(wrapper.find('code').text()).toBe('http')
     })
 
-    it('should handle complex mixed content', () => {
-      const wrapper = mount(FormattedChangeDescription, {
-        props: {
-          description: 'The **happy** horse uses `code` at https://example.com',
-        },
-      })
+    it('renders complex mixed content in prose order', () => {
+      const wrapper = render('The **happy** horse uses `code` at https://example.com')
 
       expect(wrapper.text()).toContain('The')
       expect(wrapper.text()).toContain('horse uses')
@@ -252,82 +139,56 @@ describe('FormattedChangeDescription', () => {
     })
   })
 
-  describe('Edge Cases and Regression Tests', () => {
-    it('should not hang on text starting with "h" followed by special chars', () => {
-      const wrapper = mount(FormattedChangeDescription, {
-        props: {
-          description: 'h**bold**',
-        },
-      })
+  describe('edge cases and regressions', () => {
+    it.each([
+      {
+        label: 'bold markers after a leading "h"',
+        description: 'h**bold**',
+        prose: 'h',
+        selector: 'strong',
+        segment: 'bold',
+      },
+      {
+        label: 'a code block after repeated "h"',
+        description: 'hhhh`code`',
+        prose: 'hhhh',
+        selector: 'code',
+        segment: 'code',
+      },
+    ])('does not hang on $label', ({ description, prose, selector, segment }) => {
+      const wrapper = render(description)
 
-      expect(wrapper.text()).toContain('h')
-      expect(wrapper.find('strong').text()).toBe('bold')
+      expect(wrapper.text()).toContain(prose)
+      expect(wrapper.find(selector).text()).toBe(segment)
     })
 
-    it('should not hang on repeated "h" before special char', () => {
-      const wrapper = mount(FormattedChangeDescription, {
-        props: {
-          description: 'hhhh`code`',
-        },
-      })
+    it.each(['The word http is not a URL', 'The word https is not a URL', 'check http out'])(
+      'renders %s as plain text',
+      (description) => {
+        const wrapper = render(description)
 
-      expect(wrapper.text()).toContain('hhhh')
-      expect(wrapper.find('code').text()).toBe('code')
-    })
+        expect(wrapper.text()).toBe(description)
+        expect(wrapper.find('a').exists()).toBe(false)
+      }
+    )
 
-    it('should handle "http" as plain text when not followed by ://', () => {
-      const wrapper = mount(FormattedChangeDescription, {
-        props: {
-          description: 'The word http is not a URL',
-        },
-      })
-
-      expect(wrapper.text()).toBe('The word http is not a URL')
-      expect(wrapper.find('a').exists()).toBe(false)
-    })
-
-    it('should handle "https" as plain text when not followed by ://', () => {
-      const wrapper = mount(FormattedChangeDescription, {
-        props: {
-          description: 'The word https is not a URL',
-        },
-      })
-
-      expect(wrapper.text()).toBe('The word https is not a URL')
-      expect(wrapper.find('a').exists()).toBe(false)
-    })
-
-    it('should handle very long text with many "h" characters', () => {
-      const longText = 'h'.repeat(1000) + ' hello world'
-      const wrapper = mount(FormattedChangeDescription, {
-        props: {
-          description: longText,
-        },
-      })
+    it('handles very long text with many "h" characters', () => {
+      const wrapper = render('h'.repeat(1000) + ' hello world')
 
       expect(wrapper.text()).toContain('hello world')
       expect(wrapper.text().length).toBeGreaterThan(1000)
     })
 
-    it('should handle text with only special characters', () => {
-      const wrapper = mount(FormattedChangeDescription, {
-        props: {
-          description: '**bold** `code`',
-        },
-      })
+    it('handles text made only of special characters', () => {
+      const wrapper = render('**bold** `code`')
 
       expect(wrapper.find('strong').exists()).toBe(true)
       expect(wrapper.find('code').exists()).toBe(true)
     })
 
-    it('should render all segments in correct order', () => {
-      const wrapper = mount(FormattedChangeDescription, {
-        props: {
-          description: 'Start **bold** middle `code` end https://example.com finish',
-        },
-      })
+    it('renders all segments in the correct order', () => {
+      const text = render('Start **bold** middle `code` end https://example.com finish').text()
 
-      const text = wrapper.text()
       expect(text.indexOf('Start')).toBeLessThan(text.indexOf('bold'))
       expect(text.indexOf('bold')).toBeLessThan(text.indexOf('middle'))
       expect(text.indexOf('middle')).toBeLessThan(text.indexOf('code'))
@@ -337,110 +198,42 @@ describe('FormattedChangeDescription', () => {
     })
   })
 
-  describe('Malformed Input Regression Tests', () => {
-    it('should handle lone backtick without hanging', () => {
-      const wrapper = mount(FormattedChangeDescription, {
-        props: {
-          description: '`',
-        },
-      })
-
-      expect(wrapper.text()).toBe('`')
+  describe('malformed input regressions', () => {
+    it.each([
+      ['a lone backtick', '`'],
+      ['a lone backtick mid-text', 'text ` unclosed more text'],
+      ['a single asterisk', '*'],
+      ['a lone backtick next to a single asterisk', '` and * in text'],
+    ])('renders %s literally without hanging', (_label, description) => {
+      expect(render(description).text()).toBe(description)
     })
 
-    it('should handle lone backtick mid-text without hanging', () => {
-      const wrapper = mount(FormattedChangeDescription, {
-        props: {
-          description: 'text ` unclosed more text',
-        },
-      })
+    it.each(['**unclosed', '***test'])(
+      'renders %s literally without a strong element',
+      (description) => {
+        const wrapper = render(description)
 
-      expect(wrapper.text()).toBe('text ` unclosed more text')
-    })
+        expect(wrapper.text()).toBe(description)
+        expect(wrapper.find('strong').exists()).toBe(false)
+      }
+    )
 
-    it('should handle single asterisk without hanging', () => {
-      const wrapper = mount(FormattedChangeDescription, {
-        props: {
-          description: '*',
-        },
-      })
-
-      expect(wrapper.text()).toBe('*')
-    })
-
-    it('should handle double asterisk without closing without hanging', () => {
-      const wrapper = mount(FormattedChangeDescription, {
-        props: {
-          description: '**unclosed',
-        },
-      })
-
-      expect(wrapper.text()).toBe('**unclosed')
-      expect(wrapper.find('strong').exists()).toBe(false)
-    })
-
-    it('should handle triple asterisk without closing without hanging', () => {
-      const wrapper = mount(FormattedChangeDescription, {
-        props: {
-          description: '***test',
-        },
-      })
-
-      expect(wrapper.text()).toBe('***test')
-      expect(wrapper.find('strong').exists()).toBe(false)
-    })
-
-    it('should handle bare "http" without :// as plain text', () => {
-      const wrapper = mount(FormattedChangeDescription, {
-        props: {
-          description: 'check http out',
-        },
-      })
-
-      expect(wrapper.text()).toBe('check http out')
-      expect(wrapper.find('a').exists()).toBe(false)
-    })
-
-    it('should handle backtick-wrapped URL as code, not link', () => {
-      const wrapper = mount(FormattedChangeDescription, {
-        props: {
-          description: '`https://example.com`',
-        },
-      })
+    it('renders a backtick-wrapped URL as code, not a link', () => {
+      const wrapper = render('`https://example.com`')
 
       expect(wrapper.find('code').exists()).toBe(true)
       expect(wrapper.find('code').text()).toBe('https://example.com')
       expect(wrapper.find('a').exists()).toBe(false)
     })
-
-    it('should handle mixed lone backtick and single asterisk', () => {
-      const wrapper = mount(FormattedChangeDescription, {
-        props: {
-          description: '` and * in text',
-        },
-      })
-
-      expect(wrapper.text()).toBe('` and * in text')
-    })
   })
 
-  describe('Component Props', () => {
-    it('should accept description prop', () => {
-      const wrapper = mount(FormattedChangeDescription, {
-        props: {
-          description: 'Test description',
-        },
-      })
-
-      expect(wrapper.props('description')).toBe('Test description')
+  describe('component props', () => {
+    it('accepts the description prop', () => {
+      expect(render('Test description').props('description')).toBe('Test description')
     })
 
-    it('should update when description prop changes', async () => {
-      const wrapper = mount(FormattedChangeDescription, {
-        props: {
-          description: 'Initial text',
-        },
-      })
+    it('re-renders when the description prop changes', async () => {
+      const wrapper = render('Initial text')
 
       expect(wrapper.text()).toBe('Initial text')
 
@@ -449,12 +242,8 @@ describe('FormattedChangeDescription', () => {
       expect(wrapper.text()).toBe('Updated text')
     })
 
-    it('should handle prop change from plain to formatted', async () => {
-      const wrapper = mount(FormattedChangeDescription, {
-        props: {
-          description: 'plain',
-        },
-      })
+    it('re-renders when the description goes from plain to formatted', async () => {
+      const wrapper = render('plain')
 
       expect(wrapper.find('strong').exists()).toBe(false)
 

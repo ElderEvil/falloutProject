@@ -64,17 +64,15 @@ describe('FamilyTreePanel', () => {
     setActivePinia(createPinia())
   })
 
-  function stubStore(lineage: unknown = mockLineage, reject = false) {
+  const stubStore = (lineage: unknown = mockLineage, reject = false) => {
     const management = useDwellerManagementStore()
-    management.fetchLineage = vi.fn(() =>
-      reject ? Promise.resolve(null) : Promise.resolve(lineage)
-    )
+    management.fetchLineage = vi.fn(() => Promise.resolve(reject ? null : lineage))
     management.lineage = lineage as never
     management.isLoadingLineage = false
     return management
   }
 
-  function mountPanel(contextOverrides: Record<string, unknown> = {}) {
+  const mountPanel = (contextOverrides: Record<string, unknown> = {}) => {
     const ctx = createMockDwellerDetailContext({
       dweller: ref({ id: 'self', first_name: 'Self', last_name: 'Dweller' }) as never,
       dwellerId: ref('self') as never,
@@ -87,11 +85,16 @@ describe('FamilyTreePanel', () => {
     return { wrapper, ctx }
   }
 
+  const withPartner = (relationship_type: string, affinity: number) => ({
+    ...mockLineage,
+    partners: [{ ...mockLineage.partners[0]!, relationship_type, affinity }],
+  })
+
   it('fetches lineage on mount with the dweller id', () => {
     const management = stubStore()
-    const { ctx } = mountPanel()
+    mountPanel()
+
     expect(management.fetchLineage).toHaveBeenCalledWith('self')
-    void ctx
   })
 
   it('renders parents, siblings, partners, and children rows', () => {
@@ -103,56 +106,43 @@ describe('FamilyTreePanel', () => {
     expect(wrapper.text()).toContain('Spouse')
     expect(wrapper.text()).toContain('Kid')
     expect(wrapper.text()).toContain('Gen 1')
-  })
-
-  it('shows the partner stage badge and affinity', () => {
-    stubStore()
-    const { wrapper } = mountPanel()
-
     expect(wrapper.text()).toContain('MARRIED')
-    expect(wrapper.get('.bond-affinity').text()).toBe('90')
   })
 
-  it('renders a friendly affinity as a value with no heart glyph', () => {
-    stubStore()
-    const { wrapper } = mountPanel()
+  it.each([
+    [
+      'a friendly affinity',
+      'MARRIED',
+      90,
+      '90',
+      'text-success',
+      ['text-danger', 'text-muted-foreground'],
+    ],
+    ['a rival affinity', 'RIVAL', -40, '-40', 'text-danger', ['text-success']],
+    [
+      'a zero affinity',
+      'PARTNER',
+      0,
+      '0',
+      'text-muted-foreground',
+      ['text-success', 'text-danger'],
+    ],
+  ] as const)(
+    'renders %s as a plain number in its tone',
+    async (_name, relationship_type, affinity, text, tone, absentTones) => {
+      stubStore(withPartner(relationship_type, affinity))
+      const { wrapper } = mountPanel()
 
-    const badge = wrapper.get('.bond-affinity')
-    expect(badge.text()).toBe('90')
-    expect(badge.text()).not.toContain('♥')
-    expect(badge.text()).not.toContain('❤')
-    expect(badge.get('.text-success').text()).toBe('90')
-  })
-
-  it('renders a rival affinity without a heart, in the danger tone', () => {
-    const lineage = {
-      ...mockLineage,
-      partners: [{ ...mockLineage.partners[0]!, relationship_type: 'RIVAL', affinity: -40 }],
+      const badge = wrapper.get('.bond-affinity')
+      expect(badge.text()).toBe(text)
+      expect(badge.text()).not.toContain('♥')
+      expect(badge.text()).not.toContain('❤')
+      expect(badge.get(`.${tone}`).text()).toBe(text)
+      for (const absent of absentTones) {
+        expect(wrapper.find(`.${absent}`).exists()).toBe(false)
+      }
     }
-    stubStore(lineage)
-    const { wrapper } = mountPanel()
-
-    const badge = wrapper.get('.bond-affinity')
-    expect(badge.text()).toBe('-40')
-    expect(badge.text()).not.toContain('♥')
-    expect(badge.get('.text-danger').text()).toBe('-40')
-    expect(wrapper.find('.text-success').exists()).toBe(false)
-  })
-
-  it('keeps a zero affinity neutral instead of friendly', () => {
-    const lineage = {
-      ...mockLineage,
-      partners: [{ ...mockLineage.partners[0]!, relationship_type: 'PARTNER', affinity: 0 }],
-    }
-    stubStore(lineage)
-    const { wrapper } = mountPanel()
-
-    const badge = wrapper.get('.bond-affinity')
-    expect(badge.text()).toBe('0')
-    expect(badge.get('.text-muted-foreground').text()).toBe('0')
-    expect(wrapper.find('.text-success').exists()).toBe(false)
-    expect(wrapper.find('.text-danger').exists()).toBe(false)
-  })
+  )
 
   it('renders the first name without a literal null when the surname is absent', () => {
     stubStore()
@@ -163,28 +153,14 @@ describe('FamilyTreePanel', () => {
     expect(wrapper.find('.tree-node-self').text()).toBe('Self')
   })
 
-  it('applies dead styling to a dead parent', () => {
-    const lineage = {
-      ...mockLineage,
-      parents: [{ ...mockLineage.parents[0]!, is_dead: true }],
-    }
-    stubStore(lineage)
+  it('marks a dead parent as deceased in text, not only through the skull icon', () => {
+    stubStore({ ...mockLineage, parents: [{ ...mockLineage.parents[0]!, is_dead: true }] })
     const { wrapper } = mountPanel()
 
     const deadNode = wrapper.find('.tree-node-dead')
     expect(deadNode.exists()).toBe(true)
     expect(deadNode.text()).toContain('Mom')
-  })
-
-  it('announces deceased relatives in text, not only through the skull icon', () => {
-    const lineage = {
-      ...mockLineage,
-      parents: [{ ...mockLineage.parents[0]!, is_dead: true }],
-    }
-    stubStore(lineage)
-    const { wrapper } = mountPanel()
-
-    expect(wrapper.find('.tree-node-dead').text()).toContain('(deceased)')
+    expect(deadNode.text()).toContain('(deceased)')
   })
 
   it('calls navigateToDweller with the clicked member id', async () => {
@@ -195,6 +171,7 @@ describe('FamilyTreePanel', () => {
     expect(nodes.length).toBeGreaterThanOrEqual(4)
 
     await nodes[0]!.trigger('click')
+
     expect(ctx.actions.navigateToDweller).toHaveBeenCalledWith('p1')
   })
 
@@ -203,10 +180,9 @@ describe('FamilyTreePanel', () => {
     const { wrapper } = mountPanel()
 
     await flushPromises()
-    expect(wrapper.text()).toContain('Failed to load family lineage')
 
-    const retry = wrapper.find('.tree-retry')
-    expect(retry.exists()).toBe(true)
+    expect(wrapper.text()).toContain('Failed to load family lineage')
+    expect(wrapper.find('.tree-retry').exists()).toBe(true)
   })
 
   it('shows a message when no lineage data is available', () => {
@@ -216,27 +192,16 @@ describe('FamilyTreePanel', () => {
     expect(wrapper.text()).toContain('No lineage data')
   })
 
-  it('does not render a refresh control', () => {
+  it('keeps the self member non-interactive and leads every card with the name', () => {
     stubStore()
     const { wrapper } = mountPanel()
 
+    // Lineage is event-driven: no manual refresh control is offered.
     expect(wrapper.find('.tree-refresh').exists()).toBe(false)
     expect(wrapper.text()).not.toContain('Refresh family tree')
-  })
-
-  it('keeps the self member non-interactive while relatives are buttons', () => {
-    stubStore()
-    const { wrapper } = mountPanel()
-
     expect(wrapper.find('.member-card-self').element.tagName).toBe('DIV')
     expect(wrapper.find('.tree-node-self').element.tagName).toBe('SPAN')
     expect(wrapper.findAll('button.tree-node').length).toBeGreaterThanOrEqual(4)
-  })
-
-  it('leads each member card with the name, not a portrait stand-in', () => {
-    stubStore()
-    const { wrapper } = mountPanel()
-
     expect(wrapper.find('.member-avatar').exists()).toBe(false)
     expect(wrapper.find('.tree-node .member-name').text()).toBe('Mom Dweller')
     expect(wrapper.find('.member-card-self .tree-node-self').text()).toBe('Self Dweller')

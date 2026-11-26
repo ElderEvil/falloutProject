@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vite-plus/test'
 import { createIconifyMock } from '../../helpers/mocks'
 import { enableAutoUnmount, flushPromises, mount } from '@vue/test-utils'
+import type { MountingOptions, VueWrapper } from '@vue/test-utils'
 import { Dialog } from '@/core/components/ui/dialog'
 import TerminalModal from '@/core/components/common/TerminalModal.vue'
 import { isOverlayBlocking } from '@/core/composables/useBlockingOverlay'
@@ -14,15 +15,19 @@ vi.mock('@iconify/vue', () => createIconifyMock())
 const { routerPush } = vi.hoisted(() => ({ routerPush: vi.fn() }))
 vi.mock('vue-router', () => ({ useRouter: () => ({ push: routerPush }) }))
 
+type ModalProps = InstanceType<typeof TerminalModal>['$props']
+type MountOptions = Omit<MountingOptions<typeof TerminalModal>, 'props' | 'slots'>
+
+/** Mounts the modal open by default; callers override the props a case needs. */
 const mountModal = (
-  props: Record<string, unknown> = {},
+  props: Partial<ModalProps> = {},
   slots: Record<string, string> = {},
-  attach = false
+  options: MountOptions = {}
 ) =>
   mount(TerminalModal, {
-    props: { open: true, ...props },
+    ...options,
+    props: { open: true, ...props } as ModalProps,
     slots,
-    attachTo: attach ? document.body : undefined,
     global: { stubs: { Teleport: { template: '<div><slot /></div>' } } },
   })
 
@@ -137,20 +142,19 @@ describe('TerminalModal', () => {
     expect(wrapper.emitted('close')).toBeUndefined()
   })
 
-  it('closes on Escape', async () => {
+  it.each([
+    [
+      'Escape',
+      () => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })),
+    ],
+    [
+      'the header close button',
+      (wrapper: VueWrapper) => wrapper.get('[data-slot="dialog-close"]').trigger('click'),
+    ],
+  ])('closes on %s', async (_label, close) => {
     const wrapper = mountModal()
 
-    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
-    await flushPromises()
-
-    expect(wrapper.emitted('update:open')).toEqual([[false]])
-    expect(wrapper.emitted('close')).toHaveLength(1)
-  })
-
-  it('closes on the header close button', async () => {
-    const wrapper = mountModal()
-
-    await wrapper.get('[data-slot="dialog-close"]').trigger('click')
+    await close(wrapper)
     await flushPromises()
 
     expect(wrapper.emitted('update:open')).toEqual([[false]])
@@ -158,7 +162,7 @@ describe('TerminalModal', () => {
   })
 
   it('closes on backdrop pointer down', async () => {
-    const wrapper = mountModal({}, {}, true)
+    const wrapper = mountModal({}, {}, { attachTo: document.body })
 
     await new Promise((resolve) => setTimeout(resolve, 0))
     wrapper.get('[data-slot="dialog-overlay"]').element.dispatchEvent(

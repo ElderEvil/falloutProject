@@ -66,8 +66,13 @@ async def test_get_open_for_exploration(async_session: AsyncSession, state: str)
     assert fetched.id == run.id
 
 
-async def test_recent_terminal_found_for_cooldown(async_session: AsyncSession) -> None:
-    vault, _, run = await _open_run(async_session, status=ExpeditionRunStatus.CLEARED)
+@pytest.mark.parametrize(
+    "status", [ExpeditionRunStatus.CLEARED, ExpeditionRunStatus.RETREATED, ExpeditionRunStatus.DIED]
+)
+async def test_recent_terminal_matches_every_terminal_status(
+    async_session: AsyncSession, status: ExpeditionRunStatus
+) -> None:
+    vault, _, run = await _open_run(async_session, status=status)
 
     found = await crud.expedition_run.get_recent_terminal(
         async_session, vault_id=vault.id, site_id=SITE, since=utcnow() - RECENT
@@ -78,19 +83,6 @@ async def test_recent_terminal_found_for_cooldown(async_session: AsyncSession) -
         async_session, vault_id=vault.id, site_id=SITE, since=utcnow() + timedelta(days=1)
     )
     assert old is None
-
-
-@pytest.mark.parametrize("status", [ExpeditionRunStatus.RETREATED, ExpeditionRunStatus.DIED])
-async def test_recent_terminal_matches_retreat_and_death(
-    async_session: AsyncSession, status: ExpeditionRunStatus
-) -> None:
-    vault, _, run = await _open_run(async_session, status=status)
-
-    found = await crud.expedition_run.get_recent_terminal(
-        async_session, vault_id=vault.id, site_id=SITE, since=utcnow() - RECENT
-    )
-    assert found is not None
-    assert found.id == run.id
 
 
 @pytest.mark.parametrize("state", ["open", "other-site", "closed"])

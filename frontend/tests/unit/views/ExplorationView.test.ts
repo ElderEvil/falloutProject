@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vite-plus/test'
 import { createIconifyMock, createRouterMock, createToastMock } from '../helpers/mocks'
-import { flushPromises, mount, VueWrapper } from '@vue/test-utils'
+import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import ExplorationView from '@/modules/exploration/views/ExplorationView.vue'
 import {
@@ -59,25 +59,7 @@ vi.mock('@/core/composables/useSound', () => ({
   useSound: () => soundMock,
 }))
 
-const returningQuest = {
-  id: 'quest-returning',
-  title: 'Returning Quest',
-  short_description: 'Test quest',
-  long_description: 'Test quest description',
-  requirements: 'Level 5',
-  rewards: '50 caps',
-  created_at: '2025-01-01',
-  updated_at: '2025-01-01',
-  is_visible: true,
-  is_completed: false,
-  is_reward_ready: false,
-  started_at: '2025-01-02T00:00:00Z',
-  duration_minutes: 60,
-  return_started_at: '2025-01-02T01:00:00Z',
-  return_completes_at: '2025-01-02T01:15:00Z',
-}
-
-const activeQuest = {
+const quest = (overrides: Record<string, unknown> = {}) => ({
   id: 'quest-active',
   title: 'Active Quest',
   short_description: 'Test quest',
@@ -91,7 +73,15 @@ const activeQuest = {
   is_reward_ready: false,
   started_at: '2025-01-02T00:00:00Z',
   duration_minutes: 60,
-}
+  ...overrides,
+})
+
+const returningQuest = quest({
+  id: 'quest-returning',
+  title: 'Returning Quest',
+  return_started_at: '2025-01-02T01:00:00Z',
+  return_completes_at: '2025-01-02T01:15:00Z',
+})
 
 const partyMember = {
   id: 'pm-1',
@@ -146,12 +136,87 @@ const explorationPartyMember = (
   updated_at: null,
 })
 
+const loot = (overrides: Record<string, unknown> = {}) => ({
+  item_name: 'Wonderglue',
+  quantity: 1,
+  rarity: 'Common',
+  found_at: '2026-01-01T00:00:00Z',
+  ...overrides,
+})
+
+const overflow = (explorationId: string, items: Record<string, unknown>[] = [loot()]) => ({
+  exploration_id: explorationId,
+  dweller_id: 'dweller-1',
+  unclaimed_loot: items,
+})
+
+/** A queued local return report; the rewards payload is what the modal renders. */
+const pendingReport = (explorationId: string, overrides: Record<string, unknown> = {}) => ({
+  explorationId,
+  vaultId: 'vault-123',
+  dwellerId: 'dweller-1',
+  dwellerName: 'Lucy MacLean',
+  rewards: {
+    caps: 25,
+    items: [],
+    experience: 10,
+    distance: 5,
+    enemies_defeated: 0,
+    events_encountered: 1,
+  },
+  ...overrides,
+})
+
+const partyCards = (template: string) => ({
+  name: 'QuestPartyCard',
+  template,
+  props: ['quest', 'partyMembers', 'selected'],
+  emits: ['select'],
+})
+
+const explorerCards = (template: string) => ({
+  name: 'ExplorerCard',
+  template,
+  props: ['exploration', 'dweller', 'partyMembers', 'selected'],
+  emits: ['select', 'complete', 'recall'],
+})
+
+const rewardsModal = () => ({
+  name: 'ExplorationRewardsModal',
+  template: '<div class="rewards-modal-mock" v-if="show" />',
+  props: ['show', 'rewards', 'dwellerName', 'explorationId', 'pendingOnly'],
+  emits: ['close', 'resolved'],
+})
+
 describe('ExplorationView', () => {
   let wrapper: VueWrapper
   let explorationStore: ReturnType<typeof useExplorationStore>
   let dwellerStore: ReturnType<typeof useDwellerStore>['filter']
   let questStore: ReturnType<typeof useQuestStore>
   let authStore: ReturnType<typeof useAuthStore>
+
+  async function mountView(stubs: Record<string, unknown> = {}, attachTo?: HTMLElement) {
+    wrapper = mount(ExplorationView, {
+      ...(attachTo ? { attachTo } : {}),
+      global: {
+        stubs: {
+          SidePanel: true,
+          QuestPartyCard: true,
+          ExplorationRewardsModal: true,
+          ...stubs,
+        },
+      },
+    })
+    await flushPromises()
+    return wrapper
+  }
+
+  const modal = () => wrapper.findComponent({ name: 'ExplorationRewardsModal' })
+  const banner = () => wrapper.find('.deferred-overflow-banner')
+  const reviewDeferred = async () => {
+    await wrapper.find('.deferred-overflow-banner button').trigger('click')
+    await flushPromises()
+  }
 
   beforeEach(() => {
     setActivePinia(createPinia())
@@ -186,19 +251,11 @@ describe('ExplorationView', () => {
   })
 
   it('loads the list and parties through the store on mount', async () => {
-    wrapper = mount(ExplorationView, {
-      global: {
-        stubs: {
-          SidePanel: true,
-          QuestPartyCard: true,
-          ExplorationRewardsModal: true,
-        },
-      },
-    })
-    await flushPromises()
+    await mountView()
 
-    const refreshSpy = vi.mocked(explorationStore.refreshActiveExplorations)
-    expect(refreshSpy).toHaveBeenCalledWith('vault-123', { includeParties: true })
+    expect(explorationStore.refreshActiveExplorations).toHaveBeenCalledWith('vault-123', {
+      includeParties: true,
+    })
   })
 
   it('stops loading when vault adoption fails', async () => {
@@ -206,16 +263,7 @@ describe('ExplorationView', () => {
       new Error('Vault unavailable')
     )
 
-    wrapper = mount(ExplorationView, {
-      global: {
-        stubs: {
-          SidePanel: true,
-          QuestPartyCard: true,
-          ExplorationRewardsModal: true,
-        },
-      },
-    })
-    await flushPromises()
+    await mountView()
 
     expect(dwellerStore.fetchDwellersByVault).not.toHaveBeenCalled()
     expect(questStore.fetchVaultQuests).not.toHaveBeenCalled()
@@ -223,22 +271,12 @@ describe('ExplorationView', () => {
   })
 
   it('refreshes the list with a silent poll and keeps the quest refreshes', async () => {
-    wrapper = mount(ExplorationView, {
-      global: {
-        stubs: {
-          SidePanel: true,
-          QuestPartyCard: true,
-          ExplorationRewardsModal: true,
-        },
-      },
-    })
-    await flushPromises()
+    await mountView()
 
-    const refreshSpy = vi.mocked(explorationStore.refreshActiveExplorations)
-    refreshSpy.mockClear()
+    vi.mocked(explorationStore.refreshActiveExplorations).mockClear()
     await pollState.callback?.()
 
-    expect(refreshSpy).toHaveBeenCalledWith('vault-123', {
+    expect(explorationStore.refreshActiveExplorations).toHaveBeenCalledWith('vault-123', {
       includeParties: true,
       silent: true,
     })
@@ -247,39 +285,21 @@ describe('ExplorationView', () => {
   })
 
   it('polls at the shared active-exploration cadence', async () => {
-    wrapper = mount(ExplorationView, {
-      global: {
-        stubs: {
-          SidePanel: true,
-          QuestPartyCard: true,
-          ExplorationRewardsModal: true,
-        },
-      },
-    })
-    await flushPromises()
+    await mountView()
 
     expect(pollState.interval).toBe(ACTIVE_EXPLORATIONS_REFRESH_MS)
   })
 
   it('explains return settlement through optional page help', async () => {
-    wrapper = mount(ExplorationView, {
-      attachTo: document.body,
-      global: {
-        stubs: {
-          SidePanel: true,
-          QuestPartyCard: true,
-          ExplorationRewardsModal: true,
-          Teleport: { template: '<div><slot /></div>' },
-        },
-      },
-    })
-    await flushPromises()
+    await mountView({ Teleport: { template: '<div><slot /></div>' } }, document.body)
+
     expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
     await vi.waitFor(() =>
       expect(wrapper.find('button[aria-label="About Wasteland Exploration"]').exists()).toBe(true)
     )
     await wrapper.find('button[aria-label="About Wasteland Exploration"]').trigger('click')
     await flushPromises()
+
     const help = wrapper.find('[role="dialog"]')
     expect(help.text()).toContain('Recall starts the journey home')
     expect(help.text()).toContain('settled on arrival')
@@ -287,35 +307,20 @@ describe('ExplorationView', () => {
   })
 
   it('keeps quest parties visible while they travel home', async () => {
-    questStore.vaultQuests = [activeQuest, returningQuest]
+    questStore.vaultQuests = [quest(), returningQuest] as never
     questStore.questPartyMap = {
       'quest-active': [{ ...partyMember, quest_id: 'quest-active' }],
       'quest-returning': [partyMember],
-    }
+    } as never
 
-    wrapper = mount(ExplorationView, {
-      global: {
-        stubs: {
-          SidePanel: true,
-          QuestPartyCard: {
-            name: 'QuestPartyCard',
-            template:
-              '<div class="quest-party-stub" :data-quest-id="quest.id">{{ quest.title }}</div>',
-            props: ['quest', 'partyMembers', 'selected'],
-            emits: ['select'],
-          },
-          ExplorationRewardsModal: {
-            name: 'ExplorationRewardsModal',
-            template: '<div class="rewards-modal-mock" v-if="show"></div>',
-            props: ['show', 'rewards', 'dwellerName', 'explorationId', 'pendingOnly'],
-            emits: ['close', 'resolved'],
-          },
-        },
-      },
+    await mountView({
+      QuestPartyCard: partyCards(
+        '<div class="quest-party-stub" :data-quest-id="quest.id">{{ quest.title }}</div>'
+      ),
+      ExplorationRewardsModal: rewardsModal(),
     })
-    await flushPromises()
 
-    expect(wrapper.findAll('[role="tab"]')[1].attributes('aria-selected')).toBe('true')
+    expect(wrapper.findAll('[role="tab"]')[1]!.attributes('aria-selected')).toBe('true')
 
     // The outbound party renders as before…
     expect(wrapper.find('[data-quest-id="quest-active"]').exists()).toBe(true)
@@ -326,16 +331,7 @@ describe('ExplorationView', () => {
   })
 
   it('plays exploration music on mount and restores the vault loop on unmount', async () => {
-    wrapper = mount(ExplorationView, {
-      global: {
-        stubs: {
-          SidePanel: true,
-          QuestPartyCard: true,
-          ExplorationRewardsModal: true,
-        },
-      },
-    })
-    await flushPromises()
+    await mountView()
 
     expect(soundMock.playMusic).toHaveBeenCalledWith('exploration')
 
@@ -359,25 +355,13 @@ describe('ExplorationView', () => {
       { id: 'dweller-1', first_name: 'Lucy', last_name: 'MacLean', level: 5 },
       { id: 'dweller-2', first_name: 'Carla', last_name: 'Vault', level: 4 },
       { id: 'dweller-3', first_name: 'Bea', last_name: 'Vault', level: 3 },
-    ]
+    ] as never
 
-    wrapper = mount(ExplorationView, {
-      global: {
-        stubs: {
-          SidePanel: true,
-          QuestPartyCard: true,
-          ExplorationRewardsModal: true,
-          ExplorerCard: {
-            name: 'ExplorerCard',
-            template:
-              '<div class="explorer-card-stub" :data-exploration-id="exploration.id" :data-party-count="partyMembers?.length ?? 0" />',
-            props: ['exploration', 'dweller', 'partyMembers', 'selected'],
-            emits: ['select', 'complete', 'recall'],
-          },
-        },
-      },
+    await mountView({
+      ExplorerCard: explorerCards(
+        '<div class="explorer-card-stub" :data-exploration-id="exploration.id" :data-party-count="partyMembers?.length ?? 0" />'
+      ),
     })
-    await flushPromises()
 
     expect(wrapper.find('.page-header-metric-value').text()).toBe('3')
     expect(
@@ -392,35 +376,22 @@ describe('ExplorationView', () => {
     explorationStore.explorationPartyMap = {
       'exploration-party': [explorationPartyMember('p-1', 'dweller-1', 1)],
     }
-    questStore.vaultQuests = [activeQuest]
-    questStore.questPartyMap = { 'quest-active': [{ ...partyMember, quest_id: 'quest-active' }] }
+    questStore.vaultQuests = [quest()] as never
+    questStore.questPartyMap = {
+      'quest-active': [{ ...partyMember, quest_id: 'quest-active' }],
+    } as never
 
-    wrapper = mount(ExplorationView, {
-      global: {
-        stubs: {
-          SidePanel: true,
-          ExplorationEventLog: true,
-          ExplorationRewardsModal: true,
-          ExplorerCard: {
-            name: 'ExplorerCard',
-            template: '<div class="explorer-card-stub" :data-exploration-id="exploration.id" />',
-            props: ['exploration', 'dweller', 'partyMembers', 'selected'],
-            emits: ['select', 'complete', 'recall'],
-          },
-          QuestPartyCard: {
-            name: 'QuestPartyCard',
-            template: '<div class="quest-party-stub" :data-quest-id="quest.id" />',
-            props: ['quest', 'partyMembers', 'selected'],
-            emits: ['select'],
-          },
-        },
-      },
+    await mountView({
+      ExplorationEventLog: true,
+      ExplorerCard: explorerCards(
+        '<div class="explorer-card-stub" :data-exploration-id="exploration.id" />'
+      ),
+      QuestPartyCard: partyCards('<div class="quest-party-stub" :data-quest-id="quest.id" />'),
     })
-    await flushPromises()
 
     let tabs = wrapper.findAll('[role="tab"]')
     expect(tabs.map((tab) => tab.text())).toEqual(['Active explorers (1)', 'Quest parties (1)'])
-    expect(tabs[0].attributes('aria-selected')).toBe('true')
+    expect(tabs[0]!.attributes('aria-selected')).toBe('true')
 
     // Active explorers is the default tab: its grid renders, quest content does not.
     expect(wrapper.find('[data-exploration-id="exploration-party"]').exists()).toBe(true)
@@ -431,62 +402,36 @@ describe('ExplorationView', () => {
     expect(wrapper.find('.timeline-section').exists()).toBe(true)
 
     // reka-ui activates tabs on mousedown (not click).
-    await tabs[1].trigger('mousedown')
+    await tabs[1]!.trigger('mousedown')
     await flushPromises()
 
     tabs = wrapper.findAll('[role="tab"]')
-    expect(tabs[1].attributes('aria-selected')).toBe('true')
+    expect(tabs[1]!.attributes('aria-selected')).toBe('true')
     expect(wrapper.find('[data-quest-id="quest-active"]').exists()).toBe(true)
     expect(wrapper.find('[data-exploration-id="exploration-party"]').exists()).toBe(false)
     expect(wrapper.find('.timeline-section').exists()).toBe(false)
 
-    await tabs[0].trigger('mousedown')
+    await tabs[0]!.trigger('mousedown')
     await flushPromises()
 
     tabs = wrapper.findAll('[role="tab"]')
-    expect(tabs[0].attributes('aria-selected')).toBe('true')
+    expect(tabs[0]!.attributes('aria-selected')).toBe('true')
     expect(wrapper.find('[data-exploration-id="exploration-party"]').exists()).toBe(true)
     expect(wrapper.find('[data-quest-id="quest-active"]').exists()).toBe(false)
     expect(wrapper.find('.timeline-section').exists()).toBe(true)
+
     explorationStore.activeExplorations = {}
     await flushPromises()
-    expect(wrapper.findAll('[role="tab"]')[0].attributes('aria-selected')).toBe('true')
-    expect(wrapper.findAll('[role="tab"]')[0].text()).toBe('Active explorers (0)')
+    expect(wrapper.findAll('[role="tab"]')[0]!.attributes('aria-selected')).toBe('true')
+    expect(wrapper.findAll('[role="tab"]')[0]!.text()).toBe('Active explorers (0)')
   })
 
   it('keeps a deferred return available for review without remounting', async () => {
     vi.mocked(explorationStore.fetchPendingOverflow).mockResolvedValue([
-      {
-        exploration_id: 'exploration-overflow',
-        dweller_id: 'dweller-1',
-        unclaimed_loot: [
-          {
-            item_name: 'Wonderglue',
-            quantity: 1,
-            rarity: 'Common',
-            found_at: '2026-01-01T00:00:00Z',
-          },
-        ],
-      },
+      overflow('exploration-overflow'),
     ])
+    await mountView({ ExplorationRewardsModal: rewardsModal() })
 
-    wrapper = mount(ExplorationView, {
-      global: {
-        stubs: {
-          SidePanel: true,
-          QuestPartyCard: true,
-          ExplorationRewardsModal: {
-            name: 'ExplorationRewardsModal',
-            template: '<div class="rewards-modal-mock" v-if="show" />',
-            props: ['show', 'rewards', 'dwellerName', 'explorationId', 'pendingOnly'],
-            emits: ['close', 'resolved'],
-          },
-        },
-      },
-    })
-    await flushPromises()
-
-    const modal = () => wrapper.findComponent({ name: 'ExplorationRewardsModal' })
     expect(modal().props('show')).toBe(true)
     expect(modal().props('pendingOnly')).toBe(true)
 
@@ -494,54 +439,25 @@ describe('ExplorationView', () => {
     await flushPromises()
 
     expect(modal().props('show')).toBe(false)
-    expect(wrapper.find('.deferred-overflow-banner').exists()).toBe(true)
+    expect(banner().exists()).toBe(true)
     expect(wrapper.text()).toContain('1 return still needs a storage decision')
 
-    await wrapper.find('.deferred-overflow-banner button').trigger('click')
-    await flushPromises()
+    await reviewDeferred()
 
     expect(modal().props('show')).toBe(true)
     expect(modal().props('pendingOnly')).toBe(true)
   })
 
   it('clears a deferred return the backend no longer reports, and says so', async () => {
-    const clearance = [
-      {
-        exploration_id: 'exploration-overflow',
-        dweller_id: 'dweller-1',
-        unclaimed_loot: [
-          {
-            item_name: 'Wonderglue',
-            quantity: 1,
-            rarity: 'Common',
-            found_at: '2026-01-01T00:00:00Z',
-          },
-        ],
-      },
-    ]
-    vi.mocked(explorationStore.fetchPendingOverflow).mockResolvedValue(clearance)
+    vi.mocked(explorationStore.fetchPendingOverflow).mockResolvedValue([
+      overflow('exploration-overflow'),
+    ])
+    await mountView({ ExplorationRewardsModal: rewardsModal() })
 
-    wrapper = mount(ExplorationView, {
-      global: {
-        stubs: {
-          SidePanel: true,
-          QuestPartyCard: true,
-          ExplorationRewardsModal: {
-            name: 'ExplorationRewardsModal',
-            template: '<div class="rewards-modal-mock" v-if="show" />',
-            props: ['show', 'rewards', 'dwellerName', 'explorationId', 'pendingOnly'],
-            emits: ['close', 'resolved'],
-          },
-        },
-      },
-    })
-    await flushPromises()
-
-    const modal = () => wrapper.findComponent({ name: 'ExplorationRewardsModal' })
     // Player walks away from the storage decision: the return is remembered.
     modal().vm.$emit('close', true)
     await flushPromises()
-    expect(wrapper.find('.deferred-overflow-banner').exists()).toBe(true)
+    expect(banner().exists()).toBe(true)
 
     // The decisions were settled elsewhere, so the backend reports nothing pending.
     let resolvePending!: (value: PendingOverflow[]) => void
@@ -552,8 +468,8 @@ describe('ExplorationView', () => {
         })
     )
 
-    await wrapper.find('.deferred-overflow-banner button').trigger('click')
     const reviewButton = wrapper.find('.deferred-overflow-banner button')
+    await reviewButton.trigger('click')
     expect(reviewButton.text()).toBe('Checking…')
     expect(reviewButton.attributes('disabled')).toBeDefined()
 
@@ -561,153 +477,65 @@ describe('ExplorationView', () => {
     await flushPromises()
 
     expect(modal().props('show')).toBe(false)
-    expect(wrapper.find('.deferred-overflow-banner').exists()).toBe(false)
+    expect(banner().exists()).toBe(false)
     expect(mockToast.info).toHaveBeenCalledWith(
       'Nothing left to resolve — those storage decisions were already settled.'
     )
   })
 
   it('drops a local deferred id after its queued report is acknowledged elsewhere', async () => {
-    vi.mocked(explorationStore.fetchPendingOverflow).mockResolvedValue([])
-    addPendingReport({
-      explorationId: 'exploration-settled-elsewhere',
-      vaultId: 'vault-123',
-      dwellerId: 'dweller-1',
-      dwellerName: 'Christina Reid',
-      rewards: {
-        caps: 18,
-        items: [],
-        experience: 18,
-        distance: 0,
-        enemies_defeated: 0,
-        events_encountered: 0,
-      },
-    })
-    wrapper = mount(ExplorationView, {
-      global: {
-        stubs: {
-          SidePanel: true,
-          QuestPartyCard: true,
-          ExplorationRewardsModal: {
-            name: 'ExplorationRewardsModal',
-            template: '<div class="rewards-modal-mock" v-if="show" />',
-            props: ['show', 'rewards', 'dwellerName', 'explorationId', 'pendingOnly'],
-            emits: ['close', 'resolved'],
-          },
-        },
-      },
-    })
-    await flushPromises()
+    addPendingReport(
+      pendingReport('exploration-settled-elsewhere', { dwellerName: 'Christina Reid' })
+    )
+    await mountView({ ExplorationRewardsModal: rewardsModal() })
 
-    const modal = () => wrapper.findComponent({ name: 'ExplorationRewardsModal' })
     modal().vm.$emit('close', true)
     await flushPromises()
-    expect(wrapper.find('.deferred-overflow-banner').exists()).toBe(true)
+    expect(banner().exists()).toBe(true)
 
     acknowledgeReport('exploration-settled-elsewhere')
     await flushPromises()
 
-    expect(wrapper.find('.deferred-overflow-banner').exists()).toBe(false)
+    expect(banner().exists()).toBe(false)
   })
 
   it('still shows a queued return report when unresolved returns cannot load', async () => {
-    addPendingReport({
-      explorationId: 'exploration-report',
-      vaultId: 'vault-123',
-      dwellerId: 'dweller-1',
-      dwellerName: 'Lucy MacLean',
-      rewards: {
-        caps: 25,
-        items: [],
-        experience: 10,
-        distance: 5,
-        enemies_defeated: 0,
-        events_encountered: 1,
-      },
-    })
+    addPendingReport(pendingReport('exploration-report'))
     vi.mocked(explorationStore.fetchPendingOverflow).mockRejectedValue(new Error('offline'))
+    await mountView({ ExplorationRewardsModal: rewardsModal() })
 
-    wrapper = mount(ExplorationView, {
-      global: {
-        stubs: {
-          SidePanel: true,
-          QuestPartyCard: true,
-          ExplorationRewardsModal: {
-            name: 'ExplorationRewardsModal',
-            template: '<div class="rewards-modal-mock" v-if="show" />',
-            props: ['show', 'rewards', 'dwellerName', 'explorationId', 'pendingOnly'],
-            emits: ['close', 'resolved'],
-          },
-        },
-      },
-    })
-    await flushPromises()
-
-    const modal = wrapper.findComponent({ name: 'ExplorationRewardsModal' })
-    expect(modal.props('show')).toBe(true)
-    expect(modal.props('pendingOnly')).toBe(false)
-    expect(modal.props('explorationId')).toBe('exploration-report')
+    expect(modal().props('show')).toBe(true)
+    expect(modal().props('pendingOnly')).toBe(false)
+    expect(modal().props('explorationId')).toBe('exploration-report')
   })
 
   it('surfaces a deferred report overflow through the review banner', async () => {
-    const overflow = {
-      item_name: 'Wonderglue',
-      quantity: 1,
-      rarity: 'Common',
-      found_at: '2026-01-01T00:00:00Z',
-    }
     vi.mocked(explorationStore.fetchPendingOverflow)
       .mockResolvedValueOnce([])
-      .mockResolvedValue([
-        {
-          exploration_id: 'exploration-report-overflow',
-          dweller_id: 'dweller-1',
-          unclaimed_loot: [overflow],
+      .mockResolvedValue([overflow('exploration-report-overflow')])
+    addPendingReport(
+      pendingReport('exploration-report-overflow', {
+        rewards: {
+          caps: 25,
+          items: [],
+          overflow_items: [loot()],
+          experience: 10,
+          distance: 5,
+          enemies_defeated: 0,
+          events_encountered: 1,
         },
-      ])
-    addPendingReport({
-      explorationId: 'exploration-report-overflow',
-      vaultId: 'vault-123',
-      dwellerId: 'dweller-1',
-      dwellerName: 'Lucy MacLean',
-      rewards: {
-        caps: 25,
-        items: [],
-        overflow_items: [overflow],
-        experience: 10,
-        distance: 5,
-        enemies_defeated: 0,
-        events_encountered: 1,
-      },
-    })
+      })
+    )
+    await mountView({ ExplorationRewardsModal: rewardsModal() })
 
-    wrapper = mount(ExplorationView, {
-      global: {
-        stubs: {
-          SidePanel: true,
-          QuestPartyCard: true,
-          ExplorationRewardsModal: {
-            name: 'ExplorationRewardsModal',
-            template: '<div class="rewards-modal-mock" v-if="show" />',
-            props: ['show', 'rewards', 'dwellerName', 'explorationId', 'pendingOnly'],
-            emits: ['close', 'resolved'],
-          },
-        },
-      },
-    })
-    await flushPromises()
-
-    const modal = () => wrapper.findComponent({ name: 'ExplorationRewardsModal' })
     expect(modal().props('show')).toBe(true)
     expect(modal().props('pendingOnly')).toBe(false)
 
     modal().vm.$emit('close', true)
     await flushPromises()
+    expect(banner().exists()).toBe(true)
 
-    expect(wrapper.find('.deferred-overflow-banner').exists()).toBe(true)
-
-    await wrapper.find('.deferred-overflow-banner button').trigger('click')
-    await flushPromises()
+    await reviewDeferred()
 
     expect(modal().props('show')).toBe(true)
     expect(modal().props('pendingOnly')).toBe(true)
@@ -716,69 +544,29 @@ describe('ExplorationView', () => {
   it('opens a queued report with no decision when the overflow was settled already', async () => {
     // The report was written while an overflow item was pending; by the time it is opened the
     // backend reports none, so the modal must not advertise "Resolve Later" over a stale list.
-    vi.mocked(explorationStore.fetchPendingOverflow).mockResolvedValue([])
-    addPendingReport({
-      explorationId: 'exploration-settled',
-      vaultId: 'vault-123',
-      dwellerId: 'dweller-1',
-      dwellerName: 'Christina Reid',
-      rewards: {
-        caps: 18,
-        items: [],
-        overflow_items: [
-          {
-            item_name: 'Shovel',
-            quantity: 1,
-            rarity: 'Rare',
-            found_at: '2026-01-01T00:00:00Z',
-          },
-        ],
-        experience: 18,
-        distance: 0,
-        enemies_defeated: 0,
-        events_encountered: 0,
-      },
-    })
-
-    wrapper = mount(ExplorationView, {
-      global: {
-        stubs: {
-          SidePanel: true,
-          QuestPartyCard: true,
-          ExplorationRewardsModal: {
-            name: 'ExplorationRewardsModal',
-            template: '<div class="rewards-modal-mock" v-if="show" />',
-            props: ['show', 'rewards', 'dwellerName', 'explorationId', 'pendingOnly'],
-            emits: ['close', 'resolved'],
-          },
+    addPendingReport(
+      pendingReport('exploration-settled', {
+        dwellerName: 'Christina Reid',
+        rewards: {
+          caps: 18,
+          items: [],
+          overflow_items: [loot({ item_name: 'Shovel', rarity: 'Rare' })],
+          experience: 18,
+          distance: 0,
+          enemies_defeated: 0,
+          events_encountered: 0,
         },
-      },
-    })
-    await flushPromises()
+      })
+    )
+    await mountView({ ExplorationRewardsModal: rewardsModal() })
 
-    const modal = wrapper.findComponent({ name: 'ExplorationRewardsModal' })
-    expect(modal.props('show')).toBe(true)
-    expect(modal.props('rewards').overflow_items).toEqual([])
+    expect(modal().props('show')).toBe(true)
+    expect(modal().props('rewards').overflow_items).toEqual([])
   })
 
   it('does not reopen a report that was acknowledged when SSE replays', async () => {
     acknowledgeReport('exploration-replayed')
-
-    wrapper = mount(ExplorationView, {
-      global: {
-        stubs: {
-          SidePanel: true,
-          QuestPartyCard: true,
-          ExplorationRewardsModal: {
-            name: 'ExplorationRewardsModal',
-            template: '<div class="rewards-modal-mock" v-if="show" />',
-            props: ['show', 'rewards', 'dwellerName', 'explorationId', 'pendingOnly'],
-            emits: ['close', 'resolved'],
-          },
-        },
-      },
-    })
-    await flushPromises()
+    await mountView({ ExplorationRewardsModal: rewardsModal() })
 
     explorationStore.pendingSseRewards = {
       rewards: {
@@ -791,61 +579,31 @@ describe('ExplorationView', () => {
       },
       dwellerId: 'dweller-1',
       explorationId: 'exploration-replayed',
-    }
+    } as never
     await flushPromises()
 
-    const modal = wrapper.findComponent({ name: 'ExplorationRewardsModal' })
-    expect(modal.props('show')).toBe(false)
+    expect(modal().props('show')).toBe(false)
     expect(explorationStore.pendingSseRewards).toBeNull()
   })
 
   it('keeps the queued full report after resolving its pending-only overflow', async () => {
     vi.mocked(explorationStore.fetchPendingOverflow).mockResolvedValue([
-      {
-        exploration_id: 'exploration-both',
-        dweller_id: 'dweller-1',
-        unclaimed_loot: [
-          {
-            item_name: 'Wonderglue',
-            quantity: 1,
-            rarity: 'Common',
-            found_at: '2026-01-01T00:00:00Z',
-          },
-        ],
-      },
+      overflow('exploration-both'),
     ])
-    addPendingReport({
-      explorationId: 'exploration-both',
-      vaultId: 'vault-123',
-      dwellerId: 'dweller-1',
-      dwellerName: 'Lucy MacLean',
-      rewards: {
-        caps: 50,
-        items: [],
-        experience: 10,
-        distance: 5,
-        enemies_defeated: 0,
-        events_encountered: 1,
-      },
-    })
-
-    wrapper = mount(ExplorationView, {
-      global: {
-        stubs: {
-          SidePanel: true,
-          QuestPartyCard: true,
-          ExplorationRewardsModal: {
-            name: 'ExplorationRewardsModal',
-            template: '<div class="rewards-modal-mock" v-if="show" />',
-            props: ['show', 'rewards', 'dwellerName', 'explorationId', 'pendingOnly'],
-            emits: ['close', 'resolved'],
-          },
+    addPendingReport(
+      pendingReport('exploration-both', {
+        rewards: {
+          caps: 50,
+          items: [],
+          experience: 10,
+          distance: 5,
+          enemies_defeated: 0,
+          events_encountered: 1,
         },
-      },
-    })
-    await flushPromises()
+      })
+    )
+    await mountView({ ExplorationRewardsModal: rewardsModal() })
 
-    const modal = () => wrapper.findComponent({ name: 'ExplorationRewardsModal' })
     expect(modal().props('pendingOnly')).toBe(true)
 
     modal().vm.$emit('close', false)
@@ -864,56 +622,29 @@ describe('ExplorationView', () => {
 
   it('keeps a deferred queued report reviewable when overflow loading fails', async () => {
     vi.mocked(explorationStore.fetchPendingOverflow).mockRejectedValue(new Error('offline'))
-    addPendingReport({
-      explorationId: 'exploration-deferred-report',
-      vaultId: 'vault-123',
-      dwellerId: 'dweller-1',
-      dwellerName: 'Lucy MacLean',
-      rewards: {
-        caps: 25,
-        items: [],
-        overflow_items: [
-          {
-            item_name: 'Wonderglue',
-            quantity: 1,
-            rarity: 'Common',
-            found_at: '2026-01-01T00:00:00Z',
-          },
-        ],
-        experience: 10,
-        distance: 5,
-        enemies_defeated: 0,
-        events_encountered: 1,
-      },
-    })
-
-    wrapper = mount(ExplorationView, {
-      global: {
-        stubs: {
-          SidePanel: true,
-          QuestPartyCard: true,
-          ExplorationRewardsModal: {
-            name: 'ExplorationRewardsModal',
-            template: '<div class="rewards-modal-mock" v-if="show" />',
-            props: ['show', 'rewards', 'dwellerName', 'explorationId', 'pendingOnly'],
-            emits: ['close', 'resolved'],
-          },
+    addPendingReport(
+      pendingReport('exploration-deferred-report', {
+        rewards: {
+          caps: 25,
+          items: [],
+          overflow_items: [loot()],
+          experience: 10,
+          distance: 5,
+          enemies_defeated: 0,
+          events_encountered: 1,
         },
-      },
-    })
-    await flushPromises()
+      })
+    )
+    await mountView({ ExplorationRewardsModal: rewardsModal() })
 
-    const modal = () => wrapper.findComponent({ name: 'ExplorationRewardsModal' })
     expect(modal().props('pendingOnly')).toBe(false)
     expect(modal().props('rewards').overflow_items).toHaveLength(1)
 
     modal().vm.$emit('close', true)
     await flushPromises()
+    expect(banner().exists()).toBe(true)
 
-    expect(wrapper.find('.deferred-overflow-banner').exists()).toBe(true)
-
-    await wrapper.find('.deferred-overflow-banner button').trigger('click')
-    await flushPromises()
+    await reviewDeferred()
 
     expect(modal().props('show')).toBe(true)
     expect(modal().props('explorationId')).toBe('exploration-deferred-report')

@@ -41,6 +41,32 @@ const settings = (overrides: Partial<AISettingsRead> = {}): AISettingsRead => ({
   ...overrides,
 })
 
+/** A workspace saved on a local provider; `model`/`base_url` are the persisted columns. */
+const localSettings = (
+  model: string | null = 'google/gemma-4-e4b',
+  baseUrl: string | null = null
+) =>
+  settings({
+    profile: {
+      id: 'profile-1',
+      provider: 'lmstudio',
+      model,
+      base_url: baseUrl,
+      gateway_route: null,
+      updated_at: '2026-09-22T00:00:00Z',
+    },
+  })
+
+/** Mounts the panel and lets its initial settings load settle. */
+async function render() {
+  const wrapper = mountWithSetup(AISettingsPanel)
+  await flushPromises()
+  return wrapper
+}
+
+const baseUrlValue = (wrapper: ReturnType<typeof mountWithSetup>) =>
+  (wrapper.find('input[id="ai-base-url"]').element as HTMLInputElement).value
+
 const findButton = (wrapper: ReturnType<typeof mountWithSetup>, label: string) =>
   wrapper.findAll('button').find((b) => b.text().includes(label))!
 
@@ -71,8 +97,7 @@ describe('AISettingsPanel', () => {
   })
 
   it('loads settings on mount and populates the form', async () => {
-    const wrapper = mountWithSetup(AISettingsPanel)
-    await flushPromises()
+    const wrapper = await render()
 
     expect(aiSettingsService.get).toHaveBeenCalledTimes(1)
     expect(wrapper.find('[role="combobox"]').text()).toContain('OpenAI')
@@ -84,20 +109,8 @@ describe('AISettingsPanel', () => {
   })
 
   it('reloads a local provider without marking the prefilled base URL as an override', async () => {
-    vi.mocked(aiSettingsService.get).mockResolvedValue(
-      settings({
-        profile: {
-          id: 'profile-1',
-          provider: 'lmstudio',
-          model: 'google/gemma-4-e4b',
-          base_url: null,
-          gateway_route: null,
-          updated_at: '2026-09-22T00:00:00Z',
-        },
-      })
-    )
-    const wrapper = mountWithSetup(AISettingsPanel)
-    await flushPromises()
+    vi.mocked(aiSettingsService.get).mockResolvedValue(localSettings())
+    const wrapper = await render()
 
     const saveButton = findButton(wrapper, 'Save & Apply')
     expect((saveButton.element as HTMLButtonElement).disabled).toBe(true)
@@ -105,20 +118,8 @@ describe('AISettingsPanel', () => {
   })
 
   it('marks the base URL dirty only after an explicit edit', async () => {
-    vi.mocked(aiSettingsService.get).mockResolvedValue(
-      settings({
-        profile: {
-          id: 'profile-1',
-          provider: 'lmstudio',
-          model: 'google/gemma-4-e4b',
-          base_url: null,
-          gateway_route: null,
-          updated_at: '2026-09-22T00:00:00Z',
-        },
-      })
-    )
-    const wrapper = mountWithSetup(AISettingsPanel)
-    await flushPromises()
+    vi.mocked(aiSettingsService.get).mockResolvedValue(localSettings())
+    const wrapper = await render()
 
     await wrapper.find('input[id="ai-base-url"]').setValue('http://localhost:9999/v1')
     await flushPromises()
@@ -130,8 +131,7 @@ describe('AISettingsPanel', () => {
   })
 
   it('shows the Jev decision model status', async () => {
-    const wrapper = mountWithSetup(AISettingsPanel)
-    await flushPromises()
+    const wrapper = await render()
 
     expect(wrapper.text()).toContain('Jev decision model')
     expect(wrapper.text()).toContain('jev-latest')
@@ -140,28 +140,15 @@ describe('AISettingsPanel', () => {
   })
 
   it('does not mark Base URL required when the model field is empty', async () => {
-    vi.mocked(aiSettingsService.get).mockResolvedValue(
-      settings({
-        profile: {
-          id: 'profile-1',
-          provider: 'lmstudio',
-          model: null,
-          base_url: null,
-          gateway_route: null,
-          updated_at: '2026-09-22T00:00:00Z',
-        },
-      })
-    )
-    const wrapper = mountWithSetup(AISettingsPanel)
-    await flushPromises()
+    vi.mocked(aiSettingsService.get).mockResolvedValue(localSettings(null))
+    const wrapper = await render()
 
     expect(wrapper.text()).toContain('Not configured')
     expect(wrapper.text()).not.toContain('Required for Ollama / LM Studio')
   })
 
   it('keeps save disabled until a field changes', async () => {
-    const wrapper = mountWithSetup(AISettingsPanel)
-    await flushPromises()
+    const wrapper = await render()
 
     const saveButton = findButton(wrapper, 'Save & Apply')
     expect((saveButton.element as HTMLButtonElement).disabled).toBe(true)
@@ -172,8 +159,7 @@ describe('AISettingsPanel', () => {
   })
 
   it('saves only the changed fields through the service', async () => {
-    const wrapper = mountWithSetup(AISettingsPanel)
-    await flushPromises()
+    const wrapper = await render()
 
     await wrapper.find('input[id="ai-model"]').setValue('claude-3-haiku')
     await findButton(wrapper, 'Save & Apply').trigger('click')
@@ -184,8 +170,7 @@ describe('AISettingsPanel', () => {
   })
 
   it('tests the connection with the dirty payload and shows the result', async () => {
-    const wrapper = mountWithSetup(AISettingsPanel)
-    await flushPromises()
+    const wrapper = await render()
 
     await wrapper.find('input[id="ai-model"]').setValue('claude-3-haiku')
     await findButton(wrapper, 'Test Connection').trigger('click')
@@ -196,8 +181,7 @@ describe('AISettingsPanel', () => {
   })
 
   it('resets to environment defaults after a two-step confirm', async () => {
-    const wrapper = mountWithSetup(AISettingsPanel)
-    await flushPromises()
+    const wrapper = await render()
 
     const resetButton = findButton(wrapper, 'Reset to Defaults')
     await resetButton.trigger('click')
@@ -216,8 +200,7 @@ describe('AISettingsPanel', () => {
   })
 
   it('reveals the base URL field when a local provider is selected', async () => {
-    const wrapper = mountWithSetup(AISettingsPanel)
-    await flushPromises()
+    const wrapper = await render()
 
     expect(wrapper.find('input[id="ai-base-url"]').exists()).toBe(false)
 
@@ -237,80 +220,42 @@ describe('AISettingsPanel', () => {
 
     expect(wrapper.find('input[id="ai-base-url"]').exists()).toBe(true)
     expect(wrapper.text()).toContain('Required for Ollama / LM Studio')
-    expect((wrapper.find('input[id="ai-base-url"]').element as HTMLInputElement).value).toBe(
-      'http://localhost:11434/v1'
-    )
+    expect(baseUrlValue(wrapper)).toBe('http://localhost:11434/v1')
   })
 
   it('updates the base URL port when switching between local providers', async () => {
-    const wrapper = mountWithSetup(AISettingsPanel)
-    await flushPromises()
+    const wrapper = await render()
 
     await selectProvider(wrapper, 'LM Studio')
-    expect((wrapper.find('input[id="ai-base-url"]').element as HTMLInputElement).value).toBe(
-      'http://localhost:1234/v1'
-    )
+    expect(baseUrlValue(wrapper)).toBe('http://localhost:1234/v1')
 
     await selectProvider(wrapper, 'Ollama')
-    expect((wrapper.find('input[id="ai-base-url"]').element as HTMLInputElement).value).toBe(
-      'http://localhost:11434/v1'
-    )
+    expect(baseUrlValue(wrapper)).toBe('http://localhost:11434/v1')
   })
 
   it('updates the base URL port when loaded already on a local provider', async () => {
-    vi.mocked(aiSettingsService.get).mockResolvedValue(
-      settings({
-        profile: {
-          id: 'profile-1',
-          provider: 'lmstudio',
-          model: 'google/gemma-4-e4b',
-          base_url: null,
-          gateway_route: null,
-          updated_at: '2026-09-22T00:00:00Z',
-        },
-      })
-    )
-    const wrapper = mountWithSetup(AISettingsPanel)
-    await flushPromises()
+    vi.mocked(aiSettingsService.get).mockResolvedValue(localSettings())
+    const wrapper = await render()
 
-    expect((wrapper.find('input[id="ai-base-url"]').element as HTMLInputElement).value).toBe(
-      'http://localhost:1234/v1'
-    )
+    expect(baseUrlValue(wrapper)).toBe('http://localhost:1234/v1')
 
     await selectProvider(wrapper, 'Ollama')
-    expect((wrapper.find('input[id="ai-base-url"]').element as HTMLInputElement).value).toBe(
-      'http://localhost:11434/v1'
-    )
+    expect(baseUrlValue(wrapper)).toBe('http://localhost:11434/v1')
   })
 
   it('clears the base URL when switching from a local provider to a cloud one', async () => {
-    const wrapper = mountWithSetup(AISettingsPanel)
-    await flushPromises()
+    const wrapper = await render()
 
     await selectProvider(wrapper, 'Ollama')
-    expect((wrapper.find('input[id="ai-base-url"]').element as HTMLInputElement).value).toBe(
-      'http://localhost:11434/v1'
-    )
+    expect(baseUrlValue(wrapper)).toBe('http://localhost:11434/v1')
 
     await selectProvider(wrapper, 'OpenAI')
     expect(wrapper.find('input[id="ai-base-url"]').exists()).toBe(false)
   })
 
   it('does not flag Base URL red until a local-provider submit is attempted', async () => {
-    vi.mocked(aiSettingsService.get).mockResolvedValue(
-      settings({
-        profile: {
-          id: 'profile-1',
-          provider: 'lmstudio',
-          model: 'google/gemma-4-e4b',
-          base_url: null,
-          gateway_route: null,
-          updated_at: '2026-09-22T00:00:00Z',
-        },
-      })
-    )
-    const wrapper = mountWithSetup(AISettingsPanel)
-    await flushPromises()
+    vi.mocked(aiSettingsService.get).mockResolvedValue(localSettings())
+    const wrapper = await render()
 
     expect(wrapper.find('.border-danger\\/50').exists()).toBe(false)
     expect(wrapper.text()).not.toContain('(Required)')
@@ -327,8 +272,7 @@ describe('AISettingsPanel', () => {
     const writeText = vi.fn().mockResolvedValue(undefined)
     Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true })
 
-    const wrapper = mountWithSetup(AISettingsPanel)
-    await flushPromises()
+    const wrapper = await render()
 
     const copyButton = findButton(wrapper, 'Copy')
     await copyButton.trigger('click')

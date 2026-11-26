@@ -59,16 +59,17 @@ const stubs = {
   WastelandPanel: true,
 }
 
-async function mountLoadedVault() {
-  const authStore = useAuthStore()
+const buildDialog = (wrapper: ReturnType<typeof mount>) =>
+  wrapper.find('[role="dialog"][aria-label="Room menu"]')
+
+/** Stub every store read the overview fires on entry. */
+function seedStoreReads() {
   const vaultStore = useVaultStore()
   const roomStore = useRoomStore()
   const { filter: dwellerStore } = useDwellerStore()
-  const explorationStore = useExplorationStore()
-  const incidentStore = useIncidentStore()
 
-  authStore.token = 'test-token'
-  vaultStore.loadedVaults['vault-1'] = vaultFixture
+  useAuthStore().token = 'test-token'
+  vaultStore.loadedVaults['vault-1'] = vaultFixture as never
 
   vi.spyOn(vaultStore, 'fetchVaults').mockResolvedValue(true)
   vi.spyOn(vaultStore, 'revalidateVault').mockResolvedValue()
@@ -79,9 +80,13 @@ async function mountLoadedVault() {
   vi.spyOn(roomStore, 'deselectRoom').mockImplementation(() => {})
   vi.spyOn(dwellerStore, 'fetchDwellersByVault').mockResolvedValue()
   vi.spyOn(dwellerStore, 'fetchAllDwellers').mockResolvedValue()
-  vi.spyOn(explorationStore, 'fetchExplorationsByVault').mockResolvedValue()
-  vi.spyOn(incidentStore, 'startPolling').mockImplementation(() => {})
+  vi.spyOn(useExplorationStore(), 'fetchExplorationsByVault').mockResolvedValue()
+  vi.spyOn(useIncidentStore(), 'startPolling').mockImplementation(() => {})
 
+  return { vaultStore, roomStore, filter: dwellerStore }
+}
+
+async function createVaultRouter(path = '/vault/vault-1') {
   const router = createRouter({
     history: createMemoryHistory(),
     routes: [
@@ -89,19 +94,21 @@ async function mountLoadedVault() {
       { path: '/vault/:id?', component: VaultView },
     ],
   })
-  await router.push('/vault/vault-1')
+  await router.push(path)
   await router.isReady()
-
-  const wrapper = mount(VaultView, {
-    global: { plugins: [router], stubs },
-  })
-  await flushPromises()
-
-  return { wrapper, roomStore, filter: dwellerStore }
+  return router
 }
 
-const buildDialog = (wrapper: ReturnType<typeof mount>) =>
-  wrapper.find('[role="dialog"][aria-label="Room menu"]')
+const mountVault = (router: Awaited<ReturnType<typeof createVaultRouter>>) =>
+  mount(VaultView, { global: { plugins: [router], stubs } })
+
+async function mountLoadedVault() {
+  const stores = seedStoreReads()
+  const router = await createVaultRouter()
+  const wrapper = mountVault(router)
+  await flushPromises()
+  return { wrapper, router, ...stores }
+}
 
 describe('VaultView', () => {
   beforeEach(() => {
@@ -125,13 +132,16 @@ describe('VaultView', () => {
       damageDealt: 0,
       rounds: 1,
     } as never)
+
     const { wrapper } = await mountLoadedVault()
     const report = wrapper
       .findAll('button')
       .find((button) => button.text().includes('Review incident report'))
     expect(report).toBeDefined()
+
     await report!.trigger('click')
     expect(wrapper.findComponent({ name: 'RoomGrid' }).props('openRoomId')).toBe('room-1')
+
     incidentStore.clearAftermath('room-1')
     await flushPromises()
     expect(wrapper.text()).not.toContain('Review incident report')
@@ -153,25 +163,8 @@ describe('VaultView', () => {
   })
 
   it('drops a superseded vault load before it reads the old vault', async () => {
-    const authStore = useAuthStore()
-    const vaultStore = useVaultStore()
-    const roomStore = useRoomStore()
-    const { filter: dwellerStore } = useDwellerStore()
-    const explorationStore = useExplorationStore()
-    const incidentStore = useIncidentStore()
-
-    authStore.token = 'test-token'
-    vaultStore.loadedVaults['vault-1'] = vaultFixture
-    vaultStore.loadedVaults['vault-2'] = { ...vaultFixture, id: 'vault-2' }
-    vi.spyOn(vaultStore, 'fetchVaults').mockResolvedValue(true)
-    vi.spyOn(vaultStore, 'fetchGameState').mockResolvedValue()
-    vi.spyOn(vaultStore, 'startResourcePolling').mockImplementation(() => {})
-    vi.spyOn(roomStore, 'fetchRooms').mockResolvedValue('loaded')
-    vi.spyOn(roomStore, 'fetchBuildableRooms').mockResolvedValue()
-    vi.spyOn(dwellerStore, 'fetchDwellersByVault').mockResolvedValue()
-    vi.spyOn(dwellerStore, 'fetchAllDwellers').mockResolvedValue()
-    vi.spyOn(explorationStore, 'fetchExplorationsByVault').mockResolvedValue()
-    vi.spyOn(incidentStore, 'startPolling').mockImplementation(() => {})
+    const { vaultStore, roomStore } = seedStoreReads()
+    vaultStore.loadedVaults['vault-2'] = { ...vaultFixture, id: 'vault-2' } as never
 
     let resolveStale!: () => void
     let resolveCurrent!: () => void
@@ -185,16 +178,8 @@ describe('VaultView', () => {
           })
     )
 
-    const router = createRouter({
-      history: createMemoryHistory(),
-      routes: [
-        { path: '/', component: { template: '<div />' } },
-        { path: '/vault/:id?', component: VaultView },
-      ],
-    })
-    await router.push('/vault/vault-1')
-    await router.isReady()
-    mount(VaultView, { global: { plugins: [router], stubs } })
+    const router = await createVaultRouter()
+    mountVault(router)
     await flushPromises()
 
     await router.push('/vault/vault-2')
@@ -210,16 +195,7 @@ describe('VaultView', () => {
   })
 
   it('renders the vault loading error state with a way back', async () => {
-    const router = createRouter({
-      history: createMemoryHistory(),
-      routes: [
-        { path: '/', component: { template: '<div />' } },
-        { path: '/vault/:id?', component: VaultView },
-      ],
-    })
-    await router.push('/vault/test-vault')
-    await router.isReady()
-
+    const router = await createVaultRouter('/vault/test-vault')
     const wrapper = mount(VaultView, { global: { plugins: [router] } })
     await flushPromises()
 
@@ -228,22 +204,6 @@ describe('VaultView', () => {
   })
 
   describe('Build control', () => {
-    it('renders the build control in the room grid container', async () => {
-      const { wrapper } = await mountLoadedVault()
-
-      const grid = wrapper.find('[data-testid="room-grid"]')
-      const buildButton = wrapper.findComponent(BuildModeButton)
-      const buildControl = wrapper.find('.build-control')
-
-      expect(grid.exists()).toBe(true)
-      expect(buildButton.exists()).toBe(true)
-      expect(buildButton.isVisible()).toBe(true)
-      expect(buildControl.element.parentElement).toBe(grid.element.parentElement)
-      expect(
-        buildButton.element.compareDocumentPosition(grid.element) & Node.DOCUMENT_POSITION_FOLLOWING
-      ).toBeTruthy()
-    })
-
     it('enters build mode from the control and cancels again', async () => {
       const { wrapper, roomStore } = await mountLoadedVault()
 

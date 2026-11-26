@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
 
 import { ref } from 'vue'
 import { createPinia, setActivePinia, disposePinia, getActivePinia } from 'pinia'
@@ -102,6 +102,24 @@ function failOnceThenResolve(
   return seen
 }
 
+/** Asserts a single request was sent and returns it, so callers never index loosely. */
+function soleRequest(seen: InternalAxiosRequestConfig[]): InternalAxiosRequestConfig {
+  expect(seen).toHaveLength(1)
+  return seen[0]!
+}
+
+/** A refresh call the test holds open, so it can mutate storage mid-flight. */
+function pendingRefresh(): { post: Mock; resolveRefresh: (data: unknown) => void } {
+  let finish!: (value: unknown) => void
+  const post = vi.spyOn(axios, 'post').mockImplementation(
+    () =>
+      new Promise((resolve) => {
+        finish = resolve
+      })
+  )
+  return { post, resolveRefresh: (data: unknown) => finish({ data }) }
+}
+
 beforeEach(() => {
   setActivePinia(createPinia())
   vi.spyOn(window, 'addEventListener')
@@ -131,31 +149,17 @@ afterEach(() => {
 })
 
 describe('axios auth interceptor', () => {
-  it('attaches the stored bearer token to a request', async () => {
-    localStorage.setItem('token', 'abc123')
+  it.each([
+    ['attaches the stored bearer token to a request', 'abc123', 'Bearer abc123'],
+    ['strips the quotes the token is stored with', JSON.stringify('abc123'), 'Bearer abc123'],
+    ['sends no Authorization header when no token is stored', null, undefined],
+  ])('%s', async (_label, stored, expected) => {
+    if (stored !== null) localStorage.setItem('token', stored)
     const seen = captureRequests()
 
     await apiClient.get('/api/v1/thing')
 
-    expect(seen).toHaveLength(1)
-    expect(seen[0]?.headers.Authorization).toBe('Bearer abc123')
-  })
-
-  it('strips the quotes the token is stored with', async () => {
-    localStorage.setItem('token', '"abc123"')
-    const seen = captureRequests()
-
-    await apiClient.get('/api/v1/thing')
-
-    expect(seen[0]?.headers.Authorization).toBe('Bearer abc123')
-  })
-
-  it('sends no Authorization header when no token is stored', async () => {
-    const seen = captureRequests()
-
-    await apiClient.get('/api/v1/thing')
-
-    expect(seen[0]?.headers.Authorization).toBeUndefined()
+    expect(soleRequest(seen).headers.Authorization).toBe(expected)
   })
 
   it('attaches the token to mutations as well as reads', async () => {
@@ -164,8 +168,9 @@ describe('axios auth interceptor', () => {
 
     await apiClient.put('/api/v1/thing', null, { params: { mode: 'happiness' } })
 
-    expect(seen[0]?.headers.Authorization).toBe('Bearer abc123')
-    expect(seen[0]?.params).toEqual({ mode: 'happiness' })
+    const request = soleRequest(seen)
+    expect(request.headers.Authorization).toBe('Bearer abc123')
+    expect(request.params).toEqual({ mode: 'happiness' })
   })
 })
 
@@ -237,12 +242,78 @@ describe('axios response interceptor', () => {
     expect(mockToast.error).toHaveBeenCalledTimes(2)
   })
 
-  it('maps 400 to Invalid Request and uses a string detail as the message', async () => {
-    rejectWithError((config) => statusError(config, 400, { detail: 'Bad payload' }))
+  const statusCases: Array<{
+    label: string
+    status: number
+    body?: unknown
+    headers?: Record<string, string>
+    message: string
+  }> = [
+    {
+      label: 'maps 400 to Invalid Request and uses a string detail as the message',
+      status: 400,
+      body: { detail: 'Bad payload' },
+      message: 'Invalid Request: Bad payload',
+    },
+    {
+      label: 'maps 403 to Access Denied',
+      status: 403,
+      message: "Access Denied: You don't have permission to perform this action",
+    },
+    {
+      label: 'maps 404 to Not Found',
+      status: 404,
+      message: 'Not Found: The requested resource was not found',
+    },
+    {
+      label: 'maps 422 to Validation Error and formats a FastAPI detail array',
+      status: 422,
+      body: { detail: [{ loc: ['body', 'x'], msg: 'bad' }] },
+      message: 'Validation Error: body.x: bad',
+    },
+    {
+      label: 'maps 429 to Rate Limit Exceeded with the default message',
+      status: 429,
+      message: 'Rate Limit Exceeded: Too many requests. Please slow down and try again.',
+    },
+    {
+      label: 'includes the Retry-After seconds in the 429 message',
+      status: 429,
+      headers: { 'retry-after': '30' },
+      message:
+        'Rate Limit Exceeded: Too many requests. Please wait 30 seconds before trying again.',
+    },
+    {
+      label: 'maps 5xx to Server Error',
+      status: 503,
+      message: 'Server Error: Something went wrong on our end',
+    },
+    {
+      label: 'serialises an object detail as JSON',
+      status: 400,
+      body: { detail: { field: 'x' } },
+      message: 'Invalid Request: {"field":"x"}',
+    },
+    {
+      label: 'uses the message key when detail is absent',
+      status: 400,
+      body: { message: 'Custom message' },
+      message: 'Invalid Request: Custom message',
+    },
+    {
+      label: 'uses a raw string response body as the message',
+      status: 400,
+      body: 'Raw failure',
+      message: 'Invalid Request: Raw failure',
+    },
+  ]
+
+  it.each(statusCases)('$label', async ({ status, body, headers, message }) => {
+    rejectWithError((config) => statusError(config, status, body, headers))
 
     await expect(apiClient.get('/api/v1/thing')).rejects.toBeInstanceOf(AxiosError)
 
-    expect(mockToast.error).toHaveBeenCalledWith('Invalid Request: Bad payload')
+    expect(mockToast.error).toHaveBeenCalledWith(message)
   })
 
   it('ends the session without toast spam when the retried request is still unauthorized', async () => {
@@ -254,86 +325,6 @@ describe('axios response interceptor', () => {
 
     expect(mockToast.error).not.toHaveBeenCalled()
     expect(localStorage.getItem('token')).toBeNull()
-  })
-
-  it('maps 403 to Access Denied', async () => {
-    rejectWithError((config) => statusError(config, 403))
-
-    await expect(apiClient.get('/api/v1/thing')).rejects.toBeInstanceOf(AxiosError)
-
-    expect(mockToast.error).toHaveBeenCalledWith(
-      "Access Denied: You don't have permission to perform this action"
-    )
-  })
-
-  it('maps 404 to Not Found', async () => {
-    rejectWithError((config) => statusError(config, 404))
-
-    await expect(apiClient.get('/api/v1/thing')).rejects.toBeInstanceOf(AxiosError)
-
-    expect(mockToast.error).toHaveBeenCalledWith('Not Found: The requested resource was not found')
-  })
-
-  it('maps 422 to Validation Error and formats a FastAPI detail array', async () => {
-    rejectWithError((config) =>
-      statusError(config, 422, { detail: [{ loc: ['body', 'x'], msg: 'bad' }] })
-    )
-
-    await expect(apiClient.get('/api/v1/thing')).rejects.toBeInstanceOf(AxiosError)
-
-    expect(mockToast.error).toHaveBeenCalledWith('Validation Error: body.x: bad')
-  })
-
-  it('maps 429 to Rate Limit Exceeded with the default message', async () => {
-    rejectWithError((config) => statusError(config, 429))
-
-    await expect(apiClient.get('/api/v1/thing')).rejects.toBeInstanceOf(AxiosError)
-
-    expect(mockToast.error).toHaveBeenCalledWith(
-      'Rate Limit Exceeded: Too many requests. Please slow down and try again.'
-    )
-  })
-
-  it('includes the Retry-After seconds in the 429 message', async () => {
-    rejectWithError((config) => statusError(config, 429, undefined, { 'retry-after': '30' }))
-
-    await expect(apiClient.get('/api/v1/thing')).rejects.toBeInstanceOf(AxiosError)
-
-    expect(mockToast.error).toHaveBeenCalledWith(
-      'Rate Limit Exceeded: Too many requests. Please wait 30 seconds before trying again.'
-    )
-  })
-
-  it('maps 5xx to Server Error', async () => {
-    rejectWithError((config) => statusError(config, 503))
-
-    await expect(apiClient.get('/api/v1/thing')).rejects.toBeInstanceOf(AxiosError)
-
-    expect(mockToast.error).toHaveBeenCalledWith('Server Error: Something went wrong on our end')
-  })
-
-  it('serialises an object detail as JSON', async () => {
-    rejectWithError((config) => statusError(config, 400, { detail: { field: 'x' } }))
-
-    await expect(apiClient.get('/api/v1/thing')).rejects.toBeInstanceOf(AxiosError)
-
-    expect(mockToast.error).toHaveBeenCalledWith('Invalid Request: {"field":"x"}')
-  })
-
-  it('uses the message key when detail is absent', async () => {
-    rejectWithError((config) => statusError(config, 400, { message: 'Custom message' }))
-
-    await expect(apiClient.get('/api/v1/thing')).rejects.toBeInstanceOf(AxiosError)
-
-    expect(mockToast.error).toHaveBeenCalledWith('Invalid Request: Custom message')
-  })
-
-  it('uses a raw string response body as the message', async () => {
-    rejectWithError((config) => statusError(config, 400, 'Raw failure'))
-
-    await expect(apiClient.get('/api/v1/thing')).rejects.toBeInstanceOf(AxiosError)
-
-    expect(mockToast.error).toHaveBeenCalledWith('Invalid Request: Raw failure')
   })
 
   it('suppresses the toast when _skipErrorNotification is set', async () => {
@@ -412,25 +403,19 @@ describe('axios response interceptor', () => {
       .mockResolvedValue({ data: { access_token: 'fresh-token' } })
     await apiClient.get('/protected')
     expect(refresh).toHaveBeenCalledTimes(1)
-    expect(seen).toHaveLength(1)
-    expect(seen[0].headers.Authorization).toBe('Bearer fresh-token')
+    const request = soleRequest(seen)
+    expect(request.headers.Authorization).toBe('Bearer fresh-token')
   })
 
   it('does not restore credentials after logout while refresh is pending', async () => {
     localStorage.setItem('token', 'old-token')
     localStorage.setItem('refreshToken', 'refresh-logout-race')
     rejectWithError((config) => statusError(config, 401))
-    let finishRefresh!: (value: unknown) => void
-    const post = vi.spyOn(axios, 'post').mockImplementation(
-      () =>
-        new Promise((resolve) => {
-          finishRefresh = resolve
-        })
-    )
+    const { post, resolveRefresh } = pendingRefresh()
     const rejected = expect(apiClient.get('/protected')).rejects.toThrow('Session changed')
     await vi.waitFor(() => expect(post).toHaveBeenCalledTimes(1))
     localStorage.clear()
-    finishRefresh({ data: { access_token: 'late-token', refresh_token: 'late-refresh' } })
+    resolveRefresh({ access_token: 'late-token', refresh_token: 'late-refresh' })
     await rejected
     expect(localStorage.getItem('token')).toBeNull()
   })
@@ -441,22 +426,16 @@ describe('axios response interceptor', () => {
     localStorage.setItem('token', token(1))
     localStorage.setItem('refreshToken', 'old-refresh')
     const seen = failOnceThenResolve((config) => statusError(config, 401))
-    let finishRefresh!: (value: unknown) => void
-    const post = vi.spyOn(axios, 'post').mockImplementation(
-      () =>
-        new Promise((resolve) => {
-          finishRefresh = resolve
-        })
-    )
+    const { post, resolveRefresh } = pendingRefresh()
     const request = apiClient.get('/protected')
     const completed = expect(request).resolves.toMatchObject({ status: 200 })
     await vi.waitFor(() => expect(post).toHaveBeenCalledTimes(1))
     localStorage.setItem('token', token(2))
     localStorage.setItem('refreshToken', 'rotated-refresh')
-    finishRefresh({ data: { access_token: 'stale-token', refresh_token: 'stale-refresh' } })
+    resolveRefresh({ access_token: 'stale-token', refresh_token: 'stale-refresh' })
     await completed
     expect(seen).toHaveLength(2)
-    expect(seen[1].headers.Authorization).toBe(`Bearer ${token(2)}`)
+    expect(seen[1]?.headers.Authorization).toBe(`Bearer ${token(2)}`)
     expect(localStorage.getItem('token')).toBe(token(2))
     expect(localStorage.getItem('refreshToken')).toBe('rotated-refresh')
     expect(locationStub.href).toBe('')
@@ -467,20 +446,14 @@ describe('axios response interceptor', () => {
     localStorage.setItem('token', token('old-user'))
     localStorage.setItem('refreshToken', 'old-refresh')
     const seen = failOnceThenResolve((config) => statusError(config, 401))
-    let finishRefresh!: (value: unknown) => void
-    const post = vi.spyOn(axios, 'post').mockImplementation(
-      () =>
-        new Promise((resolve) => {
-          finishRefresh = resolve
-        })
-    )
+    const { post, resolveRefresh } = pendingRefresh()
     const request = expect(apiClient.post('/protected-action')).rejects.toMatchObject({
       code: 'ERR_CANCELED',
     })
     await vi.waitFor(() => expect(post).toHaveBeenCalledTimes(1))
     localStorage.setItem('token', token('new-user'))
     localStorage.setItem('refreshToken', 'new-login-refresh')
-    finishRefresh({ data: { access_token: 'stale-token', refresh_token: 'stale-refresh' } })
+    resolveRefresh({ access_token: 'stale-token', refresh_token: 'stale-refresh' })
     await request
     expect(seen).toHaveLength(1)
     expect(localStorage.getItem('token')).toBe(token('new-user'))
@@ -497,16 +470,10 @@ describe('axios response interceptor', () => {
       if (!config._retry) throw statusError(config, 401)
       return { data: {}, status: 200, statusText: 'OK', headers: {}, config }
     }
-    let finishRefresh!: (value: unknown) => void
-    const post = vi.spyOn(axios, 'post').mockImplementation(
-      () =>
-        new Promise((resolve) => {
-          finishRefresh = resolve
-        })
-    )
+    const { post, resolveRefresh } = pendingRefresh()
     const requests = Promise.all([apiClient.get('/first'), apiClient.get('/second')])
     await vi.waitFor(() => expect(post).toHaveBeenCalledTimes(1))
-    finishRefresh({ data: { access_token: 'fresh-token', refresh_token: 'refresh-next' } })
+    resolveRefresh({ access_token: 'fresh-token', refresh_token: 'refresh-next' })
     await requests
     expect(post).toHaveBeenCalledTimes(1)
     expect(seen).toEqual([
@@ -561,6 +528,14 @@ describe('axios response interceptor', () => {
 })
 
 describe('chat exploration notifications across UI and store', () => {
+  const chatActions = () =>
+    useChatActions({
+      dwellerId: 'dweller-1',
+      dwellerName: 'Lucy',
+      messages: ref([]),
+      vaultId: 'vault-1',
+    })
+
   it('confirms training once after moving the dweller into a training room', async () => {
     useAuthStore().token = 'test-token'
     useDwellerStore().filter.dwellers = [{ id: 'dweller-1', room_id: null }] as never
@@ -568,13 +543,7 @@ describe('chat exploration notifications across UI and store', () => {
       { id: 'training-1', category: 'training', ability: 'Strength', size: 3 },
     ] as never
     captureRequests()
-    const actions = useChatActions({
-      dwellerId: 'dweller-1',
-      dwellerName: 'Lucy',
-      messages: ref([]),
-      vaultId: 'vault-1',
-    })
-    await actions.handleActionConfirm(
+    await chatActions().handleActionConfirm(
       { action_type: 'start_training', stat: 'strength', reason: 'Train strength' },
       0
     )
@@ -597,13 +566,7 @@ describe('chat exploration notifications across UI and store', () => {
             rewards_summary: progress === 100 ? { caps: 10 } : undefined,
           },
     })
-    const actions = useChatActions({
-      dwellerId: 'dweller-1',
-      dwellerName: 'Lucy',
-      messages: ref([]),
-      vaultId: 'vault-1',
-    })
-    await actions.handleActionConfirm(
+    await chatActions().handleActionConfirm(
       { action_type: 'recall_exploration', exploration_id: 'exploration-1', reason: 'Return home' },
       0
     )

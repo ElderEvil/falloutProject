@@ -20,18 +20,23 @@ const roster = (overrides: Partial<ContaminationTeamRead> = {}): ContaminationTe
   ...overrides,
 })
 
-function mountPanel(overrides: Partial<ContaminationTeamRead> = {}) {
+type PanelProps = InstanceType<typeof ResponseTeamsPanel>['$props']
+
+/** Mounts the panel with a healthy roster; callers override the roster rows or the state. */
+function mountPanel(
+  overrides: Partial<ContaminationTeamRead> = {},
+  props: Partial<PanelProps> = {}
+) {
   return mountWithSetup(ResponseTeamsPanel, {
-    props: {
-      roster: roster(overrides),
-      loading: false,
-      error: null,
-    },
+    props: { roster: roster(overrides), loading: false, error: null, ...props } as PanelProps,
   })
 }
 
-const findButton = (wrapper: ReturnType<typeof mountWithSetup>, label: string) =>
-  wrapper.findAll('button').find((b) => b.text().includes(label))!
+function findButton(wrapper: ReturnType<typeof mountWithSetup>, label: string) {
+  const found = wrapper.findAll('button').find((b) => b.text().includes(label))
+  if (!found) throw new Error(`No button labelled "${label}"`)
+  return found
+}
 
 describe('ResponseTeamsPanel', () => {
   it('keeps actionable capacity guidance visible', () => {
@@ -44,9 +49,7 @@ describe('ResponseTeamsPanel', () => {
     const wrapper = mountPanel()
     await findButton(wrapper, 'John Doe').trigger('click')
     expect(wrapper.emitted('view-dweller')).toEqual([['d1']])
-    const failed = mountWithSetup(ResponseTeamsPanel, {
-      props: { roster: null, loading: false, error: 'Signal lost' },
-    })
+    const failed = mountPanel({}, { roster: null, error: 'Signal lost' })
     await findButton(failed, 'Retry').trigger('click')
     expect(failed.emitted('refresh')).toHaveLength(1)
   })
@@ -127,17 +130,13 @@ describe('ResponseTeamsPanel', () => {
   })
 
   it('shows the loading state while loading', () => {
-    const wrapper = mountWithSetup(ResponseTeamsPanel, {
-      props: { roster: null, loading: true, error: null },
-    })
+    const wrapper = mountPanel({}, { roster: null, loading: true })
 
     expect(wrapper.text()).toContain('Loading response teams...')
   })
 
   it('shows the error state when the fetch failed', () => {
-    const wrapper = mountWithSetup(ResponseTeamsPanel, {
-      props: { roster: null, loading: false, error: 'Signal lost' },
-    })
+    const wrapper = mountPanel({}, { roster: null, error: 'Signal lost' })
 
     expect(wrapper.text()).toContain('Failed to load response teams')
     expect(wrapper.text()).toContain('Signal lost')
@@ -178,14 +177,7 @@ describe('ResponseTeamsPanel', () => {
   })
 
   it('disables buttons while the dweller is busy', () => {
-    const wrapper = mountWithSetup(ResponseTeamsPanel, {
-      props: {
-        roster: roster(),
-        loading: false,
-        error: null,
-        busyDwellerIds: ['d1'],
-      },
-    })
+    const wrapper = mountPanel({}, { busyDwellerIds: ['d1'] })
 
     const bench = findButton(wrapper, 'Bench')
     expect((bench.element as HTMLButtonElement).disabled).toBe(true)

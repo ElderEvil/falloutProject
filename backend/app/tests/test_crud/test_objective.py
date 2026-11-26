@@ -60,46 +60,34 @@ async def test_count_claimable_for_vault(async_session: AsyncSession) -> None:
     assert await crud.objective_crud.count_claimable_for_vault(async_session, vault.id) == 1
 
 
+# Progress is recorded but never paid; completion settles the reward. Both must work with a link
+# created up front and with one created lazily by the first write.
+@pytest.mark.parametrize("settle", ["progress", "complete"])
 @pytest.mark.parametrize("linked", [True, False], ids=["with-link", "without-link"])
-async def test_update_objective_progress(async_session: AsyncSession, linked: bool) -> None:
+async def test_objective_settlement_creates_the_missing_link(
+    async_session: AsyncSession, settle: str, linked: bool
+) -> None:
     vault = await _user_vault(async_session)
-    # A link created up front vs. created lazily by the first progress write.
     objective = await (
         _assign(async_session, vault, _obj("Collect 10 weapons", "500 caps"))
         if linked
         else crud.objective_crud.create(async_session, obj_in=_obj("Collect 10 weapons", "500 caps"))
     )
     initial_caps = vault.bottle_caps
-    link = await _progress(async_session, vault, objective, 5)
 
-    assert link.vault_id == vault.id
-    assert link.objective_id == objective.id
-    assert link.progress == 5
-    # Progress is recorded but the reward is only claimable, not paid.
-    assert link.is_completed is False
-    await async_session.refresh(vault)
-    assert vault.bottle_caps == initial_caps
-
-
-@pytest.mark.parametrize("linked", [True, False], ids=["with-link", "without-link"])
-async def test_complete_objective(async_session: AsyncSession, linked: bool) -> None:
-    vault = await _user_vault(async_session)
-    # Completing an unlinked objective must create the vault link on the fly.
-    objective = await (
-        _assign(async_session, vault, _obj("Collect 100 food"))
-        if linked
-        else crud.objective_crud.create(async_session, obj_in=_obj("Collect 100 food"))
-    )
-    initial_caps = vault.bottle_caps
-    completed_objective = await _complete(async_session, vault, objective)
-
-    assert completed_objective.id == objective.id
-    await async_session.refresh(vault)
-    assert vault.bottle_caps == initial_caps + 50
-    objectives = await _assigned(async_session, vault)
-    assert len(objectives) == 1
-    assert objectives[0].is_completed is True
-    assert objectives[0].challenge == "Collect 100 food"
+    if settle == "progress":
+        link = await _progress(async_session, vault, objective, 5)
+        assert (link.vault_id, link.objective_id, link.progress) == (vault.id, objective.id, 5)
+        assert link.is_completed is False
+        await async_session.refresh(vault)
+        assert vault.bottle_caps == initial_caps
+    else:
+        completed_objective = await _complete(async_session, vault, objective)
+        assert completed_objective.id == objective.id
+        await async_session.refresh(vault)
+        assert vault.bottle_caps == initial_caps + 500
+        objectives = await _assigned(async_session, vault)
+        assert [(row.challenge, row.is_completed) for row in objectives] == [("Collect 10 weapons", True)]
 
 
 async def test_assign_initial_objectives(async_session: AsyncSession) -> None:

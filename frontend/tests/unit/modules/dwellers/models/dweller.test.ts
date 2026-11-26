@@ -27,127 +27,101 @@ describe('ADULT_AGE_GROUPS', () => {
 })
 
 describe('isMature', () => {
-  const grownUps = ['adult', 'elder'] as const
-  const youths = ['teen', 'child'] as const
-
-  it.each(grownUps)('accepts a mature %s', (age_group) => {
-    expect(isMature({ age_group })).toBe(true)
-  })
-
-  it.each(youths)('rejects a %s', (age_group) => {
-    expect(isMature({ age_group })).toBe(false)
-  })
-
-  it('derives maturity from age_group alone', () => {
-    expect(isMature({ age_group: 'adult' })).toBe(true)
-    expect(isMature({ age_group: 'elder' })).toBe(true)
+  it.each([
+    ['adult', true],
+    ['elder', true],
+    ['teen', false],
+    ['child', false],
+  ] as const)('judges %s maturity as %s', (age_group, mature) => {
+    expect(isMature({ age_group })).toBe(mature)
   })
 })
 
 describe('passesAsHuman', () => {
   it.each([
-    ['human', undefined],
-    ['synth', 'gen_3'],
-    ['synth', undefined],
-  ])('treats %s/%s as human-presenting', (race, state_of_being) => {
-    expect(passesAsHuman({ visual_attributes: { race, state_of_being } })).toBe(true)
-  })
-
-  it.each([
-    ['ghoul', 'sane'],
-    ['super_mutant', 'behemoth'],
-    ['synth', 'gen_1'],
-    ['synth', 'gen_2'],
-  ])('rejects %s/%s', (race, state_of_being) => {
-    expect(passesAsHuman({ visual_attributes: { race, state_of_being } })).toBe(false)
+    ['human', undefined, true],
+    ['synth', 'gen_3', true],
+    ['synth', undefined, true],
+    ['ghoul', 'sane', false],
+    ['super_mutant', 'behemoth', false],
+    ['synth', 'gen_1', false],
+    ['synth', 'gen_2', false],
+  ] as const)('judges %s/%s human-presenting as %s', (race, state_of_being, passes) => {
+    expect(passesAsHuman({ visual_attributes: { race, state_of_being } })).toBe(passes)
   })
 })
 
 describe('canUseRadaway', () => {
-  it.each(['ghoul', 'super_mutant'])('blocks %s', (race) => {
-    expect(canUseRadaway({ visual_attributes: { race } })).toBe(false)
+  it.each([
+    ['ghoul', undefined, false],
+    ['super_mutant', undefined, false],
+    ['synth', 'gen_1', false],
+    ['synth', 'gen_2', false],
+    ['synth', undefined, false],
+    ['synth', 'gen_3', true],
+    ['human', undefined, true],
+    ['unknown', undefined, true],
+  ] as const)('judges %s/%s eligibility as %s', (race, state_of_being, eligible) => {
+    expect(canUseRadaway({ visual_attributes: { race, state_of_being } })).toBe(eligible)
   })
 
-  it.each(['gen_1', 'gen_2', undefined])('blocks non-Gen-3 synth model %s', (state_of_being) => {
-    expect(canUseRadaway({ visual_attributes: { race: 'synth', state_of_being } })).toBe(false)
-  })
-
-  it.each(['human', 'unknown'])('allows %s using the backend fallback', (race) => {
-    expect(canUseRadaway({ visual_attributes: { race } })).toBe(true)
-  })
-
-  it('allows an organic Gen-3 synth', () => {
-    expect(canUseRadaway({ visual_attributes: { race: 'synth', state_of_being: 'gen_3' } })).toBe(
-      true
-    )
-  })
-
-  it('defaults missing race to human eligibility', () => {
+  it('defaults a missing race to human eligibility', () => {
     expect(canUseRadaway({ visual_attributes: null })).toBe(true)
   })
 })
 
 describe('getDwellerDisplayName', () => {
-  it('joins first and last name', () => {
-    expect(getDwellerDisplayName({ first_name: 'Lucy', last_name: 'MacLean' })).toBe('Lucy MacLean')
-  })
-
-  it('omits a null last name instead of rendering "null"', () => {
-    expect(getDwellerDisplayName({ first_name: 'Gary', last_name: null })).toBe('Gary')
-  })
-
-  it('omits an undefined last name', () => {
-    expect(getDwellerDisplayName({ first_name: 'Gary' })).toBe('Gary')
-  })
-
-  it('returns an empty string without a dweller or first name', () => {
-    expect(getDwellerDisplayName(null)).toBe('')
-    expect(getDwellerDisplayName(undefined)).toBe('')
-    expect(getDwellerDisplayName({ first_name: null, last_name: 'Smith' })).toBe('')
+  it.each([
+    [{ first_name: 'Lucy', last_name: 'MacLean' }, 'Lucy MacLean'],
+    [{ first_name: 'Gary', last_name: null }, 'Gary'],
+    [{ first_name: 'Gary' }, 'Gary'],
+    [null, ''],
+    [undefined, ''],
+    [{ first_name: null, last_name: 'Smith' }, ''],
+  ] as const)('names %o as %j', (dweller, name) => {
+    expect(getDwellerDisplayName(dweller)).toBe(name)
   })
 })
 
 describe('isSeverelyIrradiated', () => {
-  it('is true at or above half of max health', () => {
-    expect(isSeverelyIrradiated(50, 100)).toBe(true)
-    expect(isSeverelyIrradiated(60, 100)).toBe(true)
-    expect(isSeverelyIrradiated(5, 10)).toBe(true)
-  })
-
-  it('is false below half of max health', () => {
-    expect(isSeverelyIrradiated(49, 100)).toBe(false)
-    expect(isSeverelyIrradiated(1, 100)).toBe(false)
-  })
-
-  it('is false without radiation or a positive maximum', () => {
-    expect(isSeverelyIrradiated(0, 100)).toBe(false)
-    expect(isSeverelyIrradiated(null, 100)).toBe(false)
-    expect(isSeverelyIrradiated(50, 0)).toBe(false)
+  it.each([
+    [50, 100, true],
+    [60, 100, true],
+    [5, 10, true],
+    [49, 100, false],
+    [1, 100, false],
+    [0, 100, false],
+    [null, 100, false],
+    [50, 0, false],
+  ] as const)('judges radiation %s of %s as severe: %s', (radiation, maxHealth, severe) => {
+    expect(isSeverelyIrradiated(radiation, maxHealth)).toBe(severe)
   })
 })
 
-describe('getHappinessLevel', () => {
-  it('bands happiness into high / medium / low / critical', () => {
-    expect(getHappinessLevel(80)).toBe('high')
-    expect(getHappinessLevel(75)).toBe('high')
-    expect(getHappinessLevel(74)).toBe('medium')
-    expect(getHappinessLevel(50)).toBe('medium')
-    expect(getHappinessLevel(49)).toBe('low')
-    expect(getHappinessLevel(25)).toBe('low')
-    expect(getHappinessLevel(24)).toBe('critical')
+describe('happiness', () => {
+  it.each([
+    [80, 'high'],
+    [75, 'high'],
+    [74, 'medium'],
+    [50, 'medium'],
+    [49, 'low'],
+    [25, 'low'],
+    [24, 'critical'],
+  ] as const)('bands %i happiness as %s', (happiness, level) => {
+    expect(getHappinessLevel(happiness)).toBe(level)
+  })
+
+  it.each([
+    [80, 'var(--color-theme-primary)'],
+    [60, 'var(--color-terminal-green-dark)'],
+    [30, 'var(--color-warning)'],
+    [10, 'var(--color-danger)'],
+  ] as const)('maps %i happiness to its theme token', (happiness, color) => {
+    expect(getHappinessColor(getHappinessLevel(happiness))).toBe(color)
   })
 })
 
-describe('getHappinessColor', () => {
-  it('maps each band to its theme token', () => {
-    expect(getHappinessColor(getHappinessLevel(80))).toBe('var(--color-theme-primary)')
-    expect(getHappinessColor(getHappinessLevel(60))).toBe('var(--color-terminal-green-dark)')
-    expect(getHappinessColor(getHappinessLevel(30))).toBe('var(--color-warning)')
-    expect(getHappinessColor(getHappinessLevel(10))).toBe('var(--color-danger)')
-  })
-})
-
-describe('Roster attention predicates', () => {
+describe('roster attention predicates', () => {
   const dweller = {
     status: 'idle',
     health: 100,
@@ -157,20 +131,24 @@ describe('Roster attention predicates', () => {
     effective_max_health: 100,
   } as DwellerShort
 
-  it('uses the 50% health ceiling plus radiation and excludes deceased dwellers', () => {
-    expect(needsCare(dweller)).toBe(false)
-    expect(needsCare({ ...dweller, effective_max_health: 120 })).toBe(false)
-    expect(needsCare({ ...dweller, health: 59, effective_max_health: 120 })).toBe(true)
-    expect(needsCare({ ...dweller, health: 60, effective_max_health: 120 })).toBe(false)
-    expect(needsCare({ ...dweller, radiation: 20, effective_max_health: 80 })).toBe(true)
-    expect(needsCare({ ...dweller, status: 'dead', health: 0, radiation: 20 })).toBe(false)
+  it.each([
+    [{}, false],
+    [{ effective_max_health: 120 }, false],
+    [{ health: 59, effective_max_health: 120 }, true],
+    [{ health: 60, effective_max_health: 120 }, false],
+    [{ radiation: 20, effective_max_health: 80 }, true],
+    [{ status: 'dead', health: 0, radiation: 20 }, false],
+  ] as const)('flags care needs from the 50% ceiling plus radiation (%o)', (patch, care) => {
+    expect(needsCare({ ...dweller, ...patch })).toBe(care)
   })
 
-  it('matches the low and critical bands, with fifty as the exclusive boundary', () => {
-    expect(hasLowHappiness(dweller)).toBe(false)
-    expect(hasLowHappiness({ ...dweller, happiness: 49 })).toBe(true)
-    expect(hasLowHappiness({ ...dweller, happiness: 10 })).toBe(true)
-    expect(hasLowHappiness({ ...dweller, status: 'dead', happiness: 10 })).toBe(false)
+  it.each([
+    [{}, false],
+    [{ happiness: 49 }, true],
+    [{ happiness: 10 }, true],
+    [{ status: 'dead', happiness: 10 }, false],
+  ] as const)('flags low happiness below the exclusive fifty boundary (%o)', (patch, low) => {
+    expect(hasLowHappiness({ ...dweller, ...patch })).toBe(low)
   })
 })
 
@@ -187,10 +165,12 @@ describe('orderRoomDwellers', () => {
     ])
   })
 
-  it('detects apprentices by apprentice_stat only', () => {
-    expect(isApprentice({ apprentice_stat: 'strength' })).toBe(true)
-    expect(isApprentice({ apprentice_stat: null })).toBe(false)
-    expect(isApprentice({})).toBe(false)
-    expect(isApprentice(null)).toBe(false)
+  it.each([
+    [{ apprentice_stat: 'strength' }, true],
+    [{ apprentice_stat: null }, false],
+    [{}, false],
+    [null, false],
+  ] as const)('detects apprentices by apprentice_stat only (%o)', (dweller, apprentice) => {
+    expect(isApprentice(dweller)).toBe(apprentice)
   })
 })

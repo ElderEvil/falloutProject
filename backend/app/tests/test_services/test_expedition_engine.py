@@ -142,16 +142,24 @@ class TestExpeditionEngine:
         with pytest.raises(ResourceConflictException, match="red_rocket already has an open expedition run"):
             await _enter(async_session, exploration2, "red_rocket")
 
-    async def test_enter_after_recent_clear_conflicts(self, async_session):
+    @pytest.mark.parametrize(
+        ("status", "age", "blocked"),
+        [(ExpeditionRunStatus.CLEARED, timedelta(0), True), (ExpeditionRunStatus.RETREATED, timedelta(days=8), False)],
+    )
+    async def test_site_cooldown_gates_entry(self, async_session, status, age, blocked):
         vault, _dweller, exploration = await _make_exploration(async_session)
         prior = await _second_exploration(async_session, vault)
         run = await crud.expedition_run.create_run(
             async_session, exploration_id=prior.id, vault_id=vault.id, site_id="red_rocket"
         )
-        run.status, run.finished_at = ExpeditionRunStatus.CLEARED, utcnow()
+        run.status, run.finished_at = status, utcnow() - age
         await _save(async_session, run)
-        with pytest.raises(ResourceConflictException, match="quiet"):
-            await _enter(async_session, exploration, "red_rocket")
+        if blocked:
+            with pytest.raises(ResourceConflictException, match="quiet"):
+                await _enter(async_session, exploration, "red_rocket")
+            return
+        assert "red_rocket" in {site.id for site in await es.list_available_sites(async_session, exploration.id)}
+        assert (await _enter(async_session, exploration, "red_rocket")).site_id == "red_rocket"
 
     async def test_enter_after_retreat_blocked_by_cooldown(self, async_session):
         vault, _dweller, prior = await _make_exploration(async_session)
@@ -160,17 +168,6 @@ class TestExpeditionEngine:
         fresh = await _second_exploration(async_session, vault)
         with pytest.raises(ResourceConflictException, match="quiet"):
             await _enter(async_session, fresh, "red_rocket")
-
-    async def test_site_available_again_after_cooldown_window(self, async_session):
-        vault, _dweller, exploration = await _make_exploration(async_session)
-        prior = await _second_exploration(async_session, vault)
-        run = await crud.expedition_run.create_run(
-            async_session, exploration_id=prior.id, vault_id=vault.id, site_id="red_rocket"
-        )
-        run.status, run.finished_at = ExpeditionRunStatus.RETREATED, utcnow() - timedelta(days=8)
-        await _save(async_session, run)
-        assert "red_rocket" in {site.id for site in await es.list_available_sites(async_session, exploration.id)}
-        assert (await _enter(async_session, exploration, "red_rocket")).site_id == "red_rocket"
 
     async def test_full_red_rocket_clear(self, async_session):
         random.seed(42)
@@ -249,9 +246,7 @@ class TestExpeditionEngine:
         random.seed(42)
         vault, _dweller, exploration = await _make_exploration(async_session)
         await _enter(async_session, exploration, "red_rocket")
-        await _resolve(async_session, exploration.id, choice_id="disarm")
-        random.seed(570)
-        await _push_on_until(async_session, exploration.id, room_index=2)
+        await _red_rocket_to_finale(async_session, exploration)
         terminal = ExpeditionRun(
             exploration_id=exploration.id,
             vault_id=vault.id,

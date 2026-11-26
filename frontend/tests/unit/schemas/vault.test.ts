@@ -2,198 +2,93 @@ import { describe, it, expect } from 'vite-plus/test'
 import { vaultNumberSchema, parseVaultNumber } from '@/modules/vault/schemas/vault'
 import { ZodError } from 'zod'
 
+const parse = (number: unknown) => vaultNumberSchema.parse({ number })
+
+/** Every rejection is a ZodError carrying the schema's own message. */
+function expectRejection(number: unknown, message: string): void {
+  expect(() => parse(number)).toThrow(ZodError)
+  expect(() => parse(number)).toThrow(message)
+}
+
 describe('Vault Number Validation', () => {
   describe('vaultNumberSchema', () => {
-    describe('Happy Path', () => {
-      it('should accept valid vault number 1', () => {
-        const result = vaultNumberSchema.parse({ number: 1 })
-        expect(result.number).toBe(1)
-      })
-
-      it('should accept valid vault number 999', () => {
-        const result = vaultNumberSchema.parse({ number: 999 })
-        expect(result.number).toBe(999)
-      })
-
-      it('should accept valid vault number in middle range', () => {
-        const result = vaultNumberSchema.parse({ number: 500 })
-        expect(result.number).toBe(500)
-      })
-
-      it('should accept vault number 13 (unlucky vault)', () => {
-        const result = vaultNumberSchema.parse({ number: 13 })
-        expect(result.number).toBe(13)
-      })
-
-      it('should accept vault number 101 (famous vault)', () => {
-        const result = vaultNumberSchema.parse({ number: 101 })
-        expect(result.number).toBe(101)
-      })
+    it.each([1, 13, 76, 101, 111, 500, 999])('accepts the vault number %i', (number) => {
+      expect(parse(number).number).toBe(number)
     })
 
     describe('Vault Mode', () => {
-      it('should accept standard mode', () => {
-        const result = vaultNumberSchema.parse({ number: 100, vaultMode: 'standard' })
-        expect(result.vaultMode).toBe('standard')
-      })
-
-      it('should accept survival mode', () => {
-        const result = vaultNumberSchema.parse({ number: 100, vaultMode: 'survival' })
-        expect(result.vaultMode).toBe('survival')
+      it.each(['standard', 'survival'])('accepts %s mode', (vaultMode) => {
+        expect(
+          vaultNumberSchema.parse({ number: 100, vaultMode: vaultMode as 'standard' }).vaultMode
+        ).toBe(vaultMode)
       })
 
       it('should default to standard mode when omitted', () => {
-        const result = vaultNumberSchema.parse({ number: 100 })
-        expect(result.vaultMode).toBe('standard')
+        expect(parse(100).vaultMode).toBe('standard')
       })
 
       it('should reject an unknown mode', () => {
         expect(() =>
-          vaultNumberSchema.parse({ number: 100, vaultMode: 'hardcore' as any })
+          vaultNumberSchema.parse({ number: 100, vaultMode: 'hardcore' as 'standard' })
         ).toThrow(ZodError)
       })
     })
 
     describe('Edge Cases - Invalid Values', () => {
-      it('should reject numbers below 1', () => {
-        expect(() => vaultNumberSchema.parse({ number: -1 })).toThrow(ZodError)
-        expect(() => vaultNumberSchema.parse({ number: -1 })).toThrow(
-          'Vault number must be at least 1'
-        )
-        expect(() => vaultNumberSchema.parse({ number: 0 })).toThrow(ZodError)
-        expect(() => vaultNumberSchema.parse({ number: 0 })).toThrow(
-          'Vault number must be at least 1'
-        )
+      it.each([
+        ['just below the minimum', -1, 'Vault number must be at least 1'],
+        ['zero', 0, 'Vault number must be at least 1'],
+        ['above the maximum', 1000, 'Vault number must be 999 or less'],
+        ['a decimal', 100.5, 'Vault number must be a whole number'],
+      ])('rejects a number %s', (_label, number, message) => {
+        expectRejection(number, message)
       })
 
-      it('should reject numbers above 999', () => {
-        expect(() => vaultNumberSchema.parse({ number: 1000 })).toThrow(ZodError)
-        expect(() => vaultNumberSchema.parse({ number: 1000 })).toThrow(
-          'Vault number must be 999 or less'
-        )
-      })
-
-      it('should reject decimal numbers', () => {
-        expect(() => vaultNumberSchema.parse({ number: 100.5 })).toThrow(ZodError)
-        expect(() => vaultNumberSchema.parse({ number: 100.5 })).toThrow(
-          'Vault number must be a whole number'
-        )
-      })
-
-      it('should reject string values', () => {
-        expect(() => vaultNumberSchema.parse({ number: '100' as any })).toThrow(ZodError)
-      })
-
-      it('should reject null', () => {
-        expect(() => vaultNumberSchema.parse({ number: null as any })).toThrow(ZodError)
-      })
-
-      it('should reject undefined', () => {
-        expect(() => vaultNumberSchema.parse({ number: undefined as any })).toThrow(ZodError)
+      it.each([
+        ['a string value', '100'],
+        ['null', null],
+        ['undefined', undefined],
+      ])('rejects %s', (_label, number) => {
+        expect(() => parse(number)).toThrow(ZodError)
       })
 
       it('should reject missing number field', () => {
-        expect(() => vaultNumberSchema.parse({} as any)).toThrow(ZodError)
-      })
-    })
-
-    describe('Boundary Values', () => {
-      it('should accept minimum boundary (1)', () => {
-        const result = vaultNumberSchema.parse({ number: 1 })
-        expect(result.number).toBe(1)
-      })
-
-      it('should accept maximum boundary (999)', () => {
-        const result = vaultNumberSchema.parse({ number: 999 })
-        expect(result.number).toBe(999)
-      })
-
-      it('should reject just below minimum (0)', () => {
-        expect(() => vaultNumberSchema.parse({ number: 0 })).toThrow(ZodError)
-      })
-
-      it('should reject just above maximum (1000)', () => {
-        expect(() => vaultNumberSchema.parse({ number: 1000 })).toThrow(ZodError)
+        expect(() => vaultNumberSchema.parse({})).toThrow(ZodError)
       })
     })
   })
 
   describe('parseVaultNumber helper', () => {
-    describe('Happy Path', () => {
-      it('should parse valid string number', () => {
-        const result = parseVaultNumber('100')
-        expect(result).toBe(100)
-      })
-
-      it('should parse valid numeric value', () => {
-        const result = parseVaultNumber(200)
-        expect(result).toBe(200)
-      })
-
-      it('should parse string "1"', () => {
-        const result = parseVaultNumber('1')
-        expect(result).toBe(1)
-      })
-
-      it('should parse string "999"', () => {
-        const result = parseVaultNumber('999')
-        expect(result).toBe(999)
-      })
+    it.each([
+      ['100', 'a string number'],
+      [200, 'a numeric value'],
+      ['1', 'the minimum as a string'],
+      ['999', 'the maximum as a string'],
+    ])('parses %s (%s)', (input) => {
+      expect(parseVaultNumber(input)).toBe(Number(input))
     })
 
-    describe('Edge Cases', () => {
-      it('should throw on invalid string', () => {
-        expect(() => parseVaultNumber('abc')).toThrow('Invalid vault number')
-      })
+    it.each(['abc', ''])('throws on the invalid string %j', (input) => {
+      expect(() => parseVaultNumber(input)).toThrow('Invalid vault number')
+    })
 
-      it('should throw on empty string', () => {
-        expect(() => parseVaultNumber('')).toThrow('Invalid vault number')
-      })
+    it.each(['-5', '1000'])('throws on the out-of-range string %s', (input) => {
+      expect(() => parseVaultNumber(input)).toThrow()
+    })
 
-      it('should throw on negative string number', () => {
-        expect(() => parseVaultNumber('-5')).toThrow()
-      })
+    it('should parse decimal string as integer (parseInt behavior)', () => {
+      // parseInt('100.5') returns 100, which is valid
+      expect(parseVaultNumber('100.5')).toBe(100)
+    })
 
-      it('should throw on out of range string', () => {
-        expect(() => parseVaultNumber('1000')).toThrow()
-      })
-
-      it('should parse decimal string as integer (parseInt behavior)', () => {
-        // parseInt('100.5') returns 100, which is valid
-        const result = parseVaultNumber('100.5')
-        expect(result).toBe(100)
-      })
-
-      it('should trim and parse valid string with whitespace', () => {
-        const result = parseVaultNumber('  100  ')
-        expect(result).toBe(100)
-      })
+    it('should trim and parse valid string with whitespace', () => {
+      expect(parseVaultNumber('  100  ')).toBe(100)
     })
   })
 
   describe('Fallout Lore Validation', () => {
-    it('should accept Vault 13 (Fallout 1)', () => {
-      const result = vaultNumberSchema.parse({ number: 13 })
-      expect(result.number).toBe(13)
-    })
-
-    it('should accept Vault 101 (Fallout 3)', () => {
-      const result = vaultNumberSchema.parse({ number: 101 })
-      expect(result.number).toBe(101)
-    })
-
-    it('should accept Vault 111 (Fallout 4)', () => {
-      const result = vaultNumberSchema.parse({ number: 111 })
-      expect(result.number).toBe(111)
-    })
-
-    it('should accept Vault 76 (Fallout 76)', () => {
-      const result = vaultNumberSchema.parse({ number: 76 })
-      expect(result.number).toBe(76)
-    })
-
     it('should reject Vault 1000 (non-canon)', () => {
-      expect(() => vaultNumberSchema.parse({ number: 1000 })).toThrow()
+      expect(() => parse(1000)).toThrow()
     })
   })
 })

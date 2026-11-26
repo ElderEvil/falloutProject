@@ -134,6 +134,20 @@ async def test_achievement_unlocks_only_on_claim(async_session, vault, water_eve
     assert links[stages[1].id].progress == 60
 
 
+async def test_later_stage_cannot_be_claimed_before_the_active_stage(async_session, vault, water_events):
+    stages = await water_stages(async_session)
+    await _assign(async_session, vault, auto_commit=False)
+    for amount in (100, 500, 1500):
+        await water_events[0].emit(GameEvent.RESOURCE_COLLECTED, vault.id, {"resource_type": "water", "amount": amount})
+    assert await _ids(async_session, vault.id) == [stages[0].id]
+    with pytest.raises(ResourceNotFoundException):
+        await claim_objective_reward(async_session, stages[2].id, vault.id)
+    await claim_objective_reward(async_session, stages[0].id, vault.id)
+    second = await objective_crud.get_link_for_update(async_session, stages[1].id, vault.id)
+    assert second is not None
+    assert not second.is_locked
+
+
 async def test_legacy_parallel_progress_is_kept_until_the_next_counting_window(async_session, vault, water_events):
     stages = await water_stages(async_session)
     async_session.add_all(

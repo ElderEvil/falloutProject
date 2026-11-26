@@ -15,6 +15,7 @@ from app.models.vault import Vault
 from app.models.weapon import Weapon
 from app.schemas.exploration_event import LootEventSchema, LootSchema, OutfitSchema, WeaponSchema
 from app.services.exploration.event_service import event_service
+from app.utils.item_factory import build_outfit, build_weapon
 
 
 async def vault_storage_factory(async_session: AsyncSession, vault: Vault) -> Callable[[int], Awaitable[Storage]]:
@@ -44,17 +45,19 @@ async def equip_weapon(
     damage_max: int,
     value: int = 10,
 ) -> Weapon:
-    weapon = Weapon(
-        name=name,
-        rarity=rarity,
-        value=value,
-        weapon_type=WeaponTypeEnum.GUN,
-        weapon_subtype=WeaponSubtypeEnum.PISTOL,
-        stat="agility",
-        damage_min=damage_min,
-        damage_max=damage_max,
-        dweller_id=dweller.id,
+    weapon = build_weapon(
+        {
+            "name": name,
+            "value": value,
+            "weapon_type": WeaponTypeEnum.GUN.value,
+            "weapon_subtype": WeaponSubtypeEnum.PISTOL.value,
+            "stat": "agility",
+            "damage_min": damage_min,
+            "damage_max": damage_max,
+        },
+        rarity,
     )
+    weapon.dweller_id = dweller.id
     async_session.add(weapon)
     await async_session.flush()
     return weapon
@@ -69,7 +72,11 @@ async def equip_outfit(
     value: int,
     outfit_type: OutfitTypeEnum,
 ) -> Outfit:
-    outfit = Outfit(name=name, rarity=rarity, value=value, outfit_type=outfit_type, dweller_id=dweller.id)
+    outfit = build_outfit(
+        {"name": name, "value": value, "outfit_type": outfit_type.value},
+        rarity,
+    )
+    outfit.dweller_id = dweller.id
     async_session.add(outfit)
     await async_session.flush()
     return outfit

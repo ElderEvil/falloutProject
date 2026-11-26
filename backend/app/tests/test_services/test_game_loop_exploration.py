@@ -130,6 +130,7 @@ async def test_pack_full_tick_sends_the_dweller_home_once(async_session, vault, 
         await exploration_service.start_return(async_session, exploration.id, recalled=True)
     await async_session.refresh(exploration)
     started_at = exploration.return_started_at
+    completes_at_before = exploration.return_completes_at
 
     first = await game_loop_service._process_explorations(async_session, vault.id)
 
@@ -138,7 +139,9 @@ async def test_pack_full_tick_sends_the_dweller_home_once(async_session, vault, 
     assert exploration.status == ExplorationStatus.RETURNING
     assert exploration.recalled_early is True
     if already_returning:
+        # The first tick must leave the return leg exactly as it found it.
         assert exploration.return_started_at == started_at
+        assert exploration.return_completes_at == completes_at_before
     else:
         assert exploration.return_started_at is not None
     assert exploration.return_completes_at is not None

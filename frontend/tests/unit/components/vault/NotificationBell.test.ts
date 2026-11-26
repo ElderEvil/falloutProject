@@ -773,6 +773,37 @@ describe('NotificationBell popup accessibility', () => {
     wrapper.unmount()
   })
 
+  it('reloads the initial unread count when the same account rotates its token in place', async () => {
+    const auth = useAuthStore()
+    auth.token = 'initial-token'
+    auth.user = { id: 'same-account' } as NonNullable<typeof auth.user>
+    fetchMock.mockImplementation(async () => createMockResponse([], { hang: true }))
+    let finish!: (value: { data: { count: number } }) => void
+    let counts = 0
+    vi.mocked(axios.get).mockImplementation((url) => {
+      if (!String(url).includes('unread-count')) return Promise.resolve({ data: [] })
+      if (counts++ > 0) return Promise.resolve({ data: { count: 5 } })
+      return new Promise((resolve) => {
+        finish = resolve
+      })
+    })
+    const wrapper = mount(NotificationBell)
+    try {
+      // No logout in between: the token rotates for the same account while a count is in flight,
+      // so the stale response must lose to the reloaded count rather than win by arriving last.
+      auth.token = 'refreshed-token'
+      await vi.advanceTimersByTimeAsync(0)
+      await flushPromises()
+      finish({ data: { count: 9 } })
+      await flushPromises()
+
+      expect(auth.user?.id).toBe('same-account')
+      expect(bellBadge(wrapper)).toBe('5')
+    } finally {
+      wrapper.unmount()
+    }
+  })
+
   it.each([false, true])(
     'scopes pending mark-all results to the same account (%s)',
     async (sameAccount) => {

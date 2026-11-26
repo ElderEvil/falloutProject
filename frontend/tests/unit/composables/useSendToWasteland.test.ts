@@ -85,12 +85,16 @@ describe('useSendToWasteland', () => {
     expect(sendWasteland.pendingDweller.value?.dwellerId).toBe('dweller-adult')
 
     // The explicit drag payload wins over an empty store list.
+    // Cancel first: the maturity check returns early and would leave showModal true from the
+    // previous open, so without this the final assertion could pass on stale state.
+    sendWasteland.cancel()
     useDwellerStore().filter.dwellers = []
     sendWasteland.open({ dwellerId: 'dweller-known', firstName: 'Known' }, {
       ...adultDweller,
       id: 'dweller-known',
     } as never)
     expect(sendWasteland.showModal.value).toBe(true)
+    expect(sendWasteland.pendingDweller.value?.dwellerId).toBe('dweller-known')
   })
 
   it('dispatches the confirmed exploration and closes the modal', async () => {

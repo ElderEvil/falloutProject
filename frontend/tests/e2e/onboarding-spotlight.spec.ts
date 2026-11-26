@@ -1,5 +1,7 @@
 import { test, expect, type Page } from '@playwright/test'
-import { setAuthToken, type TestUser } from './fixtures/auth'
+import { json, mockApi as mockRoutes } from './support/api'
+import { AUTH_USER, standardApi, vault } from './support/data'
+import { openAs } from './support/session'
 import type { components } from '@/core/types/api.generated'
 import {
   BUILD_Y_MAX,
@@ -26,36 +28,7 @@ test.use({
 
 const TOKEN = 'deterministic-e2e-token'
 
-const AUTH_USER: TestUser = {
-  id: 'test-user-id',
-  username: 'overseer',
-  email: 'overseer@vault-tec.com',
-  is_active: true,
-  is_superuser: true,
-  email_verified: true,
-}
-
-const VAULT = {
-  id: 'vault-1',
-  number: 42,
-  bottle_caps: 1250,
-  happiness: 82,
-  power: 80,
-  power_max: 100,
-  food: 70,
-  food_max: 100,
-  water: 18,
-  water_max: 100,
-  population_max: 10,
-  radio_mode: 'happiness',
-  created_at: '2026-01-15T10:30:00Z',
-  updated_at: '2026-01-15T10:30:00Z',
-  resource_warnings: [],
-  room_count: 1,
-  dweller_count: 8,
-  stimpack: 4,
-  radaway: 2,
-}
+const VAULT = vault({ radio_mode: 'happiness' })
 
 // The staffing lesson only highlights when its objective is present and eligible.
 const STAFFING_OBJECTIVE = {
@@ -113,22 +86,17 @@ const POWER_ROOM = {
   updated_at: '2026-01-15T10:30:00Z',
 }
 
-async function mockApi(page: Page) {
-  await page.route('**/api/v1/**', async (route) => {
-    const path = new URL(route.request().url()).pathname
-
-    if (path === '/api/v1/users/me') return route.fulfill({ json: AUTH_USER })
-    if (path === '/api/v1/vaults/my') return route.fulfill({ json: [VAULT] })
-    if (path === '/api/v1/vaults/vault-1') return route.fulfill({ json: VAULT })
-    if (path === '/api/v1/objectives/vault-1/') {
-      return route.fulfill({ json: [STAFFING_OBJECTIVE] })
-    }
-    if (path === '/api/v1/rooms/vault/vault-1/') {
-      return route.fulfill({ json: [POWER_ROOM] })
-    }
-    if (path === '/api/v1/rooms/grid-config/') {
-      return route.fulfill({
-        json: {
+const mockApi = (page: Page) =>
+  mockRoutes(
+    page,
+    [
+      { path: '/api/v1/vaults/my', reply: json([VAULT]) },
+      { path: '/api/v1/vaults/vault-1', reply: json(VAULT) },
+      { path: '/api/v1/objectives/vault-1/', reply: json([STAFFING_OBJECTIVE]) },
+      { path: '/api/v1/rooms/vault/vault-1/', reply: json([POWER_ROOM]) },
+      {
+        path: '/api/v1/rooms/grid-config/',
+        reply: json({
           floor_units: FLOOR_UNITS,
           shaft_x: SHAFT_X,
           units_per_room: UNITS_PER_ROOM,
@@ -136,21 +104,17 @@ async function mockApi(page: Page) {
           right_slot_starts: RIGHT_SLOT_STARTS,
           build_y_max: BUILD_Y_MAX,
           y_max: Y_MAX,
-        },
-      })
-    }
-    if (path === '/api/v1/storage/vault/vault-1/items') {
-      return route.fulfill({ json: { weapons: [], outfits: [], items: [], junk: [], pets: [] } })
-    }
-    if (path === '/api/v1/notifications/unread-count') return route.fulfill({ json: { count: 0 } })
-    if (path === '/api/v1/notifications/') return route.fulfill({ json: [] })
-    if (path.startsWith('/api/v1/stream/')) {
-      return route.fulfill({ contentType: 'text/event-stream', body: ': connected\n\n' })
-    }
+        }),
+      },
+      {
+        path: '/api/v1/storage/vault/vault-1/items',
+        reply: json({ weapons: [], outfits: [], items: [], junk: [], pets: [] }),
+      },
+      ...standardApi({ user: AUTH_USER, vaults: [VAULT] }),
+    ],
     // Everything else the vault shell polls is benign when empty.
-    return route.fulfill({ json: [] })
-  })
-}
+    { fallback: 'array' }
+  )
 
 async function openVault(page: Page, teaching?: unknown) {
   await page.addInitScript(
@@ -166,9 +130,7 @@ async function openVault(page: Page, teaching?: unknown) {
     { 'vault-1': { created: true, ...(teaching ? { welcomed: true, teaching } : {}) } }
   )
   await mockApi(page)
-  await page.goto('/login')
-  await setAuthToken(page, TOKEN, AUTH_USER)
-  await page.goto('/vault/vault-1')
+  await openAs(page, '/vault/vault-1', { token: TOKEN, user: AUTH_USER, settle: false })
 }
 
 test.describe('Spotlight guide — vault page', () => {

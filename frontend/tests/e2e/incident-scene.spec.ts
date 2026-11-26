@@ -1,13 +1,9 @@
 import { test, expect } from '@playwright/test'
+import { greenSvg, servePlaceholderArt } from './support/api'
 
 // The preview contract needs no backend image server.
 test.beforeEach(async ({ page }) => {
-  await page.route('**/static/**', (route) =>
-    route.fulfill({
-      contentType: 'image/svg+xml',
-      body: '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><rect width="100" height="100" fill="green"/></svg>',
-    })
-  )
+  await servePlaceholderArt(page)
 })
 
 for (const [width, count] of [
@@ -65,12 +61,7 @@ for (const width of [390, 900]) {
     page,
   }) => {
     await page.setViewportSize({ width, height: 900 })
-    await page.route('**/static/creature_images/**', (route) =>
-      route.fulfill({
-        contentType: 'image/svg+xml',
-        body: '<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024"><rect width="1024" height="1024" fill="green"/></svg>',
-      })
-    )
+    await page.route('**/static/creature_images/**', (route) => route.fulfill(greenSvg(1024, 1024)))
     await page.goto('/tests/e2e/fixtures/incident-scene.html?responders=6')
     const scene = page.getByRole('region', { name: 'Incident live status' })
     const creature = scene.getByAltText('Deathclaw', { exact: true })

@@ -1,30 +1,10 @@
-import { test, expect, type Page } from '@playwright/test'
-
-const TEST_TOKEN = 'test-token-12345'
-
-async function loginAndGo(page: Page, url: string) {
-  await page.goto('/login')
-  await page.evaluate((token) => {
-    localStorage.setItem('token', token)
-    localStorage.setItem(
-      'user',
-      JSON.stringify({
-        id: 'test-user-id',
-        email: 'test@example.com',
-        username: 'Overseer',
-        is_active: true,
-        is_superuser: true,
-      })
-    )
-  }, TEST_TOKEN)
-  await page.goto(url)
-  await page.waitForLoadState('networkidle')
-}
+import { test, expect } from '@playwright/test'
+import { PLAYER } from './support/data'
+import { open, openAs } from './support/session'
 
 test.describe('NavBar structure', () => {
   test('shows Login and Register links when not authenticated', async ({ page }) => {
-    await page.goto('/login')
-    await page.waitForLoadState('networkidle')
+    await open(page, '/login')
 
     // NavBar should show login/register links for unauthenticated users
     const loginLink = page.locator('nav[aria-label="Main navigation"] a[href="/login"]')
@@ -35,13 +15,13 @@ test.describe('NavBar structure', () => {
   })
 
   test('shows Vaults link when authenticated', async ({ page }) => {
-    await loginAndGo(page, '/')
+    await openAs(page, '/', { user: PLAYER })
     const vaultsLink = page.locator('nav a[aria-label="Navigate to vaults list"]')
     await expect(vaultsLink).toBeVisible()
   })
 
   test('shows user dropdown when authenticated', async ({ page }) => {
-    await loginAndGo(page, '/')
+    await openAs(page, '/', { user: PLAYER })
     const userButton = page.locator('nav button[aria-haspopup="true"]')
     await expect(userButton).toBeVisible()
     // Dropdown should show the username
@@ -49,7 +29,7 @@ test.describe('NavBar structure', () => {
   })
 
   test('user dropdown contains all expected links', async ({ page }) => {
-    await loginAndGo(page, '/')
+    await openAs(page, '/', { user: PLAYER })
 
     // Open the dropdown
     const userButton = page.locator('nav button[aria-haspopup="true"]')
@@ -70,7 +50,7 @@ test.describe('NavBar structure', () => {
   })
 
   test('NotificationBell renders when authenticated', async ({ page }) => {
-    await loginAndGo(page, '/')
+    await openAs(page, '/', { user: PLAYER })
     // NotificationBell has a bell icon — look for it in the nav area
     const bellIcon = page.locator('nav [role="button"]').first()
     // It may or may not be visible depending on SSE connection, but shouldn't crash
@@ -81,8 +61,7 @@ test.describe('NavBar structure', () => {
 
 test.describe('Login form structure', () => {
   test('login form has email field', async ({ page }) => {
-    await page.goto('/login')
-    await page.waitForLoadState('networkidle')
+    await open(page, '/login')
 
     // UInput renders as an input element
     const emailInput = page.locator('input[type="email"]')
@@ -90,16 +69,14 @@ test.describe('Login form structure', () => {
   })
 
   test('login form has password field', async ({ page }) => {
-    await page.goto('/login')
-    await page.waitForLoadState('networkidle')
+    await open(page, '/login')
 
     const passwordInput = page.locator('input[type="password"]')
     await expect(passwordInput.first()).toBeVisible({ timeout: 5000 })
   })
 
   test('login form has submit button', async ({ page }) => {
-    await page.goto('/login')
-    await page.waitForLoadState('networkidle')
+    await open(page, '/login')
 
     // The submit button contains AUTHENTICATE text
     const submitButton = page.locator('button[type="submit"]')
@@ -110,8 +87,7 @@ test.describe('Login form structure', () => {
 
 test.describe('Register form structure', () => {
   test('register form has input fields', async ({ page }) => {
-    await page.goto('/register')
-    await page.waitForLoadState('networkidle')
+    await open(page, '/register')
 
     const inputs = page.locator('input')
     const count = await inputs.count()
@@ -119,8 +95,7 @@ test.describe('Register form structure', () => {
   })
 
   test('register form has submit button', async ({ page }) => {
-    await page.goto('/register')
-    await page.waitForLoadState('networkidle')
+    await open(page, '/register')
 
     const submitButtons = page.locator('button[type="submit"]')
     const count = await submitButtons.count()
@@ -130,15 +105,14 @@ test.describe('Register form structure', () => {
 
 test.describe('Accessibility — basic landmarks', () => {
   test('page has main navigation landmark', async ({ page }) => {
-    await page.goto('/login')
-    await page.waitForLoadState('networkidle')
+    await open(page, '/login')
 
     const nav = page.locator('nav[aria-label="Main navigation"]')
     await expect(nav).toBeVisible()
   })
 
   test('authenticated page has skip-to-content link', async ({ page }) => {
-    await loginAndGo(page, '/')
+    await openAs(page, '/', { user: PLAYER })
     const skipLink = page.locator('a:has-text("Skip to main content")')
     await expect(skipLink).toBeVisible()
   })
@@ -146,7 +120,7 @@ test.describe('Accessibility — basic landmarks', () => {
 
 test.describe('Navigation flow', () => {
   test('Vaults link navigates to home page', async ({ page }) => {
-    await loginAndGo(page, '/vault/fake-id')
+    await openAs(page, '/vault/fake-id', { user: PLAYER })
     const vaultsLink = page.locator('nav a[aria-label="Navigate to vaults list"]')
     await vaultsLink.click()
     await page.waitForLoadState('networkidle')
@@ -154,7 +128,7 @@ test.describe('Navigation flow', () => {
   })
 
   test('Profile link exists and points to /profile', async ({ page }) => {
-    await loginAndGo(page, '/')
+    await openAs(page, '/', { user: PLAYER })
     // Open dropdown
     await page.locator('nav button[aria-haspopup="true"]').click()
     await page.waitForTimeout(300)

@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test'
 import { setAuthToken, TEST_USER } from './fixtures/auth'
+import { vault as vaultFixture } from './support/data'
 
 test('inspects poses, edits playback order, and plays the shared rush animation', async ({
   page,
@@ -153,18 +154,9 @@ for (const scenario of [
   { warning: 'happiness', sheet: 'VaultBoy_AnimationsHappynessLow.webp' },
 ]) {
   test(`shows ${scenario.warning} feedback inside the actual vault`, async ({ page }) => {
-    const vault = {
-      id: 'vault-1',
-      number: 42,
+    const vault = vaultFixture({
       bottle_caps: 1000,
       happiness: scenario.warning === 'happiness' ? 40 : 80,
-      power: 80,
-      power_max: 100,
-      food: 80,
-      food_max: 100,
-      water: 80,
-      water_max: 100,
-      population_max: 10,
       dweller_count: 0,
       room_count: 0,
       stimpack: 0,
@@ -173,7 +165,7 @@ for (const scenario of [
         scenario.warning === 'happiness'
           ? []
           : [{ type: scenario.warning, message: 'Production needs attention.' }],
-    }
+    })
     await page.route('**/api/v1/**', async (route) => {
       const path = new URL(route.request().url()).pathname
       if (path === '/api/v1/users/me') return route.fulfill({ json: TEST_USER })

@@ -1,21 +1,10 @@
 import { expect, test } from '@playwright/test'
-import { fileURLToPath } from 'node:url'
+import { blockStatic, serveStatic } from './support/api'
 
 for (const width of [390, 1280]) {
   test(`equipped pet appears in the expedition combat preview at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 })
-    await page.route('**/static/**', (route) =>
-      route.fulfill({
-        path: fileURLToPath(
-          new URL(
-            route.request().url().includes('pet_images')
-              ? '../../../backend/app/static/pet_images/FOS CX404.png'
-              : '../../../backend/app/static/dweller_thumbnails/base/FOS_Dw_Default_Human_Female.webp',
-            import.meta.url
-          )
-        ),
-      })
-    )
+    await serveStatic(page, { map: { pet_images: 'pet_images/FOS CX404.png' } })
     await page.goto('/tests/e2e/fixtures/wasteland-scenes.html')
     await page.getByRole('combobox', { name: 'Preview pet' }).click()
     await page.getByRole('option', { name: 'CX404', exact: true }).click()
@@ -81,18 +70,7 @@ test('raiders match dweller height and both scale when the scene container resiz
   page,
 }) => {
   await page.setViewportSize({ width: 1280, height: 900 })
-  await page.route('**/static/**', (route) =>
-    route.fulfill({
-      path: fileURLToPath(
-        new URL(
-          route.request().url().includes('raider')
-            ? '../../../backend/app/static/raider_images/variants/sable.webp'
-            : '../../../backend/app/static/dweller_thumbnails/base/FOS_Dw_Default_Human_Female.webp',
-          import.meta.url
-        )
-      ),
-    })
-  )
+  await serveStatic(page, { map: { raider: 'raider_images/variants/sable.webp' } })
   await page.goto('/tests/e2e/fixtures/wasteland-scenes.html')
   await page.getByRole('combobox', { name: 'Preview location' }).click()
   await page.getByRole('option', { name: 'Abandoned supermarket', exact: true }).click()
@@ -219,16 +197,7 @@ for (const glow of ['off', 'subtle', 'normal', 'strong']) {
 for (const width of [390, 1280]) {
   test(`the encounter scene stays stable while artwork loads at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 })
-    await page.route('**/static/**', (route) =>
-      route.fulfill({
-        path: fileURLToPath(
-          new URL(
-            '../../../backend/app/static/dweller_thumbnails/base/FOS_Dw_Default_Human_Female.webp',
-            import.meta.url
-          )
-        ),
-      })
-    )
+    await serveStatic(page)
     let releaseImage: () => void = () => {}
     const imageGate = new Promise<void>((resolve) => {
       releaseImage = resolve
@@ -266,7 +235,7 @@ for (const width of [390, 1280]) {
 
 test('failed artwork keeps the encounter caption and explorer visible', async ({ page }) => {
   await page.route('**/assets/wasteland-scenes/**', (route) => route.abort())
-  await page.route('**/static/**', (route) => route.abort())
+  await blockStatic(page)
   await page.goto('/tests/e2e/fixtures/wasteland-scenes.html')
   const journey = page.getByRole('figure', { name: 'Encounter scene', exact: true })
   await expect(journey.getByRole('img', { name: 'Desert highway', exact: true })).toBeVisible()
@@ -276,7 +245,7 @@ test('failed artwork keeps the encounter caption and explorer visible', async ({
 
 test('the development menu links to the scene preview', async ({ page }) => {
   await page.route('**/api/v1/**', (route) => route.fulfill({ json: {} }))
-  await page.route('**/static/**', (route) => route.abort())
+  await blockStatic(page)
   await page.goto('/dev')
   const previewLink = page.getByRole('link', { name: /Wasteland scenes/ })
   await expect(previewLink).toHaveAttribute('href', '/dev/wasteland-scenes')
@@ -312,18 +281,7 @@ for (const width of [390, 1280]) {
 for (const width of [390, 1280]) {
   test(`trivia encounter stays readable and playable at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 })
-    await page.route('**/static/**', (route) =>
-      route.fulfill({
-        path: fileURLToPath(
-          new URL(
-            route.request().url().includes('raider_images')
-              ? '../../../backend/app/static/raider_images/variants/sable.webp'
-              : '../../../backend/app/static/dweller_thumbnails/base/FOS_Dw_Default_Human_Female.webp',
-            import.meta.url
-          )
-        ),
-      })
-    )
+    await serveStatic(page, { map: { raider_images: 'raider_images/variants/sable.webp' } })
     await page.goto('/tests/e2e/fixtures/wasteland-scenes.html?trivia=1')
     const dialog = page.getByRole('dialog')
     await expect(dialog).toContainText('Which pre-war company built the Vaults?')
@@ -343,7 +301,9 @@ for (const width of [390, 1280]) {
     for (const label of ['Vault-Tec', 'RobCo Industries', 'Poseidon Energy']) {
       await expect(dialog.getByRole('button', { name: label, exact: true })).toBeInViewport()
     }
-    expect(await dialog.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true)
+    expect(await dialog.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(
+      true
+    )
     const overflow = await dialog.evaluate((element) => {
       const answers = [...element.querySelectorAll('button')].filter((button) =>
         ['Vault-Tec', 'RobCo Industries', 'Poseidon Energy'].includes(

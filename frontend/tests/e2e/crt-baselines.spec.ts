@@ -1,5 +1,7 @@
 import { test, expect, type Page } from '@playwright/test'
-import { setAuthToken, type TestUser } from './fixtures/auth'
+import { json, mockApi as mockRoutes, sse } from './support/api'
+import { AUTH_USER, deathStatistics, profile, VAULT } from './support/data'
+import { openAs } from './support/session'
 
 // Pixel baselines for the CRT entry routes (#748). #747 unified the scanline
 // overlay into one layout-level element, so every route must render exactly one
@@ -15,75 +17,6 @@ test.use({
 
 const TOKEN = 'deterministic-e2e-token'
 const RESET_TOKEN = 'deterministic-reset-token'
-
-const AUTH_USER: TestUser = {
-  id: 'test-user-id',
-  username: 'overseer',
-  email: 'overseer@vault-tec.com',
-  is_active: true,
-  is_superuser: true,
-  email_verified: true,
-}
-
-const VAULT = {
-  id: 'vault-1',
-  number: 42,
-  bottle_caps: 1250,
-  happiness: 82,
-  power: 80,
-  power_max: 100,
-  food: 70,
-  food_max: 100,
-  water: 18,
-  water_max: 100,
-  population_max: 10,
-  radio_mode: 'recruitment',
-  created_at: '2026-01-15T10:30:00Z',
-  updated_at: '2026-01-15T10:30:00Z',
-  resource_warnings: [],
-  room_count: 1,
-  dweller_count: 8,
-  stimpack: 4,
-  radaway: 2,
-}
-
-const PROFILE = {
-  id: 'test-user-id',
-  user_id: 'test-user-id',
-  bio: 'Overseer of Vault 42, keeping the lights on since the bombs fell.',
-  avatar_url: null,
-  preferences: null,
-  total_dwellers_created: 42,
-  total_caps_earned: 15234,
-  total_explorations: 17,
-  total_rooms_built: 26,
-  total_incidents: 11,
-  total_incidents_won: 7,
-  total_incidents_lost: 4,
-  total_dwellers_born: 9,
-  total_dwellers_died: 4,
-  deaths_by_health: 1,
-  deaths_by_radiation: 1,
-  deaths_by_incident: 1,
-  deaths_by_exploration: 1,
-  deaths_by_combat: 0,
-  created_at: '2026-01-15T10:30:00Z',
-  updated_at: '2026-02-01T08:00:00Z',
-}
-
-const DEATH_STATISTICS = {
-  total_dwellers_born: 9,
-  total_dwellers_died: 4,
-  deaths_by_cause: {
-    health: 1,
-    radiation: 1,
-    incident: 1,
-    exploration: 1,
-    combat: 0,
-  },
-  revivable_count: 2,
-  permanently_dead_count: 2,
-}
 
 // The frontend reads quota fields flattened (models/aiUsage.ts); mocking the
 // backend's nested quota object would hide the quota panel instead of rendering it.
@@ -119,34 +52,28 @@ const AI_USAGE = {
   chat_heavy: false,
 }
 
-async function mockApi(page: Page) {
-  await page.route('**/api/v1/**', async (route) => {
-    const path = new URL(route.request().url()).pathname
+const PROFILE = profile({
+  bio: 'Overseer of Vault 42, keeping the lights on since the bombs fell.',
+  preferences: null,
+})
 
-    if (path === '/api/v1/users/me/profile') return route.fulfill({ json: PROFILE })
-    if (path === '/api/v1/users/me/profile/statistics') {
-      return route.fulfill({ json: DEATH_STATISTICS })
-    }
-    if (path === '/api/v1/users/me/profile/ai-usage') return route.fulfill({ json: AI_USAGE })
-    if (path === '/api/v1/users/me') return route.fulfill({ json: AUTH_USER })
-    if (path === '/api/v1/auth/oauth/providers') {
-      return route.fulfill({ json: { google: false, github: false } })
-    }
-    if (path === '/api/v1/vaults/my') return route.fulfill({ json: [VAULT] })
-    if (path === '/api/v1/notifications/unread-count') return route.fulfill({ json: { count: 0 } })
-    if (path === '/api/v1/notifications/') return route.fulfill({ json: [] })
-    if (path.startsWith('/api/v1/stream/')) {
-      return route.fulfill({ contentType: 'text/event-stream', body: ': connected\n\n' })
-    }
-
-    throw new Error(`Unhandled API request: ${route.request().method()} ${path}`)
-  })
-}
-
-async function signIn(page: Page) {
-  await page.goto('/login')
-  await setAuthToken(page, TOKEN, AUTH_USER)
-}
+// An unhandled request is a hole in the mock, so the CRT baseline fails loudly.
+const mockApi = (page: Page) =>
+  mockRoutes(
+    page,
+    [
+      { path: '/api/v1/users/me/profile', reply: json(PROFILE) },
+      { path: '/api/v1/users/me/profile/statistics', reply: json(deathStatistics()) },
+      { path: '/api/v1/users/me/profile/ai-usage', reply: json(AI_USAGE) },
+      { path: '/api/v1/users/me', reply: json(AUTH_USER) },
+      { path: '/api/v1/auth/oauth/providers', reply: json({ google: false, github: false }) },
+      { path: '/api/v1/vaults/my', reply: json([VAULT]) },
+      { path: '/api/v1/notifications/unread-count', reply: json({ count: 0 }) },
+      { path: '/api/v1/notifications/', reply: json([]) },
+      { prefix: '/api/v1/stream/', reply: sse() },
+    ],
+    { fallback: 'throw' }
+  )
 
 // Regression guard for #747: one canonical overlay, full opacity, canonical
 // gradient — a re-added per-view overlay or an `opacity-*` on this element fails here.
@@ -171,8 +98,7 @@ async function expectCanonicalChrome(page: Page, superuser = false) {
 test.describe('CRT baselines — entry routes', () => {
   test('home', async ({ page }) => {
     await mockApi(page)
-    await signIn(page)
-    await page.goto('/')
+    await openAs(page, '/', { token: TOKEN, user: AUTH_USER })
     await expect(page.getByRole('heading', { name: 'Your Vaults' })).toBeVisible({ timeout: 10000 })
 
     await expectCanonicalChrome(page, true)
@@ -219,8 +145,7 @@ test.describe('CRT baselines — entry routes', () => {
 
   test('profile', async ({ page }) => {
     await mockApi(page)
-    await signIn(page)
-    await page.goto('/profile')
+    await openAs(page, '/profile', { token: TOKEN, user: AUTH_USER })
     await expect(page.getByRole('heading', { name: 'User Profile' })).toBeVisible({
       timeout: 10000,
     })
@@ -311,8 +236,7 @@ for (const width of [390, 1280]) {
   test(`Preferences tabs support links and keyboard navigation at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 })
     await mockApi(page)
-    await signIn(page)
-    await page.goto('/preferences?tab=sound')
+    await openAs(page, '/preferences?tab=sound', { token: TOKEN, user: AUTH_USER })
 
     const tabs = page.getByRole('tablist', { name: 'Preference categories' })
     for (const name of ['Appearance', 'Sound', 'Notifications', 'Gameplay']) {

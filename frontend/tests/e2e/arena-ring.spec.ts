@@ -1,13 +1,8 @@
 import { test, expect } from '@playwright/test'
-import { fileURLToPath } from 'node:url'
+import { servePlaceholderArt, serveStatic } from './support/api'
 
 test.beforeEach(async ({ page }) => {
-  await page.route('**/static/**', (route) =>
-    route.fulfill({
-      contentType: 'image/svg+xml',
-      body: '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><rect width="100" height="100" fill="green"/></svg>',
-    })
-  )
+  await servePlaceholderArt(page)
 })
 
 const horizontalScale = (element: Element) => {
@@ -153,20 +148,12 @@ for (const width of [390, 1280]) {
       page,
     }) => {
       await page.setViewportSize({ width, height: 900 })
-      await page.route('**/static/**', (route) =>
-        route.fulfill({
-          path: fileURLToPath(
-            new URL(
-              route.request().url().includes('pet_images')
-                ? route.request().url().includes('CX404')
-                  ? '../../../backend/app/static/pet_images/FOS CX404.png'
-                  : '../../../backend/app/static/pet_images/FOS American Shorthair.png'
-                : '../../../backend/app/static/dweller_thumbnails/base/FOS_Dw_Default_Human_Female.webp',
-              import.meta.url
-            )
-          ),
-        })
-      )
+      await serveStatic(page, {
+        map: {
+          CX404: 'pet_images/FOS CX404.png',
+          'American Shorthair': 'pet_images/FOS American Shorthair.png',
+        },
+      })
       await page.goto(`/tests/e2e/fixtures/arena-ring.html?mode=${mode}&pets=1&portrait=1`)
       const ring = page.getByRole('region', { name: 'Arena ring' })
       const pets = ring.locator('.combat-pet')
@@ -191,12 +178,7 @@ for (const width of [390, 1280]) {
 for (const width of [390, 1280]) {
   test(`ring depth, scale and themed activation at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 })
-    await page.route('**/static/**', (route) =>
-      route.fulfill({
-        contentType: 'image/svg+xml',
-        body: '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><rect width="100" height="100" fill="green"/></svg>',
-      })
-    )
+    await servePlaceholderArt(page)
     await page.goto('/tests/e2e/fixtures/arena-ring.html')
     const ring = page.getByRole('region', { name: 'Arena ring' })
     const actors = ring.locator('.ring-fighter')

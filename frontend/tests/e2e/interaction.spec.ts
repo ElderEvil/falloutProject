@@ -1,27 +1,6 @@
-import { test, expect, type Page } from '@playwright/test'
-
-const TEST_TOKEN = 'test-token-12345'
-
-async function loginAndGo(page: Page, url: string) {
-  await page.goto('/login')
-  await page.evaluate((token) => {
-    localStorage.setItem('token', token)
-    localStorage.setItem(
-      'user',
-      JSON.stringify({
-        id: 'test-user-id',
-        email: 'test@example.com',
-        username: 'Overseer',
-        is_active: true,
-        is_superuser: true,
-      })
-    )
-  }, TEST_TOKEN)
-  await page.goto(url)
-  await page.waitForLoadState('networkidle')
-  const whatsNewDismiss = page.getByRole('button', { name: 'Got it!' })
-  if (await whatsNewDismiss.isVisible()) await whatsNewDismiss.click()
-}
+import { test, expect } from '@playwright/test'
+import { PLAYER } from './support/data'
+import { TOKEN, open, openAs } from './support/session'
 
 // ========================================
 // RESPONSIVE VIEWPORTS
@@ -47,11 +26,10 @@ test.describe('Responsive viewports', () => {
       test(`${vp} ${pageName} — renders without crash`, async ({ page }) => {
         await page.setViewportSize({ width, height })
         if (url === '/login') {
-          await page.goto(url)
+          await open(page, url)
         } else {
-          await loginAndGo(page, url)
+          await openAs(page, url, { user: PLAYER, dismissWhatsNew: true })
         }
-        await page.waitForLoadState('networkidle')
         await expect(page.locator('body')).toBeVisible({ timeout: 10000 })
         await expect(page.locator('#vite-error-overlay')).toHaveCount(0)
         const bodyText = await page.locator('body').innerText()
@@ -66,7 +44,7 @@ test.describe('Responsive viewports', () => {
 // ========================================
 test.describe('Side panel', () => {
   test('renders on dwellers page with all nav items', async ({ page }) => {
-    await loginAndGo(page, '/vault/fake-id/dwellers')
+    await openAs(page, '/vault/fake-id/dwellers', { user: PLAYER, dismissWhatsNew: true })
     const panel = page.locator('nav[aria-label="Game navigation panel"]')
     await expect(panel).toBeVisible({ timeout: 5000 })
     for (const label of [
@@ -86,7 +64,7 @@ test.describe('Side panel', () => {
   })
 
   test('collapse toggle button exists and toggles', async ({ page }) => {
-    await loginAndGo(page, '/vault/fake-id/dwellers')
+    await openAs(page, '/vault/fake-id/dwellers', { user: PLAYER, dismissWhatsNew: true })
     const toggleBtn = page
       .locator('nav[aria-label="Game navigation panel"]')
       .getByRole('button', { name: /Collapse|Expand/ })
@@ -99,7 +77,7 @@ test.describe('Side panel', () => {
   })
 
   test('navigates to storage when clicking Storage nav item', async ({ page }) => {
-    await loginAndGo(page, '/vault/fake-id/dwellers')
+    await openAs(page, '/vault/fake-id/dwellers', { user: PLAYER, dismissWhatsNew: true })
     const panel = page.locator('nav[aria-label="Game navigation panel"]')
     const storageBtn = panel.getByRole('button', { name: 'Storage' })
     await expect(storageBtn).toContainText('Storage')
@@ -114,7 +92,7 @@ test.describe('Side panel', () => {
 // ========================================
 test.describe('Keyboard shortcuts', () => {
   test('Ctrl+B toggles side panel on dwellers page', async ({ page }) => {
-    await loginAndGo(page, '/vault/fake-id/dwellers')
+    await openAs(page, '/vault/fake-id/dwellers', { user: PLAYER, dismissWhatsNew: true })
     await page.waitForTimeout(500)
     const aside = page.locator('nav[aria-label="Game navigation panel"]')
     const initialClass = (await aside.getAttribute('class')) || ''
@@ -132,24 +110,21 @@ test.describe('Keyboard shortcuts', () => {
 // ========================================
 test.describe('Login form interaction', () => {
   test('fills email field', async ({ page }) => {
-    await page.goto('/login')
-    await page.waitForLoadState('networkidle')
+    await open(page, '/login')
     const emailInput = page.locator('input[type="email"]').first()
     await emailInput.fill('overseer@vault-tec.com')
     await expect(emailInput).toHaveValue('overseer@vault-tec.com')
   })
 
   test('fills password field', async ({ page }) => {
-    await page.goto('/login')
-    await page.waitForLoadState('networkidle')
+    await open(page, '/login')
     const passwordInput = page.locator('input[type="password"]').first()
     await passwordInput.fill('secret-passphrase')
     await expect(passwordInput).toHaveValue('secret-passphrase')
   })
 
   test('fills both fields and submits with empty form not redirecting', async ({ page }) => {
-    await page.goto('/login')
-    await page.waitForLoadState('networkidle')
+    await open(page, '/login')
     const emailInput = page.locator('input[type="email"]').first()
     const passwordInput = page.locator('input[type="password"]').first()
     await emailInput.fill('admin@vault.com')
@@ -161,16 +136,14 @@ test.describe('Login form interaction', () => {
   })
 
   test('submit with empty fields triggers browser validation', async ({ page }) => {
-    await page.goto('/login')
-    await page.waitForLoadState('networkidle')
+    await open(page, '/login')
     await page.locator('button[type="submit"]').click()
     await page.waitForTimeout(500)
     expect(page.url()).toContain('/login')
   })
 
   test('has working register link', async ({ page }) => {
-    await page.goto('/login')
-    await page.waitForLoadState('networkidle')
+    await open(page, '/login')
     const registerLink = page.locator('nav[aria-label="Main navigation"] a[href="/register"]')
     await expect(registerLink).toBeVisible()
     const href = await registerLink.getAttribute('href')
@@ -183,8 +156,7 @@ test.describe('Login form interaction', () => {
 // ========================================
 test.describe('Register form interaction', () => {
   test('fills first input field', async ({ page }) => {
-    await page.goto('/register')
-    await page.waitForLoadState('networkidle')
+    await open(page, '/register')
     const inputs = page.locator('input')
     const count = await inputs.count()
     expect(count).toBeGreaterThanOrEqual(2)
@@ -193,8 +165,7 @@ test.describe('Register form interaction', () => {
   })
 
   test('has working login link', async ({ page }) => {
-    await page.goto('/register')
-    await page.waitForLoadState('networkidle')
+    await open(page, '/register')
     const loginLink = page.locator('nav[aria-label="Main navigation"] a[href="/login"]')
     await expect(loginLink).toBeVisible()
     const href = await loginLink.getAttribute('href')
@@ -207,8 +178,7 @@ test.describe('Register form interaction', () => {
 // ========================================
 test.describe('Auth form pages structure', () => {
   test('forgot-password has email input and submit button', async ({ page }) => {
-    await page.goto('/forgot-password')
-    await page.waitForLoadState('networkidle')
+    await open(page, '/forgot-password')
     const inputs = page.locator('input')
     expect(await inputs.count()).toBeGreaterThanOrEqual(1)
     const buttons = page.locator('button')
@@ -216,15 +186,13 @@ test.describe('Auth form pages structure', () => {
   })
 
   test('reset-password renders without errors', async ({ page }) => {
-    await page.goto('/reset-password')
-    await page.waitForLoadState('networkidle')
+    await open(page, '/reset-password')
     await expect(page.locator('body')).toBeVisible()
     await expect(page.locator('#vite-error-overlay')).toHaveCount(0)
   })
 
   test('verify-email renders without errors', async ({ page }) => {
-    await page.goto('/verify-email')
-    await page.waitForLoadState('networkidle')
+    await open(page, '/verify-email')
     await expect(page.locator('body')).toBeVisible()
     await expect(page.locator('#vite-error-overlay')).toHaveCount(0)
   })
@@ -235,19 +203,17 @@ test.describe('Auth form pages structure', () => {
 // ========================================
 test.describe('Visual effects', () => {
   test('scanlines overlay on login page', async ({ page }) => {
-    await page.goto('/login')
-    await page.waitForLoadState('networkidle')
+    await open(page, '/login')
     await expect(page.locator('.scanlines').first()).toBeVisible({ timeout: 5000 })
   })
 
   test('CRT container on login page', async ({ page }) => {
-    await page.goto('/login')
-    await page.waitForLoadState('networkidle')
+    await open(page, '/login')
     await expect(page.locator('.crt-container').first()).toBeVisible({ timeout: 5000 })
   })
 
   test('side panel has scanline overlay', async ({ page }) => {
-    await loginAndGo(page, '/vault/fake-id/dwellers')
+    await openAs(page, '/vault/fake-id/dwellers', { user: PLAYER, dismissWhatsNew: true })
     const panel = page.locator('nav[aria-label="Game navigation panel"]')
     await expect(panel).toBeVisible()
     // Side panel has a CSS ::before pseudo-element for scanlines already
@@ -259,7 +225,7 @@ test.describe('Visual effects', () => {
 // ========================================
 test.describe('Error states', () => {
   test('vault page with fake-id shows error state (not crash)', async ({ page }) => {
-    await loginAndGo(page, '/vault/fake-id')
+    await openAs(page, '/vault/fake-id', { user: PLAYER, dismissWhatsNew: true })
     await page.waitForTimeout(2000)
     const bodyText = await page.locator('body').innerText()
     // Should show error or loading (not blank) — no crash either way
@@ -268,14 +234,17 @@ test.describe('Error states', () => {
   })
 
   test('dweller detail with invalid id shows loading or empty state', async ({ page }) => {
-    await loginAndGo(page, '/vault/fake-id/dwellers/nonexistent-id')
+    await openAs(page, '/vault/fake-id/dwellers/nonexistent-id', {
+      user: PLAYER,
+      dismissWhatsNew: true,
+    })
     await page.waitForTimeout(2000)
     await expect(page.locator('body')).toBeVisible({ timeout: 10000 })
     await expect(page.locator('#vite-error-overlay')).toHaveCount(0)
   })
 
   test('vault sub-route that does not exist shows error or fallback', async ({ page }) => {
-    await loginAndGo(page, '/vault/fake-id/nonexistent/route')
+    await openAs(page, '/vault/fake-id/nonexistent/route', { user: PLAYER, dismissWhatsNew: true })
     await page.waitForLoadState('networkidle')
     await expect(page.locator('body')).toBeVisible({ timeout: 10000 })
     await expect(page.locator('#vite-error-overlay')).toHaveCount(0)
@@ -287,14 +256,14 @@ test.describe('Error states', () => {
 // ========================================
 test.describe('Settings page structure', () => {
   test('settings page renders with heading', async ({ page }) => {
-    await loginAndGo(page, '/settings')
+    await openAs(page, '/settings', { user: PLAYER, dismissWhatsNew: true })
     await expect(page.locator('body')).toBeVisible({ timeout: 10000 })
     const bodyText = await page.locator('body').innerText()
     expect(bodyText.length).toBeGreaterThan(0)
   })
 
   test('settings page has back button or navigation', async ({ page }) => {
-    await loginAndGo(page, '/settings')
+    await openAs(page, '/settings', { user: PLAYER, dismissWhatsNew: true })
     const backButtons = page.locator('button:has-text("Back"), a:has-text("Back")')
     const count = await backButtons.count()
     expect(count).toBeGreaterThanOrEqual(0)
@@ -306,7 +275,7 @@ test.describe('Settings page structure', () => {
 // ========================================
 test.describe('Profile page', () => {
   test('profile page renders', async ({ page }) => {
-    await loginAndGo(page, '/profile')
+    await openAs(page, '/profile', { user: PLAYER, dismissWhatsNew: true })
     await expect(page.locator('body')).toBeVisible({ timeout: 10000 })
     await expect(page.locator('#vite-error-overlay')).toHaveCount(0)
   })
@@ -317,7 +286,7 @@ test.describe('Profile page', () => {
 // ========================================
 test.describe('Preferences page', () => {
   test('preferences page renders', async ({ page }) => {
-    await loginAndGo(page, '/preferences')
+    await openAs(page, '/preferences', { user: PLAYER, dismissWhatsNew: true })
     await expect(page.locator('body')).toBeVisible({ timeout: 10000 })
     await expect(page.locator('#vite-error-overlay')).toHaveCount(0)
   })
@@ -328,7 +297,7 @@ test.describe('Preferences page', () => {
 // ========================================
 test.describe('Changelog page', () => {
   test('changelog page renders', async ({ page }) => {
-    await loginAndGo(page, '/changelog')
+    await openAs(page, '/changelog', { user: PLAYER, dismissWhatsNew: true })
     await expect(page.locator('body')).toBeVisible({ timeout: 10000 })
     await expect(page.locator('#vite-error-overlay')).toHaveCount(0)
   })
@@ -339,8 +308,7 @@ test.describe('Changelog page', () => {
 // ========================================
 test.describe('About page', () => {
   test('about page renders version info', async ({ page }) => {
-    await page.goto('/about')
-    await page.waitForLoadState('networkidle')
+    await open(page, '/about')
     await expect(page.locator('body')).toBeVisible({ timeout: 10000 })
     const bodyText = await page.locator('body').innerText()
     expect(bodyText).toContain('Fallout Shelter')
@@ -348,8 +316,7 @@ test.describe('About page', () => {
   })
 
   test('about page has GitHub link', async ({ page }) => {
-    await page.goto('/about')
-    await page.waitForLoadState('networkidle')
+    await open(page, '/about')
     const githubLink = page.locator('a[href*="github.com"]')
     await expect(githubLink).toBeVisible()
   })
@@ -360,7 +327,7 @@ test.describe('About page', () => {
 // ========================================
 test.describe('Storage page', () => {
   test('storage page renders with tab structure', async ({ page }) => {
-    await loginAndGo(page, '/vault/fake-id/storage')
+    await openAs(page, '/vault/fake-id/storage', { user: PLAYER, dismissWhatsNew: true })
     await expect(page.locator('body')).toBeVisible({ timeout: 10000 })
     const bodyText = await page.locator('body').innerText()
     expect(bodyText).toContain('Weapons')
@@ -374,7 +341,7 @@ test.describe('Storage page', () => {
 // ========================================
 test.describe('Navigation flows', () => {
   test('Vaults link in NavBar goes to home', async ({ page }) => {
-    await loginAndGo(page, '/vault/fake-id/dwellers')
+    await openAs(page, '/vault/fake-id/dwellers', { user: PLAYER, dismissWhatsNew: true })
     const vaultsLink = page.locator('nav a[aria-label="Navigate to vaults list"]')
     await expect(vaultsLink).toBeVisible()
     await vaultsLink.click()
@@ -383,20 +350,16 @@ test.describe('Navigation flows', () => {
   })
 
   test('navigate to settings and back to home without crash', async ({ page }) => {
-    await loginAndGo(page, '/')
-    await page.goto('/settings')
-    await page.waitForLoadState('networkidle')
+    await openAs(page, '/', { user: PLAYER, dismissWhatsNew: true })
+    await open(page, '/settings')
     await expect(page.locator('body')).toBeVisible()
-    await page.goto('/')
-    await page.waitForLoadState('networkidle')
+    await open(page, '/')
     await expect(page.locator('body')).toBeVisible()
   })
 
   test('browser back and forward does not crash', async ({ page }) => {
-    await page.goto('/login')
-    await page.waitForLoadState('networkidle')
-    await page.goto('/register')
-    await page.waitForLoadState('networkidle')
+    await open(page, '/login')
+    await open(page, '/register')
     await page.goBack()
     await page.waitForLoadState('networkidle')
     await expect(page.locator('body')).toBeVisible()
@@ -408,7 +371,7 @@ test.describe('Navigation flows', () => {
   })
 
   test('rapid navigation does not cause crash', async ({ page }) => {
-    await loginAndGo(page, '/login')
+    await openAs(page, '/login', { user: PLAYER, dismissWhatsNew: true })
     const urls = [
       '/',
       '/vault/fake-id',
@@ -430,20 +393,18 @@ test.describe('Navigation flows', () => {
 // ========================================
 test.describe('localStorage persistence', () => {
   test('token persists across page navigations', async ({ page }) => {
-    await loginAndGo(page, '/vault/fake-id/dwellers')
+    await openAs(page, '/vault/fake-id/dwellers', { user: PLAYER, dismissWhatsNew: true })
     const token1 = await page.evaluate(() => localStorage.getItem('token'))
-    await page.goto('/vault/fake-id/storage')
-    await page.waitForLoadState('networkidle')
+    await open(page, '/vault/fake-id/storage')
     const token2 = await page.evaluate(() => localStorage.getItem('token'))
     expect(token1).toEqual(token2)
-    expect(token1).toEqual(TEST_TOKEN)
+    expect(token1).toEqual(TOKEN)
   })
 
   test('user data persists across page navigations', async ({ page }) => {
-    await loginAndGo(page, '/vault/fake-id/dwellers')
+    await openAs(page, '/vault/fake-id/dwellers', { user: PLAYER, dismissWhatsNew: true })
     const user1 = await page.evaluate(() => localStorage.getItem('user'))
-    await page.goto('/')
-    await page.waitForLoadState('networkidle')
+    await open(page, '/')
     const user2 = await page.evaluate(() => localStorage.getItem('user'))
     expect(user1).toEqual(user2)
   })
@@ -454,14 +415,17 @@ test.describe('localStorage persistence', () => {
 // ========================================
 test.describe('Edge case URLs', () => {
   test('vault-id with UUID-like pattern no crash', async ({ page }) => {
-    await loginAndGo(page, '/vault/550e8400-e29b-41d4-a716-446655440000')
+    await openAs(page, '/vault/550e8400-e29b-41d4-a716-446655440000', {
+      user: PLAYER,
+      dismissWhatsNew: true,
+    })
     await page.waitForTimeout(2000)
     await expect(page.locator('body')).toBeVisible()
     await expect(page.locator('#vite-error-overlay')).toHaveCount(0)
   })
 
   test('vault-id with numbers no crash', async ({ page }) => {
-    await loginAndGo(page, '/vault/123')
+    await openAs(page, '/vault/123', { user: PLAYER, dismissWhatsNew: true })
     await page.waitForTimeout(2000)
     await expect(page.locator('body')).toBeVisible()
     await expect(page.locator('#vite-error-overlay')).toHaveCount(0)
@@ -473,7 +437,7 @@ test.describe('Edge case URLs', () => {
 // ========================================
 test.describe('Graveyard page', () => {
   test('graveyard page renders without crash', async ({ page }) => {
-    await loginAndGo(page, '/vault/fake-id/dwellers/graveyard')
+    await openAs(page, '/vault/fake-id/dwellers/graveyard', { user: PLAYER, dismissWhatsNew: true })
     await expect(page.locator('body')).toBeVisible({ timeout: 10000 })
     await expect(page.locator('#vite-error-overlay')).toHaveCount(0)
     const bodyText = await page.locator('body').innerText()
@@ -486,7 +450,7 @@ test.describe('Graveyard page', () => {
 // ========================================
 test.describe('Happiness page', () => {
   test('happiness page renders without crash', async ({ page }) => {
-    await loginAndGo(page, '/vault/fake-id/happiness')
+    await openAs(page, '/vault/fake-id/happiness', { user: PLAYER, dismissWhatsNew: true })
     await expect(page.locator('body')).toBeVisible({ timeout: 10000 })
     await expect(page.locator('#vite-error-overlay')).toHaveCount(0)
   })
@@ -497,7 +461,7 @@ test.describe('Happiness page', () => {
 // ========================================
 test.describe('Exploration page', () => {
   test('exploration page renders without crash', async ({ page }) => {
-    await loginAndGo(page, '/vault/fake-id/exploration')
+    await openAs(page, '/vault/fake-id/exploration', { user: PLAYER, dismissWhatsNew: true })
     await expect(page.locator('body')).toBeVisible({ timeout: 10000 })
     await expect(page.locator('#vite-error-overlay')).toHaveCount(0)
   })
@@ -508,7 +472,7 @@ test.describe('Exploration page', () => {
 // ========================================
 test.describe('Training page', () => {
   test('training page renders without crash', async ({ page }) => {
-    await loginAndGo(page, '/vault/fake-id/training')
+    await openAs(page, '/vault/fake-id/training', { user: PLAYER, dismissWhatsNew: true })
     await expect(page.locator('body')).toBeVisible({ timeout: 10000 })
     await expect(page.locator('#vite-error-overlay')).toHaveCount(0)
   })
@@ -519,7 +483,7 @@ test.describe('Training page', () => {
 // ========================================
 test.describe('Quests page', () => {
   test('quests page renders without crash', async ({ page }) => {
-    await loginAndGo(page, '/vault/fake-id/quests')
+    await openAs(page, '/vault/fake-id/quests', { user: PLAYER, dismissWhatsNew: true })
     await expect(page.locator('body')).toBeVisible({ timeout: 10000 })
     await expect(page.locator('#vite-error-overlay')).toHaveCount(0)
   })
@@ -530,7 +494,7 @@ test.describe('Quests page', () => {
 // ========================================
 test.describe('Objectives page', () => {
   test('objectives page renders without crash', async ({ page }) => {
-    await loginAndGo(page, '/vault/fake-id/objectives')
+    await openAs(page, '/vault/fake-id/objectives', { user: PLAYER, dismissWhatsNew: true })
     await expect(page.locator('body')).toBeVisible({ timeout: 10000 })
     await expect(page.locator('#vite-error-overlay')).toHaveCount(0)
   })
@@ -541,7 +505,7 @@ test.describe('Objectives page', () => {
 // ========================================
 test.describe('Radio page', () => {
   test('radio page renders without crash', async ({ page }) => {
-    await loginAndGo(page, '/vault/fake-id/radio')
+    await openAs(page, '/vault/fake-id/radio', { user: PLAYER, dismissWhatsNew: true })
     await expect(page.locator('body')).toBeVisible({ timeout: 10000 })
     await expect(page.locator('#vite-error-overlay')).toHaveCount(0)
   })
@@ -552,7 +516,7 @@ test.describe('Radio page', () => {
 // ========================================
 test.describe('Relationships page', () => {
   test('relationships page renders without crash', async ({ page }) => {
-    await loginAndGo(page, '/vault/fake-id/relationships')
+    await openAs(page, '/vault/fake-id/relationships', { user: PLAYER, dismissWhatsNew: true })
     await expect(page.locator('body')).toBeVisible({ timeout: 10000 })
     await expect(page.locator('#vite-error-overlay')).toHaveCount(0)
   })
@@ -563,13 +527,13 @@ test.describe('Relationships page', () => {
 // ========================================
 test.describe('NavBar user dropdown', () => {
   test('shows Overseer username when authenticated', async ({ page }) => {
-    await loginAndGo(page, '/')
+    await openAs(page, '/', { user: PLAYER, dismissWhatsNew: true })
     const userButton = page.locator('nav button[aria-haspopup="true"]')
     await expect(userButton).toContainText('Overseer')
   })
 
   test('dropdown opens and shows menu items', async ({ page }) => {
-    await loginAndGo(page, '/')
+    await openAs(page, '/', { user: PLAYER, dismissWhatsNew: true })
     const userButton = page.locator('nav button[aria-haspopup="true"]')
     await userButton.click()
     await page.waitForTimeout(300)
@@ -585,14 +549,14 @@ test.describe('NavBar user dropdown', () => {
   })
 
   test('dropdown has Logout button', async ({ page }) => {
-    await loginAndGo(page, '/')
+    await openAs(page, '/', { user: PLAYER, dismissWhatsNew: true })
     await page.locator('nav button[aria-haspopup="true"]').click()
     await page.waitForTimeout(300)
     await expect(page.locator('button[aria-label="Logout"]')).toBeVisible()
   })
 
   test('Escape key closes dropdown', async ({ page }) => {
-    await loginAndGo(page, '/')
+    await openAs(page, '/', { user: PLAYER, dismissWhatsNew: true })
     await page.locator('nav button[aria-haspopup="true"]').click()
     await page.waitForTimeout(300)
     await expect(page.locator('button[aria-label="Logout"]')).toBeVisible()
@@ -607,7 +571,7 @@ test.describe('NavBar user dropdown', () => {
 // ========================================
 test.describe('NotificationBell', () => {
   test('bell icon renders without crash when authenticated', async ({ page }) => {
-    await loginAndGo(page, '/')
+    await openAs(page, '/', { user: PLAYER, dismissWhatsNew: true })
     // NotificationBell uses mdi:bell icon
     const bellIcon = page.locator(
       'nav .notification-bell, nav [aria-label*="notification" i], nav svg'

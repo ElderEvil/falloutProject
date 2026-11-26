@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { collectNativeDialogs } from './support/telemetry'
 
 for (const [theme, color] of [
   ['fo4', 'rgb(0, 255, 0)'],
@@ -6,11 +7,7 @@ for (const [theme, color] of [
   ['fnv', 'rgb(255, 183, 0)'],
 ]) {
   test(`dweller tooltips and confirmations follow the ${theme} palette`, async ({ page }) => {
-    const nativeDialogs: string[] = []
-    page.on('dialog', async (dialog) => {
-      nativeDialogs.push(dialog.message())
-      await dialog.dismiss()
-    })
+    const nativeDialogs = collectNativeDialogs(page)
     let mutations = 0
     await page.route('**/api/v1/relationships/vault/vault-1', (route) =>
       route.fulfill({

@@ -1,16 +1,12 @@
 import { test, expect } from '@playwright/test'
+import { servePlaceholderArt } from './support/api'
 
 // Owner report: "during incident combat scrollbar appears next to dwellers in
 // some rooms with some opponents". The responder lane must absorb any roster
 // (residents + up to six helpers) without ever becoming a scroll container,
 // regardless of viewport, roster size, opponent type or name length.
 test.beforeEach(async ({ page }) => {
-  await page.route('**/static/**', (route) =>
-    route.fulfill({
-      contentType: 'image/svg+xml',
-      body: '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><rect width="100" height="100" fill="green"/></svg>',
-    })
-  )
+  await servePlaceholderArt(page)
 })
 
 interface OverflowReport {

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vite-plus/test'
-import { mount } from '@vue/test-utils'
+import { mount, type MountingOptions } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import DwellerCard from '@/modules/dwellers/components/cards/DwellerCard.vue'
 import { useExplorationStore } from '@/modules/exploration/stores/exploration'
@@ -35,9 +35,11 @@ const baseDweller = makeDweller({
   room: null,
 })
 
+// Everything mount() accepts except props: callers pass `global.stubs`, and a narrower
+// hand-written type rejects it as an excess property while the spread still mounts fine.
 const mountCard = (
   overrides: Partial<CardProps> = {},
-  options: { attachTo?: HTMLElement } = {}
+  options: Omit<MountingOptions<typeof DwellerCard>, 'props'> = {}
 ): ReturnType<typeof mount> =>
   mount(DwellerCard, {
     props: {

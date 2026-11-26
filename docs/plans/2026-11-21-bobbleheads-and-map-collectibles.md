@@ -196,8 +196,9 @@ using `cleared_at`/`reclear_available_at`.
 5. **Playtest signal:** find two different bobbleheads with two different dwellers; verify the
    stat change in production math and a quest gate; verify a second search is refused and a
    party wipe awards nothing.
-6. **Flag owner:** `game_config.features.collectibles`, default off; maintainer enables after the
-   playtest.
+6. **Flag owner:** `game_config.features.collectibles`, default off; enabled in production on
+   2026-11-26 by the maintainer (deploy workflow sets `FEATURE_COLLECTIBLES=true`). The
+   set-completion toast/bell gap remains open.
 
 ## Risks and open decisions
 

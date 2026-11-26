@@ -20,23 +20,23 @@ const objective = (overrides: Partial<Objective> = {}): Objective => ({
 })
 
 describe('isObjectiveClaimable', () => {
-  it('is true only when the target is reached and the reward is still unclaimed', () => {
-    expect(isObjectiveClaimable(objective({ progress: 100, total: 100 }))).toBe(true)
-    expect(isObjectiveClaimable(objective({ progress: 150, total: 100 }))).toBe(true)
-    expect(isObjectiveClaimable(objective({ progress: 99, total: 100 }))).toBe(false)
-    expect(isObjectiveClaimable(objective({ progress: 100, total: 100, is_completed: true }))).toBe(
-      false
-    )
+  it.each([
+    [{ progress: 100, total: 100 }, true],
+    [{ progress: 150, total: 100 }, true],
+    [{ progress: 99, total: 100 }, false],
+    [{ progress: 100, total: 100, is_completed: true }, false],
+  ])('is claimable only once the target is reached and unclaimed (%#)', (patch, claimable) => {
+    expect(isObjectiveClaimable(objective(patch))).toBe(claimable)
   })
 })
 
 describe('isRetiredStarter', () => {
-  it('flags starter rows without an objective type and nothing else', () => {
-    expect(isRetiredStarter(objective({ category: 'starter' }))).toBe(true)
-    expect(isRetiredStarter(objective({ category: 'starter', objective_type: 'collect' }))).toBe(
-      false
-    )
-    expect(isRetiredStarter(objective({ category: 'daily' }))).toBe(false)
+  it.each([
+    [{ category: 'starter' }, true],
+    [{ category: 'starter', objective_type: 'collect' }, false],
+    [{ category: 'daily' }, false],
+  ])('flags a starter row only when it has no objective type (%#)', (patch, retired) => {
+    expect(isRetiredStarter(objective(patch))).toBe(retired)
   })
 })
 

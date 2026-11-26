@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi, beforeEach } from 'vite-plus/test'
 import { createIconifyMock, createRouterMock } from '../../helpers/mocks'
-import { mount } from '@vue/test-utils'
+import { createExploration } from '../../helpers/explorationFixtures'
+import { enableAutoUnmount, mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { nextTick } from 'vue'
 import { Progress } from '@/core/components/ui/progress'
@@ -22,31 +23,9 @@ vi.mock('@/modules/dwellers/services/dwellerService', () => ({
 
 vi.mock('@iconify/vue', () => createIconifyMock({ template: '<span class="icon-mock" />' }))
 
-const exploration = {
-  id: 'exploration-1',
-  vault_id: 'vault-1',
-  dweller_id: 'dweller-1',
-  status: 'active',
-  duration: 8,
-  start_time: '2026-01-01T00:00:00Z',
-  end_time: null,
-  events: [],
-  loot_collected: [],
-  total_distance: 0,
-  total_caps_found: 0,
-  enemies_encountered: 0,
-  created_at: '2026-01-01T00:00:00Z',
-  updated_at: '2026-01-01T00:00:00Z',
-  dweller_strength: 1,
-  dweller_perception: 1,
-  dweller_endurance: 1,
-  dweller_charisma: 1,
-  dweller_intelligence: 1,
-  dweller_agility: 1,
-  dweller_luck: 1,
-  stimpaks: 0,
-  radaways: 0,
-} as Exploration
+enableAutoUnmount(afterEach)
+
+const exploration = createExploration()
 
 const dweller = {
   first_name: 'Lucy',
@@ -54,6 +33,12 @@ const dweller = {
   image_url: 'example.com/lucy.png',
   thumbnail_url: 'example.com/lucy-thumb.png',
 } as Dweller
+
+/** The card reads one run: override the run's fields, or the props themselves. */
+const mountCard = (run: Partial<Exploration> = {}, props: Record<string, unknown> = {}) =>
+  mount(ExplorerCard, {
+    props: { exploration: { ...exploration, ...run }, dweller, ...props },
+  })
 
 beforeEach(() => {
   setActivePinia(createPinia())
@@ -65,42 +50,31 @@ describe('ExplorerCard', () => {
   })
 
   it('shows the exploring dweller portrait', () => {
-    const wrapper = mount(ExplorerCard, { props: { exploration, dweller } })
+    const portrait = mountCard().find('.dweller-portrait')
 
-    expect(wrapper.find('.dweller-portrait').attributes('src')).toBe(
-      'http://example.com/lucy-thumb.png'
-    )
-    expect(wrapper.find('.dweller-portrait').attributes('alt')).toBe('Lucy MacLean portrait')
-
-    wrapper.unmount()
+    expect(portrait.attributes('src')).toBe('http://example.com/lucy-thumb.png')
+    expect(portrait.attributes('alt')).toBe('Lucy MacLean portrait')
   })
 
   it('uses the thumbnail when image_url is blank', () => {
-    const wrapper = mount(ExplorerCard, {
-      props: {
-        exploration,
-        dweller: { ...dweller, image_url: '', thumbnail_url: 'example.com/thumb.png' },
-      },
-    })
+    const blank = { ...dweller, image_url: '', thumbnail_url: 'example.com/thumb.png' }
 
-    expect(wrapper.find('.dweller-portrait').attributes('src')).toBe('http://example.com/thumb.png')
+    expect(mountCard({}, { dweller: blank }).find('.dweller-portrait').attributes('src')).toBe(
+      'http://example.com/thumb.png'
+    )
   })
 
   it('renders mission metrics and the equipped weapon and outfit', () => {
-    const wrapper = mount(ExplorerCard, {
-      props: {
-        exploration: {
-          ...exploration,
-          loot_collected: [{ name: 'Loot' }],
-          total_caps_found: 12,
-        },
+    const wrapper = mountCard(
+      { loot_collected: [{ name: 'Loot' }], total_caps_found: 12 },
+      {
         dweller: {
           ...dweller,
           weapon: { name: 'Experimental Plasma Rifle' },
           outfit: { name: 'Vault Suit' },
         },
-      },
-    })
+      }
+    )
 
     expect(wrapper.text()).toContain('Distance')
     expect(wrapper.text()).toContain('Experimental Plasma Rifle')
@@ -110,7 +84,7 @@ describe('ExplorerCard', () => {
   it('updates progress and remaining time while mounted, then stops its clock when unmounted', async () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-01-01T01:00:00Z'))
-    const wrapper = mount(ExplorerCard, { props: { exploration, dweller } })
+    const wrapper = mountCard()
 
     expect(wrapper.findComponent(Progress).props('modelValue')).toBeGreaterThan(0)
     expect(wrapper.find('.progress-percentage').text()).toBe('13%')
@@ -131,22 +105,15 @@ describe('ExplorerCard', () => {
   it('preserves timezone offsets in exploration start times', () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-01-01T05:00:00Z'))
-    const wrapper = mount(ExplorerCard, {
-      props: {
-        exploration: { ...exploration, start_time: '2026-01-01T00:00:00-05:00' },
-        dweller,
-      },
-    })
+    const wrapper = mountCard({ start_time: '2026-01-01T00:00:00-05:00' })
 
     expect(wrapper.find('.progress-percentage').text()).toBe('0%')
-
-    wrapper.unmount()
   })
 
   it('uses compact shared actions to complete or recall the explorer', async () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-01-01T09:00:00Z'))
-    const wrapper = mount(ExplorerCard, { props: { exploration, dweller } })
+    const wrapper = mountCard()
 
     const actions = wrapper.findComponent(ExplorerActions)
     expect(actions.props('compact')).toBe(true)
@@ -159,47 +126,36 @@ describe('ExplorerCard', () => {
     expect(wrapper.emitted('recall')).toEqual([['exploration-1']])
   })
 
-  it('renders the pack capacity strip beside the mission stats', () => {
-    const wrapper = mount(ExplorerCard, {
-      props: {
-        exploration: { ...exploration, carry_capacity: 25, pack_slots_used: 4 },
-        dweller,
-      },
-    })
-
-    expect(wrapper.find('.pack-strip').exists()).toBe(true)
-    expect(wrapper.find('.pack-count').text()).toBe('4 / 25')
-
-    wrapper.unmount()
-  })
-
-  it('shows the pack on a dispatched run, not only on a free roam', () => {
+  it.each([
+    [
+      'a dispatch run',
+      { target_location_id: 'loc-9', carry_capacity: 21, pack_slots_used: 3 },
+      '3 / 21',
+    ],
+    ['a free roam', { carry_capacity: 25, pack_slots_used: 4 }, '4 / 25'],
+  ])('renders the pack capacity strip beside the mission stats on %s', (_, run, count) => {
     // Dispatch runs are the common case; capacity comes from the run's snapshot Strength, so the
-    // strip belongs on them too. Hiding it here once made the pack invisible for most expeditions.
-    const wrapper = mount(ExplorerCard, {
-      props: {
-        exploration: {
-          ...exploration,
-          target_location_id: 'loc-9',
-          carry_capacity: 21,
-          pack_slots_used: 3,
-        },
-        dweller,
-      },
-    })
+    // strip belongs on them too. Hiding it there once made the pack invisible for most expeditions.
+    const wrapper = mountCard(run)
 
     expect(wrapper.find('.pack-strip').exists()).toBe(true)
-    expect(wrapper.find('.pack-count').text()).toBe('3 / 21')
-
-    wrapper.unmount()
+    expect(wrapper.find('.pack-count').text()).toBe(count)
   })
 
-  it('links dispatched explorers to their map marker', () => {
-    const wrapper = mount(ExplorerCard, {
-      props: { exploration: { ...exploration, target_location_id: 'loc-9' }, dweller },
-    })
+  it.each([
+    ['a dispatched explorer', { target_location_id: 'loc-9' }, '/vault/vault-1/map?place=loc-9'],
+    ['a free-roam explorer', {}, '/vault/vault-1/map'],
+  ])('links %s to its map marker', (_, run, href) => {
+    expect(mountCard(run).find('.view-on-map').attributes('href')).toBe(href)
+  })
 
-    expect(wrapper.find('.view-on-map').attributes('href')).toBe('/vault/vault-1/map?place=loc-9')
+  /** List-payload loot row: the list endpoint serves items without the detail-only fields. */
+  const loot = (item_name: string, item_type: string, quantity: number) => ({
+    item_name,
+    quantity,
+    rarity: 'Common',
+    item_type,
+    found_at: '2026-01-01T00:10:00Z',
   })
 
   it('renders pack, item count and recent activity from the real list payload', () => {
@@ -223,22 +179,7 @@ describe('ExplorerCard', () => {
           time_elapsed_hours: 0.5,
         },
       ],
-      loot_collected: [
-        {
-          item_name: 'Desk Fan',
-          quantity: 2,
-          rarity: 'Common',
-          item_type: 'junk',
-          found_at: '2026-01-01T00:10:00Z',
-        },
-        {
-          item_name: 'Stimpak',
-          quantity: 1,
-          rarity: 'Common',
-          item_type: 'stimpak',
-          found_at: '2026-01-01T00:20:00Z',
-        },
-      ],
+      loot_collected: [loot('Desk Fan', 'junk', 2), loot('Stimpak', 'stimpak', 1)],
       total_distance: 6,
       total_caps_found: 30,
       enemies_encountered: 1,
@@ -249,9 +190,7 @@ describe('ExplorerCard', () => {
       pack_slots_used: 2,
     }
 
-    const wrapper = mount(ExplorerCard, {
-      props: { exploration: fromExplorationShort(listRow), dweller },
-    })
+    const wrapper = mountCard({}, { exploration: fromExplorationShort(listRow) })
 
     expect(wrapper.find('.pack-count').text()).toBe('2 / 21')
     const itemsMetric = wrapper
@@ -259,23 +198,19 @@ describe('ExplorerCard', () => {
       .find((metric) => metric.text().includes('Items'))
     expect(itemsMetric?.text()).toContain('2')
     expect(wrapper.find('.recent-events').text()).toContain('Found a desk fan')
-
-    wrapper.unmount()
-  })
-
-  it('links free-roam explorers to the plain map', () => {
-    const wrapper = mount(ExplorerCard, { props: { exploration, dweller } })
-
-    expect(wrapper.find('.view-on-map').attributes('href')).toBe('/vault/vault-1/map')
   })
 
   it('renders the whole dispatch party as compact quest-style member rows', () => {
-    const partyMembers = [
-      companion('dweller-1', 'Lucy'),
-      companion('dweller-2', 'Carla'),
-      companion('dweller-3', 'Bea'),
-    ]
-    const wrapper = mount(ExplorerCard, { props: { exploration, dweller, partyMembers } })
+    const wrapper = mountCard(
+      {},
+      {
+        partyMembers: [
+          companion('dweller-1', 'Lucy'),
+          companion('dweller-2', 'Carla'),
+          companion('dweller-3', 'Bea'),
+        ],
+      }
+    )
 
     expect(wrapper.find('.dweller-info').exists()).toBe(false)
     expect(wrapper.find('.equipment-section').exists()).toBe(false)
@@ -289,16 +224,11 @@ describe('ExplorerCard', () => {
   })
 
   it('keeps a dispatched solo party compact while its roster loads', () => {
-    const wrapper = mount(ExplorerCard, {
-      props: {
-        exploration: {
-          ...exploration,
-          target_location_id: 'site-1',
-          events: [{ description: 'Old activity' }],
-        },
-        dweller,
-      },
+    const wrapper = mountCard({
+      target_location_id: 'site-1',
+      events: [{ description: 'Old activity' }],
     })
+
     expect(wrapper.find('.dweller-info').exists()).toBe(false)
     expect(wrapper.find('.recent-events').exists()).toBe(false)
     expect(wrapper.findAll('.member-name').map((node) => node.text())).toEqual(['Lucy MacLean'])
@@ -306,18 +236,18 @@ describe('ExplorerCard', () => {
   })
 
   it('renders no companion row for a solo run', () => {
-    const wrapper = mount(ExplorerCard, {
-      props: { exploration, dweller, partyMembers: [companion('dweller-1', 'Lucy')] },
-    })
-
-    expect(wrapper.find('.party-section').exists()).toBe(false)
+    expect(
+      mountCard({}, { partyMembers: [companion('dweller-1', 'Lucy')] })
+        .find('.party-section')
+        .exists()
+    ).toBe(false)
   })
 
   it('links the dweller identity to the dweller page and the label to the expedition', () => {
-    const wrapper = mount(ExplorerCard, { props: { exploration, dweller } })
-
     expect(
-      wrapper.findAllComponents({ name: 'RouterLink' }).map((link) => link.props('to'))
+      mountCard()
+        .findAllComponents({ name: 'RouterLink' })
+        .map((link) => link.props('to'))
     ).toEqual([
       '/vault/vault-1/dwellers/dweller-1',
       '/vault/vault-1/dwellers/dweller-1',
@@ -326,13 +256,10 @@ describe('ExplorerCard', () => {
   })
 
   it('links each party member to their own dweller page', () => {
-    const wrapper = mount(ExplorerCard, {
-      props: {
-        exploration,
-        dweller,
-        partyMembers: [companion('dweller-1', 'Lucy'), companion('dweller-2', 'Carla')],
-      },
-    })
+    const wrapper = mountCard(
+      {},
+      { partyMembers: [companion('dweller-1', 'Lucy'), companion('dweller-2', 'Carla')] }
+    )
 
     expect(wrapper.findAllComponents('.party-member').map((member) => member.props('to'))).toEqual([
       '/vault/vault-1/dwellers/dweller-1',

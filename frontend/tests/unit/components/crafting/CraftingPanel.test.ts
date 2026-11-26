@@ -66,12 +66,32 @@ const order = (overrides: Partial<CraftingOrder> = {}): CraftingOrder =>
     ...overrides,
   }) as CraftingOrder
 
-const mountPanel = () => mount(CraftingPanel, { props: { vaultId: 'vault-1', itemType: 'weapon' } })
+// A short recipe the workshop cannot afford: missing one rare material.
+const shortRecipe = () =>
+  recipe({
+    can_craft: false,
+    junk_materials: { common: 3, rare: 3 },
+    available_junk: { common: 3, rare: 0 },
+    missing_junk: 3,
+  })
+
+const mountPanel = (props: Record<string, unknown> = {}) =>
+  mount(CraftingPanel, { props: { vaultId: 'vault-1', itemType: 'weapon', ...props } })
+
+/** The usual start: the workshop resolved its recipe and queue reads. */
+const mountLoaded = async (props: Record<string, unknown> = {}) => {
+  const wrapper = mountPanel(props)
+  await flushPromises()
+  return wrapper
+}
 
 // The filter bar's shadcn SelectTrigger is also a <button>, so target the Start
 // action by its label rather than by DOM position.
 const findButton = (wrapper: VueWrapper, label: string) =>
   wrapper.findAll('button').find((button) => button.text().includes(label))!
+
+const collectButton = (wrapper: VueWrapper) =>
+  wrapper.findAll('button').find((button) => button.text().includes('Collect'))
 
 describe('CraftingPanel', () => {
   afterEach(() => vi.useRealTimers())
@@ -92,8 +112,7 @@ describe('CraftingPanel', () => {
   })
 
   it('loads recipes for the workshop', async () => {
-    const wrapper = mountPanel()
-    await flushPromises()
+    const wrapper = await mountLoaded()
 
     expect(craftingService.listRecipes).toHaveBeenCalledWith('vault-1', 'weapon')
     expect(wrapper.text()).toContain('Pipe pistol')
@@ -101,17 +120,9 @@ describe('CraftingPanel', () => {
     expect(wrapper.text()).toContain('1h')
   })
 
-  it('flags a material shortfall and explains the recipe', async () => {
-    vi.mocked(craftingService.listRecipes).mockResolvedValue([
-      recipe({
-        can_craft: false,
-        junk_materials: { common: 3, rare: 3 },
-        available_junk: { common: 3, rare: 0 },
-        missing_junk: 3,
-      }),
-    ])
-    const wrapper = mountPanel()
-    await flushPromises()
+  it('flags a material shortfall, explains it and blocks the start', async () => {
+    vi.mocked(craftingService.listRecipes).mockResolvedValue([shortRecipe()])
+    const wrapper = await mountLoaded()
 
     expect(wrapper.text()).toContain('0/3 rare')
     expect(findButton(wrapper, 'Start').attributes('disabled')).toBeDefined()
@@ -128,14 +139,12 @@ describe('CraftingPanel', () => {
         junk_materials: { common: 3, rare: 3 },
       }),
     ])
-    const wrapper = mountPanel()
-    await flushPromises()
+    const wrapper = await mountLoaded()
 
     expect(wrapper.text()).toContain('Pipe pistol')
     expect(wrapper.text()).toContain('Baseball bat')
 
-    const checkboxes = wrapper.findAll('input[type="checkbox"]')
-    await checkboxes[0].setValue(true)
+    await wrapper.findAll('input[type="checkbox"]')[0].setValue(true)
     expect(wrapper.text()).toContain('Pipe pistol')
     expect(wrapper.text()).not.toContain('Baseball bat')
 
@@ -148,32 +157,15 @@ describe('CraftingPanel', () => {
     vi.mocked(craftingService.listOrders).mockResolvedValue([
       order({ required_stat: 'agility', ability_sum_at_start: 14 }),
     ])
-    const wrapper = mountPanel()
-    await flushPromises()
+    const wrapper = await mountLoaded()
 
     expect(wrapper.text()).toContain('PER')
     expect(wrapper.find('[data-icon="mdi:run-fast"]').exists()).toBe(true)
     expect(wrapper.text()).toContain('AGI 14')
   })
 
-  it('disables starting when the recipe cannot be afforded', async () => {
-    vi.mocked(craftingService.listRecipes).mockResolvedValue([
-      recipe({
-        can_craft: false,
-        junk_materials: { common: 3, rare: 3 },
-        available_junk: { common: 3, rare: 0 },
-        missing_junk: 3,
-      }),
-    ])
-    const wrapper = mountPanel()
-    await flushPromises()
-
-    expect(findButton(wrapper, 'Start').attributes('disabled')).toBeDefined()
-  })
-
   it('queues an order, refreshes and reports it', async () => {
-    const wrapper = mountPanel()
-    await flushPromises()
+    const wrapper = await mountLoaded()
 
     await findButton(wrapper, 'Start').trigger('click')
     await flushPromises()
@@ -186,8 +178,7 @@ describe('CraftingPanel', () => {
 
   it('surfaces a failed start without emitting crafted', async () => {
     vi.mocked(craftingService.startOrder).mockRejectedValue(new Error('Storage is full'))
-    const wrapper = mountPanel()
-    await flushPromises()
+    const wrapper = await mountLoaded()
 
     await findButton(wrapper, 'Start').trigger('click')
     await flushPromises()
@@ -202,29 +193,20 @@ describe('CraftingPanel', () => {
       order({ id: 'w-1', item_type: 'weapon', item_name: 'Pipe pistol' }),
       order({ id: 'o-1', item_type: 'outfit', item_name: 'Mechanic jumpsuit' }),
     ])
-    const wrapper = mountPanel()
-    await flushPromises()
+    const wrapper = await mountLoaded()
 
     expect(wrapper.text()).toContain('Pipe pistol')
     expect(wrapper.text()).not.toContain('Mechanic jumpsuit')
   })
 
-  it('only offers Collect for a finished order', async () => {
-    vi.mocked(craftingService.listOrders).mockResolvedValue([order({ status: 'active' })])
-    const wrapper = mountPanel()
-    await flushPromises()
-
-    expect(wrapper.text()).toContain('Queue')
-    expect(wrapper.text()).not.toContain('Collect')
-  })
-
-  it('renders the queue progress bar with the live percentage', async () => {
+  it('shows the queue with a live progress bar and no Collect before the order finishes', async () => {
     vi.mocked(craftingService.listOrders).mockResolvedValue([
       order({ status: 'active', progress: 0.5 }),
     ])
-    const wrapper = mountPanel()
-    await flushPromises()
+    const wrapper = await mountLoaded()
 
+    expect(wrapper.text()).toContain('Queue')
+    expect(wrapper.text()).not.toContain('Collect')
     const bar = wrapper.find('[role="progressbar"]')
     expect(bar.exists()).toBe(true)
     expect(bar.attributes('aria-valuenow')).toBe('50')
@@ -243,8 +225,7 @@ describe('CraftingPanel', () => {
     vi.mocked(craftingService.listOrders).mockResolvedValue([
       order({ started_at: start, estimated_completion_at: end, progress: 0.1 }),
     ])
-    let wrapper = mountPanel()
-    await flushPromises()
+    const wrapper = await mountLoaded()
 
     expect(wrapper.get('[role="progressbar"]').attributes('aria-valuenow')).toBe('50')
     expect(wrapper.text()).toContain('50%')
@@ -255,21 +236,19 @@ describe('CraftingPanel', () => {
     expect(wrapper.text()).toContain('30s')
     wrapper.unmount()
 
-    wrapper = mountPanel()
-    await flushPromises()
-    expect(wrapper.get('[role="progressbar"]').attributes('aria-valuenow')).toBe('75')
-    expect(wrapper.text()).toContain('30s')
-    wrapper.unmount()
+    // A reload mid-countdown must agree with the live view, not restart the clock.
+    const reloaded = await mountLoaded()
+    expect(reloaded.get('[role="progressbar"]').attributes('aria-valuenow')).toBe('75')
+    expect(reloaded.text()).toContain('30s')
   })
 
   it('cancels an active order and refreshes the queue', async () => {
     vi.mocked(craftingService.listOrders).mockResolvedValue([order({ status: 'active' })])
     vi.mocked(craftingService.cancelOrder).mockResolvedValue(order({ status: 'cancelled' }))
     const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true)
-    const wrapper = mountPanel()
-    await flushPromises()
+    const wrapper = await mountLoaded()
 
-    const cancel = wrapper.findAll('button').find((button) => button.text().includes('Cancel'))!
+    const cancel = findButton(wrapper, 'Cancel')
     await cancel.trigger('click')
     await flushPromises()
 
@@ -280,6 +259,7 @@ describe('CraftingPanel', () => {
     dialog.vm.$emit('cancel')
     await flushPromises()
     expect(craftingService.cancelOrder).not.toHaveBeenCalled()
+
     await cancel.trigger('click')
     dialog.vm.$emit('confirm')
     await flushPromises()
@@ -293,12 +273,10 @@ describe('CraftingPanel', () => {
     vi.mocked(craftingService.listOrders).mockResolvedValue([
       order({ status: 'completed', progress: 1 }),
     ])
-    const wrapper = mountPanel()
-    await flushPromises()
+    const wrapper = await mountLoaded()
 
-    const collect = wrapper.findAll('button').find((button) => button.text().includes('Collect'))
-    expect(collect?.exists()).toBe(true)
-    await collect!.trigger('click')
+    expect(collectButton(wrapper)?.exists()).toBe(true)
+    await collectButton(wrapper)!.trigger('click')
     await flushPromises()
 
     expect(craftingService.collectOrder).toHaveBeenCalledWith('vault-1', 'order-1')
@@ -311,11 +289,9 @@ describe('CraftingPanel', () => {
       order({ status: 'completed', progress: 1 }),
     ])
     vi.mocked(craftingService.collectOrder).mockRejectedValue(new Error('Order vanished'))
-    const wrapper = mountPanel()
-    await flushPromises()
+    const wrapper = await mountLoaded()
 
-    const collect = wrapper.findAll('button').find((button) => button.text().includes('Collect'))
-    await collect!.trigger('click')
+    await collectButton(wrapper)!.trigger('click')
     await flushPromises()
 
     expect(mockToast.error).toHaveBeenCalled()
@@ -324,8 +300,7 @@ describe('CraftingPanel', () => {
 
   it('shows the empty state when nothing is craftable', async () => {
     vi.mocked(craftingService.listRecipes).mockResolvedValue([])
-    const wrapper = mountPanel()
-    await flushPromises()
+    const wrapper = await mountLoaded()
 
     expect(wrapper.text()).toContain('No craftable weapons are catalogued')
   })
@@ -357,8 +332,7 @@ describe('CraftingPanel', () => {
       recipe({ name: 'Pipe pistol', has_junk: true }),
       recipe({ name: 'Assault rifle', can_craft: false, has_junk: false, missing_junk: 3 }),
     ])
-    const wrapper = mountPanel()
-    await flushPromises()
+    const wrapper = await mountLoaded()
 
     expect(wrapper.text()).toContain('Pipe pistol')
     expect(wrapper.text()).toContain('Assault rifle')
@@ -380,8 +354,7 @@ describe('CraftingPanel', () => {
         unlock_hint: 'Scrap a Power fist to learn it',
       }),
     ])
-    const wrapper = mountPanel()
-    await flushPromises()
+    const wrapper = await mountLoaded()
 
     const locked = wrapper.find('.locked-recipe')
     expect(locked.exists()).toBe(true)
@@ -390,10 +363,7 @@ describe('CraftingPanel', () => {
   })
 
   it('reloads recipe estimates when the room crew changes', async () => {
-    const wrapper = mount(CraftingPanel, {
-      props: { vaultId: 'vault-1', itemType: 'weapon', crewKey: 'dweller-1' },
-    })
-    await flushPromises()
+    const wrapper = await mountLoaded({ crewKey: 'dweller-1' })
     expect(craftingService.listRecipes).toHaveBeenCalledTimes(1)
 
     await wrapper.setProps({ crewKey: 'dweller-1,dweller-2' })
@@ -413,17 +383,18 @@ describe('CraftingPanel', () => {
       }),
       recipe({ name: 'Halloween theme', item_type: 'theme', style: 'halloween', owned: false }),
     ])
-    const wrapper = mount(CraftingPanel, {
-      props: { vaultId: 'vault-1', itemType: 'theme' },
-    })
-    await flushPromises()
+    const wrapper = await mountLoaded({ itemType: 'theme' })
 
     expect(wrapper.text()).toContain('Theme workshop')
     expect(wrapper.text()).toContain('Crafted')
 
     const party = wrapper.findAll('li').find((item) => item.text().includes('Party theme'))!
-    const crafted = party.findAll('button').find((button) => button.text().includes('Crafted'))!
-    expect(crafted.attributes('disabled')).toBeDefined()
+    expect(
+      party
+        .findAll('button')
+        .find((button) => button.text().includes('Crafted'))!
+        .attributes('disabled')
+    ).toBeDefined()
 
     const halloween = wrapper.findAll('li').find((item) => item.text().includes('Halloween theme'))!
     expect(halloween.findAll('button').some((button) => button.text().includes('Craft'))).toBe(true)

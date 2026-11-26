@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vite-plus/test'
 import { createIconifyMock } from '../../../helpers/mocks'
+import { createExploration } from '../../../helpers/explorationFixtures'
 import { mount } from '@vue/test-utils'
 import { Progress } from '@/core/components/ui/progress'
 import ExplorationPackStrip from '@/modules/exploration/components/ExplorationPackStrip.vue'
@@ -7,33 +8,11 @@ import type { Exploration, LootItem } from '@/modules/exploration/stores/explora
 
 vi.mock('@iconify/vue', () => createIconifyMock({ template: '<span class="icon-mock" />' }))
 
-const baseExploration = {
-  id: 'exploration-1',
-  vault_id: 'vault-1',
-  dweller_id: 'dweller-1',
-  status: 'active',
-  duration: 8,
-  start_time: '2026-01-01T00:00:00Z',
-  end_time: null,
-  events: [],
-  loot_collected: [],
-  total_distance: 0,
-  total_caps_found: 0,
-  enemies_encountered: 0,
-  created_at: '2026-01-01T00:00:00Z',
-  updated_at: '2026-01-01T00:00:00Z',
+const baseExploration = createExploration({
   dweller_strength: 5,
-  dweller_perception: 1,
-  dweller_endurance: 1,
-  dweller_charisma: 1,
-  dweller_intelligence: 1,
-  dweller_agility: 1,
-  dweller_luck: 1,
-  stimpaks: 0,
-  radaways: 0,
   carry_capacity: 25,
   pack_slots_used: 12,
-} as Exploration
+})
 
 function loot(item_name: string, overrides: Partial<LootItem> = {}): LootItem {
   return {

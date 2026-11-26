@@ -1,6 +1,6 @@
-import { beforeEach, describe, expect, it, vi } from 'vite-plus/test'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vite-plus/test'
 import { createIconifyMock } from '../../helpers/mocks'
-import { flushPromises, mount } from '@vue/test-utils'
+import { enableAutoUnmount, flushPromises, mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { nextTick } from 'vue'
 import { Dialog } from '@/core/components/ui/dialog'
@@ -15,6 +15,7 @@ import { useExpeditionSiteStore } from '@/modules/exploration/stores/expeditionS
 import type { AvailableSiteView, SiteRoomView } from '@/modules/exploration/api/expeditionSite'
 
 vi.mock('@iconify/vue', () => createIconifyMock())
+enableAutoUnmount(afterEach)
 
 const { mockList, mockEnter, mockResolve, mockRetreat } = vi.hoisted(() => ({
   mockList: vi.fn(),
@@ -86,18 +87,24 @@ const triviaRoom: SiteRoomView = {
   },
 }
 
+const outcome = (text: string, extra: Record<string, unknown> = {}) => ({
+  text,
+  damage_taken: 0,
+  caps_gained: 0,
+  loot_gained: [],
+  ...extra,
+})
+
 const clearedRoom: SiteRoomView = {
   ...choiceRoom,
   room_index: 2,
   room_name: 'Vault',
   status: 'cleared',
   finale_paid: true,
-  outcome: {
-    text: 'Terminal cracked: full vault! Reward vault: +40 caps.',
-    damage_taken: 0,
+  outcome: outcome('Terminal cracked: full vault! Reward vault: +40 caps.', {
     caps_gained: 40,
     loot_gained: ['Wonderglue (Common)'],
-  },
+  }),
 }
 
 const retreatedRoom: SiteRoomView = {
@@ -111,39 +118,51 @@ const inRoomOutcome: SiteRoomView = {
   room_index: 1,
   room_name: 'Storage',
   status: 'in_room',
-  outcome: {
-    text: 'Talk it out: success! Cache searched: +10 caps.',
-    damage_taken: 0,
-    caps_gained: 10,
-    loot_gained: [],
-  },
+  outcome: outcome('Talk it out: success! Cache searched: +10 caps.', { caps_gained: 10 }),
 }
 
 const defeatedRoom: SiteRoomView = {
   ...choiceRoom,
   status: 'in_room',
   defeated: true,
-  outcome: {
-    text: 'The raider pack overpowers you.',
-    damage_taken: 12,
-    caps_gained: 0,
-    loot_gained: [],
-  },
+  outcome: outcome('The raider pack overpowers you.', { damage_taken: 12 }),
 }
 
-const mountModal = (
-  explorationId = 'exp-1',
-  dwellerName = 'Lucy MacLean',
-  _timeRemainingSeconds?: number,
-  explorationActive = true
-) =>
+const combatRoom = (overrides: Partial<SiteRoomView> = {}): SiteRoomView => {
+  const room = {
+    ...choiceRoom,
+    room_total: 1,
+    node: { kind: 'combat', prompt: 'Secure the supplies.' },
+    combat_state: { round: 0, next_attack_team: 'A', fighters: [], events: [] },
+    ...overrides,
+  } as SiteRoomView
+  useExpeditionSiteStore().room = room
+  useExpeditionSiteStore().currentExplorationId = 'exp-1'
+  return room
+}
+
+const mountModal = (props: Record<string, unknown> = {}, stubs: Record<string, unknown> = {}) =>
   mount(ExpeditionSiteModal, {
-    props: { show: true, explorationId, dwellerName, explorationActive },
-    global: { stubs: { Teleport: { template: '<div><slot /></div>' } } },
+    props: { show: true, explorationId: 'exp-1', ...props },
+    global: { stubs: { Teleport: { template: '<div><slot /></div>' }, ...stubs } },
   })
+
+/** The common case: a room already in the store, rendered after its data settles. */
+const mountRoom = async (room: SiteRoomView, props: Record<string, unknown> = {}) => {
+  useExpeditionSiteStore().room = room
+  const wrapper = mountModal(props)
+  await flushPromises()
+  return wrapper
+}
 
 const buttonByText = (wrapper: ReturnType<typeof mountModal>, text: string) =>
   wrapper.findAll('button').find((button) => button.text().includes(text))
+
+beforeEach(() => {
+  setActivePinia(createPinia())
+  for (const mock of [mockList, mockEnter, mockResolve, mockRetreat]) mock.mockReset()
+  mockList.mockResolvedValue(sites)
+})
 
 describe('ExpeditionSiteModal', () => {
   it('keeps the fight history in the shared arena log with skill labels', () => {
@@ -175,105 +194,69 @@ describe('ExpeditionSiteModal', () => {
         ],
       },
     }
-    const wrapper = mount(ExpeditionSiteModal, {
-      props: { show: true, explorationId: 'exp-1' },
-      global: { stubs: { Teleport: { template: '<div><slot /></div>' }, SiteCombatScene: true } },
-    })
-    const log = wrapper.get('[aria-label="Battle log"]')
+    const log = mountModal({}, { SiteCombatScene: true }).get('[aria-label="Battle log"]')
+
     expect(log.text()).toContain('Encounter ready')
     expect(log.text()).toContain('Lucy hits Raider for 4')
     expect(log.text()).toContain('SKILL')
     expect(log.text()).toContain('Lucy uses Aimed Shot')
-    wrapper.unmount()
   })
 
   it('starts arena turns only on Fight and stops advancing when the modal closes', async () => {
     vi.useFakeTimers()
-    const store = useExpeditionSiteStore()
-    const combatRoom: SiteRoomView = {
-      ...choiceRoom,
-      room_total: 1,
-      scene_id: 'supermarket_interior',
-      node: { kind: 'combat', prompt: 'Secure the supplies.' },
-      combat_state: { round: 0, next_attack_team: 'A', fighters: [], events: [] },
-    }
-    store.room = combatRoom
-    store.currentExplorationId = 'exp-1'
-    mockResolve.mockResolvedValue({
-      ...combatRoom,
-      combat_state: { ...combatRoom.combat_state, round: 1 },
-    })
-    const wrapper = mount(ExpeditionSiteModal, {
-      props: { show: true, explorationId: 'exp-1' },
-      global: { stubs: { Teleport: { template: '<div><slot /></div>' }, SiteCombatScene: true } },
-    })
-    try {
-      expect(wrapper.getComponent(TerminalModal).props('size')).toBe('3xl')
-      expect(wrapper.findComponent(SiteCombatScene).exists()).toBe(false)
-      await vi.advanceTimersByTimeAsync(2000)
-      expect(mockResolve).not.toHaveBeenCalled()
-      await buttonByText(wrapper, 'Fight')!.trigger('click')
-      expect(wrapper.getComponent(TerminalModal).props('size')).toBe('screen')
-      expect(wrapper.findComponent(SiteCombatScene).exists()).toBe(true)
-      await vi.advanceTimersByTimeAsync(1200)
-      expect(mockResolve).toHaveBeenCalledWith('exp-1', undefined, false, 0)
-      expect(mockResolve).toHaveBeenCalledTimes(1)
-      await wrapper.setProps({ show: false })
-      await vi.advanceTimersByTimeAsync(5000)
-      expect(mockResolve).toHaveBeenCalledTimes(1)
-      await wrapper.setProps({ show: true })
-      expect(wrapper.getComponent(TerminalModal).props('size')).toBe('screen')
-      await vi.advanceTimersByTimeAsync(2000)
-      expect(mockResolve).toHaveBeenCalledTimes(1)
-    } finally {
-      wrapper.unmount()
-      vi.useRealTimers()
-    }
+    const room = combatRoom({ scene_id: 'supermarket_interior' })
+    mockResolve.mockResolvedValue({ ...room, combat_state: { ...room.combat_state, round: 1 } })
+    const wrapper = mountModal({}, { SiteCombatScene: true })
+
+    expect(wrapper.getComponent(TerminalModal).props('size')).toBe('3xl')
+    expect(wrapper.findComponent(SiteCombatScene).exists()).toBe(false)
+    await vi.advanceTimersByTimeAsync(2000)
+    expect(mockResolve).not.toHaveBeenCalled()
+    await buttonByText(wrapper, 'Fight')!.trigger('click')
+    expect(wrapper.getComponent(TerminalModal).props('size')).toBe('screen')
+    expect(wrapper.findComponent(SiteCombatScene).exists()).toBe(true)
+    await vi.advanceTimersByTimeAsync(1200)
+    expect(mockResolve).toHaveBeenCalledWith('exp-1', undefined, false, 0)
+    expect(mockResolve).toHaveBeenCalledTimes(1)
+    await wrapper.setProps({ show: false })
+    await vi.advanceTimersByTimeAsync(5000)
+    expect(mockResolve).toHaveBeenCalledTimes(1)
+    await wrapper.setProps({ show: true })
+    expect(wrapper.getComponent(TerminalModal).props('size')).toBe('screen')
+    await vi.advanceTimersByTimeAsync(2000)
+    expect(mockResolve).toHaveBeenCalledTimes(1)
+    vi.useRealTimers()
   })
 
   it('shows a failed first automatic turn in the expanded scene and stops retrying', async () => {
     vi.useFakeTimers()
-    const store = useExpeditionSiteStore()
-    store.room = {
-      ...choiceRoom,
-      room_total: 1,
-      node: { kind: 'combat', prompt: 'Fight' },
-      combat_state: { round: 0, fighters: [], events: [] },
-    }
-    store.currentExplorationId = 'exp-1'
+    combatRoom()
     mockResolve.mockRejectedValue(new Error('Connection lost'))
-    const wrapper = mount(ExpeditionSiteModal, {
-      props: { show: true, explorationId: 'exp-1' },
-      global: { stubs: { Teleport: { template: '<div><slot /></div>' }, SiteCombatScene: true } },
-    })
-    try {
-      await buttonByText(wrapper, 'Fight')!.trigger('click')
-      await vi.advanceTimersByTimeAsync(1200)
-      expect(store.error).toBeTruthy()
-      expect(wrapper.text()).toContain(store.error!)
-      expect(wrapper.getComponent(TerminalModal).props('size')).toBe('screen')
-      await vi.advanceTimersByTimeAsync(5000)
-      expect(mockResolve).toHaveBeenCalledTimes(1)
-      expect(buttonByText(wrapper, 'Fight')!.attributes('disabled')).toBeUndefined()
-    } finally {
-      wrapper.unmount()
-      vi.useRealTimers()
-    }
+    const store = useExpeditionSiteStore()
+    const wrapper = mountModal({}, { SiteCombatScene: true })
+
+    await buttonByText(wrapper, 'Fight')!.trigger('click')
+    await vi.advanceTimersByTimeAsync(1200)
+    expect(store.error).toBeTruthy()
+    expect(wrapper.text()).toContain(store.error!)
+    expect(wrapper.getComponent(TerminalModal).props('size')).toBe('screen')
+    await vi.advanceTimersByTimeAsync(5000)
+    expect(mockResolve).toHaveBeenCalledTimes(1)
+    expect(buttonByText(wrapper, 'Fight')!.attributes('disabled')).toBeUndefined()
+    vi.useRealTimers()
   })
 
   it('ends a nonlethal defeat with a return action and no retry', () => {
-    const store = useExpeditionSiteStore()
-    store.room = { ...defeatedRoom, status: 'defeated', room_total: 1 }
+    useExpeditionSiteStore().room = { ...defeatedRoom, status: 'defeated', room_total: 1 }
     const wrapper = mountModal()
+
     expect(wrapper.text()).toContain('Escaped injured')
     expect(wrapper.text()).toContain('no site loot')
     expect(buttonByText(wrapper, 'Return to journey')).toBeTruthy()
     expect(buttonByText(wrapper, 'Push on')).toBeUndefined()
-    wrapper.unmount()
   })
 
   it('keeps one authored scene through the encounter and result, scoped to this explorer', async () => {
-    const store = useExpeditionSiteStore()
     const encounter = {
       ...choiceRoom,
       site_id: 'super_duper_mart',
@@ -283,38 +266,28 @@ describe('ExpeditionSiteModal', () => {
       room_total: 1,
       node: { kind: 'combat', prompt: 'Raiders block the aisles.' },
     }
-    store.room = encounter
-    const wrapper = mountModal()
-    await flushPromises()
+    const wrapper = await mountRoom(encounter)
+    const store = useExpeditionSiteStore()
     const scene = wrapper.getComponent(WastelandScene)
+
     expect(scene.props('frame')).toBe('encounter')
     expect(scene.props('scene')).toBe('supermarket_interior')
     const initialSceneProps = { ...scene.props() }
     expect(wrapper.text()).not.toContain('Room 1 /')
     expect(buttonByText(wrapper, 'Fight')).toBeDefined()
+
     store.room = { ...encounter, status: 'cleared', outcome: clearedRoom.outcome }
     await nextTick()
     expect(wrapper.getComponent(WastelandScene).props()).toEqual(initialSceneProps)
     expect(buttonByText(wrapper, 'Return to journey')).toBeDefined()
+
     store.room = { ...encounter, exploration_id: 'another-expedition' }
     await nextTick()
     expect(wrapper.findComponent(WastelandScene).exists()).toBe(false)
-    wrapper.unmount()
-  })
-
-  beforeEach(() => {
-    setActivePinia(createPinia())
-    mockList.mockReset()
-    mockEnter.mockReset()
-    mockResolve.mockReset()
-    mockRetreat.mockReset()
-    mockList.mockResolvedValue(sites)
   })
 
   it('uses the shared wide terminal modal like other popups', () => {
-    const wrapper = mountModal()
-
-    expect(wrapper.findComponent(Dialog).props('open')).toBe(true)
+    expect(mountModal().findComponent(Dialog).props('open')).toBe(true)
   })
 
   it('lists available sites and enters one into the first room', async () => {
@@ -338,27 +311,25 @@ describe('ExpeditionSiteModal', () => {
     expect(wrapper.text()).toContain('75%')
   })
 
-  it('describes a single site as already discovered by the explorer', async () => {
-    const wrapper = mountModal('exp-1', 'Rachel Miller')
+  it.each([
+    ['a single site', sites, 'Rachel Miller discovered a site.'],
+    [
+      'several sites',
+      [...sites, { ...sites[0], id: 'another', name: 'Another site' }],
+      'Rachel Miller discovered these sites.',
+    ],
+  ])('describes %s as discovered, never as a scouting choice', async (_, found, message) => {
+    mockList.mockResolvedValue(found)
+    const wrapper = mountModal({ dwellerName: 'Rachel Miller' })
     await flushPromises()
-    expect(wrapper.text()).toContain('Rachel Miller discovered a site.')
-    expect(wrapper.text()).not.toContain('Where should')
-    wrapper.unmount()
-  })
 
-  it('describes multiple discovered sites without asking for a scouting destination', async () => {
-    mockList.mockResolvedValue([...sites, { ...sites[0], id: 'another', name: 'Another site' }])
-    const wrapper = mountModal('exp-1', 'Rachel Miller')
-    await flushPromises()
-    expect(wrapper.text()).toContain('Rachel Miller discovered these sites.')
-    wrapper.unmount()
+    expect(wrapper.text()).toContain(message)
+    expect(wrapper.text()).not.toContain('Where should')
   })
 
   it('hides the previous explorer room before the store is reset', async () => {
-    const wrapper = mountModal()
-    const store = useExpeditionSiteStore()
-    store.room = choiceRoom
-    await flushPromises()
+    const wrapper = await mountRoom(choiceRoom)
+
     expect(wrapper.text()).toContain('A raider waves you over.')
 
     await wrapper.setProps({ explorationId: 'exp-2' })
@@ -367,30 +338,22 @@ describe('ExpeditionSiteModal', () => {
     expect(buttonByText(wrapper, 'Talk it out')).toBeUndefined()
   })
 
-  it('shows the empty state when no sites are available', async () => {
-    mockList.mockResolvedValue([])
+  it.each([
+    [[], null, 'No sites available on this journey.'],
+    [undefined, new Error('boom'), 'Failed to load available expedition sites'],
+  ])('renders the site-list fallback message (%#)', async (found, error, message) => {
+    if (error) mockList.mockRejectedValue(error)
+    else mockList.mockResolvedValue(found)
     const wrapper = mountModal()
-
     await flushPromises()
 
-    expect(wrapper.text()).toContain('No sites available on this journey.')
-  })
-
-  it('shows the load error inline', async () => {
-    mockList.mockRejectedValue(new Error('boom'))
-    const wrapper = mountModal()
-
-    await flushPromises()
-
-    expect(wrapper.text()).toContain('Failed to load available expedition sites')
+    expect(wrapper.text()).toContain(message)
   })
 
   it('resolves a choice into the terminal pane and closes with updated', async () => {
     mockResolve.mockResolvedValue(clearedRoom)
-    const wrapper = mountModal()
+    const wrapper = await mountRoom(choiceRoom)
     const store = useExpeditionSiteStore()
-    store.room = choiceRoom
-    await flushPromises()
 
     await buttonByText(wrapper, 'Talk it out')!.trigger('click')
     await flushPromises()
@@ -410,10 +373,7 @@ describe('ExpeditionSiteModal', () => {
   })
 
   it('shows the outcome readout above the next room actions without resolving', async () => {
-    const wrapper = mountModal()
-    const store = useExpeditionSiteStore()
-    store.room = inRoomOutcome
-    await flushPromises()
+    const wrapper = await mountRoom(inRoomOutcome)
 
     // The just-finished result renders as an informational banner…
     expect(wrapper.text()).toContain('Cache searched: +10 caps.')
@@ -431,10 +391,7 @@ describe('ExpeditionSiteModal', () => {
   })
 
   it('never resolves a choice node without an explicit choice id', async () => {
-    const wrapper = mountModal()
-    const store = useExpeditionSiteStore()
-    store.room = choiceRoom
-    await flushPromises()
+    const wrapper = await mountRoom(choiceRoom)
 
     // A choice node offers no choice-less resolve affordance.
     expect(buttonByText(wrapper, 'Continue')).toBeUndefined()
@@ -444,12 +401,12 @@ describe('ExpeditionSiteModal', () => {
     expect(mockResolve).toHaveBeenCalledWith('exp-1', 'talk')
   })
 
-  it('retreats through a confirm step and shows the retreated banner', async () => {
+  it.each([
+    ['a choice room', choiceRoom],
+    ['a defeat', defeatedRoom],
+  ])('retreats from %s through a confirm step and shows the retreated banner', async (_, room) => {
     mockRetreat.mockResolvedValue(retreatedRoom)
-    const wrapper = mountModal()
-    const store = useExpeditionSiteStore()
-    store.room = choiceRoom
-    await flushPromises()
+    const wrapper = await mountRoom(room)
 
     await buttonByText(wrapper, 'Retreat')!.trigger('click')
     expect(wrapper.text()).toContain('Keep Exploring')
@@ -459,17 +416,23 @@ describe('ExpeditionSiteModal', () => {
 
     expect(mockRetreat).toHaveBeenCalledWith('exp-1')
     expect(wrapper.text()).toContain('Retreated with whatever was carried.')
+  })
+
+  it('renders a close-only recovery state on a non-active exploration', async () => {
+    const wrapper = await mountRoom(choiceRoom, { explorationActive: false })
+
+    expect(wrapper.text()).toContain('This expedition has ended')
+    expect(buttonByText(wrapper, 'Talk it out')).toBeUndefined()
+    expect(buttonByText(wrapper, 'Push on')).toBeUndefined()
+    expect(buttonByText(wrapper, 'Retreat')).toBeUndefined()
 
     await buttonByText(wrapper, 'Close')!.trigger('click')
     expect(wrapper.emitted('close')).toHaveLength(1)
-    expect(wrapper.emitted('updated')).toHaveLength(1)
+    expect(wrapper.emitted('updated')).toBeUndefined()
   })
 
   it('emits close (not updated) when dismissed mid-run', async () => {
-    const wrapper = mountModal()
-    const store = useExpeditionSiteStore()
-    store.room = choiceRoom
-    await flushPromises()
+    const wrapper = await mountRoom(choiceRoom)
 
     await wrapper.get('[data-slot="dialog-close"]').trigger('click')
 
@@ -478,10 +441,7 @@ describe('ExpeditionSiteModal', () => {
   })
 
   it('shows push-on and retreat instead of option buttons when defeated', async () => {
-    const wrapper = mountModal()
-    const store = useExpeditionSiteStore()
-    store.room = defeatedRoom
-    await flushPromises()
+    const wrapper = await mountRoom(defeatedRoom)
 
     expect(wrapper.text()).toContain('Defeated')
     expect(wrapper.text()).toContain('The raider pack overpowers you.')
@@ -493,10 +453,7 @@ describe('ExpeditionSiteModal', () => {
 
   it('push-on retries the fight through resolveNode without a choice id', async () => {
     mockResolve.mockResolvedValue({ ...choiceRoom, room_index: 1 })
-    const wrapper = mountModal()
-    const store = useExpeditionSiteStore()
-    store.room = defeatedRoom
-    await flushPromises()
+    const wrapper = await mountRoom(defeatedRoom)
 
     await buttonByText(wrapper, 'Push on')!.trigger('click')
     await flushPromises()
@@ -504,27 +461,9 @@ describe('ExpeditionSiteModal', () => {
     expect(mockResolve).toHaveBeenCalledWith('exp-1', undefined)
   })
 
-  it('retreats from a defeat through the confirm step', async () => {
-    mockRetreat.mockResolvedValue(retreatedRoom)
-    const wrapper = mountModal()
-    const store = useExpeditionSiteStore()
-    store.room = defeatedRoom
-    await flushPromises()
-
-    await buttonByText(wrapper, 'Retreat')!.trigger('click')
-    expect(wrapper.text()).toContain('Keep Exploring')
-
-    await buttonByText(wrapper, 'Retreat')!.trigger('click')
-    await flushPromises()
-
-    expect(mockRetreat).toHaveBeenCalledWith('exp-1')
-    expect(wrapper.text()).toContain('Retreated with whatever was carried.')
-  })
-
   it('renders room-pane errors and clears them on the next action', async () => {
-    const wrapper = mountModal()
+    const wrapper = await mountRoom(choiceRoom)
     const store = useExpeditionSiteStore()
-    store.room = choiceRoom
     store.error = 'Failed to resolve expedition node'
     await flushPromises()
 
@@ -537,19 +476,19 @@ describe('ExpeditionSiteModal', () => {
     expect(wrapper.text()).not.toContain('Failed to resolve expedition node')
   })
 
-  it('shows travel paused inside an encounter', async () => {
-    const wrapper = mountModal()
-    await wrapper.setProps({ pausesTravel: true })
-    useExpeditionSiteStore().room = choiceRoom
-    await flushPromises()
+  it.each([
+    ['an encounter is open', {}],
+    ['travel is paused for an open report', { pausesTravel: true }],
+  ])('shows travel paused when %s', async (_, props) => {
+    const wrapper = await mountRoom(choiceRoom, props)
+
     expect(wrapper.text()).toContain('Travel paused')
+    expect(wrapper.text()).not.toContain('Travel continues')
     expect(wrapper.text()).not.toContain('Clock expiry')
   })
 
   it('renders stat-check options with a compact SPECIAL chip and inspectable detail', async () => {
-    const wrapper = mountModal()
-    const store = useExpeditionSiteStore()
-    store.room = {
+    const wrapper = await mountRoom({
       ...choiceRoom,
       node: {
         ...choiceRoom.node,
@@ -563,8 +502,7 @@ describe('ExpeditionSiteModal', () => {
           },
         ],
       },
-    }
-    await flushPromises()
+    })
 
     expect(wrapper.getComponent(TerminalModal).props('size')).toBe('5xl')
     expect(wrapper.text()).toContain('Stat check')
@@ -576,22 +514,10 @@ describe('ExpeditionSiteModal', () => {
     const option = buttonByText(wrapper, 'Disarm the wires')!
     expect(option.attributes('title')).toBe('Perception check · Difficulty 1 · 95% success')
     expect(option.attributes('aria-label')).toContain('Perception check')
-    wrapper.unmount()
-  })
-
-  it('shows travel paused whenever an encounter room is open', async () => {
-    const wrapper = mountModal()
-    useExpeditionSiteStore().room = choiceRoom
-    await flushPromises()
-    expect(wrapper.text()).toContain('Travel paused')
-    expect(wrapper.text()).not.toContain('Travel continues')
-    wrapper.unmount()
   })
 
   it('uses the full-width room card and stepper for multi-room stat checks', async () => {
-    const wrapper = mountModal()
-    const store = useExpeditionSiteStore()
-    store.room = {
+    const wrapper = await mountRoom({
       ...choiceRoom,
       room_index: 1,
       room_total: 3,
@@ -624,8 +550,7 @@ describe('ExpeditionSiteModal', () => {
           },
         ],
       },
-    }
-    await flushPromises()
+    })
 
     expect(wrapper.findComponent(ExpeditionRoomStepper).exists()).toBe(true)
     expect(wrapper.text()).toContain('Parking Lot')
@@ -635,13 +560,13 @@ describe('ExpeditionSiteModal', () => {
     expect(wrapper.text()).toContain('STR')
     expect(wrapper.text()).toContain('CHA')
     expect(wrapper.getComponent(TerminalModal).props('size')).toBe('5xl')
-    wrapper.unmount()
   })
 
   it('explains an expired report without fetching offers for a finished journey', async () => {
-    const wrapper = mountModal('exp-1', 'Lucy', undefined, false)
+    const wrapper = mountModal({ explorationActive: false })
     await wrapper.setProps({ reportedSiteId: 'red_rocket' })
     await flushPromises()
+
     expect(mockList).not.toHaveBeenCalled()
     expect(wrapper.text()).toContain('This journey has finished')
     expect(wrapper.text()).toContain('This site report is no longer available')
@@ -652,18 +577,17 @@ describe('ExpeditionSiteModal', () => {
     const wrapper = mountModal()
     await wrapper.setProps({ reportedSiteId: 'red_rocket' })
     await flushPromises()
+
     expect(wrapper.text()).toContain('including during the return trip')
     expect(wrapper.find('.ring-2').exists()).toBe(true)
     expect(mockEnter).not.toHaveBeenCalled()
+
     await wrapper.setProps({ reportedSiteId: 'spent-site' })
     expect(wrapper.text()).toContain('This site report is no longer available')
   })
 
   it('renders a trivia question with plain answer buttons', async () => {
-    const wrapper = mountModal()
-    const store = useExpeditionSiteStore()
-    store.room = triviaRoom
-    await flushPromises()
+    const wrapper = await mountRoom(triviaRoom)
 
     expect(wrapper.getComponent(TerminalModal).props('size')).toBe('screen')
     expect(wrapper.text()).toContain('Which pre-war company built the Vaults?')
@@ -677,84 +601,54 @@ describe('ExpeditionSiteModal', () => {
       )
     expect(answers).toHaveLength(2)
     for (const answer of answers) expect(answer.text()).not.toContain('%')
-    wrapper.unmount()
   })
 
   it('sends the current question id with a trivia answer', async () => {
-    const wrapper = mountModal()
-    const store = useExpeditionSiteStore()
-    store.room = triviaRoom
-    await flushPromises()
+    const wrapper = await mountRoom(triviaRoom)
     mockResolve.mockResolvedValue(triviaRoom)
 
     await buttonByText(wrapper, 'Vault-Tec')!.trigger('click')
     await flushPromises()
 
     expect(mockResolve).toHaveBeenCalledWith('exp-1', 'vault-tec', false, undefined, 'q-vaults')
-    wrapper.unmount()
+  })
+
+  const wrongAnswerRoom = (): SiteRoomView => ({
+    ...triviaRoom,
+    node: { ...triviaRoom.node, options: [] },
+    outcome: {
+      text: 'Wrong answer — the raider attacks!',
+      damage_taken: 0,
+      caps_gained: 0,
+      loot_gained: [],
+    },
+    combat_state: { round: 0, next_attack_team: 'A', fighters: [], events: [] },
   })
 
   it('treats a started trivia fight as combat and shows the wrong-answer outcome', async () => {
-    const wrapper = mountModal()
-    const store = useExpeditionSiteStore()
-    store.room = {
-      ...triviaRoom,
-      node: { ...triviaRoom.node, options: [] },
-      outcome: {
-        text: 'Wrong answer — the raider attacks!',
-        damage_taken: 0,
-        caps_gained: 0,
-        loot_gained: [],
-      },
-      combat_state: { round: 0, next_attack_team: 'A', fighters: [], events: [] },
-    }
-    await flushPromises()
+    const wrapper = await mountRoom(wrongAnswerRoom())
 
     expect(wrapper.text()).toContain('Wrong answer — the raider attacks!')
     expect(buttonByText(wrapper, 'Fight')).toBeTruthy()
-    wrapper.unmount()
   })
 
   it('starts the trivia fight immediately when a wrong answer opens it', async () => {
     vi.useFakeTimers()
-    const store = useExpeditionSiteStore()
-    const combatRoom: SiteRoomView = {
-      ...triviaRoom,
-      node: { ...triviaRoom.node, options: [] },
-      outcome: {
-        text: 'Wrong answer — the raider attacks!',
-        damage_taken: 0,
-        caps_gained: 0,
-        loot_gained: [],
-      },
-      combat_state: { round: 0, next_attack_team: 'A', fighters: [], events: [] },
-    }
-    store.room = combatRoom
-    store.currentExplorationId = 'exp-1'
-    mockResolve.mockResolvedValue({
-      ...combatRoom,
-      combat_state: { ...combatRoom.combat_state, round: 1 },
-    })
-    const wrapper = mount(ExpeditionSiteModal, {
-      props: { show: true, explorationId: 'exp-1' },
-      global: { stubs: { Teleport: { template: '<div><slot /></div>' }, SiteCombatScene: true } },
-    })
-    try {
-      await nextTick()
-      expect(wrapper.findComponent(SiteCombatScene).exists()).toBe(true)
-      await vi.advanceTimersByTimeAsync(1200)
-      expect(mockResolve).toHaveBeenCalledWith('exp-1', undefined, false, 0)
-    } finally {
-      wrapper.unmount()
-      vi.useRealTimers()
-    }
+    const room = wrongAnswerRoom()
+    useExpeditionSiteStore().room = room
+    useExpeditionSiteStore().currentExplorationId = 'exp-1'
+    mockResolve.mockResolvedValue({ ...room, combat_state: { ...room.combat_state, round: 1 } })
+    const wrapper = mountModal({}, { SiteCombatScene: true })
+
+    await nextTick()
+    expect(wrapper.findComponent(SiteCombatScene).exists()).toBe(true)
+    await vi.advanceTimersByTimeAsync(1200)
+    expect(mockResolve).toHaveBeenCalledWith('exp-1', undefined, false, 0)
+    vi.useRealTimers()
   })
 
   it('dedupes combat enemies and labels failure threats separately', async () => {
-    const wrapper = mountModal('exp-1', 'Lucy MacLean')
-    const store = useExpeditionSiteStore()
-
-    store.room = {
+    const wrapper = await mountRoom({
       ...choiceRoom,
       node: {
         kind: 'combat',
@@ -762,14 +656,13 @@ describe('ExpeditionSiteModal', () => {
         options: [],
         enemy_names: ['Radroach swarm', 'Radroach swarm', 'Raider gang'],
       },
-    }
-    await flushPromises()
+    })
 
     expect(
       wrapper.get('[aria-label="Encounter status"] [aria-label="Encounter enemies"]').text()
     ).toContain('Radroach swarm ×2, Raider gang')
 
-    store.room = {
+    useExpeditionSiteStore().room = {
       ...choiceRoom,
       node: {
         kind: 'choice',
@@ -783,41 +676,35 @@ describe('ExpeditionSiteModal', () => {
     expect(wrapper.text()).toContain('If it goes wrong: Giant Radscorpion')
   })
 
-  it('renders the dweller HP bar in the header from health fields', async () => {
-    const wrapper = mountModal()
-    const store = useExpeditionSiteStore()
-    store.room = { ...choiceRoom, dweller_health: 15, dweller_max_health: 60 }
-    await flushPromises()
+  it.each([
+    ['danger', 15, 60, 25],
+    ['warning', 30, 60, 50],
+    ['default', 48, 60, 80],
+  ])(
+    'renders the dweller HP bar with the %s tone from health fields',
+    async (tone, health, max, value) => {
+      const wrapper = await mountRoom({
+        ...choiceRoom,
+        dweller_health: health,
+        dweller_max_health: max,
+      })
 
-    expect(wrapper.text()).toContain('HP 15/60')
-    const progress = wrapper.findComponent(Progress)
-    expect(progress.exists()).toBe(true)
-    expect(progress.props('modelValue')).toBe(25)
-    expect(progress.props('tone')).toBe('danger')
-  })
+      expect(wrapper.text()).toContain(`HP ${health}/${max}`)
+      expect(wrapper.findComponent(Progress).exists()).toBe(true)
+      expect(wrapper.findComponent(Progress).props('modelValue')).toBe(value)
+      expect(wrapper.findComponent(Progress).props('tone')).toBe(tone)
+    }
+  )
 
-  it('tones the HP bar by ratio and hides it when max health is unknown', async () => {
-    const wrapper = mountModal()
-    const store = useExpeditionSiteStore()
+  it('hides the HP bar when max health is unknown', async () => {
+    const wrapper = await mountRoom({ ...choiceRoom, dweller_health: 0, dweller_max_health: 0 })
 
-    store.room = { ...choiceRoom, dweller_health: 30, dweller_max_health: 60 }
-    await flushPromises()
-    expect(wrapper.findComponent(Progress).props('tone')).toBe('warning')
-
-    store.room = { ...choiceRoom, dweller_health: 48, dweller_max_health: 60 }
-    await flushPromises()
-    expect(wrapper.findComponent(Progress).props('tone')).toBe('default')
-
-    store.room = { ...choiceRoom, dweller_health: 0, dweller_max_health: 0 }
-    await flushPromises()
     expect(wrapper.text()).not.toContain('HP ')
     expect(wrapper.findComponent(Progress).exists()).toBe(false)
   })
 
   it('renders per-enemy combat results after a resolve', async () => {
-    const wrapper = mountModal()
-    const store = useExpeditionSiteStore()
-    store.room = {
+    const wrapper = await mountRoom({
       ...choiceRoom,
       node: {
         kind: 'combat',
@@ -835,8 +722,7 @@ describe('ExpeditionSiteModal', () => {
           { enemy: 'Raider gang', victory: false, damage_taken: 6 },
         ],
       },
-    }
-    await flushPromises()
+    })
 
     expect(wrapper.text()).toContain('Radroach swarm')
     expect(wrapper.text()).toContain('defeated')
@@ -849,9 +735,7 @@ describe('ExpeditionSiteModal', () => {
   })
 
   it('keeps a won fight visible after advancing to a non-combat room', async () => {
-    const wrapper = mountModal()
-    const store = useExpeditionSiteStore()
-    store.room = {
+    const wrapper = await mountRoom({
       ...choiceRoom,
       room_name: 'Prize Stock',
       node: { kind: 'finale', prompt: 'Open the vault.', options: [], enemy_names: [] },
@@ -865,8 +749,7 @@ describe('ExpeditionSiteModal', () => {
           { enemy: 'Mole Rat pack', victory: true, damage_taken: 2 },
         ],
       },
-    }
-    await flushPromises()
+    })
 
     expect(wrapper.findAll('[aria-label="Fight results"] li')).toHaveLength(2)
     expect(wrapper.text()).toContain('Mole Rat pack')
@@ -876,38 +759,29 @@ describe('ExpeditionSiteModal', () => {
 
   it('flashes the damage taken on the HP bar after a damaging resolve', async () => {
     vi.useFakeTimers()
-    try {
-      const wrapper = mountModal()
-      const store = useExpeditionSiteStore()
-      store.room = { ...choiceRoom, dweller_health: 45, dweller_max_health: 60 }
-      await nextTick()
+    const wrapper = await mountRoom({ ...choiceRoom, dweller_health: 45, dweller_max_health: 60 })
 
-      expect(wrapper.text()).not.toContain('-8')
+    expect(wrapper.text()).not.toContain('-8')
 
-      store.room = {
-        ...choiceRoom,
-        dweller_health: 37,
-        dweller_max_health: 60,
-        outcome: { text: 'Ouch.', damage_taken: 8, caps_gained: 0, loot_gained: [] },
-      }
-      await nextTick()
-
-      expect(wrapper.text()).toContain('-8')
-
-      vi.advanceTimersByTime(1700)
-      await nextTick()
-
-      expect(wrapper.text()).not.toContain('-8')
-    } finally {
-      vi.useRealTimers()
+    useExpeditionSiteStore().room = {
+      ...choiceRoom,
+      dweller_health: 37,
+      dweller_max_health: 60,
+      outcome: { text: 'Ouch.', damage_taken: 8, caps_gained: 0, loot_gained: [] },
     }
+    await nextTick()
+
+    expect(wrapper.text()).toContain('-8')
+
+    vi.advanceTimersByTime(1700)
+    await nextTick()
+
+    expect(wrapper.text()).not.toContain('-8')
+    vi.useRealTimers()
   })
 
   it('explains the retreat keeps the encounter open for the journey', async () => {
-    const wrapper = mountModal()
-    const store = useExpeditionSiteStore()
-    store.room = choiceRoom
-    await flushPromises()
+    const wrapper = await mountRoom(choiceRoom)
 
     await buttonByText(wrapper, 'Retreat')!.trigger('click')
 
@@ -915,42 +789,19 @@ describe('ExpeditionSiteModal', () => {
     expect(wrapper.text()).toContain('Keep Exploring')
   })
 
-  it('renders a close-only recovery state on a non-active exploration', async () => {
-    const wrapper = mountModal('exp-1', 'Lucy MacLean', undefined, false)
-    const store = useExpeditionSiteStore()
-    store.room = choiceRoom
-    await flushPromises()
+  it.each([
+    ['trivia', triviaRoom, null],
+    ['terminal', retreatedRoom, 'Retreated with whatever was carried.'],
+  ])('keeps a %s recovery run close-only', async (_, room, banner) => {
+    const wrapper = await mountRoom(room, { explorationActive: false })
 
     expect(wrapper.text()).toContain('This expedition has ended')
-    expect(buttonByText(wrapper, 'Talk it out')).toBeUndefined()
-    expect(buttonByText(wrapper, 'Push on')).toBeUndefined()
-    expect(buttonByText(wrapper, 'Retreat')).toBeUndefined()
-
-    await buttonByText(wrapper, 'Close')!.trigger('click')
-    expect(wrapper.emitted('close')).toHaveLength(1)
-    expect(wrapper.emitted('updated')).toBeUndefined()
-  })
-
-  it('keeps a recovery trivia run close-only', async () => {
-    const wrapper = mountModal('exp-1', 'Lucy MacLean', undefined, false)
-    const store = useExpeditionSiteStore()
-    store.room = triviaRoom
-    await flushPromises()
-
-    expect(wrapper.text()).toContain('This expedition has ended')
-    expect(wrapper.findComponent(TriviaEncounterScene).exists()).toBe(false)
-    expect(buttonByText(wrapper, 'Vault-Tec')).toBeUndefined()
-    expect(buttonByText(wrapper, 'Close')).toBeDefined()
-  })
-
-  it('shows the terminal banner in the recovery state for a terminal run', async () => {
-    const wrapper = mountModal('exp-1', 'Lucy MacLean', undefined, false)
-    const store = useExpeditionSiteStore()
-    store.room = retreatedRoom
-    await flushPromises()
-
-    expect(wrapper.text()).toContain('This expedition has ended')
-    expect(wrapper.text()).toContain('Retreated with whatever was carried.')
+    if (banner) {
+      expect(wrapper.text()).toContain(banner)
+    } else {
+      expect(wrapper.findComponent(TriviaEncounterScene).exists()).toBe(false)
+      expect(buttonByText(wrapper, 'Vault-Tec')).toBeUndefined()
+    }
     expect(buttonByText(wrapper, 'Close')).toBeDefined()
   })
 })

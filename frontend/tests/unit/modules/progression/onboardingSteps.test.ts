@@ -28,6 +28,9 @@ const byId = new Map<OnboardingLesson['id'], OnboardingLesson>(
   ORIENTATION_STEPS.map((step) => [step.id, step] as const)
 )
 
+const eligibility = (id: OnboardingLesson['id'], snapshot: TeachingSnapshot) =>
+  byId.get(id)?.eligibility(snapshot)
+
 const STAFFING = 'starter:assign a dweller correctly'
 const HOUSING = 'starter:build a living quarters'
 const DEPARTURE = 'starter:send a dweller exploring'
@@ -39,6 +42,22 @@ const LIVING_ROOM = {
   incremental_cost: 25,
 }
 const SEEDED_CAPACITY_ROOMS = [{ category: 'Capacity' }, { category: 'Capacity' }]
+
+/** Housing priced from the catalog: 100 base + 25 per already-built capacity room. */
+const housingSnapshot = (
+  bottle_caps: number,
+  { roomsLoaded = true, builtRooms = SEEDED_CAPACITY_ROOMS } = {}
+): TeachingSnapshot =>
+  snapshotWith({
+    vault: { bottle_caps },
+    buildableRooms: [LIVING_ROOM],
+    builtRooms,
+    roomsLoaded,
+    objectives: [objectiveWithKey(HOUSING)],
+  })
+
+const departureSnapshot = (dwellers: TeachingSnapshot['dwellers'], dwellersLoaded = true) =>
+  snapshotWith({ objectives: [objectiveWithKey(DEPARTURE)], dwellers, dwellersLoaded })
 
 describe('onboardingSteps', () => {
   it('keeps stable teaching ids and prepares equipment before departure', () => {
@@ -85,112 +104,61 @@ describe('onboardingSteps', () => {
   })
 
   it('always marks the tap lessons eligible', () => {
-    expect(byId.get('orientation.resources')?.eligibility(EMPTY_SNAPSHOT)).toBe('eligible')
-    expect(byId.get('orientation.generator')?.eligibility(EMPTY_SNAPSHOT)).toBe('eligible')
+    expect(eligibility('orientation.resources', EMPTY_SNAPSHOT)).toBe('eligible')
+    expect(eligibility('orientation.generator', EMPTY_SNAPSHOT)).toBe('eligible')
   })
 
   it('holds objective-backed lessons unknown until their objective is loaded', () => {
-    expect(byId.get('orientation.staffing')?.eligibility(EMPTY_SNAPSHOT)).toBe('unknown')
-    expect(byId.get('orientation.housing')?.eligibility(EMPTY_SNAPSHOT)).toBe('unknown')
-    expect(byId.get('orientation.departure')?.eligibility(EMPTY_SNAPSHOT)).toBe('unknown')
-  })
-
-  it('marks staffing eligible once its objective loads', () => {
+    for (const id of [
+      'orientation.staffing',
+      'orientation.housing',
+      'orientation.departure',
+    ] as const) {
+      expect(eligibility(id, EMPTY_SNAPSHOT)).toBe('unknown')
+    }
     const loaded = snapshotWith({ objectives: [objectiveWithKey(STAFFING)] })
-    expect(byId.get('orientation.staffing')?.eligibility(loaded)).toBe('eligible')
+    expect(eligibility('orientation.staffing', loaded)).toBe('eligible')
   })
 
-  it('prices housing from catalog cost plus a per-existing-room increment', () => {
-    const snapshot = snapshotWith({
-      vault: { bottle_caps: 125 },
-      buildableRooms: [LIVING_ROOM],
-      builtRooms: SEEDED_CAPACITY_ROOMS,
-      roomsLoaded: true,
-      objectives: [objectiveWithKey(HOUSING)],
-    })
-    expect(byId.get('orientation.housing')?.eligibility(snapshot)).toEqual({
-      blocked: 'Not enough caps for Living Quarters (need 150)',
-    })
-  })
-
-  it('marks housing eligible once the raised price is affordable', () => {
-    const snapshot = snapshotWith({
-      vault: { bottle_caps: 200 },
-      buildableRooms: [LIVING_ROOM],
-      builtRooms: SEEDED_CAPACITY_ROOMS,
-      roomsLoaded: true,
-      objectives: [objectiveWithKey(HOUSING)],
-    })
-    expect(byId.get('orientation.housing')?.eligibility(snapshot)).toBe('eligible')
-  })
-
-  it('keeps housing unknown until the vault rooms are loaded', () => {
-    const snapshot = snapshotWith({
-      vault: { bottle_caps: 9999 },
-      buildableRooms: [LIVING_ROOM],
-      builtRooms: [],
-      roomsLoaded: false,
-      objectives: [objectiveWithKey(HOUSING)],
-    })
-    expect(byId.get('orientation.housing')?.eligibility(snapshot)).toBe('unknown')
-  })
-
-  it('treats an empty loaded vault as a valid zero-room state', () => {
-    const snapshot = snapshotWith({
-      vault: { bottle_caps: 9999 },
-      buildableRooms: [LIVING_ROOM],
-      builtRooms: [],
-      roomsLoaded: true,
-      objectives: [objectiveWithKey(HOUSING)],
-    })
-    expect(byId.get('orientation.housing')?.eligibility(snapshot)).toBe('eligible')
+  it.each([
+    // 100 base + 25 per built capacity room: two rooms put the price at 150.
+    [125, {}, { blocked: 'Not enough caps for Living Quarters (need 150)' }],
+    [200, {}, 'eligible'],
+    [9999, { roomsLoaded: false, builtRooms: [] }, 'unknown'],
+    [9999, { builtRooms: [] }, 'eligible'], // A loaded, empty vault is a valid zero-room state.
+  ])('prices and gates housing from the catalog and loaded rooms (%#)', (caps, opts, expected) => {
+    expect(eligibility('orientation.housing', housingSnapshot(caps, opts))).toEqual(expected)
   })
 
   it('keeps departure unknown until the roster is loaded', () => {
-    const snapshot = snapshotWith({
-      objectives: [objectiveWithKey(DEPARTURE)],
-      dwellersLoaded: false,
-      dwellers: [{ id: 'a', age_group: 'adult', status: 'resting', health: 50 }],
-    })
-    expect(byId.get('orientation.departure')?.eligibility(snapshot)).toBe('unknown')
+    const snapshot = departureSnapshot(
+      [{ id: 'a', age_group: 'adult', status: 'resting', health: 50 }],
+      false
+    )
+    expect(eligibility('orientation.departure', snapshot)).toBe('unknown')
   })
 
-  it('offers the matching remedy for each departure blocker', () => {
-    const objectives = [objectiveWithKey(DEPARTURE)]
-    const noAdult = snapshotWith({
-      objectives,
-      dwellersLoaded: true,
-      dwellers: [{ id: 'c', age_group: 'child', status: 'idle', health: 50 }],
-    })
-    expect(byId.get('orientation.departure')?.eligibility(noAdult)).toEqual({
-      blocked: 'Grow the vault to send an adult out',
-    })
-
-    const away = snapshotWith({
-      objectives,
-      dwellersLoaded: true,
-      dwellers: [{ id: 'a', age_group: 'adult', status: 'exploring', health: 50 }],
-    })
-    expect(byId.get('orientation.departure')?.eligibility(away)).toEqual({
-      blocked: 'Your dwellers are away; they will return soon',
-    })
-
-    const wounded = snapshotWith({
-      objectives,
-      dwellersLoaded: true,
-      dwellers: [{ id: 'a', age_group: 'adult', status: 'resting', health: 0 }],
-    })
-    expect(byId.get('orientation.departure')?.eligibility(wounded)).toEqual({
-      blocked: 'Treat a wounded dweller before sending them out',
-    })
+  it.each([
+    [
+      [{ id: 'c', age_group: 'child', status: 'idle', health: 50 }],
+      'Grow the vault to send an adult out',
+    ],
+    [
+      [{ id: 'a', age_group: 'adult', status: 'exploring', health: 50 }],
+      'Your dwellers are away; they will return soon',
+    ],
+    [
+      [{ id: 'a', age_group: 'adult', status: 'resting', health: 0 }],
+      'Treat a wounded dweller before sending them out',
+    ],
+  ])('offers the matching remedy for each departure blocker (%#)', (dwellers, blocked) => {
+    expect(eligibility('orientation.departure', departureSnapshot(dwellers))).toEqual({ blocked })
   })
 
   it('marks departure eligible for a healthy mature dweller', () => {
-    const snapshot = snapshotWith({
-      objectives: [objectiveWithKey(DEPARTURE)],
-      dwellersLoaded: true,
-      dwellers: [{ id: 'a', age_group: 'adult', status: 'resting', health: 50 }],
-    })
-    expect(byId.get('orientation.departure')?.eligibility(snapshot)).toBe('eligible')
+    const snapshot = departureSnapshot([
+      { id: 'a', age_group: 'adult', status: 'resting', health: 50 },
+    ])
+    expect(eligibility('orientation.departure', snapshot)).toBe('eligible')
   })
 })

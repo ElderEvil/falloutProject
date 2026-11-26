@@ -21,13 +21,19 @@ const event = {
   can_claim: false,
 }
 
-function mountBanner() {
-  return mount(WorldEventBanner, {
+/** Mount the banner with the world-event flag resolved, then let it read. */
+const loadBanner = async (worldEvents: boolean) => {
+  const flags = useFeatureFlagsStore()
+  flags.loaded = true
+  flags.worldEvents = worldEvents
+  const wrapper = mount(WorldEventBanner, {
     props: { vaultId: 'vault-1' },
     global: {
       stubs: { RouterLink: { template: '<a class="event-link"><slot /></a>' } },
     },
   })
+  await flushPromises()
+  return wrapper
 }
 
 describe('WorldEventBanner', () => {
@@ -38,25 +44,16 @@ describe('WorldEventBanner', () => {
 
   it('does not ask the API for an event while the feature ships dark', async () => {
     // The endpoint 404s when the flag is off; asking anyway logged a failed request per vault load.
-    const flags = useFeatureFlagsStore()
-    flags.loaded = true
-    flags.worldEvents = false
-
-    const wrapper = mountBanner()
-    await flushPromises()
+    const wrapper = await loadBanner(false)
 
     expect(worldEventService.getEvent).not.toHaveBeenCalled()
     expect(wrapper.find('.event-link').exists()).toBe(false)
   })
 
   it('loads and shows the event when the feature is enabled', async () => {
-    const flags = useFeatureFlagsStore()
-    flags.loaded = true
-    flags.worldEvents = true
     vi.mocked(worldEventService.getEvent).mockResolvedValue(event)
 
-    const wrapper = mountBanner()
-    await flushPromises()
+    const wrapper = await loadBanner(true)
 
     expect(worldEventService.getEvent).toHaveBeenCalledWith('vault-1')
     expect(wrapper.find('.event-link').text()).toContain('Wasteland Relay')

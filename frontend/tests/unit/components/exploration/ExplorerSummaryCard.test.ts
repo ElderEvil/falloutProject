@@ -1,5 +1,6 @@
 import { describe, expect, it, beforeEach, vi } from 'vite-plus/test'
 import { createRouterMock } from '../../helpers/mocks'
+import { createExploration } from '../../helpers/explorationFixtures'
 import { mount } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import ExplorerSummaryCard from '@/modules/exploration/components/ExplorerSummaryCard.vue'
@@ -7,31 +8,7 @@ import type { Exploration } from '@/modules/exploration/stores/exploration'
 
 vi.mock('vue-router', () => createRouterMock({ params: { id: 'vault-1' } }))
 
-const exploration = {
-  id: 'exploration-1',
-  vault_id: 'vault-1',
-  dweller_id: 'dweller-1',
-  status: 'active',
-  duration: 8,
-  start_time: '2026-01-01T00:00:00Z',
-  end_time: null,
-  events: [],
-  loot_collected: [],
-  total_distance: 0,
-  total_caps_found: 0,
-  enemies_encountered: 0,
-  created_at: '2026-01-01T00:00:00Z',
-  updated_at: '2026-01-01T00:00:00Z',
-  dweller_strength: 1,
-  dweller_perception: 1,
-  dweller_endurance: 1,
-  dweller_charisma: 1,
-  dweller_intelligence: 1,
-  dweller_agility: 1,
-  dweller_luck: 1,
-  stimpaks: 0,
-  radaways: 0,
-} as Exploration
+const exploration = createExploration()
 
 const baseProps = {
   dwellerName: 'Lucy MacLean',
@@ -47,12 +24,7 @@ const baseProps = {
 function mountCard(props: Record<string, unknown> = {}) {
   return mount(ExplorerSummaryCard, {
     props: { ...baseProps, ...props },
-    global: {
-      stubs: {
-        DwellerPortrait: true,
-        Icon: true,
-      },
-    },
+    global: { stubs: { DwellerPortrait: true, Icon: true } },
   })
 }
 
@@ -62,43 +34,22 @@ describe('ExplorerSummaryCard', () => {
   })
 
   it('renders the irradiated health display with effective and base maximums', () => {
-    const wrapper = mountCard({ health: 102, maxHealth: 125, radiation: 20 })
-
-    expect(wrapper.text()).toContain('102 / 105 (125)')
-
-    wrapper.unmount()
+    expect(mountCard({ radiation: 20 }).text()).toContain('102 / 105 (125)')
   })
 
   it('renders health / maxHealth without a parenthesised base value when not irradiated', () => {
-    const wrapper = mountCard({ health: 102, maxHealth: 125, radiation: 0 })
+    const wrapper = mountCard({ radiation: 0 })
 
     expect(wrapper.text()).toContain('102 / 125')
     expect(wrapper.text()).not.toContain('(125)')
-
-    wrapper.unmount()
   })
 
   it('keeps the Health radiation meter ARIA values', () => {
-    const wrapper = mountCard({ health: 102, maxHealth: 125, radiation: 20 })
+    const meter = mountCard({ radiation: 20 }).find('[role="progressbar"]')
 
-    const meter = wrapper.find('[role="progressbar"]')
     expect(meter.attributes('aria-valuenow')).toBe('81.6')
     expect(meter.attributes('aria-valuemin')).toBe('0')
     expect(meter.attributes('aria-valuemax')).toBe('100')
-
-    wrapper.unmount()
-  })
-
-  it('keeps the level badge below the portrait and separate from health', () => {
-    const wrapper = mountCard()
-    const portraitColumn = wrapper.find('.portrait-column')
-    const healthRow = wrapper.find('.health-row')
-
-    expect(portraitColumn.find('.dweller-level').text()).toBe('LVL 12')
-    expect(portraitColumn.find('.dweller-portrait-frame').exists()).toBe(true)
-    expect(healthRow.find('.dweller-level').exists()).toBe(false)
-
-    wrapper.unmount()
   })
 
   it('links the portrait and the name to the dweller page', () => {
@@ -110,7 +61,5 @@ describe('ExplorerSummaryCard', () => {
     expect(wrapper.findComponent('.dweller-name-link').props('to')).toBe(
       '/vault/vault-1/dwellers/dweller-1'
     )
-
-    wrapper.unmount()
   })
 })

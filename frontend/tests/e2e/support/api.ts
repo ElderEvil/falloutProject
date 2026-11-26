@@ -105,7 +105,8 @@ export async function mockApi(
 
 /** Resolves a `backend/app/static/<relative>` asset for `route.fulfill({ path })`. */
 export const staticFile = (relative: string): string =>
-  fileURLToPath(new URL(`../../../backend/app/static/${relative}`, import.meta.url))
+  // This file lives in frontend/tests/e2e/support, so four traversals reach the repo root.
+  fileURLToPath(new URL(`../../../../backend/app/static/${relative}`, import.meta.url))
 
 export interface StaticOptions {
   /** Substring of the request URL -> file under `backend/app/static`. */
@@ -123,7 +124,9 @@ export async function serveStatic(page: Page, options: StaticOptions = {}): Prom
   const map = options.map ?? {}
   const fallback = options.fallback ?? 'dweller_thumbnails/base/FOS_Dw_Default_Human_Female.webp'
   await page.route('**/static/**', (route) => {
-    const href = route.request().url()
+    // The browser percent-encodes names with spaces ("FOS%20American%20Shorthair.png");
+    // decode before matching so map keys stay the human-readable asset names.
+    const href = decodeURIComponent(route.request().url())
     const needle = Object.keys(map).find((candidate) => href.includes(candidate))
     return route.fulfill({ path: staticFile(needle === undefined ? fallback : map[needle]!) })
   })

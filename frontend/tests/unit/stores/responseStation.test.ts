@@ -25,6 +25,16 @@ const mockToast = {
 
 vi.mock('@/core/composables/useToast', () => ({ useToast: () => mockToast }))
 
+function deferred<T = unknown>() {
+  let resolve!: (value: T) => void
+  let reject!: (reason: unknown) => void
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res
+    reject = rej
+  })
+  return { promise, resolve, reject }
+}
+
 const roster = (vaultId = 'vault-1'): ContaminationTeamRead => ({
   vault_id: vaultId,
   teams: [
@@ -48,48 +58,36 @@ describe('useResponseStationStore', () => {
     const store = useResponseStationStore()
 
     await store.loadRoster('vault-1')
-
     expect(store.roster).toBeNull()
     expect(store.isLoading).toBe(false)
     expect(store.error).toBeNull()
   })
 
   it('keeps the newest vault’s roster when an older load resolves later', async () => {
-    let finishOld!: (value: ContaminationTeamRead) => void
+    const oldResponse = deferred<ContaminationTeamRead>()
     vi.mocked(fetchResponseRoster)
-      .mockImplementationOnce(
-        () =>
-          new Promise((resolve) => {
-            finishOld = resolve
-          })
-      )
+      .mockReturnValueOnce(oldResponse.promise)
       .mockResolvedValueOnce(roster('vault-2'))
     const store = useResponseStationStore()
 
     const first = store.loadRoster('vault-1')
     await store.loadRoster('vault-2')
-    finishOld(roster('vault-1'))
+    oldResponse.resolve(roster('vault-1'))
     await first
-
     expect(store.roster?.vault_id).toBe('vault-2')
     expect(store.isLoading).toBe(false)
   })
 
   it('discards a roster response that resolves after the session changed', async () => {
     const auth = useAuthStore()
-    let finish!: (value: ContaminationTeamRead) => void
-    vi.mocked(fetchResponseRoster).mockReturnValueOnce(
-      new Promise((resolve) => {
-        finish = resolve
-      })
-    )
+    const response = deferred<ContaminationTeamRead>()
+    vi.mocked(fetchResponseRoster).mockReturnValueOnce(response.promise)
     const store = useResponseStationStore()
 
     const pending = store.loadRoster('vault-1')
     auth.sessionGeneration += 1
-    finish(roster('vault-1'))
+    response.resolve(roster('vault-1'))
     await pending
-
     expect(store.roster).toBeNull()
     expect(store.error).toBeNull()
     expect(store.isLoading).toBe(false)
@@ -100,7 +98,6 @@ describe('useResponseStationStore', () => {
     const store = useResponseStationStore()
 
     await store.loadRoster('vault-1')
-
     expect(store.error).toBe('Signal lost')
     expect(store.roster).toBeNull()
     expect(store.isLoading).toBe(false)
@@ -108,46 +105,32 @@ describe('useResponseStationStore', () => {
 
   it('serializes roster mutations and tracks the busy member', async () => {
     vi.mocked(fetchResponseRoster).mockResolvedValue(roster())
-    let finishPlace!: (value: ContaminationTeamRead) => void
-    vi.mocked(updateResponseTeamPlace).mockImplementationOnce(
-      () =>
-        new Promise((resolve) => {
-          finishPlace = resolve
-        })
-    )
+    const place = deferred<ContaminationTeamRead>()
+    vi.mocked(updateResponseTeamPlace).mockReturnValueOnce(place.promise)
     const store = useResponseStationStore()
     await store.loadRoster('vault-1')
 
     const first = store.setPlace('vault-1', 'fire', 'd1', false)
     const second = store.setPlace('vault-1', 'fire', 'd2', true)
-
     expect(updateResponseTeamPlace).toHaveBeenCalledTimes(1)
     expect(store.busyDwellerIds).toEqual(['d1'])
-
-    finishPlace(roster())
+    place.resolve(roster())
     await Promise.all([first, second])
-
     expect(store.busyDwellerIds).toEqual([])
     expect(store.roster?.vault_id).toBe('vault-1')
   })
 
   it('drops a mutation response that lands after the roster was reset', async () => {
     vi.mocked(fetchResponseRoster).mockResolvedValue(roster())
-    let finishPlace!: (value: ContaminationTeamRead) => void
-    vi.mocked(updateResponseTeamPlace).mockImplementationOnce(
-      () =>
-        new Promise((resolve) => {
-          finishPlace = resolve
-        })
-    )
+    const place = deferred<ContaminationTeamRead>()
+    vi.mocked(updateResponseTeamPlace).mockReturnValueOnce(place.promise)
     const store = useResponseStationStore()
     await store.loadRoster('vault-1')
 
     const pending = store.setPlace('vault-1', 'fire', 'd1', false)
     store.reset()
-    finishPlace(roster())
+    place.resolve(roster())
     await pending
-
     expect(store.roster).toBeNull()
     expect(store.busyDwellerIds).toEqual([])
   })
@@ -159,7 +142,6 @@ describe('useResponseStationStore', () => {
     await store.loadRoster('vault-1')
 
     await store.setPlace('vault-1', 'fire', 'd1', false)
-
     expect(store.roster?.vault_id).toBe('vault-1')
     expect(mockToast.error).toHaveBeenCalledWith('Failed to update response team: Roster is busy')
   })
@@ -170,7 +152,6 @@ describe('useResponseStationStore', () => {
     await store.loadRoster('vault-1')
 
     store.reset()
-
     expect(store.roster).toBeNull()
     expect(store.error).toBeNull()
     expect(store.isLoading).toBe(false)

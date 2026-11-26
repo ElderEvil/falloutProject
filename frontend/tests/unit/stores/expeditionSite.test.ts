@@ -16,6 +16,14 @@ vi.mock('@/core/composables/useToast', () => ({
   useToast: () => mockToast,
 }))
 
+function deferred<T = unknown>() {
+  let resolve!: (value: T) => void
+  const promise = new Promise<T>((res) => {
+    resolve = res
+  })
+  return { promise, resolve }
+}
+
 const mockSite: AvailableSiteView = {
   id: 'red_rocket',
   name: 'Red Rocket',
@@ -55,7 +63,6 @@ describe('Expedition Site Store', () => {
     const store = useExpeditionSiteStore()
 
     const result = await store.fetchAvailableSites('exploration-1')
-
     expect(expeditionSiteApi.listAvailableSites).toHaveBeenCalledWith('exploration-1')
     expect(result).toEqual([mockSite])
     expect(store.availableSites).toEqual([mockSite])
@@ -68,7 +75,6 @@ describe('Expedition Site Store', () => {
     const store = useExpeditionSiteStore()
 
     const result = await store.enterSite('exploration-1', 'red_rocket')
-
     expect(expeditionSiteApi.enterSite).toHaveBeenCalledWith('exploration-1', 'red_rocket')
     expect(result).toEqual(mockRoom)
     expect(store.room).toEqual(mockRoom)
@@ -80,7 +86,6 @@ describe('Expedition Site Store', () => {
     const store = useExpeditionSiteStore()
 
     const result = await store.resolveNode('exploration-1', 'opt-1')
-
     expect(expeditionSiteApi.resolveNode).toHaveBeenCalledWith('exploration-1', 'opt-1')
     expect(result).toEqual(nextRoom)
     expect(store.room).toEqual(nextRoom)
@@ -97,7 +102,6 @@ describe('Expedition Site Store', () => {
     vi.mocked(expeditionSiteApi.getCurrentRoom).mockResolvedValue(advancedRoom)
 
     await expect(store.resolveNode('exploration-1', 'opt-1')).rejects.toBeTruthy()
-
     expect(expeditionSiteApi.getCurrentRoom).toHaveBeenCalledWith('exploration-1')
     expect(store.room).toEqual(advancedRoom)
   })
@@ -111,7 +115,6 @@ describe('Expedition Site Store', () => {
     })
 
     await expect(store.resolveNode('exploration-1', 'opt-1')).rejects.toBeTruthy()
-
     expect(expeditionSiteApi.getCurrentRoom).not.toHaveBeenCalled()
     expect(store.room).toEqual(mockRoom)
   })
@@ -122,40 +125,30 @@ describe('Expedition Site Store', () => {
     const store = useExpeditionSiteStore()
 
     const result = await store.retreat('exploration-1')
-
     expect(expeditionSiteApi.retreatSite).toHaveBeenCalledWith('exploration-1')
     expect(result).toEqual(retreatedRoom)
     expect(store.room).toEqual(retreatedRoom)
   })
 
-  it('fetchCurrentRoom returns null without error when no run is open', async () => {
-    vi.mocked(expeditionSiteApi.getCurrentRoom).mockResolvedValue(null)
+  it.each([
+    ['no run is open', null, null],
+    ['a run is open', mockRoom, mockRoom],
+  ])('fetchCurrentRoom stores %s', async (_, response, expected) => {
+    vi.mocked(expeditionSiteApi.getCurrentRoom).mockResolvedValue(response)
     const store = useExpeditionSiteStore()
 
     const result = await store.fetchCurrentRoom('exploration-1')
 
-    expect(result).toBeNull()
-    expect(store.room).toBeNull()
+    expect(result).toEqual(expected)
+    expect(store.room).toEqual(expected)
     expect(store.error).toBeNull()
     expect(store.isLoading).toBe(false)
-  })
-
-  it('fetchCurrentRoom stores the current room when a run is open', async () => {
-    vi.mocked(expeditionSiteApi.getCurrentRoom).mockResolvedValue(mockRoom)
-    const store = useExpeditionSiteStore()
-
-    const result = await store.fetchCurrentRoom('exploration-1')
-
-    expect(result).toEqual(mockRoom)
-    expect(store.room).toEqual(mockRoom)
   })
 
   it('sets error and rethrows on API rejection', async () => {
     vi.mocked(expeditionSiteApi.listAvailableSites).mockRejectedValue(new Error('boom'))
     const store = useExpeditionSiteStore()
-
     await expect(store.fetchAvailableSites('exploration-1')).rejects.toThrow('boom')
-
     expect(store.error).toBe('Failed to load available expedition sites')
     expect(store.isLoading).toBe(false)
   })
@@ -166,12 +159,11 @@ describe('Expedition Site Store', () => {
     store.error = 'Some error'
 
     await store.fetchAvailableSites('exploration-1')
-
     expect(store.error).toBeNull()
     expect(store.availableSites).toEqual([mockSite])
   })
 
-  it('reset clears room, availableSites, and error', async () => {
+  it('reset clears room, availableSites, error and the scoped exploration id', async () => {
     vi.mocked(expeditionSiteApi.listAvailableSites).mockResolvedValue([mockSite])
     vi.mocked(expeditionSiteApi.enterSite).mockResolvedValue(mockRoom)
     const store = useExpeditionSiteStore()
@@ -180,10 +172,10 @@ describe('Expedition Site Store', () => {
     store.error = 'Some error'
 
     store.reset()
-
     expect(store.room).toBeNull()
     expect(store.availableSites).toEqual([])
     expect(store.error).toBeNull()
+    expect(store.currentExplorationId).toBeNull()
   })
 
   it('scopes room state to the exploration id and resets on a different one', async () => {
@@ -193,12 +185,10 @@ describe('Expedition Site Store', () => {
     await store.enterSite('exploration-1', 'red_rocket')
     expect(store.room).toEqual(mockRoom)
     expect(store.currentExplorationId).toBe('exploration-1')
-
     const otherRoom = { ...mockRoom, exploration_id: 'exploration-2' }
     vi.mocked(expeditionSiteApi.enterSite).mockResolvedValue(otherRoom)
     store.error = 'stale error'
     await store.enterSite('exploration-2', 'red_rocket')
-
     expect(store.room).toEqual(otherRoom)
     expect(store.error).toBeNull()
     expect(store.currentExplorationId).toBe('exploration-2')
@@ -212,7 +202,6 @@ describe('Expedition Site Store', () => {
 
     vi.mocked(expeditionSiteApi.resolveNode).mockRejectedValue(new Error('boom'))
     await expect(store.resolveNode('exploration-2')).rejects.toThrow('boom')
-
     expect(store.room).toBeNull()
     expect(store.error).toBe('Failed to resolve expedition node')
     expect(store.currentExplorationId).toBe('exploration-2')
@@ -225,68 +214,42 @@ describe('Expedition Site Store', () => {
 
     vi.mocked(expeditionSiteApi.getCurrentRoom).mockResolvedValue(null)
     await store.fetchCurrentRoom('exploration-2')
-
     expect(store.room).toBeNull()
     expect(store.currentExplorationId).toBe('exploration-2')
   })
 
   it('ignores an old explorer response that arrives after the new one', async () => {
-    let finishOld!: (room: SiteRoomView | null) => void
+    const oldResponse = deferred<SiteRoomView | null>()
     vi.mocked(expeditionSiteApi.getCurrentRoom)
-      .mockImplementationOnce(
-        () =>
-          new Promise((resolve) => {
-            finishOld = resolve
-          })
-      )
+      .mockReturnValueOnce(oldResponse.promise)
       .mockResolvedValueOnce({ ...mockRoom, exploration_id: 'exploration-2' })
     const store = useExpeditionSiteStore()
 
     const oldRequest = store.fetchCurrentRoom('exploration-1')
     await store.fetchCurrentRoom('exploration-2')
-    finishOld(mockRoom)
+    oldResponse.resolve(mockRoom)
     await oldRequest
-
     expect(store.currentExplorationId).toBe('exploration-2')
     expect(store.room?.exploration_id).toBe('exploration-2')
   })
 
   it('ignores a pending response after reset', async () => {
-    let finish!: (room: SiteRoomView | null) => void
-    vi.mocked(expeditionSiteApi.getCurrentRoom).mockImplementationOnce(
-      () =>
-        new Promise((resolve) => {
-          finish = resolve
-        })
-    )
+    const pending = deferred<SiteRoomView | null>()
+    vi.mocked(expeditionSiteApi.getCurrentRoom).mockReturnValueOnce(pending.promise)
     const store = useExpeditionSiteStore()
     const request = store.fetchCurrentRoom('exploration-1')
 
     store.reset()
-    finish(mockRoom)
+    pending.resolve(mockRoom)
     await request
-
     expect(store.room).toBeNull()
-    expect(store.currentExplorationId).toBeNull()
-  })
-
-  it('reset clears the scoped exploration id', async () => {
-    vi.mocked(expeditionSiteApi.enterSite).mockResolvedValue(mockRoom)
-    const store = useExpeditionSiteStore()
-    await store.enterSite('exploration-1', 'red_rocket')
-
-    store.reset()
-
     expect(store.currentExplorationId).toBeNull()
   })
 
   it('isTerminal flags terminal statuses', () => {
     expect(SITE_TERMINAL_STATUSES).toEqual(['retreated', 'cleared', 'died', 'defeated'])
-    expect(isTerminal('defeated')).toBe(true)
-    expect(isTerminal('retreated')).toBe(true)
-    expect(isTerminal('cleared')).toBe(true)
-    expect(isTerminal('died')).toBe(true)
-    expect(isTerminal('in_room')).toBe(false)
-    expect(isTerminal('unknown')).toBe(false)
+    for (const status of [...SITE_TERMINAL_STATUSES, 'in_room', 'unknown']) {
+      expect(isTerminal(status)).toBe(SITE_TERMINAL_STATUSES.includes(status))
+    }
   })
 })

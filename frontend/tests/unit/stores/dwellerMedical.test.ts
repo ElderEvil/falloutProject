@@ -14,6 +14,14 @@ vi.mock('@/core/composables/useToast', () => ({
   useToast: () => toastMock,
 }))
 
+function deferred<T = unknown>() {
+  let resolve!: (value: T) => void
+  const promise = new Promise<T>((res) => {
+    resolve = res
+  })
+  return { promise, resolve }
+}
+
 describe('useDwellerMedicalStore', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
@@ -34,7 +42,6 @@ describe('useDwellerMedicalStore', () => {
     vi.mocked(axios.get).mockResolvedValue({ data: [{ id: 'd1', radiation: 0 }] })
 
     const result = await medicalStore.distributeRecoverySupplies('vault-1')
-
     expect(axios.post).toHaveBeenCalledWith(
       '/api/v1/storage/vault/vault-1/medical/distribute-recovery-supplies'
     )
@@ -86,14 +93,9 @@ describe('useDwellerMedicalStore', () => {
     const filter = useDwellerFilterStore()
     const medical = useDwellerMedicalStore()
     vi.spyOn(filter, 'fetchDwellersByVault').mockResolvedValue()
-    let finishOld!: (value: unknown) => void
+    const oldResponse = deferred<unknown>()
     vi.mocked(axios.get)
-      .mockImplementationOnce(
-        () =>
-          new Promise((resolve) => {
-            finishOld = resolve
-          })
-      )
+      .mockReturnValueOnce(oldResponse.promise as never)
       .mockResolvedValueOnce({ data: [{ id: 'treated', radiation: 0 }] })
     const old = filter.fetchAllDwellers('vault-1')
     vi.mocked(axios.post).mockResolvedValue({
@@ -101,7 +103,7 @@ describe('useDwellerMedicalStore', () => {
     })
     const treatment = medical.distributeRecoverySupplies('vault-1')
     await flushPromises()
-    finishOld({ data: [{ id: 'treated', radiation: 50 }] })
+    oldResponse.resolve({ data: [{ id: 'treated', radiation: 50 }] })
     await Promise.all([old, treatment])
     expect(axios.get).toHaveBeenCalledTimes(2)
     expect(filter.allDwellers[0].radiation).toBe(0)
@@ -121,7 +123,6 @@ describe('useDwellerMedicalStore', () => {
     })
 
     await medicalStore.distributeRecoverySupplies('vault-1')
-
     expect(toastMock.info).toHaveBeenCalledWith('No irradiated dwellers needed treatment')
   })
 
@@ -132,7 +133,6 @@ describe('useDwellerMedicalStore', () => {
     vi.mocked(axios.post).mockRejectedValue(new Error('boom'))
 
     const result = await medicalStore.distributeRecoverySupplies('vault-1')
-
     expect(result).toBeNull()
     expect(axios.get).not.toHaveBeenCalled()
     expect(filterStore.dwellers).toEqual([{ id: 'd1', radiation: 50 }])
@@ -145,7 +145,6 @@ describe('useDwellerMedicalStore', () => {
     })
 
     const result = await medicalStore.useStimpack('d1')
-
     expect(result).toBeNull()
     expect(toastMock.error).toHaveBeenCalledTimes(1)
     expect(toastMock.error).toHaveBeenCalledWith('No stimpacks available')

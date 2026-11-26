@@ -29,7 +29,6 @@ describe('Feature flags store', () => {
 
     // The filter panel and the roster mount together; both must see the resolved flags.
     await Promise.all([store.fetchFlags(), store.fetchFlags()])
-
     expect(apiGet).toHaveBeenCalledTimes(1)
     expect(store.factionMechanics).toBe(true)
   })
@@ -40,7 +39,6 @@ describe('Feature flags store', () => {
 
     await store.fetchFlags()
     expect(store.loaded).toBe(false)
-
     vi.mocked(apiGet).mockResolvedValue({
       race_mechanics: true,
       faction_mechanics: true,

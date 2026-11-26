@@ -7,6 +7,36 @@ import axios from '@/core/plugins/axios'
 
 vi.mock('@/core/plugins/axios')
 
+type VaultQuest = ReturnType<typeof useQuestStore>['vaultQuests'][number]
+
+/** A vault quest; only the fields a test cares about need naming. */
+const vaultQuest = (overrides: Record<string, unknown> = {}) =>
+  ({
+    id: '1',
+    title: 'Quest 1',
+    short_description: 'Test',
+    long_description: 'Test',
+    requirements: 'Test',
+    rewards: 'Test',
+    created_at: '2025-01-01',
+    updated_at: '2025-01-01',
+    is_visible: true,
+    is_completed: false,
+    started_at: '2025-01-02T00:00:00Z',
+    duration_minutes: 60,
+    ...overrides,
+  }) as VaultQuest
+
+function deferred<T = unknown>() {
+  let resolve!: (value: T) => void
+  let reject!: (reason?: unknown) => void
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res
+    reject = rej
+  })
+  return { promise, resolve, reject }
+}
+
 describe('Quest Store', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
@@ -14,18 +44,10 @@ describe('Quest Store', () => {
   })
 
   describe('Initial State', () => {
-    it('should have empty quests array', () => {
+    it('starts idle with no quests', () => {
       const store = useQuestStore()
       expect(store.quests).toEqual([])
-    })
-
-    it('should have empty vaultQuests array', () => {
-      const store = useQuestStore()
       expect(store.vaultQuests).toEqual([])
-    })
-
-    it('should not be loading', () => {
-      const store = useQuestStore()
       expect(store.isLoading).toBe(false)
     })
   })
@@ -36,218 +58,75 @@ describe('Quest Store', () => {
     vi.mocked(axios.get).mockResolvedValue({ data: [] })
 
     await store.startQuest('vault-1', 'quest-1', ['dweller-1', 'dweller-2'])
-
     expect(axios.post).toHaveBeenCalledExactlyOnceWith('/api/v1/quests/vault-1/quest-1/start', {
       dweller_ids: ['dweller-1', 'dweller-2'],
     })
   })
 
   describe('Computed Properties', () => {
-    it('should filter active quests', () => {
+    it('should filter active and completed quests', () => {
       const store = useQuestStore()
       store.vaultQuests = [
-        {
-          id: '1',
-          title: 'Active Quest',
-          short_description: 'Test',
-          long_description: 'Test',
-          requirements: 'Test',
-          rewards: 'Test',
-          created_at: '2025-01-01',
-          updated_at: '2025-01-01',
-          is_visible: true,
-          is_completed: false,
-          started_at: '2025-01-02T00:00:00Z',
-          duration_minutes: 60,
-        },
-        {
-          id: '2',
-          title: 'Completed Quest',
-          short_description: 'Test',
-          long_description: 'Test',
-          requirements: 'Test',
-          rewards: 'Test',
-          created_at: '2025-01-01',
-          updated_at: '2025-01-01',
-          is_visible: true,
-          is_completed: true,
-          started_at: '2025-01-02T00:00:00Z',
-          duration_minutes: 60,
-        },
+        vaultQuest(),
+        vaultQuest({ id: '2', title: 'Completed Quest', is_completed: true }),
       ]
 
-      expect(store.questCategories.active).toHaveLength(1)
-      expect(store.questCategories.active[0].id).toBe('1')
-    })
-
-    it('should filter completed quests', () => {
-      const store = useQuestStore()
-      store.vaultQuests = [
-        {
-          id: '1',
-          title: 'Active Quest',
-          short_description: 'Test',
-          long_description: 'Test',
-          requirements: 'Test',
-          rewards: 'Test',
-          created_at: '2025-01-01',
-          updated_at: '2025-01-01',
-          is_visible: true,
-          is_completed: false,
-          started_at: '2025-01-02T00:00:00Z',
-          duration_minutes: 60,
-        },
-        {
-          id: '2',
-          title: 'Completed Quest',
-          short_description: 'Test',
-          long_description: 'Test',
-          requirements: 'Test',
-          rewards: 'Test',
-          created_at: '2025-01-01',
-          updated_at: '2025-01-01',
-          is_visible: true,
-          is_completed: true,
-          started_at: '2025-01-02T00:00:00Z',
-          duration_minutes: 60,
-        },
-      ]
-
-      expect(store.questCategories.completed).toHaveLength(1)
-      expect(store.questCategories.completed[0].id).toBe('2')
+      expect(store.questCategories.active.map((quest) => quest.id)).toEqual(['1'])
+      expect(store.questCategories.completed.map((quest) => quest.id)).toEqual(['2'])
     })
 
     it('should filter available quests (not started)', () => {
       const store = useQuestStore()
       // availableQuests now filters from vaultQuests (not quests)
       store.vaultQuests = [
-        {
-          id: '1',
-          title: 'Started Quest',
-          short_description: 'Test',
-          long_description: 'Test',
-          requirements: 'Test',
-          rewards: 'Test',
-          created_at: '2025-01-01',
-          updated_at: '2025-01-01',
-          is_visible: true,
-          is_completed: false,
-          started_at: '2025-01-02T00:00:00Z',
-          duration_minutes: 60,
-        },
-        {
-          id: '2',
-          title: 'Available Quest',
-          short_description: 'Test',
-          long_description: 'Test',
-          requirements: 'Test',
-          rewards: 'Test',
-          created_at: '2025-01-01',
-          updated_at: '2025-01-01',
-          is_visible: true,
-          is_completed: false,
-          started_at: null,
-          duration_minutes: null,
-        },
+        vaultQuest({ title: 'Started Quest' }),
+        vaultQuest({ id: '2', title: 'Available Quest', started_at: null, duration_minutes: null }),
       ]
 
-      expect(store.questCategories.available).toHaveLength(1)
-      expect(store.questCategories.available[0].id).toBe('2')
+      expect(store.questCategories.available.map((quest) => quest.id)).toEqual(['2'])
     })
 
     it('classifies a travelling quest into the returning bucket', () => {
       const store = useQuestStore()
       store.vaultQuests = [
-        {
-          id: '1',
+        vaultQuest({
           title: 'Travelling Quest',
-          short_description: 'Test',
-          long_description: 'Test',
-          requirements: 'Test',
-          rewards: 'Test',
-          created_at: '2025-01-01',
-          updated_at: '2025-01-01',
-          is_visible: true,
-          is_completed: false,
           is_reward_ready: false,
-          started_at: '2025-01-02T00:00:00Z',
-          duration_minutes: 60,
           return_started_at: '2025-01-02T01:00:00Z',
           return_completes_at: '2025-01-02T01:15:00Z',
-        },
+        }),
       ]
 
-      expect(store.questCategories.returning).toHaveLength(1)
-      expect(store.questCategories.returning[0].id).toBe('1')
+      expect(store.questCategories.returning.map((quest) => quest.id)).toEqual(['1'])
       expect(store.questCategories.active).toHaveLength(0)
       expect(store.questCategories.readyToClaim).toHaveLength(0)
     })
 
     it('prefers the arrived and completed buckets over returning', () => {
       const store = useQuestStore()
+      const returning = {
+        is_reward_ready: false,
+        return_started_at: '2025-01-02T01:00:00Z',
+        return_completes_at: '2025-01-02T01:15:00Z',
+      }
       store.vaultQuests = [
-        {
-          id: 'arrived',
-          title: 'Arrived Quest',
-          short_description: 'Test',
-          long_description: 'Test',
-          requirements: 'Test',
-          rewards: 'Test',
-          created_at: '2025-01-01',
-          updated_at: '2025-01-01',
-          is_visible: true,
-          is_completed: false,
-          is_reward_ready: true,
-          started_at: '2025-01-02T00:00:00Z',
-          duration_minutes: 60,
-          return_started_at: '2025-01-02T01:00:00Z',
-          return_completes_at: '2025-01-02T01:15:00Z',
-        },
-        {
-          id: 'done',
-          title: 'Done Quest',
-          short_description: 'Test',
-          long_description: 'Test',
-          requirements: 'Test',
-          rewards: 'Test',
-          created_at: '2025-01-01',
-          updated_at: '2025-01-01',
-          is_visible: true,
-          is_completed: true,
-          is_reward_ready: false,
-          started_at: '2025-01-02T00:00:00Z',
-          duration_minutes: 60,
-          return_started_at: '2025-01-02T01:00:00Z',
-          return_completes_at: '2025-01-02T01:15:00Z',
-        },
+        vaultQuest({ ...returning, id: 'arrived', title: 'Arrived Quest', is_reward_ready: true }),
+        vaultQuest({ ...returning, id: 'done', title: 'Done Quest', is_completed: true }),
       ]
 
       expect(store.questCategories.returning).toHaveLength(0)
-      expect(store.questCategories.readyToClaim.map((q) => q.id)).toEqual(['arrived'])
-      expect(store.questCategories.completed.map((q) => q.id)).toEqual(['done'])
+      expect(store.questCategories.readyToClaim.map((quest) => quest.id)).toEqual(['arrived'])
+      expect(store.questCategories.completed.map((quest) => quest.id)).toEqual(['done'])
     })
   })
 
   describe('fetchAllQuests', () => {
     it('should fetch all quests successfully', async () => {
-      const mockQuests = [
-        {
-          id: '1',
-          title: 'Quest 1',
-          short_description: 'Test 1',
-          long_description: 'Test 1',
-          requirements: 'Level 5',
-          rewards: '50 caps',
-          created_at: '2025-01-01',
-          updated_at: '2025-01-01',
-        },
-      ]
-
+      const mockQuests = [vaultQuest()]
       vi.mocked(axios.get).mockResolvedValueOnce({ data: mockQuests })
 
       const store = useQuestStore()
       await store.fetchAllQuests()
-
       expect(axios.get).toHaveBeenCalledWith('/api/v1/quests/', { params: { limit: 1000 } })
       expect(store.quests).toEqual(mockQuests)
       expect(store.isLoading).toBe(false)
@@ -255,7 +134,6 @@ describe('Quest Store', () => {
 
     it('should handle fetch error', async () => {
       vi.mocked(axios.get).mockRejectedValueOnce(new Error('Network error'))
-
       const store = useQuestStore()
       await expect(store.fetchAllQuests()).rejects.toThrow('Network error')
       expect(store.isLoading).toBe(false)
@@ -263,40 +141,22 @@ describe('Quest Store', () => {
   })
 
   describe('fetchVaultQuests', () => {
+    const questPage = (prefix: string, count: number) =>
+      Array.from({ length: count }, (_, index) => ({ id: `${prefix}-${index}` }))
+
     it('should fetch vault quests successfully', async () => {
-      const mockVaultQuests = [
-        {
-          id: '1',
-          title: 'Quest 1',
-          short_description: 'Test 1',
-          long_description: 'Test 1',
-          requirements: 'Level 5',
-          rewards: '50 caps',
-          created_at: '2025-01-01',
-          updated_at: '2025-01-01',
-          is_visible: true,
-          is_completed: false,
-        },
-      ]
-
-      vi.mocked(axios.get).mockResolvedValueOnce({ data: mockVaultQuests })
-
+      vi.mocked(axios.get).mockResolvedValueOnce({ data: [vaultQuest()] })
       const store = useQuestStore()
       await store.fetchVaultQuests('vault-123')
-
       expect(store.vaultQuests).toMatchObject([{ id: '1', title: 'Quest 1' }])
     })
 
     it('should handle fetch error', async () => {
       vi.mocked(axios.get).mockRejectedValueOnce(new Error('Vault not found'))
-
       const store = useQuestStore()
       await expect(store.fetchVaultQuests('vault-123')).rejects.toThrow('Vault not found')
       expect(store.isLoading).toBe(false)
     })
-
-    const questPage = (prefix: string, count: number) =>
-      Array.from({ length: count }, (_, index) => ({ id: `${prefix}-${index}` }))
 
     it('keeps the cached list intact when the API payload is not a list', async () => {
       const store = useQuestStore()
@@ -306,7 +166,6 @@ describe('Quest Store', () => {
       await expect(store.fetchVaultQuests('vault-123', { silent: true })).rejects.toThrow(
         'Expected a list of vault quests'
       )
-
       expect(store.vaultQuests).toEqual([{ id: 'cached' }])
     })
 
@@ -317,7 +176,6 @@ describe('Quest Store', () => {
 
       const store = useQuestStore()
       await store.fetchVaultQuests('vault-123')
-
       expect(store.vaultQuests).toHaveLength(151)
       expect(axios.get).toHaveBeenCalledTimes(1)
       expect(axios.get).toHaveBeenCalledWith('/api/v1/quests/vault-123/', {
@@ -337,7 +195,6 @@ describe('Quest Store', () => {
       await store.fetchVaultQuests('vault-b')
       pending.resolve({ data: [{ id: 'a', title: 'Vault A Quest' }] })
       await first
-
       expect(store.vaultQuests).toMatchObject(newest)
     })
 
@@ -349,9 +206,8 @@ describe('Quest Store', () => {
 
       const call = store.fetchVaultQuests('vault-123')
       auth.sessionGeneration += 1
-      pending.resolve({ data: [{ id: '1', title: 'Quest 1' }] })
+      pending.resolve({ data: [vaultQuest()] })
       await call
-
       expect(store.vaultQuests).toEqual([])
       expect(store.isLoading).toBe(false)
     })
@@ -359,25 +215,11 @@ describe('Quest Store', () => {
 
   describe('assignQuest', () => {
     it('should assign quest and refresh vault quests', async () => {
-      const mockAssignedQuest = {
-        id: '1',
-        title: 'Quest 1',
-        short_description: 'Test 1',
-        long_description: 'Test 1',
-        requirements: 'Level 5',
-        rewards: '50 caps',
-        created_at: '2025-01-01',
-        updated_at: '2025-01-01',
-        is_visible: true,
-        is_completed: false,
-      }
-
-      vi.mocked(axios.post).mockResolvedValueOnce({ data: mockAssignedQuest })
-      vi.mocked(axios.get).mockResolvedValueOnce({ data: [mockAssignedQuest] })
+      vi.mocked(axios.post).mockResolvedValueOnce({ data: vaultQuest() })
+      vi.mocked(axios.get).mockResolvedValueOnce({ data: [vaultQuest()] })
 
       const store = useQuestStore()
       await store.assignQuest('vault-123', 'quest-1', true)
-
       expect(axios.post).toHaveBeenCalledWith('/api/v1/quests/vault-123/quest-1/assign', null, {
         params: { is_visible: true },
       })
@@ -386,7 +228,6 @@ describe('Quest Store', () => {
 
     it('should handle assign error', async () => {
       vi.mocked(axios.post).mockRejectedValueOnce(new Error('Already assigned'))
-
       const store = useQuestStore()
       await expect(store.assignQuest('vault-123', 'quest-1')).rejects.toThrow('Already assigned')
     })
@@ -394,19 +235,6 @@ describe('Quest Store', () => {
 
   describe('claimQuestRewards', () => {
     it('should claim rewards and refresh vault quests', async () => {
-      const completedQuest = {
-        id: 'quest-1',
-        title: 'Quest 1',
-        short_description: 'Test 1',
-        long_description: 'Test 1',
-        requirements: 'Level 5',
-        rewards: '50 caps',
-        created_at: '2025-01-01',
-        updated_at: '2025-01-01',
-        is_visible: true,
-        is_completed: true,
-      }
-
       vi.mocked(axios.post).mockResolvedValueOnce({
         data: {
           quest_id: 'quest-1',
@@ -415,18 +243,18 @@ describe('Quest Store', () => {
           granted_rewards: [],
         },
       })
-      vi.mocked(axios.get).mockResolvedValueOnce({ data: [completedQuest] })
+      vi.mocked(axios.get).mockResolvedValueOnce({
+        data: [vaultQuest({ id: 'quest-1', is_completed: true })],
+      })
 
       const store = useQuestStore()
       await store.claimQuestRewards('vault-123', 'quest-1')
-
       expect(axios.post).toHaveBeenCalledWith('/api/v1/quests/vault-123/quest-1/claim-rewards')
       expect(store.vaultQuests).toMatchObject([{ id: 'quest-1', is_completed: true }])
     })
 
     it('should handle reward claim error', async () => {
       vi.mocked(axios.post).mockRejectedValueOnce(new Error('Quest not found'))
-
       const store = useQuestStore()
       await expect(store.claimQuestRewards('vault-123', 'quest-1')).rejects.toThrow(
         'Quest not found'
@@ -436,21 +264,14 @@ describe('Quest Store', () => {
 
   describe('Loading State', () => {
     it('should set loading state during fetch', async () => {
-      let resolvePromise: (value: any) => void
-      const promise = new Promise((resolve) => {
-        resolvePromise = resolve
-      })
-
-      vi.mocked(axios.get).mockReturnValueOnce(promise as any)
+      const request = deferred<{ data: unknown }>()
+      vi.mocked(axios.get).mockReturnValueOnce(request.promise as never)
 
       const store = useQuestStore()
       const fetchPromise = store.fetchAllQuests()
-
       expect(store.isLoading).toBe(true)
-
-      resolvePromise!({ data: [] })
+      request.resolve({ data: [] })
       await fetchPromise
-
       expect(store.isLoading).toBe(false)
     })
   })
@@ -458,22 +279,7 @@ describe('Quest Store', () => {
   describe('fetchPartiesForActiveQuests', () => {
     it('replaces stale rosters and retains empty active parties', async () => {
       const store = useQuestStore()
-      store.vaultQuests = [
-        {
-          id: 'active-quest',
-          title: 'Active Quest',
-          short_description: 'Test',
-          long_description: 'Test',
-          requirements: 'Test',
-          rewards: 'Test',
-          created_at: '2025-01-01',
-          updated_at: '2025-01-01',
-          is_visible: true,
-          is_completed: false,
-          started_at: '2025-01-02T00:00:00Z',
-          duration_minutes: 60,
-        },
-      ]
+      store.vaultQuests = [vaultQuest({ id: 'active-quest', title: 'Active Quest' })]
       store.questPartyMap = {
         'completed-quest': [
           {
@@ -491,51 +297,25 @@ describe('Quest Store', () => {
       vi.mocked(axios.get).mockResolvedValueOnce({ data: [] })
 
       await store.fetchPartiesForActiveQuests('vault-123')
-
       expect(store.questPartyMap).toEqual({ 'active-quest': [] })
     })
 
     it("keeps the newest vault's party map when an older load resolves later", async () => {
       const store = useQuestStore()
-      store.vaultQuests = [
-        {
-          id: 'active-quest',
-          title: 'Active Quest',
-          short_description: 'Test',
-          long_description: 'Test',
-          requirements: 'Test',
-          rewards: 'Test',
-          created_at: '2025-01-01',
-          updated_at: '2025-01-01',
-          is_visible: true,
-          is_completed: false,
-          started_at: '2025-01-02T00:00:00Z',
-          duration_minutes: 60,
-        },
-      ]
+      store.vaultQuests = [vaultQuest({ id: 'active-quest', title: 'Active Quest' })]
       const pending = deferred<{ data: unknown }>()
       vi.mocked(axios.get)
         .mockReturnValueOnce(pending.promise as never)
         .mockResolvedValueOnce({ data: [{ id: 'party-b', quest_id: 'active-quest' }] })
+
       const stale = store.fetchPartiesForActiveQuests('vault-a')
       await store.fetchPartiesForActiveQuests('vault-b')
       pending.resolve({ data: [{ id: 'party-a', quest_id: 'active-quest' }] })
       await stale
-
       expect(store.questPartyMap['active-quest']?.[0]?.id).toBe('party-b')
       expect(axios.get).toHaveBeenCalledTimes(2)
     })
   })
-
-  function deferred<T>() {
-    let resolve!: (value: T) => void
-    let reject!: (reason?: unknown) => void
-    const promise = new Promise<T>((res, rej) => {
-      resolve = res
-      reject = rej
-    })
-    return { promise, resolve, reject }
-  }
 })
 
 describe('groupQuestsByType', () => {

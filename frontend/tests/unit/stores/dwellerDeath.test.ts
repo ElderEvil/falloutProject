@@ -18,6 +18,14 @@ vi.mock('@/modules/dwellers/stores/dwellerFilter', () => ({
 import { useDwellerDeathStore } from '@/modules/dwellers/stores/dwellerDeath'
 import { useVaultStore, type VaultWithNumbers } from '@/modules/vault/stores/vault'
 
+function deferred<T = unknown>() {
+  let resolve!: (value: T) => void
+  const promise = new Promise<T>((res) => {
+    resolve = res
+  })
+  return { promise, resolve }
+}
+
 describe('DwellerDeath Store', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
@@ -28,7 +36,6 @@ describe('DwellerDeath Store', () => {
   describe('State', () => {
     it('should initialize with empty state', () => {
       const store = useDwellerDeathStore()
-
       expect(store.deadDwellers).toEqual([])
       expect(store.graveyardDwellers).toEqual([])
       expect(store.deadLoadingCount).toBe(0)
@@ -46,7 +53,6 @@ describe('DwellerDeath Store', () => {
 
       const store = useDwellerDeathStore()
       const result = await store.fetchDeadDwellers('vault-1')
-
       expect(axios.get).toHaveBeenCalledWith('/api/v1/dwellers/vault/vault-1/dead')
       expect(store.deadDwellers).toEqual(mockDead)
       expect(result).toEqual(mockDead)
@@ -58,7 +64,6 @@ describe('DwellerDeath Store', () => {
 
       const store = useDwellerDeathStore()
       const result = await store.fetchDeadDwellers('vault-1')
-
       expect(result).toEqual([])
       expect(store.deadDwellers).toEqual([])
       expect(store.isDeadLoading).toBe(false)
@@ -70,40 +75,28 @@ describe('DwellerDeath Store', () => {
       const store = useDwellerDeathStore()
       const p1 = store.fetchDeadDwellers('vault-1')
       const p2 = store.fetchDeadDwellers('vault-1')
-
       expect(store.deadLoadingCount).toBe(2)
       expect(store.isDeadLoading).toBe(true)
-
       await Promise.all([p1, p2])
-
       expect(store.deadLoadingCount).toBe(0)
       expect(store.isDeadLoading).toBe(false)
     })
 
     it('should ignore a stale dead-dweller response after a newer request', async () => {
-      let resolveFirst!: (value: unknown) => void
+      const firstResponse = deferred<unknown>()
       const freshDead = [{ id: 'fresh', first_name: 'Fresh', last_name: 'Dweller' }]
       const staleDead = [{ id: 'stale', first_name: 'Stale', last_name: 'Dweller' }]
 
       vi.mocked(axios.get)
-        .mockImplementationOnce(
-          () =>
-            new Promise((resolve) => {
-              resolveFirst = resolve
-            })
-        )
+        .mockReturnValueOnce(firstResponse.promise as never)
         .mockResolvedValueOnce({ data: freshDead })
-
       const store = useDwellerDeathStore()
       const firstRequest = store.fetchDeadDwellers('vault-1')
       const secondRequest = store.fetchDeadDwellers('vault-1')
-
       await secondRequest
       expect(store.deadDwellers).toEqual(freshDead)
-
-      resolveFirst({ data: staleDead })
+      firstResponse.resolve({ data: staleDead })
       await firstRequest
-
       expect(store.deadDwellers).toEqual(freshDead)
     })
   })
@@ -123,7 +116,6 @@ describe('DwellerDeath Store', () => {
 
       const store = useDwellerDeathStore()
       const result = await store.fetchGraveyardDwellers('vault-1')
-
       expect(axios.get).toHaveBeenCalledWith('/api/v1/dwellers/vault/vault-1/graveyard')
       expect(store.graveyardDwellers).toEqual(mockGraveyard)
       expect(result).toEqual(mockGraveyard)
@@ -131,10 +123,8 @@ describe('DwellerDeath Store', () => {
 
     it('should handle errors gracefully', async () => {
       vi.mocked(axios.get).mockRejectedValueOnce(new Error('Network error'))
-
       const store = useDwellerDeathStore()
       const result = await store.fetchGraveyardDwellers('vault-1')
-
       expect(result).toEqual([])
     })
   })
@@ -146,7 +136,6 @@ describe('DwellerDeath Store', () => {
 
       const store = useDwellerDeathStore()
       const result = await store.getRevivalCost('d1')
-
       expect(axios.get).toHaveBeenCalledWith('/api/v1/dwellers/d1/revival_cost')
       expect(result).toEqual(mockCost)
     })
@@ -161,7 +150,6 @@ describe('DwellerDeath Store', () => {
 
       const store = useDwellerDeathStore()
       const result = await store.getRevivalCost('d1')
-
       expect(result).toBeNull()
       expect(mockToast.error).toHaveBeenCalledTimes(1)
       expect(mockToast.error).toHaveBeenCalledWith(
@@ -185,9 +173,7 @@ describe('DwellerDeath Store', () => {
         { id: 'd1', first_name: 'John', last_name: 'Doe', level: 5 },
         { id: 'd2', first_name: 'Other', last_name: 'Dead', level: 3 },
       ]
-
       const result = await store.reviveDweller('d1')
-
       expect(axios.post).toHaveBeenCalledWith('/api/v1/dwellers/d1/revive')
       expect(result).toEqual(mockResponse)
       expect(store.deadDwellers).toHaveLength(1)
@@ -201,7 +187,6 @@ describe('DwellerDeath Store', () => {
 
       const store = useDwellerDeathStore()
       const result = await store.reviveDweller('d1')
-
       expect(result).toBeNull()
       expect(mockToast.error).toHaveBeenCalledTimes(1)
       expect(mockToast.error).toHaveBeenCalledWith('Failed to revive dweller d1: Not enough caps')
@@ -214,15 +199,12 @@ describe('DwellerDeath Store', () => {
         v1: { id: 'v1', bottle_caps: 1000 } as unknown as VaultWithNumbers,
       }
       const applyCaps = vi.spyOn(vaultStore, 'applyCaps')
-      let resolve!: (value: unknown) => void
-      const pending = new Promise((r) => {
-        resolve = r
-      })
-      vi.mocked(axios.post).mockReturnValueOnce(pending as never)
+      const pending = deferred<unknown>()
+      vi.mocked(axios.post).mockReturnValueOnce(pending.promise as never)
 
       const call = useDwellerDeathStore().reviveDweller('d1')
       vaultStore.clearSession()
-      resolve({
+      pending.resolve({
         data: {
           dweller: { id: 'd1', first_name: 'John', last_name: 'Doe' },
           caps_spent: 500,
@@ -230,7 +212,6 @@ describe('DwellerDeath Store', () => {
         },
       })
       await call
-
       expect(applyCaps).not.toHaveBeenCalled()
     })
 
@@ -249,7 +230,6 @@ describe('DwellerDeath Store', () => {
       }
 
       await useDwellerDeathStore().reviveDweller('d1')
-
       expect(vaultStore.loadedVaults.v1.bottle_caps).toBe(500)
     })
   })

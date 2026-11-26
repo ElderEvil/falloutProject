@@ -40,7 +40,6 @@ describe('Pregnancy Store', () => {
 
     const store = usePregnancyStore()
     await store.fetchVaultPregnancies('vault-1')
-
     expect(pregnancyApi.getByVault).toHaveBeenCalledWith('vault-1')
     expect(store.pregnancies).toEqual([makePregnancy()])
     expect(store.isLoading).toBe(false)
@@ -48,19 +47,15 @@ describe('Pregnancy Store', () => {
 
   it('notifies and rethrows a failed list load', async () => {
     vi.mocked(pregnancyApi.getByVault).mockRejectedValue(new Error('Network error'))
-
     const store = usePregnancyStore()
     await expect(store.fetchVaultPregnancies('vault-1')).rejects.toThrow('Network error')
-
     expect(notifyErrorOnce).toHaveBeenCalled()
     expect(store.isLoading).toBe(false)
   })
 
   it('returns null when a single pregnancy cannot be loaded', async () => {
     vi.mocked(pregnancyApi.get).mockRejectedValue(new Error('Missing'))
-
     const store = usePregnancyStore()
-
     await expect(store.getPregnancy('preg-1')).resolves.toBeNull()
     expect(notifyErrorOnce).toHaveBeenCalled()
   })
@@ -75,7 +70,6 @@ describe('Pregnancy Store', () => {
     const store = usePregnancyStore()
     store.pregnancies = [makePregnancy()]
     const result = await store.deliverBaby('preg-1')
-
     expect(pregnancyApi.deliver).toHaveBeenCalledWith('preg-1')
     expect(result?.message).toBe('A child is born')
     expect(store.pregnancies[0].status).toBe('delivered')
@@ -88,7 +82,6 @@ describe('Pregnancy Store', () => {
 
     const store = usePregnancyStore()
     store.pregnancies = [makePregnancy()]
-
     await expect(store.deliverBaby('preg-1')).resolves.toBeNull()
     expect(store.pregnancies[0].status).toBe('pregnant')
     expect(notifyErrorOnce).toHaveBeenCalled()

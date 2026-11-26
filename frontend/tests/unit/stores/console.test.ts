@@ -39,6 +39,14 @@ const manifest: ConsoleManifest = {
   sites: [],
 }
 
+function deferred<T = unknown>() {
+  let resolve!: (value: T) => void
+  const promise = new Promise<T>((res) => {
+    resolve = res
+  })
+  return { promise, resolve }
+}
+
 function admin(id = 'admin-one'): void {
   const auth = useAuthStore()
   auth.token = 'test'
@@ -127,17 +135,12 @@ describe('console session ownership', () => {
 
   it('ignores a slow manifest response after logout', async () => {
     admin()
-    let resolve!: (result: { data: ConsoleManifest }) => void
-    vi.mocked(apiClient.get).mockImplementationOnce(
-      () =>
-        new Promise((done) => {
-          resolve = done
-        })
-    )
+    const response = deferred<{ data: ConsoleManifest }>()
+    vi.mocked(apiClient.get).mockReturnValueOnce(response.promise as never)
     const terminal = useConsoleStore()
     const loading = terminal.show()
     useAuthStore().token = null
-    resolve({ data: manifest })
+    response.resolve({ data: manifest })
     await loading
     expect(terminal.open).toBe(false)
     expect(terminal.manifest).toBeNull()
@@ -148,17 +151,12 @@ describe('console session ownership', () => {
     admin()
     const terminal = useConsoleStore()
     await terminal.show()
-    let resolve!: (value: unknown) => void
-    vi.mocked(apiClient.post).mockImplementationOnce(
-      () =>
-        new Promise((done) => {
-          resolve = done
-        })
-    )
+    const response = deferred<unknown>()
+    vi.mocked(apiClient.post).mockReturnValueOnce(response.promise as never)
     const pending = terminal.execute('expedition.status', 'old-vault')
     if (scope === 'account') admin('admin-two')
     else terminal.reset()
-    resolve({ data: { ok: true, lines: ['Old account or vault result'] } })
+    response.resolve({ data: { ok: true, lines: ['Old account or vault result'] } })
     await pending
     expect(terminal.lines).toEqual([])
     expect(terminal.busy).toBe(false)

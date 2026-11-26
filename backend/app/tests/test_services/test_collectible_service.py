@@ -37,34 +37,17 @@ async def _award_strength(async_session: AsyncSession, vault: Vault, dweller: Dw
     )
 
 
-async def test_award_claims_once_and_applies_the_bonus(async_session: AsyncSession, vault: Vault) -> None:
+@pytest.mark.parametrize(("key", "stat"), [("strength", "strength"), ("astounding_tales", "luck")])
+async def test_award_claims_once_and_applies_the_bonus(async_session: AsyncSession, vault: Vault, key, stat) -> None:
     dweller = await _finder(async_session, vault)
-    base = effective_stat(dweller, "strength")
-    await _award_strength(async_session, vault, dweller)
-    assert dweller.collectible_bonus == {"strength": 1}
-    assert effective_stat(dweller, "strength") == base + 1
+    base = effective_stat(dweller, stat)
+    assert await collectible_service.award(async_session, vault_id=vault.id, dweller=dweller, collectible_key=key)
+    assert dweller.collectible_bonus == {stat: 1}
+    assert effective_stat(dweller, stat) == base + 1
     assert (
-        await collectible_service.award(async_session, vault_id=vault.id, dweller=dweller, collectible_key="strength")
-        is False
+        await collectible_service.award(async_session, vault_id=vault.id, dweller=dweller, collectible_key=key) is False
     )
-    assert dweller.collectible_bonus == {"strength": 1}
-
-
-async def test_a_comic_grants_its_own_stat_once_per_vault(async_session: AsyncSession, vault: Vault) -> None:
-    dweller = await _finder(async_session, vault)
-    base = effective_stat(dweller, "luck")
-    assert await collectible_service.award(
-        async_session, vault_id=vault.id, dweller=dweller, collectible_key="astounding_tales"
-    )
-    assert dweller.collectible_bonus == {"luck": 1}
-    assert effective_stat(dweller, "luck") == base + 1
-    assert (
-        await collectible_service.award(
-            async_session, vault_id=vault.id, dweller=dweller, collectible_key="astounding_tales"
-        )
-        is False
-    )
-    assert dweller.collectible_bonus == {"luck": 1}
+    assert dweller.collectible_bonus == {stat: 1}
 
 
 async def test_death_clears_the_bonus_and_revival_keeps_it_cleared(async_session: AsyncSession, vault: Vault) -> None:
@@ -135,26 +118,14 @@ async def test_cross_vault_recycling_drops_the_bonus_even_without_stat_reset(
     assert claim.bonus_live is False
 
 
-async def test_a_revoked_claim_stays_zero_after_a_new_bonus_of_the_same_stat(
-    async_session: AsyncSession, vault: Vault
-) -> None:
+@pytest.mark.parametrize("stale_bonus", [True, False], ids=["revoked-claim", "legacy-claim"])
+async def test_a_claim_without_a_live_bonus_reads_zero(async_session: AsyncSession, vault: Vault, stale_bonus) -> None:
     """A same-vault re-recruit can earn a new bonus; the lost claim must not ride along with it."""
     dweller = await _finder(async_session, vault)
     await _award_strength(async_session, vault, dweller)
-    await collectible_crud.revoke_finder_bonus(async_session, dweller_id=dweller.id)
-    dweller.collectible_bonus = {"strength": 1}
-    async_session.add(dweller)
-    await async_session.commit()
-
-    [read] = await collectible_service.list_for_dweller(async_session, dweller=dweller)
-    assert read.amount == 0
-
-
-async def test_a_legacy_claim_reads_zero_once_its_live_bonus_is_gone(async_session: AsyncSession, vault: Vault) -> None:
-    """Claims written before the flag existed default to live; the live map still keeps them honest."""
-    dweller = await _finder(async_session, vault)
-    await _award_strength(async_session, vault, dweller)
-    dweller.collectible_bonus = None
+    if stale_bonus:
+        await collectible_crud.revoke_finder_bonus(async_session, dweller_id=dweller.id)
+    dweller.collectible_bonus = {"strength": 1} if stale_bonus else None
     async_session.add(dweller)
     await async_session.commit()
 

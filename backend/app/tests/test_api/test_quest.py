@@ -87,63 +87,58 @@ async def test_claim_quest_rewards_rejects_unready_claims(
     assert detail in response.json()["detail"]
 
 
-async def test_vault_quest_list_serializes_return_leg_fields(async_client, async_session: AsyncSession) -> None:
+async def test_vault_quest_list_serializes_return_leg_and_completion_details(async_client, async_session) -> None:
     vault, quest, headers = await _vault_with_quest(
         async_session,
         async_client,
         title="Returning Serialization",
         short_description="ETA fields",
-        long_description="The list read must expose the return ETA.",
-        requirements="None",
-        rewards="None",
-        duration_minutes=60,
-    )
-    async_session.add(
-        VaultQuestCompletionLink(
-            vault_id=vault.id,
-            quest_id=quest.id,
-            is_visible=True,
-            started_at=utcnow() - timedelta(minutes=120),
-            duration_minutes=60,
-            return_started_at=utcnow() - timedelta(minutes=10),
-            return_completes_at=utcnow() + timedelta(minutes=20),
-        )
-    )
-    await async_session.commit()
-    response = await async_client.get(f"/quests/{vault.id}/", headers=headers)
-    assert response.status_code == 200, f"Expected 200, got {response.status_code}: {response.text}"
-    quest_read = next(q for q in response.json() if q["id"] == str(quest.id))
-    assert quest_read["return_started_at"] is not None
-    assert quest_read["return_completes_at"] is not None
-
-
-async def test_vault_quest_list_serializes_completion_details(async_client, async_session: AsyncSession) -> None:
-    vault, quest, headers = await _vault_with_quest(
-        async_session,
-        async_client,
-        title="Completion Serialization",
-        short_description="Completion fields",
-        long_description="The list read must expose the completion details.",
+        long_description="The list read must expose the return ETA and the completion details.",
         requirements="None",
         rewards="50 caps",
         duration_minutes=60,
     )
-    async_session.add(
-        VaultQuestCompletionLink(
-            vault_id=vault.id,
-            quest_id=quest.id,
-            is_visible=True,
-            is_completed=True,
-            completed_at=utcnow(),
-            granted_rewards=[{"reward_type": "caps", "amount": 50}],
-        )
+    completed = await crud.quest_crud.create(
+        async_session,
+        obj_in=QuestCreate(
+            title="Completion Serialization",
+            short_description="Completion fields",
+            long_description="The list read must expose the completion details.",
+            requirements="None",
+            rewards="50 caps",
+            duration_minutes=60,
+        ),
+    )
+    now = utcnow()
+    async_session.add_all(
+        [
+            VaultQuestCompletionLink(
+                vault_id=vault.id,
+                quest_id=quest.id,
+                is_visible=True,
+                started_at=now - timedelta(minutes=120),
+                duration_minutes=60,
+                return_started_at=now - timedelta(minutes=10),
+                return_completes_at=now + timedelta(minutes=20),
+            ),
+            VaultQuestCompletionLink(
+                vault_id=vault.id,
+                quest_id=completed.id,
+                is_visible=True,
+                is_completed=True,
+                completed_at=now,
+                granted_rewards=[{"reward_type": "caps", "amount": 50}],
+            ),
+        ]
     )
     await async_session.commit()
     response = await async_client.get(f"/quests/{vault.id}/", headers=headers)
     assert response.status_code == 200, f"Expected 200, got {response.status_code}: {response.text}"
-    quest_read = next(q for q in response.json() if q["id"] == str(quest.id))
-    assert quest_read["completed_at"] is not None
-    assert quest_read["granted_rewards"] == [{"reward_type": "caps", "amount": 50}]
+    by_id = {row["id"]: row for row in response.json()}
+    assert by_id[str(quest.id)]["return_started_at"] is not None
+    assert by_id[str(quest.id)]["return_completes_at"] is not None
+    assert by_id[str(completed.id)]["completed_at"] is not None
+    assert by_id[str(completed.id)]["granted_rewards"] == [{"reward_type": "caps", "amount": 50}]
 
 
 async def test_assign_returns_the_completion_link_wire_shape(async_client, async_session: AsyncSession) -> None:

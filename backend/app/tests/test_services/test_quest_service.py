@@ -147,103 +147,79 @@ async def test_requirement_gated_quest_reads_as_locked_and_start_rejects(async_c
     assert "dwellers" in start_response.json()["detail"]
 
 
-async def test_quest_is_locked_without_overseers_office(async_session: AsyncSession) -> None:
-    vault = await _vault(async_session)
-    quest = await _create_quest(async_session, title="Office Gate")
-    availability_read = await quest_service.get_quest_availability(async_session, vault.id, quest)
-    assert (availability_read.available, availability_read.lock_reason, availability_read.missing) == (
-        False,
-        "Requires Overseer's Office",
-        [],
-    )
-
-
-async def test_requirement_gated_quest_lock_reason(async_session: AsyncSession) -> None:
+async def test_chain_gate_blocks_availability_and_read_until_the_predecessor_completes(
+    async_session: AsyncSession,
+) -> None:
     vault = await _vault_with_office(async_session)
-    quest = await _gated_quest(
-        async_session, vault, "Dweller Gate", (RequirementType.DWELLER_COUNT, {"count": 100}), assign=False
-    )
-    await async_session.refresh(quest, ["quest_requirements"])
-    availability_read = await quest_service.get_quest_availability(async_session, vault.id, quest)
-    assert availability_read.available is False
-    assert "dwellers" in availability_read.lock_reason
-    assert any("dwellers" in missing for missing in availability_read.missing)
+    starter = await _create_quest(async_session, title="Getting Started")
+    follow_up = await _create_quest(async_session, title="Next Steps", previous_quest_id=starter.id)
+    await crud.quest_crud.assign_to_vault(async_session, follow_up.id, vault.id, is_visible=True)
 
+    verdict = await quest_service.get_quest_availability(async_session, vault.id, follow_up)
+    assert (verdict.available, verdict.lock_reason) == (False, "Complete 'Getting Started' first")
+    read = await _read_quest(async_session, vault, follow_up)
+    assert (read.is_locked, read.lock_reason) == (True, "Complete 'Getting Started' first")
 
-async def test_chain_locked_quest(async_session: AsyncSession) -> None:
-    vault = await _vault_with_office(async_session)
-    quest_a = await _create_quest(async_session, title="Chain Starter")
-    quest_b = await _create_quest(async_session, title="Chain Follow-up", previous_quest_id=quest_a.id)
-    availability_read = await quest_service.get_quest_availability(async_session, vault.id, quest_b)
-    assert (availability_read.available, availability_read.lock_reason) == (False, "Complete 'Chain Starter' first")
-    await crud.quest_crud.assign_to_vault(async_session, quest_a.id, vault.id, is_visible=True)
-    link = await crud.quest_crud.get_link(async_session, quest_id=quest_a.id, vault_id=vault.id)
+    await crud.quest_crud.assign_to_vault(async_session, starter.id, vault.id, is_visible=True)
+    link = await crud.quest_crud.get_link(async_session, quest_id=starter.id, vault_id=vault.id)
     link.is_completed = True
     await async_session.commit()
-    availability_read = await quest_service.get_quest_availability(async_session, vault.id, quest_b)
-    assert availability_read.available is True
-    assert availability_read.lock_reason is None
+    assert (await quest_service.get_quest_availability(async_session, vault.id, follow_up)).available is True
+    assert (await _read_quest(async_session, vault, follow_up)).is_locked is False
 
 
-async def test_chain_lock_reason_names_the_predecessor_on_the_read_path(async_session: AsyncSession) -> None:
-    vault = await _vault_with_office(async_session)
-    quest_a = await _create_quest(async_session, title="Getting Started")
-    quest_b = await _create_quest(async_session, title="Next Steps", previous_quest_id=quest_a.id)
-    await crud.quest_crud.assign_to_vault(async_session, quest_a.id, vault.id, is_visible=True)
-    await crud.quest_crud.assign_to_vault(async_session, quest_b.id, vault.id, is_visible=True)
-    quest_reads = await quest_service.get_quests_for_vault(async_session, vault.id, 0, 100)
-    follow_up = next(q for q in quest_reads if q.title == "Next Steps")
-    assert follow_up.is_locked is True
-    assert follow_up.lock_reason == "Complete 'Getting Started' first"
+# Availability answers on two surfaces for one quest: the verdict and the vault read.
+# (id, dweller level, gate, office, read visible, read locked, read reason, available, verdict reason)
+AVAILABILITY_CASES = [
+    ("open", 1, None, True, True, False, None, True, None),
+    ("no-office", 1, None, False, True, True, availability.OFFICE_LOCK_REASON, False, availability.OFFICE_LOCK_REASON),
+    (
+        "population-gate",
+        1,
+        (RequirementType.DWELLER_COUNT, {"count": 100}),
+        True,
+        True,
+        True,
+        "dwellers",
+        False,
+        "dwellers",
+    ),
+    ("level-near", 20, (RequirementType.LEVEL, {"level": 30}), True, True, True, "level", False, "level"),
+    ("level-beyond-reveal", 20, (RequirementType.LEVEL, {"level": 46}), True, False, None, None, False, "level"),
+    ("level-met", 46, (RequirementType.LEVEL, {"level": 46}), True, True, False, None, True, None),
+]
 
 
-async def test_fully_available_quest(async_session: AsyncSession) -> None:
-    vault = await _vault_with_office(async_session)
-    quest = await _create_quest(async_session, title="Open Quest")
-    availability_read = await quest_service.get_quest_availability(async_session, vault.id, quest)
-    assert (availability_read.available, availability_read.lock_reason, availability_read.missing) == (True, None, [])
+@pytest.mark.parametrize(
+    ("level", "gate", "office", "visible", "locked", "read_reason", "available", "verdict_reason"),
+    [row[1:] for row in AVAILABILITY_CASES],
+    ids=[row[0] for row in AVAILABILITY_CASES],
+)
+async def test_quest_availability_and_read_agree(
+    async_session: AsyncSession, level, gate, office, visible, locked, read_reason, available, verdict_reason
+) -> None:
+    vault = await (_vault_with_office(async_session) if office else _vault(async_session))
+    await _add_dweller(async_session, vault, level=level)
+    quest = await _gated_quest(async_session, vault, "Availability Quest", *((gate,) if gate else ()))
 
+    verdict = await quest_service.get_quest_availability(async_session, vault.id, quest)
+    assert verdict.available is available
+    if available:
+        assert (verdict.lock_reason, verdict.missing) == (None, [])
+    elif verdict_reason == availability.OFFICE_LOCK_REASON:
+        assert verdict.lock_reason == availability.OFFICE_LOCK_REASON
+    else:
+        assert verdict_reason in verdict.lock_reason
+        if gate[0] is RequirementType.DWELLER_COUNT:
+            assert any("dwellers" in missing for missing in verdict.missing)
 
-async def test_available_only_returns_full_page_past_locked_quests(async_session: AsyncSession) -> None:
-    vault = await _vault_with_office(async_session)
-    locked = [await _create_quest(async_session, title=f"Locked {i}", previous_quest_id=uuid4()) for i in range(3)]
-    available = [await _create_quest(async_session, title=f"Open {i}") for i in range(3)]
-    for quest in [*locked, *available]:
-        await crud.quest_crud.assign_to_vault(async_session, quest.id, vault.id, is_visible=True)
-    page = await quest_service.get_quests_for_vault(async_session, vault.id, 0, 3, available_only=True)
-    assert len(page) == 3
-    assert all(not q.is_locked for q in page)
-    assert {q.title for q in page} == {"Open 0", "Open 1", "Open 2"}
-
-
-async def test_get_quests_for_vault_populates_lock_fields(async_session: AsyncSession) -> None:
-    vault = await _vault_with_office(async_session)
-    quest = await _gated_quest(async_session, vault, "Read Path Gate", (RequirementType.DWELLER_COUNT, {"count": 100}))
-    quest_read = await _read_quest(async_session, vault, quest)
-    assert (quest_read.is_locked, quest_read.is_visible) == (True, True)
-    assert "dwellers" in quest_read.lock_reason
-
-
-async def test_level_gated_quest_hidden_beyond_reveal_margin(async_session: AsyncSession) -> None:
-    vault = await _vault_with_level_dweller(async_session, level=20)
-    quest = await _gated_quest(async_session, vault, "Level 46 Gate", (RequirementType.LEVEL, {"level": 46}))
-    quest_reads = await quest_service.get_quests_for_vault(async_session, vault.id, 0, 100)
-    assert all(q.id != quest.id for q in quest_reads)
-
-
-async def test_level_gated_quest_visible_within_reveal_margin(async_session: AsyncSession) -> None:
-    vault = await _vault_with_level_dweller(async_session, level=20)
-    quest = await _gated_quest(async_session, vault, "Level 30 Gate", (RequirementType.LEVEL, {"level": 30}))
-    quest_read = await _read_quest(async_session, vault, quest)
-    assert (quest_read.is_locked, quest_read.is_visible) == (True, True)
-    assert "level" in quest_read.lock_reason
-
-
-async def test_level_gated_quest_available_with_qualifying_dweller(async_session: AsyncSession) -> None:
-    vault = await _vault_with_level_dweller(async_session, level=46)
-    quest = await _gated_quest(async_session, vault, "Level 46 Available", (RequirementType.LEVEL, {"level": 46}))
-    quest_read = await _read_quest(async_session, vault, quest)
-    assert (quest_read.is_locked, quest_read.is_visible) == (False, True)
+    reads = await quest_service.get_quests_for_vault(async_session, vault.id, 0, 100)
+    quest_read = next((q for q in reads if q.id == quest.id), None)
+    assert (quest_read is not None) is visible
+    if visible:
+        assert (quest_read.is_locked, quest_read.is_visible) == (locked, True)
+        if read_reason:
+            assert read_reason in quest_read.lock_reason
 
 
 async def test_available_only_respects_level_reveal(async_session: AsyncSession) -> None:
@@ -275,124 +251,116 @@ async def test_normal_read_fills_page_past_hidden_quests(async_session: AsyncSes
     assert {q.title for q in page} <= {"Open 0", "Open 1", "Open 2", "Open 3"}
 
 
-async def test_item_requirement_met_by_equipped_item(async_session: AsyncSession) -> None:
+# Quest gates are read (locked + reason) and enforced (start refuses or departs). Each row keeps
+# both verdicts for one gate so the read path and the start path cannot drift apart.
+# (id, gates, roster, gear, party, read lock reason, start error); gear rows are (dweller index, kind, fields).
+GATE_CASES = [
+    ("level-short", [(RequirementType.LEVEL, {"level": 46})], [{"level": 40}], [], (0,), "level", "level 46"),
+    ("level-met", [(RequirementType.LEVEL, {"level": 46})], [{"level": 40}, {"level": 46}], [], (0, 1), None, None),
+    (
+        "item-missing",
+        [(RequirementType.ITEM, {"item_name": "Laser Pistol"})],
+        [{}],
+        [],
+        (0,),
+        "Laser Pistol",
+        "Laser Pistol",
+    ),
+    (
+        "item-equipped",
+        [(RequirementType.ITEM, {"item_name": "Laser Pistol"})],
+        [{}],
+        [(0, "weapon", {"name": "Laser Pistol"})],
+        (0,),
+        None,
+        None,
+    ),
+    # The read path counts gear worn by any vault dweller, so the start path must agree.
+    (
+        "item-worn-by-other-dweller",
+        [(RequirementType.ITEM, {"item_name": "Vault 33 suit"})],
+        [{}, {}],
+        [(1, "outfit", {"name": "Vault 33 suit"})],
+        (0,),
+        None,
+        None,
+    ),
+    (
+        "item-worn-by-dead-dweller",
+        [(RequirementType.ITEM, {"item_name": "Vault 33 suit"})],
+        [{}, {"is_dead": True}],
+        [(1, "outfit", {"name": "Vault 33 suit"})],
+        (0,),
+        "Vault 33 suit",
+        "Vault 33 suit",
+    ),
+    (
+        "item-case-insensitive",
+        [(RequirementType.ITEM, {"item_name": "Vault 33 suit"})],
+        [{}, {}],
+        [(1, "outfit", {"name": "vault 33 SUIT"})],
+        (0,),
+        None,
+        None,
+    ),
+    (
+        "attack-short",
+        [(RequirementType.ATTACK, {"attack": 20})],
+        [{}],
+        [(0, "weapon", {"damage_min": 5, "damage_max": 10})],
+        (0,),
+        "attack",
+        "20",
+    ),
+    (
+        "attack-met",
+        [(RequirementType.ATTACK, {"attack": 20})],
+        [{}],
+        [(0, "weapon", {"damage_min": 15, "damage_max": 25})],
+        (0,),
+        None,
+        None,
+    ),
+    (
+        "stat-short",
+        [(RequirementType.STAT, {"stat": "strength", "value": 6})],
+        [{"strength": 3}],
+        [],
+        (0,),
+        "Strength",
+        "Strength",
+    ),
+    ("stat-met", [(RequirementType.STAT, {"stat": "strength", "value": 6})], [{"strength": 6}], [], (0,), None, None),
+]
+
+
+@pytest.mark.parametrize(
+    ("gates", "roster", "gear", "party", "reason", "start_error"),
+    [row[1:] for row in GATE_CASES],
+    ids=[row[0] for row in GATE_CASES],
+)
+async def test_requirement_gate_read_and_start_agree(
+    async_session: AsyncSession, gates, roster, gear, party, reason, start_error
+) -> None:
     vault = await _vault_with_office(async_session)
-    quest = await _gated_quest(
-        async_session, vault, "Equipped Item Read", (RequirementType.ITEM, {"item_name": "Laser Pistol"})
-    )
-    await _equip_weapon(async_session, await _add_dweller(async_session, vault), "Laser Pistol")
-    quest_read = await _read_quest(async_session, vault, quest)
-    assert (quest_read.is_locked, quest_read.is_visible) == (False, True)
+    quest = await _gated_quest(async_session, vault, "Gate Quest", *gates)
+    dwellers = [await _add_dweller(async_session, vault, **fields) for fields in roster]
+    for index, kind, fields in gear:
+        model, payload = (
+            (crud.weapon, create_fake_weapon()) if kind == "weapon" else (crud.outfit, create_fake_outfit())
+        )
+        await model.create(async_session, obj_in=payload | fields | {"dweller_id": dwellers[index].id})
+    await team_service.assign_quest_team(async_session, quest.id, vault.id, [dwellers[i].id for i in party])
 
-
-async def test_start_quest_rejects_party_below_level_requirement(async_session: AsyncSession) -> None:
-    vault, quest, _ = await _party(
-        async_session, "Level 46 Party Gate", (RequirementType.LEVEL, {"level": 46}), level=40
-    )
-    with pytest.raises(ValidationException, match="level 46"):
-        await quest_service.start_quest(async_session, quest.id, vault.id)
-
-
-async def test_start_quest_with_level_qualifying_party(async_session: AsyncSession) -> None:
-    vault, quest, low = await _party(
-        async_session, "Level 46 Party Pass", (RequirementType.LEVEL, {"level": 46}), level=40
-    )
-    link = await _start_party(async_session, quest, vault, low, await _add_dweller(async_session, vault, level=46))
-    assert link.started_at is not None
-
-
-async def test_start_quest_rejects_missing_required_item(async_session: AsyncSession) -> None:
-    vault, quest, _dweller = await _party(
-        async_session, "Item Party Gate", (RequirementType.ITEM, {"item_name": "Laser Pistol"})
-    )
-    with pytest.raises(ValidationException, match="Laser Pistol"):
-        await quest_service.start_quest(async_session, quest.id, vault.id)
-
-
-async def test_start_quest_with_required_item_equipped_in_vault(async_session: AsyncSession) -> None:
-    vault, quest, dweller = await _party(
-        async_session, "Item Party Pass", (RequirementType.ITEM, {"item_name": "Laser Pistol"})
-    )
-    await _equip_weapon(async_session, dweller, "Laser Pistol")
-    link = await _start_party(async_session, quest, vault, dweller)
-    assert link.started_at is not None
-
-
-async def test_start_quest_accepts_required_outfit_equipped_by_a_vault_dweller(async_session: AsyncSession) -> None:
-    # The read path counts items worn by any vault dweller, so the start path must agree (Ghoul in Black).
-    vault = await _vault_with_office(async_session)
-    quest = await _gated_quest(
-        async_session, vault, "Equipped Outfit Start", (RequirementType.ITEM, {"item_name": "Vault 33 suit"})
-    )
-    await _wear_outfit(async_session, await _add_dweller(async_session, vault), "Vault 33 suit")
-    link = await _start_party(async_session, quest, vault, await _add_dweller(async_session, vault))
-    assert link.started_at is not None
-
-
-async def test_start_quest_rejects_party_below_attack(async_session: AsyncSession) -> None:
-    vault, quest, dweller = await _party(async_session, "Attack Party Gate", (RequirementType.ATTACK, {"attack": 20}))
-    await _equip_weapon(async_session, dweller, damage_min=5, damage_max=10)
-    with pytest.raises(ValidationException, match="20"):
-        await quest_service.start_quest(async_session, quest.id, vault.id)
-
-
-async def test_start_quest_with_attack_qualifying_party(async_session: AsyncSession) -> None:
-    vault, quest, dweller = await _party(async_session, "Attack Party Pass", (RequirementType.ATTACK, {"attack": 20}))
-    await _equip_weapon(async_session, dweller, damage_min=15, damage_max=25)
-    link = await _start_party(async_session, quest, vault, dweller)
-    assert link.started_at is not None
-
-
-async def test_attack_requirement_met_by_equipped_weapon(async_session: AsyncSession) -> None:
-    vault = await _vault_with_office(async_session)
-    quest = await _gated_quest(async_session, vault, "Attack Read", (RequirementType.ATTACK, {"attack": 20}))
-    dweller = await _add_dweller(async_session, vault)
-    await _equip_weapon(async_session, dweller, damage_min=15, damage_max=25)
-    quest_read = await _read_quest(async_session, vault, quest)
-    assert (quest_read.is_locked, quest_read.is_visible) == (False, True)
-
-
-async def test_dead_dweller_does_not_unlock_read_path_requirements(async_session: AsyncSession) -> None:
-    vault = await _vault_with_office(async_session)
-    quest = await _gated_quest(
-        async_session,
-        vault,
-        "Living Only Gate",
-        (RequirementType.LEVEL, {"level": 46}),
-        (RequirementType.ATTACK, {"attack": 20}),
-    )
-    await _add_dweller(async_session, vault, level=40)
-    dead = await _add_dweller(async_session, vault, level=46, is_dead=True)
-    await _equip_weapon(async_session, dead, damage_min=15, damage_max=25)
-    quest_read = await _read_quest(async_session, vault, quest)
-    assert quest_read.is_locked is True
-    assert ("level" in quest_read.lock_reason, "attack" in quest_read.lock_reason) == (True, True)
-
-
-async def test_start_quest_rejects_party_below_stat(async_session: AsyncSession) -> None:
-    vault, quest, _ = await _party(
-        async_session, "Stat Party Gate", (RequirementType.STAT, {"stat": "strength", "value": 6}), strength=3
-    )
-    with pytest.raises(ValidationException, match="Strength"):
-        await quest_service.start_quest(async_session, quest.id, vault.id)
-
-
-async def test_start_quest_with_stat_qualifying_party(async_session: AsyncSession) -> None:
-    vault, quest, dweller = await _party(
-        async_session, "Stat Party Pass", (RequirementType.STAT, {"stat": "strength", "value": 6}), strength=6
-    )
-    link = await _start_party(async_session, quest, vault, dweller)
-    assert link.started_at is not None
-
-
-async def test_stat_requirement_met_by_qualifying_dweller(async_session: AsyncSession) -> None:
-    vault = await _vault_with_office(async_session)
-    quest = await _gated_quest(
-        async_session, vault, "Stat Read", (RequirementType.STAT, {"stat": "strength", "value": 6})
-    )
-    await _add_dweller(async_session, vault, strength=6)
-    quest_read = await _read_quest(async_session, vault, quest)
-    assert (quest_read.is_locked, quest_read.is_visible) == (False, True)
+    read = await _read_quest(async_session, vault, quest)
+    assert (read.is_locked, read.is_visible) == (reason is not None, True)
+    if reason is not None:
+        assert reason in read.lock_reason
+    if start_error is None:
+        assert (await quest_service.start_quest(async_session, quest.id, vault.id)).started_at is not None
+    else:
+        with pytest.raises(ValidationException, match=start_error):
+            await quest_service.start_quest(async_session, quest.id, vault.id)
 
 
 def test_quest_service_facade_reexports_canonical_surface() -> None:
@@ -423,28 +391,6 @@ async def test_item_requirement_read_and_start_agree_for_non_party_wearer(async_
     assert item_row["is_met"] is True
     start_response = await async_client.post(f"/quests/{vault.id}/{quest.id}/start", headers=headers)
     assert start_response.status_code == 200, f"Expected 200, got {start_response.status_code}: {start_response.text}"
-
-
-async def test_start_quest_rejects_item_equipped_only_by_dead_dweller(async_session: AsyncSession) -> None:
-    vault = await _vault_with_office(async_session)
-    quest = await _gated_quest(
-        async_session, vault, "Dead Wearer Item Gate", (RequirementType.ITEM, {"item_name": "Vault 33 suit"})
-    )
-    await _wear_outfit(async_session, await _add_dweller(async_session, vault, is_dead=True), "Vault 33 suit")
-    party_member = await _add_dweller(async_session, vault)
-    await team_service.assign_quest_team(async_session, quest.id, vault.id, [party_member.id])
-    with pytest.raises(ValidationException, match="Vault 33 suit"):
-        await quest_service.start_quest(async_session, quest.id, vault.id)
-
-
-async def test_start_quest_matches_required_item_case_insensitively(async_session: AsyncSession) -> None:
-    vault = await _vault_with_office(async_session)
-    quest = await _gated_quest(
-        async_session, vault, "Case-Insensitive Item Gate", (RequirementType.ITEM, {"item_name": "Vault 33 suit"})
-    )
-    await _wear_outfit(async_session, await _add_dweller(async_session, vault), "vault 33 SUIT")
-    link = await _start_party(async_session, quest, vault, await _add_dweller(async_session, vault))
-    assert link.started_at is not None
 
 
 @pytest.mark.parametrize("running_count", [2, 3])

@@ -111,7 +111,7 @@ class CollectibleService:
 
         Magazine amounts come from the finder's live ``magazine_boon``, not the catalog: the
         completed shelf pays an extra point, and recycling clears the boon while the vault's
-        claim stays behind. A cleared boon reads as 0 so the list never promises a lost bonus.
+        claim stays behind. A cleared claim reads as 0 so the list never promises a lost bonus.
         """
         vault_id = dweller.vault_id
         if vault_id is None:
@@ -128,9 +128,7 @@ class CollectibleService:
                     vault_id,
                 )
                 continue
-            amount = entry["amount"]
-            if entry["kind"] == MAGAZINE:
-                amount = held_magazine_boon_amount(dweller.magazine_boon, entry["key"])
+            amount = self._live_amount(dweller, claim=claim, entry=entry)
             reads.append(
                 DwellerCollectibleRead(
                     key=entry["key"],
@@ -143,6 +141,21 @@ class CollectibleService:
                 )
             )
         return reads
+
+    @staticmethod
+    def _live_amount(dweller: Dweller, *, claim: VaultCollectible, entry: dict[str, Any]) -> int:
+        """What one claim pays its finder right now; 0 once death or recycling cleared it.
+
+        The stored flag is exact for new clears; the live map keeps legacy rows honest, since
+        claims written before the flag existed default to live but a cleared bonus still reads 0.
+        Magazines read their keyed boon because the completed shelf raises the amount.
+        """
+        if not claim.bonus_live:
+            return 0
+        if entry["kind"] == MAGAZINE:
+            return held_magazine_boon_amount(dweller.magazine_boon, entry["key"])
+        live_bonus = (dweller.collectible_bonus or {}).get(entry["stat"], 0)
+        return int(entry["amount"]) if live_bonus > 0 else 0
 
     async def bonus_multiplier(self, db_session: AsyncSession, *, vault_id: UUID, bonus_type: str) -> float:
         """The vault's multiplier from its completed sets of one bonus type.

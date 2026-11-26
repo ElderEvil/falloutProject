@@ -73,6 +73,12 @@ async def test_death_clears_the_bonus_and_revival_keeps_it_cleared(async_session
     await death_service.mark_as_dead(async_session, dweller, DeathCauseEnum.HEALTH)
     await async_session.refresh(dweller)
     assert dweller.collectible_bonus is None
+    claim = await collectible_crud.get_by_vault_and_key(async_session, vault.id, "strength")
+    assert claim is not None
+    # The vault keeps the claim; the finder's copy must stop promising the bonus.
+    assert claim.bonus_live is False
+    [read] = await collectible_service.list_for_dweller(async_session, dweller=dweller)
+    assert read.amount == 0
     vault.bottle_caps = 999_999
     async_session.add(vault)
     await async_session.commit()
@@ -80,6 +86,9 @@ async def test_death_clears_the_bonus_and_revival_keeps_it_cleared(async_session
     await death_service.revive_dweller(async_session, dweller.id, user)
     revived = await crud.dweller.get(async_session, dweller.id)
     assert revived.collectible_bonus is None
+    claim = await collectible_crud.get_by_vault_and_key(async_session, vault.id, "strength")
+    assert claim is not None
+    assert claim.bonus_live is False
 
 
 async def test_cross_vault_recycling_drops_the_bonus_even_without_stat_reset(
@@ -96,6 +105,36 @@ async def test_cross_vault_recycling_drops_the_bonus_even_without_stat_reset(
         async_session, dweller.id, other_vault.id, reset_stats=False
     )
     assert recycled.collectible_bonus is None
+    claim = await collectible_crud.get_by_vault_and_key(async_session, vault.id, "strength")
+    assert claim is not None
+    assert claim.bonus_live is False
+
+
+async def test_a_revoked_claim_stays_zero_after_a_new_bonus_of_the_same_stat(
+    async_session: AsyncSession, vault: Vault
+) -> None:
+    """A same-vault re-recruit can earn a new bonus; the lost claim must not ride along with it."""
+    dweller = await _finder(async_session, vault)
+    await _award_strength(async_session, vault, dweller)
+    await collectible_crud.revoke_finder_bonus(async_session, vault_id=vault.id, dweller_id=dweller.id)
+    dweller.collectible_bonus = {"strength": 1}
+    async_session.add(dweller)
+    await async_session.commit()
+
+    [read] = await collectible_service.list_for_dweller(async_session, dweller=dweller)
+    assert read.amount == 0
+
+
+async def test_a_legacy_claim_reads_zero_once_its_live_bonus_is_gone(async_session: AsyncSession, vault: Vault) -> None:
+    """Claims written before the flag existed default to live; the live map still keeps them honest."""
+    dweller = await _finder(async_session, vault)
+    await _award_strength(async_session, vault, dweller)
+    dweller.collectible_bonus = None
+    async_session.add(dweller)
+    await async_session.commit()
+
+    [read] = await collectible_service.list_for_dweller(async_session, dweller=dweller)
+    assert read.amount == 0
 
 
 async def test_site_award_goes_to_the_luckiest_survivor_once(

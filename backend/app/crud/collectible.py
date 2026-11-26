@@ -4,13 +4,29 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from sqlmodel import select
+from sqlmodel import col, select, update
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.models.collectible import VaultCollectible
 
 
 class CRUDCollectible:
+    async def revoke_finder_bonus(self, db_session: AsyncSession, *, vault_id: UUID, dweller_id: UUID) -> None:
+        """Stop this finder's claims from paying a bonus; the vault keeps every claim.
+
+        Called where a dwelling clears ``collectible_bonus``/``magazine_boon`` (death, recycling).
+        A claim stays in the list as found history, but readback must not promise a lost bonus.
+        """
+        await db_session.execute(
+            update(VaultCollectible)
+            .where(
+                col(VaultCollectible.vault_id) == vault_id,
+                col(VaultCollectible.finder_dweller_id) == dweller_id,
+                col(VaultCollectible.bonus_live).is_(True),
+            )
+            .values(bonus_live=False)
+        )
+
     async def get_by_vault_and_key(
         self, db_session: AsyncSession, vault_id: UUID, collectible_key: str
     ) -> VaultCollectible | None:

@@ -1,6 +1,6 @@
-import { describe, it, expect, vi, beforeEach } from 'vite-plus/test'
+import { afterEach, describe, it, expect, vi, beforeEach } from 'vite-plus/test'
 import { createAxiosMock, createRouterMock, createToastMock } from '../helpers/mocks'
-import { ref, effectScope } from 'vue'
+import { ref, effectScope, type EffectScope } from 'vue'
 import { flushPromises } from '@vue/test-utils'
 
 /**
@@ -50,13 +50,21 @@ const STATS_RESPONSE = {
   },
 }
 
+const scopes: EffectScope[] = []
+
+afterEach(() => {
+  scopes.splice(0).forEach((scope) => scope.stop())
+})
+
+/** Mount the composable in a tracked scope; the suite stops them all after each test. */
 function setup() {
   const scope = effectScope()
+  scopes.push(scope)
   const api = scope.run(() =>
     useRadioRoom(ref({ id: 'room-1', name: 'Radio Studio' }) as never, ref(true), ref([]) as never)
   )
   if (!api) throw new Error('composable did not initialise')
-  return { api, scope }
+  return api
 }
 
 beforeEach(() => {
@@ -72,38 +80,34 @@ beforeEach(() => {
 
 describe('useRadioRoom', () => {
   it('loads radio stats and the manual recruit cost when the room opens', async () => {
-    const { api, scope } = setup()
+    const api = setup()
     await flushPromises()
 
     expect(get).toHaveBeenCalledWith('/api/v1/radio/vault/vault-1/stats')
     expect(api.manualRecruitCost.value).toBe(250)
-
-    scope.stop()
   })
 
   it('reports a stats load failure without throwing', async () => {
     get.mockRejectedValue(new Error('boom'))
 
-    const { scope } = setup()
+    setup()
     await flushPromises()
 
     expect(toast.error).toHaveBeenCalledWith('Failed to load radio stats')
-    scope.stop()
   })
 
   it('requires a token before loading stats', async () => {
     authState.token = null
 
-    const { scope } = setup()
+    setup()
     await flushPromises()
 
     expect(toast.error).toHaveBeenCalledWith('Sign in is required to load radio stats')
     expect(get).not.toHaveBeenCalled()
-    scope.stop()
   })
 
   it('switches the radio mode and confirms it', async () => {
-    const { api, scope } = setup()
+    const api = setup()
     await flushPromises()
 
     await api.handleSwitchRadioMode('happiness')
@@ -114,13 +118,12 @@ describe('useRadioRoom', () => {
     })
     expect(api.localRadioMode.value).toBe('happiness')
     expect(toast.success).toHaveBeenCalledWith('Radio mode set to happiness')
-    scope.stop()
   })
 
   it('reverts the optimistic mode when the switch fails', async () => {
     put.mockRejectedValue(new Error('nope'))
 
-    const { api, scope } = setup()
+    const api = setup()
     await flushPromises()
 
     await api.handleSwitchRadioMode('happiness')
@@ -128,11 +131,10 @@ describe('useRadioRoom', () => {
 
     expect(api.localRadioMode.value).toBe('recruitment')
     expect(toast.error).toHaveBeenCalledWith('Failed to switch radio mode')
-    scope.stop()
   })
 
   it('recruits a dweller and surfaces the server message', async () => {
-    const { api, scope } = setup()
+    const api = setup()
     await flushPromises()
 
     await api.handleRecruitDweller()
@@ -141,26 +143,24 @@ describe('useRadioRoom', () => {
     expect(post).toHaveBeenCalledWith('/api/v1/radio/vault/vault-1/recruit', {})
     expect(toast.success).toHaveBeenCalledWith('Recruited!')
     expect(api.isRecruiting.value).toBe(false)
-    scope.stop()
   })
 
   it('refuses to recruit outside recruitment mode', async () => {
     vaultState.activeVault = { radio_mode: 'happiness' }
 
-    const { api, scope } = setup()
+    const api = setup()
     await flushPromises()
 
     await api.handleRecruitDweller()
 
     expect(toast.error).toHaveBeenCalledWith('Radio must be in Recruitment mode')
     expect(post).not.toHaveBeenCalled()
-    scope.stop()
   })
 
   it('surfaces the server detail when recruiting fails and clears the busy flag', async () => {
     post.mockRejectedValue({ response: { data: { detail: 'Insufficient caps' } } })
 
-    const { api, scope } = setup()
+    const api = setup()
     await flushPromises()
 
     await api.handleRecruitDweller()
@@ -168,6 +168,5 @@ describe('useRadioRoom', () => {
 
     expect(toast.error).toHaveBeenCalledWith('Insufficient caps')
     expect(api.isRecruiting.value).toBe(false)
-    scope.stop()
   })
 })

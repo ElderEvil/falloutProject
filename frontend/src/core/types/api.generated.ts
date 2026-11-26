@@ -923,7 +923,7 @@ export interface paths {
         };
         /**
          * Read Dweller Collectibles
-         * @description Bobbleheads this dweller found in its current vault.
+         * @description Collectibles this dweller found in its current vault.
          *
          *     Scoped to both the dweller and its current vault: recycling keeps the dweller UUID, so an
          *     ownership check alone would expose a previous vault's claims.
@@ -1624,7 +1624,7 @@ export interface paths {
         put?: never;
         /**
          * Dispatch Dweller
-         * @description Send a party to clear a specific map point.
+         * @description Send a party to a map point: clear it, or trade with it (issue 1493).
          *
          *     Returns:
          *         ExplorationRead: The created targeted exploration.
@@ -2009,12 +2009,6 @@ export interface paths {
         /**
          * Get Game Balance Settings
          * @description Get current game balance configuration (read-only).
-         *
-         *     This endpoint exposes all game balance constants that can be tuned via
-         *     environment variables. Useful for debugging and future admin panels.
-         *
-         *     Returns:
-         *         GameBalanceResponse: All game balance settings.
          */
         get: operations["get_game_balance_settings_api_v1_game_balance_get"];
         put?: never;
@@ -2037,9 +2031,6 @@ export interface paths {
         /**
          * Pause Vault
          * @description Pause the game loop for a vault.
-         *
-         *     Returns:
-         *         PauseResumeResponse: Pause confirmation with vault state.
          */
         post: operations["pause_vault_api_v1_game_vaults__vault_id__pause_post"];
         delete?: never;
@@ -2060,9 +2051,6 @@ export interface paths {
         /**
          * Resume Vault
          * @description Resume the game loop for a vault.
-         *
-         *     Returns:
-         *         PauseResumeResponse: Resume confirmation with vault state.
          */
         post: operations["resume_vault_api_v1_game_vaults__vault_id__resume_post"];
         delete?: never;
@@ -2086,9 +2074,6 @@ export interface paths {
          *
          *     The frontend calls this only while the vault overview is visible, so
          *     incidents spawn for watching players instead of background tabs.
-         *
-         *     Returns:
-         *         PresenceResponse: Presence confirmation with vault state.
          */
         post: operations["record_presence_api_v1_game_vaults__vault_id__presence_post"];
         delete?: never;
@@ -2107,9 +2092,6 @@ export interface paths {
         /**
          * Get Game State
          * @description Get current game state for a vault.
-         *
-         *     Returns:
-         *         dict[str, Any]: Current game state details.
          */
         get: operations["get_game_state_api_v1_game_vaults__vault_id__game_state_get"];
         put?: never;
@@ -2130,9 +2112,6 @@ export interface paths {
         /**
          * List Incidents
          * @description List all active incidents in a vault.
-         *
-         *     Returns:
-         *         IncidentListResponse: List of active incidents.
          */
         get: operations["list_incidents_api_v1_game_vaults__vault_id__incidents_get"];
         put?: never;
@@ -2140,9 +2119,6 @@ export interface paths {
         /**
          * Delete All Incidents
          * @description Delete all incidents for a vault.
-         *
-         *     Returns:
-         *         DeleteIncidentsResponse: Deletion confirmation with count.
          */
         delete: operations["delete_all_incidents_api_v1_game_vaults__vault_id__incidents_delete"];
         options?: never;
@@ -2180,12 +2156,6 @@ export interface paths {
         /**
          * Get Incident
          * @description Get details of a specific incident.
-         *
-         *     Returns:
-         *         IncidentRead: Incident details.
-         *
-         *     Raises:
-         *         ResourceNotFoundException: 404 if the incident is not in this vault.
          */
         get: operations["get_incident_api_v1_game_vaults__vault_id__incidents__incident_id__get"];
         put?: never;
@@ -2193,12 +2163,6 @@ export interface paths {
         /**
          * Delete Incident
          * @description Delete a specific incident.
-         *
-         *     Returns:
-         *         DeleteIncidentsResponse: Deletion confirmation.
-         *
-         *     Raises:
-         *         HTTPException: 404 if incident not found. 400 if deletion fails.
          */
         delete: operations["delete_incident_api_v1_game_vaults__vault_id__incidents__incident_id__delete"];
         options?: never;
@@ -2218,14 +2182,6 @@ export interface paths {
         /**
          * Manual Tick
          * @description Manually trigger a game tick for a vault (for testing/debugging).
-         *
-         *     This endpoint is useful for:
-         *     - Testing resource production/consumption
-         *     - Triggering catch-up after pause
-         *     - Development and debugging
-         *
-         *     Returns:
-         *         dict[str, Any]: Tick processing result.
          */
         post: operations["manual_tick_api_v1_game_vaults__vault_id__tick_post"];
         delete?: never;
@@ -2328,13 +2284,6 @@ export interface paths {
          * @description [DEBUG] Manually spawn an incident for testing purposes.
          *
          *     If incident_type is not provided, a radscorpion incident will be spawned.
-         *
-         *     Returns:
-         *         IncidentSpawnResponse: Spawned incident details.
-         *
-         *     Raises:
-         *         HTTPException: 400 if incidents are disabled or no occupied rooms available.
-         *         HTTPException: 409 if the vault is at the active-incident cap.
          */
         post: operations["spawn_debug_incident_api_v1_game_vaults__vault_id__incidents_spawn_post"];
         delete?: never;
@@ -2357,21 +2306,12 @@ export interface paths {
          *     Junk is vault inventory held in storage, not catalog data, so the vault is
          *     required rather than optional: an unscoped list would enumerate other
          *     players' materials.
-         *
-         *     Returns:
-         *         List of junk items.
-         *
-         *     Raises:
-         *         AccessDeniedException: If the user doesn't own the vault.
          */
         get: operations["read_junk_list_api_v1_junk__get"];
         put?: never;
         /**
          * Create Junk
          * @description Create a new junk item (administrators only).
-         *
-         *     Returns:
-         *         The created junk item.
          */
         post: operations["create_junk_api_v1_junk__post"];
         delete?: never;
@@ -2390,20 +2330,11 @@ export interface paths {
         /**
          * Read Junk
          * @description Retrieve a junk item by ID.
-         *
-         *     Returns:
-         *         The requested junk item.
-         *
-         *     Raises:
-         *         AccessDeniedException: If the user doesn't own the junk item's vault.
          */
         get: operations["read_junk_api_v1_junk__junk_id__get"];
         /**
          * Update Junk
          * @description Update a junk item (administrators only).
-         *
-         *     Returns:
-         *         The updated junk item.
          */
         put: operations["update_junk_api_v1_junk__junk_id__put"];
         post?: never;
@@ -2427,9 +2358,6 @@ export interface paths {
         /**
          * Read Junk Data
          * @description Retrieve static junk item data.
-         *
-         *     Returns:
-         *         List of static junk item definitions.
          */
         get: operations["read_junk_data_api_v1_junk_read_data__get"];
         put?: never;
@@ -2452,9 +2380,6 @@ export interface paths {
         /**
          * Sell Junk
          * @description Sell a junk item for caps.
-         *
-         *     Raises:
-         *         AccessDeniedException: If the user doesn't own the junk item's vault.
          */
         post: operations["sell_junk_api_v1_junk__junk_id__sell__post"];
         delete?: never;
@@ -2661,21 +2586,12 @@ export interface paths {
         /**
          * Read Objective List
          * @description Retrieve objectives for a vault.
-         *
-         *     Returns:
-         *         List of objectives for the vault.
-         *
-         *     Raises:
-         *         AccessDeniedException: If the user doesn't own the vault.
          */
         get: operations["read_objective_list_api_v1_objectives__vault_id___get"];
         put?: never;
         /**
          * Create Objective
          * @description Create an objective for a vault (administrators only).
-         *
-         *     Returns:
-         *         The created objective.
          */
         post: operations["create_objective_api_v1_objectives__vault_id___post"];
         delete?: never;
@@ -2697,9 +2613,6 @@ export interface paths {
          *
          *     Objectives are global templates; a vault links to them with its own progress,
          *     so any authenticated caller may read one (vault-scoped lists stay owner-only).
-         *
-         *     Returns:
-         *         The requested objective.
          */
         get: operations["read_objective_api_v1_objectives__objective_id__get"];
         put?: never;
@@ -2742,9 +2655,6 @@ export interface paths {
         /**
          * Complete Objective
          * @description Manually complete an objective for a vault (administrators only).
-         *
-         *     Returns:
-         *         The completed objective.
          */
         post: operations["complete_objective_api_v1_objectives__vault_id___objective_id__complete_post"];
         delete?: never;
@@ -2765,9 +2675,6 @@ export interface paths {
         /**
          * Update Objective Progress
          * @description Update the progress of an objective for a vault (administrators only).
-         *
-         *     Returns:
-         *         The updated objective.
          */
         post: operations["update_objective_progress_api_v1_objectives__vault_id___objective_id__progress_post"];
         delete?: never;
@@ -2788,12 +2695,6 @@ export interface paths {
         /**
          * Assign Random Objectives
          * @description Assign random available objectives to a vault (administrators only).
-         *
-         *     Returns:
-         *         Response with count of assigned objectives.
-         *
-         *     Raises:
-         *         HTTPException: 404 if vault not found.
          */
         post: operations["assign_random_objectives_api_v1_objectives__vault_id__assign_random_post"];
         delete?: never;
@@ -2816,21 +2717,12 @@ export interface paths {
          *     Every item lives in a vault's storage or on one of its dwellers, so the vault
          *     is required rather than optional: an unscoped list would enumerate other
          *     players' gear.
-         *
-         *     Returns:
-         *         List of outfits.
-         *
-         *     Raises:
-         *         AccessDeniedException: If the user doesn't own the vault.
          */
         get: operations["read_outfit_list_api_v1_outfits__get"];
         put?: never;
         /**
          * Create Outfit
          * @description Create a new outfit (administrators only).
-         *
-         *     Returns:
-         *         The created outfit.
          */
         post: operations["create_outfit_api_v1_outfits__post"];
         delete?: never;
@@ -2849,20 +2741,11 @@ export interface paths {
         /**
          * Read Outfit
          * @description Retrieve an outfit by ID.
-         *
-         *     Returns:
-         *         The requested outfit.
-         *
-         *     Raises:
-         *         AccessDeniedException: If the user doesn't own the outfit's vault.
          */
         get: operations["read_outfit_api_v1_outfits__outfit_id__get"];
         /**
          * Update Outfit
          * @description Update an outfit (administrators only).
-         *
-         *     Returns:
-         *         The updated outfit.
          */
         put: operations["update_outfit_api_v1_outfits__outfit_id__put"];
         post?: never;
@@ -2888,12 +2771,6 @@ export interface paths {
         /**
          * Equip Outfit
          * @description Equip an outfit on a dweller.
-         *
-         *     Returns:
-         *         The equipped outfit.
-         *
-         *     Raises:
-         *         AccessDeniedException: If the user owns neither the dweller nor the outfit.
          */
         post: operations["equip_outfit_api_v1_outfits__dweller_id__equip__outfit_id__post"];
         delete?: never;
@@ -2914,9 +2791,6 @@ export interface paths {
         /**
          * Unequip Outfit
          * @description Unequip an outfit from a dweller.
-         *
-         *     Raises:
-         *         AccessDeniedException: If the user doesn't own the outfit's vault.
          */
         post: operations["unequip_outfit_api_v1_outfits__outfit_id__unequip__post"];
         delete?: never;
@@ -2937,12 +2811,6 @@ export interface paths {
         /**
          * Scrap Outfit
          * @description Scrap an outfit into junk items.
-         *
-         *     Returns:
-         *         List of junk items produced from scrapping.
-         *
-         *     Raises:
-         *         AccessDeniedException: If the user doesn't own the outfit's vault.
          */
         post: operations["scrap_outfit_api_v1_outfits__outfit_id__scrap__post"];
         delete?: never;
@@ -2963,9 +2831,6 @@ export interface paths {
         /**
          * Sell Outfit
          * @description Sell an outfit for caps.
-         *
-         *     Raises:
-         *         AccessDeniedException: If the user doesn't own the outfit's vault.
          */
         post: operations["sell_outfit_api_v1_outfits__outfit_id__sell__post"];
         delete?: never;
@@ -2984,9 +2849,6 @@ export interface paths {
         /**
          * Read Outfits Data
          * @description Retrieve static outfit data definitions.
-         *
-         *     Returns:
-         *         List of static outfit definitions.
          */
         get: operations["read_outfits_data_api_v1_outfits_read_data__get"];
         put?: never;
@@ -3011,12 +2873,6 @@ export interface paths {
          *     Every pet lives in a vault's storage or on one of its dwellers, so the vault
          *     is required rather than optional: an unscoped list would enumerate other
          *     players' pets.
-         *
-         *     Returns:
-         *         List of pets.
-         *
-         *     Raises:
-         *         AccessDeniedException: If the user doesn't own the vault.
          */
         get: operations["read_pet_list_api_v1_pets__get"];
         put?: never;
@@ -3037,12 +2893,6 @@ export interface paths {
         /**
          * Read Pet
          * @description Retrieve a pet by ID.
-         *
-         *     Returns:
-         *         The requested pet.
-         *
-         *     Raises:
-         *         AccessDeniedException: If the user doesn't own the pet's vault.
          */
         get: operations["read_pet_api_v1_pets__pet_id__get"];
         put?: never;
@@ -3065,12 +2915,6 @@ export interface paths {
         /**
          * Equip Pet
          * @description Equip a pet on a dweller.
-         *
-         *     Returns:
-         *         The equipped pet.
-         *
-         *     Raises:
-         *         AccessDeniedException: If the user owns neither the dweller nor the pet.
          */
         post: operations["equip_pet_api_v1_pets__dweller_id__equip__pet_id__post"];
         delete?: never;
@@ -3091,9 +2935,6 @@ export interface paths {
         /**
          * Unequip Pet
          * @description Unequip a pet from a dweller.
-         *
-         *     Raises:
-         *         AccessDeniedException: If the user doesn't own the pet's vault.
          */
         post: operations["unequip_pet_api_v1_pets__pet_id__unequip__post"];
         delete?: never;
@@ -3242,9 +3083,6 @@ export interface paths {
         /**
          * Read All Quests
          * @description Get all available quests (not vault-specific).
-         *
-         *     Returns:
-         *         List of quests.
          */
         get: operations["read_all_quests_api_v1_quests__get"];
         put?: never;
@@ -3265,18 +3103,12 @@ export interface paths {
         /**
          * Read Vault Quests
          * @description Get all quests assigned to a specific vault.
-         *
-         *     Returns:
-         *         List of quests for the vault.
          */
         get: operations["read_vault_quests_api_v1_quests__vault_id___get"];
         put?: never;
         /**
          * Create Quest
          * @description Create a new quest.
-         *
-         *     Returns:
-         *         The created quest.
          */
         post: operations["create_quest_api_v1_quests__vault_id___post"];
         delete?: never;
@@ -3295,9 +3127,6 @@ export interface paths {
         /**
          * Get Available Quests
          * @description Get available quests for a vault (respects chain unlocks, requirements, and the Office rule).
-         *
-         *     Returns:
-         *         List of available quests.
          */
         get: operations["get_available_quests_api_v1_quests__vault_id__available_get"];
         put?: never;
@@ -3318,12 +3147,6 @@ export interface paths {
         /**
          * Read Quest
          * @description Retrieve a quest by ID within a vault.
-         *
-         *     Returns:
-         *         The requested quest.
-         *
-         *     Raises:
-         *         ResourceNotFoundException: If the quest is not linked to the vault.
          */
         get: operations["read_quest_api_v1_quests__vault_id___quest_id__get"];
         /**
@@ -3332,9 +3155,6 @@ export interface paths {
          *
          *     Quests are global templates shared by every vault, so vault ownership cannot
          *     authorize this write — editing one here would change it for all players.
-         *
-         *     Returns:
-         *         The updated quest.
          */
         put: operations["update_quest_api_v1_quests__vault_id___quest_id__put"];
         post?: never;
@@ -3362,9 +3182,6 @@ export interface paths {
         /**
          * Assign Quest To Vault
          * @description Assign a quest to a vault, making it available for completion.
-         *
-         *     Returns:
-         *         The vault-quest assignment.
          */
         post: operations["assign_quest_to_vault_api_v1_quests__vault_id___quest_id__assign_post"];
         delete?: never;
@@ -3385,9 +3202,6 @@ export interface paths {
         /**
          * Claim Quest Rewards
          * @description Claim rewards from a returned quest party.
-         *
-         *     Returns:
-         *         Completion response with granted rewards.
          */
         post: operations["claim_quest_rewards_api_v1_quests__vault_id___quest_id__claim_rewards_post"];
         delete?: never;
@@ -3406,9 +3220,6 @@ export interface paths {
         /**
          * Get Quest Party
          * @description Get party members assigned to a quest.
-         *
-         *     Returns:
-         *         List of party members.
          */
         get: operations["get_quest_party_api_v1_quests__vault_id___quest_id__party_get"];
         put?: never;
@@ -3434,13 +3245,6 @@ export interface paths {
          *
          *     The UI supplies dweller_ids for timed missions. Bodyless requests support
          *     state objectives and callers with an existing roster.
-         *
-         *     Returns:
-         *         The started quest.
-         *
-         *     Raises:
-         *         ResourceNotFoundException: If quest not found.
-         *         ValidationException: If requirements not met or quest cannot be started.
          */
         post: operations["start_quest_api_v1_quests__vault_id___quest_id__start_post"];
         delete?: never;
@@ -3459,9 +3263,6 @@ export interface paths {
         /**
          * Get Eligible Dwellers
          * @description Get dwellers eligible for a quest based on requirements.
-         *
-         *     Returns:
-         *         List of eligible dwellers.
          */
         get: operations["get_eligible_dwellers_api_v1_quests__vault_id___quest_id__eligible_dwellers_get"];
         put?: never;
@@ -3694,6 +3495,9 @@ export interface paths {
         /**
          * Get Vault Radio News
          * @description Return today's broadcast, generating it once if none exists for the UTC day.
+         *
+         *     Every vault airs on every UTC day, including the day it was founded, so this never
+         *     returns `null` for an existing vault.
          */
         get: operations["get_vault_radio_news_api_v1_vaults__vault_id__radio_news_get"];
         put?: never;
@@ -4788,21 +4592,12 @@ export interface paths {
         /**
          * Read Users
          * @description Retrieve users.
-         *
-         *     Returns:
-         *         List of users.
          */
         get: operations["read_users_api_v1_users__get"];
         put?: never;
         /**
          * Create User
          * @description Admin route to create new user.
-         *
-         *     Returns:
-         *         The created user.
-         *
-         *     Raises:
-         *         HTTPException: 409 if user with this email already exists.
          */
         post: operations["create_user_api_v1_users__post"];
         delete?: never;
@@ -4821,17 +4616,11 @@ export interface paths {
         /**
          * Read User Me
          * @description Get current user.
-         *
-         *     Returns:
-         *         The current authenticated user.
          */
         get: operations["read_user_me_api_v1_users_me_get"];
         /**
          * Update User Me
          * @description Update current user.
-         *
-         *     Returns:
-         *         The updated user.
          */
         put: operations["update_user_me_api_v1_users_me_put"];
         post?: never;
@@ -4853,9 +4642,6 @@ export interface paths {
         /**
          * Create User Open
          * @description Create new user and log them in automatically.
-         *
-         *     Returns:
-         *         New user with authentication tokens.
          */
         post: operations["create_user_open_api_v1_users_open_post"];
         delete?: never;
@@ -4874,25 +4660,11 @@ export interface paths {
         /**
          * Read User By Id
          * @description Get a specific user by id.
-         *
-         *     Returns:
-         *         The requested user.
-         *
-         *     Raises:
-         *         ResourceNotFoundException: 404 if the user does not exist, or the caller
-         *             may not see it. A 403 for an existing id and a 404 for an unknown one
-         *             would let a regular user probe which ids exist.
          */
         get: operations["read_user_by_id_api_v1_users__user_id__get"];
         /**
          * Update User
          * @description Update a user.
-         *
-         *     Returns:
-         *         The updated user.
-         *
-         *     Raises:
-         *         HTTPException: 404 if user not found.
          */
         put: operations["update_user_api_v1_users__user_id__put"];
         post?: never;
@@ -4916,9 +4688,6 @@ export interface paths {
          *     If the profile doesn't exist, it will be auto-created with default values.
          *     This handles race conditions gracefully - if two concurrent requests try to
          *     create a profile, only one will succeed and both will return the profile.
-         *
-         *     Returns:
-         *         User's profile with statistics and preferences.
          */
         get: operations["get_my_profile_api_v1_users_me_profile_get"];
         /**
@@ -4928,12 +4697,6 @@ export interface paths {
          *     Only bio, avatar_url, and preferences can be updated via this endpoint.
          *     Statistics fields (total_dwellers_created, total_caps_earned, etc.) are
          *     managed internally by the game and cannot be modified directly.
-         *
-         *     Returns:
-         *         Updated profile.
-         *
-         *     Raises:
-         *         ResourceNotFoundException: 404 if the profile does not exist.
          */
         put: operations["update_my_profile_api_v1_users_me_profile_put"];
         post?: never;
@@ -4956,9 +4719,6 @@ export interface paths {
          *
          *     Returns statistics about dwellers born, died, and breakdown by cause of death,
          *     as well as counts of currently revivable and permanently dead dwellers.
-         *
-         *     Returns:
-         *         Death statistics for the current user.
          */
         get: operations["get_death_statistics_api_v1_users_me_profile_statistics_get"];
         put?: never;
@@ -4979,9 +4739,6 @@ export interface paths {
         /**
          * Get Ai Usage
          * @description Get AI usage statistics for the current user.
-         *
-         *     Returns:
-         *         AI usage statistics including token counts and rate limits.
          */
         get: operations["get_ai_usage_api_v1_users_me_profile_ai_usage_get"];
         put?: never;
@@ -5002,18 +4759,12 @@ export interface paths {
         /**
          * Read Vault List
          * @description Retrieve a paginated list of all vaults (admin only).
-         *
-         *     Returns:
-         *         List of vaults with user details.
          */
         get: operations["read_vault_list_api_v1_vaults__get"];
         put?: never;
         /**
          * Create Vault
          * @description Create a new vault.
-         *
-         *     Returns:
-         *         The created vault.
          */
         post: operations["create_vault_api_v1_vaults__post"];
         delete?: never;
@@ -5032,9 +4783,6 @@ export interface paths {
         /**
          * Read My Vaults
          * @description Retrieve vaults owned by the current user.
-         *
-         *     Returns:
-         *         List of the user's vaults with room and dweller counts.
          */
         get: operations["read_my_vaults_api_v1_vaults_my_get"];
         put?: never;
@@ -5075,17 +4823,11 @@ export interface paths {
         /**
          * Read Vault
          * @description Retrieve a vault by ID with room and dweller counts.
-         *
-         *     Returns:
-         *         Vault details with room and dweller counts.
          */
         get: operations["read_vault_api_v1_vaults__vault_id__get"];
         /**
          * Update Vault
          * @description Update a vault.
-         *
-         *     Returns:
-         *         The updated vault.
          */
         put: operations["update_vault_api_v1_vaults__vault_id__put"];
         post?: never;
@@ -5113,9 +4855,6 @@ export interface paths {
         /**
          * Start Vault
          * @description Initiate a new vault for the current user.
-         *
-         *     Returns:
-         *         The newly initiated vault.
          */
         post: operations["start_vault_api_v1_vaults_initiate_post"];
         delete?: never;
@@ -5136,9 +4875,6 @@ export interface paths {
         /**
          * Update Vault Resources
          * @description Update vault resources (admin only).
-         *
-         *     Returns:
-         *         Updated vault resource data.
          */
         post: operations["update_vault_resources_api_v1_vaults_update_resources_post"];
         delete?: never;
@@ -5159,9 +4895,6 @@ export interface paths {
         /**
          * Unassign All Dwellers
          * @description Unassign all dwellers from their rooms in the specified vault.
-         *
-         *     Returns:
-         *         Response with count of unassigned dwellers.
          */
         post: operations["unassign_all_dwellers_api_v1_vaults__vault_id__dwellers_unassign_all_post"];
         delete?: never;
@@ -5185,9 +4918,6 @@ export interface paths {
          *
          *     Priority order: Power Plant (Strength) → Diner (Agility) → Water Treatment (Perception)
          *     Dwellers are matched to rooms based on their relevant SPECIAL stat (highest stat dwellers assigned first).
-         *
-         *     Returns:
-         *         Response with count of assigned dwellers.
          */
         post: operations["auto_assign_production_rooms_api_v1_vaults__vault_id__dwellers_auto_assign_production_post"];
         delete?: never;
@@ -5217,9 +4947,6 @@ export interface paths {
          *
          *     Within each tier, dwellers are distributed proportionally to room capacities.
          *     Dwellers are matched to rooms based on their relevant SPECIAL stat (highest stat dwellers assigned first).
-         *
-         *     Returns:
-         *         Response with count of assigned dwellers.
          */
         post: operations["auto_assign_all_rooms_api_v1_vaults__vault_id__dwellers_auto_assign_all_post"];
         delete?: never;
@@ -5263,9 +4990,6 @@ export interface paths {
          *
          *     Crafting rooms have no fixed SPECIAL ability (it varies per recipe), so the total
          *     SPECIAL sum is the ranking heuristic.
-         *
-         *     Returns:
-         *         Response with count of assigned dwellers.
          */
         post: operations["auto_assign_crafting_rooms_api_v1_vaults__vault_id__dwellers_auto_assign_crafting_post"];
         delete?: never;
@@ -5288,21 +5012,12 @@ export interface paths {
          *     Every item lives in a vault's storage or on one of its dwellers, so the vault
          *     is required rather than optional: an unscoped list would enumerate other
          *     players' gear.
-         *
-         *     Returns:
-         *         List of weapons.
-         *
-         *     Raises:
-         *         AccessDeniedException: If the user doesn't own the vault.
          */
         get: operations["read_weapon_list_api_v1_weapons__get"];
         put?: never;
         /**
          * Create Weapon
          * @description Create a new weapon (administrators only).
-         *
-         *     Returns:
-         *         The created weapon.
          */
         post: operations["create_weapon_api_v1_weapons__post"];
         delete?: never;
@@ -5321,20 +5036,11 @@ export interface paths {
         /**
          * Read Weapon
          * @description Retrieve a weapon by ID.
-         *
-         *     Returns:
-         *         The requested weapon.
-         *
-         *     Raises:
-         *         AccessDeniedException: If the user doesn't own the weapon's vault.
          */
         get: operations["read_weapon_api_v1_weapons__weapon_id__get"];
         /**
          * Update Weapon
          * @description Update a weapon (administrators only).
-         *
-         *     Returns:
-         *         The updated weapon.
          */
         put: operations["update_weapon_api_v1_weapons__weapon_id__put"];
         post?: never;
@@ -5360,12 +5066,6 @@ export interface paths {
         /**
          * Equip Weapon
          * @description Equip a weapon on a dweller.
-         *
-         *     Returns:
-         *         The equipped weapon.
-         *
-         *     Raises:
-         *         AccessDeniedException: If the user owns neither the dweller nor the weapon.
          */
         post: operations["equip_weapon_api_v1_weapons__dweller_id__equip__weapon_id__post"];
         delete?: never;
@@ -5386,9 +5086,6 @@ export interface paths {
         /**
          * Unequip Weapon
          * @description Unequip a weapon from a dweller.
-         *
-         *     Raises:
-         *         AccessDeniedException: If the user doesn't own the weapon's vault.
          */
         post: operations["unequip_weapon_api_v1_weapons__weapon_id__unequip__post"];
         delete?: never;
@@ -5409,12 +5106,6 @@ export interface paths {
         /**
          * Scrap Weapon
          * @description Scrap a weapon into junk items.
-         *
-         *     Returns:
-         *         List of junk items produced from scrapping.
-         *
-         *     Raises:
-         *         AccessDeniedException: If the user doesn't own the weapon's vault.
          */
         post: operations["scrap_weapon_api_v1_weapons__weapon_id__scrap__post"];
         delete?: never;
@@ -5435,9 +5126,6 @@ export interface paths {
         /**
          * Sell Weapon
          * @description Sell a weapon for caps.
-         *
-         *     Raises:
-         *         AccessDeniedException: If the user doesn't own the weapon's vault.
          */
         post: operations["sell_weapon_api_v1_weapons__weapon_id__sell__post"];
         delete?: never;
@@ -5456,9 +5144,6 @@ export interface paths {
         /**
          * Read Weapons Data
          * @description Retrieve static weapon data definitions.
-         *
-         *     Returns:
-         *         List of static weapon definitions.
          */
         get: operations["read_weapons_data_api_v1_weapons_read_data__get"];
         put?: never;
@@ -6479,6 +6164,22 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+        };
+        /**
+         * CollectibleSetProgressRead
+         * @description One defined set and this vault's progress toward its bonus.
+         */
+        CollectibleSetProgressRead: {
+            /** Set */
+            set: string;
+            /** Name */
+            name: string;
+            /** Held */
+            held: number;
+            /** Required */
+            required: number;
+            /** Active */
+            active: boolean;
         };
         /** CombatAction */
         CombatAction: {
@@ -8206,7 +7907,7 @@ export interface components {
         };
         /**
          * ExpeditionDispatchRequest
-         * @description Schema for dispatching a party to clear a specific map point.
+         * @description Dispatch a party to a map point: clear a site, or trade with a settlement.
          */
         ExpeditionDispatchRequest: {
             /**
@@ -8231,6 +7932,11 @@ export interface components {
              * @default 0
              */
             radaways: number;
+            /**
+             * @description clear or trade
+             * @default clear
+             */
+            purpose: components["schemas"]["ExplorationPurpose"];
         };
         /**
          * ExpeditionEnterRequest
@@ -8394,6 +8100,12 @@ export interface components {
             radaways: number;
         };
         /**
+         * ExplorationPurpose
+         * @description What a targeted run is for: clearing a site, or trading with a settlement (issue 1493).
+         * @enum {string}
+         */
+        ExplorationPurpose: "clear" | "trade";
+        /**
          * ExplorationRead
          * @description Schema for reading exploration data.
          */
@@ -8442,6 +8154,10 @@ export interface components {
             loot_collected: {
                 [key: string]: unknown;
             }[];
+            /** Carry Capacity */
+            carry_capacity: number;
+            /** Pack Slots Used */
+            pack_slots_used: number;
             /** Total Distance */
             total_distance: number;
             /** Total Caps Found */
@@ -8476,10 +8192,6 @@ export interface components {
             stimpaks: number;
             /** Radaways */
             radaways: number;
-            /** Carry Capacity */
-            carry_capacity: number;
-            /** Pack Slots Used */
-            pack_slots_used: number;
             /** World Version */
             world_version?: number | null;
             /** Origin X */
@@ -9377,8 +9089,7 @@ export interface components {
         };
         /**
          * LocationCaravanStateRead
-         * @description What a caravan here would cost and pay, and why it is refused right now
-         *     (None = available).
+         * @description What a caravan here would cost and pay, and why it is refused right now (None = available).
          */
         LocationCaravanStateRead: {
             /** Material */
@@ -9393,12 +9104,12 @@ export interface components {
              * Cooldown Remaining Seconds
              * @default 0
              */
-            cooldown_remaining_seconds?: number;
+            cooldown_remaining_seconds: number;
             /**
              * Cooldown Total Seconds
              * @default 0
              */
-            cooldown_total_seconds?: number;
+            cooldown_total_seconds: number;
             /** Refusal Reason */
             refusal_reason?: string | null;
         };
@@ -12228,6 +11939,11 @@ export interface components {
              * @default []
              */
             expedition_sites: components["schemas"]["ExpeditionSiteMarkerRead"][];
+            /**
+             * Collectible Sets
+             * @default []
+             */
+            collectible_sets: components["schemas"]["CollectibleSetProgressRead"][];
         };
         /**
          * VaultMarkerRead
@@ -13888,6 +13604,13 @@ export interface operations {
             };
             /** @description Empty audio file */
             400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Audio file too large */
+            413: {
                 headers: {
                     [name: string]: unknown;
                 };

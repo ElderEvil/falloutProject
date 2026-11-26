@@ -24,6 +24,8 @@ interface Props {
   selectedMarkerId?: string | null
   activeFilterCount?: number
   docked?: boolean
+  /** Whether the parent supplies a sets slot; drives the tab and the fallback below. */
+  hasSets?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -33,6 +35,7 @@ const props = withDefaults(defineProps<Props>(), {
   selectedMarkerId: null,
   activeFilterCount: 0,
   docked: false,
+  hasSets: false,
 })
 
 const emit = defineEmits<{
@@ -43,6 +46,16 @@ const emit = defineEmits<{
 const isOpen = defineModel<boolean>('open', { default: false })
 const panelId = useId()
 const activePanel = ref('places')
+// A tab can disappear when its data does (a vault switch, or the feature flag turning off):
+// fall back to Places instead of leaving the panel on a removed tab.
+const effectivePanel = computed(() =>
+  activePanel.value === 'sets' && !props.hasSets ? 'places' : activePanel.value
+)
+const panelTitle = computed(() => {
+  if (effectivePanel.value === 'legend') return 'MAP LEGEND'
+  if (effectivePanel.value === 'sets') return 'SETS'
+  return 'PLACES AND SITES'
+})
 
 interface MarkerGroupItem {
   id: string
@@ -207,22 +220,32 @@ function onListKeydown(event: KeyboardEvent) {
       aria-label="Marker list"
     >
       <div class="panel-header">
-        <span class="panel-title">{{
-          activePanel === 'legend' ? 'MAP LEGEND' : 'PLACES AND SITES'
-        }}</span>
-        <span v-if="activePanel === 'places'" class="panel-count">{{ totalCount }}</span>
+        <span class="panel-title">{{ panelTitle }}</span>
+        <span v-if="effectivePanel === 'places'" class="panel-count">{{ totalCount }}</span>
       </div>
 
       <Tabs
-        :model-value="activePanel"
+        :model-value="effectivePanel"
         @update:model-value="activePanel = String($event)"
         class="flex min-h-0 flex-1 flex-col gap-0 overflow-hidden"
       >
-        <TabsList v-if="$slots.legend" class="mx-2 mt-2 grid grid-cols-2">
+        <TabsList
+          v-if="$slots.legend || hasSets"
+          class="mx-2 mt-2 grid"
+          :class="$slots.legend && hasSets ? 'grid-cols-3' : 'grid-cols-2'"
+        >
           <TabsTrigger value="places"><Icon icon="mdi:filter-outline" />Places</TabsTrigger>
-          <TabsTrigger value="legend"><Icon icon="mdi:map-legend" />Legend</TabsTrigger>
+          <TabsTrigger v-if="$slots.legend" value="legend">
+            <Icon icon="mdi:map-legend" />Legend
+          </TabsTrigger>
+          <TabsTrigger v-if="hasSets" value="sets">
+            <Icon icon="mdi:book-open-variant" />Sets
+          </TabsTrigger>
         </TabsList>
-        <div v-show="activePanel === 'places'" class="flex min-h-0 flex-1 flex-col overflow-hidden">
+        <div
+          v-show="effectivePanel === 'places'"
+          class="flex min-h-0 flex-1 flex-col overflow-hidden"
+        >
           <TabsContent
             value="places"
             force-mount
@@ -281,6 +304,9 @@ function onListKeydown(event: KeyboardEvent) {
         </div>
         <TabsContent v-if="$slots.legend" value="legend" class="min-h-0 flex-1 overflow-y-auto">
           <slot name="legend" />
+        </TabsContent>
+        <TabsContent v-if="hasSets" value="sets" class="min-h-0 flex-1 overflow-y-auto">
+          <slot name="sets" />
         </TabsContent>
       </Tabs>
     </aside>

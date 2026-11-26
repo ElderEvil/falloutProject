@@ -3,6 +3,7 @@ import { defineStore } from 'pinia'
 import { useLocalStorage } from '@vueuse/core'
 import { usePolling } from '@/core/composables/usePolling'
 import type {
+  CollectibleSetProgressRead,
   DiscoveryRouteRead,
   ExpeditionSiteMarkerRead,
   PlaceGroup,
@@ -29,6 +30,13 @@ export const useMapStore = defineStore('map', () => {
   const discoveryRoutes = ref<DiscoveryRouteRead[]>([])
   const expeditionSites = ref<ExpeditionSiteMarkerRead[]>([])
   const placeGroups = ref<PlaceGroup[]>([])
+  // The vault whose rows the state above currently holds. A load for another vault clears
+  // it first, so a slow or failed switch cannot render the previous vault's map under the
+  // new one; a refresh of the same vault keeps its rows on screen.
+  const loadedVaultId = ref<string | null>(null)
+  // Set progress ships with the map payload; the map surfaces it because collectibles are found
+  // at these sites. Empty while the feature ships dark, and until the first load.
+  const collectibleSets = ref<CollectibleSetProgressRead[]>([])
   // Backend-owned world snapshot (terrain + slots). Fetched once per map load:
   // the snapshot is immutable per (world_id, generator_version), so polling the
   // vault map never refetches it. Null until loaded — terrain renders nothing
@@ -57,6 +65,7 @@ export const useMapStore = defineStore('map', () => {
         const gen = _pollGeneration
         const vaultId = _pollVaultId.value
         const session = authStore.sessionGeneration
+        prepareVaultLoad(vaultId)
         try {
           const data = await mapService.getVaultMap(vaultId)
           if (
@@ -123,6 +132,22 @@ export const useMapStore = defineStore('map', () => {
     discoveryRoutes.value = data.discovery_routes ?? []
     expeditionSites.value = data.expedition_sites ?? []
     placeGroups.value = data.place_groups ?? []
+    collectibleSets.value = data.collectible_sets ?? []
+  }
+
+  // A vault switch must not show the previous vault's rows while the new load is in flight,
+  // or keep them if it fails. Everything applyMapData fills is vault-scoped, so clear it together.
+  function prepareVaultLoad(vaultId: string): void {
+    if (loadedVaultId.value !== null && loadedVaultId.value !== vaultId) {
+      locations.value = []
+      vaultMarkers.value = []
+      playerVaults.value = []
+      discoveryRoutes.value = []
+      expeditionSites.value = []
+      placeGroups.value = []
+      collectibleSets.value = []
+    }
+    loadedVaultId.value = vaultId
   }
 
   // Single unlock toast per vault: baseline load stays silent, repeats stay silent.
@@ -146,6 +171,7 @@ export const useMapStore = defineStore('map', () => {
   async function fetchMap(vaultId: string): Promise<void> {
     const gen = ++_pollGeneration
     const session = authStore.sessionGeneration
+    prepareVaultLoad(vaultId)
     isLoading.value = true
     error.value = null
     try {
@@ -211,6 +237,7 @@ export const useMapStore = defineStore('map', () => {
     if (!authStore.isAuthenticated) return
     const gen = _pollGeneration
     const session = authStore.sessionGeneration
+    prepareVaultLoad(vaultId)
     try {
       const data = await mapService.getVaultMap(vaultId)
       if (gen !== _pollGeneration || session !== authStore.sessionGeneration) return
@@ -230,6 +257,7 @@ export const useMapStore = defineStore('map', () => {
     expeditionSites,
     placeGroups,
     placeGroupByKey,
+    collectibleSets,
     isLoading,
     error,
     viewedLocationKeys,

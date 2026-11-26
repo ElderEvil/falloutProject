@@ -9,6 +9,7 @@ export type VaultMapResponse = components['schemas']['VaultMapResponse']
 export type DwellerRef = components['schemas']['DwellerRef']
 export type PlaceGroup = components['schemas']['PlaceGroupRead']
 export type ExpeditionSiteMarkerRead = components['schemas']['ExpeditionSiteMarkerRead']
+export type CollectibleSetProgressRead = components['schemas']['CollectibleSetProgressRead']
 export type WorldSlotRead = components['schemas']['WorldSlotRead']
 export type WorldSnapshotRead = components['schemas']['WorldSnapshotRead']
 

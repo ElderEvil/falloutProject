@@ -562,7 +562,9 @@ async def test_start_fight_validates_then_arms_the_room(async_session, arena_roo
     service = ArenaService()
     with pytest.raises(ValidationException):
         await service.start_fight(async_session, arena_room.id)
-    with pytest.raises(ValidationException):
+    # Pin the vault filter's own rejection: an unmatched ValidationException would also pass if the
+    # vault_id filter were dropped and the call failed later on selection validation.
+    with pytest.raises(ValidationException, match="Arena room not found"):
         await service.start_fight(async_session, arena_room.id, uuid4())
 
     await _select(async_session, arena_room, fighter_a, fighter_b)

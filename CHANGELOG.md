@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 3.32.0 (2026-11-26)
+
+### Features
+
+* **map:** show collectible set progress in the map index ([#1553](https://github.com/ElderEvil/falloutProject/issues/1553)) 3dbb22e
+
 ## 3.31.8 (2026-11-26)
 
 ### Bug Fixes

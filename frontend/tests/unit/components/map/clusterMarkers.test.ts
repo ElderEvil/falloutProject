@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vite-plus/test'
 import { clusterMarkers, DEFAULT_CLUSTER_CELL_SIZE } from '@/modules/map/utils/clusterMarkers'
 
+const ids = (cluster: { members: { id: string }[] }) => cluster.members.map((member) => member.id)
+
 describe('clusterMarkers', () => {
   it('groups touching points across cell edges deterministically, merging bridged groups', () => {
     const points = [
@@ -10,7 +12,7 @@ describe('clusterMarkers', () => {
     ]
     const groups = clusterMarkers(points, { distance: 5 })
     expect(groups).toHaveLength(1)
-    expect(groups[0].members.map((member) => member.id)).toEqual(['a', 'b', 'z'])
+    expect(ids(groups[0])).toEqual(['a', 'b', 'z'])
     expect(groups[0].x).toBe(20)
     expect(clusterMarkers([...points].reverse(), { distance: 5 })).toEqual(groups)
     expect(clusterMarkers(points, { distance: 5, zoom: 5 })).toHaveLength(3)
@@ -46,7 +48,7 @@ describe('clusterMarkers', () => {
     ])
 
     expect(clusters).toHaveLength(1)
-    expect(clusters[0].members.map((member) => member.id)).toEqual(['a', 'b', 'c'])
+    expect(ids(clusters[0])).toEqual(['a', 'b', 'c'])
     expect(clusters[0].x).toBeCloseTo((20 + 24 + 30) / 3)
     expect(clusters[0].y).toBeCloseTo((20 + 22 + 28) / 3)
   })
@@ -58,13 +60,10 @@ describe('clusterMarkers', () => {
     ])
 
     expect(clusters).toHaveLength(2)
-    expect(clusters.map((cluster) => cluster.members.map((member) => member.id))).toEqual([
-      ['a'],
-      ['b'],
-    ])
+    expect(clusters.map(ids)).toEqual([['a'], ['b']])
   })
 
-  it('splits a shared cell as zoom shrinks the cell size', () => {
+  it('splits a shared cell as zoom shrinks the cell, and honors a custom cell size', () => {
     const points = [
       { id: 'a', x: 0, y: 0 },
       { id: 'b', x: 6, y: 0 },
@@ -77,13 +76,6 @@ describe('clusterMarkers', () => {
     const zoomed = clusterMarkers(points, { zoom: 4 })
     expect(zoomed).toHaveLength(2)
     expect(zoomed.every((cluster) => cluster.members.length === 1)).toBe(true)
-  })
-
-  it('honors a custom cell size', () => {
-    const points = [
-      { id: 'a', x: 0, y: 0 },
-      { id: 'b', x: 6, y: 0 },
-    ]
 
     expect(clusterMarkers(points, { cellSize: DEFAULT_CLUSTER_CELL_SIZE })).toHaveLength(1)
     expect(clusterMarkers(points, { cellSize: 4 })).toHaveLength(2)
@@ -104,9 +96,6 @@ describe('clusterMarkers', () => {
     expect(reversed).toEqual(forward)
     expect(repeat).toEqual(forward)
     // Clusters come back in id order (cell keys sort lexicographically).
-    expect(forward.map((cluster) => cluster.members.map((member) => member.id))).toEqual([
-      ['charlie'],
-      ['alpha', 'bravo', 'delta'],
-    ])
+    expect(forward.map(ids)).toEqual([['charlie'], ['alpha', 'bravo', 'delta']])
   })
 })

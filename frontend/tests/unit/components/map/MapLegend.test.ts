@@ -4,8 +4,7 @@ import MapLegend from '@/modules/map/components/MapLegend.vue'
 import { MARKER_TYPES } from '@/modules/map/models/markerTypeMeta'
 import { FAMILY_LABELS, GROUP_FAMILIES } from '@/modules/map/models/groupColors'
 
-const mountLegend = (props = {}) =>
-  mount(MapLegend, { props, global: { stubs: { Icon: true } } })
+const mountLegend = (props = {}) => mount(MapLegend, { props, global: { stubs: { Icon: true } } })
 
 describe('MapLegend', () => {
   it('retains symbolic states independently of place colors', () => {
@@ -21,8 +20,7 @@ describe('MapLegend', () => {
   })
 
   it('names the legend region for assistive technology', () => {
-    const wrapper = mountLegend()
-    expect(wrapper.find('[role="region"]').attributes('aria-label')).toBe('Map legend')
+    expect(mountLegend().find('[role="region"]').attributes('aria-label')).toBe('Map legend')
   })
 
   it('shows the full reference without a nested expand control', () => {
@@ -39,8 +37,7 @@ describe('MapLegend', () => {
   })
 
   it('swatches each family with its own colour and no duplicates', () => {
-    const wrapper = mountLegend()
-    const swatches = wrapper
+    const swatches = mountLegend()
       .findAll('circle')
       .map((circle) => circle.attributes('style') ?? '')
       .filter((style) => style.includes('--color-family-'))
@@ -50,27 +47,18 @@ describe('MapLegend', () => {
   })
 
   it('hides the family key when colouring is off', () => {
-    const wrapper = mountLegend({ groupColors: false })
-    expect(wrapper.text()).not.toContain('Site families')
+    expect(mountLegend({ groupColors: false }).text()).not.toContain('Site families')
   })
 
-  it('works when storage reads are unavailable', () => {
-    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
-      throw new DOMException('denied', 'SecurityError')
+  it.each([
+    ['reads', 'getItem', 'SecurityError', 'Unscouted'],
+    ['writes', 'setItem', 'QuotaExceededError', 'Cooldown'],
+  ])('works when storage %s are unavailable', (_, method, errorName, fallback) => {
+    vi.spyOn(Storage.prototype, method as 'getItem' | 'setItem').mockImplementation(() => {
+      throw new DOMException('denied', errorName)
     })
     try {
-      expect(mountLegend().text()).toContain('Unscouted')
-    } finally {
-      vi.restoreAllMocks()
-    }
-  })
-
-  it('works when storage writes are unavailable', () => {
-    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
-      throw new DOMException('denied', 'QuotaExceededError')
-    })
-    try {
-      expect(mountLegend().text()).toContain('Cooldown')
+      expect(mountLegend().text()).toContain(fallback)
     } finally {
       vi.restoreAllMocks()
     }

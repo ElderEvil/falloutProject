@@ -77,6 +77,14 @@ const mockLocation2 = {
   dwellers: [],
 }
 
+const readyState = {
+  clearable: true,
+  cleared: false,
+  clear_count: 0,
+  tier: 1,
+  time_remaining_seconds: 0,
+}
+
 describe('MapView', () => {
   let mapStore: ReturnType<typeof useMapStore>
 
@@ -108,6 +116,18 @@ describe('MapView', () => {
       ...overrides,
     }
   }
+
+  /** Seed the map store and stub its fetch so the view mounts without a request. */
+  function seed(locations: unknown[] = [mockLocation, mockLocation2]) {
+    vi.spyOn(mapStore, 'fetchMap').mockResolvedValue(undefined)
+    mapStore.locations = locations as never
+    mapStore.isLoading = false
+  }
+
+  const detail = (wrapper: ReturnType<typeof mountView>) =>
+    wrapper.findComponent({ name: 'MarkerDetailModal' })
+  const map = (wrapper: ReturnType<typeof mountView>) =>
+    wrapper.findComponent({ name: 'WorldMap' })
 
   beforeEach(() => {
     localStorage.setItem('token', 'test-token')
@@ -182,103 +202,66 @@ describe('MapView', () => {
   }
 
   describe('?place= query param handling', () => {
-    it('should not open modal without ?place= query param', async () => {
-      vi.spyOn(mapStore, 'fetchMap').mockResolvedValue(undefined)
-      mapStore.locations = [mockLocation, mockLocation2]
-      mapStore.isLoading = false
+    it.each([[undefined], ['nonexistent']])(
+      'should not open the modal for place=%s',
+      async (place) => {
+        seed()
+        mockRoute.query = place ? { place } : {}
+
+        const wrapper = mountView()
+        await flushPromises()
+
+        expect(detail(wrapper).props('modelValue')).toBe(false)
+      }
+    )
+
+    it.each([
+      ['loc-1', mockLocation],
+      ['loc-2', mockLocation2],
+    ])('should open the detail modal when ?place=%s matches', async (place, expected) => {
+      seed()
+      mockRoute.query = { place }
 
       const wrapper = mountView()
       await flushPromises()
 
-      const modal = wrapper.findComponent({ name: 'MarkerDetailModal' })
-      expect(modal.props('modelValue')).toBe(false)
-    })
-
-    it('should open marker detail modal when ?place= matches a location', async () => {
-      vi.spyOn(mapStore, 'fetchMap').mockResolvedValue(undefined)
-      mapStore.locations = [mockLocation, mockLocation2]
-      mapStore.isLoading = false
-
-      mockRoute.query = { place: 'loc-1' }
-      const wrapper = mountView()
-      await flushPromises()
-
-      const modal = wrapper.findComponent({ name: 'MarkerDetailModal' })
+      const modal = detail(wrapper)
       expect(modal.props('modelValue')).toBe(true)
-      expect(modal.props('location')).toEqual(mockLocation)
-    })
-
-    it('should not open modal when ?place= does not match any location', async () => {
-      vi.spyOn(mapStore, 'fetchMap').mockResolvedValue(undefined)
-      mapStore.locations = [mockLocation, mockLocation2]
-      mapStore.isLoading = false
-
-      mockRoute.query = { place: 'nonexistent' }
-      const wrapper = mountView()
-      await flushPromises()
-
-      const modal = wrapper.findComponent({ name: 'MarkerDetailModal' })
-      expect(modal.props('modelValue')).toBe(false)
-    })
-
-    it('should open modal for second location when ?place= matches it', async () => {
-      vi.spyOn(mapStore, 'fetchMap').mockResolvedValue(undefined)
-      mapStore.locations = [mockLocation, mockLocation2]
-      mapStore.isLoading = false
-
-      mockRoute.query = { place: 'loc-2' }
-      const wrapper = mountView()
-      await flushPromises()
-
-      const modal = wrapper.findComponent({ name: 'MarkerDetailModal' })
-      expect(modal.props('modelValue')).toBe(true)
-      expect(modal.props('location')).toEqual(mockLocation2)
+      expect(modal.props('location')).toEqual(expected)
     })
 
     it('should show refreshed location data in the modal after the store reloads', async () => {
-      vi.spyOn(mapStore, 'fetchMap').mockResolvedValue(undefined)
-      mapStore.locations = [mockLocation, mockLocation2]
-      mapStore.isLoading = false
-
+      seed()
       mockRoute.query = { place: 'loc-1' }
       const wrapper = mountView()
       await flushPromises()
 
-      const modal = wrapper.findComponent({ name: 'MarkerDetailModal' })
-      expect(modal.props('location')).toEqual(mockLocation)
+      expect(detail(wrapper).props('location')).toEqual(mockLocation)
 
       mapStore.locations = [{ ...mockLocation, name: 'Renamed Ruins' }, mockLocation2]
       await flushPromises()
 
-      expect(wrapper.findComponent({ name: 'MarkerDetailModal' }).props('location')).toEqual({
+      expect(detail(wrapper).props('location')).toEqual({
         ...mockLocation,
         name: 'Renamed Ruins',
       })
     })
 
-    it('should open modal when ?place= query param changes after mount', async () => {
-      vi.spyOn(mapStore, 'fetchMap').mockResolvedValue(undefined)
-      mapStore.locations = [mockLocation, mockLocation2]
-      mapStore.isLoading = false
-
+    it('should open the modal when ?place= changes after mount', async () => {
+      seed()
       const wrapper = mountView()
       await flushPromises()
-
-      const modal = wrapper.findComponent({ name: 'MarkerDetailModal' })
-      expect(modal.props('modelValue')).toBe(false)
+      expect(detail(wrapper).props('modelValue')).toBe(false)
 
       mockRoute.query = { place: 'loc-2' }
       await flushPromises()
 
-      expect(modal.props('modelValue')).toBe(true)
-      expect(modal.props('location')).toEqual(mockLocation2)
+      expect(detail(wrapper).props('modelValue')).toBe(true)
+      expect(detail(wrapper).props('location')).toEqual(mockLocation2)
     })
 
     it('should mark the location viewed when ?place= opens its modal', async () => {
-      vi.spyOn(mapStore, 'fetchMap').mockResolvedValue(undefined)
-      mapStore.locations = [mockLocation, mockLocation2]
-      mapStore.isLoading = false
-
+      seed()
       mockRoute.query = { place: 'loc-1' }
       mountView()
       await flushPromises()
@@ -288,21 +271,16 @@ describe('MapView', () => {
     })
 
     it('should push ?place= when a marker is clicked and ignore the watcher echo', async () => {
-      vi.spyOn(mapStore, 'fetchMap').mockResolvedValue(undefined)
-      mapStore.locations = [mockLocation, mockLocation2]
-      mapStore.isLoading = false
+      seed()
       const viewedSpy = vi.spyOn(mapStore, 'markLocationViewed')
-
       const wrapper = mountView()
       await flushPromises()
 
-      const worldMap = wrapper.findComponent({ name: 'WorldMap' })
-      worldMap.vm.$emit('marker-click', { kind: 'location', data: mockLocation })
+      map(wrapper).vm.$emit('marker-click', { kind: 'location', data: mockLocation })
       await flushPromises()
 
       expect(mockPush).toHaveBeenCalledWith({ query: { place: 'loc-1' } })
-      const modal = wrapper.findComponent({ name: 'MarkerDetailModal' })
-      expect(modal.props('modelValue')).toBe(true)
+      expect(detail(wrapper).props('modelValue')).toBe(true)
 
       // Simulate the router applying the pushed query: the watcher echo must
       // not re-open or double-count the already-open location.
@@ -314,38 +292,28 @@ describe('MapView', () => {
     })
 
     it('should not push a duplicate entry when ?place= already matches', async () => {
-      vi.spyOn(mapStore, 'fetchMap').mockResolvedValue(undefined)
-      mapStore.locations = [mockLocation, mockLocation2]
-      mapStore.isLoading = false
-
+      seed()
       mockRoute.query = { place: 'loc-1' }
       mountView()
       await flushPromises()
-
       expect(mockPush).not.toHaveBeenCalled()
     })
 
     it('should clear ?place= when the modal closes', async () => {
-      vi.spyOn(mapStore, 'fetchMap').mockResolvedValue(undefined)
-      mapStore.locations = [mockLocation, mockLocation2]
-      mapStore.isLoading = false
-
+      seed()
       mockRoute.query = { place: 'loc-1' }
       const wrapper = mountView()
       await flushPromises()
+      expect(detail(wrapper).props('modelValue')).toBe(true)
 
-      const modal = wrapper.findComponent({ name: 'MarkerDetailModal' })
-      expect(modal.props('modelValue')).toBe(true)
-
-      modal.vm.$emit('update:modelValue', false)
+      detail(wrapper).vm.$emit('update:modelValue', false)
       await flushPromises()
 
       expect(mockReplace).toHaveBeenCalledWith({ query: {} })
     })
 
     it('should clear ?place= when a vault marker is clicked', async () => {
-      vi.spyOn(mapStore, 'fetchMap').mockResolvedValue(undefined)
-      mapStore.locations = [mockLocation, mockLocation2]
+      seed()
       const vaultMarker = {
         name: 'Vault 101',
         coord_x: 30,
@@ -354,18 +322,15 @@ describe('MapView', () => {
         description: 'Unexplored vault signal',
       }
       mapStore.vaultMarkers = [vaultMarker]
-      mapStore.isLoading = false
-
       mockRoute.query = { place: 'loc-1' }
       const wrapper = mountView()
       await flushPromises()
 
-      const worldMap = wrapper.findComponent({ name: 'WorldMap' })
-      worldMap.vm.$emit('marker-click', { kind: 'vault', data: vaultMarker })
+      map(wrapper).vm.$emit('marker-click', { kind: 'vault', data: vaultMarker })
       await flushPromises()
 
       expect(mockReplace).toHaveBeenCalledWith({ query: {} })
-      const modal = wrapper.findComponent({ name: 'MarkerDetailModal' })
+      const modal = detail(wrapper)
       expect(modal.props('modelValue')).toBe(true)
       expect(modal.props('vaultMarker')).toEqual(vaultMarker)
     })
@@ -394,97 +359,66 @@ describe('MapView', () => {
       radaway: 3,
     }
 
-    function mountMapWithVaults(vaults: (typeof vaultSummary)[]) {
-      vi.spyOn(mapStore, 'fetchMap').mockResolvedValue(undefined)
-      mapStore.locations = [mockLocation]
-      mapStore.isLoading = false
+    function seedVaults(vaults: unknown[]) {
       const vaultStore = useVaultStore()
-      vaultStore.vaults = vaults
-      return mountView()
+      vaultStore.vaults = vaults as never
+      return vaultStore
+    }
+
+    /** Mount with the seeded vault list, then open the summary for vault-2. */
+    async function openVaultInfo(
+      vaults: unknown[],
+      beforeSelect?: (vaultStore: ReturnType<typeof useVaultStore>) => void
+    ) {
+      seed()
+      const vaultStore = seedVaults(vaults)
+      const wrapper = mountView()
+      await flushPromises()
+      beforeSelect?.(vaultStore)
+      map(wrapper).vm.$emit('vault-info', 'vault-2')
+      await flushPromises()
+      const modal = wrapper.findComponent({ name: 'VaultInfoModal' })
+      return { wrapper, vaultStore, modal }
     }
 
     it('opens the summary panel from store data without navigating', async () => {
-      const wrapper = mountMapWithVaults([vaultSummary])
-      await flushPromises()
-
-      wrapper.findComponent({ name: 'WorldMap' }).vm.$emit('vault-info', 'vault-2')
-      await flushPromises()
-
-      const modal = wrapper.findComponent({ name: 'VaultInfoModal' })
+      const { wrapper, modal } = await openVaultInfo([vaultSummary])
       expect(modal.props('open')).toBe(true)
       expect(modal.props('vault')).toEqual(vaultSummary)
       expect(modal.props('loading')).toBe(false)
-      expect(wrapper.findComponent({ name: 'MarkerDetailModal' }).props('modelValue')).toBe(false)
+      expect(detail(wrapper).props('modelValue')).toBe(false)
       expect(mockPush).not.toHaveBeenCalled()
     })
 
-    it('hydrates the vault list when the store is empty', async () => {
-      vi.spyOn(mapStore, 'fetchMap').mockResolvedValue(undefined)
-      mapStore.locations = [mockLocation]
-      mapStore.isLoading = false
-      const vaultStore = useVaultStore()
-      vaultStore.vaults = []
-      const fetchSpy = vi.spyOn(vaultStore, 'fetchVaults').mockImplementation(async () => {
-        vaultStore.vaults = [vaultSummary]
-        return true
+    it.each([
+      ['an empty store', []],
+      ['a stale store missing the selected vault', [{ ...vaultSummary, id: 'vault-other', number: 999 }]],
+    ])('hydrates the vault list from %s', async (_, seeded) => {
+      let fetchSpy!: ReturnType<typeof vi.spyOn>
+      const { modal } = await openVaultInfo(seeded, (vaultStore) => {
+        fetchSpy = vi.spyOn(vaultStore, 'fetchVaults').mockImplementation(async () => {
+          vaultStore.vaults = [vaultSummary] as never
+          return true
+        })
       })
 
-      const wrapper = mountView()
-      await flushPromises()
-
-      wrapper.findComponent({ name: 'WorldMap' }).vm.$emit('vault-info', 'vault-2')
-      await flushPromises()
-
       expect(fetchSpy).toHaveBeenCalledWith()
-      expect(wrapper.findComponent({ name: 'VaultInfoModal' }).props('vault')).toEqual(vaultSummary)
-      expect(mockPush).not.toHaveBeenCalled()
-    })
-
-    it('refetches the vault list when a stale store misses the selected vault', async () => {
-      vi.spyOn(mapStore, 'fetchMap').mockResolvedValue(undefined)
-      mapStore.locations = [mockLocation]
-      mapStore.isLoading = false
-      const vaultStore = useVaultStore()
-      vaultStore.vaults = [{ ...vaultSummary, id: 'vault-other', number: 999 }]
-      const fetchSpy = vi.spyOn(vaultStore, 'fetchVaults').mockImplementation(async () => {
-        vaultStore.vaults = [vaultSummary]
-        return true
-      })
-
-      const wrapper = mountView()
-      await flushPromises()
-
-      wrapper.findComponent({ name: 'WorldMap' }).vm.$emit('vault-info', 'vault-2')
-      await flushPromises()
-
-      expect(fetchSpy).toHaveBeenCalledWith()
-      const modal = wrapper.findComponent({ name: 'VaultInfoModal' })
       expect(modal.props('vault')).toEqual(vaultSummary)
       expect(modal.props('loading')).toBe(false)
+      expect(mockPush).not.toHaveBeenCalled()
     })
 
     it('keeps loading until the newest request resolves (A to B race)', async () => {
-      vi.spyOn(mapStore, 'fetchMap').mockResolvedValue(undefined)
-      mapStore.locations = [mockLocation]
-      mapStore.isLoading = false
-      const vaultStore = useVaultStore()
-      vaultStore.vaults = []
       const pending: Array<(value: boolean) => void> = []
-      vi.spyOn(vaultStore, 'fetchVaults').mockImplementation(
-        () => new Promise<boolean>((resolve) => pending.push(resolve))
-      )
       const vaultSummaryB = { ...vaultSummary, id: 'vault-3', number: 122 }
-
-      const wrapper = mountView()
+      const { wrapper, vaultStore, modal } = await openVaultInfo([], (store) => {
+        vi.spyOn(store, 'fetchVaults').mockImplementation(
+          () => new Promise<boolean>((resolve) => pending.push(resolve))
+        )
+      })
+      // A second selection while the first request is still open.
+      map(wrapper).vm.$emit('vault-info', 'vault-3')
       await flushPromises()
-
-      const worldMap = wrapper.findComponent({ name: 'WorldMap' })
-      worldMap.vm.$emit('vault-info', 'vault-2')
-      await flushPromises()
-      worldMap.vm.$emit('vault-info', 'vault-3')
-      await flushPromises()
-
-      const modal = wrapper.findComponent({ name: 'VaultInfoModal' })
       expect(modal.props('loading')).toBe(true)
 
       // The stale request settling first must not clear the newer spinner.
@@ -492,7 +426,7 @@ describe('MapView', () => {
       await flushPromises()
       expect(modal.props('loading')).toBe(true)
 
-      vaultStore.vaults = [vaultSummaryB]
+      vaultStore.vaults = [vaultSummaryB] as never
       pending[1]!(true)
       await flushPromises()
 
@@ -501,28 +435,18 @@ describe('MapView', () => {
     })
 
     it('shows the loading state until the vault list resolves', async () => {
-      vi.spyOn(mapStore, 'fetchMap').mockResolvedValue(undefined)
-      mapStore.locations = [mockLocation]
-      mapStore.isLoading = false
-      const vaultStore = useVaultStore()
-      vaultStore.vaults = []
       let resolveFetch!: (value: boolean) => void
-      const gate = new Promise<boolean>((resolve) => {
-        resolveFetch = resolve
+      const { vaultStore, modal } = await openVaultInfo([], (store) => {
+        vi.spyOn(store, 'fetchVaults').mockReturnValue(
+          new Promise<boolean>((resolve) => {
+            resolveFetch = resolve
+          })
+        )
       })
-      vi.spyOn(vaultStore, 'fetchVaults').mockReturnValue(gate)
-
-      const wrapper = mountView()
-      await flushPromises()
-
-      wrapper.findComponent({ name: 'WorldMap' }).vm.$emit('vault-info', 'vault-2')
-      await flushPromises()
-
-      const modal = wrapper.findComponent({ name: 'VaultInfoModal' })
       expect(modal.props('open')).toBe(true)
       expect(modal.props('loading')).toBe(true)
 
-      vaultStore.vaults = [vaultSummary]
+      vaultStore.vaults = [vaultSummary] as never
       resolveFetch(true)
       await flushPromises()
 
@@ -531,45 +455,25 @@ describe('MapView', () => {
     })
 
     it('opens the unavailable state when the record cannot be resolved', async () => {
-      vi.spyOn(mapStore, 'fetchMap').mockResolvedValue(undefined)
-      mapStore.locations = [mockLocation]
-      mapStore.isLoading = false
-      const vaultStore = useVaultStore()
-      vaultStore.vaults = []
-      vi.spyOn(vaultStore, 'fetchVaults').mockResolvedValue(true)
-
-      const wrapper = mountView()
-      await flushPromises()
-
-      wrapper.findComponent({ name: 'WorldMap' }).vm.$emit('vault-info', 'vault-404')
-      await flushPromises()
-
-      const modal = wrapper.findComponent({ name: 'VaultInfoModal' })
+      const { modal } = await openVaultInfo([], (vaultStore) => {
+        vi.spyOn(vaultStore, 'fetchVaults').mockResolvedValue(true)
+      })
       expect(modal.props('open')).toBe(true)
       expect(modal.props('vault')).toBeNull()
       expect(modal.props('loading')).toBe(false)
     })
 
     it('closes the panel when it emits update:open false', async () => {
-      const wrapper = mountMapWithVaults([vaultSummary])
-      await flushPromises()
-
-      wrapper.findComponent({ name: 'WorldMap' }).vm.$emit('vault-info', 'vault-2')
-      await flushPromises()
-
-      const modal = wrapper.findComponent({ name: 'VaultInfoModal' })
+      const { modal } = await openVaultInfo([vaultSummary])
       modal.vm.$emit('update:open', false)
       await flushPromises()
-
       expect(modal.props('open')).toBe(false)
     })
   })
 
   describe('dispatch in-flight guard', () => {
     it('sends only one dispatch when confirmed twice while the first is still running', async () => {
-      vi.spyOn(mapStore, 'fetchMap').mockResolvedValue(undefined)
-      mapStore.locations = [mockLocation]
-      mapStore.isLoading = false
+      seed([mockLocation])
       const explorationStore = useExplorationStore()
       let resolveDispatch!: (value: unknown) => void
       const gate = new Promise((resolve) => {
@@ -584,7 +488,7 @@ describe('MapView', () => {
       const wrapper = mountView()
       await flushPromises()
 
-      const modal = wrapper.findComponent({ name: 'MarkerDetailModal' })
+      const modal = detail(wrapper)
       const payload = { dwellerIds: ['dweller-1'], supplies: { stimpaks: 0, radaways: 0 } }
       modal.vm.$emit('dispatch', payload)
       modal.vm.$emit('dispatch', payload)
@@ -601,22 +505,13 @@ describe('MapView', () => {
     function clearableLocation() {
       return {
         ...mockLocation,
-        clear_state: {
-          clearable: true,
-          cleared: false,
-          clear_count: 0,
-          tier: 0,
-          time_remaining_seconds: 0,
-          loot_table: 'low',
-        },
+        clear_state: { ...readyState, tier: 0, loot_table: 'low' },
       }
     }
 
     function mountWithClearable() {
-      vi.spyOn(mapStore, 'fetchMap').mockResolvedValue(undefined)
       const clearable = clearableLocation()
-      mapStore.locations = [clearable]
-      mapStore.isLoading = false
+      seed([clearable])
       const { filter: dwellerFilter } = useDwellerStore()
       dwellerFilter.dwellers = [
         {
@@ -629,8 +524,7 @@ describe('MapView', () => {
         } as never,
       ]
       vi.spyOn(dwellerFilter, 'fetchDwellersByVault').mockResolvedValue(undefined)
-      const vaultStore = useVaultStore()
-      vi.spyOn(vaultStore, 'ensureVaultLoaded').mockResolvedValue(undefined)
+      vi.spyOn(useVaultStore(), 'ensureVaultLoaded').mockResolvedValue(undefined)
       return clearable
     }
 
@@ -639,12 +533,10 @@ describe('MapView', () => {
       const wrapper = mountView()
       await flushPromises()
 
-      wrapper
-        .findComponent({ name: 'WorldMap' })
-        .vm.$emit('marker-click', { kind: 'location', data: clearable })
+      map(wrapper).vm.$emit('marker-click', { kind: 'location', data: clearable })
       await flushPromises()
 
-      const modal = wrapper.findComponent({ name: 'MarkerDetailModal' })
+      const modal = detail(wrapper)
       expect(modal.props('modelValue')).toBe(true)
       expect(modal.props('dwellers')).toHaveLength(1)
       expect(wrapper.findComponent({ name: 'PartySelectionModal' }).exists()).toBe(false)
@@ -653,7 +545,7 @@ describe('MapView', () => {
     it.each(['active', 'returning'] as const)(
       'excludes every %s exploration team member even when their cached status is idle',
       async (status) => {
-        const clearable = mountWithClearable()
+        mountWithClearable()
         const explorationStore = useExplorationStore()
         explorationStore.explorations = [
           exploration({ id: 'team-run', dweller_id: 'leader', status }),
@@ -663,7 +555,7 @@ describe('MapView', () => {
         }
         const wrapper = mountView()
         await flushPromises()
-        expect(wrapper.findComponent({ name: 'MarkerDetailModal' }).props('dwellers')).toEqual([])
+        expect(detail(wrapper).props('dwellers')).toEqual([])
       }
     )
 
@@ -680,7 +572,7 @@ describe('MapView', () => {
       }
       const wrapper = mountView()
       await flushPromises()
-      expect(wrapper.findComponent({ name: 'MarkerDetailModal' }).props('dwellers')).toHaveLength(1)
+      expect(detail(wrapper).props('dwellers')).toHaveLength(1)
     })
 
     it('refreshes the dweller roster even when cached candidates already exist', async () => {
@@ -688,10 +580,7 @@ describe('MapView', () => {
       const { filter } = useDwellerStore()
       const wrapper = mountView()
       await flushPromises()
-      wrapper.findComponent({ name: 'WorldMap' }).vm.$emit('marker-click', {
-        kind: 'location',
-        data: clearable,
-      })
+      map(wrapper).vm.$emit('marker-click', { kind: 'location', data: clearable })
       await flushPromises()
       expect(filter.fetchDwellersByVault).toHaveBeenCalledWith('vault-1')
     })
@@ -702,7 +591,7 @@ describe('MapView', () => {
       let resolveVault!: () => void
       const gate = new Promise<void>((resolve) => {
         resolveVault = () => {
-          vaultStore.loadedVaults = { 'vault-1': { stimpack: 10, radaway: 5 } as any }
+          vaultStore.loadedVaults = { 'vault-1': { stimpack: 10, radaway: 5 } as never } as never
           resolve()
         }
       })
@@ -710,36 +599,31 @@ describe('MapView', () => {
 
       const wrapper = mountView()
       await flushPromises()
-      wrapper
-        .findComponent({ name: 'WorldMap' })
-        .vm.$emit('marker-click', { kind: 'location', data: clearable })
+      map(wrapper).vm.$emit('marker-click', { kind: 'location', data: clearable })
       await flushPromises()
 
-      const loading = wrapper.findComponent({ name: 'MarkerDetailModal' })
-      expect(loading.props('suppliesLoading')).toBe(true)
-      expect(loading.props('maxStimpaks')).toBe(0)
+      const modal = detail(wrapper)
+      expect(modal.props('suppliesLoading')).toBe(true)
+      expect(modal.props('maxStimpaks')).toBe(0)
 
       resolveVault()
       await flushPromises()
 
-      expect(loading.props('suppliesLoading')).toBe(false)
-      expect(loading.props('maxStimpaks')).toBe(10)
-      expect(loading.props('maxRadaways')).toBe(5)
+      expect(modal.props('suppliesLoading')).toBe(false)
+      expect(modal.props('maxStimpaks')).toBe(10)
+      expect(modal.props('maxRadaways')).toBe(5)
     })
 
     it('still opens the details modal when the vault cannot be loaded', async () => {
       const clearable = mountWithClearable()
-      const vaultStore = useVaultStore()
-      vi.mocked(vaultStore.ensureVaultLoaded).mockRejectedValueOnce(new Error('unloadable'))
+      vi.mocked(useVaultStore().ensureVaultLoaded).mockRejectedValueOnce(new Error('unloadable'))
 
       const wrapper = mountView()
       await flushPromises()
-      wrapper
-        .findComponent({ name: 'WorldMap' })
-        .vm.$emit('marker-click', { kind: 'location', data: clearable })
+      map(wrapper).vm.$emit('marker-click', { kind: 'location', data: clearable })
       await flushPromises()
 
-      const modal = wrapper.findComponent({ name: 'MarkerDetailModal' })
+      const modal = detail(wrapper)
       expect(modal.props('modelValue')).toBe(true)
       expect(modal.props('maxStimpaks')).toBe(0)
       expect(modal.props('suppliesLoading')).toBe(false)
@@ -747,20 +631,17 @@ describe('MapView', () => {
 
     it('dispatches the selected team and supplies from the details modal', async () => {
       const clearable = mountWithClearable()
-      const explorationStore = useExplorationStore()
       const dispatchSpy = vi
-        .spyOn(explorationStore, 'dispatchToLocation')
+        .spyOn(useExplorationStore(), 'dispatchToLocation')
         .mockResolvedValue(undefined as never)
       vi.spyOn(mapStore, 'refreshMap').mockResolvedValue(undefined)
 
       const wrapper = mountView()
       await flushPromises()
-      wrapper
-        .findComponent({ name: 'WorldMap' })
-        .vm.$emit('marker-click', { kind: 'location', data: clearable })
+      map(wrapper).vm.$emit('marker-click', { kind: 'location', data: clearable })
       await flushPromises()
 
-      const modal = wrapper.findComponent({ name: 'MarkerDetailModal' })
+      const modal = detail(wrapper)
       expect(modal.props('modelValue')).toBe(true)
 
       modal.vm.$emit('dispatch', {
@@ -788,7 +669,7 @@ describe('MapView', () => {
       const wrapper = mountView()
       await flushPromises()
 
-      expect(wrapper.findComponent({ name: 'MarkerDetailModal' }).props('modelValue')).toBe(true)
+      expect(detail(wrapper).props('modelValue')).toBe(true)
       expect(wrapper.findComponent({ name: 'PartySelectionModal' }).exists()).toBe(false)
       // The shareable deep link survives: the query is neither pushed nor cleared.
       expect(mockReplace).not.toHaveBeenCalled()
@@ -798,13 +679,10 @@ describe('MapView', () => {
 
   describe('Explorer tracking scoping', () => {
     it('excludes active explorations from other vaults', async () => {
-      vi.spyOn(mapStore, 'fetchMap').mockResolvedValue(undefined)
-      mapStore.locations = [mockLocation]
-      mapStore.isLoading = false
-      const explorationStore = useExplorationStore()
-      // A stale run from the previous vault targets a location that exists on
-      // this map; it must not surface as an "exploring" track.
-      explorationStore.explorations = [
+      seed([mockLocation])
+      useExplorationStore().explorations = [
+        // A stale run from the previous vault targets a location on this map;
+        // it must not surface as an "exploring" track.
         exploration({
           id: 'expl-other',
           vault_id: 'vault-2',
@@ -822,8 +700,7 @@ describe('MapView', () => {
       const wrapper = mountView()
       await flushPromises()
 
-      const worldMap = wrapper.findComponent({ name: 'WorldMap' })
-      const tracks = worldMap.props('explorerTracks') as ExplorerTrack[]
+      const tracks = map(wrapper).props('explorerTracks') as ExplorerTrack[]
       expect(tracks).toHaveLength(1)
       expect(tracks[0].explorationId).toBe('expl-own')
     })
@@ -831,25 +708,17 @@ describe('MapView', () => {
 
   describe('map opportunity counters', () => {
     it('counts dispatched parties once and excludes unavailable places from ready sites', async () => {
-      vi.spyOn(mapStore, 'fetchMap').mockResolvedValue(undefined)
-      const state = {
-        clearable: true,
-        cleared: false,
-        clear_count: 0,
-        tier: 1,
-        time_remaining_seconds: 0,
-      }
-      mapStore.locations = [
-        { ...mockLocation, id: 'ready', clear_state: state },
-        { ...mockLocation, id: 'busy', clear_state: state },
-        { ...mockLocation, id: 'locked', is_unlocked: false, clear_state: state },
+      seed([
+        { ...mockLocation, id: 'ready', clear_state: readyState },
+        { ...mockLocation, id: 'busy', clear_state: readyState },
+        { ...mockLocation, id: 'locked', is_unlocked: false, clear_state: readyState },
         {
           ...mockLocation,
           id: 'cooldown',
-          clear_state: { ...state, cleared: true, time_remaining_seconds: 30 },
+          clear_state: { ...readyState, cleared: true, time_remaining_seconds: 30 },
         },
-        { ...mockLocation, id: 'reset', clear_state: { ...state, cleared: true } },
-      ]
+        { ...mockLocation, id: 'reset', clear_state: { ...readyState, cleared: true } },
+      ])
       const store = useExplorationStore()
       vi.spyOn(store, 'fetchExplorationsByVault').mockResolvedValue([])
       store.explorations = [
@@ -864,69 +733,41 @@ describe('MapView', () => {
       const parties = wrapper.find('.page-header-stub')
       expect(parties.findAll('button')).toHaveLength(0)
       const ready = wrapper.findAll('button').find((b) => b.text() === 'Ready to clear')!
-      expect(wrapper.find('.page-header-stub').text()).toContain('Parties out')
-      expect(wrapper.find('.page-header-stub').text()).toContain('Ready to clear')
+      expect(parties.text()).toContain('Parties out')
+      expect(parties.text()).toContain('Ready to clear')
       expect(wrapper.find('.world-map-stub').text()).not.toContain('Parties out')
       expect(parties.text()).toContain('2')
-      expect(parties.text()).toContain('Ready to clear')
-      expect(parties.text()).toContain('2')
       await ready.trigger('click')
-      expect(wrapper.findComponent({ name: 'WorldMap' }).props('readyLocationIds')).toEqual([
-        'ready',
-        'reset',
-      ])
+      expect(map(wrapper).props('readyLocationIds')).toEqual(['ready', 'reset'])
       expect(ready.attributes('aria-pressed')).toBe('true')
       await ready.trigger('click')
-      expect(wrapper.findComponent({ name: 'WorldMap' }).props('readyLocationIds')).toBeNull()
+      expect(map(wrapper).props('readyLocationIds')).toBeNull()
     })
 
     it('makes the header counters actionable', async () => {
-      vi.spyOn(mapStore, 'fetchMap').mockResolvedValue(undefined)
-      mapStore.locations = [
-        {
-          ...mockLocation,
-          id: 'ready',
-          clear_state: {
-            clearable: true,
-            cleared: false,
-            clear_count: 0,
-            tier: 1,
-            time_remaining_seconds: 0,
-          },
-        },
-      ]
-      mapStore.isLoading = false
+      seed([{ ...mockLocation, id: 'ready', clear_state: readyState }])
       const wrapper = mountView(true)
       await flushPromises()
 
       await wrapper.get('[aria-label="Open expeditions: 0"]').trigger('click')
-      expect(mockPush).toHaveBeenCalledWith({
-        name: 'exploration',
-        params: { id: 'vault-1' },
-      })
+      expect(mockPush).toHaveBeenCalledWith({ name: 'exploration', params: { id: 'vault-1' } })
 
       await wrapper.get('[aria-label="Filter ready places: 1"]').trigger('click')
       await flushPromises()
-      expect(wrapper.findComponent({ name: 'WorldMap' }).props('readyLocationIds')).toEqual([
-        'ready',
-      ])
+      expect(map(wrapper).props('readyLocationIds')).toEqual(['ready'])
 
       await wrapper.get('[aria-label="Clear ready filter: 1"]').trigger('click')
       await flushPromises()
-      expect(wrapper.findComponent({ name: 'WorldMap' }).props('readyLocationIds')).toBeNull()
+      expect(map(wrapper).props('readyLocationIds')).toBeNull()
       wrapper.unmount()
     })
   })
 
   describe('admin fog debug tool', () => {
     it('is hidden for non-admins', async () => {
-      vi.spyOn(mapStore, 'fetchMap').mockResolvedValue(undefined)
-      mapStore.locations = [mockLocation]
-      mapStore.isLoading = false
-
+      seed([mockLocation])
       const wrapper = mountView()
       await flushPromises()
-
       expect(wrapper.text()).not.toContain('Reveal fog')
     })
 
@@ -938,33 +779,31 @@ describe('MapView', () => {
       setActivePinia(createPinia())
       const store = useMapStore()
       vi.spyOn(store, 'fetchMap').mockResolvedValue(undefined)
-      store.locations = [mockLocation]
+      store.locations = [mockLocation] as never
       store.isLoading = false
 
       const wrapper = mountView()
       await flushPromises()
 
-      const button = wrapper.findAll('button').find((b) => b.text().includes('Reveal fog'))
-      expect(button).toBeTruthy()
-      await button!.trigger('click')
+      const button = wrapper.findAll('button').find((b) => b.text().includes('Reveal fog'))!
+      await button.trigger('click')
       await flushPromises()
 
-      expect(wrapper.findComponent({ name: 'WorldMap' }).props('fogDisabled')).toBe(true)
-      expect(button!.text()).toContain('Restore fog')
-      expect(button!.attributes('aria-pressed')).toBe('true')
+      expect(map(wrapper).props('fogDisabled')).toBe(true)
+      expect(button.text()).toContain('Restore fog')
+      expect(button.attributes('aria-pressed')).toBe('true')
       expect(wrapper.find('details').exists()).toBe(false)
-      await button!.trigger('click')
+      await button.trigger('click')
       await flushPromises()
-      expect(wrapper.findComponent({ name: 'WorldMap' }).props('fogDisabled')).toBe(false)
-      expect(button!.text()).toContain('Reveal fog')
-      expect(button!.attributes('aria-pressed')).toBe('false')
+      expect(map(wrapper).props('fogDisabled')).toBe(false)
+      expect(button.text()).toContain('Reveal fog')
+      expect(button.attributes('aria-pressed')).toBe('false')
     })
   })
 
   describe('site-type filter', () => {
     function seedSites() {
-      vi.spyOn(mapStore, 'fetchMap').mockResolvedValue(undefined)
-      mapStore.locations = [{ ...mockLocation, group_key: 'gas_station' }]
+      seed([{ ...mockLocation, group_key: 'gas_station' }])
       mapStore.placeGroups = [
         {
           key: 'gas_station',
@@ -974,31 +813,28 @@ describe('MapView', () => {
           description: 'A roadside fuel stop.',
         },
       ] as never
-      mapStore.isLoading = false
     }
 
-    const worldMapProps = (wrapper: ReturnType<typeof mountView>) =>
-      wrapper.findComponent({ name: 'WorldMap' }).props()
+    const worldMapProps = (wrapper: ReturnType<typeof mountView>) => map(wrapper).props()
 
-    it('combines the ready filter with a site type and shows removable chips', async () => {
+    async function mountWithReadyFilter() {
       seedSites()
-      mapStore.locations[0]!.clear_state = {
-        clearable: true,
-        cleared: false,
-        clear_count: 0,
-        tier: 1,
-        time_remaining_seconds: 0,
-      }
+      mapStore.locations[0]!.clear_state = readyState as never
       const wrapper = mountView()
       await flushPromises()
-      const ready = wrapper.findAll('button').find((b) => b.text() === 'Ready to clear')!
-      await ready.trigger('click')
+      await wrapper.findAll('button').find((b) => b.text() === 'Ready to clear')!.trigger('click')
+      await flushPromises()
+      return wrapper
+    }
+
+    it('combines the ready filter with a site type and shows removable chips', async () => {
+      const wrapper = await mountWithReadyFilter()
       expect(worldMapProps(wrapper).readyLocationIds).not.toBeNull()
       wrapper.findComponent({ name: 'Select' }).vm.$emit('update:modelValue', 'gas_station')
       await flushPromises()
       expect(worldMapProps(wrapper).siteTypeFilter).toBe('gas_station')
       expect(worldMapProps(wrapper).readyLocationIds).not.toBeNull()
-      expect(ready.attributes('aria-pressed')).toBe('true')
+      expect(wrapper.findAll('button').find((b) => b.text() === 'Ready to clear')!.attributes('aria-pressed')).toBe('true')
       // Both active filters surface as chips above the map.
       expect(wrapper.find('[aria-label="Clear site type filter"]').exists()).toBe(true)
       expect(wrapper.find('[aria-label="Clear ready-to-clear filter"]').exists()).toBe(true)
@@ -1014,60 +850,27 @@ describe('MapView', () => {
       expect(wrapper.find('[aria-label="Clear site type filter"]').exists()).toBe(false)
     })
 
-    it('clears every active filter from the command bar', async () => {
-      seedSites()
+    it.each([
+      ['the command bar', 'clearAllButton'],
+      ['the map callout', 'clearFilters'],
+    ])('clears every active filter from %s', async (_, source) => {
       localStorage.setItem('map:site-type-filter', 'gas_station')
-      mapStore.locations[0]!.clear_state = {
-        clearable: true,
-        cleared: false,
-        clear_count: 0,
-        tier: 1,
-        time_remaining_seconds: 0,
-      }
-      const wrapper = mountView()
-      await flushPromises()
-      await wrapper
-        .findAll('button')
-        .find((b) => b.text() === 'Ready to clear')!
-        .trigger('click')
-      await flushPromises()
+      const wrapper = await mountWithReadyFilter()
       expect(worldMapProps(wrapper).siteTypeFilter).toBe('gas_station')
       expect(worldMapProps(wrapper).readyLocationIds).not.toBeNull()
 
-      const clearAll = wrapper.findAll('button').find((b) => b.text() === 'Clear all')!
-      await clearAll.trigger('click')
-      await flushPromises()
-
-      expect(worldMapProps(wrapper).siteTypeFilter).toBeNull()
-      expect(worldMapProps(wrapper).readyLocationIds).toBeNull()
-    })
-
-    it('clears filters from the map callout', async () => {
-      seedSites()
-      localStorage.setItem('map:site-type-filter', 'gas_station')
-      mapStore.locations[0]!.clear_state = {
-        clearable: true,
-        cleared: false,
-        clear_count: 0,
-        tier: 1,
-        time_remaining_seconds: 0,
+      if (source === 'clearAllButton') {
+        await wrapper.findAll('button').find((b) => b.text() === 'Clear all')!.trigger('click')
+      } else {
+        map(wrapper).vm.$emit('clear-filters')
       }
-      const wrapper = mountView()
-      await flushPromises()
-      await wrapper
-        .findAll('button')
-        .find((b) => b.text() === 'Ready to clear')!
-        .trigger('click')
-      await flushPromises()
-
-      wrapper.findComponent({ name: 'WorldMap' }).vm.$emit('clear-filters')
       await flushPromises()
 
       expect(worldMapProps(wrapper).siteTypeFilter).toBeNull()
       expect(worldMapProps(wrapper).readyLocationIds).toBeNull()
     })
 
-    it('passes a stored site-type filter down to the map', async () => {
+    it('passes a stored site-type filter down and renders the control', async () => {
       // Null default selects the raw "any" serializer: store the bare key.
       localStorage.setItem('map:site-type-filter', 'gas_station')
       seedSites()
@@ -1076,6 +879,7 @@ describe('MapView', () => {
       await flushPromises()
 
       expect(worldMapProps(wrapper).siteTypeFilter).toBe('gas_station')
+      expect(wrapper.find('[aria-label="Filter by site type"]').exists()).toBe(true)
     })
 
     it('degrades a stored filter whose group is absent from this vault to All', async () => {
@@ -1088,41 +892,23 @@ describe('MapView', () => {
       expect(worldMapProps(wrapper).siteTypeFilter).toBeNull()
     })
 
-    it('does not render the control when the map has no site groups', async () => {
-      vi.spyOn(mapStore, 'fetchMap').mockResolvedValue(undefined)
-      mapStore.locations = [mockLocation]
-      mapStore.isLoading = false
-
-      const wrapper = mountView()
-      await flushPromises()
-
-      expect(wrapper.find('[aria-label="Filter by site type"]').exists()).toBe(false)
-    })
-
-    it('renders the control with the persisted selection when groups exist', async () => {
-      localStorage.setItem('map:site-type-filter', 'gas_station')
-      seedSites()
-
-      const wrapper = mountView()
-      await flushPromises()
-
-      const trigger = wrapper.find('[aria-label="Filter by site type"]')
-      expect(trigger.exists()).toBe(true)
-    })
-
-    it('does not offer the exclusion-zone easter egg as a filter option', async () => {
-      vi.spyOn(mapStore, 'fetchMap').mockResolvedValue(undefined)
-      mapStore.locations = [{ ...mockLocation, group_key: 'exclusion_zone' }]
-      mapStore.placeGroups = [
-        {
-          key: 'exclusion_zone',
-          label: 'Restricted Exclusion Site',
-          icon: 'mdi:fence',
-          risk: 'high',
-          description: 'A restricted complex.',
-        },
-      ] as never
-      mapStore.isLoading = false
+    it.each([
+      ['no site groups', []],
+      [
+        'only the exclusion-zone easter egg',
+        [
+          {
+            key: 'exclusion_zone',
+            label: 'Restricted Exclusion Site',
+            icon: 'mdi:fence',
+            risk: 'high',
+            description: 'A restricted complex.',
+          },
+        ],
+      ],
+    ])('does not render the control with %s', async (_, groups) => {
+      seed([{ ...mockLocation, group_key: groups[0]?.key as string | undefined }])
+      mapStore.placeGroups = groups as never
 
       const wrapper = mountView()
       await flushPromises()
@@ -1132,8 +918,7 @@ describe('MapView', () => {
 
     it('degrades a stored exclusion-zone filter to All', async () => {
       localStorage.setItem('map:site-type-filter', 'exclusion_zone')
-      vi.spyOn(mapStore, 'fetchMap').mockResolvedValue(undefined)
-      mapStore.locations = [{ ...mockLocation, group_key: 'exclusion_zone' }]
+      seed([{ ...mockLocation, group_key: 'exclusion_zone' }])
       mapStore.placeGroups = [
         {
           key: 'exclusion_zone',
@@ -1143,7 +928,6 @@ describe('MapView', () => {
           description: 'A restricted complex.',
         },
       ] as never
-      mapStore.isLoading = false
 
       const wrapper = mountView()
       await flushPromises()
@@ -1153,19 +937,22 @@ describe('MapView', () => {
   })
 
   describe('Dispatch party visibility', () => {
+    const adult = (id: string, first: string, last: string) => ({
+      id,
+      first_name: first,
+      last_name: last,
+      age_group: 'adult',
+      is_adult: true,
+      status: 'idle',
+    })
+
     function seedPartyRun() {
-      vi.spyOn(mapStore, 'fetchMap').mockResolvedValue(undefined)
-      mapStore.locations = [mockLocation]
-      mapStore.isLoading = false
+      seed([mockLocation])
       const explorationStore = useExplorationStore()
       vi.spyOn(explorationStore, 'fetchExplorationsByVault').mockResolvedValue([])
       vi.spyOn(explorationStore, 'fetchPartiesForActiveExplorations').mockResolvedValue(undefined)
       explorationStore.explorations = [
-        exploration({
-          id: 'expl-own',
-          dweller_id: 'dweller-1',
-          target_location_id: 'loc-1',
-        }),
+        exploration({ id: 'expl-own', dweller_id: 'dweller-1', target_location_id: 'loc-1' }),
       ]
       explorationStore.explorationPartyMap = {
         'expl-own': [
@@ -1190,33 +977,17 @@ describe('MapView', () => {
             updated_at: null,
           },
         ],
-      }
-      const { filter: dwellerFilter } = useDwellerStore()
-      dwellerFilter.dwellers = [
-        {
-          id: 'dweller-1',
-          first_name: 'Stephanie',
-          last_name: 'Boyd',
-          age_group: 'adult',
-          is_adult: true,
-          status: 'idle',
-        },
-        {
-          id: 'dweller-2',
-          first_name: 'Cooper',
-          last_name: 'Howard',
-          age_group: 'adult',
-          is_adult: true,
-          status: 'idle',
-        },
+      } as never
+      useDwellerStore().filter.dwellers = [
+        adult('dweller-1', 'Stephanie', 'Boyd'),
+        adult('dweller-2', 'Cooper', 'Howard'),
       ] as never
       return explorationStore
     }
 
     it('refreshes dispatch parties when the map reloads explorations', async () => {
-      const explorationStore = seedPartyRun()
       const partySpy = vi
-        .spyOn(explorationStore, 'fetchPartiesForActiveExplorations')
+        .spyOn(seedPartyRun(), 'fetchPartiesForActiveExplorations')
         .mockResolvedValue(undefined)
 
       const wrapper = mountView()
@@ -1232,14 +1003,12 @@ describe('MapView', () => {
 
     it('threads the dispatch party names into the explorer tracks', async () => {
       seedPartyRun()
-      mapStore.locations = [mockLocation]
+      mapStore.locations = [mockLocation] as never
 
       const wrapper = mountView()
       await flushPromises()
 
-      const tracks = wrapper
-        .findComponent({ name: 'WorldMap' })
-        .props('explorerTracks') as ExplorerTrack[]
+      const tracks = map(wrapper).props('explorerTracks') as ExplorerTrack[]
       expect(tracks).toHaveLength(1)
       expect(tracks[0].partyNames).toEqual(['Stephanie Boyd', 'Cooper Howard'])
       wrapper.unmount()
@@ -1247,26 +1016,13 @@ describe('MapView', () => {
 
     it('collapses a solo dispatch track to just the anchor name', async () => {
       seedPartyRun()
-      const explorationStore = useExplorationStore()
-      explorationStore.explorationPartyMap = {}
-      const { filter: dwellerFilter } = useDwellerStore()
-      dwellerFilter.dwellers = [
-        {
-          id: 'dweller-1',
-          first_name: 'Stephanie',
-          last_name: 'Boyd',
-          age_group: 'adult',
-          is_adult: true,
-          status: 'idle',
-        },
-      ] as never
+      useExplorationStore().explorationPartyMap = {}
+      useDwellerStore().filter.dwellers = [adult('dweller-1', 'Stephanie', 'Boyd')] as never
 
       const wrapper = mountView()
       await flushPromises()
 
-      const tracks = wrapper
-        .findComponent({ name: 'WorldMap' })
-        .props('explorerTracks') as ExplorerTrack[]
+      const tracks = map(wrapper).props('explorerTracks') as ExplorerTrack[]
       expect(tracks[0].partyNames).toEqual(['Stephanie Boyd'])
       wrapper.unmount()
     })
@@ -1274,9 +1030,7 @@ describe('MapView', () => {
 
   describe('header help', () => {
     it('offers header help about the world map', async () => {
-      vi.spyOn(mapStore, 'fetchMap').mockResolvedValue(undefined)
-      mapStore.locations = []
-      mapStore.isLoading = false
+      seed([])
 
       const wrapper = mountView(true)
       // PageHelp loads asynchronously on the first header mount of the file, so

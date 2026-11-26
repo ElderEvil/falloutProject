@@ -347,7 +347,12 @@ async def get_vault_map(db_session: AsyncSession, vault: Vault, *, unlocked_only
     ]
 
     expedition_sites = await _expedition_site_markers(db_session, vault)
-    collectible_sets = await collectible_service.set_progress(db_session, vault_id=vault.id)
+    # Dark feature: the catalog and its progress are not advertised while collectibles are off.
+    collectible_sets = (
+        await collectible_service.set_progress(db_session, vault_id=vault.id)
+        if game_config.features.collectibles
+        else []
+    )
 
     return VaultMapResponse(
         locations=locations,

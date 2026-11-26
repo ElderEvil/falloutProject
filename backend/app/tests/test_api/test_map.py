@@ -91,6 +91,16 @@ async def test_world_roads_api_is_authenticated_and_reads_the_persisted_layer(
     assert snapshot.roads is None  # reads do not backfill
 
 
+async def test_get_vault_map_hides_collectible_sets_while_the_feature_is_dark(
+    async_client, superuser_token_headers, vault
+) -> None:
+    """The catalog stays unadvertised until collectibles are enabled; no empty rows leak."""
+    response = await async_client.get(f"/map/vault/{vault.id}", headers=superuser_token_headers)
+
+    assert response.status_code == 200
+    assert response.json()["collectible_sets"] == []
+
+
 async def test_get_vault_map_reports_collectible_set_progress(
     async_client, async_session, superuser_token_headers, vault, dweller, monkeypatch
 ) -> None:

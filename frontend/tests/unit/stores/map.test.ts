@@ -117,6 +117,22 @@ describe('Map Store', () => {
       expect(store.error).toBeNull()
     })
 
+    it('keeps the vault collectible set progress from the map payload', async () => {
+      const store = useMapStore()
+      const sets = [
+        { set: 'magazines', name: 'Magazines', held: 2, required: 3, active: false },
+        { set: 'comics', name: 'Comics', held: 4, required: 4, active: true },
+      ]
+      vi.mocked(mapService.getVaultMap).mockResolvedValueOnce({
+        ...mockMapResponse,
+        collectible_sets: sets,
+      })
+
+      await store.fetchMap('vault-1')
+
+      expect(store.collectibleSets).toEqual(sets)
+    })
+
     it('stores the place-group catalog and indexes it by key', async () => {
       const groups = [
         {

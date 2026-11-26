@@ -43,6 +43,11 @@ const emit = defineEmits<{
 const isOpen = defineModel<boolean>('open', { default: false })
 const panelId = useId()
 const activePanel = ref('places')
+const panelTitle = computed(() => {
+  if (activePanel.value === 'legend') return 'MAP LEGEND'
+  if (activePanel.value === 'sets') return 'COLLECTIONS'
+  return 'PLACES AND SITES'
+})
 
 interface MarkerGroupItem {
   id: string
@@ -207,9 +212,7 @@ function onListKeydown(event: KeyboardEvent) {
       aria-label="Marker list"
     >
       <div class="panel-header">
-        <span class="panel-title">{{
-          activePanel === 'legend' ? 'MAP LEGEND' : 'PLACES AND SITES'
-        }}</span>
+        <span class="panel-title">{{ panelTitle }}</span>
         <span v-if="activePanel === 'places'" class="panel-count">{{ totalCount }}</span>
       </div>
 
@@ -218,9 +221,18 @@ function onListKeydown(event: KeyboardEvent) {
         @update:model-value="activePanel = String($event)"
         class="flex min-h-0 flex-1 flex-col gap-0 overflow-hidden"
       >
-        <TabsList v-if="$slots.legend" class="mx-2 mt-2 grid grid-cols-2">
+        <TabsList
+          v-if="$slots.legend || $slots.sets"
+          class="mx-2 mt-2 grid"
+          :class="$slots.legend && $slots.sets ? 'grid-cols-3' : 'grid-cols-2'"
+        >
           <TabsTrigger value="places"><Icon icon="mdi:filter-outline" />Places</TabsTrigger>
-          <TabsTrigger value="legend"><Icon icon="mdi:map-legend" />Legend</TabsTrigger>
+          <TabsTrigger v-if="$slots.legend" value="legend">
+            <Icon icon="mdi:map-legend" />Legend
+          </TabsTrigger>
+          <TabsTrigger v-if="$slots.sets" value="sets">
+            <Icon icon="mdi:book-open-variant" />Sets
+          </TabsTrigger>
         </TabsList>
         <div v-show="activePanel === 'places'" class="flex min-h-0 flex-1 flex-col overflow-hidden">
           <TabsContent
@@ -281,6 +293,9 @@ function onListKeydown(event: KeyboardEvent) {
         </div>
         <TabsContent v-if="$slots.legend" value="legend" class="min-h-0 flex-1 overflow-y-auto">
           <slot name="legend" />
+        </TabsContent>
+        <TabsContent v-if="$slots.sets" value="sets" class="min-h-0 flex-1 overflow-y-auto">
+          <slot name="sets" />
         </TabsContent>
       </Tabs>
     </aside>

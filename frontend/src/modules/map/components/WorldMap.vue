@@ -24,6 +24,7 @@ import { groupColor } from '../models/groupColors'
 import MapClusterMarker from './MapClusterMarker.vue'
 import MapMarker from './MapMarker.vue'
 import MapLegend from './MapLegend.vue'
+import CollectibleSetsPanel from './CollectibleSetsPanel.vue'
 import MarkerListPanel from './MarkerListPanel.vue'
 import AtlasTerrain from './AtlasTerrain.vue'
 import AtlasRoads from './AtlasRoads.vue'
@@ -801,6 +802,9 @@ function handleTouchEnd(event: TouchEvent) {
     >
       <template #toggle-label="{ count }">Places and sites · {{ count }}</template>
       <template #legend><MapLegend :group-colors="groupColors" /></template>
+      <template v-if="mapStore.collectibleSets.length > 0" #sets>
+        <CollectibleSetsPanel :sets="mapStore.collectibleSets" />
+      </template>
     </MarkerListPanel>
   </div>
 </template>

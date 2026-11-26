@@ -3,6 +3,7 @@ import { defineStore } from 'pinia'
 import { useLocalStorage } from '@vueuse/core'
 import { usePolling } from '@/core/composables/usePolling'
 import type {
+  CollectibleSetProgressRead,
   DiscoveryRouteRead,
   ExpeditionSiteMarkerRead,
   PlaceGroup,
@@ -29,6 +30,9 @@ export const useMapStore = defineStore('map', () => {
   const discoveryRoutes = ref<DiscoveryRouteRead[]>([])
   const expeditionSites = ref<ExpeditionSiteMarkerRead[]>([])
   const placeGroups = ref<PlaceGroup[]>([])
+  // Set progress ships with the map payload; the map surfaces it because collectibles are found
+  // at these sites. Empty while the feature ships dark, and until the first load.
+  const collectibleSets = ref<CollectibleSetProgressRead[]>([])
   // Backend-owned world snapshot (terrain + slots). Fetched once per map load:
   // the snapshot is immutable per (world_id, generator_version), so polling the
   // vault map never refetches it. Null until loaded — terrain renders nothing
@@ -123,6 +127,7 @@ export const useMapStore = defineStore('map', () => {
     discoveryRoutes.value = data.discovery_routes ?? []
     expeditionSites.value = data.expedition_sites ?? []
     placeGroups.value = data.place_groups ?? []
+    collectibleSets.value = data.collectible_sets ?? []
   }
 
   // Single unlock toast per vault: baseline load stays silent, repeats stay silent.
@@ -230,6 +235,7 @@ export const useMapStore = defineStore('map', () => {
     expeditionSites,
     placeGroups,
     placeGroupByKey,
+    collectibleSets,
     isLoading,
     error,
     viewedLocationKeys,

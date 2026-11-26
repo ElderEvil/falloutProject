@@ -54,7 +54,8 @@ vi.mock('@/core/composables/useSound', () => ({
   useSound: () => soundMock,
 }))
 
-const mockExploration = {
+/** A fresh journey per call: tests mutate `events`, so a shared literal would leak between them. */
+const makeExploration = (overrides: Record<string, unknown> = {}) => ({
   id: 'expl-1',
   vault_id: 'test-vault',
   dweller_id: 'dweller-1',
@@ -91,7 +92,8 @@ const mockExploration = {
   dweller_luck: 3,
   stimpaks: 2,
   radaways: 1,
-}
+  ...overrides,
+})
 
 const mockDweller = {
   id: 'dweller-1',
@@ -146,6 +148,7 @@ describe('ExplorationDetailView', () => {
   let vaultStore: ReturnType<typeof useVaultStore>
   let siteStore: ReturnType<typeof useExpeditionSiteStore>
   let wrapper: VueWrapper
+  let exploration: ReturnType<typeof makeExploration>
 
   const mountView = async () => {
     wrapper = mount(ExplorationDetailView, { global: { plugins: [router] } })
@@ -164,9 +167,14 @@ describe('ExplorationDetailView', () => {
     authStore = useAuthStore()
     vaultStore = useVaultStore()
     siteStore = useExpeditionSiteStore()
+    exploration = makeExploration()
 
-    vi.spyOn(explorationStore, 'fetchExplorationsByVault').mockResolvedValue([mockExploration])
-    vi.spyOn(explorationStore, 'fetchExplorationDetails').mockResolvedValue(mockExploration)
+    vi.spyOn(explorationStore, 'fetchExplorationsByVault').mockImplementation(async () => [
+      makeExploration(),
+    ])
+    vi.spyOn(explorationStore, 'fetchExplorationDetails').mockImplementation(
+      async () => exploration
+    )
     vi.spyOn(dwellerStore, 'fetchDwellerDetails').mockResolvedValue(mockDweller)
     vi.spyOn(dwellerStore, 'fetchDwellersByVault').mockResolvedValue([])
     vi.spyOn(vaultStore, 'refreshVault').mockResolvedValue({} as never)
@@ -180,7 +188,7 @@ describe('ExplorationDetailView', () => {
     vi.spyOn(siteStore, 'fetchAvailableSites').mockResolvedValue([availableSite])
 
     authStore.token = 'mock-token'
-    explorationStore.activeExplorations['expl-1'] = mockExploration
+    explorationStore.activeExplorations['expl-1'] = exploration as never
     dwellerStore.dwellers = [mockDweller]
     dwellerStore.detailedDwellers['dweller-1'] = mockDweller as never
 
@@ -222,17 +230,38 @@ describe('ExplorationDetailView', () => {
       expect(soundMock.playMusic).toHaveBeenCalledWith('vaultAmbient')
     })
 
-    it('renders the explorer navigator and the dweller summary', async () => {
+    it('renders the navbar with the explorer counter', async () => {
       await mountView()
 
-      const text = wrapper.text()
-      expect(text).toContain('1 / 1')
-      expect(text).toContain('Back to Exploration')
-      expect(text).toContain('Amata Almodovar')
-      expect(text).toContain('LVL 5')
+      expect(wrapper.find('.explorer-navigation').exists()).toBe(true)
+      expect(wrapper.text()).toContain('1 / 1')
+      expect(wrapper.text()).toContain('Back to Exploration')
+    })
+
+    it('renders the shared vault sidebar', async () => {
+      await mountView()
+
+      expect(wrapper.findComponent({ name: 'SidePanel' }).exists()).toBe(true)
+    })
+
+    it('renders the dweller name in the summary card', async () => {
+      await mountView()
+
+      expect(wrapper.text()).toContain('Amata Almodovar')
+    })
+
+    it('renders the same dweller portrait used by exploration cards', async () => {
+      await mountView()
+
       const portrait = wrapper.find('.dweller-portrait')
       expect(portrait.attributes('src')).toBe('http://example.com/amata.png')
       expect(portrait.attributes('alt')).toBe('Amata Almodovar portrait')
+    })
+
+    it('renders the dweller level', async () => {
+      await mountView()
+
+      expect(wrapper.text()).toContain('LVL 5')
     })
 
     it('uses the thumbnail when a detailed dweller has a blank image URL', async () => {
@@ -259,6 +288,18 @@ describe('ExplorationDetailView', () => {
       expect(meter.exists()).toBe(true)
       expect(meter.attributes('aria-valuenow')).toBeDefined()
       expect(wrapper.find('[data-slot="progress-segments"]').exists()).toBe(true)
+    })
+
+    it('renders the summary grid with every journey metric', async () => {
+      await mountView()
+
+      const text = wrapper.text()
+      expect(text).toContain('Miles')
+      expect(text).toContain('Items')
+      expect(text).toContain('Caps')
+      expect(text).toContain('Stimpaks')
+      expect(text).toContain('RadAway')
+      expect(text).toContain('Enemies')
     })
 
     it('renders the event log with events', async () => {
@@ -311,7 +352,10 @@ describe('ExplorationDetailView', () => {
     it('keeps the Expedition site CTA enabled when sites are available', async () => {
       await mountView()
 
-      expect(siteButton()?.attributes('disabled')).toBeUndefined()
+      const button = siteButton()
+      expect(button, 'the Expedition site CTA must render').toBeDefined()
+      expect(button!.attributes('disabled')).toBeUndefined()
+      expect((button!.element as HTMLButtonElement).disabled).toBe(false)
     })
   })
 
@@ -350,7 +394,7 @@ describe('ExplorationDetailView', () => {
 
   describe('Empty / no events', () => {
     it('renders empty event log message when no events', async () => {
-      explorationStore.activeExplorations['expl-1'] = { ...mockExploration, events: [] }
+      explorationStore.activeExplorations['expl-1'] = makeExploration({ events: [] }) as never
 
       await mountView()
 
@@ -360,8 +404,8 @@ describe('ExplorationDetailView', () => {
 
   describe('Short-schema exploration (missing loot_collected)', () => {
     it('renders without crashing when loot_collected is undefined', async () => {
-      const { loot_collected: _omit, ...shortExploration } = mockExploration
-      explorationStore.activeExplorations['expl-1'] = shortExploration as typeof mockExploration
+      const { loot_collected: _omit, ...shortExploration } = exploration
+      explorationStore.activeExplorations['expl-1'] = shortExploration as typeof exploration
 
       await mountView()
 
@@ -401,7 +445,7 @@ describe('ExplorationDetailView', () => {
 
     it('waits for reconnect when switching explorers with different reported sites', async () => {
       await router.push('/vault/test-vault/exploration/expl-1?siteId=red_rocket')
-      explorationStore.activeExplorations['expl-2'] = { ...mockExploration, id: 'expl-2' }
+      explorationStore.activeExplorations['expl-2'] = makeExploration({ id: 'expl-2' }) as never
       await mountView()
       let finishReconnect!: (room: SiteRoomView | null) => void
       vi.mocked(siteStore.fetchCurrentRoom).mockImplementationOnce(
@@ -462,7 +506,7 @@ describe('ExplorationDetailView', () => {
 
     it('keeps notification entry open across explorers with the same reported site', async () => {
       await router.push('/vault/test-vault/exploration/expl-1?siteId=red_rocket')
-      explorationStore.activeExplorations['expl-2'] = { ...mockExploration, id: 'expl-2' }
+      explorationStore.activeExplorations['expl-2'] = makeExploration({ id: 'expl-2' }) as never
       await mountView()
 
       await router.push('/vault/test-vault/exploration/expl-2?siteId=red_rocket')
@@ -476,10 +520,10 @@ describe('ExplorationDetailView', () => {
     it('re-scopes the site store and reconnects when the exploration changes', async () => {
       const resetSpy = vi.spyOn(siteStore, 'reset')
       const fetchCurrentRoomSpy = vi.spyOn(siteStore, 'fetchCurrentRoom').mockResolvedValue(null)
-      vi.spyOn(explorationStore, 'fetchExplorationDetails').mockImplementation(
-        async (id: string) => ({ ...mockExploration, id })
+      vi.spyOn(explorationStore, 'fetchExplorationDetails').mockImplementation(async (id: string) =>
+        makeExploration({ id })
       )
-      explorationStore.activeExplorations['expl-2'] = { ...mockExploration, id: 'expl-2' }
+      explorationStore.activeExplorations['expl-2'] = makeExploration({ id: 'expl-2' }) as never
 
       await mountView()
       resetSpy.mockClear()
@@ -503,7 +547,7 @@ describe('ExplorationDetailView', () => {
             })
         )
         .mockResolvedValueOnce(null)
-      explorationStore.activeExplorations['expl-2'] = { ...mockExploration, id: 'expl-2' }
+      explorationStore.activeExplorations['expl-2'] = makeExploration({ id: 'expl-2' }) as never
 
       await mountView()
       await router.push('/vault/test-vault/exploration/expl-2')
@@ -526,10 +570,10 @@ describe('ExplorationDetailView', () => {
             })
         )
         .mockRejectedValueOnce(new Error('network failure'))
-      vi.spyOn(explorationStore, 'fetchExplorationDetails').mockImplementation(
-        async (id: string) => ({ ...mockExploration, id })
+      vi.spyOn(explorationStore, 'fetchExplorationDetails').mockImplementation(async (id: string) =>
+        makeExploration({ id })
       )
-      explorationStore.activeExplorations['expl-2'] = { ...mockExploration, id: 'expl-2' }
+      explorationStore.activeExplorations['expl-2'] = makeExploration({ id: 'expl-2' }) as never
 
       await mountView()
       await router.push('/vault/test-vault/exploration/expl-2')
@@ -540,7 +584,9 @@ describe('ExplorationDetailView', () => {
       resolveFirstSites([])
       await flushPromises()
 
-      expect(siteButton()?.attributes('disabled')).toBeUndefined()
+      const button = siteButton()
+      expect(button, 'the Expedition site CTA must render').toBeDefined()
+      expect(button!.attributes('disabled')).toBeUndefined()
       expect((wrapper.vm as unknown as { siteOptionsLoaded: boolean }).siteOptionsLoaded).toBe(
         false
       )

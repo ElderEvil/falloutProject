@@ -174,14 +174,33 @@ describe('HomeView', () => {
   })
 
   describe('Rendering', () => {
-    it('welcomes the overseer and opens commissioning when no vaults exist', async () => {
+    it('welcomes the overseer on the landing screen', async () => {
       vaultStore.vaults = []
 
       const wrapper = mountView()
       await settleView()
 
       expect(wrapper.text()).toContain('Welcome to Fallout Shelter')
-      expect(wrapper.text()).toContain('Create New Vault')
+    })
+
+    it('renders the create vault form', async () => {
+      vaultStore.vaults = []
+
+      const wrapper = mountView()
+      await settleView()
+
+      expect(wrapper.find('h2').text()).toContain('Create New Vault')
+      expect(wrapper.find('input[type="number"]').exists()).toBe(true)
+      expect(wrapper.get('button[type="submit"]').text()).toBe('Continue')
+    })
+
+    it('opens vault commissioning when no vaults exist', async () => {
+      vaultStore.vaults = []
+
+      const wrapper = mountView()
+      await settleView()
+
+      expect(wrapper.text()).toContain('VAULT-TEC // COMMISSIONING')
       expect(wrapper.find('input[type="number"]').exists()).toBe(true)
     })
 
@@ -384,6 +403,15 @@ describe('HomeView', () => {
       expect(wrapper.findAll('[aria-label$="terminal"]')).toHaveLength(2)
     })
 
+    it('shows step guidance at the top of the creation card', async () => {
+      const wrapper = mountView()
+      await settleView()
+
+      expect(wrapper.text()).toContain('Enter a vault number from 1 to 999')
+      expect(wrapper.get('[aria-current="step"]').text()).toContain('Vault number')
+      expect(wrapper.find('[aria-label="Vault setup progress"]').exists()).toBe(true)
+    })
+
     it('focuses the vault number input when the creation form opens', async () => {
       vaultStore.vaults = vaultsAtCount(1) as never
 
@@ -412,10 +440,30 @@ describe('HomeView', () => {
       expect(wrapper.find('.text-danger').exists()).toBe(invalid)
       // The button stays enabled: validation is checked inside VaultNumberField.
       expect(wrapper.get('button[type="submit"]').attributes('disabled')).toBeUndefined()
-      if (!invalid) return
+    })
+
+    it('shows the validation error in the field without disabling the submit action', async () => {
+      const wrapper = mountView()
+      await settleView()
+
+      await wrapper.get('input[type="number"]').setValue('1000')
+      await settleView()
+
+      expect(wrapper.find('.text-danger').exists()).toBe(true)
+      expect(wrapper.get('button[type="submit"]').attributes('disabled')).toBeUndefined()
+    })
+
+    it('does not submit with an invalid vault number', async () => {
+      const wrapper = mountView()
+      await settleView()
+
+      await wrapper.get('input[type="number"]').setValue('1000')
+      await settleView()
       await wrapper.get('form').trigger('submit')
       await settleView()
+
       expect(axios.post).not.toHaveBeenCalled()
+      expect(wrapper.text()).toContain('Choose your vault number')
     })
 
     it('accepts decimal numbers by truncating them', async () => {
@@ -435,7 +483,7 @@ describe('HomeView', () => {
   })
 
   describe('Vault creation', () => {
-    it('creates the vault and clears the input afterwards', async () => {
+    it('creates the vault with the entered number', async () => {
       vi.mocked(axios.post).mockResolvedValueOnce({ data: { id: 'new-vault' } })
 
       const wrapper = mountView()
@@ -448,6 +496,16 @@ describe('HomeView', () => {
         boosted: false,
         vault_mode: 'standard',
       })
+    })
+
+    it('clears the input after a successful creation', async () => {
+      vi.mocked(axios.post).mockResolvedValueOnce({ data: { id: 'new-vault' } })
+
+      const wrapper = mountView()
+      await settleView()
+
+      await commission(wrapper, '123')
+
       expect((wrapper.get('input[type="number"]').element as HTMLInputElement).value).toBe('')
     })
 
@@ -624,6 +682,18 @@ describe('HomeView', () => {
   describe('Vault deletion', () => {
     beforeEach(() => {
       vaultStore.vaults = [vault()] as never
+    })
+
+    it('shows the delete action only once a vault is selected', async () => {
+      const wrapper = mountView()
+      await settleView()
+
+      expect(buttonWithText(wrapper, 'Delete Vault')).toBeUndefined()
+
+      await wrapper.find('li').trigger('click')
+      await settleView()
+
+      expect(buttonWithText(wrapper, 'Delete Vault')).toBeDefined()
     })
 
     it('asks for confirmation before deleting', async () => {

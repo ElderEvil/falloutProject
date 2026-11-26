@@ -218,6 +218,14 @@ describe('QuestsView', () => {
       expect(tab(2).attributes('aria-selected')).toBe('true')
       expect(tab(1).attributes('aria-selected')).toBe('false')
     })
+
+    it('switches back to the available tab when clicked', async () => {
+      await mountWithQuests([])
+      await selectTab(1)
+
+      expect(tab(1).attributes('aria-selected')).toBe('true')
+      expect(tab(2).attributes('aria-selected')).toBe('false')
+    })
   })
 
   describe('Quest display', () => {

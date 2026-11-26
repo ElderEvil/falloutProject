@@ -14,36 +14,34 @@ const exploration = {
   status: 'active',
 } as Exploration
 
+const at = (time: string) => Date.parse(`2026-08-21T${time}:00Z`)
+
 describe('linearProgress', () => {
-  it('returns the clamped elapsed fraction across the window', () => {
-    expect(linearProgress(0, 100, 0)).toBe(0)
-    expect(linearProgress(0, 100, 50)).toBe(50)
-    expect(linearProgress(0, 100, 100)).toBe(100)
-  })
-
-  it('clamps outside either end of the window', () => {
-    expect(linearProgress(1000, 2000, 500)).toBe(0)
-    expect(linearProgress(1000, 2000, 5000)).toBe(100)
-  })
-
-  it('reads a zero or negative window as complete', () => {
-    expect(linearProgress(1000, 1000, 1000)).toBe(100)
-    expect(linearProgress(2000, 1000, 1500)).toBe(100)
+  it.each([
+    [[0, 100, 0], 0],
+    [[0, 100, 50], 50],
+    [[0, 100, 100], 100],
+    [[1000, 2000, 500], 0], // before the window
+    [[1000, 2000, 5000], 100], // after it
+    [[1000, 1000, 1000], 100], // zero-length window
+    [[2000, 1000, 1500], 100], // inverted window
+  ] as [number[], number][])('returns the clamped elapsed fraction for %o', (args, expected) => {
+    expect(linearProgress(...(args as [number, number, number]))).toBe(expected)
   })
 })
 
 describe('getProgressPercentage', () => {
   it('clamps a future exploration start time to zero percent', () => {
-    expect(getProgressPercentage(exploration, Date.parse('2026-08-21T11:00:00Z'))).toBe(0)
+    expect(getProgressPercentage(exploration, at('11:00'))).toBe(0)
   })
 
   it('clamps elapsed progress to one hundred percent', () => {
-    expect(getProgressPercentage(exploration, Date.parse('2026-08-21T20:00:00Z'))).toBe(100)
+    expect(getProgressPercentage(exploration, at('20:00'))).toBe(100)
   })
 
   it('reports a returning run as fully explored when return timestamps are missing', () => {
     const returning = { ...exploration, status: 'returning' } as Exploration
-    expect(getProgressPercentage(returning, Date.parse('2026-08-21T13:00:00Z'))).toBe(100)
+    expect(getProgressPercentage(returning, at('13:00'))).toBe(100)
   })
 
   it('reports the return-leg progress while the dweller is heading home', () => {
@@ -53,12 +51,12 @@ describe('getProgressPercentage', () => {
       return_started_at: '2026-08-21T13:00:00Z',
       return_completes_at: '2026-08-21T14:00:00Z',
     } as Exploration
-    expect(getProgressPercentage(returning, Date.parse('2026-08-21T13:30:00Z'))).toBe(50)
+    expect(getProgressPercentage(returning, at('13:30'))).toBe(50)
   })
 
   it('freezes progress at the encounter pause timestamp', () => {
     const paused = { ...exploration, paused_at: '2026-08-21T13:00:00Z' } as Exploration
-    expect(getProgressPercentage(paused, Date.parse('2026-08-21T20:00:00Z'))).toBe(25)
+    expect(getProgressPercentage(paused, at('20:00'))).toBe(25)
   })
 })
 
@@ -69,16 +67,12 @@ describe('getTimeRemaining', () => {
       status: 'returning',
       return_completes_at: '2026-08-21T13:30:00Z',
     } as Exploration
-    expect(getTimeRemaining(returning, Date.parse('2026-08-21T13:00:00Z'))).toBe(
-      'Returning — 30m remaining'
-    )
+    expect(getTimeRemaining(returning, at('13:00'))).toBe('Returning — 30m remaining')
   })
 
   it('freezes remaining time while an encounter is paused', () => {
     const paused = { ...exploration, paused_at: '2026-08-21T13:00:00Z' } as Exploration
-    expect(getTimeRemaining(paused, Date.parse('2026-08-21T20:00:00Z'))).toBe(
-      getTimeRemaining(exploration, Date.parse('2026-08-21T13:00:00Z'))
-    )
+    expect(getTimeRemaining(paused, at('20:00'))).toBe(getTimeRemaining(exploration, at('13:00')))
   })
 })
 
@@ -89,8 +83,8 @@ describe('action gating', () => {
   })
 
   it('marks completion ready only for an elapsed active run', () => {
-    expect(isReadyToComplete(exploration, Date.parse('2026-08-21T20:00:00Z'))).toBe(true)
-    expect(isReadyToComplete(exploration, Date.parse('2026-08-21T13:00:00Z'))).toBe(false)
+    expect(isReadyToComplete(exploration, at('20:00'))).toBe(true)
+    expect(isReadyToComplete(exploration, at('13:00'))).toBe(false)
     expect(isReadyToComplete({ ...exploration, status: 'returning' } as Exploration)).toBe(false)
   })
 })

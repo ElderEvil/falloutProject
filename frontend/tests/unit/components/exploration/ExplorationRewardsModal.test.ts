@@ -49,6 +49,13 @@ const mountModal = (
     global: { stubs: { Teleport: { template: '<div><slot /></div>' } } },
   })
 
+/** A report with every overflow item already decided. */
+const settledReport = (patch: Partial<RewardsSummary> = {}) =>
+  mountModal({ ...rewardsWithOverflow, overflow_items: [], ...patch })
+
+const overflowButtons = (wrapper: ReturnType<typeof mountModal>) =>
+  wrapper.findAll('.overflow-actions button')
+
 describe('ExplorationRewardsModal', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
@@ -59,9 +66,7 @@ describe('ExplorationRewardsModal', () => {
   })
 
   it('uses the shared wide terminal modal like other popups', () => {
-    const wrapper = mountModal()
-
-    expect(wrapper.findComponent(Dialog).props('open')).toBe(true)
+    expect(mountModal().findComponent(Dialog).props('open')).toBe(true)
   })
 
   it('labels stored and undecided items truthfully', () => {
@@ -75,27 +80,18 @@ describe('ExplorationRewardsModal', () => {
     expect(wrapper.text()).not.toContain('No items found')
   })
 
-  it('keeps the stored heading when no overflow remains', () => {
-    const wrapper = mountModal({ ...rewardsWithOverflow, overflow_items: [] })
+  it.each([
+    ['stored items only', {}, 'Stored in Vault', 'Items Found'],
+    ['nothing found at all', { items: [] }, 'No items found during this exploration', null],
+  ])('labels the loot section (%s)', (_, patch, message, absent) => {
+    const wrapper = settledReport(patch)
 
-    expect(wrapper.text()).toContain('Stored in Vault')
-    expect(wrapper.text()).not.toContain('Items Found')
-  })
-
-  it('shows the plain empty state only when nothing was found at all', () => {
-    const wrapper = mountModal({ ...rewardsWithOverflow, items: [], overflow_items: [] })
-
-    expect(wrapper.text()).toContain('No items found during this exploration')
+    expect(wrapper.text()).toContain(message)
+    if (absent) expect(wrapper.text()).not.toContain(absent)
   })
 
   it('flags a recalled-early return with its completion percentage', () => {
-    const wrapper = mountModal({
-      ...rewardsWithOverflow,
-      items: [],
-      overflow_items: [],
-      recalled_early: true,
-      progress_percentage: 40,
-    })
+    const wrapper = settledReport({ items: [], recalled_early: true, progress_percentage: 40 })
 
     expect(wrapper.text()).toContain('Recalled early (40% complete)')
     expect(wrapper.text()).toContain('Reduced rewards')
@@ -108,11 +104,10 @@ describe('ExplorationRewardsModal', () => {
   it('allows deferring overflow resolution so storage can be managed first', async () => {
     mockResolve.mockResolvedValueOnce({ caps_granted: 0, unclaimed_loot: [item('Dropped B')] })
     const wrapper = mountModal()
-    const takeButtons = wrapper.findAll('.overflow-actions button')
 
     expect(wrapper.get('.report-action-btn').text()).toContain('Resolve Later')
 
-    await takeButtons[0]!.trigger('click')
+    await overflowButtons(wrapper)[0]!.trigger('click')
     expect(mockResolve).toHaveBeenCalledWith('exp-1', 'take', 0)
     expect(wrapper.text()).not.toContain('Dropped A')
     expect(wrapper.text()).toContain('Dropped B')
@@ -125,11 +120,11 @@ describe('ExplorationRewardsModal', () => {
   it('sells a single overflow item for caps', async () => {
     mockResolve.mockResolvedValueOnce({ caps_granted: 25, unclaimed_loot: [item('Dropped B')] })
     const wrapper = mountModal()
-    const sellButtons = wrapper
-      .findAll('.overflow-actions button')
-      .filter((button) => button.text() === 'Sell')
 
-    await sellButtons[0]!.trigger('click')
+    await overflowButtons(wrapper)
+      .filter((button) => button.text() === 'Sell')[0]!
+      .trigger('click')
+
     expect(mockResolve).toHaveBeenCalledWith('exp-1', 'sell', 0)
     expect(wrapper.text()).not.toContain('Dropped A')
   })
@@ -141,44 +136,37 @@ describe('ExplorationRewardsModal', () => {
       'stale-exp'
     )
 
-    await wrapper
-      .findAll('.overflow-actions button')
+    await overflowButtons(wrapper)
       .find((button) => button.text() === 'Sell')!
       .trigger('click')
 
     expect(mockResolve).toHaveBeenCalledWith('authoritative-exp', 'sell', 0)
   })
 
-  it('allows a legacy overflow report to close after the missing record is reported', async () => {
-    mockResolve.mockRejectedValueOnce({ response: { status: 404 } })
-    const wrapper = mountModal()
+  it.each([
+    ['a nested response status', { response: { status: 404 } }],
+    ['a top-level ApiError status', { status: 404 }],
+  ])(
+    'closes a legacy overflow report after the missing record is reported (%s)',
+    async (_, error) => {
+      mockResolve.mockRejectedValueOnce(error)
+      const wrapper = mountModal()
 
-    await wrapper.findAll('.overflow-actions button')[0]!.trigger('click')
+      await overflowButtons(wrapper)[0]!.trigger('click')
 
-    expect(wrapper.text()).toContain('This report predates overflow resolution')
-    expect(wrapper.get('.report-action-btn').attributes('disabled')).toBeUndefined()
-    expect(wrapper.get('.report-action-btn').text()).toContain('Close Report')
-    await wrapper.get('.report-action-btn').trigger('click')
-    expect(wrapper.emitted('close')).toHaveLength(1)
-  })
-
-  it('treats a top-level ApiError status as a legacy overflow report', async () => {
-    mockResolve.mockRejectedValueOnce({ status: 404 })
-    const wrapper = mountModal()
-
-    await wrapper.findAll('.overflow-actions button')[0]!.trigger('click')
-
-    expect(wrapper.text()).toContain('This report predates overflow resolution')
-    expect(wrapper.get('.report-action-btn').attributes('disabled')).toBeUndefined()
-    await wrapper.get('.report-action-btn').trigger('click')
-    expect(wrapper.emitted('close')).toHaveLength(1)
-  })
+      expect(wrapper.text()).toContain('This report predates overflow resolution')
+      expect(wrapper.get('.report-action-btn').attributes('disabled')).toBeUndefined()
+      expect(wrapper.get('.report-action-btn').text()).toContain('Close Report')
+      await wrapper.get('.report-action-btn').trigger('click')
+      expect(wrapper.emitted('close')).toHaveLength(1)
+    }
+  )
 
   it('restores overflow actions when the next report is not legacy', async () => {
     mockResolve.mockRejectedValueOnce({ response: { status: 404 } })
     const wrapper = mountModal()
 
-    await wrapper.findAll('.overflow-actions button')[0]!.trigger('click')
+    await overflowButtons(wrapper)[0]!.trigger('click')
     await wrapper.setProps({
       rewards: { ...rewardsWithOverflow, overflow_items: [item('Dropped C')] },
     })
@@ -216,123 +204,82 @@ describe('ExplorationRewardsModal', () => {
   })
 
   it('closes once every overflow item is decided', async () => {
-    const wrapper = mountModal({ ...rewardsWithOverflow, overflow_items: [] })
+    const wrapper = settledReport()
 
     await wrapper.get('.report-action-btn').trigger('click')
     expect(wrapper.emitted('close')).toHaveLength(1)
   })
 
   it('emits one close event when the modal close control is used', async () => {
-    const wrapper = mountModal({ ...rewardsWithOverflow, overflow_items: [] })
+    const wrapper = settledReport()
 
     await wrapper.get('[data-slot="dialog-close"]').trigger('click')
 
     expect(wrapper.emitted('close')).toHaveLength(1)
   })
 
-  it('labels the closing action truthfully instead of claiming an unclaimed reward', () => {
-    const settled = mountModal({ ...rewardsWithOverflow, overflow_items: [] })
+  it('labels the closing action and the settlement state truthfully', () => {
+    const settled = settledReport()
 
     expect(settled.get('.report-action-btn').text()).toContain('Close Report')
     expect(settled.text()).not.toContain('Collect Rewards')
-
-    const unresolved = mountModal()
-
-    expect(unresolved.get('.report-action-btn').text()).toContain('Resolve Later')
-  })
-
-  it('explains that rewards were already settled on arrival', () => {
+    expect(mountModal().get('.report-action-btn').text()).toContain('Resolve Later')
     expect(mountModal().text()).toContain(
       'Caps, XP and storable loot were credited when the crew arrived.'
     )
+    // Nothing has been credited yet while the player is choosing what to drop.
+    expect(mountModal(rewardsWithOverflow, 'exp-1', true).text()).not.toContain(
+      'Caps, XP and storable loot were credited'
+    )
   })
 
-  it('omits the settlement clarification for a pending-overflow view', () => {
-    const wrapper = mountModal(rewardsWithOverflow, 'exp-1', true)
+  it.each([
+    [
+      'the credited amount',
+      { caps: 150, caps_credited: 0 },
+      '0',
+      'The vault wallet cap limited the credited caps.',
+    ],
+    ['found caps for legacy reports', { caps: 150 }, '150', null],
+  ])('shows %s', (_, patch, value, note) => {
+    const wrapper = settledReport(patch)
 
-    expect(wrapper.text()).not.toContain('Caps, XP and storable loot were credited')
+    expect(wrapper.get('.caps-value').text()).toBe(value)
+    if (note) expect(wrapper.text()).toContain(note)
+    else expect(wrapper.text()).not.toContain('vault wallet cap')
   })
 
-  it('shows only the caps the vault actually credited', () => {
-    const wrapper = mountModal({
-      ...rewardsWithOverflow,
-      overflow_items: [],
-      caps: 150,
-      caps_credited: 0,
-    })
+  it.each([
+    [
+      'fully stored supplies',
+      { stimpaks: 2, stimpaks_stored: 2, radaways: 1, radaways_stored: 1 },
+      ['Stimpaks', '2 of 2 stored', 'Radaways', '1 of 1 stored'],
+      ['lost'],
+    ],
+    [
+      'supplies lost to full medical storage',
+      { stimpaks: 3, stimpaks_stored: 0 },
+      ['3 lost', 'medical storage full'],
+      [],
+    ],
+    ['legacy reports without stored counts', { stimpaks: 2 }, ['2 carried back'], ['lost']],
+  ])('reports %s', (_, patch, expected, absent) => {
+    const supplies = settledReport(patch).get('.returned-supplies').text()
 
-    expect(wrapper.get('.caps-value').text()).toBe('0')
-    expect(wrapper.text()).toContain('The vault wallet cap limited the credited caps.')
-  })
-
-  it('falls back to the found caps for legacy reports without a credited amount', () => {
-    const wrapper = mountModal({ ...rewardsWithOverflow, overflow_items: [], caps: 150 })
-
-    expect(wrapper.get('.caps-value').text()).toBe('150')
-    expect(wrapper.text()).not.toContain('vault wallet cap')
-  })
-
-  it('reports supplies that were fully stored', () => {
-    const wrapper = mountModal({
-      ...rewardsWithOverflow,
-      overflow_items: [],
-      stimpaks: 2,
-      stimpaks_stored: 2,
-      radaways: 1,
-      radaways_stored: 1,
-    })
-
-    const supplies = wrapper.get('.returned-supplies').text()
-    expect(supplies).toContain('Stimpaks')
-    expect(supplies).toContain('2 of 2 stored')
-    expect(supplies).toContain('Radaways')
-    expect(supplies).toContain('1 of 1 stored')
-    expect(supplies).not.toContain('lost')
-  })
-
-  it('reports supplies lost to full medical storage', () => {
-    const wrapper = mountModal({
-      ...rewardsWithOverflow,
-      overflow_items: [],
-      stimpaks: 3,
-      stimpaks_stored: 0,
-    })
-
-    const supplies = wrapper.get('.returned-supplies').text()
-    expect(supplies).toContain('3 lost')
-    expect(supplies).toContain('medical storage full')
-  })
-
-  it('never invents a loss for legacy reports without stored counts', () => {
-    const wrapper = mountModal({
-      ...rewardsWithOverflow,
-      overflow_items: [],
-      stimpaks: 2,
-    })
-
-    const supplies = wrapper.get('.returned-supplies').text()
-    expect(supplies).toContain('2 carried back')
-    expect(supplies).not.toContain('lost')
+    for (const part of expected) expect(supplies).toContain(part)
+    for (const part of absent) expect(supplies).not.toContain(part)
   })
 
   it('hides the returned supplies section when nothing was carried back', () => {
-    const wrapper = mountModal({
-      ...rewardsWithOverflow,
-      overflow_items: [],
-      stimpaks: 0,
-      radaways: 0,
-    })
-
-    expect(wrapper.find('.returned-supplies').exists()).toBe(false)
+    expect(settledReport({ stimpaks: 0, radaways: 0 }).find('.returned-supplies').exists()).toBe(
+      false
+    )
   })
 
-  it('shows a pending storage decision above the reward summary, not below the fold', async () => {
-    const wrapper = mountModal()
-    await flushPromises()
-
+  it('shows a pending storage decision above the reward summary, not below the fold', () => {
     // The decision is the actionable part; opening it under a full grid of reward cards left the
     // player with nothing to click but "Resolve Later".
-    const text = wrapper.text()
+    const text = mountModal().text()
     expect(text).toContain('Storage Full — Needs Decision')
     expect(text).toContain('Total party XP')
     expect(text.indexOf('Storage Full — Needs Decision')).toBeLessThan(

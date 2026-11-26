@@ -14,12 +14,14 @@ const requirements = [
   },
 ]
 
+const mountList = (isMet: (requirement: { requirement_type: string }) => boolean) => {
+  setActivePinia(createPinia())
+  return mount(QuestRequirementList, { props: { requirements, isMet } })
+}
+
 describe('QuestRequirementList', () => {
   it('renders humanized requirement rows with met styling', () => {
-    setActivePinia(createPinia())
-    const wrapper = mount(QuestRequirementList, {
-      props: { requirements, isMet: () => true },
-    })
+    const wrapper = mountList(() => true)
 
     expect(wrapper.text()).toContain('Requires Level 5+ dweller')
     expect(wrapper.text()).toContain('Reach 10 dwellers')
@@ -29,10 +31,7 @@ describe('QuestRequirementList', () => {
   })
 
   it('marks unmet requirements with the locked styling', () => {
-    setActivePinia(createPinia())
-    const wrapper = mount(QuestRequirementList, {
-      props: { requirements, isMet: (req) => req.requirement_type !== 'dweller_count' },
-    })
+    const wrapper = mountList((requirement) => requirement.requirement_type !== 'dweller_count')
 
     expect(wrapper.findAll('.prerequisite-item.unmet')).toHaveLength(1)
   })

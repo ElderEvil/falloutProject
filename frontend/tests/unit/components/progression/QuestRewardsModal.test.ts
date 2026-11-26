@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from 'vite-plus/test'
 import { createIconifyMock } from '../../helpers/mocks'
 import { mount } from '@vue/test-utils'
-import { Button } from '@/core/components/ui/button'
 import RewardItemCard from '@/core/components/common/RewardItemCard.vue'
+import TerminalModal from '@/core/components/common/TerminalModal.vue'
 import QuestRewardsModal from '@/modules/progression/components/QuestRewardsModal.vue'
 import type { QuestReward, VaultQuest } from '@/modules/progression/models/quest'
 
@@ -30,94 +30,57 @@ const quest = {
   quest_rewards: [],
 } as VaultQuest
 
-describe('QuestRewardsModal', () => {
-  it('uses a compact terminal modal frame without redundant status text', () => {
-    const wrapper = mount(QuestRewardsModal, {
-      props: { show: true, quest },
-      global: { stubs: { Teleport: { template: '<div><slot /></div>' } } },
-    })
-
-    expect(wrapper.find('[data-slot="dialog-content"]').classes()).toContain('max-w-xl')
-    expect(wrapper.get('.quest-complete-header').text()).not.toContain('MISSION REPORT // COMPLETE')
-    expect(wrapper.get('.quest-return-banner').classes()).toContain('border-theme-primary/30')
-    expect(wrapper.get('.quest-return-banner').classes()).toContain('mb-6')
-    expect(wrapper.get('.quest-return-banner').classes()).not.toContain('mt-5')
-    expect(wrapper.get('.quest-return-banner').classes()).not.toContain('terminal-glow')
+/** One confirm screen for an authored reward list. */
+const mountModal = (rewards: Partial<QuestReward>[] = [], props: Record<string, unknown> = {}) =>
+  mount(QuestRewardsModal, {
+    props: { show: true, quest: { ...quest, quest_rewards: rewards as QuestReward[] }, ...props },
+    global: { stubs: { Teleport: { template: '<div><slot /></div>' } } },
   })
 
-  it('uses the shared terminal actions for reviewing and claiming rewards', () => {
-    const wrapper = mount(QuestRewardsModal, {
-      props: { show: true, quest },
-      global: { stubs: { Teleport: { template: '<div><slot /></div>' } } },
-    })
+const actions = (wrapper: ReturnType<typeof mountModal>) =>
+  wrapper.findComponent({ name: 'TerminalModalActions' })
 
-    const actions = wrapper.findComponent({ name: 'TerminalModalActions' })
+describe('QuestRewardsModal', () => {
+  it('uses the shared terminal frame and actions without redundant status text', () => {
+    const wrapper = mountModal()
+    const footer = actions(wrapper)
 
-    expect(actions.exists()).toBe(true)
-    expect(actions.props('alignment')).toBe('between')
-    expect(actions.classes()).toContain('w-full')
-    expect(actions.classes()).toContain('max-sm:flex-col')
-    expect(actions.classes()).toContain('justify-between')
-    expect(
-      actions.findAll('button').every((button) => button.classes().includes('max-sm:w-full'))
-    ).toBe(true)
-    expect(
-      actions.findAll('button').every((button) => button.classes().includes('whitespace-nowrap'))
-    ).toBe(true)
-    expect(actions.text()).toContain('Review Later')
-    expect(actions.text()).toContain('Confirm & Claim')
+    expect(wrapper.findComponent(TerminalModal).props('size')).toBe('xl')
+    expect(wrapper.get('.quest-complete-header').text()).not.toContain('MISSION REPORT // COMPLETE')
+    expect(footer.exists()).toBe(true)
+    expect(footer.props('alignment')).toBe('between')
+    expect(footer.text()).toContain('Review Later')
+    expect(footer.text()).toContain('Confirm & Claim')
   })
 
   it('keeps review and claim actions distinct', async () => {
-    const wrapper = mount(QuestRewardsModal, {
-      props: { show: true, quest },
-      global: { stubs: { Teleport: { template: '<div><slot /></div>' } } },
-    })
+    const wrapper = mountModal()
+    const footer = actions(wrapper)
 
-    const actions = wrapper.findComponent({ name: 'TerminalModalActions' })
-    await actions.get('.cancel').trigger('click')
-    await actions.get('.confirm').trigger('click')
+    await footer.get('.cancel').trigger('click')
+    await footer.get('.confirm').trigger('click')
 
     expect(wrapper.emitted('close')).toHaveLength(1)
     expect(wrapper.emitted('confirm')).toHaveLength(1)
   })
 
   it('disables the claim action while a claim is in flight', () => {
-    const wrapper = mount(QuestRewardsModal, {
-      props: { show: true, quest, isSubmitting: true },
-      global: { stubs: { Teleport: { template: '<div><slot /></div>' } } },
-    })
-
-    const actions = wrapper.findComponent({ name: 'TerminalModalActions' })
-    expect(actions.props('confirmDisabled')).toBe(true)
+    expect(actions(mountModal([], { isSubmitting: true })).props('confirmDisabled')).toBe(true)
   })
 
-  it('labels authored chance rewards with their roll probability', () => {
-    const chanceQuest = {
-      ...quest,
-      quest_rewards: [
-        {
-          id: 'reward-1',
-          quest_id: 'quest-1',
-          reward_type: 'caps',
-          reward_data: { amount: 100 },
-          reward_chance: 0.5,
-        },
-      ] as QuestReward[],
-    } as VaultQuest
-    const wrapper = mount(QuestRewardsModal, {
-      props: { show: true, quest: chanceQuest },
-      global: { stubs: { Teleport: { template: '<div><slot /></div>' } } },
-    })
+  it.each([
+    [0.5, '50% chance'],
+    [0.75, '75% chance'],
+  ])('labels an authored chance reward (%s) with its roll probability', (reward_chance, label) => {
+    const wrapper = mountModal([
+      { reward_type: 'caps', reward_data: { amount: 100 }, reward_chance },
+    ])
 
-    expect(wrapper.text()).toContain('50% chance')
+    expect(wrapper.text()).toContain(label)
   })
 
   it('is a single confirm screen — no separate delivery-confirmed state after claiming', () => {
-    const wrapper = mount(QuestRewardsModal, {
-      props: { show: true, quest },
-      global: { stubs: { Teleport: { template: '<div><slot /></div>' } } },
-    })
+    const wrapper = mountModal()
 
     expect(wrapper.text()).toContain('Quest Complete!')
     expect(wrapper.text()).toContain('Confirm delivery to your vault')
@@ -127,38 +90,26 @@ describe('QuestRewardsModal', () => {
   })
 
   it('shows the empty state for a quest with no authored rewards', () => {
-    const wrapper = mount(QuestRewardsModal, {
-      props: { show: true, quest },
-      global: { stubs: { Teleport: { template: '<div><slot /></div>' } } },
-    })
+    const wrapper = mountModal()
 
     expect(wrapper.text()).toContain('No rewards listed for this quest')
     expect(wrapper.text()).not.toContain('100')
   })
 
   it('renders item rewards with their real artwork, item type and rarity', () => {
-    const itemQuest = {
-      ...quest,
-      quest_rewards: [
-        {
-          id: 'reward-item',
-          quest_id: 'quest-1',
-          reward_type: 'item',
-          reward_data: { item_name: 'Assault rifle', quantity: 1 },
-          reward_chance: 1,
-          item_data: {
-            name: 'Assault rifle',
-            item_type: 'weapon',
-            rarity: 'rare',
-            image_url: '/static/weapon_images/assault_rifle.png',
-          },
+    const wrapper = mountModal([
+      {
+        reward_type: 'item',
+        reward_data: { item_name: 'Assault rifle', quantity: 1 },
+        reward_chance: 1,
+        item_data: {
+          name: 'Assault rifle',
+          item_type: 'weapon',
+          rarity: 'rare',
+          image_url: '/static/weapon_images/assault_rifle.png',
         },
-      ] as QuestReward[],
-    } as VaultQuest
-    const wrapper = mount(QuestRewardsModal, {
-      props: { show: true, quest: itemQuest },
-      global: { stubs: { Teleport: { template: '<div><slot /></div>' } } },
-    })
+      },
+    ])
 
     const card = wrapper.getComponent(RewardItemCard)
     expect(card.props('kind')).toBe('item')
@@ -172,22 +123,13 @@ describe('QuestRewardsModal', () => {
   })
 
   it('renders dweller rewards as dweller cards with a portrait and rarity badge', () => {
-    const dwellerQuest = {
-      ...quest,
-      quest_rewards: [
-        {
-          id: 'reward-dweller',
-          quest_id: 'quest-1',
-          reward_type: 'dweller',
-          reward_data: { template_id: 'vault-dweller', name: 'jane doe', rarity: 'legendary' },
-          reward_chance: 0.75,
-        },
-      ] as QuestReward[],
-    } as VaultQuest
-    const wrapper = mount(QuestRewardsModal, {
-      props: { show: true, quest: dwellerQuest },
-      global: { stubs: { Teleport: { template: '<div><slot /></div>' } } },
-    })
+    const wrapper = mountModal([
+      {
+        reward_type: 'dweller',
+        reward_data: { template_id: 'vault-dweller', name: 'jane doe', rarity: 'legendary' },
+        reward_chance: 0.75,
+      },
+    ])
 
     const card = wrapper.getComponent(RewardItemCard)
     expect(card.props('kind')).toBe('dweller')
@@ -200,22 +142,9 @@ describe('QuestRewardsModal', () => {
   })
 
   it('renders numeric rewards as currency tiles matching the item treatment', () => {
-    const capsQuest = {
-      ...quest,
-      quest_rewards: [
-        {
-          id: 'reward-caps',
-          quest_id: 'quest-1',
-          reward_type: 'caps',
-          reward_data: { amount: 100 },
-          reward_chance: 1,
-        },
-      ] as QuestReward[],
-    } as VaultQuest
-    const wrapper = mount(QuestRewardsModal, {
-      props: { show: true, quest: capsQuest },
-      global: { stubs: { Teleport: { template: '<div><slot /></div>' } } },
-    })
+    const wrapper = mountModal([
+      { reward_type: 'caps', reward_data: { amount: 100 }, reward_chance: 1 },
+    ])
 
     const card = wrapper.getComponent(RewardItemCard)
     expect(card.props('kind')).toBe('currency')

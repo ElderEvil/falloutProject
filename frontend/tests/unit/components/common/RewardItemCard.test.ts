@@ -5,17 +5,17 @@ import RewardItemCard from '@/core/components/common/RewardItemCard.vue'
 
 vi.mock('@iconify/vue', () => createIconifyMock())
 
+const mountCard = (props: Record<string, unknown>) => mount(RewardItemCard, { props })
+
 describe('RewardItemCard', () => {
   it('renders a currency tile with the supplied icon and label above value, without rarity or quantity', () => {
-    const wrapper = mount(RewardItemCard, {
-      props: {
-        kind: 'currency',
-        icon: 'mdi:coins',
-        label: 'Bottle Caps',
-        name: '100 · 50% chance',
-        quantity: 5,
-        rarity: 'legendary',
-      },
+    const wrapper = mountCard({
+      kind: 'currency',
+      icon: 'mdi:coins',
+      label: 'Bottle Caps',
+      name: '100 · 50% chance',
+      quantity: 5,
+      rarity: 'legendary',
     })
 
     expect(wrapper.find('[data-icon="mdi:coins"]').exists()).toBe(true)
@@ -27,9 +27,7 @@ describe('RewardItemCard', () => {
   })
 
   it('falls back to a gift icon when no currency icon is supplied', () => {
-    const wrapper = mount(RewardItemCard, {
-      props: { kind: 'currency', label: 'Reward', name: '50 caps' },
-    })
+    const wrapper = mountCard({ kind: 'currency', label: 'Reward', name: '50 caps' })
 
     expect(wrapper.find('[data-icon="mdi:gift"]').exists()).toBe(true)
   })

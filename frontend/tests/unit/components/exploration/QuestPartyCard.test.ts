@@ -26,6 +26,9 @@ const quest = {
   duration_minutes: 60,
 } as VaultQuest
 
+const mountCard = (patch: Partial<VaultQuest> = {}, partyMembers: unknown[] = []) =>
+  mount(QuestPartyCard, { props: { quest: { ...quest, ...patch }, partyMembers } })
+
 beforeEach(() => {
   setActivePinia(createPinia())
 })
@@ -34,43 +37,28 @@ describe('QuestPartyCard', () => {
   afterEach(() => vi.useRealTimers())
 
   it('presents quest progress and its assigned party in the shared card language', () => {
-    const wrapper = mount(QuestPartyCard, {
-      props: {
-        quest,
-        partyMembers: [
-          { id: 'dweller-1', first_name: 'Lucy', last_name: 'MacLean', level: 5 },
-          { id: 'dweller-2', first_name: 'Maximus', last_name: null, level: 4 },
-        ],
-      },
-    })
+    const wrapper = mountCard({}, [
+      { id: 'dweller-1', first_name: 'Lucy', last_name: 'MacLean', level: 5 },
+      { id: 'dweller-2', first_name: 'Maximus', last_name: null, level: 4 },
+    ])
 
     expect(wrapper.findComponent(Progress).props('modelValue')).toBeGreaterThan(0)
     expect(wrapper.text()).toContain('Quest party')
     expect(wrapper.text()).toContain('QUESTING')
     expect(wrapper.text()).toContain('Lucy MacLean')
     expect(wrapper.text()).toContain('2 / 3 assigned')
-
-    wrapper.unmount()
   })
 
   it('shows a returning badge and return progress while the party travels home', () => {
-    const wrapper = mount(QuestPartyCard, {
-      props: {
-        quest: {
-          ...quest,
-          is_reward_ready: false,
-          return_started_at: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
-          return_completes_at: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
-        },
-        partyMembers: [],
-      },
+    const wrapper = mountCard({
+      is_reward_ready: false,
+      return_started_at: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
+      return_completes_at: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
     })
 
     expect(wrapper.text()).toContain('RETURNING')
     expect(wrapper.text()).toContain('Travelling home')
     expect(wrapper.findComponent(Progress).exists()).toBe(true)
     expect(wrapper.findComponent(Progress).props('modelValue')).toBeGreaterThan(0)
-
-    wrapper.unmount()
   })
 })

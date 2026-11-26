@@ -8,57 +8,38 @@ function route(points: DiscoveryRouteRead['points']): DiscoveryRouteRead {
 
 const home = { coord_x: 0, coord_y: 0 }
 
+const trailPoint = (coord_x: number, coord_y: number, hour: number) => ({
+  location_id: null,
+  coord_x,
+  coord_y,
+  timestamp: `2026-01-01T0${hour}:00:00Z`,
+})
+
+const headingFor = (
+  lastKnown: Pick<ExplorerTrack, 'lastKnown'>['lastKnown'],
+  points?: DiscoveryRouteRead['points']
+) => explorerHeading({ lastKnown }, points ? route(points) : undefined, home)
+
 describe('explorerHeading', () => {
   it('derives the heading from the last two trail points', () => {
-    const track: Pick<ExplorerTrack, 'lastKnown'> = { lastKnown: null }
-
-    const heading = explorerHeading(
-      track,
-      route([
-        { location_id: null, coord_x: 0, coord_y: 10, timestamp: '2026-01-01T00:00:00Z' },
-        { location_id: null, coord_x: 10, coord_y: 10, timestamp: '2026-01-01T01:00:00Z' },
-      ]),
-      home
-    )
-
     // From (0,10) to (10,10): due east.
-    expect(heading).toBe(90)
+    expect(headingFor(null, [trailPoint(0, 10, 0), trailPoint(10, 10, 1)])).toBe(90)
   })
 
   it('prefers the trail vector over the home bearing when both are available', () => {
-    const track: Pick<ExplorerTrack, 'lastKnown'> = { lastKnown: { coord_x: 10, coord_y: 0 } }
-
-    const heading = explorerHeading(
-      track,
-      route([
-        { location_id: null, coord_x: 0, coord_y: 10, timestamp: '2026-01-01T00:00:00Z' },
-        { location_id: null, coord_x: 10, coord_y: 10, timestamp: '2026-01-01T01:00:00Z' },
-      ]),
-      home
-    )
-
-    expect(heading).toBe(90)
+    expect(
+      headingFor({ coord_x: 10, coord_y: 0 }, [trailPoint(0, 10, 0), trailPoint(10, 10, 1)])
+    ).toBe(90)
   })
 
   it('aims home when there is no usable trail (returning run)', () => {
-    const track: Pick<ExplorerTrack, 'lastKnown'> = { lastKnown: { coord_x: 10, coord_y: 0 } }
-
-    const withoutRoute = explorerHeading(track, undefined, home)
-    const shortTrail = explorerHeading(
-      track,
-      route([{ location_id: null, coord_x: 10, coord_y: 0, timestamp: '2026-01-01T00:00:00Z' }]),
-      home
-    )
-
     // From (10,0) toward (0,0): due west.
-    expect(withoutRoute).toBe(270)
-    expect(shortTrail).toBe(270)
+    expect(headingFor({ coord_x: 10, coord_y: 0 })).toBe(270)
+    expect(headingFor({ coord_x: 10, coord_y: 0 }, [trailPoint(10, 0, 0)])).toBe(270)
   })
 
   it('returns null when neither a trail nor a position is available', () => {
-    const track: Pick<ExplorerTrack, 'lastKnown'> = { lastKnown: null }
-
-    expect(explorerHeading(track, undefined, home)).toBeNull()
-    expect(explorerHeading(track, route([]), home)).toBeNull()
+    expect(headingFor(null)).toBeNull()
+    expect(headingFor(null, [])).toBeNull()
   })
 })

@@ -38,31 +38,33 @@ function contrast(foreground: string, background: string): number {
   return (light! + 0.05) / (dark! + 0.05)
 }
 
-/** `main` ships a fill named after the type; the other types match key for key. */
-function fillVar(questType: string): string {
-  return themeColor(questType)
-}
-
 describe('quest badge palette', () => {
   it('gives every type its own fill, never the user accent', () => {
     for (const [questType, colors] of Object.entries(QUEST_TYPE_COLORS)) {
       expect(colors.badge, `${questType} must not borrow the accent`).not.toContain('theme-primary')
-      expect(colors.border, `${questType} must not borrow the accent`).not.toContain('theme-primary')
+      expect(colors.border, `${questType} must not borrow the accent`).not.toContain(
+        'theme-primary'
+      )
       expect(colors.badge, `${questType} needs an explicit ink`).toMatch(/text-(black|white)/)
-      expect(colors.badge, `${questType} needs its own fill class`).toContain(`bg-quest-${questType}`)
+      expect(colors.badge, `${questType} needs its own fill class`).toContain(
+        `bg-quest-${questType}`
+      )
     }
   })
 
   it('keeps every fill/ink pair at WCAG AA for small text', () => {
     for (const [questType, colors] of Object.entries(QUEST_TYPE_COLORS)) {
       const inkClass = colors.badge.match(/text-(black|white)/)?.[0] as keyof typeof INK
-      const ratio = contrast(INK[inkClass], fillVar(questType))
-      expect(ratio, `${questType}: ${inkClass} on --color-quest-${questType}`).toBeGreaterThanOrEqual(4.5)
+      const ratio = contrast(INK[inkClass], themeColor(questType))
+      expect(
+        ratio,
+        `${questType}: ${inkClass} on --color-quest-${questType}`
+      ).toBeGreaterThanOrEqual(4.5)
     }
   })
 
   it('keeps cadence hues distinct so a type is not confused with another', () => {
-    const fills = Object.keys(QUEST_TYPE_COLORS).map((questType) => fillVar(questType))
+    const fills = Object.keys(QUEST_TYPE_COLORS).map((questType) => themeColor(questType))
     expect(new Set(fills).size).toBe(fills.length)
   })
 })

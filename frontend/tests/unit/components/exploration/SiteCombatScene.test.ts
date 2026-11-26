@@ -10,6 +10,24 @@ afterEach(() => {
   vi.clearAllMocks()
 })
 
+const room = (): SiteRoomView => ({
+  exploration_id: 'exp',
+  site_id: 'mart',
+  site_name: 'Mart',
+  room_index: 0,
+  room_total: 1,
+  room_name: 'Mart',
+  flavor: 'Supplies ahead.',
+  node: { kind: 'combat', prompt: 'Fight' },
+  can_retreat: true,
+  status: 'in_room',
+  outcome: null,
+  finale_paid: false,
+  dweller_health: 50,
+  dweller_max_health: 50,
+  combat_state: { round: 0, fighters: [], events: [{ id: '0', message: 'Ready', action: null }] },
+})
+
 it.each([
   [null, 'incidentHit', 150],
   ['Aimed Shot', 'arenaSkill', 250],
@@ -17,39 +35,20 @@ it.each([
   'plays %s at impact without replaying history or duplicate snapshots',
   async (skill, sound, windup) => {
     vi.useFakeTimers()
-    const room: SiteRoomView = {
-      exploration_id: 'exp',
-      site_id: 'mart',
-      site_name: 'Mart',
-      room_index: 0,
-      room_total: 1,
-      room_name: 'Mart',
-      flavor: 'Supplies ahead.',
-      node: { kind: 'combat', prompt: 'Fight' },
-      can_retreat: true,
-      status: 'in_room',
-      outcome: null,
-      finale_paid: false,
-      dweller_health: 50,
-      dweller_max_health: 50,
-      combat_state: {
-        round: 0,
-        fighters: [],
-        events: [{ id: '0', message: 'Ready', action: null }],
-      },
-    }
+    const initial = room()
     const wrapper = mount(SiteCombatScene, {
-      props: { room, running: true, loading: false },
+      props: { room: initial, running: true, loading: false },
       global: { stubs: { ArenaRing: true } },
     })
     expect(playSound).not.toHaveBeenCalled()
+
     const updated: SiteRoomView = {
-      ...room,
+      ...initial,
       combat_state: {
-        ...room.combat_state!,
+        ...initial.combat_state!,
         round: 1,
         events: [
-          ...room.combat_state!.events,
+          ...initial.combat_state!.events,
           {
             id: '1',
             message: 'Attack',
@@ -63,6 +62,8 @@ it.each([
     expect(playSound).not.toHaveBeenCalled()
     await vi.advanceTimersByTimeAsync(1)
     expect(playSound).toHaveBeenCalledExactlyOnceWith(sound, 'sfx')
+
+    // A structurally-equal snapshot and a re-sent event must not replay the sound.
     await wrapper.setProps({ room: structuredClone(updated) })
     await vi.advanceTimersByTimeAsync(600)
     expect(playSound).toHaveBeenCalledTimes(1)

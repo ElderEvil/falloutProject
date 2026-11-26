@@ -6,11 +6,7 @@ import ExplorationEventLog from '@/modules/exploration/components/ExplorationEve
 vi.mock('@iconify/vue', () => createIconifyMock())
 
 const makeEvent = (
-  overrides: Partial<{
-    type: string
-    description: string
-    time_elapsed_hours: number
-  }> = {}
+  overrides: Partial<{ type: string; description: string; time_elapsed_hours: number }> = {}
 ) => ({
   type: overrides.type ?? 'combat',
   description: overrides.description ?? 'A raider attacked.',
@@ -29,6 +25,9 @@ const makeLootEvent = () => ({
   },
 })
 
+const mountLog = (props: Record<string, unknown> = {}) =>
+  mount(ExplorationEventLog, { props, global: { stubs: { Icon: true } } })
+
 describe('ExplorationEventLog', () => {
   it('renders event rows when events are provided', () => {
     const events = [
@@ -36,142 +35,61 @@ describe('ExplorationEventLog', () => {
       makeEvent({ type: 'loot', description: 'Found a medkit.', time_elapsed_hours: 3.0 }),
     ]
 
-    const wrapper = mount(ExplorationEventLog, {
-      props: { events },
-      global: {
-        stubs: { Icon: true },
-      },
-    })
+    const wrapper = mountLog({ events })
 
     expect(wrapper.text()).toContain('A raider attacked.')
     expect(wrapper.text()).toContain('Found a medkit.')
-    expect(wrapper.findAll('.event-row').length).toBe(2)
+    expect(wrapper.findAll('.event-row')).toHaveLength(2)
   })
 
-  it('renders event type badges in uppercase', () => {
-    const events = [makeEvent({ type: 'combat' })]
-
-    const wrapper = mount(ExplorationEventLog, {
-      props: { events },
-      global: {
-        stubs: { Icon: true },
-      },
-    })
+  it('renders the uppercase type badge and the formatted event time', () => {
+    const wrapper = mountLog({ events: [makeEvent({ type: 'combat', time_elapsed_hours: 2.5 })] })
 
     expect(wrapper.find('.event-type-badge').text()).toBe('COMBAT')
-  })
-
-  it('renders formatted event time', () => {
-    const events = [makeEvent({ time_elapsed_hours: 2.5 })]
-
-    const wrapper = mount(ExplorationEventLog, {
-      props: { events },
-      global: {
-        stubs: { Icon: true },
-      },
-    })
-
     expect(wrapper.find('.event-time').text()).toBe('02:30')
   })
 
-  it('renders empty state when no events', () => {
-    const wrapper = mount(ExplorationEventLog, {
-      props: { events: [] },
-      global: {
-        stubs: { Icon: true },
-      },
-    })
+  it('renders the section title and empty state when no events', () => {
+    const wrapper = mountLog({ events: [] })
 
+    expect(wrapper.find('.section-title').text()).toContain('Event Log')
     expect(wrapper.text()).toContain('No events yet')
     expect(wrapper.find('.no-events').exists()).toBe(true)
     expect(wrapper.find('.event-list').exists()).toBe(false)
   })
 
-  it('renders section title', () => {
-    const wrapper = mount(ExplorationEventLog, {
-      props: { events: [] },
-      global: {
-        stubs: { Icon: true },
-      },
-    })
+  const orderedEvents = [
+    makeEvent({ type: 'combat', description: 'First event', time_elapsed_hours: 1.0 }),
+    makeEvent({ type: 'loot', description: 'Second event', time_elapsed_hours: 2.0 }),
+  ]
 
-    expect(wrapper.find('.section-title').text()).toContain('Event Log')
+  it.each([
+    [true, ['Second event', 'First event']],
+    [false, ['First event', 'Second event']],
+  ])('orders rows newest-first only when reverse is %s', (reverse, expected) => {
+    const rows = mountLog({ events: orderedEvents, reverse }).findAll('.event-row')
+
+    expect(rows[0].text()).toContain(expected[0])
+    expect(rows[1].text()).toContain(expected[1])
   })
 
-  it('renders newest-first when reverse is true', () => {
-    const events = [
-      makeEvent({ type: 'combat', description: 'First event', time_elapsed_hours: 1.0 }),
-      makeEvent({ type: 'loot', description: 'Second event', time_elapsed_hours: 2.0 }),
-    ]
-
-    const wrapper = mount(ExplorationEventLog, {
-      props: { events, reverse: true },
-      global: {
-        stubs: { Icon: true },
-      },
-    })
-
-    const rows = wrapper.findAll('.event-row')
-    expect(rows[0].text()).toContain('Second event')
-    expect(rows[1].text()).toContain('First event')
-  })
-
-  it('keeps chronological order by default', () => {
-    const events = [
-      makeEvent({ type: 'combat', description: 'First event', time_elapsed_hours: 1.0 }),
-      makeEvent({ type: 'loot', description: 'Second event', time_elapsed_hours: 2.0 }),
-    ]
-
-    const wrapper = mount(ExplorationEventLog, {
-      props: { events },
-      global: {
-        stubs: { Icon: true },
-      },
-    })
-
-    const rows = wrapper.findAll('.event-row')
-    expect(rows[0].text()).toContain('First event')
-    expect(rows[1].text()).toContain('Second event')
-  })
-
-  it('renders loot line when showLoot is true', () => {
-    const events = [makeLootEvent()]
-
-    const wrapper = mount(ExplorationEventLog, {
-      props: { events },
-      global: {
-        stubs: { Icon: true },
-      },
-    })
+  it('renders the loot line with its rarity on the item chip and the event accent', () => {
+    const wrapper = mountLog({ events: [makeLootEvent()] })
 
     const lootLine = wrapper.find('.loot-line')
     expect(lootLine.exists()).toBe(true)
     expect(lootLine.text()).toContain('Laser rifle (Rare)')
     expect(lootLine.text()).toContain('25 caps')
-  })
-
-  it('preserves event type accents and shows the item rarity on its loot chip', () => {
-    const wrapper = mount(ExplorationEventLog, {
-      props: { events: [makeLootEvent()] },
-      global: { stubs: { Icon: true } },
-    })
-
     expect(wrapper.find('.event-row').attributes('style')).toContain(
       'border-left-color: var(--color-rarity-legendary)'
     )
-    expect(wrapper.find('.loot-line').text()).toContain('Laser rifle (Rare)')
   })
 
   it('hides loot line when showLoot is false', () => {
-    const events = [makeLootEvent()]
-
-    const wrapper = mount(ExplorationEventLog, {
-      props: { events, showLoot: false },
-      global: {
-        stubs: { Icon: true },
-      },
-    })
-
-    expect(wrapper.find('.loot-line').exists()).toBe(false)
+    expect(
+      mountLog({ events: [makeLootEvent()], showLoot: false })
+        .find('.loot-line')
+        .exists()
+    ).toBe(false)
   })
 })

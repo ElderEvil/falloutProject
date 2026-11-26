@@ -189,9 +189,10 @@ async def test_generate_avatar_updates_and_generates_photo() -> None:
     storage.upload_thumbnail.return_value = "http://cdn.example.com/thumb.png"
     ai = MagicMock(generate_image=AsyncMock(return_value=b"\x89PNG\r\n\x1a\n"))
     attrs = DwellerVisualAttributes(height="tall", hair_color="black")
+    user = make_user()
     with (
         ai_env(storage=storage, ai=ai) as d,
-        patch(f"{SVC}.dweller_service.update_dweller", new_callable=AsyncMock) as update,
+        patch(f"{SVC}.dweller_service.update_player_dweller", new_callable=AsyncMock) as update,
     ):
         update.return_value = dweller
         d.crud.get_full_info = AsyncMock(return_value=dweller)
@@ -201,11 +202,12 @@ async def test_generate_avatar_updates_and_generates_photo() -> None:
             dweller_last_name="Doe",
             visual_attributes_input=attrs,
             db_session=fake_db(),
-            user=make_user(),
+            user=user,
         )
     assert result is dweller
-    # First update: name + visual attributes.
+    # First update: name + visual attributes, screened as player text.
     update.assert_called_once()
+    assert update.call_args.kwargs["user_id"] == user.id
     assert update.call_args[0][2].first_name == "Jane"
     assert update.call_args[0][2].last_name == "Doe"
     # Photo generated; LLM interaction logged for the photo (not for the avatar separately).
@@ -228,7 +230,7 @@ async def test_generate_avatar_with_voice_line() -> None:
     attrs = DwellerVisualAttributes(height="average", hair_color="blonde", voice_line_text="I'm ready for duty!")
     with (
         ai_env(storage=storage, ai=ai) as d,
-        patch(f"{SVC}.dweller_service.update_dweller", new_callable=AsyncMock) as update,
+        patch(f"{SVC}.dweller_service.update_player_dweller", new_callable=AsyncMock) as update,
     ):
         update.return_value = dweller
         d.crud.get_full_info = AsyncMock(return_value=dweller)

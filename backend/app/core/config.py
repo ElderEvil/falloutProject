@@ -126,8 +126,10 @@ class Settings(BaseSettings):
     TYPESAFE_API_KEY: str | None = None
     JEV_MODEL: str = "jev-latest"
     JEV_ENABLED: bool = False
-    # : Minimum confidence to block a chat message as injection/toxic.
-    JEV_GUARDRAIL_CONFIDENCE: float = 0.7
+    # : Minimum confidence to block text as prompt injection (injection answers are usually 0.95+).
+    JEV_GUARDRAIL_INJECTION_CONFIDENCE: float = 0.7
+    # : Minimum confidence to block text as toxic (weaker field; tune it separately with `fo-cli jev-eval`).
+    JEV_GUARDRAIL_TOXIC_CONFIDENCE: float = 0.7
     # : Hard deadline for one Jev decision, including any provider retries.
     JEV_TIMEOUT_SECONDS: float = 2.0
 

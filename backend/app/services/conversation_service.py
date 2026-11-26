@@ -24,6 +24,7 @@ from app.services.chat.continuation import (
     record_exchange,
     schedule_exchange_finish,
 )
+from app.services.chat.guardrail import screen_input
 from app.services.chat.notifications import send_chat_notification, unlock_places_after_conversation
 from app.services.prompt_service import get_instructions, get_provider_model_snapshot
 from app.services.quota_service import quota_service
@@ -167,21 +168,27 @@ class ConversationService:
     ) -> VoiceChatResult:
         if not audio_bytes:
             raise ValidationException(detail="Empty audio file")
+        dweller = await get_accessible_dweller(dweller_id, user, db_session)
+        if dweller.is_dead:
+            raise ValidationException(detail="Cannot chat with a dead dweller.")
+
+        logger.info("Transcribing audio message from user %s to dweller %s", user.id, dweller_id)
+        transcribed_text, user_audio_url, audio_duration = await self._transcribe_audio(
+            audio_bytes, user.id, dweller_id, audio_filename
+        )
+
+        # Check quota before spending a Jev call (after transcription, before the AI response).
+        quota_result = await quota_service.check_quota(user.id, db_session)
+        quota_result.ensure_allowed()
+
+        # Shared boundary: a transcript is the same player text as a typed message and is judged
+        # before the agent answers. The commit is deferred: the quota row lock taken above must
+        # survive until the exchange's final commit (SERVICE_LAYER lock-scope rule).
+        verdict = await screen_input(db_session, user_id=user.id, text=transcribed_text, commit=False)
+        if verdict.blocked:
+            raise ValidationException(detail=verdict.reason or "Message blocked by content screening.")
+
         async with db_session.begin_nested():
-            dweller = await get_accessible_dweller(dweller_id, user, db_session)
-            if dweller.is_dead:
-                raise ValidationException(detail="Cannot chat with a dead dweller.")
-
-            logger.info("Transcribing audio message from user %s to dweller %s", user.id, dweller_id)
-            transcribed_text, user_audio_url, audio_duration = await self._transcribe_audio(
-                audio_bytes, user.id, dweller_id, audio_filename
-            )
-
-            # Check quota before running LLM (after transcription, before AI response)
-            quota_result = await quota_service.check_quota(user.id, db_session)
-
-            quota_result.ensure_allowed()
-
             instructions, prompt_id, instructions_hash = await get_instructions(db_session, "chat")
             provider, model = await get_provider_model_snapshot(db_session)
             instructions, conversation, thread = await begin_exchange(

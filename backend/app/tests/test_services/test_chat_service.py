@@ -198,7 +198,7 @@ class TestChatServiceErrorHandling:
     async def test_process_text_message_rejects_dead_dweller(self, async_session, chat_dweller, test_user):
         await _kill(async_session, chat_dweller.id)
         with (
-            patch(f"{SERVICE}.screen_message", new=AsyncMock(return_value=GuardrailVerdict(blocked=False))),
+            patch(f"{SERVICE}.screen_input", new=AsyncMock(return_value=GuardrailVerdict(blocked=False))),
             patch(
                 f"{SERVICE}.run_chat_agent",
                 new=AsyncMock(side_effect=AssertionError("agent must not run for dead dweller")),
@@ -225,7 +225,7 @@ class TestChatServiceErrorHandling:
         run_agent, persist = AsyncMock(), AsyncMock()
         with (
             patch(
-                f"{SERVICE}.screen_message",
+                f"{SERVICE}.screen_input",
                 new=AsyncMock(return_value=GuardrailVerdict(blocked=True, reason="blocked: suspected injection")),
             ),
             patch(f"{SERVICE}.run_chat_agent", new=run_agent),
@@ -259,7 +259,7 @@ class TestChatServiceErrorHandling:
     async def test_inaccessible_dweller_is_rejected_before_screening(self, async_session, test_user):
         """An unreachable dweller must fail access before Jev spends a paid call."""
         screen = AsyncMock()
-        with patch(f"{SERVICE}.screen_message", new=screen), pytest.raises(ResourceNotFoundException):
+        with patch(f"{SERVICE}.screen_input", new=screen), pytest.raises(ResourceNotFoundException):
             await chat_service.process_text_message(async_session, test_user, uuid4(), "Hello there.")
         screen.assert_not_awaited()
 
@@ -270,7 +270,7 @@ class TestChatServiceErrorHandling:
         blocked.ensure_allowed.side_effect = ValidationException(detail="quota exceeded")
         with (
             patch(f"{SERVICE}.quota_service.check_quota", new=AsyncMock(return_value=blocked)),
-            patch(f"{SERVICE}.screen_message", new=screen),
+            patch(f"{SERVICE}.screen_input", new=screen),
             pytest.raises(ValidationException),
         ):
             await chat_service.process_text_message(async_session, test_user, chat_dweller.id, "Hello there.")

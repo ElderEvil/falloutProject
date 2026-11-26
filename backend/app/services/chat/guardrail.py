@@ -1,8 +1,8 @@
-"""Jev guardrail screening for dweller chat input.
+"""Jev guardrail screening for player-authored text.
 
 Two typed yes/no questions (prompt-injection, toxic); blocks only on high-confidence affirmative. Any Jev
-failure fails OPEN so chat never breaks; the verdict is advisory, a filter alongside deterministic checks —
-Jev answers the exact question written, not a moderator.
+failure fails OPEN so gameplay never breaks; the verdict is advisory, a filter alongside deterministic
+checks — Jev answers the exact question written, not a moderator.
 """
 
 import logging
@@ -11,6 +11,7 @@ from uuid import UUID
 
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app.core.ai_constants import JEV_OPERATION
 from app.core.config import settings
 from app.schemas.chat import ChatGuardrail
 from app.schemas.jev import JevFieldAnswer
@@ -40,11 +41,13 @@ async def screen_message(
     *,
     db_session: AsyncSession | None = None,
     user_id: UUID | None = None,
+    kind: str = "chat input",
+    usage: str = JEV_OPERATION,
 ) -> GuardrailVerdict:
-    """Screen one player message; allow on low confidence or any Jev failure.
+    """Screen one player-authored text; allow on low confidence or any Jev failure.
 
-    When a session and user are supplied, the Jev call is recorded as a usage row
-    so it shows up in AI usage stats; screening itself never depends on that.
+    When a session and user are supplied, the Jev call is recorded as a usage row tagged
+    ``usage`` so it shows up in AI usage stats; screening itself never depends on that.
     """
     if not is_configured() or not message_text.strip():
         return GuardrailVerdict()
@@ -52,28 +55,60 @@ async def screen_message(
     try:
         decision = await jev_service.decide(message_text, ChatGuardrail)
     except Exception:
-        logger.exception("Jev guardrail failed open for chat input")
+        logger.exception("Jev guardrail failed open for %s", kind)
         return GuardrailVerdict()
 
     if db_session is not None and user_id is not None:
-        await jev_service.record_usage(db_session, user_id, decision, output_type_name="ChatGuardrail")
+        await jev_service.record_usage(db_session, user_id, decision, output_type_name="ChatGuardrail", usage=usage)
 
     fields = {
         name: JevFieldAnswer(answer=bool(getattr(decision.output, name)), confidence=decision.confidence_for(name))
         for name in ("jailbreak", "toxic")
     }
 
-    threshold = settings.JEV_GUARDRAIL_CONFIDENCE
-    for name, label in (("jailbreak", "prompt-injection"), ("toxic", "toxic content")):
+    for name, label, threshold in (
+        ("jailbreak", "prompt-injection", settings.JEV_GUARDRAIL_INJECTION_CONFIDENCE),
+        ("toxic", "toxic content", settings.JEV_GUARDRAIL_TOXIC_CONFIDENCE),
+    ):
         if fields[name].answer and fields[name].confidence >= threshold:
             logger.warning(
-                "Jev guardrail blocked chat input",
-                extra={"reason": label, "confidence": fields[name].confidence, "model": decision.model_name},
+                "Jev guardrail blocked %s",
+                kind,
+                extra={
+                    "reason": label,
+                    "confidence": fields[name].confidence,
+                    "threshold": threshold,
+                    "model": decision.model_name,
+                },
             )
             return GuardrailVerdict(blocked=True, reason=f"blocked: suspected {label}", ran=True, fields=fields)
 
     logger.info(
-        "Jev guardrail allowed chat input",
+        "Jev guardrail allowed %s",
+        kind,
         extra={"fields": {n: f.model_dump() for n, f in fields.items()}, "model": decision.model_name},
     )
     return GuardrailVerdict(ran=True, fields=fields)
+
+
+async def screen_input(
+    db_session: AsyncSession,
+    *,
+    user_id: UUID,
+    text: str,
+    kind: str = "chat input",
+    usage: str = JEV_OPERATION,
+    commit: bool = True,
+) -> GuardrailVerdict:
+    """Screen player text, then commit before the caller's transaction by default.
+
+    The commit closes the read/lock window a caller may have opened before screening (the chat
+    paths hold the quota row lock), and persists the usage row even when the verdict blocks.
+
+    Pass ``commit=False`` only when the caller already owns a transaction whose lock scope must
+    survive screening; the usage row then rides that transaction and rolls back with it.
+    """
+    verdict = await screen_message(text, db_session=db_session, user_id=user_id, kind=kind, usage=usage)
+    if commit:
+        await db_session.commit()
+    return verdict

@@ -439,6 +439,10 @@ async def test_finalize_return_survives_world_event_failure(
         raise RuntimeError("world event store down")
 
     monkeypatch.setattr(world_event_service, "record_contribution", _boom)
-    rewards = await exploration_coordinator.finalize_return(async_session, exploration.id)
-    assert rewards.exploration_id == exploration.id
+    # Read the id before the call: the failed world-event contribution rolls the run back and
+    # expires the instance, and an expired attribute read outside the greenlet raises
+    # MissingGreenlet (the coordinator caches the same ids for this reason).
+    exploration_id = exploration.id
+    rewards = await exploration_coordinator.finalize_return(async_session, exploration_id)
+    assert rewards.exploration_id == exploration_id
     assert await _event_totals(async_session, event.id, vault.id) == (0, 0)

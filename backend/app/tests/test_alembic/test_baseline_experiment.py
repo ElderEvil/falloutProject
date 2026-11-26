@@ -1,5 +1,6 @@
 import asyncio
 import json
+import logging
 import os
 import shutil
 import subprocess
@@ -56,6 +57,31 @@ def _rows(db: MigrationHarness, table: str, *, exclude: tuple[str, ...] = ()) ->
     # ruff: ignore[hardcoded-sql-expression] — identifier validated above; names are constants.
     rows = db.fetch(f'SELECT to_jsonb(t) FROM public."{table}" t')
     return sorted(json.dumps({k: v for k, v in row.items() if k not in exclude}, sort_keys=True) for (row,) in rows)
+
+
+def test_upgrade_keeps_application_loggers_enabled(harness: MigrationHarness) -> None:
+    """A migration run must not disable app loggers for the rest of the process.
+
+    ``fileConfig`` defaults to ``disable_existing_loggers=True``, which silenced every later
+    caplog assertion in a test worker and made the suite intermittently red under xdist.
+    The root logger's handlers and level are restored afterwards so this test stays hermetic.
+    """
+    logger = logging.getLogger("app.services.quest_service")
+    root = logging.getLogger()
+    original_level, original_handlers = root.level, list(root.handlers)
+    logger.disabled = False
+    try:
+        command.upgrade(_config(), BASELINE)
+        assert logger.disabled is False
+    finally:
+        logger.disabled = False
+        root.setLevel(original_level)
+        for handler in list(root.handlers):
+            if handler not in original_handlers:
+                root.removeHandler(handler)
+        for handler in original_handlers:
+            if handler not in root.handlers:
+                root.addHandler(handler)
 
 
 def test_baseline_matches_full_history_and_bootstrap(harness: MigrationHarness) -> None:

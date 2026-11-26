@@ -23,9 +23,11 @@ from app.models import *  # noqa: F403
 config = context.config
 
 # Interpret the config file for Python logging.
-# This line sets up loggers basically.
+# `disable_existing_loggers=False` is required: fileConfig defaults to True and disables every
+# logger that already exists (all of `app.*`), which silences the running process — including a
+# test worker that runs a migration and then asserts on caplog.
 if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
+    fileConfig(config.config_file_name, disable_existing_loggers=False)
 
 # add your model's MetaData object here
 # for 'autogenerate' support

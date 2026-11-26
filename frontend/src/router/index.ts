@@ -104,6 +104,13 @@ const router = createRouter({
       // Lazy-load the AboutView component
       component: () => import('@/modules/profile/views/AboutView.vue'),
     },
+    {
+      // Every address the app does not know resolves here instead of being swallowed by the
+      // global navigation guard. Keep last: vue-router matches in order.
+      path: '/:pathMatch(.*)*',
+      name: 'not-found',
+      component: () => import('@/core/views/NotFoundView.vue'),
+    },
   ],
 })
 
@@ -119,12 +126,13 @@ router.beforeEach(async (to) => {
   return true
 })
 
-// Suppress route not found and duplicate-navigation warnings, re-throw everything else
+// Suppress duplicate-navigation warnings, re-throw everything else. Unmatched addresses now
+// resolve to the catch-all route, so there is no "No match found" case left to hide.
 const originalPush = router.push.bind(router)
 router.push = function push(location: RouteLocationRaw) {
   return originalPush(location).catch((err: unknown) => {
     const message = err instanceof Error ? err.message : String(err)
-    if (message === 'NavigationDuplicated' || message.includes('No match found')) {
+    if (message === 'NavigationDuplicated') {
       return Promise.resolve()
     }
     console.warn('[Vue Router]', message)

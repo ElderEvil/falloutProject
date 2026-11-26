@@ -174,7 +174,6 @@ test.describe('Auth guard — unauthenticated deep routes redirect to /login', (
       await expectNoCrash(page, pageErrors)
     })
   }
-
 })
 
 test.describe('Auth guard — public routes stay reachable without a session', () => {
@@ -189,6 +188,21 @@ test.describe('Auth guard — public routes stay reachable without a session', (
       await expect(page.locator('body')).toBeVisible({ timeout: 10_000 })
     })
   }
+})
+
+test.describe('Routing — unknown addresses', () => {
+  test('render the 404 view instead of doing nothing', async ({ page }) => {
+    await mockApi(page, null)
+
+    await page.goto('/definitely-not-a-route')
+    await page.waitForLoadState('networkidle')
+
+    // The address stays put: a caught 404 must not bounce the player to the vault.
+    expect(new URL(page.url()).pathname).toBe('/definitely-not-a-route')
+    await expect(page.getByRole('heading', { name: /route not found/i })).toBeVisible({
+      timeout: 10_000,
+    })
+  })
 })
 
 test.describe('Auth guard — signed-in users', () => {

@@ -43,13 +43,6 @@ const objectiveTabs = [
 ]
 const STARTER_TAB = 'starter'
 
-/** Cadence colours for the objective tabs, matching the quest badge semantics: renewing green,
- *  recurring-but-slower blue. Identity coding only — the label keeps the themed foreground. */
-const TAB_CADENCE_COLORS: Record<string, string> = {
-  daily: 'var(--color-quest-daily)',
-  weekly: 'var(--color-quest-side)',
-}
-
 const vaultId = computed(() => route.params.id as string)
 
 // Claim + celebration modal (mirrors the quest claim flow)
@@ -251,11 +244,6 @@ function closeClaimModal(): void {
                             v-if="tab.icon"
                             :icon="tab.icon"
                             class="mr-2 inline"
-                            :style="
-                              TAB_CADENCE_COLORS[tab.key]
-                                ? { color: TAB_CADENCE_COLORS[tab.key] }
-                                : undefined
-                            "
                             :ariaHidden="true"
                           />
                           {{ tab.label }}

@@ -1,5 +1,5 @@
 {
-  "count": 36,
+  "count": 34,
   "files": [
     "components/common/EquippableItemCard.test.ts",
     "components/common/PageContentRail.test.ts",

@@ -172,6 +172,14 @@ const mockNotificationList = (items: Array<Record<string, unknown>>) => {
   })
 }
 
+/** Mount the bell and let its boot-time stream and timers settle. */
+const settle = async (options: Parameters<typeof mount>[1] = {}) => {
+  const wrapper = mount(NotificationBell, options)
+  await vi.advanceTimersByTimeAsync(0)
+  await flushPromises()
+  return wrapper
+}
+
 const mountBell = async (items: Array<Record<string, unknown>> = []) => {
   signedIn()
   fetchMock.mockResolvedValue(createMockResponse([], { hang: true }))
@@ -290,9 +298,7 @@ describe('NotificationBell SSE watcher null-safety', () => {
     const visibility = vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible')
     signedIn()
     fetchMock.mockImplementation(() => Promise.resolve(createMockResponse([], { hang: true })))
-    const wrapper = mount(NotificationBell)
-    await vi.advanceTimersByTimeAsync(0)
-    await flushPromises()
+    const wrapper = await settle()
     useToast().toasts.value = []
     visibility.mockReturnValue('hidden')
     document.dispatchEvent(new Event('visibilitychange'))
@@ -364,9 +370,7 @@ describe('NotificationBell SSE watcher null-safety', () => {
       )
     )
 
-    const wrapper = mount(NotificationBell)
-    await vi.advanceTimersByTimeAsync(0)
-    await flushPromises()
+    const wrapper = await settle()
 
     expect(errorSpy).not.toHaveBeenCalled()
     await openBell(wrapper)
@@ -556,9 +560,7 @@ describe('NotificationBell SSE watcher null-safety', () => {
   it('does not throw on the watcher getter when unauthenticated', async () => {
     fetchMock.mockResolvedValue(createMockResponse([], { hang: true }))
 
-    const wrapper = mount(NotificationBell)
-    await vi.advanceTimersByTimeAsync(0)
-    await flushPromises()
+    const wrapper = await settle()
 
     expect(fetchMock).not.toHaveBeenCalled()
     expect(errorSpy).not.toHaveBeenCalled()
@@ -571,9 +573,7 @@ describe('NotificationBell SSE watcher null-safety', () => {
       createMockResponse([encodeSse('null', 'notification')], { hang: true })
     )
 
-    const wrapper = mount(NotificationBell)
-    await vi.advanceTimersByTimeAsync(0)
-    await flushPromises()
+    const wrapper = await settle()
 
     expect(errorSpy).not.toHaveBeenCalled()
     await openBell(wrapper)
@@ -591,9 +591,7 @@ describe('NotificationBell SSE watcher null-safety', () => {
       )
     )
 
-    const wrapper = mount(NotificationBell)
-    await vi.advanceTimersByTimeAsync(0)
-    await flushPromises()
+    const wrapper = await settle()
 
     signedIn()
     await vi.advanceTimersByTimeAsync(0)
@@ -701,9 +699,7 @@ describe('NotificationBell popup accessibility', () => {
         read_at: null,
       }),
     })
-    const wrapper = mount(NotificationBell)
-    await vi.advanceTimersByTimeAsync(0)
-    await flushPromises()
+    const wrapper = await settle()
     const listRequests = () =>
       vi.mocked(axios.get).mock.calls.filter(([url]) => url === '/api/v1/notifications/')
     const before = listRequests().length
@@ -887,9 +883,7 @@ describe('NotificationBell popup accessibility', () => {
           hang: true,
         })
       )
-      const wrapper = mount(NotificationBell)
-      await vi.advanceTimersByTimeAsync(0)
-      await flushPromises()
+      const wrapper = await settle()
       server.unshift(newest)
       await openBell(wrapper)
       expect(wrapper.findAll('[data-notification-id]')).toHaveLength(21)
@@ -987,9 +981,7 @@ describe('NotificationBell popup accessibility', () => {
     mockNotificationList([])
     const message = 'Rush succeeded'
     streamNotification(rushNotification('rush-1'))
-    const wrapper = mount(NotificationBell, { attachTo: document.body })
-    await vi.advanceTimersByTimeAsync(0)
-    await flushPromises()
+    const wrapper = await settle({ attachTo: document.body })
 
     auth.user = { id: 'user-b' } as NonNullable<typeof auth.user>
     await vi.advanceTimersByTimeAsync(3000)
@@ -1006,9 +998,7 @@ describe('NotificationBell popup accessibility', () => {
     signedIn()
     mockNotificationList([])
     streamNotification(rushNotification('rush-2'))
-    const wrapper = mount(NotificationBell, { attachTo: document.body })
-    await vi.advanceTimersByTimeAsync(0)
-    await flushPromises()
+    const wrapper = await settle({ attachTo: document.body })
 
     wrapper.unmount()
     await vi.advanceTimersByTimeAsync(3000)

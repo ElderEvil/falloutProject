@@ -75,9 +75,12 @@ const ids = (rows: { id?: string }[]) => rows.map((row) => row.id)
 const calledUrl = (index = 0) => vi.mocked(axios.get).mock.calls[index][0] as string
 
 describe('DwellerFilter Store', () => {
+  let store: ReturnType<typeof useDwellerFilterStore>
+
   beforeEach(() => {
     setActivePinia(createPinia())
     vi.clearAllMocks()
+    store = useDwellerFilterStore()
     const flags = useFeatureFlagsStore()
     flags.raceMechanics = true
     // Faction narrows the roster only while its switch is on.
@@ -88,8 +91,6 @@ describe('DwellerFilter Store', () => {
 
   describe('State', () => {
     it('should initialize with empty state and defaults', () => {
-      const store = useDwellerFilterStore()
-
       expect(store.dwellers).toEqual([])
       expect(store.detailedDwellers).toEqual({})
       expect(store.isLoading).toBe(false)
@@ -104,8 +105,6 @@ describe('DwellerFilter Store', () => {
   describe('identity filters', () => {
     it('passes race and faction to the backend and omits them when set to all', async () => {
       vi.mocked(axios.get).mockResolvedValue({ data: [] } as never)
-      const store = useDwellerFilterStore()
-
       store.setFilterRace('ghoul')
       store.setFilterFaction('children_of_atom')
       await store.fetchDwellersByVault('vault-1', {
@@ -125,7 +124,6 @@ describe('DwellerFilter Store', () => {
     })
 
     it('narrows the rendered roster by race and faction from visual_attributes', () => {
-      const store = useDwellerFilterStore()
       store.dwellers = [
         dweller('g', { visual_attributes: { race: 'ghoul', faction: 'children_of_atom' } }),
         dweller('m', { visual_attributes: { race: 'super_mutant', faction: 'raiders' } }),
@@ -144,7 +142,6 @@ describe('DwellerFilter Store', () => {
     it('discards a roster response for a vault that is no longer active', async () => {
       useVaultStore().activeVaultId = 'vault-2'
       vi.mocked(axios.get).mockResolvedValue({ data: [dweller('v1-dweller')] } as never)
-      const store = useDwellerFilterStore()
       store.dwellers = [dweller('v2-dweller')]
 
       await store.fetchDwellersByVault('vault-1')
@@ -158,7 +155,6 @@ describe('DwellerFilter Store', () => {
       ]
       vi.mocked(axios.get).mockResolvedValueOnce({ data: mockDwellers })
 
-      const store = useDwellerFilterStore()
       await store.fetchDwellersByVault('vault-1')
       expect(axios.get).toHaveBeenCalledWith('/api/v1/dwellers/vault/vault-1/')
       expect(store.dwellers).toEqual(mockDwellers)
@@ -169,7 +165,6 @@ describe('DwellerFilter Store', () => {
     })
 
     it('keeps a cached detail in step with roster refreshes', async () => {
-      const store = useDwellerFilterStore()
       store.detailedDwellers['d1'] = dweller('d1', {
         room_id: 'room-a',
         room: { id: 'room-a', name: 'Lobby' },
@@ -204,7 +199,6 @@ describe('DwellerFilter Store', () => {
     it('passes filter parameters as a query string and omits default values', async () => {
       vi.mocked(axios.get).mockResolvedValue({ data: [] })
 
-      const store = useDwellerFilterStore()
       await store.fetchDwellersByVault('vault-1', {
         status: 'working',
         sortBy: 'level',
@@ -228,7 +222,6 @@ describe('DwellerFilter Store', () => {
         .mockReturnValueOnce(first.promise as never)
         .mockResolvedValueOnce({ data: freshData })
 
-      const store = useDwellerFilterStore()
       const firstRequest = store.fetchDwellersByVault('vault-1', { status: 'idle' })
       const secondRequest = store.fetchDwellersByVault('vault-1', { status: 'working' })
       await secondRequest
@@ -243,7 +236,6 @@ describe('DwellerFilter Store', () => {
     it('rejects an off-vault roster read before it clears the loaded roster', async () => {
       useVaultStore().activeVaultId = 'vault-b'
       const local = [dweller('local', { room_id: 'room-b', status: 'working' })]
-      const store = useDwellerFilterStore()
       store.allDwellers = local
       store.allDwellersLoadedVaultId = 'vault-b'
 
@@ -256,7 +248,6 @@ describe('DwellerFilter Store', () => {
     it('accepts the filtered response after access-token rotation in the same session', async () => {
       const auth = useAuthStore()
       auth.token = 'token-a'
-      const store = useDwellerFilterStore()
       const { promise, resolve } = Promise.withResolvers<{ data: unknown[] }>()
       vi.mocked(axios.get).mockReturnValueOnce(promise)
       const pending = store.fetchDwellersByVault('vault-1', 'token-a')
@@ -269,7 +260,6 @@ describe('DwellerFilter Store', () => {
     it('clears the filtered roster and ignores a pending response after a session change', async () => {
       const auth = useAuthStore()
       auth.token = 'token-a'
-      const store = useDwellerFilterStore()
       vi.mocked(axios.get).mockResolvedValueOnce({ data: [{ id: 'private' }] })
       await store.fetchDwellersByVault('vault-1', 'token-a')
       const { promise, resolve } = Promise.withResolvers<{ data: unknown[] }>()
@@ -288,7 +278,6 @@ describe('DwellerFilter Store', () => {
         const failure = new Error('Roster unavailable')
         const pending = deferred<{ data: unknown }>()
         vi.mocked(axios.get).mockReturnValueOnce(pending.promise as never)
-        const store = useDwellerFilterStore()
         const first = store.fetchAllDwellers('vault-1', firstStrict)
         const second = store.fetchAllDwellers('vault-1', !firstStrict)
         const results = Promise.allSettled([first, second])
@@ -307,7 +296,6 @@ describe('DwellerFilter Store', () => {
       vi.mocked(axios.get)
         .mockReturnValueOnce(old.promise as never)
         .mockResolvedValueOnce({ data: [{ id: 'fresh' }] })
-      const store = useDwellerFilterStore()
       const oldRequest = store.fetchAllDwellers('vault-1')
       const fresh = store.fetchAllDwellers('vault-1', false, true)
       old.resolve({ data: [{ id: 'stale' }] })
@@ -321,7 +309,6 @@ describe('DwellerFilter Store', () => {
       vi.mocked(axios.get)
         .mockReturnValueOnce(old.promise as never)
         .mockResolvedValueOnce({ data: [{ id: 'current-account' }] })
-      const store = useDwellerFilterStore()
       const auth = useAuthStore()
       const oldRequest = store.fetchAllDwellers('vault-1')
       auth.sessionGeneration += 1
@@ -334,7 +321,6 @@ describe('DwellerFilter Store', () => {
 
     it('clears the loaded marker and rejects stale strict loads after logout', async () => {
       const auth = useAuthStore()
-      const store = useDwellerFilterStore()
       vi.mocked(axios.get).mockResolvedValueOnce({ data: [{ id: 'private' }] })
       await store.fetchAllDwellers('vault-1')
       const pending = deferred<{ data: unknown }>()
@@ -352,7 +338,6 @@ describe('DwellerFilter Store', () => {
       const mockDwellers = [dweller('d1', { first_name: 'John' })]
       vi.mocked(axios.get).mockResolvedValueOnce({ data: mockDwellers })
 
-      const store = useDwellerFilterStore()
       await store.fetchAllDwellers('vault-1')
       const url = calledUrl()
       expect(url).toContain('/api/v1/dwellers/vault/vault-1/')
@@ -377,7 +362,6 @@ describe('DwellerFilter Store', () => {
       const request = deferred<{ data: unknown }>()
       vi.mocked(axios.get).mockReturnValueOnce(request.promise as never)
 
-      const store = useDwellerFilterStore()
       // Seed with stale data from a previous vault
       store.allDwellers = [dweller('old', { first_name: 'Old' })]
       const promise = store.fetchAllDwellers('vault-1')
@@ -392,7 +376,6 @@ describe('DwellerFilter Store', () => {
       useVaultStore().activeVaultId = 'vault-1'
       const request = deferred<{ data: unknown }>()
       vi.mocked(axios.get).mockReturnValueOnce(request.promise as never)
-      const store = useDwellerFilterStore()
       store.allDwellers = [dweller('d1', { room_id: 'room-1' })]
       store.allDwellersLoadedVaultId = 'vault-1'
 
@@ -409,7 +392,6 @@ describe('DwellerFilter Store', () => {
       const data = [dweller('shared', { first_name: 'Shared' })]
       vi.mocked(axios.get).mockReturnValueOnce(request.promise as never)
 
-      const store = useDwellerFilterStore()
       const firstPromise = store.fetchAllDwellers('vault-1', true)
       const secondPromise = store.fetchAllDwellers('vault-1', true)
       request.resolve({ data })
@@ -425,7 +407,6 @@ describe('DwellerFilter Store', () => {
         .mockReturnValueOnce(first.promise as never)
         .mockResolvedValueOnce({ data: vault2Data })
 
-      const store = useDwellerFilterStore()
       const vault1Promise = store.fetchAllDwellers('vault-1')
       const vault2Promise = store.fetchAllDwellers('vault-2')
       await vault2Promise
@@ -439,7 +420,6 @@ describe('DwellerFilter Store', () => {
     it('should preserve cleared state when the request fails', async () => {
       vi.mocked(axios.get).mockRejectedValueOnce(new Error('Network error'))
 
-      const store = useDwellerFilterStore()
       store.allDwellers = [dweller('old', { first_name: 'Old' })]
       await store.fetchAllDwellers('vault-1')
       // Cleared state preserved — stale data not restored on failure
@@ -450,7 +430,6 @@ describe('DwellerFilter Store', () => {
   describe('fetchDwellerDetails', () => {
     it("does not reuse a previous account's cached dweller", async () => {
       const authStore = useAuthStore()
-      const store = useDwellerFilterStore()
       authStore.user = { id: 'user-a', username: 'Alice' }
       vi.mocked(axios.get).mockResolvedValueOnce({ data: { id: UUID, first_name: 'Private' } })
       await store.fetchDwellerDetails(UUID)
@@ -465,7 +444,6 @@ describe('DwellerFilter Store', () => {
 
     it('discards a detail request that finishes after the account changes', async () => {
       const authStore = useAuthStore()
-      const store = useDwellerFilterStore()
       const request = deferred<{ data: { id: string; first_name: string } }>()
       vi.mocked(axios.get).mockReturnValueOnce(request.promise as never)
 
@@ -481,7 +459,6 @@ describe('DwellerFilter Store', () => {
       const mockDweller = { id: 'd1', first_name: 'John', last_name: 'Doe', strength: 5 }
       vi.mocked(axios.get).mockResolvedValue({ data: mockDweller })
 
-      const store = useDwellerFilterStore()
       const result = await store.fetchDwellerDetails(UUID)
       expect(result).toEqual(mockDweller)
       expect(store.detailedDwellers[UUID]).toEqual(mockDweller)
@@ -496,7 +473,6 @@ describe('DwellerFilter Store', () => {
     })
 
     it('should return null for invalid UUID', async () => {
-      const store = useDwellerFilterStore()
       const result = await store.fetchDwellerDetails('not-a-uuid')
       expect(result).toBeNull()
       expect(axios.get).not.toHaveBeenCalled()
@@ -505,7 +481,6 @@ describe('DwellerFilter Store', () => {
 
   describe('filteredAndSortedDwellers', () => {
     it('returns the whole roster for all and narrows it by status otherwise', () => {
-      const store = useDwellerFilterStore()
       store.dwellers = [
         dweller('d1', { first_name: 'A' }),
         dweller('d2', { first_name: 'B', status: 'working' }),
@@ -548,7 +523,6 @@ describe('DwellerFilter Store', () => {
     ] as [string, string, 'asc' | 'desc', never, string[]][])(
       'should sort by %s',
       (_, sortBy, direction, rows, expected) => {
-        const store = useDwellerFilterStore()
         store.dwellers = rows
         store.sortBy = sortBy as typeof store.sortBy
         store.sortDirection = direction
@@ -558,7 +532,6 @@ describe('DwellerFilter Store', () => {
     )
 
     it('sorts Needs Care by health percentage, not raw health, breaking ties by id', () => {
-      const store = useDwellerFilterStore()
       store.dwellers = [
         dweller('low-percent', { health: 100, max_health: 500, radiation: 0 }),
         dweller('mid-percent', { health: 30, max_health: 100, radiation: 0 }),
@@ -582,7 +555,6 @@ describe('DwellerFilter Store', () => {
     })
 
     it('treats a missing stat as zero rather than comparing as NaN', () => {
-      const store = useDwellerFilterStore()
       store.dwellers = [dweller('has', { strength: 5 }), dweller('missing')]
       store.setSortBy('strength')
       store.setSortDirection('asc')
@@ -604,7 +576,6 @@ describe('DwellerFilter Store', () => {
     })) as never
 
     it('counts every status from allDwellers, not the status-narrowed roster', () => {
-      const store = useDwellerFilterStore()
       store.allDwellers = rosterWithFacets
       store.dwellers = [{ id: 'only-idle', status: 'idle' }] as never
       store.filterStatus = 'idle'
@@ -619,7 +590,6 @@ describe('DwellerFilter Store', () => {
     })
 
     it('narrows counts by the non-status filters it is given', () => {
-      const store = useDwellerFilterStore()
       store.allDwellers = rosterWithFacets
 
       const { all, byStatus } = store.countByStatus({
@@ -633,7 +603,6 @@ describe('DwellerFilter Store', () => {
 
     it('ignores a faction filter while the faction switch is off', () => {
       useFeatureFlagsStore().factionMechanics = false
-      const store = useDwellerFilterStore()
       store.allDwellers = rosterWithFacets
 
       const { all } = store.countByStatus({
@@ -668,7 +637,6 @@ describe('DwellerFilter Store', () => {
     }
 
     it('counts every gender, rarity and race from allDwellers', () => {
-      const store = useDwellerFilterStore()
       store.allDwellers = facetRoster
 
       const genders = store.countByGender({ ...all })
@@ -683,7 +651,6 @@ describe('DwellerFilter Store', () => {
     })
 
     it('respects the status and age facets while ignoring each facet itself', () => {
-      const store = useDwellerFilterStore()
       store.allDwellers = facetRoster
 
       const genders = store.countByGender({ ...all, status: 'idle', ageGroup: 'adult' })
@@ -698,14 +665,12 @@ describe('DwellerFilter Store', () => {
 
   describe('lookups', () => {
     it('should return status for existing dweller and null for a missing one', () => {
-      const store = useDwellerFilterStore()
       store.dwellers = [{ id: 'd1', status: 'working' } as never]
       expect(store.getDwellerStatus('d1')).toBe('working')
       expect(store.getDwellerStatus('nonexistent')).toBeNull()
     })
 
     it('should filter dwellers by status', () => {
-      const store = useDwellerFilterStore()
       store.dwellers = [
         { id: 'd1', status: 'idle' },
         { id: 'd2', status: 'working' },
@@ -718,7 +683,6 @@ describe('DwellerFilter Store', () => {
 
   describe('Setters', () => {
     it('drops the facet filters when the status becomes dead', () => {
-      const store = useDwellerFilterStore()
       store.setFilterAgeGroup('adult')
       store.setFilterGender('male')
       store.setFilterRarity('legendary')
@@ -741,19 +705,16 @@ describe('DwellerFilter Store', () => {
       ['setSortDirection', 'sortDirection', 'desc'],
       ['setViewMode', 'viewMode', 'grid'],
     ] as const)('%s updates %s', (setter, field, value) => {
-      const store = useDwellerFilterStore()
       store[setter](value as never)
       expect(store[field]).toBe(value)
     })
 
     it('setViewMode accepts the table mode', () => {
-      const store = useDwellerFilterStore()
       store.setViewMode('table')
       expect(store.viewMode).toBe('table')
     })
 
     it('toggles columns in catalog order and never hides the last one', () => {
-      const store = useDwellerFilterStore()
       expect(store.tableColumns).not.toContain('rarity')
 
       store.toggleTableColumn('rarity')
@@ -769,7 +730,6 @@ describe('DwellerFilter Store', () => {
     })
 
     it('applyTablePreset replaces the visible columns and resetTableColumns restores defaults', () => {
-      const store = useDwellerFilterStore()
       store.applyTablePreset('vitals')
       expect(store.tableColumns).toEqual(['portrait', 'name', 'status', 'health', 'happiness'])
       store.resetTableColumns()
@@ -777,7 +737,6 @@ describe('DwellerFilter Store', () => {
     })
 
     it('ignores an unknown preset', () => {
-      const store = useDwellerFilterStore()
       const before = [...store.tableColumns]
       store.applyTablePreset('does-not-exist')
       expect(store.tableColumns).toEqual(before)
@@ -802,7 +761,6 @@ describe('DwellerFilter Store', () => {
 
     it('patches every cache while preserving immutable roster fields', () => {
       useVaultStore().activeVaultId = 'vault-1'
-      const store = useDwellerFilterStore()
       store.dwellers = [{ ...rosterEntry }] as never
       store.allDwellers = [{ ...rosterEntry }] as never
       store.allDwellersLoadedVaultId = 'vault-1'
@@ -835,7 +793,6 @@ describe('DwellerFilter Store', () => {
       useVaultStore().activeVaultId = 'vault-1'
       const roomStore = useRoomStore()
       roomStore.rooms = [{ id: 'room-1', name: 'Power Plant' }] as never
-      const store = useDwellerFilterStore()
       store.detailedDwellers = {
         d1: { id: 'd1', first_name: 'John', room: { id: 'old', name: 'Old' } } as never,
       }
@@ -848,7 +805,6 @@ describe('DwellerFilter Store', () => {
 
     it('ignores a tick for a vault that is not active', () => {
       useVaultStore().activeVaultId = 'vault-2'
-      const store = useDwellerFilterStore()
       store.dwellers = [{ id: 'd1', health: 10 }] as never
       store.allDwellers = [{ id: 'd1', health: 10 }] as never
       store.allDwellersLoadedVaultId = 'vault-1'
@@ -862,7 +818,6 @@ describe('DwellerFilter Store', () => {
 
     it('patches only the filtered page before the full roster loads', () => {
       useVaultStore().activeVaultId = 'vault-1'
-      const store = useDwellerFilterStore()
       store.dwellers = [
         { id: 'd1', health: 10 },
         { id: 'd2', health: 10 },
@@ -885,7 +840,6 @@ describe('DwellerFilter Store', () => {
 
     it('drops ids absent from the snapshot from every cache when the roster is loaded', () => {
       useVaultStore().activeVaultId = 'vault-1'
-      const store = useDwellerFilterStore()
       store.dwellers = [{ id: 'd1' }, { id: 'gone' }] as never
       store.allDwellers = [{ id: 'd1' }, { id: 'gone' }] as never
       store.allDwellersLoadedVaultId = 'vault-1'
@@ -905,7 +859,6 @@ describe('DwellerFilter Store', () => {
         String(url).includes('limit=1000')
           ? rosterRequest.promise
           : Promise.resolve({ data: [] })) as never)
-      const store = useDwellerFilterStore()
       store.dwellers = [{ id: 'd1' }] as never
       store.allDwellers = [{ id: 'd1' }] as never
       store.allDwellersLoadedVaultId = 'vault-1'
@@ -935,7 +888,6 @@ describe('DwellerFilter Store', () => {
       useVaultStore().activeVaultId = 'vault-1'
       const page = deferred<unknown>()
       vi.mocked(axios.get).mockReturnValueOnce(page.promise as never)
-      const store = useDwellerFilterStore()
       store.dwellers = [{ id: 'd1', health: 10 }] as never
 
       const request = store.fetchDwellersByVault('vault-1')
@@ -949,7 +901,6 @@ describe('DwellerFilter Store', () => {
       useVaultStore().activeVaultId = 'vault-1'
       const all = deferred<unknown>()
       vi.mocked(axios.get).mockReturnValueOnce(all.promise as never)
-      const store = useDwellerFilterStore()
       store.allDwellers = [{ id: 'd1' }, { id: 'd2' }] as never
       store.allDwellersLoadedVaultId = 'vault-1'
 
@@ -968,7 +919,6 @@ describe('DwellerFilter Store', () => {
     it('refreshes the filtered page when a tick changes filter membership', async () => {
       useVaultStore().activeVaultId = 'vault-1'
       vi.mocked(axios.get).mockResolvedValue({ data: [{ id: 'd1', status: 'working' }] } as never)
-      const store = useDwellerFilterStore()
       store.filterStatus = 'idle'
       store.dwellers = [{ id: 'd1', status: 'idle', health: 100 }] as never
       store.allDwellers = [{ id: 'd1', status: 'idle' }] as never
@@ -983,7 +933,6 @@ describe('DwellerFilter Store', () => {
       vi.mocked(axios.get).mockResolvedValue({
         data: [{ id: 'd1', first_name: 'John', health: 10 }],
       } as never)
-      const store = useDwellerFilterStore()
       store.dwellers = [{ id: 'd1', health: 10 }] as never
       store.allDwellers = [{ id: 'd1', health: 10 }] as never
       store.allDwellersLoadedVaultId = 'vault-1'

@@ -203,6 +203,19 @@ const workersOnly = mockDwellers.map((dweller) => ({ ...dweller, apprentice_stat
 const radioRoom = { ...mockRoom, name: 'Radio Studio', category: 'SPECIAL', ability: 'CHARISMA' }
 const vaultDoor = { ...mockRoom, name: 'Vault Door', category: 'SPECIAL', ability: null }
 
+/** An unassigned adult the room's picker may offer. */
+const idleAdult = (
+  overrides: Record<string, unknown> = {},
+  base: Record<string, unknown> = mockDwellers[0]
+) => ({
+  ...base,
+  age_group: 'adult',
+  apprentice_stat: null,
+  room_id: null,
+  status: 'idle',
+  ...overrides,
+})
+
 const seedDwellers = (dwellers: unknown[] = mockDwellers, extra: Record<string, unknown> = {}) => {
   const filter = useDwellerStore().filter
   filter.dwellers = dwellers as never
@@ -554,15 +567,7 @@ describe('RoomDetailModal', () => {
     it('assigns a dweller picked from the inline picker', async () => {
       useAuthStore().token = 'test-token'
       const assign = assignSpy()
-      seedDwellers([
-        {
-          ...mockDwellers[0],
-          age_group: 'adult',
-          apprentice_stat: null,
-          room_id: null,
-          status: 'idle',
-        },
-      ])
+      seedDwellers([idleAdult()])
 
       const wrapper = mountRoom()
       await wrapper.get('.scene-empty-worker').trigger('click')
@@ -651,26 +656,8 @@ describe('RoomDetailModal', () => {
 
     it('offers dwellers sorted by the room stat, best first', async () => {
       seedDwellers([
-        {
-          ...mockDwellers[0],
-          id: 'low-str',
-          first_name: 'Lowbie',
-          age_group: 'adult',
-          apprentice_stat: null,
-          room_id: null,
-          status: 'idle',
-          strength: 2,
-        },
-        {
-          ...mockDwellers[1],
-          id: 'high-str',
-          first_name: 'Strong',
-          age_group: 'adult',
-          apprentice_stat: null,
-          room_id: null,
-          status: 'idle',
-          strength: 10,
-        },
+        idleAdult({ id: 'low-str', first_name: 'Lowbie', strength: 2 }),
+        idleAdult({ id: 'high-str', first_name: 'Strong', strength: 10 }, mockDwellers[1]),
       ])
 
       const wrapper = mountRoom()

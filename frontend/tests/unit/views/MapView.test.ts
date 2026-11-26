@@ -206,6 +206,23 @@ describe('MapView', () => {
     })
   }
 
+  /** Mount the view and let its boot-time fetches settle. */
+  async function mountReady(withRealHeader = false) {
+    const wrapper = mountView(withRealHeader)
+    await flushPromises()
+    return wrapper
+  }
+
+  /** Emit a WorldMap marker click and let the view react. */
+  async function clickMarker(
+    wrapper: ReturnType<typeof mountView>,
+    kind: 'location' | 'vault',
+    data: unknown
+  ) {
+    map(wrapper).vm.$emit('marker-click', { kind, data })
+    await flushPromises()
+  }
+
   describe('?place= query param handling', () => {
     it.each([[undefined], ['nonexistent']])(
       'should not open the modal for place=%s',
@@ -227,8 +244,7 @@ describe('MapView', () => {
       seed()
       mockRoute.query = { place }
 
-      const wrapper = mountView()
-      await flushPromises()
+      const wrapper = await mountReady()
 
       const modal = detail(wrapper)
       expect(modal.props('modelValue')).toBe(true)
@@ -238,8 +254,7 @@ describe('MapView', () => {
     it('should show refreshed location data in the modal after the store reloads', async () => {
       seed()
       mockRoute.query = { place: 'loc-1' }
-      const wrapper = mountView()
-      await flushPromises()
+      const wrapper = await mountReady()
 
       expect(detail(wrapper).props('location')).toEqual(mockLocation)
 
@@ -254,8 +269,7 @@ describe('MapView', () => {
 
     it('should open the modal when ?place= changes after mount', async () => {
       seed()
-      const wrapper = mountView()
-      await flushPromises()
+      const wrapper = await mountReady()
       expect(detail(wrapper).props('modelValue')).toBe(false)
 
       mockRoute.query = { place: 'loc-2' }
@@ -278,8 +292,7 @@ describe('MapView', () => {
     it('should push ?place= when a marker is clicked and ignore the watcher echo', async () => {
       seed()
       const viewedSpy = vi.spyOn(mapStore, 'markLocationViewed')
-      const wrapper = mountView()
-      await flushPromises()
+      const wrapper = await mountReady()
 
       map(wrapper).vm.$emit('marker-click', { kind: 'location', data: mockLocation })
       await flushPromises()
@@ -307,8 +320,7 @@ describe('MapView', () => {
     it('should clear ?place= when the modal closes', async () => {
       seed()
       mockRoute.query = { place: 'loc-1' }
-      const wrapper = mountView()
-      await flushPromises()
+      const wrapper = await mountReady()
       expect(detail(wrapper).props('modelValue')).toBe(true)
 
       detail(wrapper).vm.$emit('update:modelValue', false)
@@ -328,8 +340,7 @@ describe('MapView', () => {
       }
       mapStore.vaultMarkers = [vaultMarker]
       mockRoute.query = { place: 'loc-1' }
-      const wrapper = mountView()
-      await flushPromises()
+      const wrapper = await mountReady()
 
       map(wrapper).vm.$emit('marker-click', { kind: 'vault', data: vaultMarker })
       await flushPromises()
@@ -377,8 +388,7 @@ describe('MapView', () => {
     ) {
       seed()
       const vaultStore = seedVaults(vaults)
-      const wrapper = mountView()
-      await flushPromises()
+      const wrapper = await mountReady()
       beforeSelect?.(vaultStore)
       map(wrapper).vm.$emit('vault-info', 'vault-2')
       await flushPromises()
@@ -423,8 +433,7 @@ describe('MapView', () => {
         owner_username: 'bob',
         is_mine: false,
       }
-      const wrapper = mountView()
-      await flushPromises()
+      const wrapper = await mountReady()
       map(wrapper).vm.$emit('player-vault-info', marker)
       await flushPromises()
 
@@ -534,8 +543,7 @@ describe('MapView', () => {
       vi.spyOn(mapStore, 'refreshMap').mockResolvedValue(undefined)
 
       mockRoute.query = { place: 'loc-1' }
-      const wrapper = mountView()
-      await flushPromises()
+      const wrapper = await mountReady()
 
       const modal = detail(wrapper)
       const payload = { dwellerIds: ['dweller-1'], supplies: { stimpaks: 0, radaways: 0 } }
@@ -579,8 +587,7 @@ describe('MapView', () => {
 
     it('opens the details modal (not the picker) for a clearable location click', async () => {
       const clearable = mountWithClearable()
-      const wrapper = mountView()
-      await flushPromises()
+      const wrapper = await mountReady()
 
       map(wrapper).vm.$emit('marker-click', { kind: 'location', data: clearable })
       await flushPromises()
@@ -619,16 +626,14 @@ describe('MapView', () => {
         done: [{ dweller_id: 'dweller-1' }] as never,
         other: [{ dweller_id: 'dweller-1' }] as never,
       }
-      const wrapper = mountView()
-      await flushPromises()
+      const wrapper = await mountReady()
       expect(detail(wrapper).props('dwellers')).toHaveLength(1)
     })
 
     it('refreshes the dweller roster even when cached candidates already exist', async () => {
       const clearable = mountWithClearable()
       const { filter } = useDwellerStore()
-      const wrapper = mountView()
-      await flushPromises()
+      const wrapper = await mountReady()
       map(wrapper).vm.$emit('marker-click', { kind: 'location', data: clearable })
       await flushPromises()
       expect(filter.fetchDwellersByVault).toHaveBeenCalledWith('vault-1')
@@ -646,8 +651,7 @@ describe('MapView', () => {
       })
       vi.mocked(vaultStore.ensureVaultLoaded).mockReturnValue(gate)
 
-      const wrapper = mountView()
-      await flushPromises()
+      const wrapper = await mountReady()
       map(wrapper).vm.$emit('marker-click', { kind: 'location', data: clearable })
       await flushPromises()
 
@@ -667,8 +671,7 @@ describe('MapView', () => {
       const clearable = mountWithClearable()
       vi.mocked(useVaultStore().ensureVaultLoaded).mockRejectedValueOnce(new Error('unloadable'))
 
-      const wrapper = mountView()
-      await flushPromises()
+      const wrapper = await mountReady()
       map(wrapper).vm.$emit('marker-click', { kind: 'location', data: clearable })
       await flushPromises()
 
@@ -685,8 +688,7 @@ describe('MapView', () => {
         .mockResolvedValue(undefined as never)
       vi.spyOn(mapStore, 'refreshMap').mockResolvedValue(undefined)
 
-      const wrapper = mountView()
-      await flushPromises()
+      const wrapper = await mountReady()
       map(wrapper).vm.$emit('marker-click', { kind: 'location', data: clearable })
       await flushPromises()
 
@@ -715,8 +717,7 @@ describe('MapView', () => {
       mountWithClearable()
       mockRoute.query = { place: 'loc-1' }
 
-      const wrapper = mountView()
-      await flushPromises()
+      const wrapper = await mountReady()
 
       expect(detail(wrapper).props('modelValue')).toBe(true)
       expect(wrapper.findComponent({ name: 'PartySelectionModal' }).exists()).toBe(false)
@@ -746,8 +747,7 @@ describe('MapView', () => {
         }),
       ]
 
-      const wrapper = mountView()
-      await flushPromises()
+      const wrapper = await mountReady()
 
       const tracks = map(wrapper).props('explorerTracks') as ExplorerTrack[]
       expect(tracks).toHaveLength(1)
@@ -777,8 +777,7 @@ describe('MapView', () => {
         exploration({ id: 'other', vault_id: 'another-vault', target_location_id: 'ready' }),
         exploration({ id: 'done', status: 'completed', target_location_id: 'ready' }),
       ]
-      const wrapper = mountView()
-      await flushPromises()
+      const wrapper = await mountReady()
       const parties = wrapper.find('.page-header-stub')
       expect(parties.findAll('button')).toHaveLength(0)
       const ready = wrapper.findAll('button').find((b) => b.text() === 'Ready to clear')!
@@ -815,8 +814,7 @@ describe('MapView', () => {
   describe('admin fog debug tool', () => {
     it('is hidden for non-admins', async () => {
       seed([mockLocation])
-      const wrapper = mountView()
-      await flushPromises()
+      const wrapper = await mountReady()
       expect(wrapper.text()).not.toContain('Reveal fog')
     })
 
@@ -831,8 +829,7 @@ describe('MapView', () => {
       store.locations = [mockLocation] as never
       store.isLoading = false
 
-      const wrapper = mountView()
-      await flushPromises()
+      const wrapper = await mountReady()
 
       const button = wrapper.findAll('button').find((b) => b.text().includes('Reveal fog'))!
       await button.trigger('click')
@@ -869,8 +866,7 @@ describe('MapView', () => {
     async function mountWithReadyFilter() {
       seedSites()
       mapStore.locations[0]!.clear_state = readyState as never
-      const wrapper = mountView()
-      await flushPromises()
+      const wrapper = await mountReady()
       await wrapper
         .findAll('button')
         .find((b) => b.text() === 'Ready to clear')!
@@ -935,8 +931,7 @@ describe('MapView', () => {
       localStorage.setItem('map:site-type-filter', 'gas_station')
       seedSites()
 
-      const wrapper = mountView()
-      await flushPromises()
+      const wrapper = await mountReady()
 
       expect(worldMapProps(wrapper).siteTypeFilter).toBe('gas_station')
       expect(wrapper.find('[aria-label="Filter by site type"]').exists()).toBe(true)
@@ -946,8 +941,7 @@ describe('MapView', () => {
       localStorage.setItem('map:site-type-filter', 'military')
       seedSites()
 
-      const wrapper = mountView()
-      await flushPromises()
+      const wrapper = await mountReady()
 
       expect(worldMapProps(wrapper).siteTypeFilter).toBeNull()
     })
@@ -970,8 +964,7 @@ describe('MapView', () => {
       seed([{ ...mockLocation, group_key: groups[0]?.key as string | undefined }])
       mapStore.placeGroups = groups as never
 
-      const wrapper = mountView()
-      await flushPromises()
+      const wrapper = await mountReady()
 
       expect(wrapper.find('[aria-label="Filter by site type"]').exists()).toBe(false)
     })
@@ -989,8 +982,7 @@ describe('MapView', () => {
         },
       ] as never
 
-      const wrapper = mountView()
-      await flushPromises()
+      const wrapper = await mountReady()
 
       expect(worldMapProps(wrapper).siteTypeFilter).toBeNull()
     })
@@ -1050,8 +1042,7 @@ describe('MapView', () => {
         .spyOn(seedPartyRun(), 'fetchPartiesForActiveExplorations')
         .mockResolvedValue(undefined)
 
-      const wrapper = mountView()
-      await flushPromises()
+      const wrapper = await mountReady()
       // The 30s poll replaces the locations array; the watcher then re-syncs
       // active explorations and their parties.
       mapStore.locations = [...mapStore.locations]
@@ -1065,8 +1056,7 @@ describe('MapView', () => {
       seedPartyRun()
       mapStore.locations = [mockLocation] as never
 
-      const wrapper = mountView()
-      await flushPromises()
+      const wrapper = await mountReady()
 
       const tracks = map(wrapper).props('explorerTracks') as ExplorerTrack[]
       expect(tracks).toHaveLength(1)
@@ -1079,8 +1069,7 @@ describe('MapView', () => {
       useExplorationStore().explorationPartyMap = {}
       useDwellerStore().filter.dwellers = [adult('dweller-1', 'Stephanie', 'Boyd')] as never
 
-      const wrapper = mountView()
-      await flushPromises()
+      const wrapper = await mountReady()
 
       const tracks = map(wrapper).props('explorerTracks') as ExplorerTrack[]
       expect(tracks[0].partyNames).toEqual(['Stephanie Boyd'])

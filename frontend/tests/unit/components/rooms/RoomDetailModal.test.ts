@@ -218,6 +218,8 @@ const mountRoom = (
     props: {
       room: room === null ? null : { ...mockRoom, ...room },
       modelValue: true,
+      // The theme loader needs a real vault id; without it the mount requests /crafting/vault/undefined.
+      vaultId: 'vault-123',
       ...props,
     },
   })

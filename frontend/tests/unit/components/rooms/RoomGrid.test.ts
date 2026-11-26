@@ -492,9 +492,11 @@ describe('RoomGrid', () => {
       const assign = vi
         .spyOn(useDwellerStore().management, 'assignDwellerToRoom')
         .mockResolvedValue({ id: 'dweller-123', room_id: room.id, status: 'training' } as any)
-      const startTraining = trainingStart
-        ? vi.spyOn(useTrainingStore(), 'startTraining').mockResolvedValue(trainingStart as never)
-        : vi.spyOn(useTrainingStore(), 'startTraining')
+      // `null` is an explicit result (a rejected start), not an omitted argument.
+      const startTraining =
+        trainingStart !== undefined
+          ? vi.spyOn(useTrainingStore(), 'startTraining').mockResolvedValue(trainingStart as never)
+          : vi.spyOn(useTrainingStore(), 'startTraining')
       return { assign, startTraining }
     }
 

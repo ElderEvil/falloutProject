@@ -518,6 +518,7 @@ describe('BarbershopPanel', () => {
   it.each([
     {
       label: 'a curated dweller',
+      expectedAction: 'Generate custom portrait',
       start: () => dweller(),
       refreshedId: ADULT_ID,
       asserts: (wrapper: VueWrapper) => {
@@ -526,6 +527,7 @@ describe('BarbershopPanel', () => {
     },
     {
       label: 'an existing custom portrait',
+      expectedAction: 'Regenerate custom portrait',
       start: () =>
         dweller({
           is_default_portrait: false,
@@ -562,7 +564,7 @@ describe('BarbershopPanel', () => {
       await flushPromises()
 
       const action = wrapper.get('[data-testid="barbershop-regenerate"]')
-      expect(action.text()).toMatch(/Generate custom portrait|Regenerate custom portrait/)
+      expect(action.text()).toBe(row.expectedAction)
       await action.trigger('click')
       await flushPromises()
 

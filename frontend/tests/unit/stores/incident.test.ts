@@ -144,7 +144,9 @@ const resolveViaSse = async (data: Record<string, unknown>) => {
   vi.mocked(incidentApi.getActiveIncidents).mockResolvedValueOnce(mockIncidentList)
   vi.mocked(incidentApi.getIncident).mockResolvedValueOnce(mockIncident)
   store.startPolling('vault-1', 'token', 10_000)
-  await Promise.resolve()
+  // Settle the initial poll first: an unresolved roster request would keep the store in its
+  // bookkeeping phase and the stale-list filter would never be exercised.
+  await flushPromises()
   await deliver(data)
   return store
 }

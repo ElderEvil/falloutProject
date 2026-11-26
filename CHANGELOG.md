@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## 3.32.1 (2026-11-26)
+
+### Bug Fixes
+
+* **chat:** screen voice and profile text at one boundary ([#1557](https://github.com/ElderEvil/falloutProject/issues/1557)) 85b34f9
+* **router:** render a 404 for unknown addresses ([#1562](https://github.com/ElderEvil/falloutProject/issues/1562)) c603ee5
+* **tests:** keep app loggers enabled after alembic migrations ([#1565](https://github.com/ElderEvil/falloutProject/issues/1565)) 1def7d7
+* **tests:** read the exploration id before the failure rollback ([#1566](https://github.com/ElderEvil/falloutProject/issues/1566)) f735513
+
 ## 3.32.0 (2026-11-26)
 
 ### Features

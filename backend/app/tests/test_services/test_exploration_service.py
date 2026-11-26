@@ -106,6 +106,19 @@ async def _walking(
     return exploration
 
 
+async def _pin(session: AsyncSession, *objects) -> None:
+    session.add_all(list(objects))
+    await session.commit()
+
+
+async def _process_event(async_session: AsyncSession, exploration, event):
+    """Force one generated event through the service and settle the dweller afterwards."""
+    with patch.object(event_generator, "generate_event", return_value=event):
+        result = await exploration_service.process_event(async_session, exploration)
+    await async_session.refresh(exploration)
+    return result
+
+
 async def test_lock_exploration_skips_preview_when_vault_id_supplied(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
 ) -> None:
@@ -152,43 +165,35 @@ async def test_send_dweller_deducts_supplies_once_and_snapshots_stats(
     ) == (9, 8, 7, 6, 5, 4, 3)
 
 
-async def test_send_dweller_rejects_dweller_already_exploring(
-    async_session: AsyncSession, vault: Vault, dweller: Dweller
-) -> None:
-    await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
-    with pytest.raises(ValueError, match="already on an exploration"):
-        await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
-
-
-async def test_send_dweller_rejects_dead_dweller(async_session: AsyncSession, vault: Vault, dweller: Dweller) -> None:
-    dweller.is_dead = True
-    async_session.add(dweller)
-    await async_session.commit()
-    with pytest.raises(ValueError, match="dweller is dead"):
-        await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
-
-
 @pytest.mark.parametrize(
-    ("stimpaks", "radaways", "message"),
-    [(-1, 0, "Stimpaks cannot be negative. Provided: -1"), (0, -1, "Radaways cannot be negative. Provided: -1")],
+    ("case", "message"),
+    [
+        ("busy", "already on an exploration"),
+        ("dead", "dweller is dead"),
+        ("stimpaks", "Stimpaks cannot be negative. Provided: -1"),
+        ("radaways", "Radaways cannot be negative. Provided: -1"),
+        ("radaway_carry", "cannot carry RadAway"),
+    ],
 )
-async def test_send_dweller_rejects_negative_supplies(
-    async_session: AsyncSession, vault: Vault, dweller: Dweller, stimpaks: int, radaways: int, message: str
+async def test_send_dweller_rejects_an_ineligible_run(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller, case: str, message: str
 ) -> None:
+    supplies: dict = {}
+    if case == "busy":
+        await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
+    elif case == "dead":
+        dweller.is_dead = True
+        async_session.add(dweller)
+        await async_session.commit()
+    elif case == "radaway_carry":
+        dweller.visual_attributes = {"race": "super_mutant"}
+        async_session.add_all([dweller, Storage(vault_id=vault.id, stimpack=5, radaway=5)])
+        await async_session.commit()
+        supplies = {"stimpaks": 1, "radaways": 1}
+    else:
+        supplies = {"stimpaks": -1, "radaways": 0} if case == "stimpaks" else {"stimpaks": 0, "radaways": -1}
     with pytest.raises(ValueError, match=message):
-        await exploration_service.send_dweller(
-            async_session, vault.id, dweller.id, duration=4, stimpaks=stimpaks, radaways=radaways
-        )
-
-
-async def test_nonhuman_explorer_cannot_pack_radaway(
-    async_session: AsyncSession, vault: Vault, dweller: Dweller
-) -> None:
-    dweller.visual_attributes = {"race": "super_mutant"}
-    async_session.add_all([dweller, Storage(vault_id=vault.id, stimpack=5, radaway=5)])
-    await async_session.commit()
-    with pytest.raises(ValueError, match="cannot carry RadAway"):
-        await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4, stimpaks=1, radaways=1)
+        await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4, **supplies)
 
 
 async def test_send_dweller_rejects_a_dweller_from_another_vault(async_session: AsyncSession, dweller: Dweller) -> None:
@@ -323,21 +328,27 @@ async def test_return_reports_caps_actually_credited_at_wallet_cap(
     assert rewards.caps_credited == 0
 
 
-async def test_complete_exploration_not_active_raises_error(
-    async_session: AsyncSession, vault: Vault, dweller: Dweller
+@pytest.mark.parametrize(
+    ("action", "finish", "message"),
+    [
+        ("complete", True, "not active"),
+        ("recall", True, "not active"),
+        ("complete", False, "has not finished yet"),
+    ],
+)
+async def test_terminal_actions_reject_the_wrong_run_state(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller, action: str, finish: bool, message: str
 ) -> None:
     exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
-    await _complete_exploration(async_session, exploration)
-    with pytest.raises(ValueError, match="not active"):
-        await exploration_service.complete_exploration_with_data(async_session, exploration.id)
-
-
-async def test_complete_exploration_before_duration_raises_error(
-    async_session: AsyncSession, vault: Vault, dweller: Dweller
-) -> None:
-    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
-    with pytest.raises(ValueError, match="has not finished yet"):
-        await exploration_service.complete_exploration_with_data(async_session, exploration.id)
+    if finish:
+        await _complete_exploration(async_session, exploration)
+    service = (
+        exploration_service.complete_exploration_with_data
+        if action == "complete"
+        else exploration_service.recall_exploration_with_data
+    )
+    with pytest.raises(ValueError, match=message):
+        await service(async_session, exploration.id)
 
 
 async def test_recall_exploration_reduced_rewards(async_session: AsyncSession, vault: Vault, dweller: Dweller) -> None:
@@ -364,29 +375,18 @@ async def test_recall_exploration_reduced_rewards(async_session: AsyncSession, v
     assert exploration.end_time is not None
 
 
-async def test_recall_exploration_not_active_raises_error(
-    async_session: AsyncSession, vault: Vault, dweller: Dweller
-) -> None:
-    exploration = await exploration_service.send_dweller(async_session, vault.id, dweller.id, duration=4)
-    await _complete_exploration(async_session, exploration)
-    with pytest.raises(ValueError, match="not active"):
-        await exploration_service.recall_exploration_with_data(async_session, exploration.id)
-
-
 async def test_process_danger_radiation_applies_to_dweller(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
 ) -> None:
     # Pin radiation: the fixture rolls a random start, and a value near the cap would break the +11 delta.
     dweller.radiation = 0
-    async_session.add(dweller)
-    await async_session.commit()
+    await _pin(async_session, dweller)
     exploration = await _walking(async_session, vault, dweller)
     initial_radiation = dweller.radiation
     mock_event = DangerEventSchema(
         description="Caught in unexpected radiation burst. Took 11 rads.", health_loss=0, radiation_gain=11
     )
-    with patch.object(event_generator, "generate_event", return_value=mock_event):
-        result = await exploration_service.process_event(async_session, exploration)
+    result = await _process_event(async_session, exploration, mock_event)
     await async_session.refresh(dweller)
     assert dweller.radiation == initial_radiation + 11
     assert result.events[-1]["radiation_gain"] == 11
@@ -399,14 +399,12 @@ async def test_rest_event_logs_actual_healing_after_radiation_cap(
     dweller.max_health = 100
     dweller.radiation = 50  # effective max 50
     dweller.health = 48  # only 2 HP of headroom
-    async_session.add(dweller)
-    await async_session.commit()
+    await _pin(async_session, dweller)
     exploration = await _walking(async_session, vault, dweller)
     mock_event = RestEventSchema(
         description="Rested in a safe location and recovered. Gained 10 HP.", health_restored=10
     )
-    with patch.object(event_generator, "generate_event", return_value=mock_event):
-        result = await exploration_service.process_event(async_session, exploration)
+    result = await _process_event(async_session, exploration, mock_event)
     await async_session.refresh(dweller)
     assert dweller.health == 50
     rest_event = next(e for e in result.events if e["type"] == "rest")
@@ -429,11 +427,9 @@ async def test_auto_stimpak_logs_actual_healing_after_radiation_cap(
     dweller.max_health = 100
     dweller.radiation = 50  # effective max 50
     dweller.health = 20  # below the 50% auto-heal threshold
-    async_session.add(dweller)
-    await async_session.commit()
+    await _pin(async_session, dweller)
     exploration = await _walking(async_session, vault, dweller, stimpaks=1)
-    with patch.object(event_generator, "generate_event", return_value=JUNK_LOOT):
-        result = await exploration_service.process_event(async_session, exploration)
+    result = await _process_event(async_session, exploration, JUNK_LOOT)
     await async_session.refresh(dweller)
     assert dweller.health == expected_health
     assert result.stimpaks == 0
@@ -449,11 +445,9 @@ async def test_auto_radaway_logs_structured_radiation_removed(
     dweller.max_health = 100
     dweller.radiation = 60  # above the auto-use threshold
     dweller.health = 40  # at the radiation-reduced ceiling, so no Stimpak branch fires
-    async_session.add(dweller)
-    await async_session.commit()
+    await _pin(async_session, dweller)
     exploration = await _walking(async_session, vault, dweller, radaways=1)
-    with patch.object(event_generator, "generate_event", return_value=JUNK_LOOT):
-        result = await exploration_service.process_event(async_session, exploration)
+    result = await _process_event(async_session, exploration, JUNK_LOOT)
     await async_session.refresh(dweller)
     assert result.radaways == 0
     item_use = next(e for e in result.events if e["type"] == "item_use")

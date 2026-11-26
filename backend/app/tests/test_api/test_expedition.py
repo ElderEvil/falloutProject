@@ -107,19 +107,15 @@ async def test_site_available_lists_all_sites(async_client, superuser_token_head
     assert sites["super_duper_mart"]["room_total"] == 4
 
 
-async def test_site_available_level_gate_excludes_sites(
+async def test_site_available_level_gate_and_cooldown_exclude_sites(
     async_client, superuser_token_headers, async_session, vault, dweller
 ):
+    """A level gate and a recent clear must both remove the site from the picker."""
     exploration = await _start(async_session, vault, dweller, level=4)
     response = await async_client.get(f"/explorations/{exploration.id}/site/available", headers=superuser_token_headers)
     assert response.status_code == 200
     assert [site["id"] for site in response.json()] == [s for s in SITES if s != "super_duper_mart"]
 
-
-async def test_site_available_anti_farm_excludes_recent_clear(
-    async_client, superuser_token_headers, async_session, vault, dweller
-):
-    exploration = await _start(async_session, vault, dweller)
     run = await crud.expedition_run.create_run(
         async_session, exploration_id=exploration.id, vault_id=vault.id, site_id="red_rocket"
     )
@@ -129,7 +125,7 @@ async def test_site_available_anti_farm_excludes_recent_clear(
     await async_session.commit()
     response = await async_client.get(f"/explorations/{exploration.id}/site/available", headers=superuser_token_headers)
     assert response.status_code == 200
-    assert [site["id"] for site in response.json()] == [s for s in SITES if s != "red_rocket"]
+    assert [site["id"] for site in response.json()] == [s for s in SITES if s not in ("super_duper_mart", "red_rocket")]
 
 
 async def test_site_available_missing_exploration_404(async_client, superuser_token_headers):

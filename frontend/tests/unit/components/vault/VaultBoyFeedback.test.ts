@@ -15,14 +15,16 @@ function showResult(result: VaultBoyFeedbackEvent) {
   useVaultBoyFeedback().show(result)
 }
 
-function mountFeedback(result: VaultBoyFeedbackEvent | null) {
+function mountFeedback(result: VaultBoyFeedbackEvent | null, loadSprite = true) {
   useVaultBoyFeedback().clear()
   if (result) showResult(result)
   const wrapper = mount(VaultBoyFeedback, {
     props: { vaultId: 'vault-1' },
     global: { stubs: { Teleport: true, Transition: true } },
   })
-  if (wrapper.find('image').exists()) wrapper.get('image').element.dispatchEvent(new Event('load'))
+  if (loadSprite && wrapper.find('image').exists()) {
+    wrapper.get('image').element.dispatchEvent(new Event('load'))
+  }
   return wrapper
 }
 
@@ -169,12 +171,7 @@ it('clears pending feedback on a vault change', async () => {
 
 it('waits for the sprite to load before starting its playback and timeout', async () => {
   vi.useFakeTimers()
-  useVaultBoyFeedback().clear()
-  showResult(success)
-  const wrapper = mount(VaultBoyFeedback, {
-    props: { vaultId: 'vault-1' },
-    global: { stubs: { Teleport: true, Transition: true } },
-  })
+  const wrapper = mountFeedback(success, false)
   const first = wrapper.get('.vault-boy-feedback > svg > svg').attributes('viewBox')
   await vi.advanceTimersByTimeAsync(5000)
   expect(wrapper.get('.vault-boy-feedback > svg > svg').attributes('viewBox')).toBe(first)

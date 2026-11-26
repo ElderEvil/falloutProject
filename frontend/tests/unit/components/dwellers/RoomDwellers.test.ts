@@ -5,6 +5,7 @@ import { defineComponent, nextTick } from 'vue'
 import { createPinia, setActivePinia } from 'pinia'
 import RoomDwellers from '@/modules/dwellers/components/RoomDwellers.vue'
 import { useDwellerFilterStore } from '@/modules/dwellers/stores/dwellerFilter'
+import { makeDweller } from '../../helpers/dwellerFixtures'
 import { useRoomStore } from '@/modules/rooms/stores/room'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useVaultStore } from '@/modules/vault/stores/vault'
@@ -23,15 +24,14 @@ vi.mock('@iconify/vue', () => ({
 
 enableAutoUnmount(afterEach)
 
-const alice = {
+const alice = makeDweller({
   id: 'd1',
   room_id: 'r1',
   first_name: 'Alice',
   last_name: 'Smith',
   level: 3,
   apprentice_stat: null,
-  thumbnail_url: null,
-}
+})
 
 const bob = {
   ...alice,
@@ -71,36 +71,26 @@ it('shows dweller details in an app tooltip on keyboard focus without a browser 
   expect(avatar.attributes('draggable')).toBe('true')
 })
 
-it('marks an equipped pet on the avatar and in the tooltip', async () => {
-  setFilteredDwellers([
-    {
-      ...alice,
-      pet: { id: 'pet-1', name: 'Dogmeat', image_url: '/static/pets/dogmeat.webp' },
-    },
-  ])
+it.each([
+  ['an equipped pet with an image', '/static/pets/dogmeat.webp'],
+  ['an equipped pet without an image', null],
+] as const)('marks %s on the avatar and in the tooltip', async (_name, image_url) => {
+  setFilteredDwellers([{ ...alice, pet: { id: 'pet-1', name: 'Dogmeat', image_url } }])
 
   const wrapper = mountDwellers()
   const avatar = wrapper.get('.dweller-avatar')
   expect(avatar.attributes('role')).toBe('group')
   expect(avatar.attributes('aria-label')).toBe('Alice Smith (Lv3), pet Dogmeat')
-  expect(avatar.get('.dweller-pet img').attributes('src')).toContain('dogmeat.webp')
+  expect(avatar.find('.dweller-pet-fallback').exists()).toBe(image_url === null)
+  expect(avatar.find('.dweller-pet img').exists()).toBe(image_url !== null)
+  if (image_url !== null) {
+    expect(avatar.get('.dweller-pet img').attributes('src')).toContain('dogmeat.webp')
+  }
 
   await avatar.trigger('focus')
   await vi.waitFor(() =>
     expect(document.querySelector('[role="tooltip"]')?.textContent).toContain('Pet Dogmeat')
   )
-})
-
-it('falls back to a paw when the equipped pet has no image', () => {
-  setFilteredDwellers([
-    {
-      ...alice,
-      pet: { id: 'pet-2', name: 'Dogmeat', image_url: null },
-    },
-  ])
-
-  const wrapper = mountDwellers()
-  expect(wrapper.get('.dweller-pet-fallback').exists()).toBe(true)
 })
 
 it('orders workers before apprentices and marks the apprentice avatar', () => {

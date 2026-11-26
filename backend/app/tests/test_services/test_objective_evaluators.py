@@ -297,20 +297,9 @@ async def test_dweller_event_evaluator_credits_progress(
     assert link.progress == 1
 
 
-async def test_reach_evaluator_population_reached(async_session, fresh_event_bus, patched_session_maker):
-    vault = await _vault(async_session)
-    _, link = await _progress(async_session, vault, "reach", REACH, 10, challenge="Reach 10 dwellers")
-    ReachEvaluator(fresh_event_bus)
-
-    await _dwellers(async_session, vault, 10)
-
-    await fresh_event_bus.emit(GameEvent.DWELLER_ASSIGNED, vault.id, {"dweller_id": "test", "room_id": "test-room"})
-
-    await async_session.refresh(link)
-    assert link.is_completed is False
-
-
-async def test_reach_evaluator_reacts_to_dweller_added(async_session, fresh_event_bus, patched_session_maker):
+async def test_reach_evaluator_counts_added_dwellers_without_completing(
+    async_session, fresh_event_bus, patched_session_maker
+):
     vault = await _vault(async_session)
     _, link = await _progress(async_session, vault, "reach", REACH, 10, challenge="Reach 10 dwellers")
     ReachEvaluator(fresh_event_bus)
@@ -325,6 +314,9 @@ async def test_reach_evaluator_reacts_to_dweller_added(async_session, fresh_even
     await fresh_event_bus.emit(GameEvent.DWELLER_ADDED, vault.id, {"dweller_id": "test"})
     await async_session.refresh(link)
     assert link.progress == 10
+    # Reaching the target only makes the reward claimable: an unrelated assignment event must not complete it.
+    await fresh_event_bus.emit(GameEvent.DWELLER_ASSIGNED, vault.id, {"dweller_id": "test", "room_id": "test-room"})
+    await async_session.refresh(link)
     assert link.is_completed is False
 
 
@@ -511,32 +503,70 @@ async def test_completing_current_starter_step_advances_to_next(async_session, f
     assert links[1].progress == 1
 
 
-@pytest.mark.parametrize(
-    ("evaluator_cls", "objective_type", "target_entity", "kind", "data"),
-    [
-        (BuildEvaluator, "build", {"room_type": "living_room"}, GameEvent.ROOM_BUILT, {"room_type": "Living Quarters"}),
-        (CollectEvaluator, "collect", {"item_type": "weapon"}, GameEvent.ITEM_COLLECTED, {"item_type": "Weapons"}),
-        (
-            AssignEvaluator,
-            "assign",
-            {"room_type": "living_room"},
-            GameEvent.DWELLER_ASSIGNED,
-            {"room_type": "Living Quarters"},
-        ),
-        (ExpeditionEvaluator, "expedition", {"quest_type": "main"}, GameEvent.QUEST_COMPLETED, {"quest_type": "main"}),
-    ],
-    ids=["build_room_alias", "collect_item_alias", "assign_room_alias", "expedition_quest_type"],
+LIVING, LIVING_EVENT = {"room_type": "living_room"}, {"room_type": "Living Quarters"}
+WEAPON, WEAPONS_EVENT, ANY_JUNK = {"item_type": "weapon"}, {"item_type": "Weapons"}, {"item_type": "junk"}
+QUEST_MAIN = {"quest_type": "main"}
+JUNK_SOURCED = {"item_type": "junk", "amount": 1, "source": "wasteland"}
+CIRCUITRY, CIRCUITRY_SOURCED = (
+    {"item_type": "junk", "junk_type": "circuitry", "amount": 1},
+    {"item_type": "junk", "junk_type": "circuitry", "amount": 1, "source": "wasteland"},
 )
-def test_evaluator_matches_aliased_target(fresh_event_bus, evaluator_cls, objective_type, target_entity, kind, data):
+ADHESIVE = {"item_type": "junk", "junk_type": "adhesive", "amount": 1, "source": "wasteland"}
+ADHESIVE_NO_SOURCE = {"item_type": "junk", "junk_type": "adhesive", "amount": 1}
+# (id, evaluator, objective type, target, event, payload, matches)
+MATCH_CASES = [
+    ("build-room-alias", BuildEvaluator, "build", LIVING, GameEvent.ROOM_BUILT, LIVING_EVENT, True),
+    ("collect-item-alias", CollectEvaluator, "collect", WEAPON, GameEvent.ITEM_COLLECTED, WEAPONS_EVENT, True),
+    ("assign-room-alias", AssignEvaluator, "assign", LIVING, GameEvent.DWELLER_ASSIGNED, LIVING_EVENT, True),
+    (
+        "expedition-quest-type",
+        ExpeditionEvaluator,
+        "expedition",
+        QUEST_MAIN,
+        GameEvent.QUEST_COMPLETED,
+        QUEST_MAIN,
+        True,
+    ),
+    ("material-source", CollectEvaluator, "collect", ADHESIVE, GameEvent.ITEM_COLLECTED, ADHESIVE, True),
+    (
+        "material-type-mismatch",
+        CollectEvaluator,
+        "collect",
+        ADHESIVE,
+        GameEvent.ITEM_COLLECTED,
+        CIRCUITRY_SOURCED,
+        False,
+    ),
+    (
+        "material-source-missing",
+        CollectEvaluator,
+        "collect",
+        ADHESIVE,
+        GameEvent.ITEM_COLLECTED,
+        ADHESIVE_NO_SOURCE,
+        False,
+    ),
+    ("material-any-junk", CollectEvaluator, "collect", ANY_JUNK, GameEvent.ITEM_COLLECTED, CIRCUITRY, True),
+    ("material-any-source", CollectEvaluator, "collect", ANY_JUNK, GameEvent.ITEM_COLLECTED, JUNK_SOURCED, True),
+]
+
+
+@pytest.mark.parametrize(
+    ("evaluator_cls", "objective_type", "target_entity", "kind", "data", "expected"),
+    [row[1:] for row in MATCH_CASES],
+    ids=[row[0] for row in MATCH_CASES],
+)
+def test_evaluator_matches_target(fresh_event_bus, evaluator_cls, objective_type, target_entity, kind, data, expected):
     objective = Objective(
         challenge="Match target",
         reward="100 caps",
         objective_type=objective_type,
         target_entity=target_entity,
-        target_amount=1,
+        target_amount=6,
         category="achievement",
     )
-    assert evaluator_cls(fresh_event_bus)._matches(objective, kind, data) is True
+
+    assert evaluator_cls(fresh_event_bus)._matches(objective, kind, data) is expected
 
 
 @pytest.mark.parametrize(
@@ -694,38 +724,3 @@ async def test_objective_target_waits_for_claim_and_announces_once(
     assert vault.bottle_caps == initial_caps
     assert len(announced) == 1
     assert announced[0]["ready_to_claim"] is True
-
-
-@pytest.mark.parametrize(
-    ("target", "event", "expected"),
-    [
-        (
-            {"item_type": "junk", "junk_type": "adhesive", "source": "wasteland"},
-            {"item_type": "junk", "junk_type": "adhesive", "amount": 1, "source": "wasteland"},
-            True,
-        ),
-        (
-            {"item_type": "junk", "junk_type": "adhesive", "source": "wasteland"},
-            {"item_type": "junk", "junk_type": "circuitry", "amount": 1, "source": "wasteland"},
-            False,
-        ),
-        (
-            {"item_type": "junk", "junk_type": "adhesive", "source": "wasteland"},
-            {"item_type": "junk", "junk_type": "adhesive", "amount": 1},
-            False,
-        ),
-        ({"item_type": "junk"}, {"item_type": "junk", "junk_type": "circuitry", "amount": 1}, True),
-        ({"item_type": "junk"}, {"item_type": "junk", "amount": 1, "source": "wasteland"}, True),
-    ],
-)
-def test_collect_matches_material_and_source(target: dict, event: dict, expected: bool, fresh_event_bus) -> None:
-    objective = Objective(
-        challenge="Collect junk",
-        reward="50 caps",
-        objective_type="collect",
-        target_entity=target,
-        target_amount=6,
-        category="weekly",
-    )
-
-    assert CollectEvaluator(fresh_event_bus)._matches(objective, GameEvent.ITEM_COLLECTED, event) is expected

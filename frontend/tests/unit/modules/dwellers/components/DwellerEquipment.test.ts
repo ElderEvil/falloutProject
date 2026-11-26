@@ -7,6 +7,7 @@ import {
   createMockDwellerDetailContext,
   mountWithDwellerContext,
 } from '../../../helpers/dwellerDetailContext'
+import { makeDweller as rosterDweller } from '../../../helpers/dwellerFixtures'
 import type { Dweller } from '@/modules/dwellers/models/dweller'
 import type { DwellerDetailContext } from '@/modules/dwellers/components/DwellerDetailContext'
 import DwellerCollectibles from '@/modules/dwellers/components/DwellerCollectibles.vue'
@@ -51,32 +52,47 @@ vi.mock('@/modules/auth/stores/auth', () => ({
   }),
 }))
 
-function makeDweller(overrides: Partial<Dweller> = {}): Dweller {
-  return {
-    id: 'dweller-1',
-    first_name: 'John',
-    last_name: 'Doe',
-    S: 5,
-    P: 5,
-    E: 5,
-    C: 5,
-    I: 5,
-    A: 5,
-    L: 5,
-    health: 100,
-    max_health: 100,
-    level: 1,
-    experience: 0,
-    happiness: 75,
+const makeDweller = (overrides: Partial<Dweller> = {}): Dweller =>
+  rosterDweller({
     gender: 'male',
-    age_group: 'adult',
     status: 'idle',
     weapon: null,
     outfit: null,
     pet: null,
     ...overrides,
-  } as unknown as Dweller
+  }) as Dweller
+
+const zeroEffect = {
+  strength: 0,
+  perception: 0,
+  endurance: 0,
+  charisma: 0,
+  intelligence: 0,
+  agility: 0,
+  luck: 0,
+  max_health: 0,
+  damage_pct: 0,
+  incident_response_pct: 0,
+  radiation_resist_pct: 0,
+  happiness: 0,
+  caps_pct: 0,
+  xp_pct: 0,
+  training_speed_pct: 0,
 }
+
+const makePet = (overrides: Record<string, unknown> = {}) => ({
+  id: 'pet-1',
+  name: 'Dogmeat',
+  rarity: 'rare',
+  value: 100,
+  image_url: null,
+  dweller_id: 'dweller-1',
+  storage_id: null,
+  created_at: '2026-01-01T00:00:00Z',
+  updated_at: '2026-01-01T00:00:00Z',
+  effect: { ...zeroEffect },
+  ...overrides,
+})
 
 const equippableStub = {
   template:
@@ -105,13 +121,19 @@ function mountEquip(
     vaultId: ref('v1') as never,
     ...override,
   })
-  const wrapper = mountWithDwellerContext(DwellerEquipment, {
+  return mountWithDwellerContext(DwellerEquipment, {
     context: ctx,
     global: {
       stubs: { ...sharedStubs, ...stubs },
     },
   })
-  return wrapper
+}
+
+const openSlot = async (wrapper: VueWrapper, index: number) => {
+  await wrapper.findAll('button.empty-slot')[index]!.trigger('click')
+  await flushPromises()
+  await nextTick()
+  await flushPromises()
 }
 
 beforeEach(() => {
@@ -137,7 +159,7 @@ describe('DwellerEquipment', () => {
           age_group,
           weapon: { id: 'weapon-1' } as never,
           outfit: { id: 'outfit-1' } as never,
-          pet: { id: 'pet-1' } as never,
+          pet: makePet() as never,
         })
       )
       const ctx = createMockDwellerDetailContext({ dweller: dweller as never })
@@ -148,12 +170,15 @@ describe('DwellerEquipment', () => {
       expect(cards).toHaveLength(2)
       expect(cards.every((card) => card.props('showActions'))).toBe(true)
       expect(petCardOf(wrapper).props('showActions')).toBe(true)
+
       for (const button of wrapper.findAll('button.equip-slot, button.pet-slot')) {
         await button.trigger('click')
       }
       await flushPromises()
+
       expect(ctx.actions.refresh).toHaveBeenCalledTimes(3)
       expect(petsStoreMock.unequipPet).toHaveBeenCalledWith('pet-1')
+
       dweller.value = makeDweller({ age_group })
       await nextTick()
       expect(
@@ -164,35 +189,41 @@ describe('DwellerEquipment', () => {
     }
   )
 
-  it.each(['exploring', 'questing'])('blocks removal of existing gear while %s', async (status) => {
-    const ctx = createMockDwellerDetailContext()
-    const wrapper = mountEquip(
-      makeDweller({
-        age_group: 'teen',
-        status,
-        weapon: { id: 'weapon-1' } as never,
-        outfit: { id: 'outfit-1' } as never,
-        pet: { id: 'pet-1' } as never,
-      }),
-      { actions: ctx.actions },
-      {}
-    )
-    const cards = wrapper
-      .findAllComponents(sharedStubs.EquippableItemCard)
-      .filter((card) => card.props('itemType') !== 'pet')
-    expect(cards).toHaveLength(2)
-    expect(cards.every((card) => !card.props('showActions'))).toBe(true)
-    expect(petCardOf(wrapper).props('showActions')).toBe(false)
-    for (const button of wrapper.findAll('button.equip-slot, button.pet-slot')) {
-      await button.trigger('click')
+  it.each(['exploring', 'questing'] as const)(
+    'blocks removal of existing gear while %s',
+    async (status) => {
+      const ctx = createMockDwellerDetailContext()
+      const wrapper = mountEquip(
+        makeDweller({
+          age_group: 'teen',
+          status,
+          weapon: { id: 'weapon-1' } as never,
+          outfit: { id: 'outfit-1' } as never,
+          pet: makePet() as never,
+        }),
+        { actions: ctx.actions },
+        {}
+      )
+      const cards = wrapper
+        .findAllComponents(sharedStubs.EquippableItemCard)
+        .filter((card) => card.props('itemType') !== 'pet')
+      expect(cards).toHaveLength(2)
+      expect(cards.every((card) => !card.props('showActions'))).toBe(true)
+      expect(petCardOf(wrapper).props('showActions')).toBe(false)
+
+      for (const button of wrapper.findAll('button.equip-slot, button.pet-slot')) {
+        await button.trigger('click')
+      }
+      await flushPromises()
+
+      expect(ctx.actions.refresh).not.toHaveBeenCalled()
+      expect(petsStoreMock.unequipPet).not.toHaveBeenCalled()
     }
-    await flushPromises()
-    expect(ctx.actions.refresh).not.toHaveBeenCalled()
-    expect(petsStoreMock.unequipPet).not.toHaveBeenCalled()
-  })
+  )
 
   it.each(['child', 'teen'] as const)('blocks all equipment for a %s', (age_group) => {
     const wrapper = mountEquip(makeDweller({ age_group }))
+
     expect(wrapper.findAll('button.empty-slot')).toHaveLength(3)
     expect(
       wrapper
@@ -222,7 +253,9 @@ describe('DwellerEquipment', () => {
           },
         }
       )
+
       await wrapper.findAll('button.empty-slot')[1]!.trigger('click')
+
       const outfits = wrapper.findAll('.outfit-option').map((card) => card.attributes('data-id'))
       expect(outfits).toEqual([gender, 'unisex', 'unspecified'])
     }
@@ -233,6 +266,7 @@ describe('DwellerEquipment', () => {
     async (status) => {
       const dweller = ref(makeDweller({ status }))
       const wrapper = mountEquip(dweller.value, { dweller: dweller as never })
+
       expect(wrapper.text()).toContain('Return to the vault to change equipment.')
       expect(
         wrapper.findAll('.empty-text').every((label) => label.text() === 'Locked while away')
@@ -245,30 +279,31 @@ describe('DwellerEquipment', () => {
         await slot.trigger('click')
       }
       expect(wrapper.findComponent({ name: 'Dialog' }).props('open')).toBe(false)
+
       dweller.value.status = 'idle'
       await nextTick()
       expect(slots[0]!.attributes('disabled')).toBeUndefined()
       expect(wrapper.text()).toContain('Click to equip weapon')
+
       await slots[0]!.trigger('click')
       expect(wrapper.findComponent({ name: 'Dialog' }).props('open')).toBe(true)
+
       dweller.value.status = status
       await nextTick()
       expect(wrapper.findComponent({ name: 'Dialog' }).props('open')).toBe(false)
+
       dweller.value.status = 'idle'
       await nextTick()
       expect(wrapper.findComponent({ name: 'Dialog' }).props('open')).toBe(false)
     }
   )
 
-  it('renders equipment slots', () => {
+  it('renders the three labelled slots with their empty prompts', () => {
     const wrapper = mountEquip(makeDweller())
+
     expect(wrapper.text()).toContain('Weapon')
     expect(wrapper.text()).toContain('Outfit')
     expect(wrapper.text()).toContain('Pet')
-  })
-
-  it('shows empty slots when no equipment', () => {
-    const wrapper = mountEquip(makeDweller())
     expect(wrapper.text()).toContain('Click to equip weapon')
     expect(wrapper.text()).toContain('Click to equip outfit')
     expect(wrapper.text()).toContain('Click to equip pet')
@@ -277,13 +312,9 @@ describe('DwellerEquipment', () => {
   it('opens the shared modal when an empty slot is selected', async () => {
     const wrapper = mountEquip(makeDweller())
 
-    await wrapper.findAll('button.empty-slot')[0].trigger('click')
-    await flushPromises()
-    await nextTick()
-    await flushPromises()
+    await openSlot(wrapper, 0)
 
-    const modal = wrapper.findComponent({ name: 'Dialog' })
-    expect(modal.props('open')).toBe(true)
+    expect(wrapper.findComponent({ name: 'Dialog' }).props('open')).toBe(true)
     expect(wrapper.text()).toContain('Select Weapon')
   })
 
@@ -294,9 +325,7 @@ describe('DwellerEquipment', () => {
     })
     const wrapper = mountWithDwellerContext(DwellerEquipment, {
       context: ctx,
-      global: {
-        stubs: sharedStubs,
-      },
+      global: { stubs: sharedStubs },
     })
 
     await flushPromises()
@@ -309,34 +338,9 @@ describe('DwellerEquipment', () => {
   it('renders the equipped pet card with its bonus summary', async () => {
     const wrapper = mountEquip(
       makeDweller({
-        pet: {
-          id: 'pet-1',
-          name: 'Dogmeat',
-          rarity: 'rare',
-          value: 100,
-          image_url: null,
-          dweller_id: 'dweller-1',
-          storage_id: null,
-          created_at: '2026-01-01T00:00:00Z',
-          updated_at: '2026-01-01T00:00:00Z',
-          effect: {
-            strength: 2,
-            perception: 0,
-            endurance: 0,
-            charisma: 0,
-            intelligence: 0,
-            agility: 0,
-            luck: 0,
-            max_health: 50,
-            damage_pct: 0,
-            incident_response_pct: 0,
-            radiation_resist_pct: 0,
-            happiness: 0,
-            caps_pct: 0,
-            xp_pct: 0,
-            training_speed_pct: 0,
-          },
-        },
+        pet: makePet({
+          effect: { ...zeroEffect, strength: 2, max_health: 50 },
+        }) as never,
       }),
       {},
       { EquippableItemCard: false }
@@ -351,143 +355,53 @@ describe('DwellerEquipment', () => {
     expect(wrapper.findAll('[data-slot="badge"]')).toHaveLength(0)
   })
 
-  it('equips a pet from the inventory picker with the test pet id', async () => {
-    petsStoreMock.getAvailablePets.mockReturnValue([
-      {
-        id: 'pet-9',
-        name: 'CX404',
-        rarity: 'legendary',
-        value: 500,
-        image_url: null,
-        dweller_id: null,
-        storage_id: 'storage-1',
-        created_at: '2026-01-01T00:00:00Z',
-        updated_at: '2026-01-01T00:00:00Z',
-        effect: {
-          strength: 0,
-          perception: 0,
-          endurance: 0,
-          charisma: 0,
-          intelligence: 0,
-          agility: 0,
-          luck: 0,
-          max_health: 0,
-          damage_pct: 0,
-          incident_response_pct: 0,
-          radiation_resist_pct: 0,
-          happiness: 0,
-          caps_pct: 0,
-          xp_pct: 0,
-          training_speed_pct: 0,
-        },
-      },
-    ])
-    petsStoreMock.equipPet.mockResolvedValue({ id: 'pet-9' })
-    const wrapper = mountEquip(makeDweller(), {}, {})
-    await flushPromises()
-
-    await wrapper.findAll('button.empty-slot')[2].trigger('click')
-    await flushPromises()
-    await nextTick()
-    await flushPromises()
-
-    expect(wrapper.text()).toContain('Select Pet')
-    await wrapper.find('.pet-slot').trigger('click')
-    await flushPromises()
-
-    expect(petsStoreMock.equipPet).toHaveBeenCalledWith('dweller-1', 'pet-9')
-    expect(wrapper.findComponent({ name: 'Dialog' }).props('open')).toBe(false)
-  })
-
-  it('keeps the pet picker open when equipping fails', async () => {
-    petsStoreMock.equipPet.mockResolvedValue(null)
-    petsStoreMock.getAvailablePets.mockReturnValue([
-      {
-        id: 'pet-9',
-        name: 'CX404',
-        rarity: 'legendary',
-        value: 500,
-        image_url: null,
-        dweller_id: null,
-        storage_id: 'storage-1',
-        created_at: '2026-01-01T00:00:00Z',
-        updated_at: '2026-01-01T00:00:00Z',
-        effect: {},
-      },
-    ])
-    const wrapper = mountEquip(makeDweller(), {}, {})
-    await flushPromises()
-
-    await wrapper.findAll('button.empty-slot')[2].trigger('click')
-    await flushPromises()
-    await nextTick()
-    await flushPromises()
-    await wrapper.find('.pet-slot').trigger('click')
-    await flushPromises()
-
-    expect(petsStoreMock.equipPet).toHaveBeenCalledWith('dweller-1', 'pet-9')
-    expect(wrapper.findComponent({ name: 'Dialog' }).props('open')).toBe(true)
-  })
-
-  it('renders the empty state in the pet picker when no pets are available', async () => {
-    const wrapper = mountEquip(makeDweller())
-    await flushPromises()
-
-    await wrapper.findAll('button.empty-slot')[2].trigger('click')
-    await flushPromises()
-    await nextTick()
-    await flushPromises()
-
-    expect(wrapper.text()).toContain('No pets available')
-  })
-
   it('unequips the equipped pet through the store', async () => {
-    const wrapper = mountWithDwellerContext(DwellerEquipment, {
-      context: createMockDwellerDetailContext({
-        dweller: ref(
-          makeDweller({
-            pet: {
-              id: 'pet-1',
-              name: 'Dogmeat',
-              rarity: 'rare',
-              value: 100,
-              image_url: null,
-              dweller_id: 'dweller-1',
-              storage_id: null,
-              created_at: '2026-01-01T00:00:00Z',
-              updated_at: '2026-01-01T00:00:00Z',
-              effect: {
-                strength: 0,
-                perception: 0,
-                endurance: 0,
-                charisma: 0,
-                intelligence: 0,
-                agility: 0,
-                luck: 0,
-                max_health: 0,
-                damage_pct: 0,
-                incident_response_pct: 0,
-                radiation_resist_pct: 0,
-                happiness: 0,
-                caps_pct: 0,
-                xp_pct: 0,
-                training_speed_pct: 0,
-              },
-            },
-          })
-        ) as never,
-        vaultId: ref('v1') as never,
-      }),
-      global: {
-        stubs: sharedStubs,
-      },
-    })
+    const wrapper = mountEquip(makeDweller({ pet: makePet() as never }))
     await flushPromises()
 
     await wrapper.find('.pet-slot').trigger('click')
     await flushPromises()
 
     expect(petsStoreMock.unequipPet).toHaveBeenCalledWith('pet-1')
+  })
+
+  it.each([
+    ['succeeds', 'pet-9', false],
+    ['fails', null, true],
+  ])(
+    'equips a pet from the picker that %s, closing the picker only on success',
+    async (_outcome, result, staysOpen) => {
+      petsStoreMock.getAvailablePets.mockReturnValue([
+        makePet({
+          id: 'pet-9',
+          name: 'CX404',
+          storage_id: 'storage-1',
+          dweller_id: null,
+          effect: {},
+        }),
+      ])
+      petsStoreMock.equipPet.mockResolvedValue(result)
+      const wrapper = mountEquip(makeDweller())
+      await flushPromises()
+
+      await openSlot(wrapper, 2)
+      expect(wrapper.text()).toContain('Select Pet')
+
+      await wrapper.find('.pet-slot').trigger('click')
+      await flushPromises()
+
+      expect(petsStoreMock.equipPet).toHaveBeenCalledWith('dweller-1', 'pet-9')
+      expect(wrapper.findComponent({ name: 'Dialog' }).props('open')).toBe(staysOpen)
+    }
+  )
+
+  it('renders the empty state in the pet picker when no pets are available', async () => {
+    const wrapper = mountEquip(makeDweller())
+    await flushPromises()
+
+    await openSlot(wrapper, 2)
+
+    expect(wrapper.text()).toContain('No pets available')
   })
 })
 
@@ -506,8 +420,10 @@ it('refreshes the outfit picker after a reward arrives without remounting the eq
   equipmentFetch.outfits.mockImplementation(async () => {
     inventory.push({ id: 'reward', name: 'Wasteland gear' })
   })
+
   await wrapper.findAll('button.empty-slot')[1]!.trigger('click')
   await flushPromises()
+
   expect(equipmentFetch.outfits).toHaveBeenCalledWith('v1')
   expect(wrapper.text()).toContain('Wasteland gear')
 })
@@ -523,12 +439,14 @@ it('does not open a stale picker after switching vaults during its load', async 
         finish = resolve
       })
   )
+
   await wrapper.findAll('button.empty-slot')[1]!.trigger('click')
   await nextTick()
   vaultId.value = 'v2'
   await nextTick()
   finish?.()
   await flushPromises()
+
   expect(wrapper.findComponent({ name: 'TerminalModal' }).props('open')).toBe(false)
 })
 

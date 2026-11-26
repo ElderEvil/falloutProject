@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vite-plus/test'
 import { createRouter, createMemoryHistory, type Router } from 'vue-router'
-import { flushPromises, mount, VueWrapper } from '@vue/test-utils'
+import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import PreferencesView from '@/modules/profile/views/PreferencesView.vue'
 import { audioManager } from '@/core/audio/audioManager'
@@ -26,9 +26,17 @@ const mockProfile: UserProfile = {
   updated_at: '2023-01-02T00:00:00Z',
 }
 
-function switchByLabel(wrapper: VueWrapper, label: string) {
-  return wrapper.find(`button[role="switch"][aria-label="${label}"]`)
-}
+/** A profile whose notification digest can be toggled per category. */
+const notificationProfile = (): UserProfile => ({
+  ...mockProfile,
+  preferences: { notifications: { version: 1, disabled_categories: [] } },
+})
+
+const switchByLabel = (wrapper: VueWrapper, label: string) =>
+  wrapper.find(`button[role="switch"][aria-label="${label}"]`)
+
+const activePanel = (wrapper: VueWrapper) =>
+  wrapper.get('[role="tabpanel"][data-state="active"]').text()
 
 describe('PreferencesView', () => {
   let router: Router
@@ -55,17 +63,22 @@ describe('PreferencesView', () => {
     })
   })
 
-  function mountView() {
-    return mount(PreferencesView, {
+  /** Mount with the standard stubs and wait for the next tick. */
+  async function mountView(stubs: Record<string, unknown> = {}, settle = false) {
+    const wrapper = mount(PreferencesView, {
       global: {
         plugins: [router],
-        stubs: {
-          SidePanel: true,
-          Icon: true,
-          PageNavigation: true,
-        },
+        stubs: { SidePanel: true, Icon: true, PageNavigation: true, ...stubs },
       },
     })
+    if (settle) await flushPromises()
+    return wrapper
+  }
+
+  /** Route to a tab first, then mount — the view reads the tab from the query. */
+  async function mountAt(query: string, stubs: Record<string, unknown> = {}) {
+    await router.push(`/preferences${query}`)
+    return mountView(stubs)
   }
 
   it.each([
@@ -73,51 +86,47 @@ describe('PreferencesView', () => {
     ['notifications', 'Notification Preferences'],
     ['gameplay', 'Automatically pause when an incident starts'],
   ])('opens a direct link to %s', async (tab, text) => {
-    await router.push(`/preferences?tab=${tab}`)
-    const wrapper = mountView()
+    const wrapper = await mountAt(`?tab=${tab}`)
+
     expect(wrapper.get('[role="tab"][aria-selected="true"]').text()).toBe(
       tab.charAt(0).toUpperCase() + tab.slice(1)
     )
-    expect(wrapper.get('[role="tabpanel"][data-state="active"]').text()).toContain(text)
-    expect(wrapper.get('[role="tabpanel"][data-state="active"]').text()).not.toContain(
-      'Color Theme'
-    )
+    expect(activePanel(wrapper)).toContain(text)
+    expect(activePanel(wrapper)).not.toContain('Color Theme')
     wrapper.unmount()
   })
 
   it('keeps other query parameters when switching tabs and follows route changes', async () => {
-    await router.push('/preferences?vault=vault-123')
-    const wrapper = mountView()
+    const wrapper = await mountAt('?vault=vault-123')
+
     await wrapper
       .findAll('[role="tab"]')
       .find((tab) => tab.text() === 'Sound')!
       .trigger('mousedown')
     await flushPromises()
+
     expect(router.currentRoute.value.query).toEqual({ vault: 'vault-123', tab: 'sound' })
-    expect(wrapper.get('[role="tabpanel"][data-state="active"]').text()).toContain('Sound Enabled')
+    expect(activePanel(wrapper)).toContain('Sound Enabled')
+
     await router.replace('/preferences?tab=gameplay')
     await flushPromises()
-    expect(wrapper.get('[role="tabpanel"][data-state="active"]').text()).toContain(
-      'Resume the guide'
-    )
-    expect(wrapper.get('[role="tabpanel"][data-state="active"]').text()).toContain(
-      'Replay orientation'
-    )
+    expect(activePanel(wrapper)).toContain('Resume the guide')
+    expect(activePanel(wrapper)).toContain('Replay orientation')
     wrapper.unmount()
   })
 
   it('falls back to Appearance for an unknown tab', async () => {
-    await router.push('/preferences?tab=unknown')
-    const wrapper = mountView()
+    const wrapper = await mountAt('?tab=unknown')
+
     expect(wrapper.get('[role="tab"][aria-selected="true"]').text()).toBe('Appearance')
-    expect(wrapper.get('[role="tabpanel"][data-state="active"]').text()).toContain('Color Theme')
+    expect(activePanel(wrapper)).toContain('Color Theme')
     wrapper.unmount()
   })
 
   it('shows saved volume levels but disables audio controls while muted', async () => {
     audioManager.setMuted(true)
-    await router.push('/preferences?tab=sound')
-    const wrapper = mountView()
+    const wrapper = await mountAt('?tab=sound')
+
     const sliders = wrapper.findAllComponents({ name: 'Slider' })
     expect(sliders).toHaveLength(4)
     for (const slider of sliders) expect(slider.props('disabled')).toBe(true)
@@ -126,9 +135,9 @@ describe('PreferencesView', () => {
   })
 
   it('provides one-percent volume adjustments', async () => {
-    await router.push('/preferences?tab=sound')
     audioManager.setMuted(false)
-    const wrapper = mountView()
+    const wrapper = await mountAt('?tab=sound')
+
     const sliders = wrapper.findAllComponents({ name: 'Slider' })
     expect(sliders).toHaveLength(4)
     for (const slider of sliders) expect(slider.props('step')).toBe(0.01)
@@ -137,10 +146,9 @@ describe('PreferencesView', () => {
   })
 
   it('toggles the incident alarm independently of the master switch', async () => {
-    await router.push('/preferences?tab=sound')
     audioManager.setMuted(false)
     audioManager.setAlarmEnabled(true)
-    const wrapper = mountView()
+    const wrapper = await mountAt('?tab=sound')
 
     const toggle = switchByLabel(wrapper, 'Toggle incident alarm')
     expect(toggle.attributes('aria-checked')).toBe('true')
@@ -156,61 +164,46 @@ describe('PreferencesView', () => {
   })
 
   it('saves the optional pause-on-incident preference', async () => {
-    await router.push('/preferences?tab=gameplay')
     useProfileStore().profile = { ...mockProfile, preferences: {} }
-    const wrapper = mountView()
+    const wrapper = await mountAt('?tab=gameplay')
+
     const toggle = switchByLabel(wrapper, 'Automatically pause when an incident starts')
     expect(toggle.attributes('aria-checked')).toBe('false')
+
     await toggle.trigger('click')
     await flushPromises()
+
     expect(useProfileStore().profile?.preferences?.pause_on_incident).toBe(true)
     expect(toggle.attributes('aria-checked')).toBe('true')
   })
 
-  it('passes the persisted selection to the vault sidebar after a refresh', () => {
+  it('passes the persisted selection to the vault sidebar after a refresh', async () => {
     useVaultStore().selectedVaultId = 'vault-123'
 
-    const wrapper = mount(PreferencesView, {
-      global: {
-        plugins: [router],
-        stubs: {
-          SidePanel: {
-            props: ['vaultId'],
-            template: '<div data-testid="side-panel" :data-vault="vaultId" />',
-          },
-          Icon: true,
-          PageNavigation: true,
-        },
+    const wrapper = await mountView({
+      SidePanel: {
+        props: ['vaultId'],
+        template: '<div data-testid="side-panel" :data-vault="vaultId" />',
       },
     })
 
     expect(wrapper.get('[data-testid="side-panel"]').attributes('data-vault')).toBe('vault-123')
   })
 
-  it('renders the grouped preferences page', () => {
-    const store = useProfileStore()
-    store.profile = mockProfile
-    const wrapper = mountView()
+  it('renders the grouped preferences page', async () => {
+    useProfileStore().profile = mockProfile
+    const wrapper = await mountView()
 
     expect(wrapper.text()).toContain('Preferences')
     expect(wrapper.text()).toContain('Appearance')
-    expect(wrapper.get('[role="tabpanel"][data-state="active"]').text()).not.toContain(
-      'Notification Preferences'
-    )
-    expect(wrapper.get('[role="tabpanel"][data-state="active"]').text()).not.toContain(
-      'Incident preparation'
-    )
+    expect(activePanel(wrapper)).not.toContain('Notification Preferences')
+    expect(activePanel(wrapper)).not.toContain('Incident preparation')
     expect(wrapper.text()).toContain('Sound')
   })
 
   it('preserves both changes on rapid consecutive toggles', async () => {
-    await router.push('/preferences?tab=notifications')
-    const store = useProfileStore()
-    store.profile = {
-      ...mockProfile,
-      preferences: { notifications: { version: 1, disabled_categories: [] } },
-    }
-    const wrapper = mountView()
+    useProfileStore().profile = notificationProfile()
+    const wrapper = await mountAt('?tab=notifications')
 
     await switchByLabel(wrapper, 'Disable Dweller Advancement').trigger('click')
     await switchByLabel(wrapper, 'Disable Social Activity').trigger('click')
@@ -226,31 +219,21 @@ describe('PreferencesView', () => {
   })
 
   it('reverts the toggle and toasts on save failure', async () => {
-    await router.push('/preferences?tab=notifications')
-    const store = useProfileStore()
-    store.profile = {
-      ...mockProfile,
-      preferences: { notifications: { version: 1, disabled_categories: [] } },
-    }
+    useProfileStore().profile = notificationProfile()
     vi.mocked(axios.put).mockRejectedValueOnce(new Error('Network error'))
-    const wrapper = mountView()
+    const wrapper = await mountAt('?tab=notifications')
 
     await switchByLabel(wrapper, 'Disable Dweller Advancement').trigger('click')
     await flushPromises()
 
     expect(switchByLabel(wrapper, 'Disable Dweller Advancement').exists()).toBe(true)
     const { toasts } = useToast()
-    expect(toasts.value.some((t) => t.variant === 'error')).toBe(true)
+    expect(toasts.value.some((toast) => toast.variant === 'error')).toBe(true)
   })
 
   it('toggles from a click on the row label text', async () => {
-    await router.push('/preferences?tab=notifications')
-    const store = useProfileStore()
-    store.profile = {
-      ...mockProfile,
-      preferences: { notifications: { version: 1, disabled_categories: [] } },
-    }
-    const wrapper = mountView()
+    useProfileStore().profile = notificationProfile()
+    const wrapper = await mountAt('?tab=notifications')
 
     const row = wrapper
       .findAll('label.setting-row')
@@ -266,9 +249,8 @@ describe('PreferencesView', () => {
   })
 
   it('saves theme changes from the shared picker', async () => {
-    const store = useProfileStore()
-    store.profile = mockProfile
-    const wrapper = mountView()
+    useProfileStore().profile = mockProfile
+    const wrapper = await mountView()
 
     await wrapper.get('[aria-label="Select Fallout: New Vegas — Amber Terminal"]').trigger('click')
     await flushPromises()
@@ -279,9 +261,8 @@ describe('PreferencesView', () => {
   })
 
   it('selects glow intensity through the toggle group', async () => {
-    const store = useProfileStore()
-    store.profile = mockProfile
-    const wrapper = mountView()
+    useProfileStore().profile = mockProfile
+    const wrapper = await mountView()
 
     await wrapper.find('[aria-label="Set glow to Strong"]').trigger('click')
 
@@ -293,28 +274,16 @@ describe('PreferencesView', () => {
     )
   })
 
-  it('treats the badge toggle as colourful-on', async () => {
-    const store = useProfileStore()
-    store.profile = mockProfile
-    const wrapper = mountView()
+  it.each([
+    ['colourful-badges', 'Colourful Badges'],
+    ['map-group-colors', 'Colourful Map Markers'],
+  ])('starts the %s switch on and flips it off', async (id, label) => {
+    useProfileStore().profile = mockProfile
+    const wrapper = await mountView()
 
-    const switchButton = wrapper.find('button#colourful-badges')
-    expect(wrapper.find('label[for="colourful-badges"]').text()).toContain('Colourful Badges')
-    expect(switchButton.attributes('aria-checked')).toBe('true')
-
-    await switchButton.trigger('click')
-
-    expect(switchButton.attributes('aria-checked')).toBe('false')
-  })
-
-  it('toggles map marker colours', async () => {
-    const store = useProfileStore()
-    store.profile = mockProfile
-    const wrapper = mountView()
-
-    const switchButton = wrapper.find('button#map-group-colors')
-    expect(wrapper.find('label[for="map-group-colors"]').text()).toContain('Colourful Map Markers')
-    // Site-family tint is on by default; the toggle exists to go back to mono.
+    const switchButton = wrapper.find(`button#${id}`)
+    // Both tints are on by default; the toggle exists to go back to mono.
+    expect(wrapper.find(`label[for="${id}"]`).text()).toContain(label)
     expect(switchButton.attributes('aria-checked')).toBe('true')
 
     await switchButton.trigger('click')

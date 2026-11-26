@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vite-plus/test'
 import { createIconifyMock, createToastMock } from '../../helpers/mocks'
-import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
+import { flushPromises, mount, type MountingOptions, type VueWrapper } from '@vue/test-utils'
 import CraftingPanel from '@/modules/crafting/components/CraftingPanel.vue'
 import { craftingService } from '@/modules/crafting/services/craftingService'
 import type { CraftingOrder, CraftingRecipe } from '@/modules/crafting/models/crafting'
@@ -75,23 +75,29 @@ const shortRecipe = () =>
     missing_junk: 3,
   })
 
-const mountPanel = (props: Record<string, unknown> = {}) =>
-  mount(CraftingPanel, { props: { vaultId: 'vault-1', itemType: 'weapon', ...props } })
+type CraftingPanelProps = InstanceType<typeof CraftingPanel>['$props']
+type MountOptions = Omit<MountingOptions<typeof CraftingPanel>, 'props'>
+
+const mountPanel = (props: Partial<CraftingPanelProps> = {}, options: MountOptions = {}) =>
+  mount(CraftingPanel, {
+    ...options,
+    props: { vaultId: 'vault-1', itemType: 'weapon', ...props } as CraftingPanelProps,
+  })
 
 /** The usual start: the workshop resolved its recipe and queue reads. */
-const mountLoaded = async (props: Record<string, unknown> = {}) => {
+const mountLoaded = async (props: Partial<CraftingPanelProps> = {}) => {
   const wrapper = mountPanel(props)
   await flushPromises()
   return wrapper
 }
 
-// The filter bar's shadcn SelectTrigger is also a <button>, so target the Start
-// action by its label rather than by DOM position.
-const findButton = (wrapper: VueWrapper, label: string) =>
-  wrapper.findAll('button').find((button) => button.text().includes(label))!
-
-const collectButton = (wrapper: VueWrapper) =>
-  wrapper.findAll('button').find((button) => button.text().includes('Collect'))
+// The filter bar's shadcn SelectTrigger is also a <button>, so target actions by
+// label rather than by DOM position.
+function findButton(wrapper: VueWrapper, label: string) {
+  const found = wrapper.findAll('button').find((button) => button.text().includes(label))
+  if (!found) throw new Error(`No button labelled "${label}"`)
+  return found
+}
 
 describe('CraftingPanel', () => {
   afterEach(() => vi.useRealTimers())
@@ -275,8 +281,7 @@ describe('CraftingPanel', () => {
     ])
     const wrapper = await mountLoaded()
 
-    expect(collectButton(wrapper)?.exists()).toBe(true)
-    await collectButton(wrapper)!.trigger('click')
+    await findButton(wrapper, 'Collect').trigger('click')
     await flushPromises()
 
     expect(craftingService.collectOrder).toHaveBeenCalledWith('vault-1', 'order-1')
@@ -291,7 +296,7 @@ describe('CraftingPanel', () => {
     vi.mocked(craftingService.collectOrder).mockRejectedValue(new Error('Order vanished'))
     const wrapper = await mountLoaded()
 
-    await collectButton(wrapper)!.trigger('click')
+    await findButton(wrapper, 'Collect').trigger('click')
     await flushPromises()
 
     expect(mockToast.error).toHaveBeenCalled()

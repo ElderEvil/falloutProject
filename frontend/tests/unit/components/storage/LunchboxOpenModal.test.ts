@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vite-plus/test'
 import { createIconifyMock } from '../../helpers/mocks'
-import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
+import { flushPromises, mount, type MountingOptions, type VueWrapper } from '@vue/test-utils'
 import LunchboxOpenModal from '@/modules/storage/components/LunchboxOpenModal.vue'
 import type { components } from '@/core/types/api.generated'
 
@@ -38,15 +38,22 @@ const result: LunchboxOpened = {
   },
 }
 
-const mountModal = (options: Parameters<typeof mount>[1] = {}) =>
+type ModalProps = InstanceType<typeof LunchboxOpenModal>['$props']
+type MountOptions = Omit<MountingOptions<typeof LunchboxOpenModal>, 'props'>
+
+/** Mounts the modal open on the fixture result; callers override the props a case needs. */
+const mountModal = (props: Partial<ModalProps> = {}, options: MountOptions = {}) =>
   mount(LunchboxOpenModal, {
-    props: { show: true, result },
-    global: { stubs: { Teleport: { template: '<div><slot /></div>' } } },
     ...options,
+    props: { show: true, result, ...props } as ModalProps,
+    global: { stubs: { Teleport: { template: '<div><slot /></div>' } } },
   })
 
-const findButton = (wrapper: VueWrapper, label: string) =>
-  wrapper.findAll('button').find((button) => button.text().includes(label))
+function findButton(wrapper: VueWrapper, label: string) {
+  const found = wrapper.findAll('button').find((button) => button.text().includes(label))
+  if (!found) throw new Error(`No button labelled "${label}"`)
+  return found
+}
 
 describe('LunchboxOpenModal', () => {
   let wrapper: VueWrapper | null = null
@@ -78,9 +85,7 @@ describe('LunchboxOpenModal', () => {
   it('reveals rolled items and the dweller on demand', async () => {
     wrapper = mountModal()
 
-    const reveal = findButton(wrapper, 'Reveal Contents')
-    expect(reveal?.exists()).toBe(true)
-    await reveal!.trigger('click')
+    await findButton(wrapper, 'Reveal Contents').trigger('click')
     await vi.advanceTimersByTimeAsync(2700)
 
     expect(wrapper.text()).toContain('Laser Pistol')
@@ -96,7 +101,7 @@ describe('LunchboxOpenModal', () => {
   it('reveals each item then the dweller in the same slots, without replacing the supply-drop panel', async () => {
     wrapper = mountModal()
     const slots = wrapper.findAll('[data-reward-slot]').map((slot) => slot.element)
-    const reveal = findButton(wrapper, 'Reveal Contents')!
+    const reveal = findButton(wrapper, 'Reveal Contents')
     await reveal.trigger('click')
     expect(reveal.attributes('disabled')).toBeDefined()
     expect(wrapper.text()).not.toContain('Laser Pistol')
@@ -121,14 +126,14 @@ describe('LunchboxOpenModal', () => {
 
   it('cancels the old sequence and waits for a result after reopening a sealed box', async () => {
     wrapper = mountModal()
-    await findButton(wrapper, 'Reveal Contents')!.trigger('click')
+    await findButton(wrapper, 'Reveal Contents').trigger('click')
     await vi.advanceTimersByTimeAsync(0)
     soundMock.playSound.mockClear()
     await wrapper.setProps({ show: false, result: null })
     await wrapper.setProps({ show: true })
     await vi.advanceTimersByTimeAsync(3600)
     expect(soundMock.playSound).not.toHaveBeenCalled()
-    await findButton(wrapper, 'Reveal Contents')!.trigger('click')
+    await findButton(wrapper, 'Reveal Contents').trigger('click')
     expect(wrapper.emitted('reveal')).toHaveLength(1)
     expect(wrapper.text()).toContain('Something rattles inside')
     await wrapper.setProps({
@@ -141,7 +146,7 @@ describe('LunchboxOpenModal', () => {
 
   it('falls back to item icons and a dweller silhouette when images fail', async () => {
     wrapper = mountModal()
-    await findButton(wrapper, 'Reveal Contents')!.trigger('click')
+    await findButton(wrapper, 'Reveal Contents').trigger('click')
     await vi.advanceTimersByTimeAsync(2700)
     await wrapper.find('img[alt="Laser Pistol"]').trigger('error')
     await wrapper.find('img[alt="Jane Doe"]').trigger('error')
@@ -158,16 +163,13 @@ describe('LunchboxOpenModal', () => {
     ['legendary', 'cardLegendary'],
   ])('plays the %s dweller reveal sound without a generic card drop', async (rarity, sound) => {
     wrapper = mountModal({
-      props: {
-        show: true,
-        result: {
-          ...result,
-          items: [{ name: 'Vault Suit', type: 'outfit', rarity: 'common' }],
-          dweller: { ...result.dweller, rarity },
-        },
+      result: {
+        ...result,
+        items: [{ name: 'Vault Suit', type: 'outfit', rarity: 'common' }],
+        dweller: { ...result.dweller, rarity },
       },
     })
-    await findButton(wrapper, 'Reveal Contents')!.trigger('click')
+    await findButton(wrapper, 'Reveal Contents').trigger('click')
     await vi.advanceTimersByTimeAsync(0)
     soundMock.playSound.mockClear()
     await vi.advanceTimersByTimeAsync(900)
@@ -214,12 +216,10 @@ describe('LunchboxOpenModal', () => {
 
   it('emits close from the Done action', async () => {
     wrapper = mountModal()
-    await findButton(wrapper, 'Reveal Contents')!.trigger('click')
+    await findButton(wrapper, 'Reveal Contents').trigger('click')
     await vi.advanceTimersByTimeAsync(2700)
 
-    const done = findButton(wrapper, 'Done')
-    expect(done?.exists()).toBe(true)
-    await done!.trigger('click')
+    await findButton(wrapper, 'Done').trigger('click')
 
     expect(wrapper.emitted('close')).toHaveLength(1)
   })
@@ -227,9 +227,7 @@ describe('LunchboxOpenModal', () => {
   it('emits close from the dialog close button', async () => {
     wrapper = mountModal()
 
-    const close = wrapper.findAll('button').find((button) => button.text() === 'Close')
-    expect(close?.exists()).toBe(true)
-    await close!.trigger('click')
+    await findButton(wrapper, 'Close').trigger('click')
 
     expect(wrapper.emitted('close')).toHaveLength(1)
   })
@@ -244,10 +242,9 @@ describe('LunchboxOpenModal', () => {
   })
 
   it('moves focus into the dialog on open', async () => {
-    wrapper = mountModal({ attachTo: document.body })
+    wrapper = mountModal({}, { attachTo: document.body })
     await flushPromises()
 
-    const reveal = findButton(wrapper, 'Reveal Contents')
-    expect(document.activeElement).toBe(reveal?.element)
+    expect(document.activeElement).toBe(findButton(wrapper, 'Reveal Contents').element)
   })
 })

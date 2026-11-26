@@ -103,8 +103,7 @@ async def test_send_dweller_to_wasteland_success(
     assert data["duration"] == 4
 
     # SPECIAL stats are captured on the run.
-    for stat in SPECIAL:
-        assert data[f"dweller_{stat}"] == getattr(dweller, stat)
+    assert tuple(data[f"dweller_{stat}"] for stat in SPECIAL) == tuple(getattr(dweller, stat) for stat in SPECIAL)
 
     assert data["total_distance"] == 0
     assert data["total_caps_found"] == 0
@@ -209,20 +208,6 @@ async def test_list_explorations_includes_paused_at(
     assert row["paused_at"] is not None
 
 
-async def test_get_exploration_details(async_client, superuser_token_headers, async_session, vault, dweller) -> None:
-    run = await _send(async_session, vault, dweller)
-    run = await crud.exploration.add_event(
-        async_session,
-        exploration_id=run.id,
-        event_type="loot_found",
-        description="Found a cool item",
-        loot={"item": {"name": "Desk Fan", "rarity": "Common", "value": 10}, "caps": 15},
-    )
-    response = await async_client.get(f"/explorations/{run.id}", headers=superuser_token_headers)
-    assert response.status_code == 200
-    assert response.json()["id"] == str(run.id)
-
-
 async def test_get_exploration_details_reports_pack_capacity(
     async_client, superuser_token_headers, async_session, vault, dweller
 ) -> None:
@@ -232,15 +217,24 @@ async def test_get_exploration_details_reports_pack_capacity(
     run.add_loot(item_name="Stimpak", rarity="Common", item_type="stimpak")
     async_session.add(run)
     await async_session.commit()
+    await crud.exploration.add_event(
+        async_session,
+        exploration_id=run.id,
+        event_type="loot_found",
+        description="Found a cool item",
+        loot={"item": {"name": "Desk Fan", "rarity": "Common", "value": 10}, "caps": 15},
+    )
 
     response = await async_client.get(f"/explorations/{run.id}", headers=superuser_token_headers)
 
     assert response.status_code == 200
     data = response.json()
+    assert data["id"] == str(run.id)
     assert data["dweller_strength"] == 3
     # 15 + 2 * 3; the stimpak rides in the pouch and the Desk Fan stack takes two slots.
     assert data["carry_capacity"] == 21
     assert data["pack_slots_used"] == 2
+    assert [event["description"] for event in data["events"]] == ["Found a cool item"]
 
 
 async def test_list_explorations_reports_pack_and_activity(
@@ -286,18 +280,31 @@ async def test_get_exploration_progress(async_client, superuser_token_headers, a
     assert 0 <= data["progress_percentage"] <= 100
 
 
-async def test_recall_dweller_success(async_client, superuser_token_headers, async_session, vault, dweller) -> None:
+@pytest.mark.parametrize(
+    ("recalled", "distance", "enemies", "terminal"),
+    [(True, 10, 2, ExplorationStatus.RECALLED), (False, 50, 5, ExplorationStatus.COMPLETED)],
+)
+async def test_recall_and_complete_pay_only_on_arrival(
+    async_client, superuser_token_headers, async_session, vault, dweller, recalled, distance, enemies, terminal
+) -> None:
     run = await _send(async_session, vault, dweller)
-    run = await crud.exploration.add_loot(
-        async_session, exploration_id=run.id, item_name="Desk Fan", quantity=1, rarity="Common"
+    await crud.exploration.add_loot(
+        async_session, exploration_id=run.id, item_name="Desk Fan", quantity=1, rarity="Rare"
     )
-    run = await crud.exploration.update_stats(async_session, exploration_id=run.id, caps=50, distance=10, enemies=2)
+    run = await crud.exploration.update_stats(
+        async_session, exploration_id=run.id, caps=100, distance=distance, enemies=enemies
+    )
+    if not recalled:
+        run.start_time = utcnow() - timedelta(hours=run.duration)
+        async_session.add(run)
+        await async_session.commit()
     initial_caps = vault.bottle_caps
 
-    response = await async_client.post(f"/explorations/{run.id}/recall", json={}, headers=superuser_token_headers)
+    action = "recall" if recalled else "complete"
+    response = await async_client.post(f"/explorations/{run.id}/{action}", json={}, headers=superuser_token_headers)
     assert response.status_code == 200
     data = response.json()
-    # Recall only starts the return leg: no rewards and no loot until arrival.
+    # The action only starts the return leg: no rewards and no loot until arrival.
     assert data["exploration"]["status"] == ExplorationStatus.RETURNING
     assert data["exploration"]["return_completes_at"] is not None
     assert data["rewards_summary"] is None
@@ -310,54 +317,15 @@ async def test_recall_dweller_success(async_client, superuser_token_headers, asy
     arrival = await async_client.post(f"/explorations/{run.id}/complete", json={}, headers=superuser_token_headers)
     assert arrival.status_code == 200
     arrival_data = arrival.json()
-    assert arrival_data["exploration"]["status"] == ExplorationStatus.RECALLED
+    assert arrival_data["exploration"]["status"] == terminal
     assert arrival_data["exploration"]["end_time"] is not None
     rewards = arrival_data["rewards_summary"]
-    assert rewards["caps"] == 50
-    assert rewards["recalled_early"] is True
-    assert "progress_percentage" in rewards
-
-    await async_session.refresh(vault)
-    assert vault.bottle_caps == initial_caps + 50
-
-
-@pytest.mark.smoke
-async def test_complete_exploration_success(
-    async_client, superuser_token_headers, async_session, vault, dweller
-) -> None:
-    run = await _send(async_session, vault, dweller)
-    run = await crud.exploration.add_loot(
-        async_session, exploration_id=run.id, item_name="Desk Fan", quantity=1, rarity="Rare"
-    )
-    run = await crud.exploration.update_stats(async_session, exploration_id=run.id, caps=100, distance=50, enemies=5)
-    run.start_time = utcnow() - timedelta(hours=run.duration)
-    async_session.add(run)
-    await async_session.commit()
-    initial_caps = vault.bottle_caps
-
-    response = await async_client.post(f"/explorations/{run.id}/complete", json={}, headers=superuser_token_headers)
-    assert response.status_code == 200
-    data = response.json()
-    # Completion starts the return leg; the dweller must travel before rewards land.
-    assert data["exploration"]["status"] == ExplorationStatus.RETURNING
-    assert data["rewards_summary"] is None
-
-    await async_session.refresh(vault)
-    assert vault.bottle_caps == initial_caps
-
-    await async_session.refresh(run)
-    await _arrived(async_session, run)
-    arrival = await async_client.post(f"/explorations/{run.id}/complete", json={}, headers=superuser_token_headers)
-    assert arrival.status_code == 200
-    arrival_data = arrival.json()
-    assert arrival_data["exploration"]["status"] == ExplorationStatus.COMPLETED
-    assert arrival_data["exploration"]["end_time"] is not None
-    rewards = arrival_data["rewards_summary"]
-    assert rewards["caps"] == 100
-    assert rewards["distance"] == 50
-    assert rewards["enemies_defeated"] == 5
-    assert rewards["experience"] > 0
-    assert not rewards.get("recalled_early")
+    assert (rewards["caps"], rewards["distance"], rewards["enemies_defeated"]) == (100, distance, enemies)
+    assert bool(rewards.get("recalled_early")) is recalled
+    if recalled:
+        assert "progress_percentage" in rewards
+    else:
+        assert rewards["experience"] > 0
 
     await async_session.refresh(vault)
     assert vault.bottle_caps == initial_caps + 100

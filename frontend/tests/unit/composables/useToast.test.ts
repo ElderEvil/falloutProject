@@ -44,32 +44,16 @@ describe('useToast', () => {
   })
 
   describe('default durations', () => {
-    it('should use default duration for success (3000ms)', () => {
-      const { success, toasts } = useToast()
-      success('Success message')
+    it.each([
+      ['success', 3000],
+      ['info', 5000],
+      ['warning', 7000],
+      ['error', 7000],
+    ] as const)('should use the default %s duration (%ims)', (variant, duration) => {
+      const { toasts, [variant]: notify } = useToast()
+      notify('Message')
 
-      expect(toasts.value[0].duration).toBe(3000)
-    })
-
-    it('should use default duration for info (5000ms)', () => {
-      const { info, toasts } = useToast()
-      info('Info message')
-
-      expect(toasts.value[0].duration).toBe(5000)
-    })
-
-    it('should use default duration for warning (7000ms)', () => {
-      const { warning, toasts } = useToast()
-      warning('Warning message')
-
-      expect(toasts.value[0].duration).toBe(7000)
-    })
-
-    it('should auto-dismiss errors after 7 seconds', () => {
-      const { error, toasts } = useToast()
-      error('Error message')
-
-      expect(toasts.value[0].duration).toBe(7000)
+      expect(toasts.value[0]!.duration).toBe(duration)
     })
 
     it('should override default duration with explicit value', () => {
@@ -92,20 +76,9 @@ describe('useToast', () => {
       expect(toasts.value).toHaveLength(0)
     })
 
-    it('should not auto-dismiss toast with duration 0', () => {
+    it.each([0, -1])('should not auto-dismiss toast with duration %i', (duration) => {
       const { show, toasts } = useToast()
-      show('Persistent error', 'info', 0)
-
-      expect(toasts.value).toHaveLength(1)
-
-      vi.advanceTimersByTime(10000)
-
-      expect(toasts.value).toHaveLength(1)
-    })
-
-    it('should not auto-dismiss toast with negative duration', () => {
-      const { show, toasts } = useToast()
-      show('Test message', 'info', -1)
+      show('Test message', 'info', duration)
 
       expect(toasts.value).toHaveLength(1)
 
@@ -205,13 +178,14 @@ describe('useToast', () => {
   })
 
   describe('MAX_TOASTS behavior', () => {
+    /** Fills the queue to the five-toast cap. */
+    function fillQueue(show: ReturnType<typeof useToast>['show']): void {
+      for (let index = 1; index <= 5; index += 1) show(`Toast ${index}`, 'info')
+    }
+
     it('should remove oldest toast when limit reached with new unique toast', () => {
       const { show, toasts } = useToast()
-      show('Toast 1', 'info')
-      show('Toast 2', 'info')
-      show('Toast 3', 'info')
-      show('Toast 4', 'info')
-      show('Toast 5', 'info')
+      fillQueue(show)
 
       expect(toasts.value).toHaveLength(5)
 
@@ -223,11 +197,7 @@ describe('useToast', () => {
 
     it('should not evict when duplicate arrives at max capacity', () => {
       const { show, toasts } = useToast()
-      show('Toast 1', 'info')
-      show('Toast 2', 'info')
-      show('Toast 3', 'info')
-      show('Toast 4', 'info')
-      show('Toast 5', 'info')
+      fillQueue(show)
 
       expect(toasts.value).toHaveLength(5)
 
@@ -273,36 +243,17 @@ describe('useToast', () => {
   })
 
   describe('convenience methods', () => {
-    it('should create success toast', () => {
-      const { success, toasts } = useToast()
-      success('Success!')
+    it.each([
+      ['success', 'Success!', 3000],
+      ['error', 'Error!', 7000],
+      ['warning', 'Warning!', 7000],
+      ['info', 'Info!', 5000],
+    ] as const)('should create a %s toast', (variant, message, duration) => {
+      const { toasts, [variant]: notify } = useToast()
+      notify(message)
 
-      expect(toasts.value[0].variant).toBe('success')
-      expect(toasts.value[0].duration).toBe(3000)
-    })
-
-    it('should create error toast', () => {
-      const { error, toasts } = useToast()
-      error('Error!')
-
-      expect(toasts.value[0].variant).toBe('error')
-      expect(toasts.value[0].duration).toBe(7000)
-    })
-
-    it('should create warning toast', () => {
-      const { warning, toasts } = useToast()
-      warning('Warning!')
-
-      expect(toasts.value[0].variant).toBe('warning')
-      expect(toasts.value[0].duration).toBe(7000)
-    })
-
-    it('should create info toast', () => {
-      const { info, toasts } = useToast()
-      info('Info!')
-
-      expect(toasts.value[0].variant).toBe('info')
-      expect(toasts.value[0].duration).toBe(5000)
+      expect(toasts.value[0]!.variant).toBe(variant)
+      expect(toasts.value[0]!.duration).toBe(duration)
     })
   })
 

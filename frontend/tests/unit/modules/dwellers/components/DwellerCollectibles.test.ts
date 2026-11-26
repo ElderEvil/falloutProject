@@ -69,23 +69,22 @@ describe('DwellerCollectibles', () => {
     expect(wrapper.text()).not.toContain('PERMANENT +0')
   })
 
-  it('shows the empty state when the dweller has found nothing', async () => {
-    vi.mocked(getDwellerCollectibles).mockResolvedValue([])
+  it.each([
+    ['the dweller has found nothing', [] as unknown[], 'No collectibles yet'],
+    ['the read fails', new Error('network down'), 'network down'],
+  ] as const)('surfaces %s instead of a collection', async (_name, result, text) => {
+    if (result instanceof Error) {
+      vi.mocked(getDwellerCollectibles).mockRejectedValue(result)
+    } else {
+      vi.mocked(getDwellerCollectibles).mockResolvedValue(result as never)
+    }
 
     const wrapper = mountCollectibles()
     await flushPromises()
 
-    expect(wrapper.text()).toContain('No collectibles yet')
+    expect(wrapper.text()).toContain(text)
+    // An error must never be presented as a legitimately empty collection.
+    expect(wrapper.text().includes('No collectibles yet')).toBe(text === 'No collectibles yet')
     expect(wrapper.find('img').exists()).toBe(false)
-  })
-
-  it('surfaces a failed read instead of an empty collection', async () => {
-    vi.mocked(getDwellerCollectibles).mockRejectedValue(new Error('network down'))
-
-    const wrapper = mountCollectibles()
-    await flushPromises()
-
-    expect(wrapper.text()).toContain('network down')
-    expect(wrapper.text()).not.toContain('No collectibles yet')
   })
 })

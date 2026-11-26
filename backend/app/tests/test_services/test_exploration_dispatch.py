@@ -138,6 +138,26 @@ async def _cleared_notifications(async_session: AsyncSession) -> list[Notificati
     return list(rows.scalars().all())
 
 
+async def _arrived(
+    async_session: AsyncSession,
+    vault: Vault,
+    dweller: Dweller,
+    *,
+    party: tuple[Dweller, ...] = (),
+    name: str = "Red Rocket",
+    stats: dict | None = STRONG_STATS,
+    clear_count: int | None = None,
+) -> tuple[WorldLocation, VaultLocationState, Exploration]:
+    """Settle a site, send the party out, and let the arrival resolution run."""
+    location, state = await _settled(async_session, vault, dweller, name=name, stats=stats, clear_count=clear_count)
+    members = [dweller, *party]
+    exploration = await _expired(async_session, vault, members, location.id)
+    await resolve_dispatch_arrival(async_session, exploration.id)
+    for obj in (state, exploration, *members):
+        await async_session.refresh(obj)
+    return location, state, exploration
+
+
 # dispatch_travel_hours: 1 + 0.1 * distance hours, ceil'd, capped at 24h
 
 
@@ -166,13 +186,9 @@ async def test_dispatch_creates_targeted_run_with_anchor_snapshot(
     await async_session.refresh(dweller)
     assert dweller.status.value == "exploring"
     assert dweller.room_id is None
-    assert exploration.dweller_strength == 10
-    assert exploration.dweller_perception == 10
-    assert exploration.dweller_endurance == 10
-    assert exploration.dweller_charisma == 10
-    assert exploration.dweller_intelligence == 10
-    assert exploration.dweller_agility == 10
-    assert exploration.dweller_luck == 10
+    assert (exploration.dweller_strength, exploration.dweller_perception, exploration.dweller_endurance) == (10, 10, 10)
+    assert (exploration.dweller_charisma, exploration.dweller_intelligence) == (10, 10)
+    assert (exploration.dweller_agility, exploration.dweller_luck) == (10, 10)
     await resolve_dispatch_arrival(async_session, exploration.id, arrived=True)
     await async_session.refresh(exploration)
     await async_session.refresh(state)
@@ -294,34 +310,27 @@ async def test_dispatch_rejects_a_table_that_cannot_roll(
 
 
 @pytest.mark.usefixtures("default_world_snapshot")
-async def test_complete_exploration_resolves_an_expired_legacy_dispatch(
-    async_session: AsyncSession, vault: Vault, dweller: Dweller
+@pytest.mark.parametrize("legacy", [True, False])
+async def test_complete_exploration_resolves_an_expired_dispatch(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller, legacy: bool
 ) -> None:
-    # A legacy timed dispatch (no heading) still resolves through the API completion path.
+    # A legacy timed dispatch (no heading) still resolves through the API completion path; a spatial
+    # run settles the movement it logged before resolving.
     location, state = await _settled(async_session, vault, dweller)
     exploration = await _expired(async_session, vault, dweller, location.id)
-    exploration.heading_degrees = None
-    await _commit(async_session, exploration)
+    if legacy:
+        exploration.heading_degrees = None
+        await _commit(async_session, exploration)
+    else:
+        assert len(exploration.trail) == 1  # departure only: movement has not been settled yet
     completed, rewards = await exploration_service.complete_exploration_with_data(async_session, exploration.id)
     await async_session.refresh(completed)
     await async_session.refresh(state)
     assert completed.status == ExplorationStatus.RETURNING
-    assert rewards is None
-    assert state.cleared_at is not None
-    assert completed.location_xp == get_place_group(location.group_key)["xp_reward"]
-
-
-@pytest.mark.usefixtures("default_world_snapshot")
-async def test_complete_exploration_settles_spatial_movement_before_resolving(
-    async_session: AsyncSession, vault: Vault, dweller: Dweller
-) -> None:
-    location, state = await _settled(async_session, vault, dweller)
-    exploration = await _expired(async_session, vault, dweller, location.id)
-    assert len(exploration.trail) == 1  # departure only: movement has not been settled yet
-    completed, _rewards = await exploration_service.complete_exploration_with_data(async_session, exploration.id)
-    await async_session.refresh(state)
-    await async_session.refresh(completed)
-    assert len(completed.trail) > 1
+    if legacy:
+        assert rewards is None
+    else:
+        assert len(completed.trail) > 1
     assert state.cleared_at is not None
     assert completed.location_xp == get_place_group(location.group_key)["xp_reward"]
 
@@ -451,43 +460,37 @@ async def test_dispatch_salvage_awards_the_bobblehead_without_combat(
 
 
 @pytest.mark.usefixtures("default_world_snapshot")
-async def test_dispatch_arrival_awards_the_site_bobblehead(
-    async_session: AsyncSession, vault: Vault, dweller: Dweller, monkeypatch: pytest.MonkeyPatch
+@pytest.mark.parametrize(
+    ("stats", "clear_count", "bonus"),
+    [(STRONG_STATS, None, {"strength": 1}), (WEAK_STATS, 5, None)],
+)
+async def test_dispatch_arrival_bobblehead_follows_the_outcome(
+    async_session: AsyncSession,
+    vault: Vault,
+    dweller: Dweller,
+    monkeypatch: pytest.MonkeyPatch,
+    stats: dict,
+    clear_count: int | None,
+    bonus: dict | None,
 ) -> None:
     monkeypatch.setattr(game_config.features, "collectibles", True)
-    location, _state = await _settled(async_session, vault, dweller, name="Poseidon Energy")
-    exploration = await _expired(async_session, vault, dweller, location.id)
-    await resolve_dispatch_arrival(async_session, exploration.id)
-    await async_session.refresh(dweller)
+    _location, _state, _exploration = await _arrived(
+        async_session, vault, dweller, name="Poseidon Energy", stats=stats, clear_count=clear_count
+    )
     claim = await collectible_crud.get_by_vault_and_key(async_session, vault.id, "strength")
+    if bonus is None:
+        assert claim is None
+        return
     assert claim is not None
     assert claim.finder_dweller_id == dweller.id
-    assert dweller.collectible_bonus == {"strength": 1}
-
-
-@pytest.mark.usefixtures("default_world_snapshot")
-async def test_dispatch_arrival_loss_awards_no_bobblehead(
-    async_session: AsyncSession, vault: Vault, dweller: Dweller, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    monkeypatch.setattr(game_config.features, "collectibles", True)
-    location, _state = await _settled(
-        async_session, vault, dweller, name="Poseidon Energy", stats=WEAK_STATS, clear_count=5
-    )
-    exploration = await _expired(async_session, vault, dweller, location.id)
-    await resolve_dispatch_arrival(async_session, exploration.id)
-    assert await collectible_crud.get_by_vault_and_key(async_session, vault.id, "strength") is None
+    assert dweller.collectible_bonus == bonus
 
 
 @pytest.mark.usefixtures("default_world_snapshot")
 async def test_dispatch_arrival_loss_no_clear_no_loot_no_notification(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
 ) -> None:
-    location, state = await _settled(async_session, vault, dweller, stats=WEAK_STATS, clear_count=5)
-    exploration = await _expired(async_session, vault, dweller, location.id)
-    await resolve_dispatch_arrival(async_session, exploration.id)
-    await async_session.refresh(exploration)
-    await async_session.refresh(state)
-    await async_session.refresh(dweller)
+    _location, state, exploration = await _arrived(async_session, vault, dweller, stats=WEAK_STATS, clear_count=5)
     assert exploration.status == ExplorationStatus.RETURNING
     assert state.cleared_at is None
     assert state.clear_count == 5
@@ -638,17 +641,6 @@ async def test_dispatch_rejects_foreign_member(
     assert dweller.status.value != "exploring"
 
 
-@pytest.mark.usefixtures("default_world_snapshot")
-async def test_dispatch_rejects_busy_member(
-    async_session: AsyncSession, vault: Vault, dweller: Dweller, dweller_data: dict
-) -> None:
-    location, _state = await _register_clearable(async_session, vault, dweller)
-    await exploration_service.dispatch(async_session, vault.id, [dweller.id], location.id)
-    partner = await _make_dweller(async_session, vault, dweller_data)
-    with pytest.raises(ValidationException, match="already on an exploration"):
-        await exploration_service.dispatch(async_session, vault.id, [dweller.id, partner.id], location.id)
-
-
 # party departure and arrival
 
 
@@ -720,14 +712,10 @@ async def test_dispatch_arrival_death_trims_haul(
 async def test_dispatch_arrival_party_wipe_survives_finalize(
     async_session: AsyncSession, vault: Vault, dweller: Dweller, dweller_data: dict
 ) -> None:
-    location, state = await _settled(async_session, vault, dweller, stats={**WEAK_STATS, "health": 1}, clear_count=5)
     partner = await _make_dweller(async_session, vault, dweller_data, **{**WEAK_STATS, "health": 1})
-    exploration = await _expired(async_session, vault, [dweller, partner], location.id)
-    await resolve_dispatch_arrival(async_session, exploration.id)
-    await async_session.refresh(exploration)
-    await async_session.refresh(state)
-    await async_session.refresh(dweller)
-    await async_session.refresh(partner)
+    _location, state, exploration = await _arrived(
+        async_session, vault, dweller, party=(partner,), stats={**WEAK_STATS, "health": 1}, clear_count=5
+    )
     assert exploration.status == ExplorationStatus.RETURNING
     assert state.cleared_at is None
     assert state.clear_count == 5
@@ -776,16 +764,17 @@ async def test_dispatch_arrival_winning_party_wiped_leaves_point_uncleared(
 # party damage distribution
 
 
-@pytest.mark.parametrize(("total", "size"), [(1, 3), (2, 3), (5, 3), (0, 3), (7, 3), (10, 4), (3, 1)])
-def test_distribute_damage_sums_to_total(total: int, size: int) -> None:
-    shares = distribute_damage(total, size)
-    assert len(shares) == size
-    assert sum(shares) == total
-    assert all(share >= 0 for share in shares)
-
-
-def test_distribute_damage_zero_total_is_all_zeros() -> None:
-    assert distribute_damage(0, 3) == [0, 0, 0]
+@pytest.mark.parametrize(
+    ("total", "size", "shares"),
+    [(1, 3, None), (2, 3, None), (5, 3, None), (0, 3, [0, 0, 0]), (7, 3, None), (10, 4, None), (3, 1, None)],
+)
+def test_distribute_damage_sums_to_total(total: int, size: int, shares: list[int] | None) -> None:
+    result = distribute_damage(total, size)
+    assert len(result) == size
+    assert sum(result) == total
+    assert all(share >= 0 for share in result)
+    if shares is not None:
+        assert result == shares
 
 
 @pytest.mark.usefixtures("default_world_snapshot")

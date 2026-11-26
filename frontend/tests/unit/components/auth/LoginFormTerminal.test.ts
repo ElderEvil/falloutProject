@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach, vi } from 'vite-plus/test'
 import { createIconifyMock } from '../../helpers/mocks'
-import { mount, flushPromises } from '@vue/test-utils'
+import { mount, flushPromises, type VueWrapper } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
-import { createRouter, createMemoryHistory } from 'vue-router'
+import { createRouter, createMemoryHistory, type Router } from 'vue-router'
 import LoginFormTerminal from '@/modules/auth/components/LoginFormTerminal.vue'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 
@@ -10,8 +10,8 @@ import { useAuthStore } from '@/modules/auth/stores/auth'
 vi.mock('@iconify/vue', () => createIconifyMock())
 
 describe('LoginFormTerminal', () => {
-  let router: any
-  let authStore: any
+  let router: Router
+  let authStore: ReturnType<typeof useAuthStore>
 
   beforeEach(() => {
     localStorage.clear()
@@ -28,13 +28,19 @@ describe('LoginFormTerminal', () => {
     })
   })
 
+  const render = () => mount(LoginFormTerminal, { global: { plugins: [router] } })
+
+  async function signIn(wrapper: VueWrapper, email: string, password: string): Promise<void> {
+    const inputs = wrapper.findAll('input')
+    await inputs[0]!.setValue(email)
+    await inputs[1]!.setValue(password)
+    await wrapper.find('form').trigger('submit.prevent')
+    await flushPromises()
+  }
+
   describe('Rendering', () => {
     it('should render terminal-style login form with all elements', () => {
-      const wrapper = mount(LoginFormTerminal, {
-        global: {
-          plugins: [router],
-        },
-      })
+      const wrapper = render()
 
       expect(wrapper.text()).toContain('VAULT-TEC INDUSTRIES')
       expect(wrapper.text()).toContain('Vault Network Access Terminal')
@@ -43,79 +49,39 @@ describe('LoginFormTerminal', () => {
     })
 
     it('should display correct version number', () => {
-      const wrapper = mount(LoginFormTerminal, {
-        global: {
-          plugins: [router],
-        },
-      })
-
-      expect(wrapper.text()).toMatch(/SECURE TERMINAL v\d+\.\d+\.\d+/)
+      expect(render().text()).toMatch(/SECURE TERMINAL v\d+\.\d+\.\d+/)
     })
 
     it('should have terminal-style button with arrow icons', () => {
-      const wrapper = mount(LoginFormTerminal, {
-        global: {
-          plugins: [router],
-        },
-      })
+      const button = render().find('button[type="submit"]')
 
-      const button = wrapper.find('button[type="submit"]')
       expect(button.text()).toContain('AUTHENTICATE')
       expect(button.text()).toContain('►')
       expect(button.text()).toContain('◄')
     })
 
-    it('should have email input with correct attributes', () => {
-      const wrapper = mount(LoginFormTerminal, {
-        global: {
-          plugins: [router],
-        },
-      })
+    it.each([
+      ['email', 0],
+      ['password', 1],
+    ])('should have %s input with correct attributes', (type, index) => {
+      const input = render().findAll('input')[index]
 
-      const emailInput = wrapper.findAll('input')[0]
-      expect(emailInput.attributes('type')).toBe('email')
-      expect(emailInput.attributes('required')).toBeDefined()
-    })
-
-    it('should have password input with correct attributes', () => {
-      const wrapper = mount(LoginFormTerminal, {
-        global: {
-          plugins: [router],
-        },
-      })
-
-      const passwordInput = wrapper.findAll('input')[1]
-      expect(passwordInput.attributes('type')).toBe('password')
-      expect(passwordInput.attributes('required')).toBeDefined()
+      expect(input!.attributes('type')).toBe(type)
+      expect(input!.attributes('required')).toBeDefined()
     })
 
     it('should not render per-view scanlines overlay (moved to DefaultLayout)', () => {
-      const wrapper = mount(LoginFormTerminal, {
-        global: {
-          plugins: [router],
-        },
-      })
-
-      expect(wrapper.find('.scanlines').exists()).toBe(false)
+      expect(render().find('.scanlines').exists()).toBe(false)
     })
 
     it('respects the saved flicker setting', () => {
       localStorage.setItem('visual-effects:flickering', 'true')
-      const wrapper = mount(LoginFormTerminal, {
-        global: {
-          plugins: [router],
-        },
-      })
 
-      expect(wrapper.find('.flicker').exists()).toBe(true)
+      expect(render().find('.flicker').exists()).toBe(true)
     })
 
     it('should not have Vault-Tec logo icon', () => {
-      const wrapper = mount(LoginFormTerminal, {
-        global: {
-          plugins: [router],
-        },
-      })
+      const wrapper = render()
 
       expect(wrapper.find('.logo-vault').exists()).toBe(false)
       expect(wrapper.find('.logo-circle').exists()).toBe(false)
@@ -123,122 +89,63 @@ describe('LoginFormTerminal', () => {
   })
 
   describe('Form Interaction', () => {
-    it('should bind username input correctly', async () => {
-      const wrapper = mount(LoginFormTerminal, {
-        global: {
-          plugins: [router],
-        },
-      })
+    it.each([
+      ['username', 0, 'test@vault-tec.com'],
+      ['password', 1, 'password123'],
+    ])('should bind %s input correctly', async (_label, index, value) => {
+      const input = render().findAll('input')[index]!
 
-      const usernameInput = wrapper.findAll('input')[0]
-      await usernameInput.setValue('test@vault-tec.com')
+      await input.setValue(value)
 
-      expect((usernameInput.element as HTMLInputElement).value).toBe('test@vault-tec.com')
-    })
-
-    it('should bind password input correctly', async () => {
-      const wrapper = mount(LoginFormTerminal, {
-        global: {
-          plugins: [router],
-        },
-      })
-
-      const passwordInput = wrapper.findAll('input')[1]
-      await passwordInput.setValue('password123')
-
-      expect((passwordInput.element as HTMLInputElement).value).toBe('password123')
+      expect((input.element as HTMLInputElement).value).toBe(value)
     })
 
     it('should not display error message initially', () => {
-      const wrapper = mount(LoginFormTerminal, {
-        global: {
-          plugins: [router],
-        },
-      })
+      const text = render().text()
 
-      expect(wrapper.text()).not.toContain('ERROR')
-      expect(wrapper.text()).not.toContain('ACCESS DENIED')
+      expect(text).not.toContain('ERROR')
+      expect(text).not.toContain('ACCESS DENIED')
     })
   })
 
   describe('Form Submission', () => {
     it('should call login with correct credentials on submit', async () => {
-      const wrapper = mount(LoginFormTerminal, {
-        global: {
-          plugins: [router],
-        },
-      })
-
+      const wrapper = render()
       const loginSpy = vi.spyOn(authStore, 'login').mockResolvedValue(true)
       const pushSpy = vi.spyOn(router, 'push')
-      const inputs = wrapper.findAll('input')
 
-      await inputs[0].setValue('test@vault-tec.com')
-      await inputs[1].setValue('password123')
-      await wrapper.find('form').trigger('submit.prevent')
-
-      await flushPromises()
+      await signIn(wrapper, 'test@vault-tec.com', 'password123')
 
       expect(loginSpy).toHaveBeenCalledWith('test@vault-tec.com', 'password123')
       expect(pushSpy).toHaveBeenCalledWith('/')
     })
 
     it('should redirect to home on successful login', async () => {
-      const wrapper = mount(LoginFormTerminal, {
-        global: {
-          plugins: [router],
-        },
-      })
-
+      const wrapper = render()
       vi.spyOn(authStore, 'login').mockResolvedValue(true)
       const pushSpy = vi.spyOn(router, 'push')
-      const inputs = wrapper.findAll('input')
 
-      await inputs[0].setValue('test@vault-tec.com')
-      await inputs[1].setValue('password123')
-      await wrapper.find('form').trigger('submit.prevent')
-
-      await flushPromises()
+      await signIn(wrapper, 'test@vault-tec.com', 'password123')
 
       expect(pushSpy).toHaveBeenCalledWith('/')
     })
 
     it('should display terminal-style error message on login failure', async () => {
-      const wrapper = mount(LoginFormTerminal, {
-        global: {
-          plugins: [router],
-        },
-      })
-
+      const wrapper = render()
       vi.spyOn(authStore, 'login').mockResolvedValue(false)
-      const inputs = wrapper.findAll('input')
 
-      await inputs[0].setValue('wrong@vault-tec.com')
-      await inputs[1].setValue('wrongpassword')
-      await wrapper.find('form').trigger('submit.prevent')
-
-      await flushPromises()
+      await signIn(wrapper, 'wrong@vault-tec.com', 'wrongpassword')
 
       expect(wrapper.text()).toContain('ERROR')
       expect(wrapper.text()).toContain('ACCESS DENIED')
     })
 
     it('should not redirect on failed login', async () => {
-      const wrapper = mount(LoginFormTerminal, {
-        global: {
-          plugins: [router],
-        },
-      })
-
+      const wrapper = render()
       vi.spyOn(authStore, 'login').mockResolvedValue(false)
       const pushSpy = vi.spyOn(router, 'push')
-      const inputs = wrapper.findAll('input')
 
-      await inputs[0].setValue('wrong@vault-tec.com')
-      await inputs[1].setValue('wrongpassword')
-      await wrapper.find('form').trigger('submit.prevent')
-
-      await flushPromises()
+      await signIn(wrapper, 'wrong@vault-tec.com', 'wrongpassword')
 
       expect(pushSpy).not.toHaveBeenCalled()
     })
@@ -246,11 +153,7 @@ describe('LoginFormTerminal', () => {
 
   describe('Terminal Styling', () => {
     it('should have terminal-themed CSS classes', () => {
-      const wrapper = mount(LoginFormTerminal, {
-        global: {
-          plugins: [router],
-        },
-      })
+      const wrapper = render()
 
       expect(wrapper.find('[data-slot="card"]').exists()).toBe(true)
       expect(wrapper.find('button').exists()).toBe(true)
@@ -258,11 +161,7 @@ describe('LoginFormTerminal', () => {
     })
 
     it('should have system messages section', () => {
-      const wrapper = mount(LoginFormTerminal, {
-        global: {
-          plugins: [router],
-        },
-      })
+      const wrapper = render()
 
       expect(wrapper.find('.system-messages').exists()).toBe(true)
       expect(wrapper.text()).toContain('SECURE TERMINAL')
@@ -270,14 +169,10 @@ describe('LoginFormTerminal', () => {
     })
 
     it('should have register link', () => {
-      const wrapper = mount(LoginFormTerminal, {
-        global: {
-          plugins: [router],
-        },
-      })
+      const text = render().text()
 
-      expect(wrapper.text()).toContain('NEW OVERSEER REGISTRATION')
-      expect(wrapper.text()).toContain('INITIATE PROTOCOL')
+      expect(text).toContain('NEW OVERSEER REGISTRATION')
+      expect(text).toContain('INITIATE PROTOCOL')
     })
   })
 })

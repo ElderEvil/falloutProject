@@ -21,10 +21,8 @@ from app import crud
 from app.core.enums import ExplorationStatus, RarityEnum
 from app.core.event_bus import GameEvent
 from app.crud import storage as crud_storage
-from app.crud.vault import vault as vault_crud
 from app.models.dweller import Dweller
 from app.models.outfit import Outfit
-from app.models.storage import Storage
 from app.models.vault import Vault
 from app.models.weapon import Weapon
 from app.services.exploration.coordinator import exploration_coordinator
@@ -32,9 +30,15 @@ from app.services.exploration.rewards_calculator import rewards_calculator
 from app.services.exploration.rewards_service import rewards_service
 from app.services.exploration_service import exploration_service
 from app.services.leveling_service import LevelingService
+from app.tests.factory.exploration_loot import vault_storage_factory
 from app.tests.factory.items import create_fake_outfit, create_fake_weapon
 from app.utils.reward_delivery import reward_delivery_is_deferred
 from app.utils.time import utcnow
+
+
+@pytest_asyncio.fixture
+async def make_vault_storage(async_session: AsyncSession, vault: Vault):
+    return await vault_storage_factory(async_session, vault)
 
 
 def _level_up_events(emit: AsyncMock, vault_id) -> list:
@@ -53,24 +57,6 @@ def _junk_payloads(emit: AsyncMock) -> list[dict]:
         for call in emit.await_args_list
         if call.args and call.args[0] == GameEvent.ITEM_COLLECTED and call.args[2].get("item_type") == "junk"
     ]
-
-
-@pytest_asyncio.fixture
-async def make_vault_storage(async_session: AsyncSession, vault: Vault) -> Callable[[int], Awaitable[Storage]]:
-    """Factory for the test vault's storage, emptied and sized via max_space."""
-    result = await async_session.execute(select(Storage).where(Storage.vault_id == vault.id))
-    storage = result.scalar_one_or_none() or await vault_crud.create_storage(
-        db_session=async_session, vault_id=vault.id
-    )
-
-    async def _make(max_space: int = 10) -> Storage:
-        storage.max_space = max_space
-        storage.used_space = 0
-        async_session.add(storage)
-        await async_session.flush()
-        return storage
-
-    return _make
 
 
 async def _expired_exploration(async_session: AsyncSession, vault: Vault, dweller: Dweller, duration: int = 4):
@@ -96,31 +82,21 @@ async def _returning_exploration(
     return exploration
 
 
-async def _create_held_weapon(
-    async_session: AsyncSession, dweller: Dweller, exploration_id, *, rarity: RarityEnum = RarityEnum.COMMON
-) -> Weapon:
-    """A weapon row held by the exploration (displaced by a mid-run upgrade)."""
-    data = create_fake_weapon()
-    data["rarity"] = rarity
-    old = await crud.weapon.create(async_session, obj_in=data)
-    new = await crud.weapon.create(async_session, obj_in=create_fake_weapon())
-    await crud.weapon.equip(db_session=async_session, item_id=old.id, dweller_id=dweller.id)
-    await crud.weapon.equip(
-        db_session=async_session, item_id=new.id, dweller_id=dweller.id, held_exploration_id=exploration_id
-    )
-    return old
-
-
-async def _create_held_outfit(
-    async_session: AsyncSession, dweller: Dweller, exploration_id, *, rarity: RarityEnum = RarityEnum.COMMON
-) -> Outfit:
-    """An outfit row held by the exploration (displaced by a mid-run upgrade)."""
-    data = create_fake_outfit()
-    data["rarity"] = rarity
-    old = await crud.outfit.create(async_session, obj_in=data)
-    new = await crud.outfit.create(async_session, obj_in=create_fake_outfit())
-    await crud.outfit.equip(db_session=async_session, item_id=old.id, dweller_id=dweller.id)
-    await crud.outfit.equip(
+async def _create_held(
+    async_session: AsyncSession,
+    dweller: Dweller,
+    exploration_id,
+    *,
+    kind: str = "weapon",
+    rarity: RarityEnum = RarityEnum.COMMON,
+) -> Weapon | Outfit:
+    """A weapon/outfit row held by the exploration (displaced by a mid-run upgrade)."""
+    model = crud.weapon if kind == "weapon" else crud.outfit
+    fake = create_fake_weapon if kind == "weapon" else create_fake_outfit
+    old = await model.create(async_session, obj_in=fake() | {"rarity": rarity})
+    new = await model.create(async_session, obj_in=fake())
+    await model.equip(db_session=async_session, item_id=old.id, dweller_id=dweller.id)
+    await model.equip(
         db_session=async_session, item_id=new.id, dweller_id=dweller.id, held_exploration_id=exploration_id
     )
     return old
@@ -170,7 +146,7 @@ async def test_free_space_settles_held_row_and_skips_equipped_entry(
 ) -> None:
     storage = await make_vault_storage(10)
     exploration = await _returning_exploration(async_session, vault, dweller, recalled=recalled)
-    held = await _create_held_weapon(async_session, dweller, exploration.id)
+    held = await _create_held(async_session, dweller, exploration.id)
     exploration.add_loot(item_name="Fire hydrant bat", quantity=1, rarity="Legendary", item_type="weapon")
     exploration.loot_collected[-1]["equipped"] = True
     exploration.loot_collected[-1]["equipped_item_id"] = str(uuid4())
@@ -196,7 +172,7 @@ async def test_tight_space_splits_held_and_loot_once(
     # Held rows and loot share one rarity-first budget; overflow holds the excess once.
     storage = await make_vault_storage(1)
     exploration = await _returning_exploration(async_session, vault, dweller)
-    held = await _create_held_weapon(async_session, dweller, exploration.id, rarity=RarityEnum.COMMON)
+    held = await _create_held(async_session, dweller, exploration.id, rarity=RarityEnum.COMMON)
     exploration.add_loot(item_name="Fire hydrant bat", quantity=1, rarity="Legendary", item_type="weapon")
     async_session.add(exploration)
     await async_session.commit()
@@ -217,8 +193,8 @@ async def test_no_orphan_rows_after_settlement(
 ) -> None:
     await make_vault_storage(10)
     exploration = await _returning_exploration(async_session, vault, dweller)
-    await _create_held_weapon(async_session, dweller, exploration.id)
-    await _create_held_outfit(async_session, dweller, exploration.id)
+    await _create_held(async_session, dweller, exploration.id)
+    await _create_held(async_session, dweller, exploration.id, kind="outfit")
     exploration.add_loot(item_name="Fire hydrant bat", quantity=1, rarity="Legendary", item_type="weapon")
     async_session.add(exploration)
     await async_session.commit()
@@ -238,7 +214,7 @@ async def test_failed_settlement_keeps_run_returning_and_held_rows_intact(
     experience_before = dweller.experience
     level_before = dweller.level
     xp_award = rewards_calculator.calculate_exploration_xp(exploration, dweller)
-    held = await _create_held_weapon(async_session, dweller, exploration.id)
+    held = await _create_held(async_session, dweller, exploration.id)
     _flaky_update_used_space(monkeypatch, RuntimeError("storage update exploded"))
     with pytest.raises(RuntimeError, match="storage update exploded"):
         await exploration_coordinator.finalize_return(async_session, exploration.id)
@@ -278,7 +254,7 @@ async def test_failed_settlement_discards_level_up_and_retry_delivers_once(
     await async_session.commit()
     await async_session.refresh(dweller)
     level_before = dweller.level
-    await _create_held_weapon(async_session, dweller, exploration.id)
+    await _create_held(async_session, dweller, exploration.id)
     _flaky_update_used_space(monkeypatch, IntegrityError("UPDATE storage", {}, RuntimeError("storage write failed")))
     with (
         patch("app.core.event_bus.event_bus.emit", new_callable=AsyncMock) as emit,
@@ -326,7 +302,7 @@ async def test_no_storage_holds_everything_including_held_rows(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
 ) -> None:
     exploration = await _returning_exploration(async_session, vault, dweller)
-    held = await _create_held_weapon(async_session, dweller, exploration.id)
+    held = await _create_held(async_session, dweller, exploration.id)
     exploration.add_loot(item_name="Fire hydrant bat", quantity=1, rarity="Legendary", item_type="weapon")
     async_session.add(exploration)
     await async_session.commit()

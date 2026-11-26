@@ -6,24 +6,29 @@ import {
   mountWithDwellerContext,
 } from '../../helpers/dwellerDetailContext'
 
-describe('DwellerPanel', () => {
-  const stubs = {
-    DwellerBio: true,
-    DwellerAppearance: true,
-    DwellerStats: true,
-    DwellerEquipment: true,
-    FamilyTreePanel: true,
-  }
+const stubs = {
+  DwellerBio: true,
+  DwellerAppearance: true,
+  DwellerStats: true,
+  DwellerEquipment: true,
+  FamilyTreePanel: true,
+}
 
-  it('updates its active tab when notification navigation changes the query tab', async () => {
+describe('DwellerPanel', () => {
+  const mountPanel = (initialTab?: string) => {
     const ctx = createMockDwellerDetailContext({
       dweller: ref({ first_name: 'Amata', last_name: 'Almodovar' }) as never,
-      initialTab: ref('profile') as never,
+      initialTab: ref(initialTab) as never,
     })
     const wrapper = mountWithDwellerContext(DwellerPanel, {
       context: ctx,
       global: { stubs },
     })
+    return { wrapper, ctx }
+  }
+
+  it('updates its active tab when notification navigation changes the query tab', async () => {
+    const { wrapper, ctx } = mountPanel('profile')
 
     ctx.initialTab.value = 'stats'
     await nextTick()
@@ -32,34 +37,22 @@ describe('DwellerPanel', () => {
   })
 
   it('falls back to Profile when the initial tab is unknown', async () => {
-    const ctx = createMockDwellerDetailContext({
-      dweller: ref({ first_name: 'Amata', last_name: 'Almodovar' }) as never,
-      initialTab: ref('does-not-exist') as never,
-    })
-    const wrapper = mountWithDwellerContext(DwellerPanel, {
-      context: ctx,
-      global: { stubs },
-    })
+    const { wrapper } = mountPanel('does-not-exist')
 
     await nextTick()
+
     expect(wrapper.find('[role="tab"][aria-selected="true"]').text()).toBe('Profile')
   })
 
   it('renders the active section in a linked tabpanel', async () => {
-    const ctx = createMockDwellerDetailContext({
-      dweller: ref({ first_name: 'Amata', last_name: 'Almodovar' }) as never,
-      initialTab: ref('profile') as never,
-    })
-    const wrapper = mountWithDwellerContext(DwellerPanel, {
-      context: ctx,
-      global: { stubs },
-    })
+    const { wrapper } = mountPanel('profile')
 
     await nextTick()
+
     const panel = wrapper.find('[role="tabpanel"]')
     expect(panel.exists()).toBe(true)
-
-    const activeTab = wrapper.find('[role="tab"][aria-selected="true"]')
-    expect(activeTab.attributes('aria-controls')).toBe(panel.attributes('id'))
+    expect(wrapper.find('[role="tab"][aria-selected="true"]').attributes('aria-controls')).toBe(
+      panel.attributes('id')
+    )
   })
 })

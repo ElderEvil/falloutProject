@@ -46,11 +46,23 @@ vi.mock('@/core/composables/useToast', () => ({
 }))
 
 describe('RelationshipsView', () => {
-  let router: any
-  let relationshipStore: any
-  let pregnancyStore: any
-  let dwellerStore: any
-  let authStore: any
+  let router: ReturnType<typeof createRouter>
+  let relationshipStore: ReturnType<typeof useRelationshipStore>
+  let pregnancyStore: ReturnType<typeof usePregnancyStore>
+  let dwellerStore: ReturnType<typeof useDwellerStore>['filter']
+  let authStore: ReturnType<typeof useAuthStore>
+
+  const mountView = async (attachTo?: HTMLElement) => {
+    const wrapper = mount(RelationshipsView, {
+      ...(attachTo ? { attachTo } : {}),
+      global: {
+        plugins: [router],
+        ...(attachTo ? { stubs: { Teleport: { template: '<div><slot /></div>' } } } : {}),
+      },
+    })
+    await flushPromises()
+    return wrapper
+  }
 
   beforeEach(async () => {
     setActivePinia(createPinia())
@@ -59,28 +71,22 @@ describe('RelationshipsView', () => {
     dwellerStore = useDwellerStore().filter
     authStore = useAuthStore()
 
-    // Mock store methods
     vi.spyOn(relationshipStore, 'fetchVaultRelationships').mockResolvedValue(undefined)
     vi.spyOn(pregnancyStore, 'fetchVaultPregnancies').mockResolvedValue(undefined)
     vi.spyOn(dwellerStore, 'fetchAllDwellers').mockResolvedValue(undefined)
     vi.spyOn(useVaultStore(), 'ensureVaultLoaded').mockResolvedValue(undefined)
 
-    // Set up mock data
     relationshipStore.relationships = []
     pregnancyStore.pregnancies = []
     relationshipStore.token = 'mock-token'
     dwellerStore.allDwellers = []
-    authStore.user = { is_superuser: false } as any
+    authStore.user = { is_superuser: false } as never
     authStore.token = 'mock-token'
 
     router = createRouter({
       history: createMemoryHistory(),
       routes: [
-        {
-          path: '/vault/:id/relationships',
-          component: RelationshipsView,
-          name: 'relationships',
-        },
+        { path: '/vault/:id/relationships', component: RelationshipsView, name: 'relationships' },
         {
           path: '/vault/:id',
           redirect: (to) => ({ name: 'relationships', params: { id: to.params.id } }),
@@ -92,274 +98,146 @@ describe('RelationshipsView', () => {
     await router.isReady()
   })
 
-  describe('Rendering', () => {
-    it('explains family stages through optional page help without switching tabs', async () => {
-      const wrapper = mount(RelationshipsView, {
-        attachTo: document.body,
-        global: { plugins: [router], stubs: { Teleport: { template: '<div><slot /></div>' } } },
-      })
-      await flushPromises()
-      expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
-      await vi.waitFor(() =>
-        expect(wrapper.find('button[aria-label="About Relationships & Family"]').exists()).toBe(
-          true
-        )
-      )
-      await wrapper.find('button[aria-label="About Relationships & Family"]').trigger('click')
-      await flushPromises()
-      const help = wrapper.find('[role="dialog"]')
-      expect(help.text()).toContain('sharing Living Quarters')
-      expect(help.text()).toContain('conception is not guaranteed')
-      expect(help.text()).toContain('youth stages before adulthood')
-      await help.find('button').trigger('click')
-      await flushPromises()
-      expect(wrapper.find('[role="tab"][aria-selected="true"]').text()).toContain('Forming')
-      wrapper.unmount()
-    })
+  it('explains family stages through optional page help without switching tabs', async () => {
+    const wrapper = await mountView(document.body)
 
-    it('skips family reads when the session changes during vault adoption', async () => {
-      let resolveVault!: () => void
-      vi.spyOn(useVaultStore(), 'ensureVaultLoaded').mockImplementation(
-        () =>
-          new Promise<void>((resolve) => {
-            resolveVault = resolve
-          })
-      )
+    expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
+    await vi.waitFor(() =>
+      expect(wrapper.find('button[aria-label="About Relationships & Family"]').exists()).toBe(true)
+    )
+    await wrapper.find('button[aria-label="About Relationships & Family"]').trigger('click')
+    await flushPromises()
 
-      const wrapper = mount(RelationshipsView, {
-        global: {
-          plugins: [router],
-        },
-      })
-      await flushPromises()
-      expect(relationshipStore.fetchVaultRelationships).not.toHaveBeenCalled()
+    const help = wrapper.find('[role="dialog"]')
+    expect(help.text()).toContain('sharing Living Quarters')
+    expect(help.text()).toContain('conception is not guaranteed')
+    expect(help.text()).toContain('youth stages before adulthood')
 
-      authStore.sessionGeneration++
-      resolveVault()
-      await flushPromises()
-
-      expect(relationshipStore.fetchVaultRelationships).not.toHaveBeenCalled()
-      expect(pregnancyStore.fetchVaultPregnancies).not.toHaveBeenCalled()
-      expect(dwellerStore.fetchAllDwellers).not.toHaveBeenCalled()
-      wrapper.unmount()
-    })
-
-    it('should render relationships view with header', async () => {
-      const wrapper = mount(RelationshipsView, {
-        global: {
-          plugins: [router],
-        },
-      })
-
-      await flushPromises()
-
-      expect(wrapper.text()).toContain('Relationships & Family')
-      expect(wrapper.find('.main-content > div').classes()).toContain('max-w-[1400px]')
-    })
-
-    it('should render all five tabs', async () => {
-      const wrapper = mount(RelationshipsView, {
-        global: {
-          plugins: [router],
-        },
-      })
-
-      await flushPromises()
-
-      expect(wrapper.text()).toContain('Forming')
-      expect(wrapper.text()).toContain('Tensions')
-      expect(wrapper.text()).toContain('Partners')
-      expect(wrapper.text()).toContain('Pregnancies')
-      expect(wrapper.text()).toContain('Children')
-    })
-
-    it('should render the total relationships count in the header', async () => {
-      relationshipStore.relationships = [
-        {
-          id: 'r1',
-          dweller_1_id: 'd1',
-          dweller_2_id: 'd2',
-          relationship_type: 'friend',
-          affinity: 50,
-        },
-      ]
-
-      const wrapper = mount(RelationshipsView, {
-        global: {
-          plugins: [router],
-        },
-      })
-
-      await flushPromises()
-
-      expect(wrapper.find('.total-relationships-count .page-header-metric-value').text()).toBe('1')
-      expect(wrapper.text()).toContain('relationship')
-    })
-
-    it('should have terminal-style tab styling', async () => {
-      const wrapper = mount(RelationshipsView, {
-        global: {
-          plugins: [router],
-        },
-      })
-
-      await flushPromises()
-
-      const tabs = wrapper.findAll('[role="tab"]')
-      expect(tabs.length).toBe(5)
-
-      // Check that first tab is active by default
-      expect(tabs[0].attributes('aria-selected')).toBe('true')
-      const panel = wrapper.get('[role="tabpanel"]')
-      expect(panel.attributes('aria-labelledby')).toBe(tabs[0].attributes('id'))
-    })
+    await help.find('button').trigger('click')
+    await flushPromises()
+    expect(wrapper.find('[role="tab"][aria-selected="true"]').text()).toContain('Forming')
+    wrapper.unmount()
   })
 
-  describe('Tab Switching', () => {
-    it('should switch to partners tab when clicked', async () => {
-      const wrapper = mount(RelationshipsView, {
-        global: {
-          plugins: [router],
-        },
-      })
+  it('skips family reads when the session changes during vault adoption', async () => {
+    let resolveVault!: () => void
+    vi.spyOn(useVaultStore(), 'ensureVaultLoaded').mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveVault = resolve
+        })
+    )
 
-      await flushPromises()
+    const wrapper = await mountView()
+    expect(relationshipStore.fetchVaultRelationships).not.toHaveBeenCalled()
 
+    authStore.sessionGeneration++
+    resolveVault()
+    await flushPromises()
+
+    expect(relationshipStore.fetchVaultRelationships).not.toHaveBeenCalled()
+    expect(pregnancyStore.fetchVaultPregnancies).not.toHaveBeenCalled()
+    expect(dwellerStore.fetchAllDwellers).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
+  it('renders the family header with every tab', async () => {
+    const wrapper = await mountView()
+
+    expect(wrapper.text()).toContain('Relationships & Family')
+    expect(wrapper.findAll('[role="tab"]')).toHaveLength(5)
+    for (const label of ['Forming', 'Tensions', 'Partners', 'Pregnancies', 'Children']) {
+      expect(wrapper.text()).toContain(label)
+    }
+  })
+
+  it('renders the total relationships count in the header', async () => {
+    relationshipStore.relationships = [
+      {
+        id: 'r1',
+        dweller_1_id: 'd1',
+        dweller_2_id: 'd2',
+        relationship_type: 'friend',
+        affinity: 50,
+      },
+    ]
+
+    const wrapper = await mountView()
+
+    expect(wrapper.find('.total-relationships-count .page-header-metric-value').text()).toBe('1')
+    expect(wrapper.text()).toContain('relationship')
+  })
+
+  describe('Tab switching', () => {
+    it.each([
+      ['Forming', 0, 'Forming Relationships'],
+      ['Tensions', 1, 'Rivals lose production and happiness'],
+      ['Partners', 2, 'Committed partners in living quarters'],
+      ['Pregnancies', 3, 'Active Pregnancies'],
+      ['Children', 4, 'Growing Children'],
+    ])('opens the %s panel when its tab is selected', async (label, index, panel) => {
+      const wrapper = await mountView()
       const tabs = wrapper.findAll('[role="tab"]')
-      await tabs[2].trigger('mousedown')
 
-      await flushPromises()
+      if (index > 0) {
+        await tabs[index]!.trigger('mousedown')
+        await flushPromises()
+      }
 
-      expect(tabs[2].attributes('aria-selected')).toBe('true')
-      expect(wrapper.text()).toContain('Partner Couples')
+      expect(tabs[index]!.text()).toContain(label)
+      expect(tabs[index]!.attributes('aria-selected')).toBe('true')
+      expect(wrapper.text()).toContain(panel)
     })
 
-    it('should switch to pregnancies tab when clicked', async () => {
-      const wrapper = mount(RelationshipsView, {
-        global: {
-          plugins: [router],
-        },
-      })
-
-      await flushPromises()
-
+    it('labels the active panel with its tab', async () => {
+      const wrapper = await mountView()
       const tabs = wrapper.findAll('[role="tab"]')
-      await tabs[3].trigger('mousedown')
 
-      await flushPromises()
-
-      expect(tabs[3].attributes('aria-selected')).toBe('true')
-      expect(wrapper.text()).toContain('Active Pregnancies')
-    })
-
-    it('should switch to children tab when clicked', async () => {
-      const wrapper = mount(RelationshipsView, {
-        global: {
-          plugins: [router],
-        },
-      })
-
-      await flushPromises()
-
-      const tabs = wrapper.findAll('[role="tab"]')
-      await tabs[4].trigger('mousedown')
-
-      await flushPromises()
-
-      expect(tabs[4].attributes('aria-selected')).toBe('true')
-      expect(wrapper.text()).toContain('Growing Children')
-    })
-
-    it('should display correct content for each tab', async () => {
-      const wrapper = mount(RelationshipsView, {
-        global: {
-          plugins: [router],
-        },
-      })
-
-      await flushPromises()
-
-      // Forming tab (default)
-      expect(wrapper.text()).toContain('Forming Relationships')
-
-      // Switch to tensions
-      const tabs = wrapper.findAll('[role="tab"]')
-      await tabs[1].trigger('mousedown')
-      await flushPromises()
-      expect(wrapper.text()).toContain('Rivals lose production and happiness')
-
-      // Switch to partners
-      await tabs[2].trigger('mousedown')
-      await flushPromises()
-      expect(wrapper.text()).toContain('Committed partners in living quarters')
+      expect(wrapper.get('[role="tabpanel"]').attributes('aria-labelledby')).toBe(
+        tabs[0]!.attributes('id')
+      )
     })
   })
 
   describe('Tab counts', () => {
-    it('should split the relationship count between the Forming and Partners tabs', async () => {
+    it('splits the relationship count between the Forming and Partners tabs', async () => {
       relationshipStore.relationships = [
         { id: '1', relationship_type: 'friend' },
         { id: '2', relationship_type: 'partner' },
         { id: '3', relationship_type: 'rival' },
       ]
 
-      const wrapper = mount(RelationshipsView, {
-        global: {
-          plugins: [router],
-        },
-      })
-
-      await flushPromises()
+      const wrapper = await mountView()
 
       expect(wrapper.text()).toContain('Forming (1)')
       expect(wrapper.text()).toContain('Tensions (1)')
       expect(wrapper.text()).toContain('Partners (1)')
     })
 
-    it('should display the pregnancy count in the Pregnancies tab', async () => {
+    it('shows the pregnancy count in the Pregnancies tab', async () => {
       pregnancyStore.pregnancies = [{ id: '1' }, { id: '2' }]
 
-      const wrapper = mount(RelationshipsView, {
-        global: {
-          plugins: [router],
-        },
-      })
-
-      await flushPromises()
+      const wrapper = await mountView()
 
       expect(wrapper.text()).toContain('Pregnancies (2)')
     })
 
-    it('should display the children count in the Children tab', async () => {
+    it('shows the children count in the Children tab', async () => {
       dwellerStore.allDwellers = [
         { id: '1', age_group: 'child' },
         { id: '2', age_group: 'adult' },
         { id: '3', age_group: 'child' },
       ]
 
-      const wrapper = mount(RelationshipsView, {
-        global: {
-          plugins: [router],
-        },
-      })
-
-      await flushPromises()
+      const wrapper = await mountView()
 
       expect(wrapper.text()).toContain('Children (2)')
     })
   })
 
-  describe('Data Loading', () => {
-    it('should fetch all data on mount', async () => {
-      await router.isReady()
-
-      mount(RelationshipsView, {
-        global: {
-          plugins: [router],
-        },
-      })
-
-      await flushPromises()
+  describe('Data loading', () => {
+    it('fetches family data for the routed vault on mount', async () => {
+      await mountView()
 
       expect(relationshipStore.fetchVaultRelationships).toHaveBeenCalledWith('test-vault-id')
       expect(pregnancyStore.fetchVaultPregnancies).toHaveBeenCalledWith('test-vault-id')

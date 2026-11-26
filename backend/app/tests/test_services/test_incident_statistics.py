@@ -143,37 +143,28 @@ async def test_won_incident_credits_active_world_event_once(
 
 
 @pytest.mark.asyncio
-async def test_undecided_incident_round_credits_nothing(
-    async_session: AsyncSession, room_with_dwellers: dict, monkeypatch: pytest.MonkeyPatch
+@pytest.mark.parametrize("outcome", ["undecided", "failed"])
+async def test_only_a_victory_credits_the_world_event(
+    async_session: AsyncSession, room_with_dwellers: dict, monkeypatch: pytest.MonkeyPatch, outcome: str
 ) -> None:
-    vault_id = room_with_dwellers["vault"].id
+    vault = await crud.vault.get(async_session, room_with_dwellers["vault"].id)
     event = await _create_world_event(async_session)
     room = room_with_dwellers["room"]
-    await full_health(async_session, room_with_dwellers["dwellers"])
-    await _profile(async_session, room_with_dwellers["vault"])
-    incident = await raise_incident(async_session, room, IncidentType.RAIDER_ATTACK)
-    monkeypatch.setattr(incident_math, "damage_to_raiders", lambda _power, _seconds: 0.0)
+    if outcome == "undecided":
+        await full_health(async_session, room_with_dwellers["dwellers"])
+        await _profile(async_session, vault)
+        incident = await raise_incident(async_session, room, IncidentType.RAIDER_ATTACK)
+        monkeypatch.setattr(incident_math, "damage_to_raiders", lambda _power, _seconds: 0.0)
+    else:
+        room = await empty_room(async_session, vault.id)
+        await _profile(async_session, vault)
+        incident = await raise_incident(async_session, room, IncidentType.RAIDER_ATTACK)
+        incident.start_time = utcnow() - timedelta(hours=1)
     await incident_service.process_incident(async_session, incident, 2)
-    assert incident.status == IncidentStatus.ACTIVE
-    assert await _world_event_totals(async_session, event.id, vault_id) == (0, 0)
-
-
-@pytest.mark.asyncio
-async def test_failed_incident_credits_nothing(async_session: AsyncSession, vault) -> None:
-    event = await _create_world_event(async_session)
-    room = await empty_room(async_session, vault.id)
-    await _profile(async_session, vault)
-    incident = await raise_incident(async_session, room, IncidentType.RAIDER_ATTACK)
-    incident.start_time = utcnow() - timedelta(hours=1)
-    await incident_service.process_incident(async_session, incident, 2)
-    assert incident.status == IncidentStatus.FAILED
+    assert incident.status == (IncidentStatus.ACTIVE if outcome == "undecided" else IncidentStatus.FAILED)
     assert await _world_event_totals(async_session, event.id, vault.id) == (0, 0)
     rows = (
-        (
-            await async_session.execute(
-                select(WorldEventParticipation).where(WorldEventParticipation.vault_id == vault.id)
-            )
-        )
+        (await async_session.execute(select(WorldEventParticipation).where(WorldEventParticipation.vault_id == vault.id)))
         .scalars()
         .all()
     )

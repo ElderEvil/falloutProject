@@ -297,43 +297,39 @@ async def test_station_demolition_and_rebuild_handles_dispatch_returns(async_ses
         assert all(member.status == "completed" for member in members)
 
 
-async def test_responder_posted_elsewhere_keeps_production_return(async_session, room_with_dwellers):
+@pytest.mark.parametrize("posted", [True, False])
+async def test_responder_return_follows_its_own_posting(async_session, room_with_dwellers, dweller_data, posted):
     # The responder's own posting decides the destination even when a station exists;
-    # a second return pass is a no-op.
-    vault, dwellers = room_with_dwellers["vault"], room_with_dwellers["dwellers"]
+    # an unposted responder returns to the unassigned pool, and a second pass is a no-op.
+    vault = room_with_dwellers["vault"]
     station = await crud.room.create(async_session, _response_station(vault.id))
-    await _posted_team(async_session, vault, dwellers)
+    if posted:
+        responders = room_with_dwellers["dwellers"]
+        await _posted_team(async_session, vault, responders)
+    else:
+        responder = await crud.dweller.create(async_session, obj_in=DwellerCreate(**dweller_data, vault_id=vault.id))
+        await crud.room.create(async_session, _work_room(vault.id, "Diner", get_highest_special(responder), 1, 9))
+        await async_session.commit()
+        assert responder.room_id is None
+        await make_member(async_session, vault.id, responder.id, HazardTeam.FIRE, ACTIVE_STATUS)
+        responders = [responder]
 
     incident = await _fire_incident(async_session, vault, room_with_dwellers["room"])
-    await hazard_team_service.dispatch_to_incident(async_session, incident)
-    assert await _finish(async_session, incident) == len(dwellers)
+    dispatched = await hazard_team_service.dispatch_to_incident(async_session, incident)
+    assert sorted(dispatched) == sorted(dweller.id for dweller in responders)
+    assert await _finish(async_session, incident) == len(responders)
     assert await hazard_team_service.return_dispatched_responders(async_session, incident) == 0
 
-    for dweller in dwellers:
-        await async_session.refresh(dweller)
-        room = await crud.room.get(async_session, dweller.room_id)
+    for responder in responders:
+        await async_session.refresh(responder)
+        if not posted:
+            assert responder.room_id is None
+            assert responder.status.value == "idle"
+            continue
+        room = await crud.room.get(async_session, responder.room_id)
         assert room is not None
         assert room.category == RoomTypeEnum.PRODUCTION
-        assert dweller.room_id != station.id
-        assert dweller.room_id != incident.room_id
-
-
-async def test_roomless_responder_returns_to_unassigned(async_session, room_with_dwellers, dweller_data):
-    vault = room_with_dwellers["vault"]
-    await crud.room.create(async_session, _response_station(vault.id))
-    nomad = await crud.dweller.create(async_session, obj_in=DwellerCreate(**dweller_data, vault_id=vault.id))
-    await crud.room.create(async_session, _work_room(vault.id, "Diner", get_highest_special(nomad), 1, 9))
-    await async_session.commit()
-    assert nomad.room_id is None
-    await make_member(async_session, vault.id, nomad.id, HazardTeam.FIRE, ACTIVE_STATUS)
-
-    incident = await _fire_incident(async_session, vault, room_with_dwellers["room"])
-    assert await hazard_team_service.dispatch_to_incident(async_session, incident) == [nomad.id]
-    assert await _finish(async_session, incident) == 1
-
-    await async_session.refresh(nomad)
-    assert nomad.room_id is None
-    assert nomad.status.value == "idle"
+        assert responder.room_id not in (station.id, incident.room_id)
 
 
 async def test_resident_responders_keep_their_original_room_after_resolution(async_session, room_with_dwellers):

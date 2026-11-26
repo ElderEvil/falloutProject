@@ -85,10 +85,8 @@ async def test_equip_refreshes_the_wearers_cached_outfit(async_session, room_wit
     assert dweller.__dict__.get("outfit") is None
 
     suit = await _equip_suit(async_session, dweller.id, fire_resist=0.5)
-
     wearer = (await _wear(dweller.id, room, async_session))[0]
-    assert wearer.__dict__.get("outfit") is not None
-    assert wearer.__dict__["outfit"].id == suit.id
+    assert wearer.__dict__.get("outfit").id == suit.id
 
 
 async def test_hazmat_suit_blocks_radiation_once_equipped(async_session, room_with_dwellers):

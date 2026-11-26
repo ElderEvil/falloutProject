@@ -60,10 +60,7 @@ def test_hit_lines_name_dwellers_and_the_outcome_stays_vault_level() -> None:
         "Cy hits Bo for 9.",
         "Alpha wins.",
     ]
-    assert {entry["actor"] for entry in journal if entry["kind"] == "hit"} <= {"Ada", "Bo", "Cy", "Dee"}
-    for entry in journal:
-        if entry["kind"] == "hit":
-            assert not entry["message"].startswith(("Alpha ", "Beta "))
+    assert [entry["round_seq"] for entry in journal] == sorted(entry["round_seq"] for entry in journal)
     assert journal[-1] == {
         "round_seq": 2,
         "kind": "outcome",
@@ -73,27 +70,26 @@ def test_hit_lines_name_dwellers_and_the_outcome_stays_vault_level() -> None:
         "target": "Beta",
         "message": "Alpha wins.",
     }
-
-
-def test_hit_actors_come_from_the_attacking_side_only() -> None:
-    challenger = _side("Alpha", [_member("Ada", 20, 12), _member("Bo", 15, 9)])
-    defender = _side("Beta", [_member("Cy", 18, 11), _member("Dee", 14, 8)])
+    # Journal order is round -> side -> target; hit actors come from the attacking side.
+    hits = [entry for entry in journal if entry["kind"] == "hit"]
+    order = [(entry["round_seq"], 0 if entry["side"] == CHALLENGER else 1) for entry in hits]
+    assert order == sorted(order)
+    assert [entry["target"] for entry in hits if entry["round_seq"] == 1 and entry["side"] == CHALLENGER] == [
+        "Cy",
+        "Dee",
+    ]
     challenger_names = {member["name"] for member in challenger["members"]}
     defender_names = {member["name"] for member in defender["members"]}
-
-    hits = [entry for entry in resolve_duel(challenger, defender).journal if entry["kind"] == "hit"]
-
-    assert hits
     for entry in hits:
         actor, _, rest = entry["message"].partition(" hits ")
         assert actor == entry["actor"]
         assert rest.startswith(f"{entry['target']} for ")
-        if entry["side"] == CHALLENGER:
-            assert actor in challenger_names
-            assert entry["target"] in defender_names
-        else:
-            assert actor in defender_names
-            assert entry["target"] in challenger_names
+        attackers, defenders = (challenger_names, defender_names) if entry["side"] == CHALLENGER else (
+            defender_names,
+            challenger_names,
+        )
+        assert actor in attackers
+        assert entry["target"] in defenders
 
 
 def test_hit_lines_rotate_the_roster_across_rounds_and_targets() -> None:
@@ -111,21 +107,6 @@ def test_hit_lines_rotate_the_roster_across_rounds_and_targets() -> None:
     for round_seq, actors in actors_by_round.items():
         assert actors == [names[(round_seq - 1 + index) % len(names)] for index in range(len(actors))]
     assert [actors[0] for actors in actors_by_round.values()] == ["Ada", "Bo", "Cal"]
-
-
-def test_journal_order_is_round_then_side_then_target() -> None:
-    challenger = _side("Alpha", [_member("Ada", 20, 12), _member("Bo", 15, 9)])
-    defender = _side("Beta", [_member("Cy", 18, 11), _member("Dee", 14, 8)])
-
-    journal = resolve_duel(challenger, defender).journal
-
-    hits = [entry for entry in journal if entry["kind"] == "hit"]
-    order = [(entry["round_seq"], 0 if entry["side"] == CHALLENGER else 1) for entry in hits]
-    assert order == sorted(order)
-    first_round_targets = [entry["target"] for entry in hits if entry["round_seq"] == 1 and entry["side"] == CHALLENGER]
-    assert first_round_targets == ["Cy", "Dee"]
-    assert journal[-1]["kind"] == "outcome"
-    assert [entry["round_seq"] for entry in journal] == sorted(entry["round_seq"] for entry in journal)
 
 
 def test_simultaneous_defeat_goes_to_the_side_with_more_power_left() -> None:

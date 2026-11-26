@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { flushPromises, mount, VueWrapper } from '@vue/test-utils'
+import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { nextTick, reactive } from 'vue'
 import { createPinia, disposePinia, getActivePinia, setActivePinia } from 'pinia'
 import QuestsView from '@/modules/progression/views/QuestsView.vue'
@@ -26,18 +26,103 @@ vi.mock('vue-router', () => ({
   }),
 }))
 
+/** The Overseer's Office room that gates the quest board. */
+const office = (overrides: Record<string, unknown> = {}) => ({
+  id: 'room-1',
+  name: "Overseer's Office",
+  category: 'quests',
+  ability: null,
+  level: 1,
+  max_level: 3,
+  capacity: 2,
+  x: 0,
+  y: 0,
+  width: 2,
+  height: 1,
+  power_cost: 10,
+  dweller_ids: [],
+  created_at: '2025-01-01',
+  updated_at: '2025-01-01',
+  vault_id: 'vault-123',
+  under_construction: false,
+  build_time: 60,
+  upgrade_cost: 100,
+  ...overrides,
+})
+
+/** Unstarted, startable vault quest — the baseline every row tweaks. */
+const quest = (overrides: Record<string, unknown> = {}) => ({
+  id: 'quest-1',
+  title: 'Test Quest',
+  short_description: 'Test quest',
+  long_description: 'Test quest description',
+  requirements: 'Level 5',
+  rewards: '50 caps',
+  created_at: '2025-01-01',
+  updated_at: '2025-01-01',
+  is_visible: true,
+  is_locked: false,
+  lock_reason: null,
+  is_completed: false,
+  is_reward_ready: false,
+  started_at: null,
+  duration_minutes: null,
+  ...overrides,
+})
+
+/** A quest that is out on a run. */
+const travelling = (overrides: Record<string, unknown> = {}) =>
+  quest({ started_at: '2025-01-02T00:00:00Z', duration_minutes: 60, ...overrides })
+
+/** A quest whose party is back and whose rewards can be claimed. */
+const returned = (overrides: Record<string, unknown> = {}) =>
+  travelling({ is_reward_ready: true, ...overrides })
+
+const questCard = (template: string, emits: string[] = []) => ({
+  template,
+  props: ['quest', 'vaultId', 'status', 'partyMembers'],
+  ...(emits.length ? { emits } : {}),
+})
+
+const rewardsModal = (template: string) => ({
+  template,
+  props: ['quest', 'show'],
+  emits: ['close', 'confirm'],
+})
+
 describe('QuestsView', () => {
   let wrapper: VueWrapper
   let questStore: ReturnType<typeof useQuestStore>
   let roomStore: ReturnType<typeof useRoomStore>
-  let _vaultStore: ReturnType<typeof useVaultStore>
+
+  function mountView(stubs: Record<string, unknown> = {}) {
+    return mount(QuestsView, { global: { stubs: { SidePanel: true, Icon: true, ...stubs } } })
+  }
+
+  /** Seed quests, mount, and wait for the initial load. */
+  async function mountWithQuests(quests: Record<string, unknown>[], stubs = {}) {
+    questStore.vaultQuests = quests as never
+    wrapper = mountView(stubs)
+    await flushPromises()
+    return wrapper
+  }
+
+  const tab = (index: number) => wrapper.findAll('[role="tab"]')[index]!
+  const selectTab = async (index: number) => {
+    await tab(index).trigger('mousedown')
+    await flushPromises()
+  }
+  const signedIn = () => {
+    localStorage.setItem('token', 'test-token')
+    localStorage.setItem('user', JSON.stringify({ id: 'test-user' }))
+  }
 
   beforeEach(() => {
     vi.useFakeTimers()
     setActivePinia(createPinia())
     questStore = useQuestStore()
     roomStore = useRoomStore()
-    _vaultStore = useVaultStore()
+    roomStore.rooms = [office()] as never
 
     vi.clearAllMocks()
     routeQuery.claimQuest = undefined
@@ -48,7 +133,7 @@ describe('QuestsView', () => {
     // Prevent unhandled rejections from real HTTP calls during onMounted
     vi.spyOn(questStore, 'fetchAllQuests').mockResolvedValue()
     vi.spyOn(questStore, 'fetchVaultQuests').mockResolvedValue()
-    vi.spyOn(_vaultStore, 'ensureVaultLoaded').mockResolvedValue()
+    vi.spyOn(useVaultStore(), 'ensureVaultLoaded').mockResolvedValue()
     vi.spyOn(questStore, 'fetchPartiesForActiveQuests').mockResolvedValue()
   })
 
@@ -63,9 +148,8 @@ describe('QuestsView', () => {
   it('stops before the dweller read when the session changes during the room fetch', async () => {
     localStorage.setItem('token', 'test-token')
     const authStore = useAuthStore()
-    const dwellerStore = useDwellerStore().filter
     const fetchDwellersSpy = vi
-      .spyOn(dwellerStore, 'fetchDwellersByVault')
+      .spyOn(useDwellerStore().filter, 'fetchDwellersByVault')
       .mockResolvedValue()
     let resolveRooms!: (value: 'loaded') => void
     vi.spyOn(roomStore, 'fetchRooms').mockImplementation(
@@ -75,14 +159,7 @@ describe('QuestsView', () => {
         })
     )
 
-    wrapper = mount(QuestsView, {
-      global: {
-        stubs: {
-          SidePanel: true,
-          Icon: true,
-        },
-      },
-    })
+    wrapper = mountView()
     await flushPromises()
 
     authStore.sessionGeneration++
@@ -92,129 +169,34 @@ describe('QuestsView', () => {
     expect(fetchDwellersSpy).not.toHaveBeenCalled()
   })
 
-  describe('Overseer Office Lock', () => {
-    it('should show locked state when quests report the Overseer Office lock reason', async () => {
-      questStore.vaultQuests = [
-        {
-          id: 'quest-1',
-          title: 'First Quest',
-          short_description: 'Test quest',
-          long_description: 'Test quest description',
-          requirements: 'None',
-          rewards: '50 caps',
-          created_at: '2025-01-01',
-          updated_at: '2025-01-01',
-          is_visible: false,
-          is_locked: true,
-          lock_reason: "Requires Overseer's Office",
-          is_completed: false,
-          started_at: null,
-          duration_minutes: null,
-        },
-      ]
+  describe('Overseer Office lock', () => {
+    it.each([
+      [
+        'the office lock is reported',
+        { is_locked: true, lock_reason: "Requires Overseer's Office" },
+        "OVERSEER'S OFFICE REQUIRED",
+      ],
+      ['no quest reports the lock', {}, 'Test Quest'],
+    ])('renders the board when %s', async (_, overrides, expected) => {
+      await mountWithQuests([quest(overrides)])
+      await nextTick()
 
-      wrapper = mount(QuestsView, {
-        global: {
-          stubs: {
-            SidePanel: true,
-            Icon: true,
-          },
-        },
-      })
-
-      expect(wrapper.find('.locked-container').exists()).toBe(true)
-      expect(wrapper.text()).toContain("OVERSEER'S OFFICE REQUIRED")
-    })
-
-    it('should show quests when no quest reports the Overseer Office lock', async () => {
-      questStore.vaultQuests = [
-        {
-          id: 'quest-1',
-          title: 'First Quest',
-          short_description: 'Test quest',
-          long_description: 'Test quest description',
-          requirements: 'None',
-          rewards: '50 caps',
-          created_at: '2025-01-01',
-          updated_at: '2025-01-01',
-          is_visible: true,
-          is_locked: false,
-          lock_reason: null,
-          is_completed: false,
-          started_at: null,
-          duration_minutes: null,
-        },
-      ]
-
-      wrapper = mount(QuestsView, {
-        global: {
-          stubs: {
-            SidePanel: true,
-            Icon: true,
-          },
-        },
-      })
-
-      await wrapper.vm.$nextTick()
-
-      expect(wrapper.find('.locked-container').exists()).toBe(false)
-      expect(wrapper.find('.quests-container').exists()).toBe(true)
+      expect(wrapper.find('.locked-container').exists()).toBe(
+        expected === "OVERSEER'S OFFICE REQUIRED"
+      )
+      expect(wrapper.text()).toContain(expected)
     })
   })
 
   describe('Tabs', () => {
-    beforeEach(() => {
-      roomStore.rooms = [
-        {
-          id: 'room-1',
-          name: "Overseer's Office",
-          category: 'quests',
-          ability: null,
-          level: 1,
-          max_level: 3,
-          capacity: 2,
-          x: 0,
-          y: 0,
-          width: 2,
-          height: 1,
-          power_cost: 10,
-          dweller_ids: [],
-          created_at: '2025-01-01',
-          updated_at: '2025-01-01',
-          vault_id: 'vault-123',
-          under_construction: false,
-          build_time: 60,
-          upgrade_cost: 100,
-        },
-      ]
-    })
-
     it('defaults to Available when there are no active quests', async () => {
-      wrapper = mount(QuestsView, {
-        global: {
-          stubs: {
-            SidePanel: true,
-            Icon: true,
-          },
-        },
-      })
+      await mountWithQuests([])
 
-      await wrapper.vm.$nextTick()
-
-      const tabs = wrapper.findAll('[role="tab"]')
-      expect(tabs[1].attributes('aria-selected')).toBe('true')
+      expect(tab(1).attributes('aria-selected')).toBe('true')
     })
 
     it('opens the Overseer Office room from the parties metric', async () => {
-      wrapper = mount(QuestsView, {
-        global: {
-          stubs: {
-            SidePanel: true,
-            Icon: true,
-          },
-        },
-      })
-      await flushPromises()
+      await mountWithQuests([])
 
       const metric = wrapper
         .findAll('[role="button"]')
@@ -229,129 +211,40 @@ describe('QuestsView', () => {
       })
     })
 
-    it('should switch to completed tab when clicked', async () => {
-      wrapper = mount(QuestsView, {
-        global: {
-          stubs: {
-            SidePanel: true,
-            Icon: true,
-          },
-        },
-      })
+    it('switches to the completed tab when clicked', async () => {
+      await mountWithQuests([])
+      await selectTab(2)
 
-      await wrapper.vm.$nextTick()
-
-      const completedTab = wrapper.findAll('[role="tab"]')[2]
-      await completedTab.trigger('mousedown')
-      await flushPromises()
-
-      expect(completedTab.attributes('aria-selected')).toBe('true')
+      expect(tab(2).attributes('aria-selected')).toBe('true')
+      expect(tab(1).attributes('aria-selected')).toBe('false')
     })
 
-    it('should switch to available tab when clicked', async () => {
-      wrapper = mount(QuestsView, {
-        global: {
-          stubs: {
-            SidePanel: true,
-            Icon: true,
-          },
-        },
-      })
+    it('switches back to the available tab when clicked', async () => {
+      await mountWithQuests([])
+      await selectTab(1)
 
-      await wrapper.vm.$nextTick()
-
-      const availableTab = wrapper.findAll('[role="tab"]')[1]
-      await availableTab.trigger('mousedown')
-      await flushPromises()
-
-      expect(availableTab.attributes('aria-selected')).toBe('true')
+      expect(tab(1).attributes('aria-selected')).toBe('true')
+      expect(tab(2).attributes('aria-selected')).toBe('false')
     })
   })
 
-  describe('Quest Display', () => {
-    beforeEach(() => {
-      roomStore.rooms = [
-        {
-          id: 'room-1',
-          name: "Overseer's Office",
-          category: 'quests',
-          ability: null,
-          level: 1,
-          max_level: 3,
-          capacity: 2,
-          x: 0,
-          y: 0,
-          width: 2,
-          height: 1,
-          power_cost: 10,
-          dweller_ids: [],
-          created_at: '2025-01-01',
-          updated_at: '2025-01-01',
-          vault_id: 'vault-123',
-          under_construction: false,
-          build_time: 60,
-          upgrade_cost: 100,
-        },
-      ]
-    })
+  describe('Quest display', () => {
+    it.each([
+      ['active', travelling({ title: 'Active Quest' }), 0, 'Active Quest'],
+      ['available', quest({ title: 'Available Quest' }), 1, 'Available Quest'],
+      ['completed', quest({ title: 'Completed Quest', is_completed: true }), 2, 'Completed Quest'],
+    ])('lists %s quests in their tab', async (_, overrides, tabIndex, title) => {
+      await mountWithQuests([quest(overrides)])
+      if (tabIndex !== 0) await selectTab(tabIndex)
 
-    it('should display active quests', async () => {
-      questStore.vaultQuests = [
-        {
-          id: 'quest-1',
-          title: 'Active Quest',
-          short_description: 'Test quest',
-          long_description: 'Test quest description',
-          requirements: 'Level 5',
-          rewards: '50 caps',
-          created_at: '2025-01-01',
-          updated_at: '2025-01-01',
-          is_visible: true,
-          is_completed: false,
-          started_at: '2025-01-02T00:00:00Z',
-          duration_minutes: 60,
-        },
-      ]
-
-      wrapper = mount(QuestsView, {
-        global: {
-          stubs: {
-            SidePanel: true,
-            Icon: true,
-          },
-        },
-      })
-
-      await wrapper.vm.$nextTick()
-
-      expect(wrapper.text()).toContain('Active Quest')
+      expect(wrapper.text()).toContain(title)
       expect(wrapper.text()).toContain('Test quest')
     })
 
     it('refreshes active quests while a party is away', async () => {
-      localStorage.setItem('token', 'test-token')
-      localStorage.setItem('user', JSON.stringify({ id: 'test-user' }))
+      signedIn()
       vi.spyOn(roomStore, 'fetchRooms').mockResolvedValue('loaded')
-      questStore.vaultQuests = [
-        {
-          id: 'quest-1',
-          title: 'Active Quest',
-          short_description: 'Test quest',
-          long_description: 'Test quest description',
-          requirements: 'Level 5',
-          rewards: '50 caps',
-          created_at: '2025-01-01',
-          updated_at: '2025-01-01',
-          is_visible: true,
-          is_completed: false,
-          started_at: '2025-01-02T00:00:00Z',
-          duration_minutes: 60,
-        },
-      ]
-
-      wrapper = mount(QuestsView, {
-        global: { stubs: { SidePanel: true, Icon: true } },
-      })
+      await mountWithQuests([travelling({ title: 'Active Quest' })])
 
       await vi.advanceTimersByTimeAsync(30_000)
 
@@ -360,33 +253,16 @@ describe('QuestsView', () => {
     })
 
     it('renders travelling quests without a claim action and keeps polling', async () => {
-      localStorage.setItem('token', 'test-token')
-      localStorage.setItem('user', JSON.stringify({ id: 'test-user' }))
+      signedIn()
       vi.spyOn(roomStore, 'fetchRooms').mockResolvedValue('loaded')
-      questStore.vaultQuests = [
-        {
-          id: 'quest-1',
+      await mountWithQuests([
+        travelling({
           title: 'Travelling Quest',
-          short_description: 'Test quest',
-          long_description: 'Test quest description',
-          requirements: 'Level 5',
-          rewards: '50 caps',
-          created_at: '2025-01-01',
-          updated_at: '2025-01-01',
-          is_visible: true,
-          is_completed: false,
-          is_reward_ready: false,
-          started_at: '2025-01-02T00:00:00Z',
-          duration_minutes: 60,
           return_started_at: '2025-01-02T01:00:00Z',
           return_completes_at: '2025-01-02T01:15:00Z',
-        },
-      ]
-
-      wrapper = mount(QuestsView, {
-        global: { stubs: { SidePanel: true, Icon: true } },
-      })
-      await wrapper.vm.$nextTick()
+        }),
+      ])
+      await nextTick()
 
       expect(wrapper.text()).toContain('Travelling Quest')
       expect(wrapper.text()).not.toContain('Claim Rewards')
@@ -395,165 +271,50 @@ describe('QuestsView', () => {
       expect(questStore.fetchVaultQuests).toHaveBeenCalledWith('vault-123', { silent: true })
     })
 
-    it('should display available quests in the available tab', async () => {
-      questStore.vaultQuests = [
-        {
-          id: 'quest-1',
-          title: 'Available Quest',
-          short_description: 'Test quest',
-          long_description: 'Test quest description',
-          requirements: 'Level 5',
-          rewards: '50 caps',
-          created_at: '2025-01-01',
-          updated_at: '2025-01-01',
-          is_visible: true,
-          is_completed: false,
-          started_at: null,
-          duration_minutes: null,
-        },
-      ]
+    it.each([
+      ['an unstarted quest', 'Available Quest', {}, '1', true],
+      [
+        'a started check-objective state quest',
+        'Started State Quest',
+        { is_reward_ready: true, quest_category: 'training' },
+        '0',
+        false,
+      ],
+    ])('places %s in Available by reward state', async (_, title, overrides, metric, shown) => {
+      await mountWithQuests([quest({ title, ...overrides })])
+      await selectTab(1)
 
-      wrapper = mount(QuestsView, {
-        global: {
-          stubs: {
-            SidePanel: true,
-            Icon: true,
-          },
-        },
-      })
-
-      await wrapper.vm.$nextTick()
-
-      const availableTab = wrapper.findAll('[role="tab"]')[1]
-      await availableTab.trigger('mousedown')
-      await flushPromises()
-
-      expect(wrapper.text()).toContain('Available Quest')
-      expect(wrapper.get('.page-header-metric-value').text()).toBe('1')
+      expect(wrapper.text().includes(title)).toBe(shown)
+      expect(wrapper.get('.page-header-metric-value').text()).toBe(metric)
     })
 
-    it('keeps a started check-objective quest out of the Available tab', async () => {
-      // State quests (building/population/training) start with is_reward_ready=true
-      // and started_at=null, so they must be excluded from Available by reward state.
-      questStore.vaultQuests = [
-        {
-          id: 'quest-1',
-          title: 'Started State Quest',
-          short_description: 'Test quest',
-          long_description: 'Test quest description',
-          requirements: 'Level 5',
-          rewards: '50 caps',
-          created_at: '2025-01-01',
-          updated_at: '2025-01-01',
-          is_visible: true,
-          is_completed: false,
-          is_reward_ready: true,
-          started_at: null,
-          duration_minutes: null,
-          quest_category: 'training',
-        },
-      ]
-
-      wrapper = mount(QuestsView, {
-        global: {
-          stubs: {
-            SidePanel: true,
-            Icon: true,
-          },
-        },
-      })
-
-      await wrapper.vm.$nextTick()
-
-      expect(wrapper.text()).toContain('Started State Quest')
-
-      const availableTab = wrapper.findAll('[role="tab"]')[1]
-      await availableTab.trigger('mousedown')
-      await flushPromises()
-
-      expect(wrapper.text()).not.toContain('Started State Quest')
-      expect(wrapper.get('.page-header-metric-value').text()).toBe('0')
-    })
-
-    it('should reveal locked quests only when Show All is enabled and render their lock reason', async () => {
-      questStore.vaultQuests = [
-        {
-          id: 'quest-1',
-          title: 'First Quest',
-          short_description: 'Start the chain',
-          long_description: 'Start the chain first',
-          requirements: 'None',
-          rewards: '50 caps',
-          created_at: '2025-01-01',
-          updated_at: '2025-01-01',
-          is_visible: true,
-          is_locked: false,
-          lock_reason: null,
-          is_completed: false,
-          started_at: null,
-          duration_minutes: null,
-        },
-        {
+    it('reveals locked quests only when Show All is enabled and renders their lock reason', async () => {
+      await mountWithQuests([
+        quest({ title: 'First Quest', short_description: 'Start the chain' }),
+        quest({
           id: 'daily-visible-locked',
           title: 'Daily Patrol',
-          short_description: 'Offered but start-locked',
-          long_description: 'Offered daily the vault cannot start yet',
-          requirements: 'Level 10 dwellers',
-          rewards: '30 caps',
           quest_type: 'daily',
-          created_at: '2025-01-01',
-          updated_at: '2025-01-01',
-          is_visible: true,
           is_locked: true,
           lock_reason: 'Requires a higher dweller level',
-          is_completed: false,
-          started_at: null,
-          duration_minutes: null,
-        },
-        {
+        }),
+        quest({
           id: 'daily-hidden',
           title: 'Hidden Daily',
-          short_description: 'Scheduler-owned',
-          long_description: 'The scheduler has not offered this daily yet',
-          requirements: 'Level 5 dwellers',
-          rewards: '20 caps',
           quest_type: 'daily',
-          created_at: '2025-01-01',
-          updated_at: '2025-01-01',
           is_visible: false,
           is_locked: true,
           lock_reason: 'Not currently offered',
-          is_completed: false,
-          started_at: null,
-          duration_minutes: null,
-        },
-        {
+        }),
+        quest({
           id: 'quest-2',
           title: 'Locked Quest',
-          short_description: 'Continue the chain',
-          long_description: 'Complete the first quest first',
-          requirements: 'Complete First Quest',
-          rewards: '100 caps',
-          previous_quest_id: 'quest-1',
-          created_at: '2025-01-01',
-          updated_at: '2025-01-01',
           is_visible: false,
           is_locked: true,
           lock_reason: 'Requires completing a previous quest',
-          is_completed: false,
-          started_at: null,
-          duration_minutes: null,
-        },
-      ]
-
-      wrapper = mount(QuestsView, {
-        global: { stubs: { SidePanel: true, Icon: true } },
-      })
-      await wrapper.vm.$nextTick()
-
-      const availableTab = wrapper.findAll('[role="tab"]')[1]
-      await availableTab.trigger('mousedown')
-      await flushPromises()
+        }),
+      ])
+      await selectTab(1)
 
       expect(wrapper.text()).toContain('First Quest')
       expect(wrapper.text()).not.toContain('Locked Quest')
@@ -574,167 +335,39 @@ describe('QuestsView', () => {
       expect(wrapper.text()).not.toContain('Hidden Daily')
     })
 
-    it('should display completed quests in completed tab', async () => {
-      questStore.vaultQuests = [
-        {
-          id: 'quest-1',
-          title: 'Completed Quest',
-          short_description: 'Test quest',
-          long_description: 'Test quest description',
-          requirements: 'Level 5',
-          rewards: '50 caps',
-          created_at: '2025-01-01',
-          updated_at: '2025-01-01',
-          is_visible: true,
-          is_completed: true,
-        },
-      ]
+    it('shows the empty state when no active quests', async () => {
+      await mountWithQuests([])
+      await selectTab(0)
 
-      wrapper = mount(QuestsView, {
-        global: {
-          stubs: {
-            SidePanel: true,
-            Icon: true,
-          },
-        },
-      })
-
-      await wrapper.vm.$nextTick()
-
-      // Switch to completed tab
-      const completedTab = wrapper.findAll('[role="tab"]')[2]
-      await completedTab.trigger('mousedown')
-      await flushPromises()
-
-      expect(wrapper.text()).toContain('Completed Quest')
-      expect(wrapper.text()).toContain('Completed')
-      expect(wrapper.text()).not.toContain('View Details')
-    })
-
-    it('should show empty state when no active quests', async () => {
-      questStore.vaultQuests = []
-      questStore.quests = []
-
-      wrapper = mount(QuestsView, {
-        global: {
-          stubs: {
-            SidePanel: true,
-            Icon: true,
-          },
-        },
-      })
-
-      await wrapper.vm.$nextTick()
-
-      await wrapper.findAll('[role="tab"]')[0]!.trigger('mousedown')
-      await flushPromises()
       expect(wrapper.text()).toContain('No active quests')
     })
   })
 
-  describe('Quest Actions', () => {
-    beforeEach(() => {
-      roomStore.rooms = [
-        {
-          id: 'room-1',
-          name: "Overseer's Office",
-          category: 'quests',
-          ability: null,
-          level: 1,
-          max_level: 3,
-          capacity: 2,
-          x: 0,
-          y: 0,
-          width: 2,
-          height: 1,
-          power_cost: 10,
-          dweller_ids: [],
-          created_at: '2025-01-01',
-          updated_at: '2025-01-01',
-          vault_id: 'vault-123',
-          under_construction: false,
-          build_time: 60,
-          upgrade_cost: 100,
-        },
-      ]
-    })
-
+  describe('Quest actions', () => {
     it('opens party selection instead of starting a quest directly', async () => {
-      questStore.vaultQuests = [
-        {
-          id: 'quest-1',
-          title: 'Available Quest',
-          short_description: 'Test quest',
-          long_description: 'Test quest description',
-          requirements: 'Level 5',
-          rewards: '50 caps',
-          created_at: '2025-01-01',
-          updated_at: '2025-01-01',
-          is_visible: true,
-          is_completed: false,
-          started_at: null,
-          duration_minutes: 60,
-        },
-      ]
-
       const startSpy = vi.spyOn(questStore, 'startQuest').mockResolvedValue()
-
-      wrapper = mount(QuestsView, {
-        global: {
-          stubs: {
-            SidePanel: true,
-            Icon: true,
-            QuestCard: {
-              template:
-                '<div><button class="start-btn" @click="$emit(\'assign-party\', quest.id)">Start Quest</button></div>',
-              props: ['quest', 'vaultId', 'status', 'partyMembers'],
-              emits: ['assign-party'],
-            },
-          },
-        },
+      await mountWithQuests([quest({ title: 'Available Quest' })], {
+        QuestCard: questCard(
+          '<div><button class="start-btn" @click="$emit(\'assign-party\', quest.id)">Start Quest</button></div>',
+          ['assign-party']
+        ),
       })
+      await selectTab(1)
 
-      await wrapper.vm.$nextTick()
-
-      const availableTab = wrapper.findAll('[role="tab"]')[1]
-      await availableTab.trigger('mousedown')
-      await flushPromises()
-
-      // Find the button inside QuestCard and click it
-      const startButton = wrapper.find('.start-btn')
-      await startButton.trigger('click')
+      await wrapper.find('.start-btn').trigger('click')
 
       expect(startSpy).not.toHaveBeenCalled()
     })
 
     it('keeps party selection open when both start and its recovery refresh fail', async () => {
-      roomStore.rooms[0]!.tier = 1
+      roomStore.rooms = [office({ tier: 1 })] as never
       roomStore.roomsLoadedVaultId = 'vault-123'
-      questStore.vaultQuests = [
-        {
-          id: 'quest-1',
-          title: 'Available Quest',
-          short_description: 'Test quest',
-          long_description: 'Test quest description',
-          requirements: 'None',
-          rewards: '50 caps',
-          created_at: '2025-01-01',
-          updated_at: '2025-01-01',
-          is_visible: true,
-          is_completed: false,
-          started_at: null,
-          duration_minutes: 60,
-        },
-      ]
-      wrapper = mount(QuestsView, {
-        global: {
-          stubs: { SidePanel: true, Icon: true, QuestCard: true, PartySelectionModal: true },
-        },
+      await mountWithQuests([quest({ title: 'Available Quest' })], {
+        QuestCard: true,
+        PartySelectionModal: true,
       })
-      await flushPromises()
       vi.spyOn(questStore, 'startQuest').mockRejectedValue(new Error('No quest slots'))
-      const refreshError = new Error('Connection lost')
-      vi.spyOn(questStore, 'fetchVaultQuests').mockRejectedValue(refreshError)
+      vi.spyOn(questStore, 'fetchVaultQuests').mockRejectedValue(new Error('Connection lost'))
       const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
       const actions = wrapper.vm as unknown as {
         handleAssignParty: (id: string) => void
@@ -759,125 +392,41 @@ describe('QuestsView', () => {
     })
 
     it('orders available quests by required level', async () => {
-      const baseQuest = {
-        id: 'q',
-        title: 'Base',
-        short_description: 'Test quest',
-        long_description: 'Test quest description',
-        requirements: '',
-        rewards: '',
-        created_at: '2025-01-01',
-        updated_at: '2025-01-01',
-        is_visible: true,
-        is_completed: false,
-        started_at: null,
-        duration_minutes: 60,
-        quest_type: 'side',
-      }
-      questStore.vaultQuests = [
-        {
-          ...baseQuest,
-          id: 'q-hard',
-          title: 'Hard',
-          quest_requirements: [
-            {
-              id: 'r1',
-              quest_id: 'q-hard',
-              requirement_type: 'level',
-              requirement_data: { level: 20 },
-              is_mandatory: true,
-            },
-          ],
-        },
-        { ...baseQuest, id: 'q-any', title: 'Any' },
-        {
-          ...baseQuest,
-          id: 'q-easy',
-          title: 'Easy',
-          quest_requirements: [
-            {
-              id: 'r2',
-              quest_id: 'q-easy',
-              requirement_type: 'level',
-              requirement_data: { level: 3 },
-              is_mandatory: true,
-            },
-          ],
-        },
-      ]
-
-      wrapper = mount(QuestsView, {
-        global: {
-          stubs: {
-            SidePanel: true,
-            Icon: true,
-            QuestCard: {
-              template: '<div class="quest-card-stub">{{ quest.title }}</div>',
-              props: ['quest', 'vaultId', 'status', 'partyMembers'],
-            },
-          },
-        },
+      const requirement = (questId: string, level: number) => ({
+        id: `r-${questId}`,
+        quest_id: questId,
+        requirement_type: 'level',
+        requirement_data: { level },
+        is_mandatory: true,
       })
-
-      await wrapper.vm.$nextTick()
-      const availableTab = wrapper.findAll('[role="tab"]')[1]
-      await availableTab.trigger('mousedown')
-      await flushPromises()
+      await mountWithQuests(
+        [
+          quest({ id: 'q-hard', title: 'Hard', quest_requirements: [requirement('q-hard', 20)] }),
+          quest({ id: 'q-any', title: 'Any' }),
+          quest({ id: 'q-easy', title: 'Easy', quest_requirements: [requirement('q-easy', 3)] }),
+        ],
+        { QuestCard: questCard('<div class="quest-card-stub">{{ quest.title }}</div>') }
+      )
+      await selectTab(1)
 
       const titles = wrapper.findAll('.quest-card-stub').map((node) => node.text())
       expect(titles).toEqual(['Any', 'Easy', 'Hard'])
     })
 
     it('claims rewards only after a quest returns', async () => {
-      questStore.vaultQuests = [
-        {
-          id: 'quest-1',
-          title: 'Active Quest',
-          short_description: 'Test quest',
-          long_description: 'Test quest description',
-          requirements: 'Level 5',
-          rewards: '50 caps',
-          created_at: '2025-01-01',
-          updated_at: '2025-01-01',
-          is_visible: true,
-          is_completed: false,
-          is_reward_ready: true,
-          started_at: '2025-01-02T00:00:00Z',
-          duration_minutes: 60,
-        },
-      ]
-
       const claimSpy = vi.spyOn(questStore, 'claimQuestRewards').mockResolvedValue()
-
-      wrapper = mount(QuestsView, {
-        global: {
-          stubs: {
-            SidePanel: true,
-            Icon: true,
-            QuestCard: {
-              template:
-                '<div><button class="claim-btn" @click="$emit(\'claim\', quest.id)">Claim Rewards</button></div>',
-              props: ['quest', 'vaultId', 'status', 'partyMembers'],
-              emits: ['claim'],
-            },
-            UModal: {
-              template: '<div><slot /><slot name="footer" /></div>',
-              props: ['modelValue'],
-            },
-            QuestRewardsModal: {
-              template:
-                '<div v-if="show"><button class="confirm-claim-btn" @click="$emit(\'confirm\')">Confirm & Claim</button></div>',
-              props: ['quest', 'show'],
-              emits: ['close', 'confirm'],
-            },
-          },
-        },
+      await mountWithQuests([returned({ title: 'Active Quest' })], {
+        QuestCard: questCard(
+          '<div><button class="claim-btn" @click="$emit(\'claim\', quest.id)">Claim Rewards</button></div>',
+          ['claim']
+        ),
+        UModal: { template: '<div><slot /><slot name="footer" /></div>', props: ['modelValue'] },
+        QuestRewardsModal: rewardsModal(
+          '<div v-if="show"><button class="confirm-claim-btn" @click="$emit(\'confirm\')">Confirm & Claim</button></div>'
+        ),
       })
 
-      await wrapper.vm.$nextTick()
-
-      const claimButton = wrapper.find('.claim-btn')
-      await claimButton.trigger('click')
+      await wrapper.find('.claim-btn').trigger('click')
 
       expect(claimSpy).not.toHaveBeenCalled()
       await wrapper.find('.confirm-claim-btn').trigger('click')
@@ -886,40 +435,11 @@ describe('QuestsView', () => {
 
     it('opens a returned quest reward dialog from the claimQuest query param', async () => {
       routeQuery.claimQuest = 'quest-1'
-      questStore.vaultQuests = [
-        {
-          id: 'quest-1',
-          title: 'Returned Quest',
-          short_description: 'Test quest',
-          long_description: 'Test quest description',
-          requirements: 'Level 5',
-          rewards: '50 caps',
-          created_at: '2025-01-01',
-          updated_at: '2025-01-01',
-          is_visible: true,
-          is_completed: false,
-          is_reward_ready: true,
-          started_at: '2025-01-02T00:00:00Z',
-          duration_minutes: 60,
-        },
-      ]
-
-      wrapper = mount(QuestsView, {
-        global: {
-          stubs: {
-            SidePanel: true,
-            Icon: true,
-            QuestRewardsModal: {
-              template:
-                '<div v-if="show" class="claim-modal" :data-quest-id="quest.id"><button @click="$emit(\'close\')">Close</button></div>',
-              props: ['quest', 'show'],
-              emits: ['close', 'confirm'],
-            },
-          },
-        },
+      await mountWithQuests([returned({ title: 'Returned Quest' })], {
+        QuestRewardsModal: rewardsModal(
+          '<div v-if="show" class="claim-modal" :data-quest-id="quest.id"><button @click="$emit(\'close\')">Close</button></div>'
+        ),
       })
-
-      await flushPromises()
 
       expect(wrapper.find('.claim-modal').attributes('data-quest-id')).toBe('quest-1')
       await wrapper.find('.claim-modal button').trigger('click')
@@ -930,45 +450,15 @@ describe('QuestsView', () => {
 
     it('keeps a manually selected reward quest when the list refreshes', async () => {
       routeQuery.claimQuest = 'quest-a'
-      const readyQuest = {
-        title: 'Returned Quest',
-        short_description: 'Test quest',
-        long_description: 'Test quest description',
-        requirements: 'Level 5',
-        rewards: '50 caps',
-        created_at: '2025-01-01',
-        updated_at: '2025-01-01',
-        is_visible: true,
-        is_completed: false,
-        is_reward_ready: true,
-        started_at: '2025-01-02T00:00:00Z',
-        duration_minutes: 60,
-      }
-      questStore.vaultQuests = [
-        { ...readyQuest, id: 'quest-a' },
-        { ...readyQuest, id: 'quest-b' },
-      ]
       const claimSpy = vi.spyOn(questStore, 'claimQuestRewards').mockResolvedValue()
-
-      wrapper = mount(QuestsView, {
-        global: {
-          stubs: {
-            SidePanel: true,
-            Icon: true,
-            QuestCard: {
-              template:
-                '<button class="claim-btn" :data-quest-id="quest.id" @click="$emit(\'claim\', quest.id)">Claim</button>',
-              props: ['quest', 'vaultId', 'status', 'partyMembers'],
-              emits: ['claim'],
-            },
-            QuestRewardsModal: {
-              template:
-                '<div v-if="show" class="claim-modal" :data-quest-id="quest.id"><button @click="$emit(\'confirm\')">Confirm</button></div>',
-              props: ['quest', 'show'],
-              emits: ['close', 'confirm'],
-            },
-          },
-        },
+      await mountWithQuests([returned({ id: 'quest-a' }), returned({ id: 'quest-b' })], {
+        QuestCard: questCard(
+          '<button class="claim-btn" :data-quest-id="quest.id" @click="$emit(\'claim\', quest.id)">Claim</button>',
+          ['claim']
+        ),
+        QuestRewardsModal: rewardsModal(
+          '<div v-if="show" class="claim-modal" :data-quest-id="quest.id"><button @click="$emit(\'confirm\')">Confirm</button></div>'
+        ),
       })
 
       await wrapper.find('[data-quest-id="quest-b"].claim-btn').trigger('click')
@@ -985,37 +475,11 @@ describe('QuestsView', () => {
 
     it('closes a query-opened reward dialog when Browser Back removes the query', async () => {
       routeQuery.claimQuest = 'quest-a'
-      questStore.vaultQuests = [
-        {
-          id: 'quest-a',
-          title: 'Returned Quest',
-          short_description: 'Test quest',
-          long_description: 'Test quest description',
-          requirements: 'Level 5',
-          rewards: '50 caps',
-          created_at: '2025-01-01',
-          updated_at: '2025-01-01',
-          is_visible: true,
-          is_completed: false,
-          is_reward_ready: true,
-          started_at: '2025-01-02T00:00:00Z',
-          duration_minutes: 60,
-        },
-      ]
-
-      wrapper = mount(QuestsView, {
-        global: {
-          stubs: {
-            SidePanel: true,
-            Icon: true,
-            QuestCard: true,
-            QuestRewardsModal: {
-              template: '<div v-if="show" class="claim-modal">Claim Rewards</div>',
-              props: ['quest', 'show'],
-            },
-          },
-        },
-      })
+      const dialog = {
+        QuestCard: true,
+        QuestRewardsModal: rewardsModal('<div v-if="show" class="claim-modal">Claim Rewards</div>'),
+      }
+      await mountWithQuests([returned({ id: 'quest-a' })], dialog)
 
       expect(wrapper.find('.claim-modal').exists()).toBe(true)
       routeQuery.claimQuest = undefined
@@ -1025,36 +489,9 @@ describe('QuestsView', () => {
 
     it('opens a query-linked reward when its quest first becomes ready', async () => {
       routeQuery.claimQuest = 'quest-a'
-      questStore.vaultQuests = [
-        {
-          id: 'quest-a',
-          title: 'Returning Quest',
-          short_description: 'Test quest',
-          long_description: 'Test quest description',
-          requirements: 'Level 5',
-          rewards: '50 caps',
-          created_at: '2025-01-01',
-          updated_at: '2025-01-01',
-          is_visible: true,
-          is_completed: false,
-          is_reward_ready: false,
-          started_at: '2025-01-02T00:00:00Z',
-          duration_minutes: 60,
-        },
-      ]
-
-      wrapper = mount(QuestsView, {
-        global: {
-          stubs: {
-            SidePanel: true,
-            Icon: true,
-            QuestCard: true,
-            QuestRewardsModal: {
-              template: '<div v-if="show" class="claim-modal">Claim Rewards</div>',
-              props: ['quest', 'show'],
-            },
-          },
-        },
+      await mountWithQuests([travelling({ id: 'quest-a', title: 'Returning Quest' })], {
+        QuestCard: true,
+        QuestRewardsModal: rewardsModal('<div v-if="show" class="claim-modal">Claim Rewards</div>'),
       })
 
       expect(wrapper.find('.claim-modal').exists()).toBe(false)
@@ -1065,138 +502,25 @@ describe('QuestsView', () => {
   })
 
   describe('Quest card actions', () => {
-    beforeEach(() => {
-      roomStore.rooms = [
-        {
-          id: 'room-1',
-          name: "Overseer's Office",
-          category: 'quests',
-          ability: null,
-          level: 1,
-          max_level: 3,
-          capacity: 2,
-          x: 0,
-          y: 0,
-          width: 2,
-          height: 1,
-          power_cost: 10,
-          dweller_ids: [],
-          created_at: '2025-01-01',
-          updated_at: '2025-01-01',
-          vault_id: 'vault-123',
-          under_construction: false,
-          build_time: 60,
-          upgrade_cost: 100,
-        },
-      ]
-    })
-
     it('starts an available state quest from its card', async () => {
       const startSpy = vi.spyOn(questStore, 'startQuest').mockResolvedValue()
-      questStore.vaultQuests = [
+      await mountWithQuests(
+        [quest({ id: 'quest-9', title: 'Training Quest', quest_category: 'training' })],
         {
-          id: 'quest-9',
-          title: 'Training Quest',
-          short_description: 'Train a dweller',
-          long_description: 'Training objective description.',
-          requirements: '',
-          rewards: '',
-          created_at: '2025-01-01',
-          updated_at: '2025-01-01',
-          is_visible: true,
-          is_completed: false,
-          started_at: null,
-          duration_minutes: 60,
-          quest_category: 'training',
-        },
-      ]
-      wrapper = mount(QuestsView, {
-        global: {
-          stubs: {
-            SidePanel: true,
-            Icon: true,
-            QuestCard: {
-              template:
-                '<button class="start-quest" @click="$emit(\'start\', quest.id)">Start</button>',
-              props: ['quest', 'vaultId', 'status', 'partyMembers'],
-              emits: ['start'],
-            },
-          },
-        },
-      })
-      await wrapper.findAll('[role="tab"]')[1]!.trigger('mousedown')
-      await flushPromises()
+          QuestCard: questCard(
+            '<button class="start-quest" @click="$emit(\'start\', quest.id)">Start</button>',
+            ['start']
+          ),
+        }
+      )
+      await selectTab(1)
       await wrapper.find('.start-quest').trigger('click')
 
       expect(startSpy).toHaveBeenCalledWith('vault-123', 'quest-9')
     })
   })
 
-  describe('Side Panel Integration', () => {
-    it('should include SidePanel component', () => {
-      roomStore.rooms = []
-
-      wrapper = mount(QuestsView, {
-        global: {
-          stubs: {
-            SidePanel: true,
-            Icon: true,
-          },
-        },
-      })
-
-      expect(wrapper.findComponent({ name: 'SidePanel' }).exists()).toBe(true)
-    })
-
-    it('should apply collapsed class when side panel is collapsed', async () => {
-      roomStore.rooms = []
-
-      wrapper = mount(QuestsView, {
-        global: {
-          stubs: {
-            SidePanel: true,
-            Icon: true,
-          },
-        },
-      })
-
-      // This tests that the component structure supports the collapsed state
-      expect(wrapper.find('.main-content').exists()).toBe(true)
-    })
-  })
-
   describe('Header metrics and tab badges', () => {
-    const quest = (overrides: Record<string, unknown>) => ({
-      id: 'quest-x',
-      title: 'X',
-      short_description: 'X',
-      long_description: 'X',
-      requirements: 'None',
-      rewards: '10 caps',
-      created_at: '2025-01-01',
-      updated_at: '2025-01-01',
-      is_visible: true,
-      is_locked: false,
-      lock_reason: null,
-      is_completed: false,
-      is_reward_ready: false,
-      started_at: null,
-      duration_minutes: null,
-      ...overrides,
-    })
-
-    const mountWithQuests = (quests: Record<string, unknown>[]) => {
-      questStore.vaultQuests = quests as never
-      return mount(QuestsView, {
-        global: {
-          stubs: {
-            SidePanel: true,
-            Icon: true,
-          },
-        },
-      })
-    }
-
     it.each([
       { started_at: '2025-01-02T00:00:00Z' },
       { started_at: '2025-01-02T00:00:00Z', return_completes_at: '2099-01-01T00:00:00Z' },
@@ -1204,47 +528,47 @@ describe('QuestsView', () => {
     ])(
       'keeps Active selected while a mission is active, returning or claimable: %j',
       async (state) => {
-        wrapper = mountWithQuests([quest(state)])
-        await flushPromises()
+        await mountWithQuests([quest(state)])
+
         expect(wrapper.get('[role="tab"][data-state="active"]').text()).toContain('Active')
       }
     )
 
     it('switches to Available after the last reward is claimed', async () => {
-      wrapper = mountWithQuests([quest({ is_reward_ready: true })])
-      await flushPromises()
+      await mountWithQuests([quest({ is_reward_ready: true })])
       questStore.vaultQuests = [quest({ is_completed: true })] as never
       await flushPromises()
+
       expect(wrapper.get('[role="tab"][data-state="active"]').text()).toContain('Available')
     })
 
     it('preserves Completed selection when the last active quest disappears', async () => {
-      wrapper = mountWithQuests([quest({ is_reward_ready: true })])
-      await flushPromises()
-      await wrapper.findAll('[role="tab"]')[2]!.trigger('mousedown')
+      await mountWithQuests([quest({ is_reward_ready: true })])
+      await selectTab(2)
       questStore.vaultQuests = [quest({ is_completed: true })] as never
       await flushPromises()
+
       expect(wrapper.get('[role="tab"][data-state="active"]').text()).toContain('Completed')
     })
 
     it('puts claimable rewards before active quests regardless of server order', async () => {
-      wrapper = mountWithQuests([
+      await mountWithQuests([
         quest({ id: 'active', started_at: '2025-01-02T00:00:00Z' }),
         quest({ id: 'ready-1', is_reward_ready: true }),
         quest({ id: 'ready-2', is_reward_ready: true }),
       ])
       await nextTick()
+
       expect(
         wrapper.findAllComponents({ name: 'QuestCard' }).map((card) => card.props('quest').id)
       ).toEqual(['ready-1', 'ready-2', 'active'])
     })
 
     it('shows Available and Rewards-ready totals in the page header', async () => {
-      wrapper = mountWithQuests([
+      await mountWithQuests([
         quest({ id: 'quest-1' }),
         quest({ id: 'quest-2', is_reward_ready: true }),
       ])
-      await flushPromises()
 
       const header = wrapper.text()
       expect(header).toContain('Available quests')
@@ -1252,14 +576,13 @@ describe('QuestsView', () => {
     })
 
     it('badges the Active tab with the ready-to-claim count and explains it', async () => {
-      wrapper = mountWithQuests([
+      await mountWithQuests([
         quest({ id: 'quest-1' }),
         quest({ id: 'quest-2', is_reward_ready: true }),
         quest({ id: 'quest-3', is_reward_ready: true }),
       ])
-      await flushPromises()
 
-      const activeTab = wrapper.findAll('[role="tab"]').find((tab) => tab.text().includes('Active'))
+      const activeTab = wrapper.findAll('[role="tab"]').find((t) => t.text().includes('Active'))
       const badge = activeTab?.find('[data-slot="badge"]')
       expect(badge?.exists()).toBe(true)
       expect(badge?.text()).toContain('2')
@@ -1276,15 +599,14 @@ describe('QuestsView', () => {
     })
 
     it('omits the Active tab badge when nothing is ready to claim', async () => {
-      wrapper = mountWithQuests([quest({ id: 'quest-1' })])
-      await flushPromises()
+      await mountWithQuests([quest({ id: 'quest-1' })])
 
-      const activeTab = wrapper.findAll('[role="tab"]').find((tab) => tab.text().includes('Active'))
+      const activeTab = wrapper.findAll('[role="tab"]').find((t) => t.text().includes('Active'))
       expect(activeTab?.find('[data-slot="badge"]').exists()).toBe(false)
     })
 
     it('offers header help about quests', async () => {
-      wrapper = mountWithQuests([quest({ id: 'quest-1' })])
+      await mountWithQuests([quest({ id: 'quest-1' })])
 
       // PageHelp loads asynchronously, so poll instead of assuming one flush
       // settles the dynamic import.

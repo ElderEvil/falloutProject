@@ -1,5 +1,5 @@
 {
-  "count": 36,
+  "count": 34,
   "files": [
     "components/common/EquippableItemCard.test.ts",
     "components/common/PageContentRail.test.ts",
@@ -34,8 +34,6 @@
     "components/vault/OverseerBriefing.test.ts",
     "core/components/common/TerminalLoadingState.test.ts",
     "modules/profile/components/AIUsageCard.test.ts",
-    "views/ExplorationDetailView.test.ts",
-    "views/RelationshipsView.test.ts",
-    "views/TrainingView.test.ts"
+    "views/ExplorationDetailView.test.ts"
   ]
 }

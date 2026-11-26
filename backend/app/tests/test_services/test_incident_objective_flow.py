@@ -113,9 +113,15 @@ async def test_incident_late_failure_rolls_back_actions_and_health(async_session
     assert not delivered
 
 
-async def test_containment_objective_uses_containment_flow(async_session: AsyncSession, room_with_dwellers: dict):
+@pytest.mark.parametrize("hazard", [IncidentType.FIRE, IncidentType.RADROACH_INFESTATION])
+async def test_containment_objective_uses_containment_flow(
+    async_session: AsyncSession, room_with_dwellers: dict, monkeypatch: pytest.MonkeyPatch, hazard: IncidentType
+):
+    if hazard != IncidentType.FIRE:
+        # A non-fire CONTAIN objective shares the containment flow and its progress contract.
+        monkeypatch.setitem(INCIDENT_DEFINITIONS, hazard, _containment_definition())
     room = room_with_dwellers["room"]
-    incident = await raise_incident(async_session, room, IncidentType.FIRE)
+    incident = await raise_incident(async_session, room, hazard)
     with _containment_only():
         result = await incident_service.process_incident(async_session, incident, 2)
     await async_session.refresh(incident)
@@ -130,6 +136,9 @@ async def test_containment_objective_uses_containment_flow(async_session: AsyncS
     hit_kinds = [event.kind for event in events if event.kind not in ("turn", "containment")]
     assert hit_kinds
     assert all(kind == "hit" for kind in hit_kinds)
+    if hazard != IncidentType.FIRE:
+        read = await incident_service.get_incident_read(async_session, incident, room.name)
+        assert (read.objective, read.progress.current, read.progress.target) == (IncidentObjective.CONTAIN, 50, 100)
 
 
 async def test_combat_objective_uses_combat_flow(async_session: AsyncSession, room_with_dwellers: dict):
@@ -152,23 +161,12 @@ async def test_combat_objective_uses_combat_flow(async_session: AsyncSession, ro
     assert any("hits the raiders" in event.message for event in threat_hits)
 
 
-async def test_non_fire_containment_flow_and_resolution(
+async def test_containment_resolves_at_full_progress(
     async_session: AsyncSession, room_with_dwellers: dict, monkeypatch: pytest.MonkeyPatch
 ):
     monkeypatch.setitem(INCIDENT_DEFINITIONS, IncidentType.RADROACH_INFESTATION, _containment_definition())
     room = room_with_dwellers["room"]
     incident = await raise_incident(async_session, room, IncidentType.RADROACH_INFESTATION)
-    with _containment_only():
-        result = await incident_service.process_incident(async_session, incident, 2)
-    await async_session.refresh(incident)
-    events = await crud.incident_crud.get_recent_events(async_session, incident.id)
-    assert result.damage_to_raiders == 0.0
-    assert result.enemies_defeated == 0
-    assert incident.enemies_defeated == 0
-    assert incident.combat_progress == pytest.approx(0.5)
-    assert events[-1].kind == "turn"
-    assert next(event for event in events if event.kind == "containment").data == {"target": "hazard", "amount": 0.5}
-
     incident.combat_progress = 0.99
     async_session.add(incident)
     await async_session.commit()
@@ -220,19 +218,3 @@ async def test_containment_message_is_specific_per_hazard(
     assert next(event.message for event in scorpion_events if event.kind == "containment") == (
         "Radiation containment increased by 50%."
     )
-
-
-async def test_non_fire_containment_read_reports_percentage_progress(
-    async_session: AsyncSession, room_with_dwellers: dict, monkeypatch: pytest.MonkeyPatch
-):
-    # The read contract reports containment as a percentage for any CONTAIN objective.
-    monkeypatch.setitem(INCIDENT_DEFINITIONS, IncidentType.RADROACH_INFESTATION, _containment_definition())
-    room = room_with_dwellers["room"]
-    incident = await raise_incident(async_session, room, IncidentType.RADROACH_INFESTATION)
-    incident.combat_progress = 0.5
-    async_session.add(incident)
-    await async_session.commit()
-    read = await incident_service.get_incident_read(async_session, incident, room.name)
-    assert read.objective == IncidentObjective.CONTAIN
-    assert read.progress.current == 50
-    assert read.progress.target == 100

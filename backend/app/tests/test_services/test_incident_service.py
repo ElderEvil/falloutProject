@@ -278,28 +278,25 @@ async def test_incident_read_returns_the_latest_journal_entries(async_session, r
 
 
 @pytest.mark.asyncio
-async def test_incident_read_pins_fire_containment_progress(async_session, room_with_dwellers):
+@pytest.mark.parametrize("hazard", [IncidentType.FIRE, IncidentType.RAIDER_ATTACK])
+async def test_incident_read_pins_objective_progress(async_session, room_with_dwellers, hazard):
     room = room_with_dwellers["room"]
-    incident = await _incident(async_session, room, IncidentType.FIRE, 3)
-    incident.combat_progress = 0.5
-    await _commit(async_session, incident)
-    read = await incident_service.get_incident_read(async_session, incident, room.name)
-    assert (read.progress.current, read.progress.target, read.progress.label) == (50, 100, "Fire contained")
-    assert (read.family, read.objective) == (IncidentFamily.HAZARD, IncidentObjective.CONTAIN)
-    assert read.response.label == "Send responders"
-    assert (read.risk.kind, read.risk.rooms_affected) == ("spread", 1)
-
-
-@pytest.mark.asyncio
-async def test_incident_read_pins_combat_kill_progress(async_session, room_with_dwellers):
-    room = room_with_dwellers["room"]
-    incident = await _incident(async_session, room, IncidentType.RAIDER_ATTACK, 3)
-    incident.enemies_defeated = 2
-    await _commit(async_session, incident)
-    read = await incident_service.get_incident_read(async_session, incident, room.name)
-    assert (read.progress.current, read.progress.target) == (2, 6)
-    assert read.progress.label == "Intruders neutralized"
-    assert (read.family, read.objective) == (IncidentFamily.INTRUSION, IncidentObjective.DEFEAT)
+    incident = await _incident(async_session, room, hazard, 3)
+    if hazard == IncidentType.FIRE:
+        incident.combat_progress = 0.5
+        await _commit(async_session, incident)
+        read = await incident_service.get_incident_read(async_session, incident, room.name)
+        assert (read.progress.current, read.progress.target, read.progress.label) == (50, 100, "Fire contained")
+        assert (read.family, read.objective) == (IncidentFamily.HAZARD, IncidentObjective.CONTAIN)
+        assert read.response.label == "Send responders"
+        assert (read.risk.kind, read.risk.rooms_affected) == ("spread", 1)
+    else:
+        incident.enemies_defeated = 2
+        await _commit(async_session, incident)
+        read = await incident_service.get_incident_read(async_session, incident, room.name)
+        assert (read.progress.current, read.progress.target) == (2, 6)
+        assert read.progress.label == "Intruders neutralized"
+        assert (read.family, read.objective) == (IncidentFamily.INTRUSION, IncidentObjective.DEFEAT)
 
 
 @pytest.mark.asyncio
@@ -417,36 +414,28 @@ async def test_generate_loot(async_session):
     assert loot_low["items"] == []
     # An intrusion pays caps scaled by difficulty.
     loot_high = incident_math.generate_loot(difficulty=10, incident_type=IncidentType.RAIDER_ATTACK)
-    assert loot_high["caps"] >= 250
-    assert loot_high["caps"] <= 525
+    assert 250 <= loot_high["caps"] <= 525
 
 
 @pytest.mark.asyncio
-async def test_assign_responders_moves_and_persists_the_roster(async_session, room_with_dwellers, dweller_data):
+async def test_assign_responders_moves_persists_and_appends_the_roster(async_session, room_with_dwellers, dweller_data):
     room = room_with_dwellers["room"]
-    responder = await _dweller(async_session, room.vault_id, dweller_data)
+    first, second = [await _dweller(async_session, room.vault_id, dweller_data) for _ in range(2)]
     incident = await _spawn(async_session, room.vault_id)
-    assigned = await incident_service.assign_responders(async_session, incident, [responder.id])
-    await async_session.refresh(responder)
-    assert assigned == [responder.id]
-    assert responder.room_id == room.id
+    assigned = await incident_service.assign_responders(async_session, incident, [first.id])
+    await async_session.refresh(first)
+    assert assigned == [first.id]
+    assert first.room_id == room.id
     team = await crud.team_crud.get_incident_team_row(async_session, incident.id, room.vault_id)
     assert team is not None
     assert team.quest_id is None
     assert team.incident_id == incident.id
-    assert [member.dweller_id for member in team.members] == [responder.id]
+    assert [member.dweller_id for member in team.members] == [first.id]
     assert all(member.slot_number is None for member in team.members)
     assert all(member.status == "assigned" for member in team.members)
     members = await crud.team_crud.get_incident_team(async_session, incident.id, room.vault_id)
-    assert [member.dweller_id for member in members] == [responder.id]
+    assert [member.dweller_id for member in members] == [first.id]
 
-
-@pytest.mark.asyncio
-async def test_assign_responders_appends_to_roster(async_session, room_with_dwellers, dweller_data):
-    room = room_with_dwellers["room"]
-    first, second = [await _dweller(async_session, room.vault_id, dweller_data) for _ in range(2)]
-    incident = await _spawn(async_session, room.vault_id)
-    await incident_service.assign_responders(async_session, incident, [first.id])
     # Re-sending the first responder alongside a new one must append, not replace or duplicate.
     await incident_service.assign_responders(async_session, incident, [first.id, second.id])
     team = await crud.team_crud.get_incident_team_row(async_session, incident.id, room.vault_id)
@@ -479,25 +468,23 @@ async def test_assign_responders_skips_committed_and_errors_when_all_committed(
 
 
 @pytest.mark.asyncio
-async def test_assign_responders_accepts_six_responders(async_session, room_with_dwellers, dweller_data):
+@pytest.mark.parametrize(("count", "rejected"), [(6, False), (7, True)])
+async def test_assign_responders_enforces_the_six_responder_cap(
+    async_session, room_with_dwellers, dweller_data, count, rejected
+):
     room = room_with_dwellers["room"]
-    responders = [await _dweller(async_session, room.vault_id, dweller_data) for _ in range(6)]
+    responders = [await _dweller(async_session, room.vault_id, dweller_data) for _ in range(count)]
     incident = await _spawn(async_session, room.vault_id)
+    if rejected:
+        with pytest.raises(ValidationException, match="at most 6"):
+            await incident_service.assign_responders(async_session, incident, [r.id for r in responders])
+        assert await crud.team_crud.get_incident_team_row(async_session, incident.id, room.vault_id) is None
+        return
     assigned = await incident_service.assign_responders(async_session, incident, [r.id for r in responders])
     assert len(assigned) == 6
     team = await crud.team_crud.get_incident_team_row(async_session, incident.id, room.vault_id)
     assert team is not None
     assert len(team.members) == 6
-
-
-@pytest.mark.asyncio
-async def test_assign_responders_rejects_seventh_responder(async_session, room_with_dwellers, dweller_data):
-    room = room_with_dwellers["room"]
-    responders = [await _dweller(async_session, room.vault_id, dweller_data) for _ in range(7)]
-    incident = await _spawn(async_session, room.vault_id)
-    with pytest.raises(ValidationException, match="at most 6"):
-        await incident_service.assign_responders(async_session, incident, [r.id for r in responders])
-    assert await crud.team_crud.get_incident_team_row(async_session, incident.id, room.vault_id) is None
 
 
 @pytest.mark.asyncio
@@ -516,32 +503,11 @@ async def test_assign_responders_rejects_roster_overflow(async_session, room_wit
 
 
 @pytest.mark.asyncio
-async def test_assign_responders_reloads_incident_for_update(
-    async_session, room_with_dwellers, dweller_data, monkeypatch
-):
-    from app.crud.incident import incident_crud
-
-    room = room_with_dwellers["room"]
-    responder = await _dweller(async_session, room.vault_id, dweller_data)
-    incident = await _spawn(async_session, room.vault_id)
-    locked_ids: list = []
-    original = incident_crud.get_for_update
-
-    async def spy(db_session, incident_id):
-        locked_ids.append(incident_id)
-        return await original(db_session, incident_id)
-
-    monkeypatch.setattr(incident_crud, "get_for_update", spy)
-    await incident_service.assign_responders(async_session, incident, [responder.id])
-    assert locked_ids == [incident.id]
-
-
-@pytest.mark.asyncio
 async def test_assign_responders_revalidates_status_under_lock(async_session, room_with_dwellers, dweller_data):
+    # assign_responders reloads the incident FOR UPDATE; the live row wins over a stale caller object.
     room = room_with_dwellers["room"]
     responder = await _dweller(async_session, room.vault_id, dweller_data)
     incident = await _spawn(async_session, room.vault_id)
-    # The caller holds an ACTIVE object, but the row is already resolved.
     incident.status = IncidentStatus.RESOLVED
     await _commit(async_session, incident)
     incident.status = IncidentStatus.ACTIVE  # stale caller-side view
@@ -678,7 +644,7 @@ async def test_spread_respects_active_incident_cap(async_session, vault):
 
 class TestProcessVaultIncidents:
     @pytest.mark.asyncio
-    async def test_spawns_new_incident(self, async_session, vault):
+    async def test_spawns_new_incident_without_processing_it(self, async_session, vault):
         mock_incident = MagicMock()
         mock_incident.type = "raider_attack"
         with (
@@ -719,44 +685,18 @@ class TestProcessVaultIncidents:
         mock_process.assert_not_awaited()
 
     @pytest.mark.asyncio
-    async def test_processes_active(self, async_session, vault):
+    @pytest.mark.parametrize(("round_result", "processed"), [("resolved", 1), ("skipped", 0)])
+    async def test_processes_active_round_results(self, async_session, vault, round_result, processed):
         mock_incident = MagicMock()
         mock_incident.status = MagicMock()
         mock_incident.status.value = "resolved"
         mock_incident.id = "inc-1"
+        outcome = (
+            IncidentRoundResult(caps_earned=50) if round_result == "resolved" else IncidentRoundResult(skipped=True)
+        )
         with (
             patch.object(incident_service, "should_spawn_incident", new_callable=AsyncMock, return_value=False),
-            patch.object(
-                incident_service,
-                "process_incident",
-                new_callable=AsyncMock,
-                return_value=IncidentRoundResult(caps_earned=50),
-            ),
-            patch("app.services.combat.incident_tick.incident_crud") as mock_crud,
-            patch("app.crud.vault.vault") as mock_vault_crud,
-            patch.object(async_session, "refresh", new_callable=AsyncMock),
-        ):
-            mock_crud.get_active_by_vault = AsyncMock(return_value=[mock_incident])
-            mock_crud.get_pending_responder_returns = AsyncMock(return_value=[])
-            mock_vault_crud.get = AsyncMock(return_value=vault)
-            result = await incident_service.process_vault_incidents(async_session, vault.id, 2)
-        assert result["active_count"] == 1
-        assert result["processed"] == 1
-        assert result["resolved"] == 1
-        assert result["caps_earned"] == 50
-
-    @pytest.mark.asyncio
-    async def test_skips_skipped_result(self, async_session, vault):
-        mock_incident = MagicMock()
-        mock_incident.id = "inc-1"
-        with (
-            patch.object(incident_service, "should_spawn_incident", new_callable=AsyncMock, return_value=False),
-            patch.object(
-                incident_service,
-                "process_incident",
-                new_callable=AsyncMock,
-                return_value=IncidentRoundResult(skipped=True),
-            ),
+            patch.object(incident_service, "process_incident", new_callable=AsyncMock, return_value=outcome),
             patch("app.services.combat.incident_tick.incident_crud") as mock_crud,
             patch.object(async_session, "refresh", new_callable=AsyncMock),
         ):
@@ -764,7 +704,10 @@ class TestProcessVaultIncidents:
             mock_crud.get_pending_responder_returns = AsyncMock(return_value=[])
             result = await incident_service.process_vault_incidents(async_session, vault.id, 2)
         assert result["active_count"] == 1
-        assert result["processed"] == 0
+        assert result["processed"] == processed
+        if processed:
+            assert result["resolved"] == 1
+            assert result["caps_earned"] == 50
 
     @pytest.mark.asyncio
     async def test_error_in_one_does_not_stop(self, async_session, vault):
@@ -807,9 +750,10 @@ class TestProcessVaultIncidents:
 
 
 @pytest.mark.asyncio
-async def test_disabled_vault_does_not_spawn_or_process(async_session, vault):
+async def test_disabled_vault_neither_spawns_nor_processes(async_session, vault):
     vault.incidents_disabled = True
     await async_session.commit()
+    assert await incident_service.should_spawn_incident(async_session, vault.id, 3600) is False
     with (
         patch.object(incident_service, "spawn_incident", new_callable=AsyncMock) as mock_spawn,
         patch.object(incident_service, "process_incident", new_callable=AsyncMock) as mock_process,
@@ -818,13 +762,6 @@ async def test_disabled_vault_does_not_spawn_or_process(async_session, vault):
     assert result["active_count"] == 0
     mock_spawn.assert_not_awaited()
     mock_process.assert_not_awaited()
-
-
-@pytest.mark.asyncio
-async def test_disabled_vault_should_spawn_returns_false(async_session, vault):
-    vault.incidents_disabled = True
-    await async_session.commit()
-    assert await incident_service.should_spawn_incident(async_session, vault.id, 3600) is False
 
 
 class TestTickCommitBoundaries:

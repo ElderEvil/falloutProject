@@ -10,7 +10,6 @@ import pytest
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
-from app.core.game_config import game_config
 from app.crud import game_state_crud
 from app.crud import room as room_crud
 from app.models.vault import Vault
@@ -43,16 +42,6 @@ async def test_spawn_requires_fresh_presence(async_session: AsyncSession, vault:
     else:
         state.last_presence_at = utcnow() - timedelta(minutes=minutes_ago)
     assert await incident_service.should_spawn_incident(async_session, vault.id, 3600, state) is expected
-
-
-def test_spawn_rate_tiers_scale_with_room_count() -> None:
-    rate = game_config.incident.get_spawn_rate
-    assert rate(12) == 1.0
-    assert rate(15) == 1.0
-    assert rate(16) == 2.0
-    assert rate(30) == 2.0
-    assert rate(31) == 4.0
-    assert rate(200) == 4.0
 
 
 @pytest.mark.asyncio

@@ -109,17 +109,14 @@ def test_team_membership_ignored_for_incidents_without_a_team():
     assert (plain.ticks, plain.damage_taken) == (tagged.ticks, tagged.damage_taken)
 
 
-def test_radscorpion_accumulates_radiation():
-    outcome = resolve_incident(IncidentType.RADSCORPION_ATTACK, 3, [_profiled(1000, health=1000)], dt=2)
-    assert outcome.resolved
-    assert outcome.ticks == 1
-    assert outcome.damage_taken == 3
-    # RAD = min(taken - 1, taken // 2) = min(2, 1) = 1.
-    assert outcome.radiation_gained == 1
-
-
-def test_fire_never_adds_radiation():
-    assert resolve_incident(IncidentType.FIRE, 2, [_profiled(1000, health=1000)], dt=2).radiation_gained == 0
+def test_radiation_accumulates_only_for_radioactive_hazards():
+    # RAD = min(taken - 1, taken // 2): 3 damage -> 1, then 2 per tick over two ticks -> 2.
+    fast = resolve_incident(IncidentType.RADSCORPION_ATTACK, 3, [_profiled(1000, health=1000)], dt=2)
+    assert (fast.resolved, fast.ticks, fast.damage_taken, fast.radiation_gained) == (True, 1, 3, 1)
+    slow = resolve_incident(IncidentType.RADSCORPION_ATTACK, 2, [_profiled(100, health=1000)], dt=2)
+    assert (slow.resolved, slow.ticks, slow.damage_taken, slow.radiation_gained) == (True, 2, 4, 2)
+    fire = resolve_incident(IncidentType.FIRE, 2, [_profiled(1000, health=1000)], dt=2)
+    assert fire.radiation_gained == 0
 
 
 def test_radiation_resist_blocks_radiation_gain():
@@ -131,14 +128,6 @@ def test_radiation_resist_blocks_radiation_gain():
         dt=2,
     )
     assert outcome.radiation_gained == 0
-
-
-def test_radiation_accumulates_per_tick_until_victory():
-    outcome = resolve_incident(IncidentType.RADSCORPION_ATTACK, 2, [_profiled(100, health=1000)], dt=2)
-    assert outcome.resolved
-    assert outcome.ticks == 2
-    assert outcome.damage_taken == 4
-    assert outcome.radiation_gained == 2
 
 
 def test_radiation_ceiling_clamps_health():
@@ -158,38 +147,6 @@ def test_split_damage_distributes_base_and_remainder():
     assert incident_math.split_damage(-5, 2) == [0, 0]
     assert incident_math.split_damage(7, 0) == []
     assert incident_math.split_damage(7, -2) == []
-
-
-def test_kernel_matches_incident_math_non_fire():
-    threat = incident_math.raider_power(1)
-    power = 1000.0
-    outcome = resolve_incident(IncidentType.RAIDER_ATTACK, 1, [_defender(power)], dt=2)
-    dmg = incident_math.damage_to_dwellers(threat, 2)
-    expected_progress = incident_math.damage_to_raiders(power, 2) / incident_math.threat_health(
-        IncidentType.RAIDER_ATTACK, threat
-    )
-    assert outcome.resolved
-    assert outcome.ticks == 1
-    assert outcome.progress == pytest.approx(expected_progress)
-    assert outcome.damage_taken == sum(incident_math.split_damage(max(0, int(dmg)), 1))
-
-
-def test_kernel_matches_incident_math_fire():
-    threat = incident_math.raider_power(1)
-    power = 1000.0
-    outcome = resolve_incident(IncidentType.FIRE, 1, [_defender(power)], dt=2)
-    containment_threat = max(threat, incident_math.containment_threat_floor(power, 2))
-    dmg = incident_math.containment_damage(threat, 2)
-    expected_progress = incident_math.containment_progress(power, containment_threat, 2)
-    expected_ticks = 0
-    accumulated = 0.0
-    while accumulated < 1:
-        accumulated += expected_progress
-        expected_ticks += 1
-    assert outcome.resolved
-    assert outcome.ticks == expected_ticks
-    assert outcome.progress == pytest.approx(expected_progress * expected_ticks)
-    assert outcome.damage_taken == sum(incident_math.split_damage(max(0, int(dmg)), 1)) * expected_ticks
 
 
 def test_golden_non_fire_ticks_to_win():

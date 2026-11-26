@@ -65,35 +65,29 @@ def test_caps_escalate_with_severity(monkeypatch: pytest.MonkeyPatch):
     assert caps[0] == 0
 
 
-def test_fire_pays_in_experience_alone():
-    loot = incident_math.generate_loot(difficulty=10, incident_type=IncidentType.FIRE)
-    assert loot["caps"] == 0
-    assert loot["items"] == []
+# (type, difficulty, caps pay, first item type, first item rarity)
+LOOT_CASES = [
+    (IncidentType.FIRE, 10, False, None, None),
+    (IncidentType.RADROACH_INFESTATION, 10, True, None, None),
+    (IncidentType.MOLE_RAT_ATTACK, 10, True, None, None),
+    (IncidentType.RADSCORPION_ATTACK, 10, True, None, None),
+    (IncidentType.FERAL_GHOUL_ATTACK, 5, True, "junk", "common"),
+    (IncidentType.RAIDER_ATTACK, 3, True, "weapon", "common"),
+    (IncidentType.RAIDER_ATTACK, 8, True, "weapon", "rare"),
+    (IncidentType.DEATHCLAW_ATTACK, 5, True, "junk", "rare"),
+    (IncidentType.DEATHCLAW_ATTACK, 9, True, "junk", "legendary"),
+]
 
 
-@pytest.mark.parametrize(
-    "incident_type",
-    [IncidentType.RADROACH_INFESTATION, IncidentType.MOLE_RAT_ATTACK, IncidentType.RADSCORPION_ATTACK],
-)
-def test_bare_infestations_drop_caps_without_loot(incident_type: IncidentType):
-    loot = incident_math.generate_loot(difficulty=10, incident_type=incident_type)
-    assert loot["caps"] > 0
-    assert loot["items"] == []
-
-
-def test_ghouls_leave_scrap_behind():
-    loot = incident_math.generate_loot(difficulty=5, incident_type=IncidentType.FERAL_GHOUL_ATTACK)
-    assert loot["items"][0]["item_type"] == "junk"
-
-
-def test_raider_gear_improves_with_difficulty():
-    assert incident_math.generate_loot(3, IncidentType.RAIDER_ATTACK)["items"][0]["rarity"] == "common"
-    assert incident_math.generate_loot(8, IncidentType.RAIDER_ATTACK)["items"][0]["rarity"] == "rare"
-
-
-def test_deathclaw_salvage_improves_with_difficulty():
-    assert incident_math.generate_loot(5, IncidentType.DEATHCLAW_ATTACK)["items"][0]["rarity"] == "rare"
-    assert incident_math.generate_loot(9, IncidentType.DEATHCLAW_ATTACK)["items"][0]["rarity"] == "legendary"
+@pytest.mark.parametrize(("incident_type", "difficulty", "pays_caps", "item_type", "rarity"), LOOT_CASES)
+def test_loot_tiers_scale_with_type_and_severity(incident_type, difficulty, pays_caps, item_type, rarity):
+    loot = incident_math.generate_loot(difficulty=difficulty, incident_type=incident_type)
+    assert (loot["caps"] > 0) is pays_caps
+    if item_type is None:
+        # A hazard pays in experience alone; a bare infestation drops caps but no gear.
+        assert loot["items"] == []
+    else:
+        assert (loot["items"][0]["item_type"], loot["items"][0]["rarity"]) == (item_type, rarity)
 
 
 @pytest.mark.parametrize("incident_type", VICTORY_TYPES)

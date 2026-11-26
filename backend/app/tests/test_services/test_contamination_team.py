@@ -64,20 +64,6 @@ async def _fire_roster(async_session: AsyncSession, vault_id):
     return await crud.team_crud.get_hazard_team(async_session, vault_id, HazardTeam.FIRE)
 
 
-async def test_participation_is_recorded_once_per_incident(async_session: AsyncSession, room_with_dwellers: dict):
-    room = room_with_dwellers["room"]
-    dweller_ids = [dweller.id for dweller in room_with_dwellers["dwellers"]]
-    incident = await raise_incident(async_session, room, IncidentType.FIRE)
-
-    first = await crud.incident_participant_crud.record(async_session, incident.id, dweller_ids)
-    second = await crud.incident_participant_crud.record(async_session, incident.id, dweller_ids)
-    await async_session.commit()
-
-    assert sorted(first) == sorted(dweller_ids)
-    assert second == []
-    assert await crud.incident_participant_crud.get_credited_dweller_ids(async_session, incident.id) == set(dweller_ids)
-
-
 async def test_third_callout_earns_an_active_place_and_a_bio_entry(
     async_session: AsyncSession, room_with_dwellers: dict
 ):
@@ -161,6 +147,8 @@ async def test_incident_round_credits_its_defenders(async_session: AsyncSession,
 
     credited = await crud.incident_participant_crud.get_credited_dweller_ids(async_session, incident.id)
     assert credited == {dweller.id for dweller in room_with_dwellers["dwellers"]}
+    # A second round is idempotent: every defender is credited once, not once per round.
+    assert await crud.incident_participant_crud.record(async_session, incident.id, list(credited)) == []
 
 
 async def test_qualifying_round_still_commits_exactly_once(async_session: AsyncSession, room_with_dwellers: dict):
@@ -183,13 +171,6 @@ async def test_qualifying_round_still_commits_exactly_once(async_session: AsyncS
     place = await crud.team_crud.get_hazard_member(async_session, room.vault_id, HazardTeam.FIRE, dwellers[0].id)
     assert place is not None
     assert place.status == ACTIVE_STATUS
-
-
-async def test_roster_reports_both_teams(async_session: AsyncSession, room_with_dwellers: dict):
-    roster = await hazard_team_service.get_roster(async_session, room_with_dwellers["room"].vault_id)
-
-    assert {entry.team for entry in roster.teams} == set(HazardTeam)
-    assert all(entry.active == [] and entry.reserve == [] for entry in roster.teams)
 
 
 async def test_roster_counts_distinct_incidents_per_hazard(async_session: AsyncSession, room_with_dwellers: dict):
@@ -216,36 +197,26 @@ async def test_roster_counts_distinct_incidents_per_hazard(async_session: AsyncS
     assert radiation.reserve[0].service_count == 1
 
 
+async def _fire_member(async_session: AsyncSession, vault_id):
+    roster = await hazard_team_service.get_roster(async_session, vault_id)
+    return next(entry for entry in roster.teams if entry.team == HazardTeam.FIRE).active[0]
+
+
 async def test_roster_reflects_current_equipment_not_a_cached_flag(
     async_session: AsyncSession, room_with_dwellers: dict
 ):
+    # The enriched roster fields themselves are pinned on the wire by test_api/test_contamination_team.py;
+    # this keeps the uncached switch from a mismatched suit to the team's matching gear.
     room = room_with_dwellers["room"]
     dweller = room_with_dwellers["dwellers"][0]
     await make_member(async_session, room.vault_id, dweller.id, HazardTeam.FIRE, ACTIVE_STATUS)
     storage = await crud.vault.create_storage(db_session=async_session, vault_id=room.vault_id)
 
-    expected_resist = float(_outfit_catalog_entry("Firefighter suit, rad helmet").get("fire_resist") or 0.0)
-    assert expected_resist > 0.0
     await _equip_catalog_outfit(async_session, dweller.id, "Firefighter suit, rad helmet", storage.id)
-
-    fire = next(
-        entry
-        for entry in (await hazard_team_service.get_roster(async_session, room.vault_id)).teams
-        if entry.team == HazardTeam.FIRE
-    )
-    member = fire.active[0]
-    assert member.outfit_name == "Firefighter suit, rad helmet"
-    assert member.has_matching_gear is False
-    assert member.hazard_resist == pytest.approx(expected_resist)
+    assert (await _fire_member(async_session, room.vault_id)).has_matching_gear is False
 
     await _equip_catalog_outfit(async_session, dweller.id, "Firefighter suit", storage.id)
-
-    fire = next(
-        entry
-        for entry in (await hazard_team_service.get_roster(async_session, room.vault_id)).teams
-        if entry.team == HazardTeam.FIRE
-    )
-    member = fire.active[0]
+    member = await _fire_member(async_session, room.vault_id)
     assert member.outfit_name == "Firefighter suit"
     assert member.has_matching_gear is True
 

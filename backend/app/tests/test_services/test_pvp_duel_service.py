@@ -107,9 +107,7 @@ async def test_party_is_explicit_and_capped_at_three(
         await pvp_duel_service.post(async_session, vault.id, dweller_ids=[])
     with pytest.raises(ValidationException):
         await pvp_duel_service.post(async_session, vault.id, dweller_ids=[dweller.id] * 4)
-
-
-async def test_one_dweller_cannot_fill_a_party(async_session: AsyncSession, vault: Vault, dweller: Dweller) -> None:
+    # One dweller repeated is not a party of three.
     with pytest.raises(ValidationException):
         await pvp_duel_service.post(async_session, vault.id, dweller_ids=[dweller.id] * 3)
 

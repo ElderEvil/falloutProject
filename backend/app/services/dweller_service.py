@@ -92,12 +92,18 @@ PROFILE_TEXT_FIELDS = ("first_name", "last_name", "bio")
 
 
 async def _screen_player_profile(db_session: AsyncSession, *, user_id: UUID, data: dict[str, Any]) -> None:
-    """Judge player-written name/bio text before it becomes dweller prompt material.
+    """Judge player-written profile text before it becomes dweller prompt material.
 
+    Covers the plain bio, its structured ``bio_entries`` (compiled into the prompt bio), and names.
     Fail-open and advisory like chat screening; a blocked verdict rejects the whole update so
     nothing is applied. Model-written bios bypass this path by calling ``update_dweller`` directly.
     """
     parts = [str(data[field]) for field in PROFILE_TEXT_FIELDS if data.get(field)]
+    entries = data.get("bio_entries")
+    if isinstance(entries, list):
+        parts += [
+            str(entry["text"]) for entry in entries if isinstance(entry, dict) and str(entry.get("text") or "").strip()
+        ]
     if not parts:
         return
     verdict = await screen_input(

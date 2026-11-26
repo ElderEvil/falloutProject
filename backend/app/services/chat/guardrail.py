@@ -98,13 +98,17 @@ async def screen_input(
     text: str,
     kind: str = "chat input",
     usage: str = JEV_OPERATION,
+    commit: bool = True,
 ) -> GuardrailVerdict:
-    """Screen player text and commit its usage row before the caller's transaction opens.
+    """Screen player text, then commit before the caller's transaction by default.
 
-    Every transport and every player-writable text field enters here, so one policy covers
-    text chat, voice chat and dweller profiles instead of each caller enforcing its own.
+    The commit closes the read/lock window a caller may have opened before screening (the chat
+    paths hold the quota row lock), and persists the usage row even when the verdict blocks.
+
+    Pass ``commit=False`` only when the caller already owns a transaction whose lock scope must
+    survive screening; the usage row then rides that transaction and rolls back with it.
     """
     verdict = await screen_message(text, db_session=db_session, user_id=user_id, kind=kind, usage=usage)
-    if verdict.ran:
+    if commit:
         await db_session.commit()
     return verdict

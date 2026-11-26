@@ -636,7 +636,10 @@ class DwellerAIService:
             last_name=dweller_last_name,
             visual_attributes=visual_attributes_input,
         )
-        updated_dweller = await dweller_service.update_dweller(db_session, dweller_id, update_data)
+        # Player-supplied names are prompt material; this is the player-facing update path.
+        updated_dweller = await dweller_service.update_player_dweller(
+            db_session, dweller_id, update_data, user_id=user.id
+        )
 
         dweller_obj = await self.generate_photo(db_session=db_session, dweller_id=updated_dweller.id, user=user)
         if visual_attributes_input.voice_line_text:

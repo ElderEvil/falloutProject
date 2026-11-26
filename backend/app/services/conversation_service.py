@@ -182,8 +182,9 @@ class ConversationService:
         quota_result.ensure_allowed()
 
         # Shared boundary: a transcript is the same player text as a typed message and is judged
-        # before the agent answers. Screening commits its usage row, so it runs before the savepoint.
-        verdict = await screen_input(db_session, user_id=user.id, text=transcribed_text)
+        # before the agent answers. The commit is deferred: the quota row lock taken above must
+        # survive until the exchange's final commit (SERVICE_LAYER lock-scope rule).
+        verdict = await screen_input(db_session, user_id=user.id, text=transcribed_text, commit=False)
         if verdict.blocked:
             raise ValidationException(detail=verdict.reason or "Message blocked by content screening.")
 

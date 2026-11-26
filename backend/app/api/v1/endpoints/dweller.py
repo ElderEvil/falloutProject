@@ -314,7 +314,7 @@ async def add_bio_addendum(
 ) -> DwellerReadFull:
     """Record a player-confirmed conversation detail into the dweller's biography."""
     await verify_dweller_access(dweller_id, user, db_session)
-    await bio_service.append_entry(db_session, dweller_id, "dialogue", request.text, ref={"source": "chat"})
+    await bio_service.append_player_entry(db_session, dweller_id, request.text, user_id=user.id)
     return await crud.dweller.get_full_info(db_session, dweller_id)
 
 

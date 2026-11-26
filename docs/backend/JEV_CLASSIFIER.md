@@ -162,10 +162,12 @@ A first pass wired Jev into the codebase. Results, decisions, and traps found al
   the two need **per-field bars** (or the toxic field needs better criteria wording).
   They now have separate settings, `JEV_GUARDRAIL_INJECTION_CONFIDENCE` and
   `JEV_GUARDRAIL_TOXIC_CONFIDENCE`; both ship at 0.7 until a sweep says otherwise.
-- Screening sits at one boundary: `screen_input()` judges player text, commits its usage row
-  before the caller's transaction, and every transport calls it. Text chat, streaming chat and
-  voice chat all judge the message, and player-written dweller name/bio text is judged on
-  write because it lands inside the prompt's `<bio>` block. Model-written bios bypass it.
+- Screening sits at one boundary: `screen_input()` judges player text and commits before the
+  caller's transaction, so the chat paths release the quota row lock screening was called behind;
+  the voice path passes `commit=False` because its lock must survive until the exchange commits.
+  Text, streaming and voice chat all judge the message, and player-written dweller names, bio,
+  structured `bio_entries` and confirmed addenda are judged on write because they become the
+  prompt's `<bio>` block. Model-written bios bypass it.
   A new Jev surface passes its own `usage` tag to `record_usage` so it reports separately in
   AI usage stats instead of merging into `jev_decision`.
 - A labelled corpus + `fo-cli jev-eval` is worth keeping: it turns threshold tuning into

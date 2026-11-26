@@ -6,6 +6,7 @@ from uuid import uuid4
 
 import pytest
 
+from app.core.ai_constants import JEV_PROFILE_OPERATION
 from app.schemas.chat import ChatGuardrail
 from app.schemas.jev import JevDecision
 from app.services.chat.guardrail import screen_input, screen_message
@@ -97,17 +98,21 @@ async def test_each_field_blocks_at_its_own_threshold(monkeypatch):
 
 async def test_records_usage_under_the_callers_operation_tag():
     with _jev(decision=_decision(jailbreak=False, toxic=False, conf={"jailbreak": 0.1})) as (_decide, record):
-        await screen_message("hello there", db_session=MagicMock(), user_id=uuid4(), usage="jev_profile_screen")
-    assert record.await_args.kwargs["usage"] == "jev_profile_screen"
+        await screen_message("hello there", db_session=MagicMock(), user_id=uuid4(), usage=JEV_PROFILE_OPERATION)
+    assert record.await_args.kwargs["usage"] == JEV_PROFILE_OPERATION
 
 
-async def test_screen_input_commits_only_after_a_decision():
-    session = MagicMock(commit=AsyncMock())
-    with _jev(decision=_decision(jailbreak=False, toxic=False, conf={"jailbreak": 0.1})):
-        await screen_input(session, user_id=uuid4(), text="hello")
-    session.commit.assert_awaited_once()
-
+async def test_screen_input_commits_even_when_jev_is_off():
+    """The commit closes any lock the caller took before screening, independent of Jev's state."""
     session = MagicMock(commit=AsyncMock())
     with _jev(configured=False):
         await screen_input(session, user_id=uuid4(), text="hello")
+    session.commit.assert_awaited_once()
+
+
+async def test_screen_input_can_defer_its_commit_to_the_caller():
+    """Voice keeps its quota row lock until the exchange commits, so screening must not release it."""
+    session = MagicMock(commit=AsyncMock())
+    with _jev(decision=_decision(jailbreak=False, toxic=False, conf={"jailbreak": 0.1})):
+        await screen_input(session, user_id=uuid4(), text="hello", commit=False)
     session.commit.assert_not_awaited()

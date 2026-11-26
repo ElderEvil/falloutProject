@@ -14,6 +14,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app import crud
 from app.models.dweller import BIO_MAX_CHARS, Dweller
 from app.schemas.dweller import DwellerUpdate
+from app.services.chat.guardrail import screen_input
 from app.utils.exceptions import ContentNoChangeException, ValidationException
 from app.utils.serialize import serialize_naive_utc_datetime
 from app.utils.time import utcnow
@@ -156,6 +157,24 @@ class BioService:
         return await self._persist(
             db_session, dweller_id, self.with_entry(dweller, source, normalized, ref), commit=commit
         )
+
+    async def append_player_entry(
+        self,
+        db_session: AsyncSession,
+        dweller_id: UUID,
+        text: str,
+        *,
+        user_id: UUID,
+    ) -> Dweller:
+        """Append a player-confirmed conversation detail after screening it as prompt material.
+
+        The rendered bio becomes the chat prompt's ``<bio>`` block, so the same guardrail that
+        judges a chat message judges this text before it is stored.
+        """
+        verdict = await screen_input(db_session, user_id=user_id, text=text, kind="dweller bio addendum")
+        if verdict.blocked:
+            raise ValidationException(detail=verdict.reason or "Biography entry blocked by content screening.")
+        return await self.append_entry(db_session, dweller_id, "dialogue", text, ref={"source": "chat"})
 
     def add_entry(
         self,

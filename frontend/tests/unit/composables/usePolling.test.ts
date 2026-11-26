@@ -12,14 +12,19 @@ beforeEach(() => {
   localStorage.setItem('token', 'test-token')
 })
 
+/** Starts a 100ms poll inside an effect scope that the case can dispose. */
+function startPolling(refresh: ReturnType<typeof vi.fn> = vi.fn()) {
+  const scope = effectScope()
+  scope.run(() => usePolling(refresh, { interval: 100, immediate: false }))
+  return { scope, refresh }
+}
+
 describe('usePolling', () => {
   afterEach(() => vi.useRealTimers())
 
   it('stops its interval when the owning scope is disposed', async () => {
     vi.useFakeTimers()
-    const refresh = vi.fn()
-    const scope = effectScope()
-    scope.run(() => usePolling(refresh, { interval: 100, immediate: false }))
+    const { scope, refresh } = startPolling()
 
     await vi.advanceTimersByTimeAsync(300)
     expect(refresh).toHaveBeenCalledTimes(3)
@@ -94,9 +99,7 @@ describe('background polling lifecycle', () => {
     vi.useFakeTimers()
     localStorage.setItem('token', 'test-token')
     const visibility = vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible')
-    const refresh = vi.fn()
-    const scope = effectScope()
-    scope.run(() => usePolling(refresh, { interval: 100, immediate: false }))
+    const { scope, refresh } = startPolling()
     visibility.mockReturnValue('hidden')
     document.dispatchEvent(new Event('visibilitychange'))
     await nextTick()
@@ -129,9 +132,7 @@ describe('background polling lifecycle', () => {
   it('stops offline and refreshes once on reconnect', async () => {
     vi.useFakeTimers()
     const online = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(true)
-    const refresh = vi.fn()
-    const scope = effectScope()
-    scope.run(() => usePolling(refresh, { interval: 100, immediate: false }))
+    const { scope, refresh } = startPolling()
     online.mockReturnValue(false)
     window.dispatchEvent(new Event('offline'))
     await vi.advanceTimersByTimeAsync(500)
@@ -145,9 +146,9 @@ describe('background polling lifecycle', () => {
 
   it('backs off transient failures rather than repeating at the normal interval', async () => {
     vi.useFakeTimers()
-    const refresh = vi.fn().mockRejectedValue(new Error('Network unavailable'))
-    const scope = effectScope()
-    scope.run(() => usePolling(refresh, { interval: 100, immediate: false }))
+    const { scope, refresh } = startPolling(
+      vi.fn().mockRejectedValue(new Error('Network unavailable'))
+    )
     await vi.advanceTimersByTimeAsync(100)
     expect(refresh).toHaveBeenCalledTimes(1)
     await vi.advanceTimersByTimeAsync(199)
@@ -159,9 +160,7 @@ describe('background polling lifecycle', () => {
 
   it('stops all future ticks when the session expires', async () => {
     vi.useFakeTimers()
-    const refresh = vi.fn()
-    const scope = effectScope()
-    scope.run(() => usePolling(refresh, { interval: 100, immediate: false }))
+    const { scope, refresh } = startPolling()
     await vi.advanceTimersByTimeAsync(100)
     expect(refresh).toHaveBeenCalledTimes(1)
     window.dispatchEvent(new Event('auth-session-expired'))
@@ -173,9 +172,9 @@ describe('background polling lifecycle', () => {
   it('stops retrying permission failures', async () => {
     vi.useFakeTimers()
     localStorage.setItem('token', 'test-token')
-    const refresh = vi.fn().mockRejectedValue({ response: { status: 403 } })
-    const scope = effectScope()
-    scope.run(() => usePolling(refresh, { interval: 100, immediate: false }))
+    const { scope, refresh } = startPolling(
+      vi.fn().mockRejectedValue({ response: { status: 403 } })
+    )
     await vi.advanceTimersByTimeAsync(1_000)
     expect(refresh).toHaveBeenCalledTimes(1)
     scope.stop()

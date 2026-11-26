@@ -1,17 +1,24 @@
 import { describe, it, expect, beforeEach, vi } from 'vite-plus/test'
 import { createIconifyMock } from '../../helpers/mocks'
-import { mount, flushPromises } from '@vue/test-utils'
+import { mount, flushPromises, type VueWrapper } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
-import { createRouter, createMemoryHistory } from 'vue-router'
+import { createRouter, createMemoryHistory, type Router } from 'vue-router'
 import RegisterForm from '@/modules/auth/components/RegisterForm.vue'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 
 // Mock Iconify
 vi.mock('@iconify/vue', () => createIconifyMock())
 
+const credentials = {
+  username: 'overseer',
+  email: 'overseer@vault-tec.com',
+  password: 'password123',
+  confirm: 'password123',
+}
+
 describe('RegisterForm', () => {
-  let router: any
-  let authStore: any
+  let router: Router
+  let authStore: ReturnType<typeof useAuthStore>
 
   beforeEach(() => {
     localStorage.clear()
@@ -28,13 +35,37 @@ describe('RegisterForm', () => {
     })
   })
 
+  function render(): VueWrapper {
+    return mount(RegisterForm, { global: { plugins: [router] } })
+  }
+
+  async function fill(
+    wrapper: VueWrapper,
+    overrides: Partial<typeof credentials> = {}
+  ): Promise<VueWrapper<'input', HTMLInputElement>[]> {
+    const values = { ...credentials, ...overrides }
+    const inputs = wrapper.findAll<'input', HTMLInputElement>('input')
+    await inputs[0]!.setValue(values.username)
+    await inputs[1]!.setValue(values.email)
+    await inputs[2]!.setValue(values.password)
+    await inputs[3]!.setValue(values.confirm)
+    return inputs
+  }
+
+  async function submit(wrapper: VueWrapper): Promise<void> {
+    await wrapper.find('form').trigger('submit.prevent')
+    await flushPromises()
+  }
+
+  function buttonWithText(wrapper: VueWrapper, text: string) {
+    const found = wrapper.findAll('button').find((button) => button.text().includes(text))
+    if (!found) throw new Error(`No button containing "${text}"`)
+    return found
+  }
+
   describe('Rendering', () => {
     it('should render terminal-style register form with all elements', () => {
-      const wrapper = mount(RegisterForm, {
-        global: {
-          plugins: [router],
-        },
-      })
+      const wrapper = render()
 
       expect(wrapper.text()).toContain('VAULT-TEC INDUSTRIES')
       expect(wrapper.text()).toContain('New Overseer Registration Terminal')
@@ -43,80 +74,45 @@ describe('RegisterForm', () => {
     })
 
     it('should display correct version number', () => {
-      const wrapper = mount(RegisterForm, {
-        global: {
-          plugins: [router],
-        },
-      })
-
-      expect(wrapper.text()).toMatch(/v?\d+\.\d+\.\d+/)
+      expect(render().text()).toMatch(/v?\d+\.\d+\.\d+/)
     })
 
     it('should have terminal-style button with arrow icons', () => {
-      const wrapper = mount(RegisterForm, {
-        global: {
-          plugins: [router],
-        },
-      })
+      const button = render().find('button[type="submit"]')
 
-      const button = wrapper.find('button[type="submit"]')
       expect(button.text()).toContain('REGISTER OVERSEER')
       expect(button.text()).toContain('►')
       expect(button.text()).toContain('◄')
     })
 
     it('should have all required input fields', () => {
-      const wrapper = mount(RegisterForm, {
-        global: {
-          plugins: [router],
-        },
-      })
+      const inputs = render().findAll('input')
 
-      const inputs = wrapper.findAll('input')
-      expect(inputs[0].attributes('required')).toBeDefined()
-      expect(inputs[1].attributes('required')).toBeDefined()
-      expect(inputs[2].attributes('required')).toBeDefined()
-      expect(inputs[3].attributes('required')).toBeDefined()
+      expect(inputs[0]!.attributes('required')).toBeDefined()
+      expect(inputs[1]!.attributes('required')).toBeDefined()
+      expect(inputs[2]!.attributes('required')).toBeDefined()
+      expect(inputs[3]!.attributes('required')).toBeDefined()
     })
 
     it('should not render per-view scanlines overlay (moved to DefaultLayout)', () => {
-      const wrapper = mount(RegisterForm, {
-        global: {
-          plugins: [router],
-        },
-      })
-
-      expect(wrapper.find('.scanlines').exists()).toBe(false)
+      expect(render().find('.scanlines').exists()).toBe(false)
     })
 
     it('respects the saved flicker setting', () => {
       localStorage.setItem('visual-effects:flickering', 'true')
-      const wrapper = mount(RegisterForm, {
-        global: {
-          plugins: [router],
-        },
-      })
 
-      expect(wrapper.find('.flicker').exists()).toBe(true)
+      expect(render().find('.flicker').exists()).toBe(true)
     })
 
     it('should not have Vault-Tec logo icon', () => {
-      const wrapper = mount(RegisterForm, {
-        global: {
-          plugins: [router],
-        },
-      })
+      const wrapper = render()
 
       expect(wrapper.find('.logo-vault').exists()).toBe(false)
       expect(wrapper.find('.logo-circle').exists()).toBe(false)
     })
 
     it('should have login link', () => {
-      const wrapper = mount(RegisterForm, {
-        global: {
-          plugins: [router],
-        },
-      })
+      const wrapper = render()
 
       expect(wrapper.text()).toContain('EXISTING OVERSEER LOGIN')
       expect(wrapper.text()).toContain('ACCESS TERMINAL')
@@ -124,41 +120,21 @@ describe('RegisterForm', () => {
   })
 
   describe('Form Interaction', () => {
-    it('should bind username input correctly', async () => {
-      const wrapper = mount(RegisterForm, {
-        global: {
-          plugins: [router],
-        },
-      })
+    it.each([
+      ['the username input', 0, 'overseer'],
+      ['the email input', 1, 'overseer@vault-tec.com'],
+    ])('should bind %s correctly', async (_label, index, value) => {
+      const input = render().findAll('input')[index]!
 
-      const usernameInput = wrapper.findAll('input')[0]
-      await usernameInput.setValue('overseer')
+      await input.setValue(value)
 
-      expect((usernameInput.element as HTMLInputElement).value).toBe('overseer')
-    })
-
-    it('should bind email input correctly', async () => {
-      const wrapper = mount(RegisterForm, {
-        global: {
-          plugins: [router],
-        },
-      })
-
-      const emailInput = wrapper.findAll('input')[1]
-      await emailInput.setValue('overseer@vault-tec.com')
-
-      expect((emailInput.element as HTMLInputElement).value).toBe('overseer@vault-tec.com')
+      expect((input.element as HTMLInputElement).value).toBe(value)
     })
 
     it('should bind password inputs correctly', async () => {
-      const wrapper = mount(RegisterForm, {
-        global: {
-          plugins: [router],
-        },
-      })
-
-      const passwordInput = wrapper.findAll('input')[2]
-      const confirmInput = wrapper.findAll('input')[3]
+      const wrapper = render()
+      const passwordInput = wrapper.findAll('input')[2]!
+      const confirmInput = wrapper.findAll('input')[3]!
 
       await passwordInput.setValue('password123')
       await confirmInput.setValue('password123')
@@ -168,136 +144,47 @@ describe('RegisterForm', () => {
     })
 
     it('should not display error message initially', () => {
-      const wrapper = mount(RegisterForm, {
-        global: {
-          plugins: [router],
-        },
-      })
-
-      expect(wrapper.text()).not.toContain('ERROR')
+      expect(render().text()).not.toContain('ERROR')
     })
   })
 
   describe('Form Validation', () => {
-    it('should show error when passwords do not match', async () => {
-      const wrapper = mount(RegisterForm, {
-        global: {
-          plugins: [router],
-        },
-      })
-
-      const inputs = wrapper.findAll('input')
-      await inputs[0].setValue('overseer')
-      await inputs[1].setValue('overseer@vault-tec.com')
-      await inputs[2].setValue('password123')
-      await inputs[3].setValue('different')
-      await wrapper.find('form').trigger('submit.prevent')
-
-      await flushPromises()
-
-      expect(wrapper.text()).toContain('PASSWORDS DO NOT MATCH')
-    })
-
-    it('should not call register when passwords do not match', async () => {
-      const wrapper = mount(RegisterForm, {
-        global: {
-          plugins: [router],
-        },
-      })
-
+    it.each([
+      ['the passwords do not match', { confirm: 'different' }, /PASSWORDS DO NOT MATCH/],
+      [
+        'the password is shorter than 8 characters',
+        { password: 'short', confirm: 'short' },
+        /at least 8|too short/i,
+      ],
+      [
+        'the email format is invalid',
+        { email: 'notanemail', password: 'longenoughpassword', confirm: 'longenoughpassword' },
+        /valid email|invalid email/i,
+      ],
+    ])('reports the error and skips register when %s', async (_label, overrides, message) => {
+      const wrapper = render()
       const registerSpy = vi.spyOn(authStore, 'register')
-      const inputs = wrapper.findAll('input')
 
-      await inputs[0].setValue('overseer')
-      await inputs[1].setValue('overseer@vault-tec.com')
-      await inputs[2].setValue('password123')
-      await inputs[3].setValue('different')
-      await wrapper.find('form').trigger('submit.prevent')
+      await fill(wrapper, overrides)
+      await submit(wrapper)
 
-      await flushPromises()
-
+      expect(wrapper.text()).toMatch(message)
       expect(registerSpy).not.toHaveBeenCalled()
-    })
-
-    it('should show error for password shorter than 8 characters', async () => {
-      const wrapper = mount(RegisterForm, {
-        global: {
-          plugins: [router],
-        },
-      })
-
-      const inputs = wrapper.findAll('input')
-      await inputs[0].setValue('overseer')
-      await inputs[1].setValue('overseer@vault-tec.com')
-      await inputs[2].setValue('short')
-      await inputs[3].setValue('short')
-      await wrapper.find('form').trigger('submit.prevent')
-
-      await flushPromises()
-
-      expect(wrapper.text()).toMatch(/at least 8|too short/i)
-    })
-
-    it('should not call register when password is too short', async () => {
-      const wrapper = mount(RegisterForm, {
-        global: {
-          plugins: [router],
-        },
-      })
-
-      const registerSpy = vi.spyOn(authStore, 'register')
-      const inputs = wrapper.findAll('input')
-
-      await inputs[0].setValue('overseer')
-      await inputs[1].setValue('overseer@vault-tec.com')
-      await inputs[2].setValue('short')
-      await inputs[3].setValue('short')
-      await wrapper.find('form').trigger('submit.prevent')
-
-      await flushPromises()
-
-      expect(registerSpy).not.toHaveBeenCalled()
-    })
-
-    it('should show error for invalid email format', async () => {
-      const wrapper = mount(RegisterForm, {
-        global: {
-          plugins: [router],
-        },
-      })
-
-      const inputs = wrapper.findAll('input')
-      await inputs[0].setValue('overseer')
-      await inputs[1].setValue('notanemail')
-      await inputs[2].setValue('longenoughpassword')
-      await inputs[3].setValue('longenoughpassword')
-      await wrapper.find('form').trigger('submit.prevent')
-
-      await flushPromises()
-
-      expect(wrapper.text()).toMatch(/valid email|invalid email/i)
     })
   })
 
   describe('Form Submission', () => {
-    it('should call register with correct data on submit', async () => {
-      const wrapper = mount(RegisterForm, {
-        global: {
-          plugins: [router],
-        },
-      })
+    async function submitValidRegistration(wrapper: VueWrapper): Promise<void> {
+      await fill(wrapper)
+      await submit(wrapper)
+    }
 
+    it('should call register with correct data on submit', async () => {
+      const wrapper = render()
       const registerSpy = vi.spyOn(authStore, 'register').mockResolvedValue(true)
       const pushSpy = vi.spyOn(router, 'push')
-      const inputs = wrapper.findAll('input')
 
-      await inputs[0].setValue('overseer')
-      await inputs[1].setValue('overseer@vault-tec.com')
-      await inputs[2].setValue('password123')
-      await inputs[3].setValue('password123')
-      await wrapper.find('form').trigger('submit.prevent')
-
-      await flushPromises()
+      await submitValidRegistration(wrapper)
 
       expect(registerSpy).toHaveBeenCalledWith('overseer', 'overseer@vault-tec.com', 'password123')
       expect(wrapper.text()).toContain('CHECK YOUR EMAIL')
@@ -305,23 +192,11 @@ describe('RegisterForm', () => {
     })
 
     it('should show the inline check-your-email panel on successful registration', async () => {
-      const wrapper = mount(RegisterForm, {
-        global: {
-          plugins: [router],
-        },
-      })
-
+      const wrapper = render()
       vi.spyOn(authStore, 'register').mockResolvedValue(true)
       const pushSpy = vi.spyOn(router, 'push')
-      const inputs = wrapper.findAll('input')
 
-      await inputs[0].setValue('overseer')
-      await inputs[1].setValue('overseer@vault-tec.com')
-      await inputs[2].setValue('password123')
-      await inputs[3].setValue('password123')
-      await wrapper.find('form').trigger('submit.prevent')
-
-      await flushPromises()
+      await submitValidRegistration(wrapper)
 
       expect(wrapper.text()).toContain('CHECK YOUR EMAIL')
       expect(wrapper.text()).toContain('CONTINUE TO VAULT')
@@ -329,29 +204,12 @@ describe('RegisterForm', () => {
     })
 
     it('should resend the verification email from the success panel', async () => {
-      const wrapper = mount(RegisterForm, {
-        global: {
-          plugins: [router],
-        },
-      })
-
+      const wrapper = render()
       vi.spyOn(authStore, 'register').mockResolvedValue(true)
       const resendSpy = vi.spyOn(authStore, 'resendVerificationEmail').mockResolvedValue(true)
-      const inputs = wrapper.findAll('input')
 
-      await inputs[0].setValue('overseer')
-      await inputs[1].setValue('overseer@vault-tec.com')
-      await inputs[2].setValue('password123')
-      await inputs[3].setValue('password123')
-      await wrapper.find('form').trigger('submit.prevent')
-      await flushPromises()
-
-      const resendButton = wrapper
-        .findAll('button')
-        .find((button) => button.text().includes('RESEND EMAIL'))
-      expect(resendButton).toBeDefined()
-
-      await resendButton?.trigger('click')
+      await submitValidRegistration(wrapper)
+      await buttonWithText(wrapper, 'RESEND EMAIL').trigger('click')
       await flushPromises()
 
       expect(resendSpy).toHaveBeenCalledOnce()
@@ -359,74 +217,33 @@ describe('RegisterForm', () => {
     })
 
     it('should continue to the vault from the success panel', async () => {
-      const wrapper = mount(RegisterForm, {
-        global: {
-          plugins: [router],
-        },
-      })
-
+      const wrapper = render()
       vi.spyOn(authStore, 'register').mockResolvedValue(true)
       const pushSpy = vi.spyOn(router, 'push')
-      const inputs = wrapper.findAll('input')
 
-      await inputs[0].setValue('overseer')
-      await inputs[1].setValue('overseer@vault-tec.com')
-      await inputs[2].setValue('password123')
-      await inputs[3].setValue('password123')
-      await wrapper.find('form').trigger('submit.prevent')
-      await flushPromises()
-
-      const continueButton = wrapper
-        .findAll('button')
-        .find((button) => button.text().includes('CONTINUE TO VAULT'))
-      expect(continueButton).toBeDefined()
-
-      await continueButton?.trigger('click')
+      await submitValidRegistration(wrapper)
+      await buttonWithText(wrapper, 'CONTINUE TO VAULT').trigger('click')
       await flushPromises()
 
       expect(pushSpy).toHaveBeenCalledWith('/')
     })
 
     it('should display terminal-style error message on registration failure', async () => {
-      const wrapper = mount(RegisterForm, {
-        global: {
-          plugins: [router],
-        },
-      })
-
+      const wrapper = render()
       vi.spyOn(authStore, 'register').mockResolvedValue(false)
-      const inputs = wrapper.findAll('input')
 
-      await inputs[0].setValue('overseer')
-      await inputs[1].setValue('overseer@vault-tec.com')
-      await inputs[2].setValue('password123')
-      await inputs[3].setValue('password123')
-      await wrapper.find('form').trigger('submit.prevent')
-
-      await flushPromises()
+      await submitValidRegistration(wrapper)
 
       expect(wrapper.text()).toContain('ERROR')
       expect(wrapper.text()).toContain('REGISTRATION FAILED')
     })
 
     it('should not redirect on failed registration', async () => {
-      const wrapper = mount(RegisterForm, {
-        global: {
-          plugins: [router],
-        },
-      })
-
+      const wrapper = render()
       vi.spyOn(authStore, 'register').mockResolvedValue(false)
       const pushSpy = vi.spyOn(router, 'push')
-      const inputs = wrapper.findAll('input')
 
-      await inputs[0].setValue('overseer')
-      await inputs[1].setValue('overseer@vault-tec.com')
-      await inputs[2].setValue('password123')
-      await inputs[3].setValue('password123')
-      await wrapper.find('form').trigger('submit.prevent')
-
-      await flushPromises()
+      await submitValidRegistration(wrapper)
 
       expect(pushSpy).not.toHaveBeenCalled()
     })
@@ -434,11 +251,7 @@ describe('RegisterForm', () => {
 
   describe('Terminal Styling', () => {
     it('should have terminal-themed CSS classes', () => {
-      const wrapper = mount(RegisterForm, {
-        global: {
-          plugins: [router],
-        },
-      })
+      const wrapper = render()
 
       expect(wrapper.find('[data-slot="card"]').exists()).toBe(true)
       expect(wrapper.find('button').exists()).toBe(true)
@@ -446,11 +259,7 @@ describe('RegisterForm', () => {
     })
 
     it('should have system messages section', () => {
-      const wrapper = mount(RegisterForm, {
-        global: {
-          plugins: [router],
-        },
-      })
+      const wrapper = render()
 
       expect(wrapper.find('.system-messages').exists()).toBe(true)
       expect(wrapper.text()).toContain('SECURE TERMINAL')
@@ -458,16 +267,12 @@ describe('RegisterForm', () => {
     })
 
     it('should have terminal-style labels', () => {
-      const wrapper = mount(RegisterForm, {
-        global: {
-          plugins: [router],
-        },
-      })
+      const text = render().text()
 
-      expect(wrapper.text()).toContain('OVERSEER USERNAME')
-      expect(wrapper.text()).toContain('EMAIL ADDRESS')
-      expect(wrapper.text()).toContain('SECURITY PASSPHRASE')
-      expect(wrapper.text()).toContain('CONFIRM PASSPHRASE')
+      expect(text).toContain('OVERSEER USERNAME')
+      expect(text).toContain('EMAIL ADDRESS')
+      expect(text).toContain('SECURITY PASSPHRASE')
+      expect(text).toContain('CONFIRM PASSPHRASE')
     })
   })
 })

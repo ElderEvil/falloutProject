@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vite-plus/test'
 import { defineComponent, inject, reactive, ref } from 'vue'
-import { flushPromises, mount } from '@vue/test-utils'
-import { createPinia, setActivePinia } from 'pinia'
+import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
+import { createPinia, setActivePinia, type Pinia } from 'pinia'
 import App from '@/App.vue'
 import DwellerChatModal from '@/modules/chat/components/DwellerChatModal.vue'
 import { useAuthStore } from '@/modules/auth/stores/auth'
@@ -70,6 +70,20 @@ vi.mock('@/core/composables/useFakeCrash', () => ({
   useFakeCrash: () => ({ isCrashing: ref(false), resetCrash: vi.fn() }),
 }))
 
+const baseStubs = {
+  DefaultLayout: { template: '<main><slot /></main>' },
+  UToastContainer: true,
+  ChangelogModal: true,
+  GaryOverlay: true,
+  FakeCrashOverlay: true,
+  'router-view': true,
+}
+
+/** Mounts App with the layout/overlay stubs every case except the probe tests relies on. */
+function mountApp(stubs: Record<string, unknown> = {}, pinia: Pinia = createPinia()): VueWrapper {
+  return mount(App, { global: { plugins: [pinia], stubs: { ...baseStubs, ...stubs } } })
+}
+
 describe('App', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -84,19 +98,7 @@ describe('App', () => {
   it('mounts without unresolved-component warnings after Nuxt UI removal', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
 
-    const wrapper = mount(App, {
-      global: {
-        plugins: [createPinia()],
-        stubs: {
-          DefaultLayout: { template: '<main><slot /></main>' },
-          UToastContainer: true,
-          ChangelogModal: true,
-          GaryOverlay: true,
-          FakeCrashOverlay: true,
-          'router-view': true,
-        },
-      },
-    })
+    const wrapper = mountApp()
 
     expect(warn).not.toHaveBeenCalledWith(expect.stringContaining('Failed to resolve component'))
     expect(warn).not.toHaveBeenCalledWith(expect.stringContaining('UApp'))
@@ -107,19 +109,7 @@ describe('App', () => {
     localStorage.setItem('token', 'test-token')
     localStorage.setItem('user', JSON.stringify({ id: 'user-a' }))
 
-    const wrapper = mount(App, {
-      global: {
-        plugins: [createPinia()],
-        stubs: {
-          DefaultLayout: { template: '<main><slot /></main>' },
-          UToastContainer: true,
-          ChangelogModal: true,
-          GaryOverlay: true,
-          FakeCrashOverlay: true,
-          'router-view': true,
-        },
-      },
-    })
+    const wrapper = mountApp()
 
     expect(profileStoreMock.ensureProfileLoaded).toHaveBeenCalled()
     expect(profileStoreMock.clearProfile).not.toHaveBeenCalled()
@@ -132,16 +122,9 @@ describe('App', () => {
     const auth = useAuthStore()
     auth.token = 'token-a'
     auth.user = { id: 'user-a' } as NonNullable<typeof auth.user>
-    const wrapper = mount(App, {
-      global: {
-        plugins: [pinia],
-        stubs: {
-          DefaultLayout: { template: '<main><slot /></main>' },
-          ChangelogModal: true,
-          'router-view': true,
-        },
-      },
-    })
+
+    const wrapper = mountApp({}, pinia)
+
     profileStoreMock.ensureProfileLoaded.mockClear()
     auth.user = { id: 'user-b' } as NonNullable<typeof auth.user>
     await wrapper.vm.$nextTick()
@@ -150,19 +133,7 @@ describe('App', () => {
   })
 
   it('clears the profile when not authenticated', () => {
-    const wrapper = mount(App, {
-      global: {
-        plugins: [createPinia()],
-        stubs: {
-          DefaultLayout: { template: '<main><slot /></main>' },
-          UToastContainer: true,
-          ChangelogModal: true,
-          GaryOverlay: true,
-          FakeCrashOverlay: true,
-          'router-view': true,
-        },
-      },
-    })
+    const wrapper = mountApp()
 
     expect(profileStoreMock.clearProfile).toHaveBeenCalled()
     expect(profileStoreMock.ensureProfileLoaded).not.toHaveBeenCalled()
@@ -175,23 +146,19 @@ describe('App', () => {
     useAuthStore().token = 'mock-token'
     routeQuery.dweller = 'dweller-1'
     routeQuery.roomId = 'room-1'
-    const wrapper = mount(App, {
-      global: {
-        plugins: [pinia],
-        stubs: {
-          DefaultLayout: { template: '<main><slot /></main>' },
-          DwellerDetailModal: {
-            name: 'DwellerDetailModal',
-            props: ['dwellerId', 'vaultId'],
-            emits: ['close'],
-            template: `<button data-testid="close-dweller" @click="$emit('close')">Close</button>`,
-          },
-          GaryOverlay: true,
-          FakeCrashOverlay: true,
-          'router-view': true,
+
+    const wrapper = mountApp(
+      {
+        DwellerDetailModal: {
+          name: 'DwellerDetailModal',
+          props: ['dwellerId', 'vaultId'],
+          emits: ['close'],
+          template: `<button data-testid="close-dweller" @click="$emit('close')">Close</button>`,
         },
       },
-    })
+      pinia
+    )
+
     await flushPromises()
     const modal = wrapper.findComponent({ name: 'DwellerDetailModal' })
     expect(modal.props('dwellerId')).toBe('dweller-1')
@@ -214,17 +181,9 @@ describe('App', () => {
       .spyOn(useDwellerStore().filter, 'fetchDwellerDetails')
       .mockResolvedValue(null)
     routeQuery.chat = 'dweller-1'
-    const wrapper = mount(App, {
-      global: {
-        plugins: [pinia],
-        stubs: {
-          DefaultLayout: { template: '<main><slot /></main>' },
-          GaryOverlay: true,
-          FakeCrashOverlay: true,
-          'router-view': true,
-        },
-      },
-    })
+
+    const wrapper = mountApp({}, pinia)
+
     await flushPromises()
     const firstChat = wrapper.findComponent(DwellerChatModal)
     expect(firstChat.exists()).toBe(true)
@@ -253,17 +212,7 @@ describe('App', () => {
       template: '<span data-testid="flicker-probe">{{ isFlickering }}</span>',
     })
 
-    const wrapper = mount(App, {
-      global: {
-        plugins: [createPinia()],
-        stubs: {
-          DefaultLayout: DefaultLayoutProbe,
-          'router-view': FlickerProbe,
-          GaryOverlay: true,
-          FakeCrashOverlay: true,
-        },
-      },
-    })
+    const wrapper = mountApp({ DefaultLayout: DefaultLayoutProbe, 'router-view': FlickerProbe })
 
     expect(wrapper.findComponent({ name: 'DefaultLayout' }).props('isFlickering')).toBe(false)
     expect(wrapper.get('[data-testid="flicker-probe"]').text()).toBe('false')

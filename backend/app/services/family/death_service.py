@@ -8,6 +8,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.enums import AvailabilityEnum, DeathCauseEnum, DwellerStatusEnum, LifecycleEnum, VaultModeEnum
 from app.core.game_config import game_config
+from app.crud.collectible import collectible_crud
 from app.crud.dweller import dweller as dweller_crud
 from app.crud.user_profile import profile_crud
 from app.crud.vault import vault as vault_crud
@@ -88,6 +89,9 @@ class DeathService:
                 ),
                 commit=False,
             )
+
+            # The bonus is gone; mark the finder's claims so the dweller card stops promising it.
+            await collectible_crud.revoke_finder_bonus(db_session, dweller_id=dweller.id)
 
             # Death, both counters and the notification row share one transaction.
             await self._increment_death_stats(db_session, vault, cause, commit=False)

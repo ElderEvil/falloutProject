@@ -12,6 +12,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
 from app.core.enums import DwellerStatusEnum, GenderEnum, RarityEnum
+from app.crud.collectible import collectible_crud
 from app.crud.vault import vault as vault_crud
 from app.models.dweller import Dweller
 from app.utils.exceptions import ResourceConflictException, ensure_found
@@ -65,6 +66,9 @@ class DwellerRecyclingService:
 
         # Restore the dweller (now safe due to row lock)
         dweller.restore()
+
+        # The old vault keeps the claims, but this dweller no longer holds their bonus.
+        await collectible_crud.revoke_finder_bonus(db_session, dweller_id=dweller.id)
 
         # Update vault assignment
         dweller.vault_id = target_vault_id

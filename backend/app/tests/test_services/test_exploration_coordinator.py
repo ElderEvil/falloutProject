@@ -350,8 +350,12 @@ async def test_finalize_return_credits_active_world_event_exactly_once(
         exploration.clear_tier = clear_tier
         async_session.add(exploration)
         await async_session.commit()
-    rewards = await exploration_coordinator.finalize_return(async_session, exploration.id)
-    assert rewards.exploration_id == exploration.id
+    # Read the id before the call: the failed world-event contribution rolls the run back and
+    # expires the instance, and an expired attribute read outside the greenlet raises
+    # MissingGreenlet (the coordinator caches the same ids for this reason).
+    exploration_id = exploration.id
+    rewards = await exploration_coordinator.finalize_return(async_session, exploration_id)
+    assert rewards.exploration_id == exploration_id
     totals = await _event_totals(async_session, event.id, vault.id)
     assert totals == (credited, credited)
     with pytest.raises(ValidationException):

@@ -549,3 +549,32 @@ async def test_failed_arrival_candidate_does_not_abort_the_sweep(async_session: 
     assert "Quest must be started before it can be completed" in caplog.text
     ready = await crud.quest_crud.get_link(async_session, quest_id=good_id, vault_id=vault_id)
     assert (ready is not None, ready.is_reward_ready) == (True, True)
+
+
+async def test_available_only_returns_full_page_past_locked_quests(async_session: AsyncSession) -> None:
+    vault = await _vault_with_office(async_session)
+    locked = [await _create_quest(async_session, title=f"Locked {i}", previous_quest_id=uuid4()) for i in range(3)]
+    available = [await _create_quest(async_session, title=f"Open {i}") for i in range(3)]
+    for quest in [*locked, *available]:
+        await crud.quest_crud.assign_to_vault(async_session, quest.id, vault.id, is_visible=True)
+    page = await quest_service.get_quests_for_vault(async_session, vault.id, 0, 3, available_only=True)
+    assert len(page) == 3
+    assert all(not q.is_locked for q in page)
+    assert {q.title for q in page} == {"Open 0", "Open 1", "Open 2"}
+
+
+async def test_dead_dweller_does_not_unlock_read_path_requirements(async_session: AsyncSession) -> None:
+    vault = await _vault_with_office(async_session)
+    quest = await _gated_quest(
+        async_session,
+        vault,
+        "Living Only Gate",
+        (RequirementType.LEVEL, {"level": 46}),
+        (RequirementType.ATTACK, {"attack": 20}),
+    )
+    await _add_dweller(async_session, vault, level=40)
+    dead = await _add_dweller(async_session, vault, level=46, is_dead=True)
+    await _equip_weapon(async_session, dead, damage_min=15, damage_max=25)
+    quest_read = await _read_quest(async_session, vault, quest)
+    assert quest_read.is_locked is True
+    assert ("level" in quest_read.lock_reason, "attack" in quest_read.lock_reason) == (True, True)

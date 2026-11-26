@@ -341,9 +341,10 @@ async def get_vault_map(db_session: AsyncSession, vault: Vault, *, unlocked_only
             number=number,
             coord_x=round(slot_coords(slot_index)[0] * WORLD_SCALE, 1),
             coord_y=round(slot_coords(slot_index)[1] * WORLD_SCALE, 1),
+            owner_username=owner_username or "Unknown",
             is_mine=slot_user_id == vault.user_id,
         )
-        for slot_index, slot_vault_id, number, slot_user_id in slot_rows
+        for slot_index, slot_vault_id, number, slot_user_id, owner_username in slot_rows
     ]
 
     expedition_sites = await _expedition_site_markers(db_session, vault)

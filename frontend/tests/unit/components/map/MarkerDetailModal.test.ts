@@ -126,7 +126,7 @@ describe('MarkerDetailModal', () => {
       expect(wrapper.text()).toContain('Vault 88')
       expect(wrapper.text()).toContain('A weak carrier wave out of the north.')
       expect(wrapper.text()).toContain('vault')
-      expect(wrapper.text()).toContain('not travel destinations')
+      expect(wrapper.text()).toContain('No overseer is recorded')
       expect(wrapper.text()).toContain("vault's raid board")
       expect(wrapper.text()).not.toContain('Linked Dwellers')
     })

@@ -609,22 +609,18 @@ describe('WorldMap', () => {
       })
     })
 
-    it('opens a seeded vault signal but leaves another player vault anonymous', async () => {
+    it('opens a seeded vault signal record', async () => {
       const wrapper = mountMap({
         vaultMarkers: createVaultMarkers(1),
-        playerVaults: [
-          { vault_id: 'v-other', number: 200, coord_x: 50, coord_y: 50, is_mine: false },
-        ],
         fogDisabled: true,
       })
       await zoomPastDeclutterThreshold(wrapper)
 
-      const markers = wrapper.findAllComponents(MapMarkerStub)
-      const signal = markers.find((m) => m.props('name') === 'Vault 100')!
-      const hint = markers.find((m) => m.props('name') === 'Unknown vault')!
+      const signal = wrapper
+        .findAllComponents(MapMarkerStub)
+        .find((m) => m.props('name') === 'Vault 100')!
 
       expect(signal.props('interactive')).toBe(true)
-      expect(hint.props('interactive')).toBe(false)
 
       await signal.trigger('click')
       expect(wrapper.emitted('marker-click')![0][0]).toEqual({
@@ -633,7 +629,7 @@ describe('WorldMap', () => {
       })
     })
 
-    it('renders foreign vaults as non-interactive anonymous hints where explored', async () => {
+    it('opens a found player vault with its owner', async () => {
       const [base] = createLocations(1)
       const homeLocation = {
         ...base,
@@ -642,18 +638,26 @@ describe('WorldMap', () => {
         coord_x: 50,
         coord_y: 50,
       }
-      const wrapper = mountMap({
-        locations: [homeLocation],
-        playerVaults: [
-          { vault_id: 'v-other', number: 200, coord_x: 50, coord_y: 50, is_mine: false },
-        ],
-      })
+      const foreign = {
+        vault_id: 'v-other',
+        number: 200,
+        coord_x: 52,
+        coord_y: 52,
+        owner_username: 'alice',
+        is_mine: false,
+      }
+      const wrapper = mountMap({ locations: [homeLocation], playerVaults: [foreign] })
       await zoomPastDeclutterThreshold(wrapper)
 
-      const hint = wrapper
+      const marker = wrapper
         .findAllComponents(MapMarkerStub)
-        .find((m) => m.props('name') === 'Unknown vault')
-      expect(hint!.props('interactive')).toBe(false)
+        .find((m) => m.props('name') === 'Vault 200')!
+
+      expect(marker.props('interactive')).toBe(true)
+
+      await marker.trigger('click')
+      expect(wrapper.emitted('player-vault-info')).toEqual([[foreign]])
+      expect(wrapper.emitted('marker-click')).toBeUndefined()
     })
   })
 
@@ -730,10 +734,19 @@ describe('WorldMap', () => {
             number: 765,
             coord_x: homeLocation.coord_x,
             coord_y: homeLocation.coord_y,
+            owner_username: 'alice',
             is_mine: true,
           },
-          { vault_id: 'v-other', number: 777, coord_x: 90, coord_y: 60, is_mine: true },
+          {
+            vault_id: 'v-other',
+            number: 777,
+            coord_x: 90,
+            coord_y: 60,
+            owner_username: 'alice',
+            is_mine: true,
+          },
         ],
+        fogDisabled: true,
       })
       const markers = wrapper.findAllComponents(MapMarkerStub)
 
@@ -758,7 +771,14 @@ describe('WorldMap', () => {
         type: 'home_vault',
         vault_id: 'v-current',
       }
-      const mine = { vault_id: 'v-mine', number: 121, coord_x: 40, coord_y: 8, is_mine: true }
+      const mine = {
+        vault_id: 'v-mine',
+        number: 121,
+        coord_x: 40,
+        coord_y: 8,
+        owner_username: 'alice',
+        is_mine: true,
+      }
       const locations = createLocations(1)
       const wrapper = mountMap({ locations: [homeLocation, ...locations], playerVaults: [mine] })
 
@@ -1498,22 +1518,57 @@ describe('WorldMap', () => {
   })
 
   describe('Player vaults on the shared atlas', () => {
-    it('shows the user own vaults but not other players identities', () => {
-      const markers = mountMap({
-        playerVaults: [
-          { vault_id: 'v-mine', number: 121, coord_x: 40, coord_y: 8, is_mine: true },
-          { vault_id: 'v-other', number: 200, coord_x: 90, coord_y: 60, is_mine: false },
-        ],
-      }).findAllComponents(MapMarkerStub)
-      const mine = markers.find((m) => m.props('name') === 'Vault 121')
-      expect(mine!.props('type')).toBe('home_vault')
-      expect(mine!.props('label')).toBe('Your Vault')
-      expect(markers.some((m) => m.props('name') === 'Vault 200')).toBe(false)
+    it('shows player vaults only where the fog has explored', () => {
+      const [base] = createLocations(1)
+      const homeLocation = {
+        ...base,
+        id: 'home',
+        type: 'home_vault' as const,
+        coord_x: 20,
+        coord_y: 20,
+        vault_id: 'v-current',
+      }
+      const near = {
+        vault_id: 'v-near',
+        number: 121,
+        coord_x: 22,
+        coord_y: 22,
+        owner_username: 'alice',
+        is_mine: true,
+      }
+      const far = {
+        vault_id: 'v-far',
+        number: 777,
+        coord_x: 140,
+        coord_y: 140,
+        owner_username: 'alice',
+        is_mine: true,
+      }
+      const names = mountMap({
+        locations: [homeLocation],
+        playerVaults: [near, far],
+      })
+        .findAllComponents(MapMarkerStub)
+        .map((m) => m.props('name'))
+
+      // Owning a vault is not a discovery: unexplored vaults stay off the map.
+      expect(names).toContain('Vault 121')
+      expect(names).not.toContain('Vault 777')
     })
 
     it('emits vault-info with the vault id when an own-vault marker is clicked', async () => {
       const wrapper = mountMap({
-        playerVaults: [{ vault_id: 'v-mine', number: 121, coord_x: 40, coord_y: 8, is_mine: true }],
+        playerVaults: [
+          {
+            vault_id: 'v-mine',
+            number: 121,
+            coord_x: 40,
+            coord_y: 8,
+            owner_username: 'alice',
+            is_mine: true,
+          },
+        ],
+        fogDisabled: true,
       })
       const mine = wrapper
         .findAllComponents(MapMarkerStub)

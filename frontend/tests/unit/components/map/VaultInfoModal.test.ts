@@ -3,6 +3,7 @@ import { mount } from '@vue/test-utils'
 import VaultInfoModal from '@/modules/map/components/VaultInfoModal.vue'
 import TerminalModal from '@/core/components/common/TerminalModal.vue'
 import type { VaultWithNumbers } from '@/modules/vault/stores/vault'
+import type { PlayerVaultMarkerRead } from '@/modules/map/models/map'
 
 const teleportStub = { Teleport: { template: '<div><slot /></div>' } }
 
@@ -25,11 +26,28 @@ function createVault(overrides: Partial<VaultWithNumbers> = {}): VaultWithNumber
   } as VaultWithNumbers
 }
 
-function mountModal(props: { open: boolean; vault: VaultWithNumbers | null; loading?: boolean }) {
+function mountModal(props: {
+  open: boolean
+  vault: VaultWithNumbers | null
+  marker?: PlayerVaultMarkerRead | null
+  loading?: boolean
+}) {
   return mount(VaultInfoModal, {
     props,
     global: { stubs: teleportStub },
   })
+}
+
+function createMarker(overrides: Partial<PlayerVaultMarkerRead> = {}): PlayerVaultMarkerRead {
+  return {
+    vault_id: 'v-other',
+    number: 200,
+    coord_x: 90,
+    coord_y: 60,
+    owner_username: 'bob',
+    is_mine: false,
+    ...overrides,
+  } as PlayerVaultMarkerRead
 }
 
 describe('VaultInfoModal', () => {
@@ -70,6 +88,33 @@ describe('VaultInfoModal', () => {
 
     expect(wrapper.text()).toContain('Accessing vault records')
     expect(wrapper.text()).not.toContain('Caps')
+  })
+
+  it('names the owner on the player vault summary', () => {
+    const wrapper = mountModal({
+      open: true,
+      vault: createVault(),
+      marker: createMarker({
+        vault_id: 'vault-2',
+        number: 121,
+        owner_username: 'alice',
+        is_mine: true,
+      }),
+    })
+
+    expect(wrapper.text()).toContain('alice')
+    expect(wrapper.text()).toContain('(you)')
+  })
+
+  it('shows a found vault owner without exposing its resources', () => {
+    const wrapper = mountModal({ open: true, vault: null, marker: createMarker() })
+
+    expect(wrapper.text()).toContain('Vault 200')
+    expect(wrapper.text()).toContain('bob')
+    expect(wrapper.text()).toContain('resources stay private')
+    expect(wrapper.text()).toContain('90, 60')
+    expect(wrapper.text()).not.toContain('Caps')
+    expect(wrapper.text()).not.toContain('Happiness')
   })
 
   it('shows an unavailable state when the record is null after loading', () => {

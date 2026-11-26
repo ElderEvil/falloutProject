@@ -55,7 +55,8 @@ const states = [
         </div>
         <p class="mt-2 leading-relaxed text-theme-primary/65">
           Place icons show type. Numbered markers group nearby places or parties. Vault signals are
-          distant vaults, not destinations; exhibition duels are arranged from your vault.
+          distant vaults, not destinations; selecting one shows its owner. Exhibition duels are
+          arranged from your vault.
         </p>
       </section>
       <section>

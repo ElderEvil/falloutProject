@@ -7,6 +7,7 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.game_config import game_config
+from app.models.user import User
 from app.models.vault import Vault
 from app.models.vault_slot import VaultSlot
 from app.utils.exceptions import ResourceConflictException
@@ -53,14 +54,18 @@ class CRUDVaultSlot:
     async def get_by_vault(self, db_session: AsyncSession, vault_id: UUID) -> VaultSlot | None:
         return (await db_session.execute(select(VaultSlot).where(VaultSlot.vault_id == vault_id))).scalar_one_or_none()
 
-    async def list_markers(self, db_session: AsyncSession) -> Sequence[tuple[int, UUID, int, UUID]]:
-        """(slot_index, vault_id, vault number, owner user_id) for every live vault."""
+    async def list_markers(self, db_session: AsyncSession) -> Sequence[tuple[int, UUID, int, UUID | None, str | None]]:
+        """(slot_index, vault_id, vault number, owner user_id, owner username) for every live vault."""
         result = await db_session.execute(
-            select(VaultSlot.slot_index, VaultSlot.vault_id, Vault.number, Vault.user_id)
+            select(VaultSlot.slot_index, VaultSlot.vault_id, Vault.number, Vault.user_id, User.username)
+            .select_from(VaultSlot)
             .join(Vault, Vault.id == VaultSlot.vault_id)
+            .outerjoin(User, User.id == Vault.user_id)
             .where(Vault.is_deleted == False)  # ruff: ignore[true-false-comparison]
         )
-        return [(slot, vault_id, number, user_id) for slot, vault_id, number, user_id in result.all()]
+        return [
+            (slot, vault_id, number, user_id, username) for slot, vault_id, number, user_id, username in result.all()
+        ]
 
 
 vault_slot = CRUDVaultSlot()

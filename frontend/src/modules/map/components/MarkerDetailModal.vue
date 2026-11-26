@@ -483,7 +483,7 @@ function dwellerDisplayName(first: string, last: string | null) {
             v-if="isVaultMarker"
             class="mt-3 border-t border-theme-primary/20 pt-3 text-xs leading-5 text-theme-primary/60"
           >
-            No contact has been established. Vault signals are not travel destinations — exhibition
+            No overseer is recorded for this signal. It is not a travel destination — exhibition
             duels are arranged from your vault's raid board.
           </p>
         </section>

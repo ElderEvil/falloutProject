@@ -36,6 +36,7 @@ import { useSidePanel } from '@/core/composables/useSidePanel'
 import type {
   ExpeditionSiteMarkerRead,
   ExplorerTrack,
+  PlayerVaultMarkerRead,
   WastelandLocationWithDwellers,
   VaultMarkerRead,
 } from '../models/map'
@@ -155,6 +156,7 @@ function openExplorerDetails() {
 // vault adopts it and moves live polling/SSE off the vault being played.
 const showVaultInfo = ref(false)
 const vaultInfoId = ref<string | null>(null)
+const vaultInfoMarker = ref<PlayerVaultMarkerRead | null>(null)
 const vaultInfoLoading = ref(false)
 // Monotonic id for in-flight summary lookups: a slow older request must not
 // clear the loading state of a newer one when it settles.
@@ -173,6 +175,8 @@ async function handleVaultInfo(infoVaultId: string) {
   if (!token || !infoVaultId) return
   const requestId = ++vaultInfoRequest
   vaultInfoId.value = infoVaultId
+  vaultInfoMarker.value =
+    mapStore.playerVaults.find((marker) => marker.vault_id === infoVaultId) ?? null
   showVaultInfo.value = true
   if (findVaultSummary(infoVaultId)) {
     vaultInfoLoading.value = false
@@ -186,6 +190,16 @@ async function handleVaultInfo(infoVaultId: string) {
   } finally {
     if (requestId === vaultInfoRequest) vaultInfoLoading.value = false
   }
+}
+
+// Another player's vault has no summary in this account's vault list, so the
+// panel shows only the identity record the shared atlas is allowed to expose.
+function handlePlayerVaultInfo(marker: PlayerVaultMarkerRead) {
+  vaultInfoRequest++
+  vaultInfoId.value = marker.vault_id
+  vaultInfoMarker.value = marker
+  vaultInfoLoading.value = false
+  showVaultInfo.value = true
 }
 
 // Explorer tracking: active runs projected onto the map. Dispatched runs mark
@@ -613,6 +627,7 @@ const hasNoData = computed(
               @update:selected-marker-id="selectedMarkerId = $event"
               @marker-click="handleMarkerClick"
               @vault-info="handleVaultInfo"
+              @player-vault-info="handlePlayerVaultInfo"
               @dweller-click="onDwellerClick"
               @party-click="openExploration"
               @clear-filters="clearMapFilters"
@@ -747,6 +762,7 @@ const hasNoData = computed(
           <VaultInfoModal
             v-model:open="showVaultInfo"
             :vault="vaultInfoVault"
+            :marker="vaultInfoMarker"
             :loading="vaultInfoLoading"
           />
         </PageContentRail>

@@ -72,6 +72,8 @@ const emit = defineEmits<{
   (e: 'update:selectedMarkerId', value: string | null): void
   /** Own-vault marker clicked: open its summary panel instead of navigating. */
   (e: 'vault-info', vaultId: string): void
+  /** Another player's vault clicked: open its identity record. */
+  (e: 'player-vault-info', vault: PlayerVaultMarkerRead): void
   /** Dispatched party clicked: open its exploration details. */
   (e: 'party-click', explorationId: string): void
   /** Free-roam explorer clicked: open its dweller popover at screen x/y. */
@@ -153,21 +155,21 @@ const visibleLocations = computed(() => {
       )
 })
 
-// Only the player's own vaults render with identity; every other vault is an
-// anonymous hint (see below).
-const ownPlayerVaults = computed(() => {
+// Player vaults obey the fog: owning a vault is not the same as finding it,
+// and another player's vault only appears once its tile is explored.
+const visiblePlayerVaults = computed(() => {
   const homeVaultId = homeVault.value?.vault_id
-  return props.playerVaults.filter((pv) => pv.is_mine && pv.vault_id !== homeVaultId)
+  return props.playerVaults.filter(
+    (pv) => pv.vault_id !== homeVaultId && (props.fogDisabled || isExploredCoord(pv))
+  )
 })
 
-// Other players' vaults stay anonymous hints, and only where the fog has been
-// lifted, so the shared atlas does not flood the map with unrelated vaults.
-const foreignPlayerVaultHints = computed(() =>
-  props.playerVaults
-    .filter((pv) => !pv.is_mine)
-    .map((pv) => ({ key: `pv-${pv.vault_id}`, coord_x: pv.coord_x, coord_y: pv.coord_y }))
-    .filter((hint) => props.fogDisabled || isExploredCoord(hint))
-)
+const ownPlayerVaults = computed(() => visiblePlayerVaults.value.filter((pv) => pv.is_mine))
+
+// Other players' vaults are real vaults, not anonymous scenery. The fog still
+// decides whether they are found; clicking one reveals its vault number and
+// owner in the summary modal.
+const foreignPlayerVaults = computed(() => visiblePlayerVaults.value.filter((pv) => !pv.is_mine))
 
 // Seeded NPC vault signals carry an authored field report, so they open the
 // details modal. They are still signals, not travel destinations.
@@ -313,6 +315,12 @@ function onOwnVaultClick(vault: PlayerVaultMarkerRead): void {
   emit('vault-info', vault.vault_id)
 }
 
+function onForeignPlayerVaultClick(vault: PlayerVaultMarkerRead): void {
+  if (hasDragMoved.value) return
+  selectedMarkerId.value = `pv-${vault.vault_id}`
+  emit('player-vault-info', vault)
+}
+
 const groupIconByKey = computed(
   () => new Map([...mapStore.placeGroupByKey].map(([key, group]) => [key, group.icon]))
 )
@@ -376,8 +384,8 @@ const renderedLocations = computed(() =>
   )
 )
 
-const renderedVaultHints = computed(() =>
-  foreignPlayerVaultHints.value.filter(() => isMarkerVisible({ type: 'vault' }, zoom.value))
+const renderedForeignPlayerVaults = computed(() =>
+  foreignPlayerVaults.value.filter(() => isMarkerVisible({ type: 'vault' }, zoom.value))
 )
 
 const renderedVaultSignals = computed(() =>
@@ -647,20 +655,22 @@ function handleTouchEnd(event: TouchEvent) {
           @click="onVaultClick(signal)"
         />
 
-        <!-- Other players' vaults: anonymous hints, only where the fog is lifted
-             and the map is zoomed past the declutter threshold -->
+        <!-- Other players' real vaults: found through fog, identity and owner
+             revealed in the summary panel rather than on the map label. -->
         <MapMarker
           :scale="markerScale"
           :body-scale="PLACE_MARKER_BODY_SCALE"
-          v-for="hint in renderedVaultHints"
-          :key="hint.key"
-          :x="hint.coord_x"
-          :y="hint.coord_y"
-          name="Unknown vault"
+          v-for="vault in renderedForeignPlayerVaults"
+          :key="`pv-${vault.vault_id}`"
+          :x="vault.coord_x"
+          :y="vault.coord_y"
+          :name="`Vault ${vault.number}`"
           type="vault"
-          icon="mdi:radioactive"
-          label="Unexplored signal"
-          :interactive="false"
+          icon="mdi:home-city"
+          label="Vault signal"
+          :interactive="true"
+          :selected="selectedMarkerId === `pv-${vault.vault_id}`"
+          @click="onForeignPlayerVaultClick(vault)"
         />
 
         <!-- Expedition site markers (fixed coordinates, already viewBox-scaled) -->

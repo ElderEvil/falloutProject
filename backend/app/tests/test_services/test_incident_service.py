@@ -313,7 +313,9 @@ async def test_get_incident_for_vault_contract(async_session, room_with_dwellers
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(("damage", "expected_health"), [(5.0, [98, 97]), (1.0, [99, 100])])
-async def test_process_incident_distributes_all_integer_damage(async_session, room_with_dwellers, damage, expected_health):
+async def test_process_incident_distributes_all_integer_damage(
+    async_session, room_with_dwellers, damage, expected_health
+):
     room, dwellers = room_with_dwellers["room"], room_with_dwellers["dwellers"]
     for dweller in dwellers:
         dweller.health = dweller.max_health = 100
@@ -397,7 +399,9 @@ async def test_fatal_round_delivers_death_notification_after_commit(async_sessio
     assert dweller.is_dead
     assert mock_ws.send_personal_message.call_count >= 1
     assert mock_sse.publish.call_count >= 1
-    events = (await async_session.execute(select(IncidentEvent).where(IncidentEvent.incident_id == incident.id))).scalars()
+    events = (
+        await async_session.execute(select(IncidentEvent).where(IncidentEvent.incident_id == incident.id))
+    ).scalars()
     hit = next(event.data["action"] for event in events if event.data and event.data.get("target") == "dweller")
     assert hit["targets"][0]["body"] == "synth"
 
@@ -687,7 +691,9 @@ class TestProcessVaultIncidents:
         mock_incident.status = MagicMock()
         mock_incident.status.value = "resolved"
         mock_incident.id = "inc-1"
-        outcome = IncidentRoundResult(caps_earned=50) if round_result == "resolved" else IncidentRoundResult(skipped=True)
+        outcome = (
+            IncidentRoundResult(caps_earned=50) if round_result == "resolved" else IncidentRoundResult(skipped=True)
+        )
         with (
             patch.object(incident_service, "should_spawn_incident", new_callable=AsyncMock, return_value=False),
             patch.object(incident_service, "process_incident", new_callable=AsyncMock, return_value=outcome),

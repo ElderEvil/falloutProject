@@ -164,7 +164,11 @@ async def test_only_a_victory_credits_the_world_event(
     assert incident.status == (IncidentStatus.ACTIVE if outcome == "undecided" else IncidentStatus.FAILED)
     assert await _world_event_totals(async_session, event.id, vault.id) == (0, 0)
     rows = (
-        (await async_session.execute(select(WorldEventParticipation).where(WorldEventParticipation.vault_id == vault.id)))
+        (
+            await async_session.execute(
+                select(WorldEventParticipation).where(WorldEventParticipation.vault_id == vault.id)
+            )
+        )
         .scalars()
         .all()
     )

@@ -209,7 +209,15 @@ async def arena_room_fixture(async_session, vault):
 @pytest_asyncio.fixture(name="fighter_a")
 async def fighter_a_fixture(async_session, vault):
     """Strong fighter."""
-    stats = {"strength": 10, "perception": 1, "endurance": 10, "charisma": 1, "intelligence": 1, "agility": 1, "luck": 1}
+    stats = {
+        "strength": 10,
+        "perception": 1,
+        "endurance": 10,
+        "charisma": 1,
+        "intelligence": 1,
+        "agility": 1,
+        "luck": 1,
+    }
     return await _dweller(async_session, vault.id, first="Arena", last="Champ", hp=100, level=5, **stats)
 
 
@@ -239,7 +247,13 @@ async def fighter_d_fixture(async_session, vault):
 @pytest.mark.parametrize("image_url", [None, "/static/pet_images/custom-dog.png"])
 async def test_arena_fighter_includes_equipped_pet_appearance(async_session, arena_room, fighter_a, image_url):
     await _place(async_session, arena_room, fighter_a)
-    pet = {"name": "CX404", "rarity": RarityEnum.COMMON, "value": 100, "dweller_id": fighter_a.id, "image_url": image_url}
+    pet = {
+        "name": "CX404",
+        "rarity": RarityEnum.COMMON,
+        "value": 100,
+        "dweller_id": fighter_a.id,
+        "image_url": image_url,
+    }
     await crud.pet.create(async_session, pet)
     async_session.expire(fighter_a, ["pet"])
     await ArenaService().set_fighters(
@@ -326,7 +340,17 @@ def test_attacks_use_twenty_percent_power_per_second_and_ignore_knockouts(second
     ],
 )
 async def test_hunt_xp_pool_is_split_and_reported_once(
-    async_session, arena_room, fighter_a, fighter_c, monkeypatch, keys, two_dwellers, bot, knocked_out, xp_rate, expected
+    async_session,
+    arena_room,
+    fighter_a,
+    fighter_c,
+    monkeypatch,
+    keys,
+    two_dwellers,
+    bot,
+    knocked_out,
+    xp_rate,
+    expected,
 ):
     monkeypatch.setattr(game_config.combat, "xp_per_difficulty", xp_rate)
     dwellers = [fighter_a, fighter_c] if two_dwellers else [fighter_a]
@@ -479,7 +503,9 @@ async def test_team_result_names_every_winner(
         fighter_d_id=fighter_d.id if brawl else None,
         opponent_keys=["radroach-swarm", "mole-rat-pack"] if mode == ArenaMode.HUNT else None,
     )
-    async_session.add(ArenaMatchEvent(room_id=arena_room.id, kind="finish", message=f"{winner_label} defeated opponents!"))
+    async_session.add(
+        ArenaMatchEvent(room_id=arena_room.id, kind="finish", message=f"{winner_label} defeated opponents!")
+    )
     await async_session.commit()
     state = (await ArenaService().get_arena_state(async_session, vault.id)).rooms[0]
     winning_team = state.team_b if side_b_wins else state.team_a
@@ -696,7 +722,9 @@ async def test_resolve_round_pairs_targets_and_preserves_fractional_carry(async_
 async def test_resolve_round_defeated_creature_stops_dealing_damage(async_session, arena_room):
     service = ArenaService()
     hero = ArenaParticipant(key="hero", name="Hero", short_name="Hero", power=100.0, health=1000, max_health=1000)
-    weak = ArenaParticipant(key="weak", name="Weak", short_name="Weak", power=50.0, health=1, max_health=100, is_creature=True)
+    weak = ArenaParticipant(
+        key="weak", name="Weak", short_name="Weak", power=50.0, health=1, max_health=100, is_creature=True
+    )
     strong = ArenaParticipant(
         key="strong", name="Strong", short_name="Strong", power=100.0, health=1000, max_health=1000, is_creature=True
     )
@@ -798,7 +826,9 @@ async def test_set_fighters_rejects_non_adult(async_session, arena_room, fighter
 
 
 async def test_set_fighters_hunt_persists_opponents(async_session, arena_room, fighter_a, fighter_c):
-    arena_state = await _select(async_session, arena_room, fighter_a, mode=ArenaMode.HUNT, c=fighter_c, keys=["radroach-swarm", "deathclaw"])
+    arena_state = await _select(
+        async_session, arena_room, fighter_a, mode=ArenaMode.HUNT, c=fighter_c, keys=["radroach-swarm", "deathclaw"]
+    )
     assert (arena_state.mode, arena_state.fighter_b_id, arena_state.fighter_d_id) == (ArenaMode.HUNT, None, None)
     assert [opponent["key"] for opponent in arena_state.opponents] == ["radroach-swarm", "deathclaw"]
     assert all(opponent["hp"] == opponent["max_hp"] for opponent in arena_state.opponents)
@@ -871,7 +901,10 @@ async def test_process_arena_ticks_brawl_resolves_winner(
     service = ArenaService()
     result = await service.process_arena_ticks(async_session, 5)
     assert result["arena"]["rooms"] == 1
-    assert (result["arena"]["rounds"][0]["status"], result["arena"]["rounds"][0]["winner"]) == ("finished", "Arena Champ")
+    assert (result["arena"]["rounds"][0]["status"], result["arena"]["rounds"][0]["winner"]) == (
+        "finished",
+        "Arena Champ",
+    )
     await async_session.refresh(fighter_b)
     await async_session.refresh(fighter_d)
     assert (fighter_b.health, fighter_d.health) == (1, 1)
@@ -916,7 +949,15 @@ async def test_process_arena_ticks_hunt_dweller_floored_by_creature(async_sessio
 
 
 async def test_process_arena_ticks_hunt_creature_hp_persists(async_session, arena_room, fighter_a):
-    await _live(async_session, arena_room, fighter_a, elapsed=10, health=(100000,), mode=ArenaMode.HUNT, keys=["radroach-swarm"] * 2)
+    await _live(
+        async_session,
+        arena_room,
+        fighter_a,
+        elapsed=10,
+        health=(100000,),
+        mode=ArenaMode.HUNT,
+        keys=["radroach-swarm"] * 2,
+    )
     service = ArenaService()
     await service.process_arena_ticks(async_session, 1)
     arena_state = await arena_state_crud.get(async_session, arena_room.id)
@@ -1157,7 +1198,9 @@ async def test_match_finish_releases_only_participants(
 
 
 @pytest.mark.parametrize("departure", ["move", "unassign", "bulk_unassign"])
-async def test_departure_cancels_match_and_releases_teammate(async_session, arena_room, fighter_a, fighter_b, departure):
+async def test_departure_cancels_match_and_releases_teammate(
+    async_session, arena_room, fighter_a, fighter_b, departure
+):
     service = ArenaService()
     for fighter in (fighter_a, fighter_b):
         fighter.room_id = arena_room.id
@@ -1412,7 +1455,9 @@ async def test_skill_charge_persists_and_queued_attack_resolves_once(async_sessi
     assert (state.skill_charge, state.queued_skill_ids) == (None, None)
 
 
-@pytest.mark.parametrize("blocked", ["idle", "countdown", "uncharged", "foreign", "knocked_out", "finished", "wrong_vault"])
+@pytest.mark.parametrize(
+    "blocked", ["idle", "countdown", "uncharged", "foreign", "knocked_out", "finished", "wrong_vault"]
+)
 async def test_active_skill_rejects_invalid_actions(async_session, arena_room, fighter_a, fighter_b, blocked):
     await _place(async_session, arena_room, fighter_a, fighter_b)
     service = ArenaService()
@@ -1723,7 +1768,9 @@ async def test_preset_start_failure_rolls_back_moves_and_match(
 
 
 @pytest.mark.parametrize("invalid", ["child", "busy", "dead", "duplicate", "wrong_opponent", "cross_vault"])
-async def test_new_preset_rejects_ineligible_lineup_without_moves(async_session, arena_room, fighter_a, fighter_b, invalid):
+async def test_new_preset_rejects_ineligible_lineup_without_moves(
+    async_session, arena_room, fighter_a, fighter_b, invalid
+):
     source = await prepare_newcomers(async_session, arena_room, (fighter_a, fighter_b))
     if invalid == "child":
         fighter_b.age_group = AgeGroupEnum.CHILD

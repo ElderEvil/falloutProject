@@ -84,9 +84,13 @@ def test_hit_lines_name_dwellers_and_the_outcome_stays_vault_level() -> None:
         actor, _, rest = entry["message"].partition(" hits ")
         assert actor == entry["actor"]
         assert rest.startswith(f"{entry['target']} for ")
-        attackers, defenders = (challenger_names, defender_names) if entry["side"] == CHALLENGER else (
-            defender_names,
-            challenger_names,
+        attackers, defenders = (
+            (challenger_names, defender_names)
+            if entry["side"] == CHALLENGER
+            else (
+                defender_names,
+                challenger_names,
+            )
         )
         assert actor in attackers
         assert entry["target"] in defenders

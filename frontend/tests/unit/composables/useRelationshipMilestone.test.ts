@@ -1,38 +1,22 @@
 import { describe, it, expect } from 'vite-plus/test'
 import { useRelationshipMilestone } from '@/modules/social/composables/useRelationshipMilestone'
 
-function rel(relationship_type: string, affinity: number) {
-  return { relationship_type, affinity } as never
-}
+const rel = (relationship_type: string, affinity: number) =>
+  ({ relationship_type, affinity }) as never
+
+const nextMilestone = (relationship_type: string, affinity: number) =>
+  useRelationshipMilestone(() => rel(relationship_type, affinity)).nextMilestone.value
 
 describe('useRelationshipMilestone', () => {
-  it('shows distance to romance for a low-affinity acquaintance', () => {
-    const { nextMilestone } = useRelationshipMilestone(() => rel('acquaintance', 50))
-    expect(nextMilestone.value).toBe('20 hearts until romance')
-  })
-
-  it('shows romance as available at the threshold', () => {
-    const { nextMilestone } = useRelationshipMilestone(() => rel('acquaintance', 70))
-    expect(nextMilestone.value).toBe('Romance is within reach')
-  })
-
-  it('prompts to make partners for a romantic relationship', () => {
-    const { nextMilestone } = useRelationshipMilestone(() => rel('romantic', 75))
-    expect(nextMilestone.value).toBe('Ready to become partners')
-  })
-
-  it('shows distance to marriage for a partner below the threshold', () => {
-    const { nextMilestone } = useRelationshipMilestone(() => rel('partner', 80))
-    expect(nextMilestone.value).toBe('5 hearts until marriage')
-  })
-
-  it('reports ready to marry for a partner at the threshold', () => {
-    const { nextMilestone } = useRelationshipMilestone(() => rel('partner', 85))
-    expect(nextMilestone.value).toBe('Ready to marry')
-  })
-
-  it('returns null for married and ex relationships', () => {
-    expect(useRelationshipMilestone(() => rel('MARRIED', 90)).nextMilestone.value).toBeNull()
-    expect(useRelationshipMilestone(() => rel('ex', 0)).nextMilestone.value).toBeNull()
+  it.each([
+    ['acquaintance', 50, '20 hearts until romance'],
+    ['acquaintance', 70, 'Romance is within reach'],
+    ['romantic', 75, 'Ready to become partners'],
+    ['partner', 80, '5 hearts until marriage'],
+    ['partner', 85, 'Ready to marry'],
+    ['MARRIED', 90, null],
+    ['ex', 0, null],
+  ] as const)('names the next milestone for a %s at %i affinity', (type, affinity, expected) => {
+    expect(nextMilestone(type, affinity)).toBe(expected)
   })
 })

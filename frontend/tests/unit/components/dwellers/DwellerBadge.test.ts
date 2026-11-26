@@ -23,6 +23,9 @@ const visualAttributes = {
   state_of_being: 'behemoth',
 } as never
 
+const mountBadge = (props: Record<string, unknown>) => mount(DwellerBadge, { props })
+const mountSignal = (props: Record<string, unknown>) => mount(DwellerIdentitySignal, { props })
+
 beforeEach(() => {
   setActivePinia(createPinia())
   const flags = useFeatureFlagsStore()
@@ -31,38 +34,29 @@ beforeEach(() => {
 })
 
 describe('DwellerBadge', () => {
-  it('renders the icon with a visible label by default', () => {
-    const wrapper = mount(DwellerBadge, {
-      props: { icon: 'mdi:account', color: 'var(--badge-gender-male)', label: 'Male' },
+  it.each([
+    ['a visible label by default', {}, true],
+    ['an icon-only chip when the label is hidden', { showLabel: false }, false],
+  ] as const)('renders %s', (_name, extra, showLabel) => {
+    const wrapper = mountBadge({
+      icon: 'mdi:account',
+      color: 'var(--badge-gender-male)',
+      label: 'Male',
+      ...extra,
     })
 
     expect(wrapper.find('[role="img"]').attributes('aria-label')).toBe('Male')
     expect(wrapper.find('[data-icon="mdi:account"]').exists()).toBe(true)
-    expect(wrapper.find('.badge-label').text()).toBe('Male')
-  })
-
-  it('collapses to an icon-only chip when the label is hidden', () => {
-    const wrapper = mount(DwellerBadge, {
-      props: {
-        icon: 'mdi:account',
-        color: 'var(--badge-gender-male)',
-        label: 'Male',
-        showLabel: false,
-      },
-    })
-
-    expect(wrapper.find('.icon-only').exists()).toBe(true)
-    expect(wrapper.find('.badge-label').exists()).toBe(false)
+    expect(wrapper.find('.icon-only').exists()).toBe(!showLabel)
+    expect(wrapper.find('.badge-label').exists()).toBe(showLabel)
   })
 
   it('renders a monogram when no glyph exists for the fact', () => {
-    const wrapper = mount(DwellerBadge, {
-      props: {
-        monogram: 'III',
-        color: 'var(--badge-age-adult)',
-        label: 'Behemoth',
-        showLabel: false,
-      },
+    const wrapper = mountBadge({
+      monogram: 'III',
+      color: 'var(--badge-age-adult)',
+      label: 'Behemoth',
+      showLabel: false,
     })
 
     expect(wrapper.find('.badge-monogram').text()).toBe('III')
@@ -70,13 +64,11 @@ describe('DwellerBadge', () => {
   })
 
   it('adds a state marker and includes its description in the accessible name', () => {
-    const wrapper = mount(DwellerBadge, {
-      props: {
-        icon: 'mdi:robot-outline',
-        color: 'var(--badge-race-synth)',
-        label: 'Synth',
-        marker: { monogram: 'III', label: 'Gen III' },
-      },
+    const wrapper = mountBadge({
+      icon: 'mdi:robot-outline',
+      color: 'var(--badge-race-synth)',
+      label: 'Synth',
+      marker: { monogram: 'III', label: 'Gen III' },
     })
 
     expect(wrapper.find('.badge-state-marker').text()).toBe('III')
@@ -84,8 +76,10 @@ describe('DwellerBadge', () => {
   })
 
   it('describes the fact on hover without a native title', () => {
-    const wrapper = mount(DwellerBadge, {
-      props: { icon: 'mdi:account', color: 'var(--badge-age-adult)', label: 'Adult' },
+    const wrapper = mountBadge({
+      icon: 'mdi:account',
+      color: 'var(--badge-age-adult)',
+      label: 'Adult',
     })
 
     expect(wrapper.html()).not.toContain('title=')
@@ -95,7 +89,7 @@ describe('DwellerBadge', () => {
 
 describe('DwellerIdentitySignal', () => {
   it('combines race and state, keeping faction as a separate badge', () => {
-    const wrapper = mount(DwellerIdentitySignal, { props: { visualAttributes } })
+    const wrapper = mountSignal({ visualAttributes })
 
     const badges = wrapper.findAll('.dweller-badge')
     expect(badges).toHaveLength(2)
@@ -106,9 +100,7 @@ describe('DwellerIdentitySignal', () => {
   })
 
   it('uses a state icon inside the race badge for ghouls', () => {
-    const wrapper = mount(DwellerIdentitySignal, {
-      props: { visualAttributes: { race: 'ghoul', state_of_being: 'feral' } as never },
-    })
+    const wrapper = mountSignal({ visualAttributes: { race: 'ghoul', state_of_being: 'feral' } })
 
     const raceBadge = wrapper.find('.dweller-badge')
     expect(raceBadge.find('[data-icon="mdi:skull-outline"]').exists()).toBe(true)
@@ -117,11 +109,9 @@ describe('DwellerIdentitySignal', () => {
   })
 
   it('uses a Roman numeral marker for synth generation', () => {
-    const wrapper = mount(DwellerIdentitySignal, {
-      props: {
-        visualAttributes: { race: 'synth', state_of_being: 'gen_2' } as never,
-        compact: true,
-      },
+    const wrapper = mountSignal({
+      visualAttributes: { race: 'synth', state_of_being: 'gen_2' },
+      compact: true,
     })
 
     const badge = wrapper.find('.dweller-badge')
@@ -131,16 +121,14 @@ describe('DwellerIdentitySignal', () => {
   })
 
   it('marks identity glyphs semantic-light: no hover vocabulary, theme-primary colour', () => {
-    const wrapper = mount(DwellerIdentitySignal, { props: { visualAttributes, compact: true } })
+    const wrapper = mountSignal({ visualAttributes, compact: true })
 
     expect(wrapper.find('.transition-colors').exists()).toBe(false)
     expect(wrapper.find('.icon-only.size-sm').exists()).toBe(true)
   })
 
   it('falls back to a word-cased label for unknown values', () => {
-    const wrapper = mount(DwellerIdentitySignal, {
-      props: { visualAttributes: { race: 'unknown_race_origin' } as never },
-    })
+    const wrapper = mountSignal({ visualAttributes: { race: 'unknown_race_origin' } })
 
     expect(wrapper.find('.badge-label').text()).toBe('Unknown Race Origin')
   })

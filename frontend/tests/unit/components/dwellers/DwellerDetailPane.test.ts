@@ -18,6 +18,7 @@ beforeEach(() => {
   flags.raceMechanics = true
   flags.factionMechanics = true
 })
+
 // The header owns the identity lockup now, so gender/rarity/age and the
 // race/faction/state chips are asserted here rather than on the card.
 const dweller = {
@@ -54,21 +55,17 @@ function mountPane(currentDweller: Dweller = dweller, embedded = false) {
 describe('DwellerDetailPane header lockup', () => {
   it('omits page navigation inside the modal while keeping the same detail content', () => {
     const wrapper = mountPane(dweller, true)
+
     expect(wrapper.find('[aria-label="Breadcrumb"]').exists()).toBe(false)
     expect(wrapper.find('.dweller-name').text()).toContain('Nora Vance')
   })
 
-  it('names the dweller and says what they are doing', () => {
+  it('names the dweller, says what they are doing, and keeps the room out of the name row', () => {
     const wrapper = mountPane()
 
     expect(wrapper.find('.dweller-name').text()).toContain('Nora Vance')
     expect(wrapper.findAll('.activity-caption')).toHaveLength(1)
     expect(wrapper.find('.activity-caption').text()).toBe('Power Generator')
-  })
-
-  it('keeps the room out of the name row', () => {
-    const wrapper = mountPane()
-
     expect(wrapper.find('.name-line').text()).not.toContain('Power Generator')
   })
 
@@ -107,20 +104,15 @@ describe('DwellerDetailPane header lockup', () => {
     )
   })
 
-  it('does not mark an organic Gen-3 synth as radiation immune', () => {
-    const wrapper = mountPane({
-      ...dweller,
-      visual_attributes: { race: 'synth', state_of_being: 'gen_3' },
-    } as Dweller)
+  it.each([
+    ['an organic Gen-3 synth', { race: 'synth', state_of_being: 'gen_3' }],
+    ['a human', { race: 'human' }],
+  ])('does not mark %s as radiation immune', (_name, visual_attributes) => {
+    const wrapper = mountPane({ ...dweller, visual_attributes } as Dweller)
 
     expect(wrapper.find('[aria-label="Race traits: Ageless · Radiation Immune"]').exists()).toBe(
       false
     )
-  })
-
-  it('does not show nonhuman traits for a human', () => {
-    const wrapper = mountPane({ ...dweller, visual_attributes: { race: 'human' } } as Dweller)
-
     expect(wrapper.text()).not.toContain('Ageless · Radiation Immune')
   })
 })

@@ -4,8 +4,8 @@ import { mount, flushPromises } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import UnassignedDwellers from '@/modules/dwellers/components/UnassignedDwellers.vue'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
-import { useExplorationStore } from '@/modules/exploration/stores/exploration'
 import { useAuthStore } from '@/modules/auth/stores/auth'
+import { makeDweller } from '../../helpers/dwellerFixtures'
 
 // Mock Iconify
 vi.mock('@iconify/vue', () => createIconifyMock())
@@ -42,137 +42,109 @@ vi.mock('@/core/composables/useToast', () => ({
   useToast: () => mockToast,
 }))
 
-// Helper to create consistent drop event payloads
-function createDropEvent(
-  dwellerId: string,
-  firstName: string,
-  lastName: string,
-  currentRoomId: string | null
-) {
-  return {
-    dataTransfer: {
-      getData: () =>
-        JSON.stringify({
-          dwellerId,
-          firstName,
-          lastName,
-          currentRoomId,
-        }),
-    },
-  }
-}
+const mockDweller = makeDweller({
+  id: 'dweller-1',
+  first_name: 'John',
+  last_name: 'Doe',
+  room_id: null,
+})
+
+// Consistent drag payload for the room -> unassigned drop path.
+const dropEvent = (currentRoomId: string | null) => ({
+  dataTransfer: {
+    getData: () =>
+      JSON.stringify({ dwellerId: 'dweller-1', firstName: 'John', lastName: 'Doe', currentRoomId }),
+  },
+})
 
 describe('UnassignedDwellers', () => {
   let dwellerStore: any
   let dwellerManagementStore: any
-  let authStore: any
-
-  const mockDweller = {
-    id: 'dweller-1',
-    first_name: 'John',
-    last_name: 'Doe',
-    level: 5,
-    strength: 8,
-    perception: 6,
-    endurance: 7,
-    charisma: 5,
-    intelligence: 9,
-    agility: 4,
-    luck: 6,
-    room_id: null,
-    thumbnail_url: null,
-  }
 
   beforeEach(() => {
     setActivePinia(createPinia())
     const stores = useDwellerStore()
     dwellerStore = stores.filter
     dwellerManagementStore = stores.management
-    authStore = useAuthStore()
-
-    // Set underlying dwellers array instead of computed property
+    useAuthStore().token = 'mock-token'
     dwellerStore.dwellers = []
-
-    // Mock the unassignDwellerFromRoom action
     dwellerManagementStore.unassignDwellerFromRoom = vi.fn().mockResolvedValue(undefined)
-    authStore.token = 'mock-token'
     vi.clearAllMocks()
   })
 
-  describe('Rendering', () => {
-    it('should render unassigned dwellers panel with header', () => {
-      const wrapper = mount(UnassignedDwellers)
+  const mountPanel = (dwellers: any[] = []) => {
+    dwellerStore.dwellers = dwellers
+    return mount(UnassignedDwellers)
+  }
+
+  const isOpen = (wrapper: ReturnType<typeof mount>) =>
+    (wrapper.get('details').element as HTMLDetailsElement).open
+
+  const clickChip = async (wrapper: ReturnType<typeof mount>, label: string) => {
+    const chip = wrapper.findAll('.filter-chip').find((c) => c.text() === label)
+    expect(chip).toBeTruthy()
+    await chip!.trigger('click')
+  }
+
+  describe('rendering', () => {
+    it('renders the panel header and description', () => {
+      const wrapper = mountPanel()
 
       expect(wrapper.text()).toContain('Unassigned Dwellers')
       expect(wrapper.text()).toContain('Drag dwellers here to unassign them from rooms')
     })
 
-    it('should display count badge', () => {
-      dwellerStore.dwellers = [mockDweller]
-
-      const wrapper = mount(UnassignedDwellers)
-
-      expect(wrapper.find('.count-badge').exists()).toBe(true)
-      expect(wrapper.find('.count-badge').text()).toBe('1')
-    })
-
-    it('should show empty state when no unassigned dwellers', () => {
-      dwellerStore.dwellers = []
-
-      const wrapper = mount(UnassignedDwellers)
+    it('shows the empty state when no unassigned dwellers', () => {
+      const wrapper = mountPanel()
 
       expect(wrapper.text()).toContain('All dwellers are assigned!')
+      expect(wrapper.find('.count-badge').text()).toBe('0')
     })
 
-    it('should render dweller cards when unassigned dwellers exist', () => {
-      dwellerStore.dwellers = [mockDweller]
+    it('renders a card with name, level and every SPECIAL stat', () => {
+      const wrapper = mountPanel([mockDweller])
 
-      const wrapper = mount(UnassignedDwellers)
-
-      expect(wrapper.find('.dweller-card').exists()).toBe(true)
+      expect(wrapper.find('.count-badge').text()).toBe('1')
       expect(wrapper.text()).toContain('John Doe')
       expect(wrapper.text()).toContain('Lv 5')
+      expect(wrapper.findAll('.stat-label').map((label) => label.text())).toEqual([
+        'S',
+        'P',
+        'E',
+        'C',
+        'I',
+        'A',
+        'L',
+      ])
     })
 
-    it('should display all SPECIAL stats', () => {
-      dwellerStore.dwellers = [mockDweller]
+    it('renders one card per unassigned dweller and counts them', () => {
+      const wrapper = mountPanel([
+        mockDweller,
+        { ...mockDweller, id: 'dweller-2', first_name: 'Jane', last_name: 'Smith' },
+        { ...mockDweller, id: 'dweller-3' },
+      ])
 
-      const wrapper = mount(UnassignedDwellers)
-
-      const stats = wrapper.find('.dweller-stats')
-      expect(stats.html()).toContain('S') // Strength
-      expect(stats.html()).toContain('P') // Perception
-      expect(stats.html()).toContain('E') // Endurance
-      expect(stats.html()).toContain('C') // Charisma
-      expect(stats.html()).toContain('I') // Intelligence
-      expect(stats.html()).toContain('A') // Agility
-      expect(stats.html()).toContain('L') // Luck
-    })
-
-    it('should use the shared themed avatar placeholder', () => {
-      dwellerStore.dwellers = [mockDweller]
-
-      const wrapper = mount(UnassignedDwellers)
-
-      expect(wrapper.find('.dweller-avatar .text-theme-primary\\/60').exists()).toBe(true)
+      expect(wrapper.findAll('.dweller-card')).toHaveLength(3)
+      expect(wrapper.text()).toContain('John Doe')
+      expect(wrapper.text()).toContain('Jane Smith')
+      expect(wrapper.find('.count-badge').text()).toBe('3')
     })
   })
 
-  describe('Collapsed panel', () => {
+  describe('collapsed panel', () => {
     it('keeps the panel collapsed and the count current when dwellers refresh', async () => {
-      dwellerStore.dwellers = [mockDweller]
-      const wrapper = mount(UnassignedDwellers)
-      const panel = wrapper.get('details')
+      const wrapper = mountPanel([mockDweller])
       const summary = wrapper.get('summary')
 
       await summary.trigger('click')
-      expect((panel.element as HTMLDetailsElement).open).toBe(false)
+      expect(isOpen(wrapper)).toBe(false)
       expect(wrapper.get('.dweller-card').isVisible()).toBe(false)
       expect(wrapper.get('.filter-panel-mock').isVisible()).toBe(false)
 
       dwellerStore.dwellers = [mockDweller, { ...mockDweller, id: 'dweller-2' }]
       await flushPromises()
-      expect((panel.element as HTMLDetailsElement).open).toBe(false)
+      expect(isOpen(wrapper)).toBe(false)
       expect(summary.get('.count-badge').text()).toBe('2')
 
       await summary.trigger('click')
@@ -181,95 +153,63 @@ describe('UnassignedDwellers', () => {
     })
 
     it('unassigns room dwellers dropped on the collapsed header', async () => {
-      const wrapper = mount(UnassignedDwellers)
-      expect((wrapper.get('details').element as HTMLDetailsElement).open).toBe(false)
+      const wrapper = mountPanel()
+      expect(isOpen(wrapper)).toBe(false)
 
-      await wrapper
-        .get('summary')
-        .trigger('drop', createDropEvent('dweller-1', 'John', 'Doe', 'room-1'))
+      await wrapper.get('summary').trigger('drop', dropEvent('room-1'))
       await flushPromises()
 
       expect(dwellerManagementStore.unassignDwellerFromRoom).toHaveBeenCalledExactlyOnceWith(
         'dweller-1'
       )
       expect(mockToast.success).toHaveBeenCalledWith('John Doe unassigned from room')
-      expect((wrapper.get('details').element as HTMLDetailsElement).open).toBe(false)
+      expect(isOpen(wrapper)).toBe(false)
     })
 
     it('starts collapsed when empty and unfolds when a dweller needs assigning', async () => {
-      dwellerStore.dwellers = []
-      const wrapper = mount(UnassignedDwellers)
-      const panel = () => wrapper.get('details').element as HTMLDetailsElement
-
-      expect(panel().open).toBe(false)
+      const wrapper = mountPanel()
+      expect(isOpen(wrapper)).toBe(false)
 
       dwellerStore.dwellers = [mockDweller]
       await flushPromises()
-      expect(panel().open).toBe(true)
+      expect(isOpen(wrapper)).toBe(true)
 
       dwellerStore.dwellers = []
       await flushPromises()
-      expect(panel().open).toBe(false)
+      expect(isOpen(wrapper)).toBe(false)
     })
 
     it('unfolds on drag-over so the drop zone can catch the dweller', async () => {
-      dwellerStore.dwellers = []
-      const wrapper = mount(UnassignedDwellers)
-      const panel = () => wrapper.get('details').element as HTMLDetailsElement
-      expect(panel().open).toBe(false)
+      const wrapper = mountPanel()
+      expect(isOpen(wrapper)).toBe(false)
 
       await wrapper.get('details').trigger('dragover', { dataTransfer: { dropEffect: '' } })
-      expect(panel().open).toBe(true)
+      expect(isOpen(wrapper)).toBe(true)
     })
 
     it('stays open on a zero-match filter so its own controls keep working', async () => {
-      dwellerStore.dwellers = [mockDweller]
-      const wrapper = mount(UnassignedDwellers)
-      expect((wrapper.get('details').element as HTMLDetailsElement).open).toBe(true)
+      const wrapper = mountPanel([mockDweller])
+      expect(isOpen(wrapper)).toBe(true)
 
-      const chip = wrapper.findAll('.filter-chip').find((c) => c.text() === 'Legendary')
-      expect(chip).toBeTruthy()
-      await chip!.trigger('click')
+      await clickChip(wrapper, 'Legendary')
 
-      expect((wrapper.get('details').element as HTMLDetailsElement).open).toBe(true)
+      expect(isOpen(wrapper)).toBe(true)
       expect(wrapper.text()).toContain('No dwellers match the filters')
     })
   })
 
-  describe('Filtering', () => {
-    it('should filter out dwellers with room assignments', () => {
-      const assignedDweller = { ...mockDweller, id: 'dweller-2', room_id: 'room-1' }
-      dwellerStore.dwellers = [mockDweller, assignedDweller]
-
-      const wrapper = mount(UnassignedDwellers)
-
-      const cards = wrapper.findAll('.dweller-card')
-      expect(cards.length).toBe(1)
-      expect(wrapper.text()).toContain('John Doe')
-    })
-
-    it('should filter out exploring dwellers', () => {
-      const exploringDweller = { ...mockDweller, id: 'dweller-exploring', status: 'exploring' }
-      dwellerStore.dwellers = [exploringDweller]
-
-      const wrapper = mount(UnassignedDwellers)
+  describe('filtering', () => {
+    it.each([
+      ['an assigned dweller', { room_id: 'room-1' }],
+      ['an exploring dweller', { status: 'exploring' }],
+      ['a questing dweller', { status: 'questing' }],
+    ])('filters out %s', (_name, patch) => {
+      const wrapper = mountPanel([{ ...mockDweller, ...patch }])
 
       expect(wrapper.find('.dweller-card').exists()).toBe(false)
       expect(wrapper.text()).toContain('All dwellers are assigned!')
     })
 
-    it('should filter out questing dwellers', () => {
-      const questingDweller = { ...mockDweller, id: 'dweller-questing', status: 'questing' }
-      dwellerStore.dwellers = [questingDweller]
-
-      const wrapper = mount(UnassignedDwellers)
-
-      expect(wrapper.find('.dweller-card').exists()).toBe(false)
-      expect(wrapper.text()).toContain('All dwellers are assigned!')
-    })
-  })
-
-  describe('Filters', () => {
     const adultDweller = {
       ...mockDweller,
       id: 'dweller-adult',
@@ -285,38 +225,25 @@ describe('UnassignedDwellers', () => {
       rarity: 'common',
     }
 
-    const clickChip = async (wrapper: ReturnType<typeof mount>, label: string) => {
-      const chip = wrapper.findAll('.filter-chip').find((c) => c.text() === label)
-      expect(chip).toBeTruthy()
-      await chip!.trigger('click')
-    }
+    it('renders rarity filter chips', () => {
+      const wrapper = mountPanel([mockDweller])
 
-    it('should render rarity filter chips', () => {
-      dwellerStore.dwellers = [mockDweller]
-
-      const wrapper = mount(UnassignedDwellers)
-
-      const labels = wrapper.findAll('.filter-chip').map((c) => c.text())
-      expect(labels).toContain('Legendary')
+      expect(wrapper.findAll('.filter-chip').map((c) => c.text())).toContain('Legendary')
       expect(wrapper.find('.filter-group .filter-group-label').exists()).toBe(true)
       expect(wrapper.find('.filter-group .filter-options').exists()).toBe(true)
     })
 
-    it('should filter cards by the shared age preference', () => {
-      dwellerStore.dwellers = [adultDweller, childDweller]
+    it('filters cards by the shared age preference', () => {
       dwellerStore.setFilterAgeGroup('adult')
-
-      const wrapper = mount(UnassignedDwellers)
+      const wrapper = mountPanel([adultDweller, childDweller])
 
       const cards = wrapper.findAll('.dweller-card')
       expect(cards.length).toBe(1)
       expect(cards[0].text()).toContain('Ada')
     })
 
-    it('should filter cards by rarity', async () => {
-      dwellerStore.dwellers = [adultDweller, childDweller]
-
-      const wrapper = mount(UnassignedDwellers)
+    it('filters cards by rarity', async () => {
+      const wrapper = mountPanel([adultDweller, childDweller])
 
       await clickChip(wrapper, 'Legendary')
 
@@ -325,74 +252,42 @@ describe('UnassignedDwellers', () => {
       expect(cards[0].text()).toContain('Ada')
     })
 
-    it('should show a filtered-out message instead of the all-assigned state', () => {
-      dwellerStore.dwellers = [adultDweller]
+    it('shows a filtered-out message instead of the all-assigned state', () => {
       dwellerStore.setFilterAgeGroup('child')
-
-      const wrapper = mount(UnassignedDwellers)
+      const wrapper = mountPanel([adultDweller])
 
       expect(wrapper.text()).toContain('No dwellers match the filters')
       expect(wrapper.text()).not.toContain('All dwellers are assigned!')
     })
 
-    it('should tint the avatar ring by rarity', () => {
-      dwellerStore.dwellers = [adultDweller]
+    it('tints the avatar ring by rarity', () => {
+      const wrapper = mountPanel([adultDweller])
 
-      const wrapper = mount(UnassignedDwellers)
-
-      const avatar = wrapper.find('.dweller-avatar')
-      expect(avatar.attributes('style')).toContain('--rarity-ring')
+      expect(wrapper.find('.dweller-avatar').attributes('style')).toContain('--rarity-ring')
     })
   })
 
-  describe('Drag and Drop', () => {
-    it('should make dweller cards draggable', () => {
-      dwellerStore.dwellers = [mockDweller]
-
-      const wrapper = mount(UnassignedDwellers)
-
+  describe('drag and drop', () => {
+    it('makes dweller cards draggable and emits dragStart/dragEnd', async () => {
+      const wrapper = mountPanel([mockDweller])
       const card = wrapper.find('.dweller-card')
       expect(card.attributes('draggable')).toBe('true')
-    })
 
-    it('should emit dragStart event when dragging starts', async () => {
-      dwellerStore.dwellers = [mockDweller]
-
-      const wrapper = mount(UnassignedDwellers)
-
-      const card = wrapper.find('.dweller-card')
       await card.trigger('dragstart', {
-        dataTransfer: {
-          effectAllowed: '',
-          setData: vi.fn(),
-        },
+        dataTransfer: { effectAllowed: '', setData: vi.fn() },
       })
-
-      expect(wrapper.emitted('dragStart')).toBeTruthy()
       expect(wrapper.emitted('dragStart')![0][0]).toMatchObject({ id: mockDweller.id })
-    })
 
-    it('should emit dragEnd event when dragging ends', async () => {
-      dwellerStore.dwellers = [mockDweller]
-
-      const wrapper = mount(UnassignedDwellers)
-
-      const card = wrapper.find('.dweller-card')
       await card.trigger('dragend')
-
-      expect(wrapper.emitted('dragEnd')).toBeTruthy()
+      expect(wrapper.emitted('dragEnd')).toHaveLength(1)
     })
 
-    it('should show drop overlay when dragging over', async () => {
-      dwellerStore.dwellers = [mockDweller]
+    it('shows drop overlay when dragging over', async () => {
+      const wrapper = mountPanel([mockDweller])
 
-      const wrapper = mount(UnassignedDwellers)
-
-      const container = wrapper.find('.dweller-grid-container')
-      await container.trigger('dragover', {
+      await wrapper.find('.dweller-grid-container').trigger('dragover', {
         dataTransfer: { dropEffect: '' },
       })
-
       await flushPromises()
 
       expect(wrapper.find('.drop-overlay').exists()).toBe(true)
@@ -402,9 +297,7 @@ describe('UnassignedDwellers', () => {
     it.each([false, true])(
       'keeps the drop hint active across panel children (populated=%s)',
       async (populated) => {
-        dwellerStore.dwellers = populated ? [mockDweller] : []
-        const wrapper = mount(UnassignedDwellers)
-        const panel = wrapper.get('details')
+        const wrapper = mountPanel(populated ? [mockDweller] : [])
         const area = wrapper.get(populated ? '.dweller-grid-container' : '.empty-state')
         await area.trigger('dragover', { dataTransfer: { dropEffect: '' } })
         expect(wrapper.text()).toContain('Drop to unassign')
@@ -412,123 +305,43 @@ describe('UnassignedDwellers', () => {
         await area.trigger('dragleave', { relatedTarget: wrapper.get('summary').element })
         expect(wrapper.text()).toContain('Drop to unassign')
 
-        await panel.trigger('dragleave', { relatedTarget: document.body })
+        await wrapper.get('details').trigger('dragleave', { relatedTarget: document.body })
         expect(wrapper.text()).not.toContain('Drop to unassign')
       }
     )
 
-    it('should unassign dweller on drop', async () => {
-      dwellerStore.dwellers = []
+    it('unassigns the dropped dweller and confirms it', async () => {
+      const wrapper = mountPanel()
 
-      const wrapper = mount(UnassignedDwellers)
-
-      const dropZone = wrapper.find('.empty-state')
-      await dropZone.trigger('drop', createDropEvent('dweller-1', 'John', 'Doe', 'room-1'))
-
+      await wrapper.find('.empty-state').trigger('drop', dropEvent('room-1'))
       await flushPromises()
 
-      expect(dwellerManagementStore.unassignDwellerFromRoom).toHaveBeenCalledWith('dweller-1')
-    })
-
-    it('should show success message after unassigning', async () => {
-      dwellerStore.dwellers = []
-
-      const wrapper = mount(UnassignedDwellers)
-
-      const dropZone = wrapper.find('.empty-state')
-      await dropZone.trigger('drop', createDropEvent('dweller-1', 'John', 'Doe', 'room-1'))
-
-      await flushPromises()
-
-      expect(dwellerManagementStore.unassignDwellerFromRoom).toHaveBeenCalledWith('dweller-1')
+      expect(dwellerManagementStore.unassignDwellerFromRoom).toHaveBeenCalledExactlyOnceWith(
+        'dweller-1'
+      )
       expect(mockToast.success).toHaveBeenCalledWith('John Doe unassigned from room')
     })
 
-    it('should not unassign if dweller has no room', async () => {
-      dwellerStore.dwellers = []
+    it('does not unassign a dweller that has no room', async () => {
+      const wrapper = mountPanel()
 
-      const wrapper = mount(UnassignedDwellers)
-
-      const dropZone = wrapper.find('.empty-state')
-      await dropZone.trigger('drop', createDropEvent('dweller-1', 'John', 'Doe', null))
-
+      await wrapper.find('.empty-state').trigger('drop', dropEvent(null))
       await flushPromises()
 
       expect(dwellerManagementStore.unassignDwellerFromRoom).not.toHaveBeenCalled()
     })
-  })
 
-  describe('Color Theming', () => {
-    it('should use theme color for level text', () => {
-      dwellerStore.dwellers = [mockDweller]
-
-      const wrapper = mount(UnassignedDwellers)
-
-      const levelElement = wrapper.find('.dweller-level')
-      expect(levelElement.attributes('class')).toBe('dweller-level')
-    })
-
-    it('should use theme color for stat labels', () => {
-      dwellerStore.dwellers = [mockDweller]
-
-      const wrapper = mount(UnassignedDwellers)
-
-      const statLabels = wrapper.findAll('.stat-label')
-      expect(statLabels.length).toBeGreaterThan(0)
-    })
-
-    it('should have neutral black card background', () => {
-      dwellerStore.dwellers = [mockDweller]
-
-      const wrapper = mount(UnassignedDwellers)
-
-      const card = wrapper.find('.dweller-card')
-      expect(card.exists()).toBe(true)
-    })
-  })
-
-  describe('Error Handling', () => {
-    it('should show error message on unassign failure', async () => {
+    it('reports an unassign failure instead of a success', async () => {
       dwellerManagementStore.unassignDwellerFromRoom = vi
         .fn()
         .mockRejectedValue(new Error('Unassign failed'))
-      dwellerStore.dwellers = []
+      const wrapper = mountPanel()
 
-      const wrapper = mount(UnassignedDwellers)
-
-      const dropZone = wrapper.find('.empty-state')
-      await dropZone.trigger('drop', createDropEvent('dweller-1', 'John', 'Doe', 'room-1'))
-
+      await wrapper.find('.empty-state').trigger('drop', dropEvent('room-1'))
       await flushPromises()
 
       expect(dwellerManagementStore.unassignDwellerFromRoom).toHaveBeenCalledWith('dweller-1')
       expect(mockToast.error).toHaveBeenCalledWith('Failed to unassign dweller')
-    })
-  })
-
-  describe('Multiple Dwellers', () => {
-    it('should render multiple dweller cards', () => {
-      const dweller2 = { ...mockDweller, id: 'dweller-2', first_name: 'Jane', last_name: 'Smith' }
-      dwellerStore.dwellers = [mockDweller, dweller2]
-
-      const wrapper = mount(UnassignedDwellers)
-
-      const cards = wrapper.findAll('.dweller-card')
-      expect(cards.length).toBe(2)
-      expect(wrapper.text()).toContain('John Doe')
-      expect(wrapper.text()).toContain('Jane Smith')
-    })
-
-    it('should update count badge with correct number', () => {
-      dwellerStore.dwellers = [
-        mockDweller,
-        { ...mockDweller, id: 'dweller-2' },
-        { ...mockDweller, id: 'dweller-3' },
-      ]
-
-      const wrapper = mount(UnassignedDwellers)
-
-      expect(wrapper.find('.count-badge').text()).toBe('3')
     })
   })
 })

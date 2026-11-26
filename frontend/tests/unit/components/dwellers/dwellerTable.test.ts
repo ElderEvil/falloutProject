@@ -15,18 +15,19 @@ describe('dwellerTable model', () => {
     )
   })
 
-  it('orders visible columns by the catalog, not the input order', () => {
-    expect(orderedVisibleColumns(['room', 'name', 'level']).map((column) => column.id)).toEqual([
-      'name',
-      'level',
-      'room',
-    ])
+  it.each([
+    [
+      'orders visible columns by the catalog, not the input order',
+      ['room', 'name', 'level'],
+      ['name', 'level', 'room'],
+    ],
+    ['drops unknown column ids', ['name', 'bogus'], ['name']],
+  ] as const)('%s', (_name, input, expected) => {
+    expect(orderedVisibleColumns([...input] as never).map((column) => column.id)).toEqual(expected)
   })
 
-  it('ignores unknown column ids', () => {
-    expect(orderedVisibleColumns(['name', 'bogus' as never]).map((column) => column.id)).toEqual([
-      'name',
-    ])
+  it('sorts columns into catalog order via canonicalColumnOrder', () => {
+    expect(canonicalColumnOrder(['room', 'name', 'level'])).toEqual(['name', 'level', 'room'])
   })
 
   it('defines non-empty presets that only reference known columns', () => {
@@ -37,10 +38,6 @@ describe('dwellerTable model', () => {
       expect(preset.columns.length).toBeGreaterThan(0)
       for (const id of preset.columns) expect(known.has(id)).toBe(true)
     }
-  })
-
-  it('sorts columns into catalog order', () => {
-    expect(canonicalColumnOrder(['room', 'name', 'level'])).toEqual(['name', 'level', 'room'])
   })
 
   it('offers roster, vitals and demographics presets', () => {
@@ -58,19 +55,16 @@ describe('dwellerTable model', () => {
     )
   })
 
-  it('normalizes persisted columns, dropping unknown and duplicate ids', () => {
-    expect(normalizeTableColumns(['room', 'room', 'bogus', 'name'])).toEqual(['name', 'room'])
-  })
-
-  it('falls back to the defaults for an empty persisted array', () => {
-    expect(normalizeTableColumns([])).toEqual(DEFAULT_TABLE_COLUMNS)
-  })
-
-  it('falls back to the defaults when only retired ids are persisted', () => {
-    expect(normalizeTableColumns(['retired-a', 'retired-b'])).toEqual(DEFAULT_TABLE_COLUMNS)
-  })
-
-  it('falls back to the defaults for a non-array value', () => {
-    expect(normalizeTableColumns(null)).toEqual(DEFAULT_TABLE_COLUMNS)
+  it.each([
+    ['drops unknown and duplicate ids', ['room', 'room', 'bogus', 'name'], ['name', 'room']],
+    ['falls back to the defaults for an empty array', [], DEFAULT_TABLE_COLUMNS],
+    [
+      'falls back to the defaults when only retired ids persist',
+      ['retired-a', 'retired-b'],
+      DEFAULT_TABLE_COLUMNS,
+    ],
+    ['falls back to the defaults for a non-array value', null, DEFAULT_TABLE_COLUMNS],
+  ] as const)('normalizes persisted columns: %s', (_name, persisted, expected) => {
+    expect(normalizeTableColumns(persisted as never)).toEqual(expected)
   })
 })

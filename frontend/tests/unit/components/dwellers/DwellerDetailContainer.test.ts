@@ -132,17 +132,18 @@ describe('DwellerDetailContainer', () => {
     wrapper.unmount()
   })
 
-  it('reads the dweller from the :dwellerId route param', async () => {
-    const wrapper = await mountAt('/vault/vault-1/dwellers/dweller-1?tab=SPECIAL&stat=SPECIAL')
-    const pane = wrapper.findComponent({ name: 'DwellerDetailPane' })
-    expect(pane.exists()).toBe(true)
-    expect(dwellerStore.fetchDwellerDetails).toHaveBeenCalledWith('dweller-1')
-  })
+  it.each([
+    ['/vault/vault-1/dwellers/dweller-1?tab=SPECIAL&stat=SPECIAL', true],
+    ['/vault/vault-1/dwellers', false],
+  ] as const)('resolves the pane from the :dwellerId param of %s', async (path, found) => {
+    const wrapper = await mountAt(path)
 
-  it('shows not-found when no :dwellerId param is present', async () => {
-    const wrapper = await mountAt('/vault/vault-1/dwellers')
-    expect(wrapper.findComponent({ name: 'DwellerDetailPane' }).exists()).toBe(false)
-    expect(wrapper.text()).toContain('Dweller not found')
+    expect(wrapper.findComponent({ name: 'DwellerDetailPane' }).exists()).toBe(found)
+    if (found) {
+      expect(dwellerStore.fetchDwellerDetails).toHaveBeenCalledWith('dweller-1')
+    } else {
+      expect(wrapper.text()).toContain('Dweller not found')
+    }
   })
 
   it('navigates back to the dwellers list on back', async () => {

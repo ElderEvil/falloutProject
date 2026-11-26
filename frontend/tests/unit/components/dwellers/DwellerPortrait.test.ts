@@ -7,114 +7,81 @@ vi.mock('@iconify/vue', () =>
   createIconifyMock({ template: '<span class="icon-mock" :data-icon="icon" />' })
 )
 
+type PortraitProps = InstanceType<typeof DwellerPortrait>['$props']
+
+const mountPortrait = (props: Partial<PortraitProps>, options: Record<string, unknown> = {}) =>
+  mount(DwellerPortrait, { props: { alt: 'Lucy MacLean portrait', ...props }, ...options })
+
 describe('DwellerPortrait', () => {
-  it('prefers and normalizes the full portrait URL', () => {
-    const wrapper = mount(DwellerPortrait, {
-      props: {
-        imageUrl: 'example.com/lucy.png',
-        thumbnailUrl: 'example.com/lucy-thumb.png',
-        alt: 'Lucy MacLean portrait',
-      },
-    })
-
-    expect(wrapper.find('img').attributes()).toMatchObject({
-      src: 'http://example.com/lucy.png',
-      alt: 'Lucy MacLean portrait',
-    })
-  })
-
-  it('uses the thumbnail when no full portrait is available', () => {
-    const wrapper = mount(DwellerPortrait, {
-      props: {
-        imageUrl: '',
-        thumbnailUrl: 'example.com/lucy-thumb.png',
-        alt: 'Lucy MacLean portrait',
-      },
-    })
-
-    expect(wrapper.find('img').attributes('src')).toBe('http://example.com/lucy-thumb.png')
-    expect(wrapper.find('img').attributes('style')).toContain('object-position: center top')
-  })
-
-  it('prefers the thumbnail for compact previews when both sources exist', () => {
-    const wrapper = mount(DwellerPortrait, {
-      props: {
+  it.each([
+    [
+      'the full portrait when both sources exist',
+      { imageUrl: 'example.com/lucy.png', thumbnailUrl: 'example.com/lucy-thumb.png' },
+      'http://example.com/lucy.png',
+    ],
+    [
+      'the thumbnail when no full portrait is available',
+      { imageUrl: '', thumbnailUrl: 'example.com/lucy-thumb.png' },
+      'http://example.com/lucy-thumb.png',
+    ],
+    [
+      'the thumbnail for compact previews',
+      {
         imageUrl: 'example.com/lucy.png',
         thumbnailUrl: 'example.com/lucy-thumb.png',
         preferThumbnail: true,
-        alt: 'Lucy MacLean portrait',
       },
-    })
+      'http://example.com/lucy-thumb.png',
+    ],
+    [
+      'the API origin for backend static portraits',
+      { thumbnailUrl: '/static/portraits/lucy.png' },
+      'http://localhost:8000/static/portraits/lucy.png',
+    ],
+  ] as const)('prefers %s', (_name, props, src) => {
+    const wrapper = mountPortrait(props)
 
-    expect(wrapper.find('img').attributes('src')).toBe('http://example.com/lucy-thumb.png')
+    expect(wrapper.find('img').attributes('src')).toBe(src)
+    expect(wrapper.find('img').attributes('alt')).toBe('Lucy MacLean portrait')
   })
 
-  it('allows scene callers to anchor portraits on the head', () => {
-    const wrapper = mount(DwellerPortrait, {
-      props: {
-        imageUrl: 'example.com/lucy.png',
-        alt: 'Lucy MacLean portrait',
-        objectPosition: 'center top',
-      },
+  it('uses the head anchor the caller asks for', () => {
+    const wrapper = mountPortrait({
+      imageUrl: 'example.com/lucy.png',
+      objectPosition: 'center top',
     })
 
     expect(wrapper.find('img').attributes('style')).toContain('object-position: center top')
   })
 
   it('applies a body-size scale to the image', () => {
-    const wrapper = mount(DwellerPortrait, {
-      props: {
-        imageUrl: 'example.com/lucy.png',
-        alt: 'Lucy MacLean portrait',
-        scale: 1.18,
-      },
-    })
+    const wrapper = mountPortrait({ imageUrl: 'example.com/lucy.png', scale: 1.18 })
 
     expect(wrapper.find('img').attributes('style')).toContain('--portrait-scale: 1.18')
   })
 
-  it('uses the API origin for backend static portraits', () => {
-    const wrapper = mount(DwellerPortrait, {
-      props: {
-        thumbnailUrl: '/static/portraits/lucy.png',
-        alt: 'Lucy MacLean portrait',
-      },
-    })
-
-    expect(wrapper.find('img').attributes('src')).toBe(
-      'http://localhost:8000/static/portraits/lucy.png'
-    )
-  })
-
-  it('applies the curated card zoom by default', () => {
-    const wrapper = mount(DwellerPortrait, {
-      props: {
-        thumbnailUrl: '/static/dweller_images/base/FOS_Dw_Default_Human_Male.webp',
-        alt: 'Portrait',
-      },
-    })
+  it.each([
+    ['dweller_images', '/static/dweller_images/base/FOS_Dw_Default_Human_Male.webp'],
+    ['legendary_dweller_images', '/static/legendary_dweller_images/FOS_Dw_Butch.png'],
+  ])('applies the curated zoom by default to %s', (_folder, thumbnailUrl) => {
+    const wrapper = mountPortrait({ thumbnailUrl })
 
     expect(wrapper.find('img').attributes('class')).toContain('default-portrait-zoom')
   })
 
-  it('applies the curated zoom to legendary portraits without reserving a 1:2 canvas', () => {
-    const wrapper = mount(DwellerPortrait, {
-      props: {
-        thumbnailUrl: '/static/legendary_dweller_images/FOS_Dw_Butch.png',
-        alt: 'Butch portrait',
-      },
+  it('does not reserve a 1:2 canvas for legendary portraits', () => {
+    const wrapper = mountPortrait({
+      thumbnailUrl: '/static/legendary_dweller_images/FOS_Dw_Butch.png',
+      alt: 'Butch portrait',
     })
 
-    expect(wrapper.find('img').attributes('class')).toContain('default-portrait-zoom')
     expect(wrapper.get('img').attributes('width')).toBeUndefined()
   })
 
   it('keeps non-humanoid companion art out of the human card framing', () => {
-    const wrapper = mount(DwellerPortrait, {
-      props: {
-        thumbnailUrl: '/static/legendary_dweller_images/FOS_Dw_Snip_Snip.png',
-        alt: 'Snip Snip portrait',
-      },
+    const wrapper = mountPortrait({
+      thumbnailUrl: '/static/legendary_dweller_images/FOS_Dw_Snip_Snip.png',
+      alt: 'Snip Snip portrait',
     })
 
     const image = wrapper.get('img')
@@ -124,32 +91,27 @@ describe('DwellerPortrait', () => {
   })
 
   it('reserves the curated thumbnail aspect ratio without sizing arbitrary uploads', () => {
-    const wrapper = mount(DwellerPortrait, {
-      props: { thumbnailUrl: '/static/dweller_thumbnails/base/lucy.webp', alt: 'Lucy' },
+    const curated = mountPortrait({
+      thumbnailUrl: '/static/dweller_thumbnails/base/lucy.webp',
+      alt: 'Lucy',
     })
-    expect(wrapper.get('img').attributes()).toMatchObject({ width: '150', height: '300' })
-    const upload = mount(DwellerPortrait, {
-      props: { imageUrl: 'https://example.com/upload.png', alt: 'Upload' },
-    })
+    const upload = mountPortrait({ imageUrl: 'https://example.com/upload.png', alt: 'Upload' })
+
+    expect(curated.get('img').attributes()).toMatchObject({ width: '150', height: '300' })
     expect(upload.get('img').attributes('width')).toBeUndefined()
   })
 
   it('can opt out of the curated zoom for scene portraits', () => {
-    const wrapper = mount(DwellerPortrait, {
-      props: {
-        thumbnailUrl: '/static/dweller_images/base/FOS_Dw_Default_Human_Male.webp',
-        alt: 'Portrait',
-        zoom: false,
-      },
+    const wrapper = mountPortrait({
+      thumbnailUrl: '/static/dweller_images/base/FOS_Dw_Default_Human_Male.webp',
+      zoom: false,
     })
 
     expect(wrapper.find('img').attributes('class')).not.toContain('default-portrait-zoom')
   })
 
   it('renders an accessible account fallback when neither image exists', () => {
-    const wrapper = mount(DwellerPortrait, {
-      props: { alt: 'Unknown dweller portrait' },
-    })
+    const wrapper = mountPortrait({ alt: 'Unknown dweller portrait' })
 
     expect(wrapper.find('img').exists()).toBe(false)
     expect(wrapper.find('.icon-mock').attributes('data-icon')).toBe('mdi:account')
@@ -157,9 +119,7 @@ describe('DwellerPortrait', () => {
   })
 
   it('renders its fallback when the portrait cannot be loaded', async () => {
-    const wrapper = mount(DwellerPortrait, {
-      props: { imageUrl: 'example.com/lucy.png', alt: 'Lucy MacLean portrait' },
-    })
+    const wrapper = mountPortrait({ imageUrl: 'example.com/lucy.png' })
 
     await wrapper.find('img').trigger('error')
 
@@ -168,10 +128,10 @@ describe('DwellerPortrait', () => {
   })
 
   it('renders a provided fallback slot when the portrait cannot be loaded', async () => {
-    const wrapper = mount(DwellerPortrait, {
-      props: { imageUrl: 'example.com/lucy.png', alt: 'Lucy MacLean portrait' },
-      slots: { fallback: '<span class="custom-fallback" />' },
-    })
+    const wrapper = mountPortrait(
+      { imageUrl: 'example.com/lucy.png' },
+      { slots: { fallback: '<span class="custom-fallback" />' } }
+    )
 
     await wrapper.find('img').trigger('error')
 
@@ -181,9 +141,7 @@ describe('DwellerPortrait', () => {
   })
 
   it('tries again when the portrait URL changes', async () => {
-    const wrapper = mount(DwellerPortrait, {
-      props: { imageUrl: 'example.com/lucy.png', alt: 'Lucy MacLean portrait' },
-    })
+    const wrapper = mountPortrait({ imageUrl: 'example.com/lucy.png' })
 
     await wrapper.find('img').trigger('error')
     await wrapper.setProps({ imageUrl: 'example.com/lucy-updated.png' })

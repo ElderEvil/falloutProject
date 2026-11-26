@@ -102,7 +102,8 @@ One validator for both catalogs, run at load (cached, layer-safe):
 4. **Cost:** no migration, no endpoint, no flag; ~150 production lines and the tests above.
 5. **Playtest signal:** find two comics, see 2/3 and no caps change; find the third and confirm a
    100-cap run pays 110 and a 7/7 cabinet raises production by 5%.
-6. **Flag owner:** existing `game_config.features.collectibles`; the maintainer enables it.
+6. **Flag owner:** existing `game_config.features.collectibles`; enabled in production on
+   2026-11-26. Set completion currently surfaces only in the map tab — no toast/bell entry yet.
 
 ## Risks and open decisions
 

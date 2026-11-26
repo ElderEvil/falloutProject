@@ -43,6 +43,20 @@ const childDweller = {
   age_group: 'child',
 }
 
+/** A fresh composable plus the dispatch spy every send-path test asserts on. */
+function setup() {
+  const dispatchSpy = vi
+    .spyOn(useExplorationStore(), 'sendDwellerToWasteland')
+    .mockResolvedValue({} as never)
+  return { sendWasteland: useSendToWasteland(() => 'vault-1'), dispatchSpy }
+}
+
+const openAdult = (sendWasteland: ReturnType<typeof useSendToWasteland>) =>
+  sendWasteland.open({ dwellerId: 'dweller-adult', firstName: 'Adult' })
+
+const confirm = (sendWasteland: ReturnType<typeof useSendToWasteland>, duration = 8) =>
+  sendWasteland.confirm({ duration, stimpaks: 0, radaways: 0 })
+
 describe('useSendToWasteland', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
@@ -62,36 +76,28 @@ describe('useSendToWasteland', () => {
     expect(sendWasteland.pendingDweller.value).toBeNull()
   })
 
-  it('opens the duration modal for an adult dweller', () => {
+  it('opens the duration modal for an adult and trusts a known dweller lookup', () => {
     const sendWasteland = useSendToWasteland(() => 'vault-1')
 
-    sendWasteland.open({ dwellerId: 'dweller-adult', firstName: 'Adult' })
-
+    openAdult(sendWasteland)
     expect(toastMocks.error).not.toHaveBeenCalled()
     expect(sendWasteland.showModal.value).toBe(true)
     expect(sendWasteland.pendingDweller.value?.dwellerId).toBe('dweller-adult')
-  })
 
-  it('trusts a known dweller lookup over the store list', () => {
+    // The explicit drag payload wins over an empty store list.
     useDwellerStore().filter.dwellers = []
-    const sendWasteland = useSendToWasteland(() => 'vault-1')
-
     sendWasteland.open({ dwellerId: 'dweller-known', firstName: 'Known' }, {
       ...adultDweller,
       id: 'dweller-known',
     } as never)
-
     expect(sendWasteland.showModal.value).toBe(true)
   })
 
   it('dispatches the confirmed exploration and closes the modal', async () => {
-    const dispatchSpy = vi
-      .spyOn(useExplorationStore(), 'sendDwellerToWasteland')
-      .mockResolvedValue({} as never)
-    const sendWasteland = useSendToWasteland(() => 'vault-1')
+    const { sendWasteland, dispatchSpy } = setup()
 
-    sendWasteland.open({ dwellerId: 'dweller-adult', firstName: 'Adult' })
-    const dispatched = await sendWasteland.confirm({ duration: 8, stimpaks: 0, radaways: 0 })
+    openAdult(sendWasteland)
+    const dispatched = await confirm(sendWasteland)
 
     expect(dispatched).toBe(true)
     expect(dispatchSpy).toHaveBeenCalledWith('vault-1', 'dweller-adult', 8, 0, 0, undefined)
@@ -100,11 +106,10 @@ describe('useSendToWasteland', () => {
   })
 
   it('emits one confirmation without a second informational toast', async () => {
-    vi.spyOn(useExplorationStore(), 'sendDwellerToWasteland').mockResolvedValue({} as never)
-    const sendWasteland = useSendToWasteland(() => 'vault-1')
+    const { sendWasteland } = setup()
 
-    sendWasteland.open({ dwellerId: 'dweller-adult', firstName: 'Adult' })
-    const dispatched = await sendWasteland.confirm({ duration: 8, stimpaks: 0, radaways: 0 })
+    openAdult(sendWasteland)
+    const dispatched = await confirm(sendWasteland)
 
     expect(dispatched).toBe(true)
     expect(toastMocks.success).toHaveBeenCalledTimes(1)
@@ -112,61 +117,46 @@ describe('useSendToWasteland', () => {
   })
 
   it('passes a heading through to the store action when one is chosen', async () => {
-    const dispatchSpy = vi
-      .spyOn(useExplorationStore(), 'sendDwellerToWasteland')
-      .mockResolvedValue({} as never)
-    const sendWasteland = useSendToWasteland(() => 'vault-1')
+    const { sendWasteland, dispatchSpy } = setup()
 
     sendWasteland.open({ dwellerId: 'dweller-adult', firstName: 'Adult', headingDegrees: 90 })
     expect(sendWasteland.headingDegrees.value).toBe(90)
 
-    await sendWasteland.confirm({ duration: 8, stimpaks: 0, radaways: 0 })
+    await confirm(sendWasteland)
 
     expect(dispatchSpy).toHaveBeenCalledWith('vault-1', 'dweller-adult', 8, 0, 0, 90)
   })
 
   it('suggests a heading for a non-map open and sends it on confirm', async () => {
     apiMocks.suggestHeading.mockResolvedValue(135)
-    const dispatchSpy = vi
-      .spyOn(useExplorationStore(), 'sendDwellerToWasteland')
-      .mockResolvedValue({} as never)
-    const sendWasteland = useSendToWasteland(() => 'vault-1')
+    const { sendWasteland, dispatchSpy } = setup()
 
-    sendWasteland.open({ dwellerId: 'dweller-adult', firstName: 'Adult' })
+    openAdult(sendWasteland)
     await flushPromises()
 
     expect(apiMocks.suggestHeading).toHaveBeenCalledTimes(1)
     expect(apiMocks.suggestHeading).toHaveBeenCalledWith('vault-1', expect.any(String), 4)
     expect(sendWasteland.headingDegrees.value).toBe(135)
 
-    await sendWasteland.confirm({ duration: 8, stimpaks: 0, radaways: 0 })
+    await confirm(sendWasteland)
 
     expect(dispatchSpy).toHaveBeenCalledWith('vault-1', 'dweller-adult', 8, 0, 0, 135)
   })
 
-  it('re-rolls the suggested heading', async () => {
+  it('re-rolls the suggested heading for the duration passed to reroll', async () => {
     apiMocks.suggestHeading.mockResolvedValueOnce(10).mockResolvedValueOnce(200)
     const sendWasteland = useSendToWasteland(() => 'vault-1')
 
-    sendWasteland.open({ dwellerId: 'dweller-adult', firstName: 'Adult' })
+    openAdult(sendWasteland)
     await flushPromises()
     expect(sendWasteland.headingDegrees.value).toBe(10)
 
     sendWasteland.reroll()
     await flushPromises()
     expect(sendWasteland.headingDegrees.value).toBe(200)
-  })
-
-  it('re-requests the heading for the duration passed to reroll', async () => {
-    apiMocks.suggestHeading.mockResolvedValue(90)
-    const sendWasteland = useSendToWasteland(() => 'vault-1')
-
-    sendWasteland.open({ dwellerId: 'dweller-adult', firstName: 'Adult' })
-    await flushPromises()
 
     sendWasteland.reroll(24)
     await flushPromises()
-
     expect(apiMocks.suggestHeading).toHaveBeenLastCalledWith('vault-1', expect.any(String), 24)
   })
 
@@ -179,7 +169,7 @@ describe('useSendToWasteland', () => {
     )
     const sendWasteland = useSendToWasteland(() => 'vault-1')
 
-    sendWasteland.open({ dwellerId: 'dweller-adult', firstName: 'Adult' })
+    openAdult(sendWasteland)
     sendWasteland.cancel()
 
     resolvePending(42)
@@ -200,9 +190,9 @@ describe('useSendToWasteland', () => {
       .mockResolvedValueOnce(777)
     const sendWasteland = useSendToWasteland(() => 'vault-1')
 
-    sendWasteland.open({ dwellerId: 'dweller-adult', firstName: 'Adult' })
+    openAdult(sendWasteland)
     sendWasteland.cancel()
-    sendWasteland.open({ dwellerId: 'dweller-adult', firstName: 'Adult' })
+    openAdult(sendWasteland)
     await flushPromises()
     expect(sendWasteland.headingDegrees.value).toBe(777)
 
@@ -214,16 +204,13 @@ describe('useSendToWasteland', () => {
 
   it('sends no heading when the suggestion is unavailable', async () => {
     apiMocks.suggestHeading.mockResolvedValue(null)
-    const dispatchSpy = vi
-      .spyOn(useExplorationStore(), 'sendDwellerToWasteland')
-      .mockResolvedValue({} as never)
-    const sendWasteland = useSendToWasteland(() => 'vault-1')
+    const { sendWasteland, dispatchSpy } = setup()
 
-    sendWasteland.open({ dwellerId: 'dweller-adult', firstName: 'Adult' })
+    openAdult(sendWasteland)
     await flushPromises()
     expect(sendWasteland.headingDegrees.value).toBeNull()
 
-    await sendWasteland.confirm({ duration: 8, stimpaks: 0, radaways: 0 })
+    await confirm(sendWasteland)
 
     expect(dispatchSpy).toHaveBeenCalledWith('vault-1', 'dweller-adult', 8, 0, 0, undefined)
   })
@@ -231,19 +218,16 @@ describe('useSendToWasteland', () => {
   describe('manual compass pick', () => {
     it('stores a manual pick that overrides the suggested heading and dispatches it', async () => {
       apiMocks.suggestHeading.mockResolvedValue(135)
-      const dispatchSpy = vi
-        .spyOn(useExplorationStore(), 'sendDwellerToWasteland')
-        .mockResolvedValue({} as never)
-      const sendWasteland = useSendToWasteland(() => 'vault-1')
+      const { sendWasteland, dispatchSpy } = setup()
 
-      sendWasteland.open({ dwellerId: 'dweller-adult', firstName: 'Adult' })
+      openAdult(sendWasteland)
       await flushPromises()
       expect(sendWasteland.headingDegrees.value).toBe(135)
 
       sendWasteland.setHeading(90)
       expect(sendWasteland.headingDegrees.value).toBe(90)
 
-      await sendWasteland.confirm({ duration: 8, stimpaks: 0, radaways: 0 })
+      await confirm(sendWasteland)
 
       expect(dispatchSpy).toHaveBeenCalledWith('vault-1', 'dweller-adult', 8, 0, 0, 90)
     })
@@ -252,7 +236,7 @@ describe('useSendToWasteland', () => {
       apiMocks.suggestHeading.mockResolvedValueOnce(90).mockResolvedValueOnce(200)
       const sendWasteland = useSendToWasteland(() => 'vault-1')
 
-      sendWasteland.open({ dwellerId: 'dweller-adult', firstName: 'Adult' })
+      openAdult(sendWasteland)
       await flushPromises()
       sendWasteland.setHeading(90)
       expect(sendWasteland.headingDegrees.value).toBe(90)
@@ -271,7 +255,7 @@ describe('useSendToWasteland', () => {
       )
       const sendWasteland = useSendToWasteland(() => 'vault-1')
 
-      sendWasteland.open({ dwellerId: 'dweller-adult', firstName: 'Adult' })
+      openAdult(sendWasteland)
       sendWasteland.setHeading(315)
 
       resolveSuggestion(45)
@@ -282,47 +266,23 @@ describe('useSendToWasteland', () => {
   })
 
   describe('prefill', () => {
-    it('exposes the prefill passed to open so the modal can seed its fields', () => {
+    it('exposes the prefill to the modal, seeds the heading duration, and clears on cancel', async () => {
       const sendWasteland = useSendToWasteland(() => 'vault-1')
 
-      sendWasteland.open({ dwellerId: 'dweller-adult', firstName: 'Adult' }, undefined, {
-        duration: 8,
-        stimpaks: 5,
-        radaways: 3,
-      })
-
-      expect(sendWasteland.pendingPrefill.value).toEqual({ duration: 8, stimpaks: 5, radaways: 3 })
-    })
-
-    it('clears the prefill on cancel', () => {
-      const sendWasteland = useSendToWasteland(() => 'vault-1')
-
-      sendWasteland.open({ dwellerId: 'dweller-adult', firstName: 'Adult' }, undefined, {
-        duration: 8,
-        stimpaks: 5,
-        radaways: 3,
-      })
-      sendWasteland.cancel()
-
+      openAdult(sendWasteland)
       expect(sendWasteland.pendingPrefill.value).toBeNull()
-    })
-
-    it('suggests the heading for the prefilled duration', async () => {
-      const sendWasteland = useSendToWasteland(() => 'vault-1')
 
       sendWasteland.open({ dwellerId: 'dweller-adult', firstName: 'Adult' }, undefined, {
         duration: 24,
+        stimpaks: 5,
+        radaways: 3,
       })
+      expect(sendWasteland.pendingPrefill.value).toEqual({ duration: 24, stimpaks: 5, radaways: 3 })
+
       await flushPromises()
+      expect(apiMocks.suggestHeading).toHaveBeenLastCalledWith('vault-1', expect.any(String), 24)
 
-      expect(apiMocks.suggestHeading).toHaveBeenCalledWith('vault-1', expect.any(String), 24)
-    })
-
-    it('default open does not seed a prefill', () => {
-      const sendWasteland = useSendToWasteland(() => 'vault-1')
-
-      sendWasteland.open({ dwellerId: 'dweller-adult', firstName: 'Adult' })
-
+      sendWasteland.cancel()
       expect(sendWasteland.pendingPrefill.value).toBeNull()
     })
   })

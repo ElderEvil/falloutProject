@@ -7,124 +7,61 @@ import { MARKER_GLYPH_SIZE, PLACE_MARKER_GLYPH_SCALE } from '@/modules/map/model
 /**
  * Regression tests for invisible markers on the World Map.
  *
- * Bug: the icon rendered inside an SVG <foreignObject> wrapped in HTML <div>s.
- * In Chromium a <foreignObject> nested under an HTML element collapses to 0x0,
- * so markers were present in the DOM but invisible.
- *
- * Fix: the glyph renders natively as a <g class="marker-glyph"> wrapping the
- * Iconify <svg>, and dweller art as a clipped SVG <image>; no <foreignObject>.
+ * The glyph must render natively as `<g class="marker-glyph">` wrapping the
+ * Iconify `<svg>`, and dweller art as a clipped SVG `<image>`: a
+ * `<foreignObject>` under an HTML parent collapses to 0x0 in Chromium and made
+ * fully-rendered markers invisible.
  */
+const glyphWidth = `${MARKER_GLYPH_SIZE * PLACE_MARKER_GLYPH_SCALE}px`
+
+function mountMarker(props: Record<string, unknown> = {}) {
+  return mount(MapMarker, {
+    props: { x: 10, y: 20, name: 'Sunken Church', type: 'origin', ...props },
+    global: { stubs: { Icon: true } },
+  })
+}
+
 describe('MapMarker', () => {
   it('renders the glyph natively in SVG (no <foreignObject> wrapper)', () => {
-    const wrapper = mount(MapMarker, {
-      props: {
-        x: 10,
-        y: 20,
-        name: 'Test Location',
-        type: 'visited',
-      },
-      global: {
-        stubs: { Icon: true },
-      },
-    })
-
-    const g = wrapper.find('g.map-marker')
-    expect(g.exists()).toBe(true)
-
-    // No foreignObject: the icon must stay a native SVG <svg>.
+    const g = mountMarker({ type: 'visited' }).find('g.map-marker')
     expect(g.find('foreignObject').exists()).toBe(false)
-
-    const glyph = g.find('g.marker-glyph')
-    expect(glyph.exists()).toBe(true)
-    expect(glyph.findComponent(Icon).exists()).toBe(true)
+    expect(g.find('g.marker-glyph').findComponent(Icon).exists()).toBe(true)
   })
 
   it('shrinks only the glyph when iconScale is set', () => {
-    const wrapper = mount(MapMarker, {
-      props: {
-        x: 10,
-        y: 20,
-        name: 'Gas Station',
-        type: 'visited',
-        iconScale: PLACE_MARKER_GLYPH_SCALE,
-      },
-      global: {
-        stubs: { Icon: true },
-      },
-    })
-
-    const icon = wrapper.findComponent(Icon)
-    expect(icon.props('width')).toBe(`${MARKER_GLYPH_SIZE * PLACE_MARKER_GLYPH_SCALE}px`)
+    const wrapper = mountMarker({ iconScale: PLACE_MARKER_GLYPH_SCALE })
+    expect(wrapper.findComponent(Icon).props('width')).toBe(glyphWidth)
     expect(wrapper.find('circle.marker-hit-area').attributes('r')).toBe('6')
     expect(wrapper.find('circle.marker-backing').attributes('r')).toBe('4.2')
   })
 
   it('shrinks disc, rings, portrait and label together when bodyScale is set', () => {
-    const wrapper = mount(MapMarker, {
-      props: {
-        x: 10,
-        y: 20,
-        name: 'Gas Station',
-        type: 'visited',
-        iconScale: PLACE_MARKER_GLYPH_SCALE,
-        bodyScale: 0.72,
-        selected: true,
-        exploring: true,
-      },
-      global: {
-        stubs: { Icon: true },
-      },
+    const wrapper = mountMarker({
+      iconScale: PLACE_MARKER_GLYPH_SCALE,
+      bodyScale: 0.72,
+      selected: true,
+      exploring: true,
     })
-
     // Body geometry follows the factor, the glyph keeps its own size and the
     // hit area stays full, so a smaller marker never costs an easier click.
     expect(wrapper.find('circle.marker-backing').attributes('r')).toBe('3.024')
     expect(wrapper.find('circle.marker-select-ring').attributes('r')).toBe('2.232')
     expect(wrapper.find('circle.marker-exploring-ring').attributes('r')).toBe('2.232')
     expect(wrapper.find('circle.marker-hit-area').attributes('r')).toBe('6')
-    expect(wrapper.findComponent(Icon).props('width')).toBe(
-      `${MARKER_GLYPH_SIZE * PLACE_MARKER_GLYPH_SCALE}px`
-    )
+    expect(wrapper.findComponent(Icon).props('width')).toBe(glyphWidth)
     const label = wrapper.find('text.marker-label')
     expect(label.attributes('y')).toBe('-2.448')
     expect(label.attributes('style')).toContain('font-size: 1.728px')
   })
 
-  it('renders an enlarged transparent hit area beneath the icon', () => {
-    const wrapper = mount(MapMarker, {
-      props: {
-        x: 10,
-        y: 20,
-        name: 'Sunken Church',
-        type: 'origin',
-      },
-    })
-
-    const g = wrapper.find('g.map-marker')
+  it('renders a transparent hit area and a dark backing disc beneath the glyph', () => {
+    const g = mountMarker().find('g.map-marker')
     const hit = g.find('circle.marker-hit-area')
-    expect(hit.exists()).toBe(true)
     expect(hit.attributes('r')).toBe('6')
     expect(hit.attributes('fill')).toBe('transparent')
-  })
 
-  it('renders a uniform dark backing disc directly beneath the glyph', () => {
-    const wrapper = mount(MapMarker, {
-      props: {
-        x: 10,
-        y: 20,
-        name: 'Sunken Church',
-        type: 'origin',
-      },
-      global: {
-        stubs: { Icon: true },
-      },
-    })
-
-    const g = wrapper.find('g.map-marker')
     const backing = g.find('circle.marker-backing')
-    expect(backing.exists()).toBe(true)
     expect(backing.attributes('r')).toBe('4.2')
-
     const children = Array.from(g.element.children)
     expect(children.indexOf(backing.element)).toBeLessThan(
       children.indexOf(g.find('g.marker-glyph').element)
@@ -132,96 +69,36 @@ describe('MapMarker', () => {
   })
 
   it('still exposes the tooltip text via aria-label and native <title>', () => {
-    const wrapper = mount(MapMarker, {
-      props: {
-        x: 30,
-        y: 40,
-        name: 'Sunken Church',
-        type: 'origin',
-      },
-      global: {
-        stubs: { Icon: true },
-      },
-    })
-
-    const g = wrapper.find('g.map-marker')
-    expect(g.attributes('aria-label')).toBe('Sunken Church (Origin)')
-    expect(g.find('title').text()).toBe('Sunken Church (Origin)')
+    const wrapper = mountMarker()
+    expect(wrapper.attributes('aria-label')).toBe('Sunken Church (Origin)')
+    expect(wrapper.find('title').text()).toBe('Sunken Church (Origin)')
   })
 
   it('applies marker-locked class and shows "Unknown Location" when is_unlocked is false', () => {
-    const wrapper = mount(MapMarker, {
-      props: {
-        x: 50,
-        y: 60,
-        name: 'Hidden Place',
-        type: 'discovery',
-        is_unlocked: false,
-      },
-      global: {
-        stubs: { Icon: true },
-      },
-    })
-
-    const g = wrapper.find('g.map-marker')
-    expect(g.classes()).toContain('marker-locked')
-    expect(g.attributes('aria-label')).toBe('Unknown Location (Discovery)')
-    expect(g.find('title').text()).toBe('Unknown Location (Discovery)')
-    expect(g.find('.marker-label').text()).toBe('Unknown Location')
+    const wrapper = mountMarker({ name: 'Hidden Place', type: 'discovery', is_unlocked: false })
+    expect(wrapper.find('g.map-marker').classes()).toContain('marker-locked')
+    expect(wrapper.attributes('aria-label')).toBe('Unknown Location (Discovery)')
+    expect(wrapper.find('title').text()).toBe('Unknown Location (Discovery)')
+    expect(wrapper.find('.marker-label').text()).toBe('Unknown Location')
   })
 
   it('does not apply marker-locked to vault types even when is_unlocked is false', () => {
-    const wrapper = mount(MapMarker, {
-      props: {
-        x: 50,
-        y: 60,
-        name: 'Vault 101',
-        type: 'vault',
-        is_unlocked: false,
-      },
-      global: {
-        stubs: { Icon: true },
-      },
-    })
-
-    const g = wrapper.find('g.map-marker')
-    expect(g.classes()).not.toContain('marker-locked')
-    expect(g.find('.marker-label').text()).toBe('Vault 101')
+    const wrapper = mountMarker({ name: 'Vault 101', type: 'vault', is_unlocked: false })
+    expect(wrapper.classes()).not.toContain('marker-locked')
+    expect(wrapper.find('.marker-label').text()).toBe('Vault 101')
   })
 
-  it('pulses an unlocked discovery only while unseen', () => {
-    const wrapper = mount(MapMarker, {
-      props: {
-        x: 10,
-        y: 20,
-        name: 'Sunken Church',
-        type: 'discovery',
-        is_unlocked: true,
-        unseen: true,
-      },
-      global: {
-        stubs: { Icon: true },
-      },
-    })
-
-    expect(wrapper.find('g.marker-glyph').classes()).toContain('marker-discovery')
+  it.each([
+    ['an unlocked unseen discovery', { type: 'discovery', is_unlocked: true, unseen: true }, true],
+    ['a locked discovery', { type: 'discovery', is_unlocked: false, unseen: true }, false],
+    ['a non-discovery', { type: 'visited', is_unlocked: true, unseen: true }, false],
+  ])('pulses %s only while it qualifies', (_, props, pulses) => {
+    const classes = mountMarker(props).find('g.marker-glyph').classes()
+    expect(classes.includes('marker-discovery')).toBe(pulses)
   })
 
   it('stops the pulse once an unseen discovery becomes seen', async () => {
-    const wrapper = mount(MapMarker, {
-      props: {
-        x: 10,
-        y: 20,
-        name: 'Sunken Church',
-        type: 'discovery',
-        is_unlocked: true,
-        unseen: true,
-      },
-      global: {
-        stubs: { Icon: true },
-      },
-    })
-
+    const wrapper = mountMarker({ type: 'discovery', is_unlocked: true, unseen: true })
     expect(wrapper.find('g.marker-glyph').classes()).toContain('marker-discovery')
 
     await wrapper.setProps({ unseen: false })
@@ -229,215 +106,86 @@ describe('MapMarker', () => {
     expect(wrapper.find('g.marker-glyph').classes()).not.toContain('marker-discovery')
   })
 
-  it('never pulses locked discoveries, even while unseen', () => {
-    const wrapper = mount(MapMarker, {
-      props: {
-        x: 10,
-        y: 20,
-        name: 'Hidden Place',
-        type: 'discovery',
-        is_unlocked: false,
-        unseen: true,
-      },
-      global: {
-        stubs: { Icon: true },
-      },
-    })
-
-    expect(wrapper.find('g.marker-glyph').classes()).not.toContain('marker-discovery')
-  })
-
-  it('never pulses non-discovery types, even while unseen', () => {
-    const wrapper = mount(MapMarker, {
-      props: {
-        x: 10,
-        y: 20,
-        name: 'Old Shack',
-        type: 'visited',
-        is_unlocked: true,
-        unseen: true,
-      },
-      global: {
-        stubs: { Icon: true },
-      },
-    })
-
-    expect(wrapper.find('g.marker-glyph').classes()).not.toContain('marker-discovery')
-  })
-
-  it('renders selection as a static ring without pulse animation', () => {
-    const wrapper = mount(MapMarker, {
-      props: {
-        x: 10,
-        y: 20,
-        name: 'Sunken Church',
+  it.each([true, false])(
+    'renders selection as a static ring only when selected=%s',
+    (selected) => {
+      const wrapper = mountMarker({
         type: 'discovery',
         is_unlocked: true,
-        unseen: false,
-        selected: true,
-      },
-      global: {
-        stubs: { Icon: true },
-      },
-    })
-
-    expect(wrapper.find('.marker-select-ring').exists()).toBe(true)
-    expect(wrapper.find('g.marker-glyph').classes()).not.toContain('marker-discovery')
-  })
-
-  it('renders no selection ring when unselected', () => {
-    const wrapper = mount(MapMarker, {
-      props: {
-        x: 10,
-        y: 20,
-        name: 'Sunken Church',
-        type: 'discovery',
-        is_unlocked: true,
-        unseen: true,
-        selected: false,
-      },
-      global: {
-        stubs: { Icon: true },
-      },
-    })
-
-    expect(wrapper.find('.marker-select-ring').exists()).toBe(false)
-    expect(wrapper.find('.marker-select-ping').exists()).toBe(false)
-  })
+        unseen: !selected,
+        selected,
+      })
+      expect(wrapper.find('.marker-select-ring').exists()).toBe(selected)
+      if (selected) {
+        expect(wrapper.find('g.marker-glyph').classes()).not.toContain('marker-discovery')
+      } else {
+        expect(wrapper.find('.marker-select-ping').exists()).toBe(false)
+      }
+    }
+  )
 
   it('emits a single ping element on the click transition', () => {
-    const wrapper = mount(MapMarker, {
-      props: {
-        x: 10,
-        y: 20,
-        name: 'Sunken Church',
-        type: 'visited',
-        selected: true,
-      },
-      global: {
-        stubs: { Icon: true },
-      },
-    })
-
-    expect(wrapper.findAll('.marker-select-ping')).toHaveLength(1)
+    expect(mountMarker({ type: 'visited', selected: true }).findAll('.marker-select-ping')).toHaveLength(1)
   })
 
   describe('Expedition site markers', () => {
     it('renders a custom icon and label override for a site', () => {
-      const wrapper = mount(MapMarker, {
-        props: {
-          x: 10,
-          y: 20,
-          name: 'Red Rocket Gas Station',
-          type: 'expedition_site',
-          icon: 'mdi:gas-station',
-          label: 'Expedition Site',
-        },
-        global: {
-          stubs: { Icon: true },
-        },
+      const wrapper = mountMarker({
+        name: 'Red Rocket Gas Station',
+        type: 'expedition_site',
+        icon: 'mdi:gas-station',
+        label: 'Expedition Site',
       })
-
       expect(wrapper.findComponent(Icon).props('icon')).toBe('mdi:gas-station')
       expect(wrapper.attributes('aria-label')).toBe('Red Rocket Gas Station (Expedition Site)')
     })
 
     it('appends the status line to the tooltip', () => {
-      const wrapper = mount(MapMarker, {
-        props: {
-          x: 10,
-          y: 20,
-          name: 'Red Rocket Gas Station',
-          type: 'expedition_site',
-          status: 'READY · LVL 5 · 3 ROOMS',
-        },
-        global: { stubs: { Icon: true } },
+      const wrapper = mountMarker({
+        name: 'Red Rocket Gas Station',
+        type: 'expedition_site',
+        status: 'READY · LVL 5 · 3 ROOMS',
       })
-
       expect(wrapper.attributes('aria-label')).toBe(
         'Red Rocket Gas Station (Expedition Sites) — READY · LVL 5 · 3 ROOMS'
       )
       expect(wrapper.find('title').text()).toContain('READY · LVL 5 · 3 ROOMS')
     })
 
-    it('renders the cleared badge when cleared', () => {
-      const wrapper = mount(MapMarker, {
-        props: {
-          x: 10,
-          y: 20,
-          name: 'Red Rocket Gas Station',
-          type: 'expedition_site',
-          cleared: true,
-        },
-        global: { stubs: { Icon: true } },
-      })
-
-      expect(wrapper.find('.marker-cleared-badge').exists()).toBe(true)
-    })
-
-    it('renders no cleared badge when not cleared', () => {
-      const wrapper = mount(MapMarker, {
-        props: {
-          x: 10,
-          y: 20,
-          name: 'Red Rocket Gas Station',
-          type: 'expedition_site',
-          cleared: false,
-        },
-        global: { stubs: { Icon: true } },
-      })
-
-      expect(wrapper.find('.marker-cleared-badge').exists()).toBe(false)
+    it.each([
+      [true, true],
+      [false, false],
+    ])('renders the cleared badge only when cleared=%s', (cleared, shown) => {
+      const wrapper = mountMarker({ name: 'Red Rocket Gas Station', type: 'expedition_site', cleared })
+      expect(wrapper.find('.marker-cleared-badge').exists()).toBe(shown)
     })
   })
 
   describe('Explorer tracking', () => {
-    it('renders the pulsing exploring ring on a dispatched target', () => {
-      const wrapper = mount(MapMarker, {
-        props: {
-          x: 10,
-          y: 20,
-          name: 'Rusty Depot',
-          type: 'visited',
-          exploring: true,
-          status: 'Exploring — Ada',
-        },
-        global: { stubs: { Icon: true } },
+    it.each([
+      [true, true],
+      [false, false],
+    ])('renders the exploring ring only when exploring=%s', (exploring, shown) => {
+      const wrapper = mountMarker({
+        name: 'Rusty Depot',
+        type: 'visited',
+        exploring,
+        status: 'Exploring — Ada',
       })
-
-      expect(wrapper.find('.marker-exploring-ring').exists()).toBe(true)
-      expect(wrapper.attributes('aria-label')).toContain('Exploring — Ada')
-    })
-
-    it('renders no exploring ring when not exploring', () => {
-      const wrapper = mount(MapMarker, {
-        props: {
-          x: 10,
-          y: 20,
-          name: 'Rusty Depot',
-          type: 'visited',
-          exploring: false,
-        },
-        global: { stubs: { Icon: true } },
-      })
-
-      expect(wrapper.find('.marker-exploring-ring').exists()).toBe(false)
+      expect(wrapper.find('.marker-exploring-ring').exists()).toBe(shown)
+      if (exploring) expect(wrapper.attributes('aria-label')).toContain('Exploring — Ada')
     })
 
     it('renders a non-interactive explorer marker without focus/role semantics', () => {
-      const wrapper = mount(MapMarker, {
-        props: {
-          x: 42,
-          y: 43,
-          name: 'Bob',
-          type: 'explorer',
-          icon: 'mdi:walk',
-          label: 'Explorer',
-          interactive: false,
-        },
-        global: { stubs: { Icon: true } },
+      const wrapper = mountMarker({
+        x: 42,
+        y: 43,
+        name: 'Bob',
+        type: 'explorer',
+        icon: 'mdi:walk',
+        label: 'Explorer',
+        interactive: false,
       })
-
       expect(wrapper.attributes('tabindex')).toBeUndefined()
       expect(wrapper.attributes('role')).toBeUndefined()
       expect(wrapper.attributes('aria-label')).toBeUndefined()
@@ -445,38 +193,21 @@ describe('MapMarker', () => {
     })
 
     it('does not emit click for a non-interactive marker', async () => {
-      const wrapper = mount(MapMarker, {
-        props: {
-          x: 42,
-          y: 43,
-          name: 'Bob',
-          type: 'explorer',
-          interactive: false,
-        },
-        global: { stubs: { Icon: true } },
-      })
-
+      const wrapper = mountMarker({ x: 42, y: 43, name: 'Bob', type: 'explorer', interactive: false })
       await wrapper.trigger('click')
       expect(wrapper.emitted('click')).toBeUndefined()
     })
   })
 
   describe('Marker art (portrait image)', () => {
-    it('renders a clipped SVG <image> when art is present', () => {
-      const wrapper = mount(MapMarker, {
-        props: {
-          x: 10,
-          y: 20,
-          name: 'Bob',
-          type: 'explorer',
-          icon: 'mdi:walk',
-          artSrc: 'https://cdn.example/bob.png',
-        },
-        global: { stubs: { Icon: true } },
+    it('renders a clipped SVG <image> in place of the glyph when art is present', () => {
+      const wrapper = mountMarker({
+        name: 'Bob',
+        type: 'explorer',
+        icon: 'mdi:walk',
+        artSrc: 'https://cdn.example/bob.png',
       })
-
       const image = wrapper.find('g.map-marker image')
-      expect(image.exists()).toBe(true)
       expect(image.attributes('href')).toBe('https://cdn.example/bob.png')
       // A circular clip keeps the thumbnail inside the marker disc.
       expect(image.attributes('clip-path')).toMatch(/^url\(#.+\)$/)
@@ -485,88 +216,39 @@ describe('MapMarker', () => {
     })
 
     it('focuses the top of the portrait so thumbnails show the head', () => {
-      const wrapper = mount(MapMarker, {
-        props: {
-          x: 10,
-          y: 20,
-          name: 'Bob',
-          type: 'explorer',
-          icon: 'mdi:walk',
-          artSrc: 'https://cdn.example/bob.png',
-        },
-        global: { stubs: { Icon: true } },
-      })
-
+      const image = mountMarker({
+        name: 'Bob',
+        type: 'explorer',
+        icon: 'mdi:walk',
+        artSrc: 'https://cdn.example/bob.png',
+      }).find('g.map-marker image').element.outerHTML
       // Matches DwellerPortrait's head focus; centering crops full-body portraits.
-      const image = wrapper.find('g.map-marker image').element.outerHTML
       expect(image).toContain('xMidYMin slice')
       expect(image).not.toContain('xMidYMid')
     })
 
-    it('resolves backend-static art against the API origin', () => {
-      const wrapper = mount(MapMarker, {
-        props: {
-          x: 10,
-          y: 20,
-          name: 'Bob',
-          type: 'explorer',
-          icon: 'mdi:walk',
-          artSrc: '/static/portraits/bob.png',
-        },
-        global: { stubs: { Icon: true } },
-      })
-
-      expect(wrapper.find('g.map-marker image').attributes('href')).toBe(
-        'http://localhost:8000/static/portraits/bob.png'
-      )
-    })
-
-    it('keeps location data-URL art working', () => {
-      const wrapper = mount(MapMarker, {
-        props: {
-          x: 10,
-          y: 20,
-          name: 'Gas Station',
-          type: 'visited',
-          artSrc: 'data:image/png;base64,art',
-        },
-        global: { stubs: { Icon: true } },
-      })
-
-      expect(wrapper.find('g.map-marker image').attributes('href')).toBe(
-        'data:image/png;base64,art'
-      )
+    it.each([
+      ['an absolute URL', 'https://cdn.example/bob.png', 'https://cdn.example/bob.png'],
+      ['backend-static art', '/static/portraits/bob.png', 'http://localhost:8000/static/portraits/bob.png'],
+      ['location data-URL art', 'data:image/png;base64,art', 'data:image/png;base64,art'],
+    ])('resolves %s to a usable href', (_, artSrc, href) => {
+      const wrapper = mountMarker({ name: 'Bob', type: 'explorer', icon: 'mdi:walk', artSrc })
+      expect(wrapper.find('g.map-marker image').attributes('href')).toBe(href)
     })
 
     it('renders the marker icon when no art is present', () => {
-      const wrapper = mount(MapMarker, {
-        props: {
-          x: 10,
-          y: 20,
-          name: 'Old Shack',
-          type: 'visited',
-          icon: 'mdi:cave',
-        },
-        global: { stubs: { Icon: true } },
-      })
-
+      const wrapper = mountMarker({ name: 'Old Shack', type: 'visited', icon: 'mdi:cave' })
       expect(wrapper.find('g.map-marker image').exists()).toBe(false)
       expect(wrapper.findComponent(Icon).props('icon')).toBe('mdi:cave')
     })
 
     it('keeps the icon fallback for locked markers despite art', () => {
-      const wrapper = mount(MapMarker, {
-        props: {
-          x: 10,
-          y: 20,
-          name: 'Hidden Place',
-          type: 'discovery',
-          is_unlocked: false,
-          artSrc: 'https://cdn.example/hidden.png',
-        },
-        global: { stubs: { Icon: true } },
+      const wrapper = mountMarker({
+        name: 'Hidden Place',
+        type: 'discovery',
+        is_unlocked: false,
+        artSrc: 'https://cdn.example/hidden.png',
       })
-
       expect(wrapper.find('g.map-marker image').exists()).toBe(false)
       // Identity survives being unscouted: the archetype glyph stays, dimmed
       // inside a dashed ring, instead of being replaced by a "?" marker.
@@ -575,86 +257,41 @@ describe('MapMarker', () => {
     })
 
     it('swaps to the marker icon fallback when art fails to load', async () => {
-      const wrapper = mount(MapMarker, {
-        props: {
-          x: 10,
-          y: 20,
-          name: 'Bob',
-          type: 'explorer',
-          icon: 'mdi:walk',
-          artSrc: 'https://cdn.example/bob.png',
-        },
-        global: { stubs: { Icon: true } },
+      const wrapper = mountMarker({
+        name: 'Bob',
+        type: 'explorer',
+        icon: 'mdi:walk',
+        artSrc: 'https://cdn.example/bob.png',
       })
-
       await wrapper.find('g.map-marker image').trigger('error')
 
       expect(wrapper.find('g.map-marker image').exists()).toBe(false)
       const glyph = wrapper.find('g.marker-glyph')
-      expect(glyph.exists()).toBe(true)
       expect(glyph.findComponent(Icon).props('icon')).toBe('mdi:walk')
     })
   })
 
   describe('Danger ramp', () => {
     it('labels catalog danger without adding a risk color', () => {
-      const wrapper = mount(MapMarker, {
-        props: {
-          x: 10,
-          y: 20,
-          name: 'Raider Camp',
-          type: 'visited',
-          risk: 'high',
-        },
-        global: { stubs: { Icon: true } },
-      })
-
+      const wrapper = mountMarker({ name: 'Raider Camp', type: 'visited', risk: 'high' })
       expect(wrapper.find('g.map-marker.marker-risk-high').exists()).toBe(false)
       expect(wrapper.attributes('aria-label')).toContain('High risk')
       expect(wrapper.find('circle.marker-backing').exists()).toBe(true)
     })
 
     it('falls back to the base difficulty band when the risk is missing', () => {
-      const wrapper = mount(MapMarker, {
-        props: {
-          x: 10,
-          y: 20,
-          name: 'Gas Station',
-          type: 'visited',
-          baseDifficulty: 3,
-        },
-        global: { stubs: { Icon: true } },
-      })
-
+      const wrapper = mountMarker({ name: 'Gas Station', type: 'visited', baseDifficulty: 3 })
       expect(wrapper.find('g.map-marker.marker-risk-medium').exists()).toBe(false)
       expect(wrapper.attributes('aria-label')).toContain('Medium risk')
     })
 
-    it('keeps the neutral ramp for a marker without catalog risk data', () => {
-      const wrapper = mount(MapMarker, {
-        props: { x: 10, y: 20, name: 'Old Shack', type: 'visited' },
-        global: { stubs: { Icon: true } },
-      })
-
+    it.each([
+      ['without catalog risk data', { name: 'Old Shack', type: 'visited' }],
+      ['for a locked location', { name: 'Hidden Camp', type: 'discovery', is_unlocked: false, risk: 'high' }],
+    ])('keeps the neutral ramp %s', (_, props) => {
+      const wrapper = mountMarker(props)
       expect(wrapper.find('g.map-marker.marker-risk-medium').exists()).toBe(false)
       expect(wrapper.find('g.map-marker.marker-risk-high').exists()).toBe(false)
-    })
-
-    it('does not leak risk styling for a locked location', () => {
-      const wrapper = mount(MapMarker, {
-        props: {
-          x: 10,
-          y: 20,
-          name: 'Hidden Camp',
-          type: 'discovery',
-          is_unlocked: false,
-          risk: 'high',
-        },
-        global: { stubs: { Icon: true } },
-      })
-
-      expect(wrapper.find('g.map-marker.marker-risk-high').exists()).toBe(false)
-      expect(wrapper.find('.marker-locked').exists()).toBe(true)
       expect(wrapper.attributes('aria-label')).not.toContain('High risk')
     })
   })
@@ -662,32 +299,29 @@ describe('MapMarker', () => {
 
 describe('MapMarker zoom compensation', () => {
   it('uses place-group color only for known places, keeping risk as text', async () => {
-    const wrapper = mount(MapMarker, {
-      props: {
-        x: 20,
-        y: 30,
-        name: 'Camp',
-        type: 'discovery',
-        color: 'var(--color-family-threat)',
-        risk: 'high',
-      },
-      global: { stubs: { Icon: true } },
+    const wrapper = mountMarker({
+      x: 20,
+      y: 30,
+      name: 'Camp',
+      type: 'discovery',
+      color: 'var(--color-family-threat)',
+      risk: 'high',
     })
-    expect(wrapper.find('.marker-glyph').attributes('style')).toContain(
-      'var(--color-family-threat)'
-    )
+    expect(wrapper.find('.marker-glyph').attributes('style')).toContain('var(--color-family-threat)')
     expect(wrapper.attributes('aria-label')).toContain('High risk')
     await wrapper.setProps({ is_unlocked: false })
-    expect(wrapper.find('.marker-glyph').attributes('style')).toContain(
-      'var(--color-theme-primary)'
-    )
+    expect(wrapper.find('.marker-glyph').attributes('style')).toContain('var(--color-theme-primary)')
     expect(wrapper.attributes('aria-label')).not.toContain('High risk')
   })
 
   it('uses a clock badge and readable cooldown status', () => {
-    const wrapper = mount(MapMarker, {
-      props: { x: 20, y: 30, name: 'Depot', type: 'visited', cleared: true, cooldown: true },
-      global: { stubs: { Icon: true } },
+    const wrapper = mountMarker({
+      x: 20,
+      y: 30,
+      name: 'Depot',
+      type: 'visited',
+      cleared: true,
+      cooldown: true,
     })
     expect(wrapper.find('.marker-cooldown-badge').exists()).toBe(true)
     expect(wrapper.find('.marker-cleared-badge').exists()).toBe(false)
@@ -695,10 +329,7 @@ describe('MapMarker zoom compensation', () => {
   })
 
   it('scales around its coordinate without shifting the location', () => {
-    const wrapper = mount(MapMarker, {
-      props: { x: 20, y: 30, name: 'Depot', type: 'visited', scale: 0.5 },
-      global: { stubs: { Icon: true } },
-    })
+    const wrapper = mountMarker({ x: 20, y: 30, name: 'Depot', type: 'visited', scale: 0.5 })
     expect(wrapper.find('g.map-marker').attributes('transform')).toBe(
       'translate(20, 30) scale(0.5)'
     )

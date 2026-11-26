@@ -4,10 +4,8 @@ import MapClusterMarker from '@/modules/map/components/MapClusterMarker.vue'
 
 describe('MapClusterMarker', () => {
   it('renders a single accessible badge showing the member count', () => {
-    const wrapper = mount(MapClusterMarker, { props: { x: 30, y: 40, count: 5 } })
+    const badge = mount(MapClusterMarker, { props: { x: 30, y: 40, count: 5 } }).find('.map-cluster')
 
-    const badge = wrapper.find('.map-cluster')
-    expect(badge.exists()).toBe(true)
     expect(badge.attributes('transform')).toBe('translate(30, 40)')
     expect(badge.attributes('role')).toBe('button')
     expect(badge.attributes('aria-label')).toBe('Zoom in — 5 nearby discoveries')

@@ -37,15 +37,15 @@ describe('Wasteland scenes', () => {
   })
 
   it('crops the single landscape artwork for the encounter frame', () => {
-    const wrapper = mount(WastelandScene, {
+    const image = mount(WastelandScene, {
       props: { ...props, scene: 'supermarket_interior', frame: 'encounter' },
-    })
-    expect(wrapper.get('img').attributes()).toMatchObject({
+    }).get('img')
+    expect(image.attributes()).toMatchObject({
       width: '1280',
       height: '720',
       alt: 'Abandoned supermarket',
     })
-    expect(wrapper.get('img').attributes('src')).toContain('supermarket-interior-landscape')
+    expect(image.attributes('src')).toContain('supermarket-interior-landscape')
   })
 
   it('keeps the scene and explorer readable when artwork fails, and retries a changed scene', async () => {
@@ -59,9 +59,7 @@ describe('Wasteland scenes', () => {
   })
 
   it('reserves the encounter frame and actor for a site without authored artwork', () => {
-    const wrapper = mount(WastelandScene, {
-      props: { ...props, scene: null, frame: 'encounter' },
-    })
+    const wrapper = mount(WastelandScene, { props: { ...props, scene: null, frame: 'encounter' } })
     expect(wrapper.find('img').exists()).toBe(false)
     expect(wrapper.get('[role="img"]').attributes('aria-label')).toBe(props.heading)
     expect(wrapper.get('[role="group"]').exists()).toBe(true)

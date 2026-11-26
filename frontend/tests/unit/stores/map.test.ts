@@ -21,6 +21,17 @@ vi.mock('@/core/composables/useToast', () => ({
   useToast: () => mockToast,
 }))
 
+/** A promise whose settlement the test drives. */
+function deferred<T>() {
+  let resolve!: (value: T) => void
+  let reject!: (reason: unknown) => void
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res
+    reject = rej
+  })
+  return { promise, resolve, reject }
+}
+
 describe('Map Store', () => {
   const mockLocation = {
     id: 'loc-1',
@@ -79,19 +90,22 @@ describe('Map Store', () => {
     vi.useRealTimers()
   })
 
-  describe('State Initialization', () => {
-    it('should initialize with empty state', () => {
+  describe('State initialization', () => {
+    it('should start empty with no viewed locations or unseen discoveries', () => {
       const store = useMapStore()
       expect(store.locations).toEqual([])
       expect(store.vaultMarkers).toEqual([])
       expect(store.isLoading).toBe(false)
       expect(store.error).toBeNull()
+      expect(store.viewedLocationKeys.size).toBe(0)
+      expect(store.hasUnseenDiscoveries).toBe(false)
     })
   })
 
   describe('fetchMap Action', () => {
-    it('should fetch map data and populate state successfully', async () => {
+    it('should fetch map data, populate state and clear a previous error', async () => {
       const store = useMapStore()
+      store.error = 'Previous error'
       vi.mocked(mapService.getVaultMap).mockResolvedValueOnce(mockMapResponse)
 
       await store.fetchMap('vault-1')
@@ -104,7 +118,6 @@ describe('Map Store', () => {
     })
 
     it('stores the place-group catalog and indexes it by key', async () => {
-      const store = useMapStore()
       const groups = [
         {
           key: 'gas_station',
@@ -119,6 +132,7 @@ describe('Map Store', () => {
         place_groups: groups,
       })
 
+      const store = useMapStore()
       await store.fetchMap('vault-1')
 
       expect(store.placeGroups).toEqual(groups)
@@ -164,18 +178,6 @@ describe('Map Store', () => {
       expect(store.error).toBeNull()
       expect(store.isLoading).toBe(false)
     })
-
-    it('should clear previous error on successful fetch', async () => {
-      const store = useMapStore()
-      store.error = 'Previous error'
-
-      vi.mocked(mapService.getVaultMap).mockResolvedValueOnce(mockMapResponse)
-
-      await store.fetchMap('vault-1')
-
-      expect(store.error).toBeNull()
-      expect(store.locations).toEqual(mockMapResponse.locations)
-    })
   })
 
   describe('Polling', () => {
@@ -189,7 +191,6 @@ describe('Map Store', () => {
       // First fetch shouldn't happen immediately (immediate: false)
       expect(mapService.getVaultMap).not.toHaveBeenCalled()
 
-      // Advance 30 seconds - should trigger a poll
       await vi.advanceTimersByTimeAsync(30000)
 
       expect(mapService.getVaultMap).toHaveBeenCalledTimes(1)
@@ -214,7 +215,6 @@ describe('Map Store', () => {
     it('poll should update state on each interval', async () => {
       vi.useFakeTimers()
       const store = useMapStore()
-
       const response1 = { locations: [mockLocation], vault_markers: [mockVaultMarker] }
       const response2 = {
         locations: [mockLocation, mockLocation2],
@@ -224,7 +224,6 @@ describe('Map Store', () => {
       vi.mocked(mapService.getVaultMap)
         .mockResolvedValueOnce(response1)
         .mockResolvedValueOnce(response2)
-
       store.startPolling('vault-1')
 
       await vi.advanceTimersByTimeAsync(30000)
@@ -240,21 +239,16 @@ describe('Map Store', () => {
       vi.mocked(mapService.getVaultMap).mockResolvedValue(mockMapResponse)
 
       store.startPolling('vault-1')
-
-      // Let one poll cycle through
       await vi.advanceTimersByTimeAsync(30000)
       expect(mapService.getVaultMap).toHaveBeenCalledTimes(1)
 
       store.stopPolling()
-
-      // Advance another cycle
       await vi.advanceTimersByTimeAsync(30000)
       expect(mapService.getVaultMap).toHaveBeenCalledTimes(1) // Still 1
     })
 
     it('fetchMap should work independently from polling', async () => {
       const store = useMapStore()
-
       const fetchResponse = { locations: [mockLocation], vault_markers: [] }
       const pollResponse = {
         locations: [mockLocation, mockLocation2],
@@ -265,12 +259,10 @@ describe('Map Store', () => {
         .mockResolvedValueOnce(fetchResponse)
         .mockResolvedValueOnce(pollResponse)
 
-      // Direct fetch
       await store.fetchMap('vault-1')
       expect(store.locations).toHaveLength(1)
       expect(store.vaultMarkers).toHaveLength(0)
 
-      // Another direct fetch (uses second mock)
       await store.fetchMap('vault-1')
       expect(store.locations).toHaveLength(2)
       expect(store.vaultMarkers).toHaveLength(1)
@@ -278,12 +270,6 @@ describe('Map Store', () => {
   })
 
   describe('Viewed location state', () => {
-    it('should start with no viewed locations and no unseen discoveries', () => {
-      const store = useMapStore()
-      expect(store.viewedLocationKeys.size).toBe(0)
-      expect(store.hasUnseenDiscoveries).toBe(false)
-    })
-
     it('should report unseen discoveries until each is marked viewed', () => {
       const store = useMapStore()
       store.locations = [mockLocation, mockLocation2]
@@ -303,19 +289,12 @@ describe('Map Store', () => {
       expect(store.hasUnseenDiscoveries).toBe(false)
     })
 
-    it('should keep viewed ids across map refreshes', async () => {
+    it('should keep viewed ids across map refreshes and scope them per vault', async () => {
       const store = useMapStore()
       store.markLocationViewed('vault-1', 'loc-1')
 
       vi.mocked(mapService.getVaultMap).mockResolvedValueOnce(mockMapResponse)
       await store.fetchMap('vault-1')
-
-      expect(store.isLocationViewed('vault-1', 'loc-1')).toBe(true)
-    })
-
-    it('should scope viewed state per vault for the same location id', () => {
-      const store = useMapStore()
-      store.markLocationViewed('vault-1', 'loc-1')
 
       expect(store.isLocationViewed('vault-1', 'loc-1')).toBe(true)
       expect(store.isLocationViewed('vault-2', 'loc-1')).toBe(false)
@@ -347,42 +326,23 @@ describe('Map Store', () => {
   })
 
   describe('Stale-response guard', () => {
-    it('should drop poll response after stopPolling invalidates context', async () => {
+    it.each([
+      ['stopPolling', (store: ReturnType<typeof useMapStore>) => store.stopPolling()],
+      [
+        'switching vaults',
+        (store: ReturnType<typeof useMapStore>) => store.startPolling('vault-2'),
+      ],
+    ])('should drop the in-flight poll after %s invalidates context', async (_, invalidate) => {
       vi.useFakeTimers()
       const store = useMapStore()
-
-      let resolveFn: (value: any) => void
-      const controlled = new Promise((resolve) => {
-        resolveFn = resolve
-      })
-      vi.mocked(mapService.getVaultMap).mockReturnValueOnce(controlled as any)
+      const controlled = deferred<unknown>()
+      vi.mocked(mapService.getVaultMap).mockReturnValueOnce(controlled.promise as never)
 
       store.startPolling('vault-1')
       await vi.advanceTimersByTimeAsync(30000)
-      store.stopPolling()
+      invalidate(store)
 
-      resolveFn!(mockMapResponse)
-      await flushPromises()
-
-      expect(store.locations).toEqual([])
-      expect(store.vaultMarkers).toEqual([])
-    })
-
-    it('should drop poll response after switching vaults', async () => {
-      vi.useFakeTimers()
-      const store = useMapStore()
-
-      let resolveFn: (value: any) => void
-      const controlled = new Promise((resolve) => {
-        resolveFn = resolve
-      })
-      vi.mocked(mapService.getVaultMap).mockReturnValueOnce(controlled as any)
-
-      store.startPolling('vault-1')
-      await vi.advanceTimersByTimeAsync(30000)
-      store.startPolling('vault-2')
-
-      resolveFn!(mockMapResponse)
+      controlled.resolve(mockMapResponse)
       await flushPromises()
 
       expect(store.locations).toEqual([])
@@ -391,17 +351,13 @@ describe('Map Store', () => {
 
     it('should drop fetchMap response after stopPolling invalidates context', async () => {
       const store = useMapStore()
-
-      let resolveFn: (value: any) => void
-      const controlled = new Promise((resolve) => {
-        resolveFn = resolve
-      })
-      vi.mocked(mapService.getVaultMap).mockReturnValueOnce(controlled as any)
+      const controlled = deferred<unknown>()
+      vi.mocked(mapService.getVaultMap).mockReturnValueOnce(controlled.promise as never)
 
       const fetchPromise = store.fetchMap('vault-1')
       store.stopPolling()
 
-      resolveFn!(mockMapResponse)
+      controlled.resolve(mockMapResponse)
       await fetchPromise
 
       expect(store.locations).toEqual([])
@@ -410,25 +366,17 @@ describe('Map Store', () => {
 
     it('should drop fetchMap response when a newer fetchMap is called', async () => {
       const store = useMapStore()
-
-      let resolveOld: (value: any) => void
-      const oldPromise = new Promise((resolve) => {
-        resolveOld = resolve
-      })
-
-      const newData = {
-        locations: [mockLocation2],
-        vault_markers: [],
-      }
+      const old = deferred<unknown>()
+      const newData = { locations: [mockLocation2], vault_markers: [] }
 
       vi.mocked(mapService.getVaultMap)
-        .mockReturnValueOnce(oldPromise as any)
+        .mockReturnValueOnce(old.promise as never)
         .mockResolvedValueOnce(newData)
 
       const oldFetch = store.fetchMap('vault-1')
       const newFetch = store.fetchMap('vault-2')
 
-      resolveOld!(mockMapResponse)
+      old.resolve(mockMapResponse)
       await oldFetch
       await newFetch
 
@@ -440,17 +388,13 @@ describe('Map Store', () => {
     it('drops a delayed fetch response after the session changes', async () => {
       const store = useMapStore()
       const auth = useAuthStore()
-      let finish!: (value: any) => void
-      vi.mocked(mapService.getVaultMap).mockReturnValueOnce(
-        new Promise((resolve) => {
-          finish = resolve
-        }) as any
-      )
+      const pending = deferred<unknown>()
+      vi.mocked(mapService.getVaultMap).mockReturnValueOnce(pending.promise as never)
 
-      const pending = store.fetchMap('vault-1')
+      const fetch = store.fetchMap('vault-1')
       auth.sessionGeneration += 1
-      finish(mockMapResponse)
-      await pending
+      pending.resolve(mockMapResponse)
+      await fetch
 
       expect(store.locations).toEqual([])
       expect(store.vaultMarkers).toEqual([])
@@ -463,17 +407,13 @@ describe('Map Store', () => {
     it('drops a delayed fetch failure after the session changes', async () => {
       const store = useMapStore()
       const auth = useAuthStore()
-      let fail!: (reason: unknown) => void
-      vi.mocked(mapService.getVaultMap).mockReturnValueOnce(
-        new Promise((_resolve, reject) => {
-          fail = reject
-        }) as any
-      )
+      const pending = deferred<unknown>()
+      vi.mocked(mapService.getVaultMap).mockReturnValueOnce(pending.promise as never)
 
-      const pending = store.fetchMap('vault-1')
+      const fetch = store.fetchMap('vault-1')
       auth.sessionGeneration += 1
-      fail(new Error('stale session failure'))
-      await pending
+      pending.reject(new Error('stale session failure'))
+      await fetch
 
       expect(store.error).toBeNull()
       expect(store.locations).toEqual([])
@@ -484,17 +424,13 @@ describe('Map Store', () => {
       vi.useFakeTimers()
       const store = useMapStore()
       const auth = useAuthStore()
-      let finish!: (value: any) => void
-      vi.mocked(mapService.getVaultMap).mockReturnValueOnce(
-        new Promise((resolve) => {
-          finish = resolve
-        }) as any
-      )
+      const pending = deferred<unknown>()
+      vi.mocked(mapService.getVaultMap).mockReturnValueOnce(pending.promise as never)
 
       store.startPolling('vault-1')
       await vi.advanceTimersByTimeAsync(30000)
       auth.sessionGeneration += 1
-      finish(mockMapResponse)
+      pending.resolve(mockMapResponse)
       await flushPromises()
 
       expect(store.locations).toEqual([])
@@ -592,10 +528,10 @@ describe('Map Store unlock toasts', () => {
     })
 
     it('stores a well-formed snapshot', async () => {
-      const store = useMapStore()
       vi.mocked(mapService.getWorldSnapshot).mockResolvedValueOnce(
-        snapshot(new Array(80 * 80).fill('wasteland')) as any
+        snapshot(new Array(80 * 80).fill('wasteland')) as never
       )
+      const store = useMapStore()
 
       await store.fetchWorldSnapshot()
 
@@ -604,11 +540,12 @@ describe('Map Store unlock toasts', () => {
       expect(store.snapshotError).toBeNull()
     })
 
-    it('rejects a snapshot whose terrain does not match its grid', async () => {
+    it.each([
+      ['whose terrain does not match its grid', snapshot(new Array(10).fill('wasteland'))],
+      ['with a non-square grid', snapshot(new Array(80 * 60).fill('wasteland'), 80, 60)],
+    ])('rejects a snapshot %s', async (_, payload) => {
+      vi.mocked(mapService.getWorldSnapshot).mockResolvedValueOnce(payload as never)
       const store = useMapStore()
-      vi.mocked(mapService.getWorldSnapshot).mockResolvedValueOnce(
-        snapshot(new Array(10).fill('wasteland')) as any
-      )
 
       await store.fetchWorldSnapshot()
 
@@ -617,8 +554,8 @@ describe('Map Store unlock toasts', () => {
     })
 
     it('clears the snapshot on fetch failure instead of keeping stale terrain', async () => {
-      const store = useMapStore()
       vi.mocked(mapService.getWorldSnapshot).mockRejectedValueOnce(new Error('offline'))
+      const store = useMapStore()
 
       await store.fetchWorldSnapshot()
 
@@ -628,18 +565,6 @@ describe('Map Store unlock toasts', () => {
       expect(mockToast.error).toHaveBeenCalledWith(
         'World terrain unavailable — showing markers only: offline'
       )
-    })
-
-    it('rejects a non-square grid explicitly', async () => {
-      const store = useMapStore()
-      vi.mocked(mapService.getWorldSnapshot).mockResolvedValueOnce(
-        snapshot(new Array(80 * 60).fill('wasteland'), 80, 60) as any
-      )
-
-      await store.fetchWorldSnapshot()
-
-      expect(store.worldSnapshot).toBeNull()
-      expect(store.snapshotError).not.toBeNull()
     })
   })
 })

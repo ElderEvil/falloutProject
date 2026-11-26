@@ -35,20 +35,6 @@ const location: WastelandLocationWithDwellers = {
   is_unlocked: true,
 }
 
-function makeRouter() {
-  return createRouter({
-    history: createMemoryHistory(),
-    routes: [
-      { path: '/vault/:id/map', name: 'map', component: { template: '<div />' } },
-      {
-        path: '/vault/:id/dwellers/:dwellerId',
-        name: 'dwellerDetail',
-        component: { template: '<div />' },
-      },
-    ],
-  })
-}
-
 const Parent = defineComponent({
   setup() {
     const route = useRoute()
@@ -73,17 +59,30 @@ const Parent = defineComponent({
   },
 })
 
+async function mountAtPlaceQuery() {
+  setActivePinia(createPinia())
+  const router = createRouter({
+    history: createMemoryHistory(),
+    routes: [
+      { path: '/vault/:id/map', name: 'map', component: { template: '<div />' } },
+      {
+        path: '/vault/:id/dwellers/:dwellerId',
+        name: 'dwellerDetail',
+        component: { template: '<div />' },
+      },
+    ],
+  })
+  await router.push('/vault/v1/map?place=loc-1')
+  await router.isReady()
+  const wrapper = mount(Parent, { global: { plugins: [router] } })
+  await wrapper.vm.$nextTick()
+  const modal = wrapper.findComponent(MarkerDetailModal)
+  return { router, modal }
+}
+
 describe('map modal -> dweller navigation', () => {
   it('reaches the dweller route after clicking a linked dweller', async () => {
-    setActivePinia(createPinia())
-    const router = makeRouter()
-    await router.push('/vault/v1/map?place=loc-1')
-    await router.isReady()
-
-    const wrapper = mount(Parent, { global: { plugins: [router] } })
-    await wrapper.vm.$nextTick()
-
-    const modal = wrapper.findComponent(MarkerDetailModal)
+    const { router, modal } = await mountAtPlaceQuery()
     ;(modal.vm as unknown as { goToDweller: (id: string) => void }).goToDweller('d1')
 
     await vi.waitFor(() => {
@@ -92,15 +91,7 @@ describe('map modal -> dweller navigation', () => {
   })
 
   it('drops ?place= and opens chat when a locked-location contact is clicked', async () => {
-    setActivePinia(createPinia())
-    const router = makeRouter()
-    await router.push('/vault/v1/map?place=loc-1')
-    await router.isReady()
-
-    const wrapper = mount(Parent, { global: { plugins: [router] } })
-    await wrapper.vm.$nextTick()
-
-    const modal = wrapper.findComponent(MarkerDetailModal)
+    const { router, modal } = await mountAtPlaceQuery()
     ;(modal.vm as unknown as { goToDwellerChat: (id: string) => void }).goToDwellerChat('d1')
 
     await vi.waitFor(() => {

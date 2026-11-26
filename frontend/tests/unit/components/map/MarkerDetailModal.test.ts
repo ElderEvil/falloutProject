@@ -5,33 +5,26 @@ import { createPinia, setActivePinia } from 'pinia'
 import MarkerDetailModal from '@/modules/map/components/MarkerDetailModal.vue'
 import SupplySliders from '@/modules/progression/components/party/SupplySliders.vue'
 import { useMapStore } from '@/modules/map/stores/map'
+import { createLocation, createVaultMarker } from '../../helpers/mapFixtures'
 import type { DwellerShort } from '@/modules/dwellers/models/dweller'
 import type {
   ExpeditionSiteMarkerRead,
   WastelandLocationWithDwellers,
-  VaultMarkerRead,
 } from '@/modules/map/models/map'
 
 // Mock vue-router
 const mockPush = vi.hoisted(() => vi.fn())
-vi.mock('vue-router', () =>
-  createRouterMock({ params: { id: 'vault-1' }, query: {}, push: mockPush })
-)
+vi.mock('vue-router', () => createRouterMock({ params: { id: 'vault-1' }, query: {}, push: mockPush }))
 
-function createLocation(
-  overrides: Partial<WastelandLocationWithDwellers> = {}
-): WastelandLocationWithDwellers {
-  return {
+const TELEPORT = { template: '<div><slot /></div>' }
+
+function loc(overrides: Partial<WastelandLocationWithDwellers> = {}) {
+  return createLocation({
     id: 'loc-1',
     name: 'Megaton',
     normalized_name: 'megaton',
     type: 'origin',
-    coord_x: 50,
-    coord_y: 50,
     description: 'A town built around an unexploded atomic bomb.',
-    vault_id: 'vault-1',
-    exploration_id: null,
-    created_at: null,
     dwellers: [
       {
         dweller_id: 'dweller-1',
@@ -50,19 +43,18 @@ function createLocation(
     ],
     is_unlocked: true,
     ...overrides,
-  }
+  })
 }
 
-function createVaultMarker(overrides: Partial<VaultMarkerRead> = {}): VaultMarkerRead {
-  return {
-    name: 'Vault 88',
-    coord_x: 30,
-    coord_y: 40,
-    type: 'vault',
-    description: 'Unexplored vault signal - raiding available in a future update.',
-    ...overrides,
-  }
+function mountModal(props: Record<string, unknown> = {}) {
+  return mount(MarkerDetailModal, {
+    props: { modelValue: true, location: null, vaultMarker: null, ...props },
+    global: { stubs: { Teleport: TELEPORT } },
+  })
 }
+
+const findButton = (wrapper: ReturnType<typeof mountModal>, label: string) =>
+  wrapper.findAll('button').find((b) => b.text().includes(label))
 
 beforeEach(() => {
   setActivePinia(createPinia())
@@ -71,50 +63,31 @@ beforeEach(() => {
 
 describe('MarkerDetailModal', () => {
   describe('Location marker display', () => {
-    it('renders a dialog when open', () => {
-      const wrapper = mount(MarkerDetailModal, {
-        props: { modelValue: true, location: createLocation(), vaultMarker: null },
-        global: { stubs: { Teleport: { template: '<div><slot /></div>' } } },
-      })
-
-      expect(wrapper.find('[role="dialog"]').exists()).toBe(true)
+    it.each([
+      [true, true],
+      [false, false],
+    ])('renders the dialog only when modelValue=%s', (modelValue, open) => {
+      expect(mountModal({ modelValue, location: loc() }).find('[role="dialog"]').exists()).toBe(open)
     })
 
-    it('should render the place name in the modal title', () => {
-      const wrapper = mount(MarkerDetailModal, {
-        props: {
-          modelValue: true,
-          location: createLocation(),
-          vaultMarker: null,
-        },
-        global: {
-          stubs: {
-            Teleport: { template: '<div><slot /></div>' },
-          },
-        },
-      })
-
+    it('renders the place name, badge, description, coordinates and linked dwellers', () => {
+      const wrapper = mountModal({ location: loc() })
       expect(wrapper.text()).toContain('Megaton')
-    })
-
-    it('should render the type badge', () => {
-      const wrapper = mount(MarkerDetailModal, {
-        props: {
-          modelValue: true,
-          location: createLocation(),
-          vaultMarker: null,
-        },
-        global: {
-          stubs: { Teleport: { template: '<div><slot /></div>' } },
-        },
-      })
-
       expect(wrapper.text()).toContain('origin')
+      expect(wrapper.text()).toContain('A town built around an unexploded atomic bomb')
+      expect(wrapper.text()).toContain('MAP COORDINATES')
+      expect(wrapper.text()).toContain('50, 50')
+      expect(wrapper.text()).toContain('KNOWN DWELLERS')
+      expect(wrapper.text()).toContain('Linked Dwellers')
+
+      const buttons = wrapper.findAll('button.dweller-entry')
+      expect(buttons).toHaveLength(2)
+      expect(buttons[0].text()).toContain('John Doe')
+      expect(buttons[1].text()).toContain('Jane')
     })
 
     it('should render the site-type group when the catalog has it', () => {
-      const store = useMapStore()
-      store.placeGroups = [
+      useMapStore().placeGroups = [
         {
           key: 'gas_station',
           label: 'Gas Station',
@@ -123,226 +96,64 @@ describe('MarkerDetailModal', () => {
           description: 'A roadside fuel stop.',
         },
       ]
-      const wrapper = mount(MarkerDetailModal, {
-        props: {
-          modelValue: true,
-          location: createLocation({ group_key: 'gas_station' }),
-          vaultMarker: null,
-        },
-        global: { stubs: { Teleport: { template: '<div><slot /></div>' } } },
-      })
-
+      const wrapper = mountModal({ location: loc({ group_key: 'gas_station' }) })
       expect(wrapper.text()).toContain('Gas Station')
       expect(wrapper.text()).toContain('Low risk')
     })
 
-    it('should render the description', () => {
-      const wrapper = mount(MarkerDetailModal, {
-        props: {
-          modelValue: true,
-          location: createLocation(),
-          vaultMarker: null,
-        },
-        global: {
-          stubs: { Teleport: { template: '<div><slot /></div>' } },
-        },
-      })
-
-      expect(wrapper.text()).toContain('A town built around an unexploded atomic bomb')
-      expect(wrapper.text()).toContain('MAP COORDINATES')
-      expect(wrapper.text()).toContain('50, 50')
-      expect(wrapper.text()).toContain('KNOWN DWELLERS')
-    })
-
-    it('should list linked dwellers', () => {
-      const wrapper = mount(MarkerDetailModal, {
-        props: {
-          modelValue: true,
-          location: createLocation(),
-          vaultMarker: null,
-        },
-        global: {
-          stubs: { Teleport: { template: '<div><slot /></div>' } },
-        },
-      })
-
-      expect(wrapper.text()).toContain('John Doe')
-      expect(wrapper.text()).toContain('Jane')
-      expect(wrapper.text()).toContain('Linked Dwellers')
-    })
-
-    it('should render dweller entries as buttons for keyboard accessibility', () => {
-      const wrapper = mount(MarkerDetailModal, {
-        props: {
-          modelValue: true,
-          location: createLocation(),
-          vaultMarker: null,
-        },
-        global: {
-          stubs: { Teleport: { template: '<div><slot /></div>' } },
-        },
-      })
-
+    it('lists linked dwellers as keyboard-operable buttons', () => {
+      const wrapper = mountModal({ location: loc() })
       const buttons = wrapper.findAll('button.dweller-entry')
       expect(buttons).toHaveLength(2)
       expect(buttons[0].text()).toContain('John Doe')
       expect(buttons[1].text()).toContain('Jane')
+      expect(wrapper.text()).toContain('Linked Dwellers')
     })
   })
 
   describe('Vault marker display', () => {
-    it('should render vault marker name and description', () => {
-      const wrapper = mount(MarkerDetailModal, {
-        props: {
-          modelValue: true,
-          location: null,
-          vaultMarker: createVaultMarker(),
-        },
-        global: {
-          stubs: { Teleport: { template: '<div><slot /></div>' } },
-        },
+    it('renders the vault name, description and badge but no dweller section', () => {
+      const wrapper = mountModal({
+        location: null,
+        vaultMarker: createVaultMarker({
+          description: 'Unexplored vault signal - raiding available in a future update.',
+        }),
       })
-
       expect(wrapper.text()).toContain('Vault 88')
       expect(wrapper.text()).toContain('Unexplored vault signal')
-    })
-
-    it('should NOT render the dweller section for vault markers', () => {
-      const wrapper = mount(MarkerDetailModal, {
-        props: {
-          modelValue: true,
-          location: null,
-          vaultMarker: createVaultMarker(),
-        },
-        global: {
-          stubs: { Teleport: { template: '<div><slot /></div>' } },
-        },
-      })
-
-      expect(wrapper.text()).not.toContain('Linked Dwellers')
-    })
-
-    it('should show vault type badge', () => {
-      const wrapper = mount(MarkerDetailModal, {
-        props: {
-          modelValue: true,
-          location: null,
-          vaultMarker: createVaultMarker(),
-        },
-        global: {
-          stubs: { Teleport: { template: '<div><slot /></div>' } },
-        },
-      })
-
       expect(wrapper.text()).toContain('vault')
+      expect(wrapper.text()).not.toContain('Linked Dwellers')
     })
   })
 
   describe('Dweller navigation', () => {
-    it('should call router.push with correct path on dweller click', async () => {
-      const wrapper = mount(MarkerDetailModal, {
-        props: {
-          modelValue: true,
-          location: createLocation(),
-          vaultMarker: null,
-        },
-        global: {
-          stubs: { Teleport: { template: '<div><slot /></div>' } },
-        },
-      })
-
-      const vm = wrapper.vm as any
-      vm.goToDweller('dweller-1')
+    it('closes the modal and pushes the dweller route on dweller click', async () => {
+      const wrapper = mountModal({ location: loc() })
+      ;(wrapper.vm as unknown as { goToDweller: (id: string) => void }).goToDweller('dweller-1')
       await wrapper.vm.$nextTick()
 
       expect(mockPush).toHaveBeenCalledWith('/vault/vault-1/dwellers/dweller-1')
-    })
-
-    it('should close modal before navigating', async () => {
-      const wrapper = mount(MarkerDetailModal, {
-        props: {
-          modelValue: true,
-          location: createLocation(),
-          vaultMarker: null,
-        },
-        global: {
-          stubs: { Teleport: { template: '<div><slot /></div>' } },
-        },
-      })
-
-      const vm = wrapper.vm as any
-      vm.goToDweller('dweller-1')
-      await wrapper.vm.$nextTick()
-
-      expect(wrapper.emitted('update:modelValue')).toBeTruthy()
       expect(wrapper.emitted('update:modelValue')![0][0]).toBe(false)
     })
   })
 
   describe('Empty/missing dwellers (failure case)', () => {
     it('should NOT render dweller section when dwellers array is empty', () => {
-      const location = createLocation({ dwellers: [] })
-      const wrapper = mount(MarkerDetailModal, {
-        props: {
-          modelValue: true,
-          location,
-          vaultMarker: null,
-        },
-        global: {
-          stubs: { Teleport: { template: '<div><slot /></div>' } },
-        },
-      })
-
-      expect(wrapper.text()).not.toContain('Linked Dwellers')
+      expect(mountModal({ location: loc({ dwellers: [] }) }).text()).not.toContain(
+        'Linked Dwellers'
+      )
     })
 
     it('should show fallback description when location description is null', () => {
-      const location = createLocation({ description: null })
-      const wrapper = mount(MarkerDetailModal, {
-        props: {
-          modelValue: true,
-          location,
-          vaultMarker: null,
-        },
-        global: {
-          stubs: { Teleport: { template: '<div><slot /></div>' } },
-        },
-      })
-
-      expect(wrapper.text()).toContain('No description available')
-    })
-  })
-
-  describe('Modal visibility', () => {
-    it('should not render content when modelValue is false', () => {
-      const wrapper = mount(MarkerDetailModal, {
-        props: {
-          modelValue: false,
-          location: createLocation(),
-          vaultMarker: null,
-        },
-        global: {
-          stubs: { Teleport: { template: '<div><slot /></div>' } },
-        },
-      })
-
-      expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
+      expect(mountModal({ location: loc({ description: null }) }).text()).toContain(
+        'No description available'
+      )
     })
   })
 
   describe('Locked location placeholder', () => {
-    it('should show locked placeholder when location is not unlocked', () => {
-      const wrapper = mount(MarkerDetailModal, {
-        props: {
-          modelValue: true,
-          location: createLocation({ is_unlocked: false }),
-          vaultMarker: null,
-        },
-        global: {
-          stubs: { Teleport: { template: '<div><slot /></div>' } },
-        },
-      })
-
+    it('should show the locked placeholder with contact-only dwellers', () => {
+      const wrapper = mountModal({ location: loc({ is_unlocked: false }) })
       expect(wrapper.text()).toContain('Unknown Location')
       expect(wrapper.text()).toContain(
         'Chat with a dweller who has been here to uncover this place.'
@@ -354,36 +165,17 @@ describe('MarkerDetailModal', () => {
     })
 
     it('opens a linked dweller chat from a locked location', async () => {
-      const wrapper = mount(MarkerDetailModal, {
-        props: {
-          modelValue: true,
-          location: createLocation({ is_unlocked: false }),
-          vaultMarker: null,
-        },
-        global: { stubs: { Teleport: { template: '<div><slot /></div>' } } },
-      })
-
+      const wrapper = mountModal({ location: loc({ is_unlocked: false }) })
       await wrapper.find('button.dweller-contact').trigger('click')
 
       // Chat opens as a global modal via ?chat= on the map route; the marker
       // modal closes first so the two dialogs do not stack.
       expect(mockPush).toHaveBeenCalledWith({ query: { chat: 'dweller-1' } })
-      expect(wrapper.emitted('update:modelValue')).toBeTruthy()
       expect(wrapper.emitted('update:modelValue')![0][0]).toBe(false)
     })
 
     it('should NOT show locked placeholder when location is unlocked', () => {
-      const wrapper = mount(MarkerDetailModal, {
-        props: {
-          modelValue: true,
-          location: createLocation({ is_unlocked: true }),
-          vaultMarker: null,
-        },
-        global: {
-          stubs: { Teleport: { template: '<div><slot /></div>' } },
-        },
-      })
-
+      const wrapper = mountModal({ location: loc({ is_unlocked: true }) })
       expect(wrapper.text()).not.toContain('Unknown Location')
       expect(wrapper.text()).toContain('origin')
     })
@@ -403,65 +195,35 @@ describe('MarkerDetailModal', () => {
       clearState: unknown,
       overrides: Partial<WastelandLocationWithDwellers> = {}
     ) {
-      return mount(MarkerDetailModal, {
-        props: {
-          modelValue: true,
-          location: createLocation({ clear_state: clearState, ...overrides }),
-          vaultMarker: null,
-        },
-        global: { stubs: { Teleport: { template: '<div><slot /></div>' } } },
-      })
+      return mountModal({ location: loc({ clear_state: clearState, ...overrides }) })
     }
 
-    it('renders nothing when clear_state is null', () => {
-      const wrapper = mountWithClearState(null)
-
-      expect(wrapper.text()).not.toContain('CLEAR STATUS')
-      expect(wrapper.text()).not.toContain('CLEARED')
-      expect(wrapper.text()).not.toContain('Dispatch')
+    it('renders no clear status without clear_state', () => {
+      const text = mountWithClearState(null).text()
+      expect(text).not.toContain('CLEAR STATUS')
+      expect(text).not.toContain('CLEARED')
+      expect(text).not.toContain('Dispatch')
     })
 
     it('shows a Dispatch button for a clearable, not-yet-cleared point', () => {
       const wrapper = mountWithClearState(clearableState)
-
       expect(wrapper.text()).toContain('CLEAR STATUS')
       expect(wrapper.text()).toContain('UNCLAIMED')
       expect(wrapper.text()).toContain('Tier 2')
-      const dispatchButtons = wrapper.findAll('button').filter((b) => b.text().includes('Dispatch'))
-      expect(dispatchButtons).toHaveLength(1)
+      expect(findButton(wrapper, 'Dispatch')).toBeDefined()
       expect(wrapper.text()).not.toContain('CLEARED')
     })
 
     it('shows the signature roll, incidental drops and base XP per survivor', () => {
-      const wrapper = mountWithClearState({
+      const text = mountWithClearState({
         ...clearableState,
         xp_per_survivor: 34,
         loot_preview: [
-          {
-            item_type: 'junk',
-            rarity: 'common',
-            junk_types: ['adhesive'],
-            weapon_types: [],
-            signature: true,
-          },
-          {
-            item_type: 'junk',
-            rarity: 'common',
-            junk_types: ['steel', 'leather'],
-            weapon_types: [],
-            signature: false,
-          },
-          {
-            item_type: 'outfit',
-            rarity: 'common',
-            junk_types: [],
-            weapon_types: [],
-            signature: false,
-          },
+          { item_type: 'junk', rarity: 'common', junk_types: ['adhesive'], weapon_types: [], signature: true },
+          { item_type: 'junk', rarity: 'common', junk_types: ['steel', 'leather'], weapon_types: [], signature: false },
+          { item_type: 'outfit', rarity: 'common', junk_types: [], weapon_types: [], signature: false },
         ],
-      })
-
-      const text = wrapper.text()
+      }).text()
       expect(text).toContain('Signature roll: Adhesive')
       expect(text).toContain('Also rolls: Steel / Leather, Outfit')
       expect(text).toContain('Base XP per survivor: 34')
@@ -469,46 +231,29 @@ describe('MarkerDetailModal', () => {
 
     it('hides dispatch and explains while a party is en route', () => {
       const wrapper = mountWithClearState(clearableState, { dispatch_in_progress: true })
-
-      const dispatchButtons = wrapper.findAll('button').filter((b) => b.text().includes('Dispatch'))
-      expect(dispatchButtons).toHaveLength(0)
+      expect(findButton(wrapper, 'Dispatch')).toBeUndefined()
       expect(wrapper.text()).toContain('Party en route')
     })
 
     it('explains an en-route party at a salvage site, where clear_state is null', () => {
-      const wrapper = mountWithClearState(null, {
-        dispatch_in_progress: true,
-        action: 'salvage',
-      })
-
+      const wrapper = mountWithClearState(null, { dispatch_in_progress: true, action: 'salvage' })
       expect(wrapper.text()).toContain('Party en route')
-      const sendButtons = wrapper.findAll('button').filter((b) => /Dispatch|Search/.test(b.text()))
-      expect(sendButtons).toHaveLength(0)
+      expect(wrapper.findAll('button').filter((b) => /Dispatch|Search/.test(b.text()))).toHaveLength(0)
     })
 
     it('offers Search with a one-dweller party for a salvage point', () => {
-      const wrapper = mount(MarkerDetailModal, {
-        props: {
-          modelValue: true,
-          location: createLocation({ action: 'salvage' }),
-          vaultMarker: null,
-          dwellers: [],
-          maxPartySize: 3,
-        },
-        global: { stubs: { Teleport: { template: '<div><slot /></div>' } } },
+      const wrapper = mountModal({
+        location: loc({ action: 'salvage' }),
+        dwellers: [],
+        maxPartySize: 3,
       })
-
       expect(wrapper.text()).toContain('SEND A SCAVENGER')
-      const searchButtons = wrapper.findAll('button').filter((b) => b.text().includes('Search'))
-      expect(searchButtons).toHaveLength(1)
+      expect(findButton(wrapper, 'Search')).toBeDefined()
       expect(wrapper.text()).not.toContain('Dispatch')
     })
 
     it('keeps the dispatch footer on one row like the pre-wrapper layout', () => {
-      const wrapper = mountWithClearState(clearableState)
-      const footer = wrapper.find('[data-slot="dialog-footer"]')
-
-      expect(footer.exists()).toBe(true)
+      const footer = mountWithClearState(clearableState).find('[data-slot="dialog-footer"]')
       expect(footer.attributes('class')).toContain('flex-row')
     })
 
@@ -519,7 +264,6 @@ describe('MarkerDetailModal', () => {
         clear_count: 3,
         time_remaining_seconds: 3600,
       })
-
       expect(wrapper.text()).toContain('CLEARED ×3')
       expect(wrapper.text()).toContain('Re-clear available: 1h 0m remaining')
       expect(wrapper.text()).not.toContain('Dispatch')
@@ -535,15 +279,12 @@ describe('MarkerDetailModal', () => {
           time_remaining_seconds: 5,
         })
         expect(wrapper.text()).toContain('Re-clear available')
-        expect(wrapper.text()).not.toContain('Dispatch')
+        expect(findButton(wrapper, 'Dispatch')).toBeUndefined()
 
         await vi.advanceTimersByTimeAsync(5000)
 
         expect(wrapper.text()).not.toContain('Re-clear available')
-        const dispatchButtons = wrapper
-          .findAll('button')
-          .filter((b) => b.text().includes('Dispatch'))
-        expect(dispatchButtons).toHaveLength(1)
+        expect(findButton(wrapper, 'Dispatch')).toBeDefined()
       } finally {
         vi.useRealTimers()
       }
@@ -556,38 +297,26 @@ describe('MarkerDetailModal', () => {
         clear_count: 3,
         time_remaining_seconds: 0,
       })
-
       expect(wrapper.text()).toContain('CLEARED ×3')
       expect(wrapper.text()).not.toContain('Re-clear available')
-      const dispatchButtons = wrapper.findAll('button').filter((b) => b.text().includes('Dispatch'))
-      expect(dispatchButtons).toHaveLength(1)
+      expect(findButton(wrapper, 'Dispatch')).toBeDefined()
     })
 
     it('emits dispatch when the Dispatch button is clicked', async () => {
-      const wrapper = mount(MarkerDetailModal, {
-        props: {
-          modelValue: true,
-          location: createLocation({ clear_state: clearableState }),
-          vaultMarker: null,
-          dwellers: [
-            { id: 'dweller-1', first_name: 'Ada', last_name: null, level: 1, status: 'idle' },
-          ] as DwellerShort[],
-        },
-        global: { stubs: { Teleport: { template: '<div><slot /></div>' } } },
+      const wrapper = mountModal({
+        location: loc({ clear_state: clearableState }),
+        dwellers: [
+          { id: 'dweller-1', first_name: 'Ada', last_name: null, level: 1, status: 'idle' },
+        ] as DwellerShort[],
       })
-
       await wrapper.find('.dweller-item').trigger('click')
-      const dispatchButton = wrapper.findAll('button').find((b) => b.text().includes('Dispatch'))
-      await dispatchButton!.trigger('click')
-
+      await findButton(wrapper, 'Dispatch')!.trigger('click')
       expect(wrapper.emitted('dispatch')).toBeTruthy()
     })
   })
 
   describe('Expedition site display', () => {
-    function createSite(
-      overrides: Partial<ExpeditionSiteMarkerRead> = {}
-    ): ExpeditionSiteMarkerRead {
+    function site(overrides: Partial<ExpeditionSiteMarkerRead> = {}): ExpeditionSiteMarkerRead {
       return {
         id: 'site-1',
         name: 'Red Rocket Gas Station',
@@ -603,70 +332,47 @@ describe('MarkerDetailModal', () => {
       }
     }
 
-    function mountWithSite(site: ExpeditionSiteMarkerRead) {
-      return mount(MarkerDetailModal, {
-        props: { modelValue: true, location: null, vaultMarker: null, site },
-        global: { stubs: { Teleport: { template: '<div><slot /></div>' } } },
-      })
-    }
+    const mountSite = (marker: ExpeditionSiteMarkerRead) => mountModal({ site: marker })
 
     it('does not render the site section when the site prop is omitted', () => {
-      const wrapper = mount(MarkerDetailModal, {
-        props: { modelValue: true, location: null, vaultMarker: null },
-        global: { stubs: { Teleport: { template: '<div><slot /></div>' } } },
-      })
-
-      expect(wrapper.text()).not.toContain('EXPEDITION SITE')
+      expect(mountModal({ location: null }).text()).not.toContain('EXPEDITION SITE')
     })
 
-    it('renders the site name, flavor, level and room count', () => {
-      const wrapper = mountWithSite(createSite())
-
-      expect(wrapper.text()).toContain('Red Rocket Gas Station')
-      expect(wrapper.text()).toContain('A roadside fuel stop with a working pump.')
-      expect(wrapper.text()).toContain('MIN DWELLER LEVEL')
-      expect(wrapper.text()).toContain('ROOMS')
-      expect(wrapper.text()).toContain('60, 70')
+    it('renders the site name, flavor, level, room count and coordinates', () => {
+      const text = mountSite(site()).text()
+      expect(text).toContain('Red Rocket Gas Station')
+      expect(text).toContain('A roadside fuel stop with a working pump.')
+      expect(text).toContain('MIN DWELLER LEVEL')
+      expect(text).toContain('ROOMS')
+      expect(text).toContain('60, 70')
     })
 
-    it('shows READY status for a ready site', () => {
-      const wrapper = mountWithSite(createSite())
-
-      expect(wrapper.text()).toContain('READY')
-      expect(wrapper.text()).not.toContain('CLEARED')
-      expect(wrapper.text()).not.toContain('IN PROGRESS')
-    })
-
-    it('shows IN PROGRESS status while a run is open', () => {
-      const wrapper = mountWithSite(createSite({ block_reason: 'open' }))
-
-      expect(wrapper.text()).toContain('IN PROGRESS')
-    })
-
-    it('shows CLEARED status with the cooldown for a cooling-down site', () => {
-      const wrapper = mountWithSite(
-        createSite({ cleared: true, block_reason: 'cooldown', cooldown_remaining_seconds: 3600 })
-      )
-
-      expect(wrapper.text()).toContain('CLEARED')
-      expect(wrapper.text()).toContain('Cooldown: 1h 0m remaining')
-    })
-
-    it('shows READY (not CLEARED) for a cooldown-only site that was not cleared', () => {
-      const wrapper = mountWithSite(
-        createSite({ cleared: false, block_reason: 'cooldown', cooldown_remaining_seconds: 3600 })
-      )
-
-      expect(wrapper.text()).toContain('READY')
-      expect(wrapper.text()).not.toContain('CLEARED')
-      expect(wrapper.text()).not.toContain('CLEAR STATUS')
+    it.each([
+      ['READY', {}, ['READY'], ['CLEARED', 'IN PROGRESS']],
+      ['IN PROGRESS', { block_reason: 'open' }, ['IN PROGRESS'], []],
+      [
+        'CLEARED with a cooldown',
+        { cleared: true, block_reason: 'cooldown', cooldown_remaining_seconds: 3600 },
+        ['CLEARED', 'Cooldown: 1h 0m remaining'],
+        [],
+      ],
+      [
+        'READY for a cooldown-only site that was not cleared',
+        { cleared: false, block_reason: 'cooldown', cooldown_remaining_seconds: 3600 },
+        ['READY'],
+        ['CLEARED', 'CLEAR STATUS'],
+      ],
+    ])('shows %s status', (_, overrides, present, absent) => {
+      const text = mountSite(site(overrides as Partial<ExpeditionSiteMarkerRead>)).text()
+      for (const value of present) expect(text).toContain(value)
+      for (const value of absent) expect(text).not.toContain(value)
     })
 
     it('advances the site cooldown countdown while the modal stays open', async () => {
       vi.useFakeTimers()
       try {
-        const wrapper = mountWithSite(
-          createSite({ cleared: true, block_reason: 'cooldown', cooldown_remaining_seconds: 5 })
+        const wrapper = mountSite(
+          site({ cleared: true, block_reason: 'cooldown', cooldown_remaining_seconds: 5 })
         )
         expect(wrapper.text()).toContain('Cooldown:')
 
@@ -679,12 +385,9 @@ describe('MarkerDetailModal', () => {
     })
 
     it('does not offer a Dispatch or Enter action for sites', () => {
-      const wrapper = mountWithSite(createSite())
-
-      const buttons = wrapper.findAll('button').filter((b) => {
-        const text = b.text()
-        return text.includes('Dispatch') || text.includes('Enter')
-      })
+      const buttons = mountSite(site())
+        .findAll('button')
+        .filter((b) => /Dispatch|Enter/.test(b.text()))
       expect(buttons).toHaveLength(0)
     })
   })
@@ -705,27 +408,18 @@ describe('MarkerDetailModal', () => {
     ] as DwellerShort[]
 
     function mountActionable(overrides: Record<string, unknown> = {}) {
-      return mount(MarkerDetailModal, {
-        props: {
-          modelValue: true,
-          location: createLocation({ clear_state: clearableState }),
-          vaultMarker: null,
-          dwellers: candidates,
-          maxPartySize: 3,
-          maxStimpaks: 8,
-          maxRadaways: 4,
-          ...overrides,
-        },
-        global: { stubs: { Teleport: { template: '<div><slot /></div>' } } },
+      return mountModal({
+        location: loc({ clear_state: clearableState }),
+        dwellers: candidates,
+        maxPartySize: 3,
+        maxStimpaks: 8,
+        maxRadaways: 4,
+        ...overrides,
       })
     }
 
-    const dispatchButton = (wrapper: ReturnType<typeof mountActionable>) =>
-      wrapper.findAll('button').find((b) => b.text().includes('Dispatch'))
-
     it('renders the party slots, dweller list and supply sliders when actionable', () => {
       const wrapper = mountActionable()
-
       expect(wrapper.text()).toContain('SEND TEAM')
       expect(wrapper.find('.party-slots').exists()).toBe(true)
       expect(wrapper.find('.available-dwellers').exists()).toBe(true)
@@ -735,45 +429,39 @@ describe('MarkerDetailModal', () => {
 
     it('pre-fills the suggested 5/5 dispatch loadout, clamped to vault stock', () => {
       // mountActionable passes maxStimpaks: 8, maxRadaways: 4.
-      const wrapper = mountActionable()
-      const sliders = wrapper.findComponent(SupplySliders)
-
+      const sliders = mountActionable().findComponent(SupplySliders)
       expect(sliders.props('selectedStimpaks')).toBe(5)
       expect(sliders.props('selectedRadaways')).toBe(4)
     })
 
-    it('hides the section and confirm while the re-clear cooldown runs', () => {
-      const wrapper = mountActionable({
-        location: createLocation({
-          clear_state: {
-            ...clearableState,
-            cleared: true,
-            clear_count: 1,
-            time_remaining_seconds: 3600,
-          },
-        }),
-      })
-
+    it.each([
+      [
+        'while the re-clear cooldown runs',
+        {
+          location: loc({
+            clear_state: {
+              ...clearableState,
+              cleared: true,
+              clear_count: 1,
+              time_remaining_seconds: 3600,
+            },
+          }),
+        },
+      ],
+      ['for a non-clearable location', { location: loc() }],
+    ])('hides the section and confirm %s', (_, overrides) => {
+      const wrapper = mountActionable(overrides)
       expect(wrapper.find('.party-slots').exists()).toBe(false)
-      expect(dispatchButton(wrapper)).toBeUndefined()
-    })
-
-    it('hides the section for a non-clearable location', () => {
-      const wrapper = mountActionable({ location: createLocation() })
-
-      expect(wrapper.find('.party-slots').exists()).toBe(false)
-      expect(dispatchButton(wrapper)).toBeUndefined()
+      expect(findButton(wrapper, 'Dispatch')).toBeUndefined()
     })
 
     it('emits dispatch with the selected team and supplies on confirm', async () => {
       const wrapper = mountActionable()
-
       await wrapper.find('.dweller-item').trigger('click')
       wrapper.findComponent(SupplySliders).vm.$emit('update:stimpaks', [3])
       wrapper.findComponent(SupplySliders).vm.$emit('update:radaways', [1])
       await wrapper.vm.$nextTick()
-
-      await dispatchButton(wrapper)!.trigger('click')
+      await findButton(wrapper, 'Dispatch')!.trigger('click')
 
       expect(wrapper.emitted('dispatch')).toEqual([
         [{ dwellerIds: ['dweller-1'], supplies: { stimpaks: 3, radaways: 1 }, purpose: 'clear' }],
@@ -782,19 +470,16 @@ describe('MarkerDetailModal', () => {
 
     it('disables the confirm until a dweller is selected', async () => {
       const wrapper = mountActionable()
-      expect(dispatchButton(wrapper)!.attributes('disabled')).toBeDefined()
+      expect(findButton(wrapper, 'Dispatch')!.attributes('disabled')).toBeDefined()
 
       await wrapper.find('.dweller-item').trigger('click')
 
-      expect(dispatchButton(wrapper)!.attributes('disabled')).toBeUndefined()
+      expect(findButton(wrapper, 'Dispatch')!.attributes('disabled')).toBeUndefined()
     })
 
     it('closes the modal from Cancel without dispatching', async () => {
       const wrapper = mountActionable()
-
-      const cancel = wrapper.findAll('button').find((b) => b.text().includes('Cancel'))!
-      await cancel.trigger('click')
-
+      await findButton(wrapper, 'Cancel')!.trigger('click')
       expect(wrapper.emitted('dispatch')).toBeFalsy()
       expect(wrapper.emitted('update:modelValue')![0][0]).toBe(false)
     })
@@ -812,71 +497,59 @@ describe('MarkerDetailModal', () => {
     }
 
     function mountTrade(overrides: Partial<WastelandLocationWithDwellers> = {}) {
-      return mount(MarkerDetailModal, {
-        props: {
-          modelValue: true,
-          location: createLocation({ action: 'trade', caravan: caravanState, ...overrides }),
-          vaultMarker: null,
-          dwellers: [
-            { dweller_id: 'dweller-1', first_name: 'John', last_name: 'Doe', relation: 'visited', is_unlocked: true },
-            { dweller_id: 'dweller-2', first_name: 'Jane', last_name: null, relation: 'visited', is_unlocked: true },
-          ],
-          maxPartySize: 3,
-          maxStimpaks: 8,
-          maxRadaways: 4,
-        },
-        global: { stubs: { Teleport: { template: '<div><slot /></div>' } } },
+      return mountModal({
+        location: loc({ action: 'trade', caravan: caravanState, ...overrides }),
+        dwellers: [
+          { dweller_id: 'dweller-1', first_name: 'John', last_name: 'Doe', relation: 'visited', is_unlocked: true },
+          { dweller_id: 'dweller-2', first_name: 'Jane', last_name: null, relation: 'visited', is_unlocked: true },
+        ],
+        maxPartySize: 3,
+        maxStimpaks: 8,
+        maxRadaways: 4,
       })
     }
 
     it('shows the shipment, the flat fee and the caravan action', () => {
-      const wrapper = mountTrade()
-
-      expect(wrapper.text()).toContain('CARAVAN')
-      expect(wrapper.text()).toContain('Scrap')
-      expect(wrapper.text()).toContain('150 caps')
-      expect(wrapper.text()).toContain('SEND A CARAVAN')
-      expect(wrapper.text()).not.toContain('SEND TEAM')
+      const text = mountTrade().text()
+      expect(text).toContain('CARAVAN')
+      expect(text).toContain('Scrap')
+      expect(text).toContain('150 caps')
+      expect(text).toContain('SEND A CARAVAN')
+      expect(text).not.toContain('SEND TEAM')
     })
 
     it('drops the supplies sliders a caravan cannot carry and caps the party at the payload', () => {
       const wrapper = mountTrade()
-
       expect(wrapper.findAllComponents(SupplySliders)).toHaveLength(0)
       expect(wrapper.text()).toContain('2')
     })
 
     it('emits trade as the purpose', async () => {
       const wrapper = mountTrade()
-
       await wrapper.find('.dweller-item').trigger('click')
-      const send = wrapper.findAll('button').find((b) => b.text().includes('Send caravan'))!
-      await send.trigger('click')
-
+      await findButton(wrapper, 'Send caravan')!.trigger('click')
       expect(wrapper.emitted('dispatch')![0][0]).toMatchObject({ purpose: 'trade' })
     })
 
     it('offers no party section while the settlement is cooling down, and says why', () => {
-      const wrapper = mountTrade({
+      const text = mountTrade({
         action: 'none',
         caravan: {
           ...caravanState,
           cooldown_remaining_seconds: 3600,
           refusal_reason: 'No caravan ready yet',
         },
-      })
-
-      expect(wrapper.text()).toContain('Next caravan')
-      expect(wrapper.text()).toContain('1h')
-      expect(wrapper.text()).not.toContain('SEND A CARAVAN')
+      }).text()
+      expect(text).toContain('Next caravan')
+      expect(text).toContain('1h')
+      expect(text).not.toContain('SEND A CARAVAN')
     })
 
     it('prints a readable badge instead of the raw marker type', () => {
-      const wrapper = mountTrade({ type: 'visited' })
-
-      expect(wrapper.text()).toContain('Visited')
-      expect(wrapper.text()).not.toContain('home_vault')
-      expect(wrapper.text()).not.toContain('discovery')
+      const text = mountTrade({ type: 'visited' }).text()
+      expect(text).toContain('Visited')
+      expect(text).not.toContain('home_vault')
+      expect(text).not.toContain('discovery')
     })
   })
 })

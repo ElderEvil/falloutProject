@@ -6,25 +6,34 @@ import WastelandDropzone from '@/modules/exploration/components/WastelandDropzon
 // Mock Iconify
 vi.mock('@iconify/vue', () => createIconifyMock())
 
+function mountDropzone() {
+  return mount(WastelandDropzone)
+}
+
+async function dragOver(wrapper: ReturnType<typeof mountDropzone>) {
+  await wrapper.find('.wasteland-dropzone').trigger('dragover', {
+    dataTransfer: { dropEffect: 'none' },
+    preventDefault: vi.fn(),
+  })
+}
+
+const dropPayload = (data: string) => ({
+  preventDefault: vi.fn(),
+  dataTransfer: { getData: () => data },
+})
+
 describe('WastelandDropzone', () => {
-  it('renders the wasteland title and subtitle', () => {
-    const wrapper = mount(WastelandDropzone)
+  it('renders the wasteland title, subtitle and onboarding anchor', () => {
+    const wrapper = mountDropzone()
 
     expect(wrapper.text()).toContain('The Wasteland')
     expect(wrapper.text()).toContain('Drag dwellers here to send them exploring')
-  })
-
-  it('exposes the onboarding anchor for the explore step', () => {
-    const wrapper = mount(WastelandDropzone)
-
     expect(wrapper.find('[data-onboarding="wasteland"]').exists()).toBe(true)
   })
 
   it('renders slot content', () => {
     const wrapper = mount(WastelandDropzone, {
-      slots: {
-        default: '<div class="slot-content">Child Content</div>',
-      },
+      slots: { default: '<div class="slot-content">Child Content</div>' },
     })
 
     expect(wrapper.find('.slot-content').exists()).toBe(true)
@@ -32,95 +41,48 @@ describe('WastelandDropzone', () => {
   })
 
   it('shows drop indicator when drag-over class is active', async () => {
-    const wrapper = mount(WastelandDropzone)
+    const wrapper = mountDropzone()
 
-    // Simulate dragover
-    const dropzone = wrapper.find('.wasteland-dropzone')
-    await dropzone.trigger('dragover', {
-      dataTransfer: { dropEffect: 'none' },
-      preventDefault: vi.fn(),
-    })
+    await dragOver(wrapper)
 
     expect(wrapper.find('.drag-over').exists()).toBe(true)
     expect(wrapper.find('.drop-indicator').exists()).toBe(true)
     expect(wrapper.text()).toContain('Release to send!')
   })
 
-  it('removes drag-over state on dragleave', async () => {
-    const wrapper = mount(WastelandDropzone)
-
+  it.each([
+    ['dragleave', undefined],
+    ['drop', JSON.stringify({ dwellerId: 'x', firstName: 'F', lastName: 'L' })],
+  ])('removes drag-over state on %s', async (event, data) => {
+    const wrapper = mountDropzone()
     const dropzone = wrapper.find('.wasteland-dropzone')
-    await dropzone.trigger('dragover', {
-      dataTransfer: { dropEffect: 'none' },
-      preventDefault: vi.fn(),
-    })
+    await dragOver(wrapper)
     expect(wrapper.find('.drag-over').exists()).toBe(true)
 
-    await dropzone.trigger('dragleave')
+    await dropzone.trigger(event, data === undefined ? {} : dropPayload(data))
+
     expect(wrapper.find('.drag-over').exists()).toBe(false)
   })
 
   it('emits drop-dweller with parsed payload on valid drop', async () => {
-    const wrapper = mount(WastelandDropzone)
-
-    const dropData = JSON.stringify({
+    const wrapper = mountDropzone()
+    const payload = {
       dwellerId: 'dweller-123',
       firstName: 'Test',
       lastName: 'Dweller',
       currentRoomId: 'room-456',
-    })
+    }
 
-    const dropzone = wrapper.find('.wasteland-dropzone')
-    await dropzone.trigger('drop', {
-      preventDefault: vi.fn(),
-      dataTransfer: {
-        getData: () => dropData,
-      },
-    })
+    await wrapper.find('.wasteland-dropzone').trigger('drop', dropPayload(JSON.stringify(payload)))
 
-    expect(wrapper.emitted('drop-dweller')).toHaveLength(1)
-    expect(wrapper.emitted('drop-dweller')![0]).toEqual([
-      {
-        dwellerId: 'dweller-123',
-        firstName: 'Test',
-        lastName: 'Dweller',
-        currentRoomId: 'room-456',
-      },
-    ])
+    expect(wrapper.emitted('drop-dweller')).toEqual([[payload]])
   })
 
   it('emits drop-error on invalid JSON drop', async () => {
-    const wrapper = mount(WastelandDropzone)
+    const wrapper = mountDropzone()
 
-    const dropzone = wrapper.find('.wasteland-dropzone')
-    await dropzone.trigger('drop', {
-      preventDefault: vi.fn(),
-      dataTransfer: {
-        getData: () => 'not-json',
-      },
-    })
+    await wrapper.find('.wasteland-dropzone').trigger('drop', dropPayload('not-json'))
 
-    expect(wrapper.emitted('drop-error')).toHaveLength(1)
-    expect(wrapper.emitted('drop-error')![0]).toEqual(['Failed to send dweller to wasteland'])
-  })
-
-  it('removes drag-over state on drop', async () => {
-    const wrapper = mount(WastelandDropzone)
-
-    const dropzone = wrapper.find('.wasteland-dropzone')
-    await dropzone.trigger('dragover', {
-      dataTransfer: { dropEffect: 'none' },
-      preventDefault: vi.fn(),
-    })
-    expect(wrapper.find('.drag-over').exists()).toBe(true)
-
-    await dropzone.trigger('drop', {
-      preventDefault: vi.fn(),
-      dataTransfer: {
-        getData: () => JSON.stringify({ dwellerId: 'x', firstName: 'F', lastName: 'L' }),
-      },
-    })
-
-    expect(wrapper.find('.drag-over').exists()).toBe(false)
+    expect(wrapper.emitted('drop-error')).toEqual([['Failed to send dweller to wasteland']])
   })
 })

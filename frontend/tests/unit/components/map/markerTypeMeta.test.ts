@@ -18,31 +18,22 @@ describe('markerTypeMeta', () => {
     ])
   })
 
-  it('returns icon and label for a known type', () => {
-    expect(markerTypeMeta('discovery')).toEqual({
-      type: 'discovery',
-      icon: 'mdi:map-marker-question',
-      label: 'Discovery',
-    })
+  it.each([
+    ['discovery', 'mdi:map-marker-question', 'Discovery'],
+    ['expedition_site', EXPEDITION_SITE_ICON, 'Expedition Sites'],
+  ])('returns the registry icon and label for %s', (type, icon, label) => {
+    expect(markerTypeMeta(type)).toEqual({ type, icon, label })
   })
 
-  it('returns the expedition-site registry entry', () => {
-    expect(markerTypeMeta('expedition_site')).toEqual({
-      type: 'expedition_site',
-      icon: 'mdi:map-marker-star',
-      label: 'Expedition Sites',
-    })
+  it('shares the expedition-site icon constant with the registry', () => {
+    expect(EXPEDITION_SITE_ICON).toBe('mdi:map-marker-star')
+    expect(markerTypeMeta('expedition_site').icon).toBe(EXPEDITION_SITE_ICON)
   })
 
   it('falls back to a generic marker for an unknown type', () => {
     const meta = markerTypeMeta('mystery')
     expect(meta.icon).toBe('mdi:map-marker')
     expect(meta.label).toBe('mystery')
-  })
-
-  it('uses the shared expedition-site icon constant in the registry', () => {
-    expect(EXPEDITION_SITE_ICON).toBe('mdi:map-marker-star')
-    expect(markerTypeMeta('expedition_site').icon).toBe(EXPEDITION_SITE_ICON)
   })
 
   it('prefers the site-type archetype icon when the location has one', () => {

@@ -39,6 +39,29 @@ describe('WastelandPanel', () => {
   let explorationStore: ReturnType<typeof useExplorationStore>
   let dwellerStore: ReturnType<typeof useDwellerStore>['filter']
 
+  /** Mount the panel with the router and the usual child stubs. */
+  function mountPanel(stubs: Record<string, unknown> = {}) {
+    return mount(WastelandPanel, {
+      global: {
+        plugins: [router],
+        stubs: {
+          ActiveExplorationList: { template: '<div />' },
+          ExplorationRewardsModal: { template: '<div class="rewards-mock" />' },
+          ...stubs,
+        },
+      },
+    })
+  }
+
+  async function drop(wrapper: ReturnType<typeof mountPanel>, payload = {}) {
+    await wrapper.findComponent({ name: 'WastelandDropzone' }).vm.$emit('drop-dweller', {
+      dwellerId: 'dweller-1',
+      firstName: 'Test',
+      lastName: 'Dweller',
+      ...payload,
+    })
+  }
+
   beforeEach(async () => {
     setActivePinia(createPinia())
 
@@ -87,15 +110,7 @@ describe('WastelandPanel', () => {
 
   describe('rendering', () => {
     it('renders "The Wasteland" dropzone title', async () => {
-      const wrapper = mount(WastelandPanel, {
-        global: {
-          plugins: [router],
-          stubs: {
-            ActiveExplorationList: { template: '<div class="exploration-list-mock"></div>' },
-            ExplorationRewardsModal: { template: '<div class="rewards-mock"></div>' },
-          },
-        },
-      })
+      const wrapper = mountPanel()
 
       await flushPromises()
 
@@ -104,15 +119,7 @@ describe('WastelandPanel', () => {
     })
 
     it('refreshes the active list through the store at the shared cadence', async () => {
-      const wrapper = mount(WastelandPanel, {
-        global: {
-          plugins: [router],
-          stubs: {
-            ActiveExplorationList: { template: '<div />' },
-            ExplorationRewardsModal: { template: '<div />' },
-          },
-        },
-      })
+      const wrapper = mountPanel()
 
       await flushPromises()
 
@@ -125,15 +132,8 @@ describe('WastelandPanel', () => {
     })
 
     it('shows the empty-explorer state when no explorations', async () => {
-      const wrapper = mount(WastelandPanel, {
-        global: {
-          plugins: [router],
-          stubs: {
-            ActiveExplorationList: false, // don't stub — let it render
-            ExplorationRewardsModal: { template: '<div class="rewards-mock"></div>' },
-          },
-        },
-      })
+      // Let the real list render instead of stubbing it.
+      const wrapper = mountPanel({ ActiveExplorationList: false })
 
       await flushPromises()
 
@@ -151,49 +151,21 @@ describe('WastelandPanel', () => {
           visual_attributes: { race: 'super_mutant' },
         },
       ] as never
-      const wrapper = mount(WastelandPanel, {
-        global: {
-          plugins: [router],
-          stubs: {
-            ActiveExplorationList: { template: '<div />' },
-            ExplorationRewardsModal: { template: '<div />' },
-          },
-        },
-      })
+      const wrapper = mountPanel()
 
-      await wrapper.findComponent({ name: 'WastelandDropzone' }).vm.$emit('drop-dweller', {
-        dwellerId: 'dweller-1',
-        firstName: 'Test',
-      })
+      await drop(wrapper, { firstName: 'Test' })
       await flushPromises()
 
-      expect(
-        wrapper.findComponent({ name: 'ExplorationDurationModal' }).props('allowRadaway')
-      ).toBe(false)
+      expect(wrapper.findComponent({ name: 'ExplorationDurationModal' }).props('allowRadaway')).toBe(
+        false
+      )
     })
 
     it('opens the duration modal on drop-dweller', async () => {
-      const wrapper = mount(WastelandPanel, {
-        global: {
-          plugins: [router],
-          stubs: {
-            ActiveExplorationList: { template: '<div class="exploration-list-mock"></div>' },
-            ExplorationRewardsModal: { template: '<div class="rewards-mock"></div>' },
-          },
-        },
-      })
-
+      const wrapper = mountPanel()
       await flushPromises()
 
-      // Simulate drop via the WastelandDropzone component's emit
-      const dropzone = wrapper.findComponent({ name: 'WastelandDropzone' })
-      await dropzone.vm.$emit('drop-dweller', {
-        dwellerId: 'dweller-1',
-        firstName: 'Test',
-        lastName: 'Dweller',
-        currentRoomId: undefined,
-      })
-
+      await drop(wrapper, { currentRoomId: undefined })
       await flushPromises()
 
       // Duration modal should now be visible
@@ -203,21 +175,8 @@ describe('WastelandPanel', () => {
     })
 
     it('refreshes vault and dweller state after sending a dweller', async () => {
-      const wrapper = mount(WastelandPanel, {
-        global: {
-          plugins: [router],
-          stubs: {
-            ActiveExplorationList: { template: '<div />' },
-            ExplorationRewardsModal: { template: '<div />' },
-          },
-        },
-      })
-      const dropzone = wrapper.findComponent({ name: 'WastelandDropzone' })
-      await dropzone.vm.$emit('drop-dweller', {
-        dwellerId: 'dweller-1',
-        firstName: 'Test',
-        lastName: 'Dweller',
-      })
+      const wrapper = mountPanel()
+      await drop(wrapper)
       await wrapper.findComponent({ name: 'ExplorationDurationModal' }).vm.$emit('confirm', {
         duration: 4,
         stimpaks: 1,
@@ -230,20 +189,8 @@ describe('WastelandPanel', () => {
     })
 
     it('cancels a pending dispatch when the vault changes', async () => {
-      const wrapper = mount(WastelandPanel, {
-        global: {
-          plugins: [router],
-          stubs: {
-            ActiveExplorationList: { template: '<div />' },
-            ExplorationRewardsModal: { template: '<div />' },
-          },
-        },
-      })
-      await wrapper.findComponent({ name: 'WastelandDropzone' }).vm.$emit('drop-dweller', {
-        dwellerId: 'dweller-1',
-        firstName: 'Test',
-        lastName: 'Dweller',
-      })
+      const wrapper = mountPanel()
+      await drop(wrapper)
       await router.push('/vault/next-vault-id')
       await flushPromises()
 
@@ -253,20 +200,12 @@ describe('WastelandPanel', () => {
 
   describe('error handling', () => {
     it('shows toast error on drop-error', async () => {
-      const wrapper = mount(WastelandPanel, {
-        global: {
-          plugins: [router],
-          stubs: {
-            ActiveExplorationList: { template: '<div class="exploration-list-mock"></div>' },
-            ExplorationRewardsModal: { template: '<div class="rewards-mock"></div>' },
-          },
-        },
-      })
-
+      const wrapper = mountPanel()
       await flushPromises()
 
-      const dropzone = wrapper.findComponent({ name: 'WastelandDropzone' })
-      await dropzone.vm.$emit('drop-error', 'Failed to send dweller to wasteland')
+      await wrapper
+        .findComponent({ name: 'WastelandDropzone' })
+        .vm.$emit('drop-error', 'Failed to send dweller to wasteland')
 
       expect(mockToast.error).toHaveBeenCalledWith('Failed to send dweller to wasteland')
     })
@@ -281,21 +220,16 @@ describe('WastelandPanel', () => {
     vi.spyOn(explorationStore, 'completeExploration').mockResolvedValue({
       rewards_summary: rewards,
     })
-    const wrapper = mount(WastelandPanel, {
-      global: {
-        plugins: [router],
-        stubs: {
-          ActiveExplorationList: {
-            emits: ['complete'],
-            template:
-              '<button class="complete-exploration" @click="$emit(\'complete\', \'exploration-1\')" />',
-          },
-          ExplorationRewardsModal: {
-            props: ['show', 'rewards', 'dwellerName'],
-            emits: ['close'],
-            template: '<button class="rewards-mock" :data-show="show" @click="$emit(\'close\')" />',
-          },
-        },
+    const wrapper = mountPanel({
+      ActiveExplorationList: {
+        emits: ['complete'],
+        template:
+          '<button class="complete-exploration" @click="$emit(\'complete\', \'exploration-1\')" />',
+      },
+      ExplorationRewardsModal: {
+        props: ['show', 'rewards', 'dwellerName'],
+        emits: ['close'],
+        template: '<button class="rewards-mock" :data-show="show" @click="$emit(\'close\')" />',
       },
     })
     await flushPromises()

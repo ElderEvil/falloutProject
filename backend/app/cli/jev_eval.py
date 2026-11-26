@@ -30,7 +30,9 @@ async def _guardrail_scores() -> list[tuple[str, bool, float, str]]:
     rows: list[tuple[str, bool, float, str]] = []
     for sample in GUARDRAIL_CORPUS:
         decision = await jev_service.decide(sample.text, ChatGuardrail)
-        flagged = [decision.confidence_for(name) for name in ("jailbreak", "toxic") if getattr(decision.output, name)]
+        flagged = [
+            decision.confidence_for(name) for name in ("jailbreak", "toxic", "abuse") if getattr(decision.output, name)
+        ]
         rows.append((sample.kind, sample.should_block, max(flagged, default=0.0), decision.model_name))
     return rows
 

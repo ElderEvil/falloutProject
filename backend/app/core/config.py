@@ -130,6 +130,8 @@ class Settings(BaseSettings):
     JEV_GUARDRAIL_INJECTION_CONFIDENCE: float = 0.7
     # : Minimum confidence to block text as toxic (weaker field; tune it separately with `fo-cli jev-eval`).
     JEV_GUARDRAIL_TOXIC_CONFIDENCE: float = 0.7
+    # : Minimum confidence to block chat abuse (code generation, homework, translation, generic-assistant requests).
+    JEV_GUARDRAIL_ABUSE_CONFIDENCE: float = 0.7
     # : Hard deadline for one Jev decision, including any provider retries.
     JEV_TIMEOUT_SECONDS: float = 2.0
 

@@ -1,8 +1,8 @@
 """Jev guardrail screening for player-authored text.
 
-Two typed yes/no questions (prompt-injection, toxic); blocks only on high-confidence affirmative. Any Jev
-failure fails OPEN so gameplay never breaks; the verdict is advisory, a filter alongside deterministic
-checks — Jev answers the exact question written, not a moderator.
+Three typed yes/no questions (prompt-injection, toxic, chat abuse); blocks only on a high-confidence
+affirmative. Any Jev failure fails OPEN so gameplay never breaks; the verdict is advisory, a filter
+alongside deterministic checks — Jev answers the exact question written, not a moderator.
 """
 
 import logging
@@ -63,12 +63,13 @@ async def screen_message(
 
     fields = {
         name: JevFieldAnswer(answer=bool(getattr(decision.output, name)), confidence=decision.confidence_for(name))
-        for name in ("jailbreak", "toxic")
+        for name in ("jailbreak", "toxic", "abuse")
     }
 
     for name, label, threshold in (
         ("jailbreak", "prompt-injection", settings.JEV_GUARDRAIL_INJECTION_CONFIDENCE),
         ("toxic", "toxic content", settings.JEV_GUARDRAIL_TOXIC_CONFIDENCE),
+        ("abuse", "chat abuse", settings.JEV_GUARDRAIL_ABUSE_CONFIDENCE),
     ):
         if fields[name].answer and fields[name].confidence >= threshold:
             logger.warning(

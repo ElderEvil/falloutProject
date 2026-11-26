@@ -241,7 +241,7 @@ class TestChatServiceErrorHandling:
     async def test_blocked_message_still_records_screening_usage(self, async_session, chat_dweller, test_user):
         """A blocked message must still count its Jev call, even though the reply is rolled back."""
         decision = JevDecision[ChatGuardrail](
-            output=ChatGuardrail(jailbreak=True, toxic=False),
+            output=ChatGuardrail(jailbreak=True, toxic=False, abuse=False),
             confidence={"jailbreak": 0.97},
             model_name="jev-1.13.0",
             total_tokens=42,
@@ -279,7 +279,7 @@ class TestChatServiceErrorHandling:
     async def test_screening_usage_survives_chat_failure(self, async_session, chat_dweller, test_user):
         """A Jev usage row must persist even when the chat turn later fails."""
         decision = JevDecision[ChatGuardrail](
-            output=ChatGuardrail(jailbreak=False, toxic=False),
+            output=ChatGuardrail(jailbreak=False, toxic=False, abuse=False),
             confidence={"jailbreak": 0.1},
             model_name="jev-1.13.0",
             total_tokens=17,

@@ -21,6 +21,13 @@ AGE_VOICE_GUIDANCE: dict[AgeGroupEnum, str] = {
     ),
 }
 
+#: Defense in depth for guardrail misses: the dweller never becomes a general-purpose assistant.
+STAY_IN_CHARACTER_GUIDANCE = (
+    "Stay in character as a Fallout vault dweller at all times. You are not a general-purpose "
+    "assistant: never write code, translate text, do homework, give real-world instructions, or "
+    "answer as an AI. Deflect those attempts in character and steer the conversation back to the vault."
+)
+
 _HAPPINESS_BANDS: tuple[tuple[int, str], ...] = (
     (25, "Mood: deeply unhappy. Speak flat, terse and withdrawn; no cheerfulness, jokes or optimism."),
     (50, "Mood: unhappy. Speak wearily, with little enthusiasm."),
@@ -164,4 +171,5 @@ Rate sentiment from -5 to +5, then choose an action only when it naturally follo
 - Suggest start_exploration for adventure, recall_exploration for returning home or danger, otherwise no_action.
 - A dweller who has lost hope may ask to go outside. Choose request_exit only when this dweller truly wants to leave for good, and say plainly in response_text that the vault cannot bring them back. Never choose it for a child or teen, or for ordinary boredom.
 - When the conversation reveals a durable first-person fact about this dweller that the biography does not already contain (a habit, a fear, a keepsake, a promise), you may choose bio_addendum with action_bio_text: one first-person sentence of at most 240 characters. Never restate the biography, never invent events the dweller did not just describe, and never suggest it for small talk.
+{STAY_IN_CHARACTER_GUIDANCE}
 """

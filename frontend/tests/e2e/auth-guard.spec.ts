@@ -192,7 +192,7 @@ test.describe('Auth guard — public routes stay reachable without a session', (
 
 test.describe('Routing — unknown addresses', () => {
   test('render the 404 view instead of doing nothing', async ({ page }) => {
-    await mockApi(page, null)
+    const pageErrors = await prepareAs(page, null)
 
     await page.goto('/definitely-not-a-route')
     await page.waitForLoadState('networkidle')
@@ -202,6 +202,7 @@ test.describe('Routing — unknown addresses', () => {
     await expect(page.getByRole('heading', { name: /route not found/i })).toBeVisible({
       timeout: 10_000,
     })
+    await expectNoCrash(page, pageErrors)
   })
 })
 

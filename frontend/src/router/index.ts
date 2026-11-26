@@ -1,4 +1,4 @@
-import { createRouter, createWebHistory, type RouteLocationRaw } from 'vue-router'
+import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 
 // Module routes
@@ -105,10 +105,11 @@ const router = createRouter({
       component: () => import('@/modules/profile/views/AboutView.vue'),
     },
     {
-      // Every address the app does not know resolves here instead of being swallowed by the
-      // global navigation guard. Keep last: vue-router matches in order.
+      // Every address the app does not know resolves here instead of rendering nothing.
+      // Public on purpose: a typo is not an auth failure, even under default-deny.
       path: '/:pathMatch(.*)*',
       name: 'not-found',
+      meta: { public: true },
       component: () => import('@/core/views/NotFoundView.vue'),
     },
   ],
@@ -125,19 +126,5 @@ router.beforeEach(async (to) => {
   }
   return true
 })
-
-// Suppress duplicate-navigation warnings, re-throw everything else. Unmatched addresses now
-// resolve to the catch-all route, so there is no "No match found" case left to hide.
-const originalPush = router.push.bind(router)
-router.push = function push(location: RouteLocationRaw) {
-  return originalPush(location).catch((err: unknown) => {
-    const message = err instanceof Error ? err.message : String(err)
-    if (message === 'NavigationDuplicated') {
-      return Promise.resolve()
-    }
-    console.warn('[Vue Router]', message)
-    throw err
-  })
-}
 
 export default router

@@ -11,16 +11,16 @@ from app.models.collectible import VaultCollectible
 
 
 class CRUDCollectible:
-    async def revoke_finder_bonus(self, db_session: AsyncSession, *, vault_id: UUID, dweller_id: UUID) -> None:
-        """Stop this finder's claims from paying a bonus; the vault keeps every claim.
+    async def revoke_finder_bonus(self, db_session: AsyncSession, *, dweller_id: UUID) -> None:
+        """Stop every claim this finder owns from paying a bonus; the vaults keep the claims.
 
         Called where a dwelling clears ``collectible_bonus``/``magazine_boon`` (death, recycling).
-        A claim stays in the list as found history, but readback must not promise a lost bonus.
+        The bonus lives on the dweller, not the vault, so a claim in any vault stops paying. A
+        claim stays in the list as found history, but readback must not promise a lost bonus.
         """
         await db_session.execute(
             update(VaultCollectible)
             .where(
-                col(VaultCollectible.vault_id) == vault_id,
                 col(VaultCollectible.finder_dweller_id) == dweller_id,
                 col(VaultCollectible.bonus_live).is_(True),
             )

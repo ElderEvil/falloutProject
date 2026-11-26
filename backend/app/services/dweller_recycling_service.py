@@ -68,8 +68,7 @@ class DwellerRecyclingService:
         dweller.restore()
 
         # The old vault keeps the claims, but this dweller no longer holds their bonus.
-        if dweller.vault_id is not None:
-            await collectible_crud.revoke_finder_bonus(db_session, vault_id=dweller.vault_id, dweller_id=dweller.id)
+        await collectible_crud.revoke_finder_bonus(db_session, dweller_id=dweller.id)
 
         # Update vault assignment
         dweller.vault_id = target_vault_id

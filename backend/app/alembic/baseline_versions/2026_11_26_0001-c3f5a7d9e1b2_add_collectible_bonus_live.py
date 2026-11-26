@@ -9,7 +9,7 @@ No backfill: existing rows default to live, and readback also checks the finder'
 so a legacy claim whose bonus was already cleared still reads as 0. The flag makes the next clear
 exact instead of inferred.
 
-Revision ID: a1c2e3f4b5d6
+Revision ID: c3f5a7d9e1b2
 Revises: b7e2c9d4a1f6
 Create Date: 2026-11-26
 """
@@ -20,7 +20,7 @@ import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = "a1c2e3f4b5d6"
+revision: str = "c3f5a7d9e1b2"
 down_revision: str | Sequence[str] | None = "b7e2c9d4a1f6"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None

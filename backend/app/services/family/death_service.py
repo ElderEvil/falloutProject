@@ -91,7 +91,7 @@ class DeathService:
             )
 
             # The bonus is gone; mark the finder's claims so the dweller card stops promising it.
-            await collectible_crud.revoke_finder_bonus(db_session, vault_id=vault_id, dweller_id=dweller.id)
+            await collectible_crud.revoke_finder_bonus(db_session, dweller_id=dweller.id)
 
             # Death, both counters and the notification row share one transaction.
             await self._increment_death_stats(db_session, vault, cause, commit=False)

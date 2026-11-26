@@ -146,9 +146,11 @@ class CollectibleService:
     def _live_amount(dweller: Dweller, *, claim: VaultCollectible, entry: dict[str, Any]) -> int:
         """What one claim pays its finder right now; 0 once death or recycling cleared it.
 
-        The stored flag is exact for new clears; the live map keeps legacy rows honest, since
-        claims written before the flag existed default to live but a cleared bonus still reads 0.
-        Magazines read their keyed boon because the completed shelf raises the amount.
+        The stored flag is exact for new clears. For claims written before the flag existed it
+        defaults to live, so the live map is also consulted: an empty or unrelated map reads 0,
+        while a same-stat re-earn can still make an old legacy claim read live (pre-flag data
+        only; new clears are exact). Magazines read their keyed boon because the completed shelf
+        raises the amount.
         """
         if not claim.bonus_live:
             return 0

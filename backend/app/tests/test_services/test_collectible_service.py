@@ -141,7 +141,7 @@ async def test_a_revoked_claim_stays_zero_after_a_new_bonus_of_the_same_stat(
     """A same-vault re-recruit can earn a new bonus; the lost claim must not ride along with it."""
     dweller = await _finder(async_session, vault)
     await _award_strength(async_session, vault, dweller)
-    await collectible_crud.revoke_finder_bonus(async_session, vault_id=vault.id, dweller_id=dweller.id)
+    await collectible_crud.revoke_finder_bonus(async_session, dweller_id=dweller.id)
     dweller.collectible_bonus = {"strength": 1}
     async_session.add(dweller)
     await async_session.commit()
@@ -160,6 +160,64 @@ async def test_a_legacy_claim_reads_zero_once_its_live_bonus_is_gone(async_sessi
 
     [read] = await collectible_service.list_for_dweller(async_session, dweller=dweller)
     assert read.amount == 0
+
+
+async def test_a_revoke_leaves_another_finders_claim_live(async_session: AsyncSession, vault: Vault) -> None:
+    """Revoking one dweller must not touch the vault's other claims."""
+    doomed = await _finder(async_session, vault)
+    bystander = await _finder(async_session, vault)
+    await _award_strength(async_session, vault, doomed)
+    assert await collectible_service.award(
+        async_session, vault_id=vault.id, dweller=bystander, collectible_key="perception"
+    )
+
+    await collectible_crud.revoke_finder_bonus(async_session, dweller_id=doomed.id)
+
+    claim = await collectible_crud.get_by_vault_and_key(async_session, vault.id, "perception")
+    assert claim is not None
+    assert claim.bonus_live is True
+    [read] = await collectible_service.list_for_dweller(async_session, dweller=bystander)
+    assert read.amount == 1
+
+
+async def test_a_failed_recycle_keeps_the_claim_and_bonus_live(
+    async_session: AsyncSession, vault: Vault, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Recycling composes the revoke with the bonus clear; a late failure restores both."""
+    vault_id = vault.id
+    dweller = await _finder(async_session, vault)
+    dweller_id = dweller.id
+    await _award_strength(async_session, vault, dweller)
+    await crud.dweller.soft_delete(async_session, dweller_id)
+    other_vault = await crud.vault.create(
+        db_session=async_session,
+        obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=vault.user_id),
+    )
+    target_vault_id = other_vault.id
+
+    real_commit = async_session.commit
+    calls = {"count": 0}
+
+    async def explode_once() -> None:
+        calls["count"] += 1
+        if calls["count"] == 1:
+            raise RuntimeError("commit exploded")
+        await real_commit()
+
+    monkeypatch.setattr(async_session, "commit", explode_once)
+    with pytest.raises(RuntimeError, match="commit exploded"):
+        await dweller_recycling_service.recycle_dweller_for_vault(
+            async_session, dweller_id, target_vault_id, reset_stats=False
+        )
+
+    await async_session.rollback()
+    claim = await collectible_crud.get_by_vault_and_key(async_session, vault_id, "strength")
+    assert claim is not None
+    assert claim.bonus_live is True
+    restored = await crud.dweller.get(async_session, dweller_id, include_deleted=True)
+    await async_session.refresh(restored)
+    assert restored.collectible_bonus == {"strength": 1}
+    assert restored.vault_id == vault_id
 
 
 async def test_site_award_goes_to_the_luckiest_survivor_once(

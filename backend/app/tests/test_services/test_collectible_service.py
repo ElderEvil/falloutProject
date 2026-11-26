@@ -18,6 +18,7 @@ from app.schemas.vault import VaultCreateWithUserID
 from app.services.collectible_service import collectible_service
 from app.services.dweller_recycling_service import dweller_recycling_service
 from app.services.family.death_service import death_service
+from app.services.notification_service import notification_service
 from app.tests.factory.dwellers import create_fake_dweller
 from app.tests.factory.vaults import create_fake_vault
 
@@ -89,6 +90,30 @@ async def test_death_clears_the_bonus_and_revival_keeps_it_cleared(async_session
     claim = await collectible_crud.get_by_vault_and_key(async_session, vault.id, "strength")
     assert claim is not None
     assert claim.bonus_live is False
+
+
+async def test_a_failed_death_leaves_the_claim_and_bonus_live(
+    async_session: AsyncSession, vault: Vault, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The revoke shares the death transaction, so a late failure must not strand a dead claim."""
+    vault_id = vault.id
+    dweller = await _finder(async_session, vault)
+    await _award_strength(async_session, vault, dweller)
+    await async_session.commit()
+
+    async def explode(*args: object, **kwargs: object) -> None:
+        raise RuntimeError("notification exploded")
+
+    monkeypatch.setattr(notification_service, "notify_owner", explode)
+    with pytest.raises(RuntimeError, match="notification exploded"):
+        await death_service.mark_as_dead(async_session, dweller, DeathCauseEnum.HEALTH)
+
+    claim = await collectible_crud.get_by_vault_and_key(async_session, vault_id, "strength")
+    assert claim is not None
+    assert claim.bonus_live is True
+    await async_session.refresh(dweller)
+    assert dweller.collectible_bonus == {"strength": 1}
+    assert not dweller.is_dead
 
 
 async def test_cross_vault_recycling_drops_the_bonus_even_without_stat_reset(

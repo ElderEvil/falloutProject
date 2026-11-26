@@ -109,10 +109,8 @@ async def test_status_reports_built_unstaffed_barbershop(async_session: AsyncSes
     status = await barbershop_service.get_status(async_session, vault.id)
     assert status.built is True
     assert status.staffed is False
-    assert status.fee == 350
-    assert status.skin_fee == 200
-    assert status.hair_fee == 150
-    assert status.skin_tones == ["Pale", "Tan", "Brown", "Ebony"]
+    assert (status.fee, status.skin_fee) == (350, 200)
+    assert (status.hair_fee, status.skin_tones) == (150, ["Pale", "Tan", "Brown", "Ebony"])
     assert status.hair_colors == ["blonde", "brunette", "black", "brown", "red", "gray"]
 
 
@@ -133,8 +131,7 @@ async def test_change_appearance_deducts_fee_and_swaps_default_portrait(
     before_image = dweller.image_url
     response = await _change(async_session, shop, dweller, "Tan", "black")
     assert response.portrait_updated is True
-    assert response.fee == 350
-    assert response.remaining_caps == 150
+    assert (response.fee, response.remaining_caps) == (350, 150)
     assert response.dweller.visual_attributes["skin_tone"] == "Tan"
     assert response.dweller.visual_attributes["hair_color"] == "black"
     assert response.dweller.image_url != before_image
@@ -147,12 +144,10 @@ async def test_change_appearance_charges_only_for_the_changed_attribute(
     async_session: AsyncSession, dweller: Dweller, shop: Room, human: Dweller, funded: Vault
 ) -> None:
     skin_response = await _change(async_session, shop, dweller, "Tan", "blonde")
-    assert skin_response.fee == 200
-    assert skin_response.remaining_caps == 300
+    assert (skin_response.fee, skin_response.remaining_caps) == (200, 300)
     await async_session.refresh(dweller)
     hair_response = await _change(async_session, shop, dweller, "Tan", "black")
-    assert hair_response.fee == 150
-    assert hair_response.remaining_caps == 150
+    assert (hair_response.fee, hair_response.remaining_caps) == (150, 150)
 
 
 async def test_change_appearance_preserves_custom_art(
@@ -163,8 +158,7 @@ async def test_change_appearance_preserves_custom_art(
     await _set_human(async_session, dweller, image_url=custom_image, thumbnail_url=custom_thumbnail)
     response = await _change(async_session, shop, dweller, "Ebony", "red")
     assert response.portrait_updated is False
-    assert response.dweller.image_url == custom_image
-    assert response.dweller.thumbnail_url == custom_thumbnail
+    assert (response.dweller.image_url, response.dweller.thumbnail_url) == (custom_image, custom_thumbnail)
     assert response.dweller.visual_attributes["skin_tone"] == "Ebony"
     assert response.dweller.visual_attributes["hair_color"] == "red"
 
@@ -177,8 +171,7 @@ async def test_change_appearance_rejects_insufficient_caps(
         await _change(async_session, shop, dweller, "Tan", "black")
     await async_session.refresh(dweller)
     await async_session.refresh(vault)
-    assert dweller.visual_attributes["skin_tone"] == "Pale"
-    assert vault.bottle_caps == 50
+    assert (dweller.visual_attributes["skin_tone"], vault.bottle_caps) == ("Pale", 50)
 
 
 async def test_change_appearance_rejects_non_human(async_session: AsyncSession, dweller: Dweller, shop: Room) -> None:

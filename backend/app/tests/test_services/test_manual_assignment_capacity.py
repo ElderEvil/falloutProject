@@ -45,22 +45,16 @@ def _production_room_create(
         name=name,
         category=RoomTypeEnum.PRODUCTION,
         ability=ability,
-        population_required=None,
         base_cost=100,
         incremental_cost=25,
         t2_upgrade_cost=500,
         t3_upgrade_cost=1500,
-        capacity=None,
-        output=None,
         size_min=3,
         size_max=9,
         size=3,
         tier=1,
         coordinate_x=x,
         coordinate_y=1,
-        image_url=None,
-        capacity_formula=None,
-        output_formula=None,
     )
 
 
@@ -79,6 +73,9 @@ async def _create_room(
     return await crud.room.create(session, obj_in=payload)
 
 
+SPECIAL_FIVE = dict.fromkeys(("strength", "perception", "endurance", "charisma", "intelligence", "agility", "luck"), 5)
+
+
 def _dweller_create(vault_id: UUID, surname: str, age_group: AgeGroupEnum) -> DwellerCreate:
     return DwellerCreate(
         vault_id=vault_id,
@@ -88,18 +85,10 @@ def _dweller_create(vault_id: UUID, surname: str, age_group: AgeGroupEnum) -> Dw
         rarity=RarityEnum.COMMON,
         age_group=age_group,
         level=1,
-        experience=0,
         max_health=100,
         health=100,
-        radiation=0,
         happiness=50,
-        strength=5,
-        perception=5,
-        endurance=5,
-        charisma=5,
-        intelligence=5,
-        agility=5,
-        luck=5,
+        **SPECIAL_FIVE,
     )
 
 
@@ -202,8 +191,7 @@ async def test_bulk_retries_candidate_in_next_room_when_first_is_busy(
             SPECIALEnum.STRENGTH, rooms, async_session, [candidate], assignments, set(), 1
         )
     await async_session.refresh(candidate)
-    assert candidate.room_id == rooms[1].id
-    assert remaining == []
+    assert (candidate.room_id, remaining) == (rooms[1].id, [])
     assert len(assignments) == 1
     assert assignments[0]["room_id"] == str(rooms[1].id)
 

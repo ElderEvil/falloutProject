@@ -181,8 +181,7 @@ async def test_check_for_conception_in_living_quarters(async_session, vault, cou
     male, female = couple
     pregnancies = await _roll_for_conception(async_session, vault)
     assert len(pregnancies) == 1
-    assert pregnancies[0].mother_id == female.id
-    assert pregnancies[0].father_id == male.id
+    assert (pregnancies[0].mother_id, pregnancies[0].father_id) == (female.id, male.id)
 
 
 async def test_check_for_conception_batches_partner_and_affinity_lookups(
@@ -258,8 +257,7 @@ async def test_check_for_conception_respects_population_capacity(
     pregnancies = await _roll_for_conception(async_session, vault)
     assert len(pregnancies) == expected
     if expected:
-        assert pregnancies[0].mother_id == female.id
-        assert pregnancies[0].father_id == male.id
+        assert (pregnancies[0].mother_id, pregnancies[0].father_id) == (female.id, male.id)
 
 
 async def test_check_for_conception_reserves_for_committed_pregnancies(
@@ -311,8 +309,7 @@ async def test_deliver_baby_litter_size(async_session, couple, monkeypatch, twin
     assert len(children) == count
     assert len({child.id for child in children}) == count
     for child in children:
-        assert child.parent_1_id == female.id
-        assert child.parent_2_id == male.id
+        assert (child.parent_1_id, child.parent_2_id) == (female.id, male.id)
         assert child.age_group == AgeGroupEnum.CHILD
         assert child.bio is not None
     siblings = await crud.dweller.get_all_in_vault(async_session, female.vault_id)
@@ -432,8 +429,7 @@ async def test_age_children_progress_through_teen_to_adult(async_session, vault)
     assert len(aged) == 1
     assert aged[0].id == child.id
     await async_session.refresh(child)
-    assert child.age_group == AgeGroupEnum.TEEN
-    assert child.strength == 3
+    assert (child.age_group, child.strength) == (AgeGroupEnum.TEEN, 3)
     assert child.charisma == 3
     child.birth_date = utcnow() - timedelta(hours=growth + 1)
     await async_session.commit()
@@ -442,8 +438,7 @@ async def test_age_children_progress_through_teen_to_adult(async_session, vault)
     await async_session.refresh(child)
     assert child.age_group == AgeGroupEnum.ADULT
     # Stats are restored only when the teen becomes an adult (3 / 0.5 = 6).
-    assert child.strength == 6
-    assert child.charisma == 6
+    assert (child.strength, child.charisma) == (6, 6)
 
 
 async def test_age_children_promotes_only_old_adults_to_elders(async_session, vault):
@@ -463,8 +458,7 @@ async def test_age_children_promotes_only_old_adults_to_elders(async_session, va
     assert [dweller.id for dweller in aged] == [old.id]
     await async_session.refresh(old)
     await async_session.refresh(young)
-    assert old.age_group == AgeGroupEnum.ELDER
-    assert young.age_group == AgeGroupEnum.ADULT
+    assert (old.age_group, young.age_group) == (AgeGroupEnum.ELDER, AgeGroupEnum.ADULT)
 
 
 async def test_age_children_leaves_ageless_adults_as_adults(async_session, vault):

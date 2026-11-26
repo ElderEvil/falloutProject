@@ -28,6 +28,7 @@ from app.services.room_service import room_service
 from app.services.vault import seeding
 from app.services.vault_service import vault_service
 from app.tests.factory.dwellers import create_rush_dweller_payload
+from app.tests.test_services._transaction_helpers import counting_commit
 from app.utils.exceptions import (
     InsufficientResourcesException,
     ResourceConflictException,
@@ -64,40 +65,38 @@ ROOM_DEFAULTS: dict[str, Any] = {
 }
 
 
-def _pc(vault: Vault, **overrides: Any) -> RoomCreate:
-    return RoomCreate(vault_id=vault.id, **(ROOM_DEFAULTS | overrides))
-
-
 def _payload(vault_id: UUID, **overrides: Any) -> RoomCreate:
     return RoomCreate(vault_id=vault_id, **(ROOM_DEFAULTS | overrides))
 
 
-# Names kept for app/tests/test_api/test_room.py, which builds its fixtures through them.
-def _make_room_create(
-    vault_id: UUID,
-    *,
-    name: str = "Power Generator",
-    coordinate_x: int = 0,
-    coordinate_y: int = 1,
-    size: int = 3,
-    size_min: int = 3,
-    size_max: int = 9,
-    tier: int = 1,
-    capacity_formula: str | None = "10*S",
-    output_formula: str | None = "5*S",
-) -> RoomCreate:
-    return _payload(
-        vault_id,
-        name=name,
-        coordinate_x=coordinate_x,
-        coordinate_y=coordinate_y,
-        size=size,
-        size_min=size_min,
-        size_max=size_max,
-        tier=tier,
-        capacity_formula=capacity_formula,
-        output_formula=output_formula,
-    )
+def _pc(vault: Vault, **overrides: Any) -> RoomCreate:
+    return _payload(vault.id, **overrides)
+
+
+ELEVATOR: dict[str, Any] = {
+    "name": "Elevator",
+    "category": RoomTypeEnum.MISC,
+    "ability": None,
+    "incremental_cost": None,
+    "t2_upgrade_cost": None,
+    "t3_upgrade_cost": None,
+    "size_min": 1,
+    "size_max": 1,
+    "size": 1,
+    "capacity_formula": None,
+    "output_formula": None,
+}
+
+STUDIO: dict[str, Any] = {
+    "name": "Radio studio",
+    "ability": SPECIALEnum.CHARISMA,
+    "base_cost": 600,
+    "incremental_cost": 150,
+    "t2_upgrade_cost": 1500,
+    "t3_upgrade_cost": 4500,
+    "capacity_formula": None,
+    "output_formula": None,
+}
 
 
 async def _create_existing_room(
@@ -114,7 +113,7 @@ async def _create_existing_room(
     output_formula: str | None = "5*S",
     image_url: str | None = None,
 ) -> Room:
-    payload = _make_room_create(
+    obj_in = _payload(
         vault_id,
         name=name,
         coordinate_x=coordinate_x,
@@ -124,56 +123,24 @@ async def _create_existing_room(
         tier=tier,
         capacity_formula=capacity_formula,
         output_formula=output_formula,
-    ).model_copy(update={"image_url": image_url})
-    return await crud.room.create(session, obj_in=payload)
+        image_url=image_url,
+    )
+    return await crud.room.create(session, obj_in=obj_in)
 
 
-async def _create_elevator(session: AsyncSession, vault_id: UUID, coordinate_y: int, *, coordinate_x: int = 6) -> Room:
-    return await crud.room.create(
-        session,
-        obj_in=_payload(
-            vault_id,
-            name="Elevator",
-            category=RoomTypeEnum.MISC,
-            ability=None,
-            incremental_cost=None,
-            t2_upgrade_cost=None,
-            t3_upgrade_cost=None,
-            size_min=1,
-            size_max=1,
-            size=1,
-            coordinate_x=coordinate_x,
-            coordinate_y=coordinate_y,
-            capacity_formula=None,
-            output_formula=None,
-        ),
+async def _elevator(session: AsyncSession, vault: Vault | UUID, coordinate_y: int, *, coordinate_x: int = 6) -> Room:
+    vault_id = vault if isinstance(vault, UUID) else vault.id
+    obj_in = _payload(vault_id, **{**ELEVATOR, "coordinate_x": coordinate_x, "coordinate_y": coordinate_y})
+    return await crud.room.create(session, obj_in=obj_in)
+
+
+def _radio(vault: Vault, *, coordinate_x: int, coordinate_y: int = 0, size: int = 3, tier: int = 1) -> RoomCreate:
+    return _pc(
+        vault, **{**STUDIO, "coordinate_x": coordinate_x, "coordinate_y": coordinate_y, "size": size, "tier": tier}
     )
 
 
-async def _create_radio_studio(
-    session: AsyncSession, vault_id: UUID, *, coordinate_x: int = 1, coordinate_y: int = 0, size: int = 3, tier: int = 1
-) -> Room:
-    return await crud.room.create(
-        session,
-        obj_in=_payload(
-            vault_id,
-            name="Radio studio",
-            ability=SPECIALEnum.CHARISMA,
-            base_cost=600,
-            incremental_cost=150,
-            t2_upgrade_cost=1500,
-            t3_upgrade_cost=4500,
-            size=size,
-            tier=tier,
-            coordinate_x=coordinate_x,
-            coordinate_y=coordinate_y,
-            capacity_formula=None,
-            output_formula=None,
-        ),
-    )
-
-
-def _response(vault, *, coordinate_x, coordinate_y=0, size=3):
+def _response(vault: Vault, *, coordinate_x: int, coordinate_y: int = 0, size: int = 3) -> RoomCreate:
     return _pc(
         vault,
         name="Response Station",
@@ -191,48 +158,21 @@ def _response(vault, *, coordinate_x, coordinate_y=0, size=3):
     )
 
 
-def _radio(vault, *, coordinate_x, coordinate_y=0, size=3, tier=1):
-    return _pc(
-        vault,
-        name="Radio studio",
-        ability=SPECIALEnum.CHARISMA,
-        base_cost=600,
-        incremental_cost=150,
-        t2_upgrade_cost=1500,
-        t3_upgrade_cost=4500,
-        size=size,
-        tier=tier,
-        coordinate_x=coordinate_x,
-        coordinate_y=coordinate_y,
-        capacity_formula=None,
-        output_formula=None,
+# Names kept for app/tests/test_api/test_room.py, which builds its fixtures through them.
+_create_elevator = _elevator
+
+
+async def _create_radio_studio(
+    session: AsyncSession, vault_id: UUID, *, coordinate_x: int = 1, coordinate_y: int = 0, size: int = 3, tier: int = 1
+) -> Room:
+    obj_in = _payload(
+        vault_id, **{**STUDIO, "coordinate_x": coordinate_x, "coordinate_y": coordinate_y, "size": size, "tier": tier}
     )
+    return await crud.room.create(session, obj_in=obj_in)
 
 
 async def _room(session: AsyncSession, vault: Vault, **overrides: Any) -> Room:
     return await crud.room.create(session, obj_in=_pc(vault, **overrides))
-
-
-async def _elevator(session, vault, coordinate_y, coordinate_x=6):
-    return await crud.room.create(
-        session,
-        obj_in=_pc(
-            vault,
-            name="Elevator",
-            category=RoomTypeEnum.MISC,
-            ability=None,
-            incremental_cost=None,
-            t2_upgrade_cost=None,
-            t3_upgrade_cost=None,
-            size_min=1,
-            size_max=1,
-            size=1,
-            coordinate_x=coordinate_x,
-            coordinate_y=coordinate_y,
-            capacity_formula=None,
-            output_formula=None,
-        ),
-    )
 
 
 async def _station(session: AsyncSession, vault: Vault, **kw: Any) -> Room:
@@ -241,6 +181,16 @@ async def _station(session: AsyncSession, vault: Vault, **kw: Any) -> Room:
 
 async def _studio(session: AsyncSession, vault: Vault, **kw: Any) -> Room:
     return await crud.room.create(session, obj_in=_radio(vault, **kw))
+
+
+async def _names(session: AsyncSession, vault: Vault) -> list[str]:
+    return await crud.room.get_names_by_vault(session, vault.id)
+
+
+async def _caps(session: AsyncSession, vault: Vault) -> int:
+    """Bottle caps as persisted, re-read after a call that may have rolled back."""
+    await session.refresh(vault)
+    return vault.bottle_caps
 
 
 async def _dweller(session: AsyncSession, vault: Vault, room: Room, **stats: Any) -> Any:
@@ -349,8 +299,7 @@ async def test_build_merge_charges_price(async_session, rich_vault, size, expect
     await _room(async_session, rich_vault, coordinate_x=0, size=size)
     caps_before = rich_vault.bottle_caps
     result, _created = await room_service._build(db_session=async_session, obj_in=_pc(rich_vault, coordinate_x=size))
-    await async_session.refresh(rich_vault)
-    assert rich_vault.bottle_caps == caps_before - expected_price
+    assert await _caps(async_session, rich_vault) == caps_before - expected_price
     assert result.size == size + 3
 
 
@@ -478,10 +427,8 @@ async def test_adjacent_station_segment_merges_into_one_row(async_session, rich_
     grown_to_nine, created = await _build(async_session, _response(rich_vault, coordinate_x=7))
     assert (grown_to_nine.id, created, grown_to_nine.size) == (station.id, False, 9)
     assert calculate_room_capacity(grown_to_nine.size) == 6
-    await async_session.refresh(rich_vault)
-    assert rich_vault.bottle_caps == starting_caps - 1200
-    names = await crud.room.get_names_by_vault(async_session, rich_vault.id)
-    assert names.count("Response Station") == 1
+    assert await _caps(async_session, rich_vault) == starting_caps - 1200
+    assert (await _names(async_session, rich_vault)).count("Response Station") == 1
 
 
 async def test_adjacent_station_segment_preserves_dwellers(async_session, rich_vault):
@@ -491,8 +438,7 @@ async def test_adjacent_station_segment_preserves_dwellers(async_session, rich_v
     assert grown.id == station.id
     await async_session.refresh(dweller)
     assert dweller.room_id == station.id
-    names = await crud.room.get_names_by_vault(async_session, rich_vault.id)
-    assert names.count("Response Station") == 1
+    assert (await _names(async_session, rich_vault)).count("Response Station") == 1
 
 
 async def test_disconnected_second_station_rejected_without_charge(async_session, rich_vault):
@@ -503,10 +449,8 @@ async def test_disconnected_second_station_rejected_without_charge(async_session
         await room_service._build(
             db_session=async_session, obj_in=_response(rich_vault, coordinate_x=1, coordinate_y=1)
         )
-    await async_session.refresh(rich_vault)
-    assert rich_vault.bottle_caps == starting_caps
-    names = await crud.room.get_names_by_vault(async_session, rich_vault.id)
-    assert names.count("Response Station") == 1
+    assert await _caps(async_session, rich_vault) == starting_caps
+    assert (await _names(async_session, rich_vault)).count("Response Station") == 1
 
 
 async def test_adjacent_station_segment_at_size_max_rejected_without_charge(async_session, rich_vault):
@@ -514,12 +458,10 @@ async def test_adjacent_station_segment_at_size_max_rejected_without_charge(asyn
     starting_caps = rich_vault.bottle_caps
     with pytest.raises(UniqueRoomViolationException):
         await room_service._build(db_session=async_session, obj_in=_response(rich_vault, coordinate_x=10))
-    await async_session.refresh(rich_vault)
-    assert rich_vault.bottle_caps == starting_caps
+    assert await _caps(async_session, rich_vault) == starting_caps
     await async_session.refresh(station)
     assert station.size == 9
-    names = await crud.room.get_names_by_vault(async_session, rich_vault.id)
-    assert names.count("Response Station") == 1
+    assert (await _names(async_session, rich_vault)).count("Response Station") == 1
 
 
 # Radio studio — one per vault, still growable through adjacent segments
@@ -532,16 +474,13 @@ async def test_adjacent_radio_segment_merges_into_one_studio(async_session, rich
         db_session=async_session, obj_in=_radio(rich_vault, coordinate_x=4)
     )
     assert (grown_to_six.id, created, grown_to_six.size) == (studio.id, False, 6)
-    await async_session.refresh(rich_vault)
-    assert rich_vault.bottle_caps == starting_caps - 750
+    assert await _caps(async_session, rich_vault) == starting_caps - 750
     grown_to_nine, created = await room_service._build(
         db_session=async_session, obj_in=_radio(rich_vault, coordinate_x=7)
     )
     assert (grown_to_nine.id, created, grown_to_nine.size) == (studio.id, False, 9)
-    await async_session.refresh(rich_vault)
-    assert rich_vault.bottle_caps == starting_caps - 1650
-    names = await crud.room.get_names_by_vault(async_session, rich_vault.id)
-    assert names.count("Radio studio") == 1
+    assert await _caps(async_session, rich_vault) == starting_caps - 1650
+    assert (await _names(async_session, rich_vault)).count("Radio studio") == 1
 
 
 async def test_disconnected_second_radio_studio_rejected_without_charge(async_session, rich_vault):
@@ -553,10 +492,8 @@ async def test_disconnected_second_radio_studio_rejected_without_charge(async_se
     detail = str(excinfo.value)
     assert "Radio studio" in detail
     assert "adjacent" in detail
-    await async_session.refresh(rich_vault)
-    assert rich_vault.bottle_caps == starting_caps
-    names = await crud.room.get_names_by_vault(async_session, rich_vault.id)
-    assert names.count("Radio studio") == 1
+    assert await _caps(async_session, rich_vault) == starting_caps
+    assert (await _names(async_session, rich_vault)).count("Radio studio") == 1
 
 
 async def _tier_case(session, vault, *, upgrade, neighbor):
@@ -593,8 +530,7 @@ async def test_split_radio_studio_rejected_by_remodel_service(async_session, ric
         await remodel_room(async_session, studio.id)
     await async_session.refresh(studio)
     assert studio.size == 6
-    names = await crud.room.get_names_by_vault(async_session, rich_vault.id)
-    assert names.count("Radio studio") == 1
+    assert (await _names(async_session, rich_vault)).count("Radio studio") == 1
 
 
 async def test_explicit_merge_of_legacy_radio_studios_still_succeeds(async_session, rich_vault):
@@ -603,8 +539,7 @@ async def test_explicit_merge_of_legacy_radio_studios_still_succeeds(async_sessi
     right = await _studio(async_session, rich_vault, coordinate_x=4)
     merged = (await remodel_room(async_session, left.id, right.id))[0]
     assert (merged.id, merged.size) == (left.id, 6)
-    names = await crud.room.get_names_by_vault(async_session, rich_vault.id)
-    assert names.count("Radio studio") == 1
+    assert (await _names(async_session, rich_vault)).count("Radio studio") == 1
 
 
 @asynccontextmanager
@@ -634,8 +569,7 @@ async def test_operation_refused_when_vault_placement_lock_is_held(async_session
     starting_caps = rich_vault.bottle_caps
     with patch(LOCK, new=_placement_lock_held), pytest.raises(ResourceConflictException):
         await _lock_op(kind, async_session, rich_vault, left.id)
-    await async_session.refresh(rich_vault)
-    assert rich_vault.bottle_caps == starting_caps
+    assert await _caps(async_session, rich_vault) == starting_caps
     assert await crud.room.get(async_session, left.id)
 
 
@@ -665,8 +599,7 @@ async def test_boosted_seeded_station_grows_to_nine(async_session, rich_vault):
     assert (grown_to_six.id, grown_to_six.size, calculate_room_capacity(grown_to_six.size)) == (station.id, 6, 4)
     grown_to_nine, _created = await _build(async_session, _response(rich_vault, coordinate_x=19, coordinate_y=0))
     assert (grown_to_nine.id, grown_to_nine.size, calculate_room_capacity(grown_to_nine.size)) == (station.id, 9, 6)
-    names = await crud.room.get_names_by_vault(async_session, rich_vault.id)
-    assert names.count("Response Station") == 1
+    assert (await _names(async_session, rich_vault)).count("Response Station") == 1
 
 
 @pytest.mark.parametrize(("inner_x", "outer_x", "size"), [(7, 10, 3), (3, 0, 3), (7, 16, 9)])
@@ -723,8 +656,7 @@ async def test_destroy_lowest_elevator_on_empty_floor(async_session, rich_vault)
     assert destroyed.id == lowest_id
     assert await async_session.get(Room, lowest_id) is None
     assert await crud.room.get(async_session, above_id)
-    await async_session.refresh(rich_vault)
-    assert rich_vault.bottle_caps == initial_caps + 50
+    assert await _caps(async_session, rich_vault) == initial_caps + 50
 
 
 @pytest.mark.parametrize("room_x", [3, 7])
@@ -775,8 +707,7 @@ async def test_split_merge_preserves_room_totals_and_dwellers(async_session, ric
     pieces = await remodel_room(async_session, merged.id)
     for piece in reversed(pieces):
         await room_service.destroy_room(async_session, piece.id)
-    await async_session.refresh(rich_vault)
-    assert rich_vault.bottle_caps == caps + refund
+    assert await _caps(async_session, rich_vault) == caps + refund
 
 
 @pytest.mark.parametrize(
@@ -807,8 +738,7 @@ async def test_remodel_training_and_incident_references_follow_survivor(async_se
     for training, dweller in zip(trainings, dwellers, strict=True):
         await async_session.refresh(training)
         await async_session.refresh(dweller)
-        assert training.room_id == dweller.room_id
-        assert training.progress == 0.45
+        assert (training.room_id, training.progress) == (dweller.room_id, 0.45)
     incident = Incident(
         vault_id=rich_vault.id,
         room_id=pieces[1].id,
@@ -965,19 +895,10 @@ async def test_write_failure_preserves_state(async_session, db_connection, rich_
             assert persisted_room.tier == 1
 
 
-async def test_build_commits_once_on_create_and_merge_paths(async_session, rich_vault, monkeypatch):
+async def test_build_commits_once_on_create_and_merge_paths(async_session, rich_vault):
     await _elevator(async_session, rich_vault, 1)
-    commits = 0
-    original_commit = async_session.commit
-
-    async def counting_commit() -> None:
-        nonlocal commits
-        commits += 1
-        await original_commit()
-
-    monkeypatch.setattr(async_session, "commit", counting_commit)
+    commits = counting_commit(async_session)
     await room_service._build(db_session=async_session, obj_in=_pc(rich_vault, coordinate_x=3))
-    assert commits == 1
-    commits = 0
+    assert len(commits) == 1
     await room_service._build(db_session=async_session, obj_in=_pc(rich_vault, coordinate_x=0))
-    assert commits == 1
+    assert len(commits) == 2

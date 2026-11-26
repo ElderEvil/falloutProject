@@ -309,8 +309,7 @@ async def test_get_death_statistics(async_session, vault, dead_dweller, permanen
         "permanently_dead_count",
     ):
         assert key in stats
-    assert stats["revivable_count"] == 1
-    assert stats["permanently_dead_count"] == 1
+    assert (stats["revivable_count"], stats["permanently_dead_count"]) == (1, 1)
 
 
 @pytest.mark.parametrize("method", ["get_dead_dwellers", "get_graveyard"])

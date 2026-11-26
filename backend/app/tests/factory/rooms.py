@@ -86,3 +86,16 @@ def create_overseers_office(tier: int = 1) -> dict[str, Any]:
         "size_max": 1,
         "size": 1,
     }
+
+
+def prepared_room_payloads(prepared: Any) -> list[Any]:
+    """Every room a prepared vault seed will persist, in placement order."""
+    return [
+        *prepared.infrastructure,
+        *prepared.capacity,
+        *prepared.production,
+        *prepared.misc,
+        *prepared.training,
+        *prepared.arena,
+        *prepared.crafting,
+    ]

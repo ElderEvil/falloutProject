@@ -38,16 +38,17 @@ async def rooms(async_session: AsyncSession, user_with_vault: tuple) -> dict[str
     return {"vault": vault, "target": target, "other": other, "elevator": elevator}
 
 
+async def _spawn(session, rooms: dict[str, Any], room_key: str = "target", **kwargs):
+    """Spawn a fire in one named fixture room; cases differ only by target and delay."""
+    return await spawn_incident(
+        session, rooms["vault"].id, IncidentType.FIRE, target_room_id=rooms[room_key].id, **kwargs
+    )
+
+
 async def test_spawn_incident_uses_target_room_and_difficulty_bonus(
     async_session: AsyncSession, rooms: dict[str, Any]
 ) -> None:
-    incident = await spawn_incident(
-        async_session,
-        rooms["vault"].id,
-        IncidentType.FIRE,
-        target_room_id=rooms["target"].id,
-        difficulty_bonus=4,
-    )
+    incident = await _spawn(async_session, rooms, difficulty_bonus=4)
     assert incident is not None
     assert incident.room_id == rooms["target"].id
     assert incident.difficulty <= 10
@@ -55,31 +56,16 @@ async def test_spawn_incident_uses_target_room_and_difficulty_bonus(
 
 
 async def test_spawn_incident_rejects_target_elevator(async_session: AsyncSession, rooms: dict[str, Any]) -> None:
-    incident = await spawn_incident(
-        async_session,
-        rooms["vault"].id,
-        IncidentType.FIRE,
-        target_room_id=rooms["elevator"].id,
-    )
+    incident = await _spawn(async_session, rooms, "elevator")
     assert incident is None
 
 
 async def test_spawn_incident_rejects_target_with_active_incident(
     async_session: AsyncSession, rooms: dict[str, Any]
 ) -> None:
-    first = await spawn_incident(
-        async_session,
-        rooms["vault"].id,
-        IncidentType.FIRE,
-        target_room_id=rooms["target"].id,
-    )
+    first = await _spawn(async_session, rooms)
     assert first is not None
-    second = await spawn_incident(
-        async_session,
-        rooms["vault"].id,
-        IncidentType.FIRE,
-        target_room_id=rooms["target"].id,
-    )
+    second = await _spawn(async_session, rooms)
     assert second is None
 
 
@@ -87,13 +73,7 @@ async def test_delayed_incident_activates_after_a_newer_event(
     async_session: AsyncSession, rooms: dict[str, Any]
 ) -> None:
     vault = rooms["vault"]
-    incident = await spawn_incident(
-        async_session,
-        vault.id,
-        IncidentType.FIRE,
-        target_room_id=rooms["target"].id,
-        start_delay_seconds=5,
-    )
+    incident = await _spawn(async_session, rooms, start_delay_seconds=5)
     assert incident is not None
     incident_publishing.record_event(async_session, incident, "responders_assigned", "Responders assigned.")
     await async_session.commit()
@@ -111,13 +91,7 @@ async def test_assign_responders_rejects_incident_before_its_start(
     async_session: AsyncSession, rooms: dict[str, Any]
 ) -> None:
     vault = rooms["vault"]
-    incident = await spawn_incident(
-        async_session,
-        vault.id,
-        IncidentType.FIRE,
-        target_room_id=rooms["target"].id,
-        start_delay_seconds=5,
-    )
+    incident = await _spawn(async_session, rooms, start_delay_seconds=5)
     assert incident is not None
     dweller = await crud.dweller.create(
         async_session,

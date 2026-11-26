@@ -45,12 +45,23 @@ async def _new_quest(session: AsyncSession, vault: Vault, title: str = "Second Q
 
 
 async def _make_quest_vault(
-    async_session: AsyncSession, *, title: str = "Team Quest", quest_category: str | None = None
+    async_session: AsyncSession,
+    *,
+    title: str = "Team Quest",
+    quest_category: str | None = None,
+    storage: bool = False,
+    rewards: tuple = (),
 ) -> tuple[Vault, Quest]:
     user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
     vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id))
     quest = await _new_quest(async_session, vault, title, quest_category=quest_category)
     async_session.add(Room(**create_overseers_office(), vault_id=vault.id))
+    if storage:
+        async_session.add(Storage(vault_id=vault.id, max_space=10))
+    if rewards:
+        async_session.add_all(
+            QuestReward(quest_id=quest.id, reward_type=t, reward_data=d, reward_chance=c) for t, d, c in rewards
+        )
     await async_session.commit()
     return vault, quest
 
@@ -108,8 +119,7 @@ async def test_failed_deployment_does_not_save_party(async_session: AsyncSession
 
     await async_session.rollback()
     await async_session.refresh(dweller)
-    assert dweller.status == DwellerStatusEnum.EXPLORING
-    assert dweller.room_id == room_id
+    assert (dweller.status, dweller.room_id) == (DwellerStatusEnum.EXPLORING, room_id)
     assert await crud.team_crud.get_quest_team(async_session, quest_id, vault_id) == []
     link = await crud.quest_crud.get_link(async_session, quest_id=quest_id, vault_id=vault_id)
     assert link.started_at is None
@@ -140,8 +150,7 @@ async def test_party_requirement_failure_rolls_back_staged_roster(async_session:
     await async_session.rollback()
     assert await crud.team_crud.get_quest_team(async_session, quest_id, vault_id) == []
     await async_session.refresh(selected)
-    assert selected.status == DwellerStatusEnum.IDLE
-    assert selected.room_id == room_id
+    assert (selected.status, selected.room_id) == (DwellerStatusEnum.IDLE, room_id)
     link = await crud.quest_crud.get_link(async_session, quest_id=quest_id, vault_id=vault_id)
     assert link.started_at is None
 
@@ -180,8 +189,7 @@ async def test_assign_quest_team_replaces_existing(async_session: AsyncSession) 
     await quest_service.start_quest(async_session, quest.id, vault.id)
     await async_session.refresh(first)
     await async_session.refresh(second)
-    assert first.status == DwellerStatusEnum.IDLE
-    assert second.status == DwellerStatusEnum.QUESTING
+    assert (first.status, second.status) == (DwellerStatusEnum.IDLE, DwellerStatusEnum.QUESTING)
 
 
 @pytest.mark.parametrize("size", [0, 4])
@@ -275,8 +283,7 @@ async def test_assign_quest_team_rejects_state_objectives(async_session: AsyncSe
         await team_service.assign_quest_team(async_session, quest.id, vault.id, [dweller.id])
 
     await async_session.refresh(dweller)
-    assert dweller.status == DwellerStatusEnum.WORKING
-    assert dweller.room_id == room.id
+    assert (dweller.status, dweller.room_id) == (DwellerStatusEnum.WORKING, room.id)
 
 
 async def test_start_quest_clears_pre_departure_room(async_session: AsyncSession) -> None:
@@ -286,8 +293,7 @@ async def test_start_quest_clears_pre_departure_room(async_session: AsyncSession
 
     await team_service.assign_quest_team(async_session, quest.id, vault.id, [dweller.id])
     await async_session.refresh(dweller)
-    assert dweller.status == DwellerStatusEnum.IDLE
-    assert dweller.room_id == room.id
+    assert (dweller.status, dweller.room_id) == (DwellerStatusEnum.IDLE, room.id)
 
     await quest_service.start_quest(async_session, quest.id, vault.id)
     await async_session.refresh(dweller)
@@ -366,28 +372,14 @@ async def test_assign_quest_team_requires_existing_quest_and_vault(async_session
 
 
 async def test_quest_round_trip_assign_start_ready_claim(async_session: AsyncSession) -> None:
-    user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
-    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**create_fake_vault(), user_id=user.id))
-    async_session.add(Storage(vault_id=vault.id, max_space=10))
-    async_session.add(Room(**create_overseers_office(), vault_id=vault.id))
-    dweller = await _adult(async_session, vault)
-
-    quest = await crud.quest_crud.create(
+    vault, quest = await _make_quest_vault(
         async_session,
-        obj_in=QuestCreate(
-            title="Round Trip Quest",
-            short_description="Full lifecycle",
-            long_description="Assign, start, ready, claim.",
-            requirements="One adult dweller",
-            rewards="50 caps",
-            duration_minutes=60,
-        ),
+        title="Round Trip Quest",
+        storage=True,
+        rewards=((RewardType.CAPS, {"amount": 50}, 1.0),),
     )
-    async_session.add(
-        QuestReward(quest_id=quest.id, reward_type=RewardType.CAPS, reward_data={"amount": 50}, reward_chance=1.0)
-    )
-    link = await crud.quest_crud.assign_to_vault(async_session, quest.id, vault.id, is_visible=True)
-    await async_session.commit()
+    dweller = await _adult(async_session, vault)
+    link = await crud.quest_crud.get_link(async_session, quest_id=quest.id, vault_id=vault.id)
 
     assert len(await team_service.assign_quest_team(async_session, quest.id, vault.id, [dweller.id])) == 1
     await async_session.refresh(dweller)
@@ -443,8 +435,7 @@ async def test_rejected_start_keeps_party_posted(async_session: AsyncSession) ->
     assert await crud.team_crud.get_quest_team(async_session, second_quest.id, vault.id) == []
 
     await async_session.refresh(second_dweller)
-    assert second_dweller.status == DwellerStatusEnum.IDLE
-    assert second_dweller.room_id == room.id
+    assert (second_dweller.status, second_dweller.room_id) == (DwellerStatusEnum.IDLE, room.id)
 
 
 async def test_start_quest_rejects_party_member_sent_exploring(async_session: AsyncSession) -> None:

@@ -54,6 +54,7 @@ from app.services.vault import economy, seeding
 from app.services.vault.seed_types import BOOSTED_EQUIPPED_PETS, BOOSTED_SEED_JUNK, BOOSTED_SEED_PETS
 from app.services.vault_service import VaultService, vault_service
 from app.tests.factory.dwellers import create_fake_adult_dweller
+from app.tests.factory.rooms import prepared_room_payloads
 from app.tests.factory.vaults import random_vault_number
 from app.utils.exceptions import (
     AccessDeniedException,
@@ -222,36 +223,36 @@ async def _rooms(db_session, vault_id, *specs) -> list[Room]:
     return [await crud.room.create(db_session, _seeded_room(vault_id, *spec)) for spec in specs]
 
 
+PRODUCTION_ROOMS = (
+    ("Power Gen", SPECIALEnum.STRENGTH),
+    ("Diner", SPECIALEnum.AGILITY),
+    ("Water Treatment", SPECIALEnum.PERCEPTION),
+    ("Medbay", SPECIALEnum.INTELLIGENCE),
+    ("Science Lab", SPECIALEnum.INTELLIGENCE),
+    ("Power Gen 2", SPECIALEnum.STRENGTH),
+)
+TRAINING_ROOMS = (
+    ("Weight Room", SPECIALEnum.STRENGTH),
+    ("Armory", SPECIALEnum.PERCEPTION),
+    ("Athletics Room", SPECIALEnum.ENDURANCE),
+    ("Classroom", SPECIALEnum.CHARISMA),
+    ("Game Room", SPECIALEnum.INTELLIGENCE),
+    ("Fitness Room", SPECIALEnum.AGILITY),
+    ("Lounge", SPECIALEnum.LUCK),
+)
+
+
 def _family_texts(dweller: Dweller) -> list[str]:
     return [entry.get("text", "") for entry in dweller.bio_entries or [] if entry.get("source") == "family"]
 
 
 class TestCreateInitialDwellers:
     async def test_boosted_dwellers_assigned(self) -> None:
-        prod_rooms = [
-            _make_room(name=name, ability=ability)
-            for name, ability in (
-                ("Power Gen", SPECIALEnum.STRENGTH),
-                ("Diner", SPECIALEnum.AGILITY),
-                ("Water Treatment", SPECIALEnum.PERCEPTION),
-                ("Medbay", SPECIALEnum.INTELLIGENCE),
-                ("Science Lab", SPECIALEnum.INTELLIGENCE),
-                ("Power Gen 2", SPECIALEnum.STRENGTH),
-            )
-        ]
+        prod_rooms = [_make_room(name=name, ability=ability) for name, ability in PRODUCTION_ROOMS]
         cap_rooms = [_make_room(name="Living Room", category=RoomTypeEnum.CAPACITY, ability=SPECIALEnum.CHARISMA)]
         misc_rooms = [_make_room(name="Radio Studio", category=RoomTypeEnum.MISC, ability=SPECIALEnum.CHARISMA)]
         training_rooms = [
-            _make_room(name=name, category=RoomTypeEnum.TRAINING, ability=ability)
-            for name, ability in (
-                ("Weight Room", SPECIALEnum.STRENGTH),
-                ("Armory", SPECIALEnum.PERCEPTION),
-                ("Athletics Room", SPECIALEnum.ENDURANCE),
-                ("Classroom", SPECIALEnum.CHARISMA),
-                ("Game Room", SPECIALEnum.INTELLIGENCE),
-                ("Fitness Room", SPECIALEnum.AGILITY),
-                ("Lounge", SPECIALEnum.LUCK),
-            )
+            _make_room(name=name, category=RoomTypeEnum.TRAINING, ability=ability) for name, ability in TRAINING_ROOMS
         ]
         call_count = 0
 
@@ -311,14 +312,7 @@ class TestCreateInitialDwellers:
         assert {fire[0].dweller.room_id, radiation[0].dweller.room_id} == {station.id}
 
     async def test_dweller_creation_failure_logs_and_raises(self) -> None:
-        prod_rooms = [
-            _make_room(name=name, ability=ability)
-            for name, ability in (
-                ("Power Gen", SPECIALEnum.STRENGTH),
-                ("Diner", SPECIALEnum.AGILITY),
-                ("Water Treatment", SPECIALEnum.PERCEPTION),
-            )
-        ]
+        prod_rooms = [_make_room(name=name, ability=ability) for name, ability in PRODUCTION_ROOMS[:3]]
         with (
             _ap(
                 "app.services.dweller_service.dweller_service.create_random_dweller",
@@ -678,15 +672,7 @@ class TestInitiateVault:
         vault_id = uuid4()
         for is_boosted in (False, True):
             prepared = seeding.prepare_initial_rooms(game_data.rooms, vault_id, is_boosted)
-            rooms = [
-                *prepared.infrastructure,
-                *prepared.capacity,
-                *prepared.production,
-                *prepared.misc,
-                *prepared.training,
-                *prepared.arena,
-                *prepared.crafting,
-            ]
+            rooms = prepared_room_payloads(prepared)
             assert _layout_issues(rooms) == (0, 0, True)
             for level in {room.coordinate_y for room in rooms}:
                 occupied = {
@@ -802,10 +788,8 @@ class TestInitiateVault:
 class TestVaultStartConfig:
     def test_defaults_and_bounds(self) -> None:
         cfg = VaultStartConfig()
-        assert cfg.initial_resource_pct == 0.5
-        assert cfg.initial_stimpaks == 5
-        assert cfg.initial_radaways == 5
-        assert cfg.standard_rare_chance == 0.04
+        assert (cfg.initial_resource_pct, cfg.initial_stimpaks) == (0.5, 5)
+        assert (cfg.initial_radaways, cfg.standard_rare_chance) == (5, 0.04)
         assert cfg.boosted_rare_chance == 0.12
         with pytest.raises(ValidationError):
             VaultStartConfig(initial_resource_pct=1.5)
@@ -871,17 +855,14 @@ class TestSeededFamilies:
         relationships = await relationship_crud.get_by_vault(async_session, vault.id)
         assert len(relationships) == 1
         rel = relationships[0]
-        assert rel.relationship_type == RelationshipTypeEnum.MARRIED
-        assert rel.affinity == 95
+        assert (rel.relationship_type, rel.affinity) == (RelationshipTypeEnum.MARRIED, 95)
         first = await crud.dweller.get(async_session, rel.dweller_1_id)
         second = await crud.dweller.get(async_session, rel.dweller_2_id)
-        assert first.partner_id == second.id
-        assert second.partner_id == first.id
+        assert (first.partner_id, second.partner_id) == (second.id, first.id)
         children = [d for d in dwellers if d.parent_1_id is not None]
         assert len(children) == 1
         child = children[0]
-        assert {child.parent_1_id, child.parent_2_id} == {first.id, second.id}
-        assert child.age_group == AgeGroupEnum.TEEN
+        assert ({child.parent_1_id, child.parent_2_id}, child.age_group) == ({first.id, second.id}, AgeGroupEnum.TEEN)
         assert child.room_id in {first.room_id, second.room_id}
         assert child.room_id in {r.id for r in prod_rooms}
         parent_room = next(r for r in prod_rooms if r.id == child.room_id)

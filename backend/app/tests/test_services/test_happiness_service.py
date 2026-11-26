@@ -23,6 +23,7 @@ from app.schemas.room import RoomCreate
 from app.services.happiness_service import HappinessService, happiness_service
 from app.tests.factory.dwellers import create_fake_dweller
 from app.tests.factory.rooms import create_fake_room
+from app.tests.test_services._transaction_helpers import counting_commit
 
 FACTORS = {
     "has_low_resources": False,
@@ -270,20 +271,12 @@ class TestHappinessService:
         assert result["error"] == "Vault not found"
 
     async def test_update_commits_dwellers_and_vault_together(
-        self, async_session: AsyncSession, vault: Vault, working_dweller: Dweller, monkeypatch: pytest.MonkeyPatch
+        self, async_session: AsyncSession, vault: Vault, working_dweller: Dweller
     ):
         original_happiness = working_dweller.happiness
-        commits = 0
-        original_commit = async_session.commit
-
-        async def counting_commit() -> None:
-            nonlocal commits
-            commits += 1
-            await original_commit()
-
-        monkeypatch.setattr(async_session, "commit", counting_commit)
+        commits = counting_commit(async_session)
         await happiness_service.update_vault_happiness(async_session, vault.id, seconds_passed=60)
-        assert commits == 1
+        assert len(commits) == 1
         await async_session.refresh(working_dweller)
         await async_session.refresh(vault)
         assert working_dweller.happiness != original_happiness

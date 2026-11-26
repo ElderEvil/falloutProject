@@ -209,13 +209,11 @@ async def test_power_struggle_outfits_craftable_without_discovery(async_session,
     assert recipe is not None
     assert recipe.unlocked is True
     assert recipe.can_craft is True
-    assert recipe.junk_types == junk_types
-    assert recipe.rarity == RarityEnum.RARE
+    assert (recipe.junk_types, recipe.rarity) == (junk_types, RarityEnum.RARE)
     _, result = await _collect(async_session, vault, name, "outfit")
     outfit = await async_session.get(Outfit, result.item_id)
     assert outfit is not None
-    assert outfit.name == name
-    assert outfit.rarity == RarityEnum.RARE
+    assert (outfit.name, outfit.rarity) == (name, RarityEnum.RARE)
     assert outfit.storage_id == storage.id
 
 
@@ -247,8 +245,7 @@ async def test_start_order_consumes_materials_and_caps(async_session, vault) -> 
     await _ready(async_session, vault, [(RarityEnum.COMMON, common_count), (RarityEnum.RARE, rare_count)], caps=1_000)
     await _unlock_weapon(async_session, vault, RARE_WEAPON)
     order = await crafting_service.start_order(async_session, vault.id, RARE_WEAPON, "weapon")
-    assert order.status == CraftingOrderStatus.ACTIVE
-    assert order.item_name == RARE_WEAPON
+    assert (order.status, order.item_name) == (CraftingOrderStatus.ACTIVE, RARE_WEAPON)
     assert order.junk_spent == game_config.crafting.junk_cost("rare")
     assert order.caps_spent == _caps_cost(RarityEnum.RARE)
     assert order.progress == 0.0
@@ -280,8 +277,7 @@ async def test_recipe_reports_stock_and_projected_time(async_session, vault) -> 
     recipes = await crafting_service.list_recipes(async_session, vault.id, "weapon")
     pipe_pistol = next(recipe for recipe in recipes if recipe.name == COMMON_WEAPON)
     assert pipe_pistol.junk_types == ["circuitry", "steel"]
-    assert pipe_pistol.junk_materials == {"common": 3}
-    assert pipe_pistol.available_junk == {"common": 5}
+    assert (pipe_pistol.junk_materials, pipe_pistol.available_junk) == ({"common": 3}, {"common": 5})
     assert pipe_pistol.ability_sum == 8
     assert pipe_pistol.duration_seconds == crafting_service.order_duration_seconds(RarityEnum.COMMON, 8)
     assert pipe_pistol.duration_seconds < crafting_service.order_duration_seconds(RarityEnum.COMMON, 0)
@@ -331,8 +327,7 @@ async def test_item_stat_shortens_the_order_duration(async_session, vault) -> No
     unstaffed = crafting_service.order_duration_seconds(RarityEnum.COMMON, 0)
     solo = await crafting_service.start_order(async_session, vault.id, COMMON_WEAPON, "weapon")
     solo_seconds = (solo.estimated_completion_at - solo.started_at).total_seconds()
-    assert solo.required_stat == "agility"
-    assert solo.ability_sum_at_start == 0
+    assert (solo.required_stat, solo.ability_sum_at_start) == ("agility", 0)
     assert solo_seconds == unstaffed
     await _add_worker(async_session, vault, room, agility=7)
     await _add_worker(async_session, vault, room, index=1, agility=7)
@@ -347,8 +342,7 @@ async def test_unrelated_stats_do_not_speed_the_craft(async_session, vault) -> N
     _, room = await _weapon(async_session, vault)
     await _add_worker(async_session, vault, room, strength=10, agility=1)
     order = await crafting_service.start_order(async_session, vault.id, COMMON_WEAPON, "weapon")
-    assert order.required_stat == "agility"
-    assert order.ability_sum_at_start == 1
+    assert (order.required_stat, order.ability_sum_at_start) == ("agility", 1)
 
 
 async def test_advance_orders_completes_finished_orders(async_session, vault) -> None:
@@ -357,8 +351,7 @@ async def test_advance_orders_completes_finished_orders(async_session, vault) ->
     assert await crafting_service.advance_orders(async_session, vault.id) == 0
     await _finish_queue(async_session, vault.id)
     await async_session.refresh(order)
-    assert order.status == CraftingOrderStatus.COMPLETED
-    assert order.progress == 1.0
+    assert (order.status, order.progress) == (CraftingOrderStatus.COMPLETED, 1.0)
     assert order.completed_at is not None
     assert await crafting_service.advance_orders(async_session, vault.id) == 0
 
@@ -375,8 +368,7 @@ async def test_collect_order_grants_the_item(async_session, vault, item, kind, m
     order, result = await _collect(async_session, vault, item, kind)
     crafted = await async_session.get(model, result.item_id)
     assert crafted is not None
-    assert crafted.name == item
-    assert crafted.storage_id == storage.id
+    assert (crafted.name, crafted.storage_id) == (item, storage.id)
     assert result.junk_spent == COMMON_JUNK
     await async_session.refresh(order)
     assert order.status == CraftingOrderStatus.COLLECTED
@@ -440,13 +432,11 @@ async def test_crafting_tick_detects_completion_only_on_a_cadence_boundary(async
     )
     assert skipped == {"completed": 0}
     await async_session.refresh(order)
-    assert order.status == CraftingOrderStatus.ACTIVE
-    assert order.estimated_completion_at == completion_at
+    assert (order.status, order.estimated_completion_at) == (CraftingOrderStatus.ACTIVE, completion_at)
     completed = await crafting_tick.process_crafting(async_session, vault.id, **due)
     assert completed == {"completed": 1}
     await async_session.refresh(order)
-    assert order.status == CraftingOrderStatus.COMPLETED
-    assert order.estimated_completion_at == completion_at
+    assert (order.status, order.estimated_completion_at) == (CraftingOrderStatus.COMPLETED, completion_at)
     result = await async_session.execute(select(Notification).where(Notification.vault_id == vault.id))
     assert any(n.notification_type == NotificationType.CRAFTING_COMPLETE for n in result.scalars().all())
 

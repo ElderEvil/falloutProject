@@ -110,8 +110,7 @@ async def test_start_training_rejects_room_from_another_vault(
     with pytest.raises(InvalidVaultTransferException):
         await training_service.start_training(async_session, dweller.id, foreign_room.id)
     await async_session.refresh(dweller)
-    assert dweller.room_id == original_room_id
-    assert dweller.status == DwellerStatusEnum.IDLE
+    assert (dweller.room_id, dweller.status) == (original_room_id, DwellerStatusEnum.IDLE)
     assert await training_crud.training.get_active_by_dweller(async_session, dweller.id) is None
 
 
@@ -149,8 +148,7 @@ async def test_continuous_training_does_not_renew_a_foreign_room_session(
     completed = await training_service.complete_training(async_session, training.id)
     assert completed.is_completed()
     await async_session.refresh(dweller)
-    assert dweller.strength == 6
-    assert dweller.status == DwellerStatusEnum.IDLE
+    assert (dweller.strength, dweller.status) == (6, DwellerStatusEnum.IDLE)
     assert dweller.room_id is None
     assert await training_crud.training.get_active_by_dweller(async_session, dweller.id) is None
 
@@ -178,8 +176,7 @@ async def test_training_round_outcome(
     if action == "complete_training":
         assert result.progress == 1.0
     await async_session.refresh(dweller)
-    assert dweller.strength == expected_strength
-    assert dweller.status == DwellerStatusEnum.IDLE
+    assert (dweller.strength, dweller.status) == (expected_strength, DwellerStatusEnum.IDLE)
 
 
 # Single-transaction contract (AUDIT.md: one commit per state transition)
@@ -215,8 +212,7 @@ async def test_continuous_training_starts_next_round_atomically(
             assert persisted_next is not None
             assert persisted_next.target_stat_value == 7
             await async_session.refresh(dweller)
-            assert dweller.strength == 6
-            assert dweller.status == DwellerStatusEnum.TRAINING
+            assert (dweller.strength, dweller.status) == (6, DwellerStatusEnum.TRAINING)
 
     with patch.object(async_session, "commit", new=observe_first_commit):
         completed = await training_service.update_training_progress(async_session, training)
@@ -224,8 +220,7 @@ async def test_continuous_training_starts_next_round_atomically(
     next_round = await training_crud.training.get_active_by_dweller(async_session, dweller.id)
     await async_session.refresh(dweller)
     assert completed.is_completed()
-    assert dweller.strength == 6
-    assert dweller.status == DwellerStatusEnum.TRAINING
+    assert (dweller.strength, dweller.status) == (6, DwellerStatusEnum.TRAINING)
     assert dweller.room_id == room.id
     assert next_round is not None
     assert next_round.id != completed.id
@@ -249,8 +244,7 @@ async def test_continuous_training_stops_at_ten(async_session, dweller, training
         if dweller.strength < 10:
             assert training is not None
     assert training is None
-    assert dweller.strength == 10
-    assert dweller.status == DwellerStatusEnum.IDLE
+    assert (dweller.strength, dweller.status) == (10, DwellerStatusEnum.IDLE)
     assert dweller.room_id is None
 
 
@@ -324,8 +318,7 @@ async def test_continuous_training_rolls_back_if_next_round_cannot_persist(
     await async_session.refresh(training)
     await async_session.refresh(dweller)
     assert training.is_active()
-    assert dweller.strength == 5
-    assert dweller.status == DwellerStatusEnum.TRAINING
+    assert (dweller.strength, dweller.status) == (5, DwellerStatusEnum.TRAINING)
 
 
 @pytest.mark.asyncio
@@ -455,16 +448,13 @@ async def test_individual_goal_survives_rounds_and_stops_at_goal(
     training, _ = continuous_trainee
     original_end = training.estimated_completion_at
     saved = await training_service.set_training_goal(async_session, training.id, 7)
-    assert saved.goal_stat_value == 7
-    assert saved.estimated_completion_at == original_end
+    assert (saved.goal_stat_value, saved.estimated_completion_at) == (7, original_end)
     await training_service.complete_training(async_session, training.id)
     successor = await training_crud.training.get_active_by_dweller(async_session, dweller.id)
-    assert successor.goal_stat_value == 7
-    assert successor.target_stat_value == 7
+    assert (successor.goal_stat_value, successor.target_stat_value) == (7, 7)
     await training_service.complete_training(async_session, successor.id)
     await async_session.refresh(dweller)
-    assert dweller.strength == 7
-    assert dweller.status == DwellerStatusEnum.IDLE
+    assert (dweller.strength, dweller.status) == (7, DwellerStatusEnum.IDLE)
     assert await training_crud.training.get_active_by_dweller(async_session, dweller.id) is None
 
 
@@ -506,8 +496,7 @@ async def test_roomless_training_cancels_without_stat_gain(
     result = await training_service.complete_training(async_session, training.id)
     await async_session.refresh(dweller)
     assert result.is_cancelled()
-    assert dweller.strength == 5
-    assert dweller.status == DwellerStatusEnum.IDLE
+    assert (dweller.strength, dweller.status) == (5, DwellerStatusEnum.IDLE)
 
 
 async def test_failed_demolition_rolls_back_training_cancellation(
@@ -529,10 +518,8 @@ async def test_failed_demolition_rolls_back_training_cancellation(
     await async_session.refresh(training)
     await async_session.refresh(dweller)
     assert training.is_active()
-    assert training.room_id == room_id
-    assert dweller.room_id == room_id
-    assert dweller.status == DwellerStatusEnum.TRAINING
-    assert dweller.strength == 5
+    assert (training.room_id, dweller.room_id) == (room_id, room_id)
+    assert (dweller.status, dweller.strength) == (DwellerStatusEnum.TRAINING, 5)
 
 
 @pytest.mark.parametrize(

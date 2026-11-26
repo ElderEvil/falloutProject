@@ -46,8 +46,7 @@ async def test_non_immune_dwellers_are_offered_stimpaks_but_not_radaway(
     async_session.add(dweller)
     await async_session.commit()
     status = await med.get_dweller_medical_status(async_session, dweller, vault.id)
-    assert status.recommended_action == "request_stimpak"
-    assert status.available_radaways == 0
+    assert (status.recommended_action, status.available_radaways) == ("request_stimpak", 0)
     with pytest.raises(ResourceConflictException, match="cannot use RadAway"):
         await med.use_radaway(async_session, dweller.id)
     assert (await med.use_stimpack(async_session, dweller.id)).health > 20
@@ -71,8 +70,7 @@ class TestUseRadaway:
     async def test_removes_share_of_max_health(self, async_session: AsyncSession, vault: Vault, dweller: Dweller):
         await _set_dweller_state(async_session, dweller, max_health=100, radiation=80, radaway=2)
         result = await med.use_radaway(async_session, dweller.id)
-        assert result.radiation == 80 - RADAWAY_REMOVAL
-        assert result.radaway == 1
+        assert (result.radiation, result.radaway) == (80 - RADAWAY_REMOVAL, 1)
 
     async def test_clears_remainder_below_half_bar(self, async_session: AsyncSession, vault: Vault, dweller: Dweller):
         await _set_dweller_state(async_session, dweller, max_health=100, radiation=10, radaway=2)

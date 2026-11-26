@@ -207,8 +207,7 @@ class TestProcessGameTick:
             return
         assert sorted(processed) == sorted(v.id for v in vaults[1:])
         if scenario == "isolated":
-            assert result["vaults_processed"] == 2
-            assert result["errors"] == 1
+            assert (result["vaults_processed"], result["errors"]) == (2, 1)
 
 
 class TestProcessVaultTick:
@@ -255,8 +254,7 @@ class TestProcessDwellers:
             "app.services.family.death_service.death_service.mark_as_dead", new_callable=AsyncMock
         ) as mock_death:
             result = await game_loop_service._process_dwellers(async_session, vault.id)
-        assert mock_death.await_count == expected
-        assert result["deaths"] == expected
+        assert (mock_death.await_count, result["deaths"]) == (expected, expected)
 
     async def test_awards_xp_to_working_dwellers(self, async_session, vault):
         room = await _make_room(
@@ -350,8 +348,7 @@ class TestDehydrationRadiation:
         state = await game_state_crud.get_by_vault_id(async_session, vault.id)
         assert state is not None
         await async_session.refresh(dweller)
-        assert state.water_deprived_ms == 40 * 60_000
-        assert dweller.radiation == 0
+        assert (state.water_deprived_ms, dweller.radiation) == (40 * 60_000, 0)
         assert result["deprived"] == 0
 
     @pytest.mark.parametrize(
@@ -430,8 +427,7 @@ class TestProcessTraining:
             result = await game_loop_service._process_training(async_session, vault.id)
 
         if scenario == "completed":
-            assert result["sessions_updated"] == 1
-            assert result["completed"] == 1
+            assert (result["sessions_updated"], result["completed"]) == (1, 1)
         else:
             assert result["active_count"] == 2
 
@@ -566,8 +562,7 @@ class TestUpdateRoomRelationships:
         await async_session.refresh(co_located)
         await async_session.refresh(apart_relationship)
         # Co-located pairs follow the chemistry rule (+2), not the apart decay.
-        assert co_located.affinity == 12
-        assert apart_relationship.affinity == 9
+        assert (co_located.affinity, apart_relationship.affinity) == (12, 9)
 
     async def test_roomless_pair_decays(self, async_session, vault):
         dwellers = [await _make_dweller(async_session, vault, name=f"Scout{i}", **_PAIR) for i in range(2)]
@@ -575,8 +570,7 @@ class TestUpdateRoomRelationships:
         result, _ = await self._apart_tick(async_session, vault)
 
         await async_session.refresh(relationship)
-        assert result["relationships_updated"] == 1
-        assert relationship.affinity == 9
+        assert (result["relationships_updated"], relationship.affinity) == (1, 9)
 
     async def test_same_room_non_living_quarters_pair_does_not_decay(self, async_session, vault):
         _, apart_relationship, (_lq, plant) = await self._apart_pair_setup(async_session, vault)
@@ -587,8 +581,7 @@ class TestUpdateRoomRelationships:
         await async_session.refresh(co_located)
         await async_session.refresh(apart_relationship)
         # Working side by side counts as together: no decay for this pair.
-        assert co_located.affinity == 10
-        assert apart_relationship.affinity == 9
+        assert (co_located.affinity, apart_relationship.affinity) == (10, 9)
 
     async def test_rolls_back_apart_decay_on_commit_failure(self, async_session, vault):
         _, relationship, _ = await self._apart_pair_setup(async_session, vault)
@@ -598,8 +591,7 @@ class TestUpdateRoomRelationships:
 
         assert result["relationships_updated"] == 1
         reloaded = await relationship_crud.get(async_session, relationship_id)
-        assert reloaded.affinity == 10
-        assert reloaded.relationship_type == original_type
+        assert (reloaded.affinity, reloaded.relationship_type) == (10, original_type)
         notifications = (await async_session.execute(select(Notification))).scalars().all()
         assert not [
             row for row in notifications if row.meta_data and row.meta_data.get("event") == "relationship_demoted"
@@ -612,10 +604,8 @@ class TestRelationshipHelpers:
         r1 = MagicMock(dweller_1_id="d1", dweller_2_id="d2")
         r2 = MagicMock(dweller_1_id="d3", dweller_2_id="d4")
         result = game_loop_service._build_relationships_map([r1, r2])
-        assert result["d1", "d2"] == r1
-        assert result["d2", "d1"] == r1
-        assert result["d3", "d4"] == r2
-        assert result["d4", "d3"] == r2
+        assert (result["d1", "d2"], result["d2", "d1"]) == (r1, r1)
+        assert (result["d3", "d4"], result["d4", "d3"]) == (r2, r2)
 
     @pytest.mark.usefixtures("vault")
     async def test_fetch_existing_relationships(self, async_session):
@@ -766,8 +756,7 @@ async def test_process_vault_tick_dedupes_report_arena_and_preserves_paused_cont
 
     assert duplicate == {"status": "duplicate"}
     await async_session.refresh(state)
-    assert state.last_tick_time == first_tick_time
-    assert state.total_game_time == first_total_time
+    assert (state.last_tick_time, state.total_game_time) == (first_tick_time, first_total_time)
     assert "dispatch-1" in state.recent_tick_ids
 
     next_tick = await game_loop_service.process_vault_tick(async_session, vault.id, tick_id="dispatch-2")

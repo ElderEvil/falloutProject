@@ -207,8 +207,7 @@ async def test_generate_avatar_updates_and_generates_photo() -> None:
     assert result is dweller
     # First update: name + visual attributes, screened as player text.
     update.assert_called_once()
-    assert update.call_args.kwargs["user_id"] == user.id
-    assert update.call_args[0][2].first_name == "Jane"
+    assert (update.call_args.kwargs["user_id"], update.call_args[0][2].first_name) == (user.id, "Jane")
     assert update.call_args[0][2].last_name == "Doe"
     # Photo generated; LLM interaction logged for the photo (not for the avatar separately).
     ai.generate_image.assert_called_once()

@@ -180,8 +180,7 @@ async def test_short_rations_scales_rush_quote_and_payout(async_session, rush_se
     reduced = await _quote(async_session, rush_setup)
     assert 0 < reduced.payout.food < ordinary.payout.food
     result = await _rush(async_session, rush_setup, 0.9, 1.0)
-    assert result.outcome == "success"
-    assert result.payout.food == reduced.payout.food
+    assert (result.outcome, result.payout.food) == ("success", reduced.payout.food)
     assert vault.food == reduced.payout.food
 
 
@@ -341,8 +340,7 @@ async def test_second_rush_at_cap_is_blocked_and_keeps_stacks(async_session, rus
     vault, room = rush_setup["vault"], rush_setup["room"]
     starting_power = vault.power
     first = await _rush(async_session, rush_setup, 0.9, 1.0)
-    assert first.stacks_after == 1
-    assert first.payout.power == vault.power_max - starting_power
+    assert (first.stacks_after, first.payout.power) == (1, vault.power_max - starting_power)
     assert (vault.power, room.rush_stacks) == (vault.power_max, 1)
     with pytest.raises(ValidationException):
         await _rush(async_session, rush_setup, 0.9, 1.0)
@@ -360,15 +358,13 @@ async def test_success_sends_notification_and_emits_post_commit_events(async_ses
         if n.notification_type == NotificationType.RUSH_SUCCEEDED
     )
     assert notification.meta_data is not None
-    assert notification.meta_data["event"] == "room_rush"
-    assert notification.meta_data["outcome"] == "success"
+    assert (notification.meta_data["event"], notification.meta_data["outcome"]) == ("room_rush", "success")
     assert notification.meta_data["room_id"] == str(room.id)
     assert notification.meta_data["incident_id"] is None
     resource_events = [call for call in emit.await_args_list if call.args[0] == GameEvent.RESOURCE_COLLECTED]
     assert len(resource_events) == 1
     payload = resource_events[0].args[2]
-    assert payload["source"] == "rush"
-    assert payload["resources"]["power"] == result.payout.power
+    assert (payload["source"], payload["resources"]["power"]) == ("rush", result.payout.power)
     assert payload["resources"]["caps"] == result.caps
     assert GameEvent.RUSH_SUCCEEDED in [call.args[0] for call in emit.await_args_list]
 

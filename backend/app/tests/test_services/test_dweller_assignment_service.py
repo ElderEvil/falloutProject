@@ -53,30 +53,22 @@ _R1, _R2, _R3, _R4, _R_STR, _R_AGI, _R_PROD, _R_TRAIN, _R_MED, _R_RADIO, _R_CRAF
 )
 
 
+_SPECIAL = dict.fromkeys(("strength", "perception", "endurance", "charisma", "intelligence", "agility", "luck"), 5)
+
+
 def _make_dweller(
     _id: UUID = _D1,
     *,
-    strength: int = 5,
-    perception: int = 5,
-    endurance: int = 5,
-    charisma: int = 5,
-    intelligence: int = 5,
-    agility: int = 5,
-    luck: int = 5,
     room_id: UUID | None = None,
     vault_id: UUID | None = None,
     is_deleted: bool = False,
     is_dead: bool = False,
+    **stats: int,
 ) -> MagicMock:
     d = MagicMock(spec=Dweller)
     d.id = _id
-    d.strength = strength
-    d.perception = perception
-    d.endurance = endurance
-    d.charisma = charisma
-    d.intelligence = intelligence
-    d.agility = agility
-    d.luck = luck
+    for name, value in (_SPECIAL | stats).items():
+        setattr(d, name, value)
     d.room_id = room_id
     d.vault_id = vault_id
     d.is_deleted = is_deleted
@@ -183,8 +175,7 @@ class TestAssignAbilityDwellers:
             result = await svc._assign_ability_dwellers(
                 SPECIALEnum.PERCEPTION, [room], mock_db, [capped_dweller], assignments, set(), 1
             )
-        assert result == [capped_dweller]
-        assert assignments == []
+        assert (result, assignments) == ([capped_dweller], [])
         mock_start_training.assert_not_awaited()
 
 
@@ -252,8 +243,7 @@ class TestAutoAssignProductionRooms:
         assert result["assigned_count"] == 1
         env["update"].assert_called_once()
         youth_update = env["update"].call_args[0][2]
-        assert youth_update["room_id"] == _R_STR
-        assert youth_update["apprentice_stat"] == SPECIALEnum.STRENGTH
+        assert (youth_update["room_id"], youth_update["apprentice_stat"]) == (_R_STR, SPECIALEnum.STRENGTH)
         assert youth_update["apprentice_started_at"] is not None
 
     @pytest.mark.asyncio
@@ -396,8 +386,7 @@ class TestAutoAssignCraftingRooms:
         adult = _make_dweller(_id=_D2)
         with _assignment_env(rooms=[room], adults=[feral, adult], occupants=0) as env:
             result = await svc.auto_assign_crafting_rooms(mock_db, "v1")
-        assert result["assigned_count"] == 1
-        assert [call.args[1] for call in env["update"].call_args_list] == [_D2]
+        assert (result["assigned_count"], [call.args[1] for call in env["update"].call_args_list]) == (1, [_D2])
 
     @pytest.mark.asyncio
     async def test_crafting_room_capacity_respected(self, svc, mock_db):
@@ -417,8 +406,7 @@ class TestAutoAssignCraftingRooms:
         ]
         with _assignment_env(rooms=[room], adults=dwellers, occupants=0) as env:
             result = await svc.auto_assign_crafting_rooms(mock_db, "v1")
-        assert result["assigned_count"] == 6
-        assert env["update"].call_count == 6
+        assert (result["assigned_count"], env["update"].call_count) == (6, 6)
 
     @pytest.mark.asyncio
     async def test_age_group_filter_passed_to_crud(self, svc, mock_db):
@@ -473,22 +461,22 @@ class TestAutoAssignAllRooms:
 
 
 class TestModuleConstants:
-    def test_ability_to_stat_map_coverage(self):
-        for stat in SPECIALEnum:
-            assert stat in ABILITY_TO_STAT_MAP
-            assert ABILITY_TO_STAT_MAP[stat] == stat.value
+    @pytest.mark.parametrize(
+        ("abilities", "expected"),
+        [
+            (PRODUCTION_ABILITIES, [SPECIALEnum.STRENGTH, SPECIALEnum.AGILITY, SPECIALEnum.PERCEPTION]),
+            (MEDSCI_ABILITIES, [SPECIALEnum.INTELLIGENCE]),
+            (RADIO_ABILITIES, [SPECIALEnum.CHARISMA]),
+            (TRAINING_ABILITIES, list(SPECIALEnum)),
+        ],
+        ids=["production", "medsci", "radio", "training"],
+    )
+    def test_ability_lists_are_the_assignment_contract(self, abilities, expected):
+        assert list(abilities) == expected
 
-    def test_production_abilities_order(self):
-        assert PRODUCTION_ABILITIES == [SPECIALEnum.STRENGTH, SPECIALEnum.AGILITY, SPECIALEnum.PERCEPTION]
-
-    def test_medsci_abilities(self):
-        assert MEDSCI_ABILITIES == [SPECIALEnum.INTELLIGENCE]
-
-    def test_radio_abilities(self):
-        assert RADIO_ABILITIES == [SPECIALEnum.CHARISMA]
-
-    def test_training_abilities_includes_all(self):
-        assert set(TRAINING_ABILITIES) == set(SPECIALEnum)
+    def test_ability_to_stat_map_covers_every_special(self):
+        assert set(ABILITY_TO_STAT_MAP) == set(SPECIALEnum)
+        assert all(ABILITY_TO_STAT_MAP[stat] == stat.value for stat in SPECIALEnum)
 
 
 class TestServiceSingleton:

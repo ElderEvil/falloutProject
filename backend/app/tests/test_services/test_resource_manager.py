@@ -20,7 +20,7 @@ from app.services.collectible_service import collectible_service
 from app.services.resource_manager_service import ResourceManager
 from app.services.vault.scenario_service import SHORT_RATIONS_SCENARIO, vault_scenario_service
 from app.tests.factory.dwellers import create_fake_dweller
-from app.tests.factory.rooms import create_fake_room
+from app.tests.factory.rooms import create_fake_room, prepared_room_payloads
 from app.tests.factory.vaults import create_fake_vault
 from app.utils.collectibles import PRODUCTION_PCT
 from app.utils.item_factory import build_outfit
@@ -59,8 +59,7 @@ def test_short_rations_produces_less_food_and_water_with_the_same_workers():
     ordinary_update, ordinary = manager.calculate_resource_window(standard, rooms, 1, crews, 600)
     challenge_update, reduced = manager.calculate_resource_window(challenge, rooms, 1, crews, 600)
 
-    assert reduced.consumption == ordinary.consumption
-    assert reduced.production.power == ordinary.production.power
+    assert (reduced.consumption, reduced.production.power) == (ordinary.consumption, ordinary.production.power)
     scenario = vault_scenario_service.get(SHORT_RATIONS_SCENARIO)
     assert scenario is not None
     expected = scenario.food_water_multiplier
@@ -203,8 +202,7 @@ async def test_production_events_emit_one_batched_event(vault: Vault):
 
     emit.assert_awaited_once()
     event_type, vault_id, payload = emit.await_args.args
-    assert event_type == GameEvent.RESOURCE_COLLECTED
-    assert vault_id == vault.id
+    assert (event_type, vault_id) == (GameEvent.RESOURCE_COLLECTED, vault.id)
     assert payload == {"resources": {"power": 12, "water": 3, "stimpack": 1}, "source": "production"}
 
 
@@ -312,15 +310,7 @@ def test_offline_window_matches_per_tick_fractional_carry() -> None:
 def _seeded_net(prepared, dweller_count: int, crews: list[list[Dweller]], resource: str, room_prefix: str) -> float:
     """Net live per-minute change for one resource over the real seeded room set."""
     manager = ResourceManager()
-    rooms = [
-        *prepared.infrastructure,
-        *prepared.capacity,
-        *prepared.production,
-        *prepared.misc,
-        *prepared.training,
-        *prepared.arena,
-        *prepared.crafting,
-    ]
+    rooms = prepared_room_payloads(prepared)
     matched = [room for room in prepared.production if str(room.name).lower().startswith(room_prefix)]
     consumption = manager._calculate_consumption(rooms, dweller_count, seconds_passed=60)[resource]
     produced = manager._calculate_production(

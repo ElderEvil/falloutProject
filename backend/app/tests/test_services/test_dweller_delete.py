@@ -17,17 +17,34 @@ from app.services.exploration.event_service import event_service
 from app.services.exploration_service import exploration_service
 
 
+async def _send(session: AsyncSession, vault: Vault, dweller: Dweller):
+    """Send a dweller out with no supplies: the shortest journey the delete path must close."""
+    return await exploration_service.send_dweller(session, vault.id, dweller.id, duration=4, stimpaks=0, radaways=0)
+
+
+async def _party(session: AsyncSession, vault: Vault, exploration, *dwellers: Dweller) -> Team:
+    """An exploration team of ``dwellers``, each posted to the run."""
+    team = Team(vault_id=vault.id, exploration_id=exploration.id)
+    session.add(team)
+    await session.flush()
+    session.add_all(
+        [
+            TeamMember(team_id=team.id, dweller_id=dweller.id, slot_number=index, status="assigned")
+            for index, dweller in enumerate(dwellers, start=1)
+        ]
+    )
+    exploration.team_id = team.id
+    session.add(exploration)
+    for dweller in dwellers:
+        await crud.dweller.update(session, dweller.id, {"status": DwellerStatusEnum.EXPLORING}, commit=False)
+    await session.commit()
+    return team
+
+
 async def test_delete_dweller_closes_active_exploration(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
 ) -> None:
-    exploration = await exploration_service.send_dweller(
-        async_session,
-        vault.id,
-        dweller.id,
-        duration=4,
-        stimpaks=0,
-        radaways=0,
-    )
+    exploration = await _send(async_session, vault, dweller)
     run = await crud.expedition_run.create_run(
         async_session,
         exploration_id=exploration.id,
@@ -58,33 +75,14 @@ async def test_delete_dweller_rolls_back_journey_state_and_delivery_when_persist
 ) -> None:
     """A failed soft-delete must leave the journey, run, roster and delivery untouched."""
     partner = await dweller_service.create_random_dweller(async_session, vault.id, register_bio_places=False)
-    exploration = await exploration_service.send_dweller(
-        async_session,
-        vault.id,
-        dweller.id,
-        duration=4,
-        stimpaks=0,
-        radaways=0,
-    )
+    exploration = await _send(async_session, vault, dweller)
     run = await crud.expedition_run.create_run(
         async_session,
         exploration_id=exploration.id,
         vault_id=vault.id,
         site_id="collapsed_subway",
     )
-    team = Team(vault_id=vault.id, exploration_id=exploration.id)
-    async_session.add(team)
-    await async_session.flush()
-    async_session.add_all(
-        [
-            TeamMember(team_id=team.id, dweller_id=dweller.id, slot_number=1, status="assigned"),
-            TeamMember(team_id=team.id, dweller_id=partner.id, slot_number=2, status="assigned"),
-        ]
-    )
-    exploration.team_id = team.id
-    async_session.add(exploration)
-    await crud.dweller.update(async_session, partner.id, {"status": DwellerStatusEnum.EXPLORING}, commit=False)
-    await async_session.commit()
+    await _party(async_session, vault, exploration, dweller, partner)
     exploration_id, run_id, partner_id = exploration.id, run.id, partner.id
     published = AsyncMock()
     monkeypatch.setattr(event_service, "publish_sse", published)
@@ -121,27 +119,8 @@ async def test_delete_party_member_restores_survivors_and_roster(
     async_session: AsyncSession, vault: Vault, dweller: Dweller
 ) -> None:
     teammate = await dweller_service.create_random_dweller(async_session, vault.id, register_bio_places=False)
-    exploration = await exploration_service.send_dweller(
-        async_session,
-        vault.id,
-        dweller.id,
-        duration=4,
-        stimpaks=0,
-        radaways=0,
-    )
-    team = Team(vault_id=vault.id, exploration_id=exploration.id)
-    async_session.add(team)
-    await async_session.flush()
-    async_session.add_all(
-        [
-            TeamMember(team_id=team.id, dweller_id=dweller.id, slot_number=1, status="assigned"),
-            TeamMember(team_id=team.id, dweller_id=teammate.id, slot_number=2, status="assigned"),
-        ]
-    )
-    exploration.team_id = team.id
-    async_session.add(exploration)
-    await crud.dweller.update(async_session, teammate.id, {"status": DwellerStatusEnum.EXPLORING}, commit=False)
-    await async_session.commit()
+    exploration = await _send(async_session, vault, dweller)
+    await _party(async_session, vault, exploration, dweller, teammate)
     teammate_id = teammate.id
     exploration_id = exploration.id
     await dweller_service.delete_dweller(async_session, teammate_id, soft=True)

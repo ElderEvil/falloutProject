@@ -368,8 +368,7 @@ async def test_grant_item_outfit_uses_catalog_stats(async_session: AsyncSession)
     outfit = (await async_session.execute(select(Outfit))).scalars().first()
     catalog_entry = next(o for o in data_loader.load_outfits() if o["name"] == "Mechanic jumpsuit")
     assert outfit is not None
-    assert outfit.name == "Mechanic jumpsuit"
-    assert outfit.outfit_type.value == catalog_entry["outfit_type"]
+    assert (outfit.name, outfit.outfit_type.value) == ("Mechanic jumpsuit", catalog_entry["outfit_type"])
     assert outfit.strength == catalog_entry.get("strength", 0)
 
 
@@ -455,8 +454,7 @@ async def test_process_quest_rewards_multiple(async_session: AsyncSession) -> No
 )
 def test_parse_objective_reward(reward_str: str, expected_type: RewardType, expected_data: dict[str, object]) -> None:
     reward_type, reward_data = settlement._parse_objective_reward(reward_str)
-    assert reward_type == expected_type
-    assert reward_data == expected_data
+    assert (reward_type, reward_data) == (expected_type, expected_data)
 
 
 def test_parse_starter_resident_reward_returns_profile() -> None:

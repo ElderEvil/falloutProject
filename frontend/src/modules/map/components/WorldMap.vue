@@ -798,6 +798,7 @@ function handleTouchEnd(event: TouchEvent) {
       :site-type-filter="siteTypeFilter"
       :active-filter-count="Number(siteTypeFilter !== null) + Number(readyLocationIds !== null)"
       :selected-marker-id="selectedMarkerId"
+      :has-sets="mapStore.collectibleSets.length > 0"
       @marker-select="onPanelMarkerSelect"
     >
       <template #toggle-label="{ count }">Places and sites · {{ count }}</template>

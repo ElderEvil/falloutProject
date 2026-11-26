@@ -73,10 +73,7 @@ describe('MarkerListPanel', () => {
   describe('Rendering', () => {
     it('renders a toggle and keeps the panel closed by default', () => {
       // jsdom 31 needs the node in the document to resolve the v-show display.
-      const wrapper = mountPanel(
-        { locations: [location('origin', 'Megaton')] },
-        { attachTo: true }
-      )
+      const wrapper = mountPanel({ locations: [location('origin', 'Megaton')] }, { attachTo: true })
       expect(wrapper.find('.marker-list-toggle').exists()).toBe(true)
       expect(wrapper.find('.marker-list-panel').isVisible()).toBe(false)
       wrapper.unmount()
@@ -233,9 +230,9 @@ describe('MarkerListPanel', () => {
     })
 
     it('renders no expedition group when no sites exist', () => {
-      expect(mountPanel({ locations: [location('origin', 'Megaton')], open: true }).text()).not.toContain(
-        'Expedition Sites'
-      )
+      expect(
+        mountPanel({ locations: [location('origin', 'Megaton')], open: true }).text()
+      ).not.toContain('Expedition Sites')
     })
   })
 
@@ -249,10 +246,7 @@ describe('MarkerListPanel', () => {
     }
 
     it('moves focus with ArrowDown and ArrowUp across rows', async () => {
-      const wrapper = mountAttached([
-        location('discovery', 'Alpha'),
-        location('discovery', 'Beta'),
-      ])
+      const wrapper = mountAttached([location('discovery', 'Alpha'), location('discovery', 'Beta')])
 
       const rows = wrapper.findAll('button.marker-row')
       expect(rows).toHaveLength(2)
@@ -270,10 +264,7 @@ describe('MarkerListPanel', () => {
     })
 
     it('wraps focus at the ends and jumps with Home and End', async () => {
-      const wrapper = mountAttached([
-        location('discovery', 'Alpha'),
-        location('discovery', 'Beta'),
-      ])
+      const wrapper = mountAttached([location('discovery', 'Alpha'), location('discovery', 'Beta')])
 
       const body = wrapper.find('.panel-body').element
       const rows = wrapper.findAll('button.marker-row')
@@ -294,10 +285,7 @@ describe('MarkerListPanel', () => {
     })
 
     it('skips rows in collapsed groups', async () => {
-      const wrapper = mountAttached([
-        location('discovery', 'Alpha'),
-        location('visited', 'Beta'),
-      ])
+      const wrapper = mountAttached([location('discovery', 'Alpha'), location('visited', 'Beta')])
 
       const headers = wrapper.findAll('button.group-header')
       expect(headers.length).toBeGreaterThanOrEqual(2)
@@ -411,5 +399,31 @@ describe('MarkerListPanel', () => {
       expect(wrapper.text()).toContain('Vault 88')
       expect(wrapper.text()).toContain('Red Rocket Gas Station')
     })
+  })
+})
+
+describe('MarkerListPanel — sets tab', () => {
+  it('shows the sets tab only while sets exist and falls back to places when they vanish', async () => {
+    const wrapper = mountPanel(
+      { hasSets: true },
+      { slots: { legend: '<p>Full map legend</p>', sets: '<p>Set progress body</p>' } }
+    )
+    expect(wrapper.findAll('[role="tab"]').map((tab) => tab.text())).toEqual([
+      'Places',
+      'Legend',
+      'Sets',
+    ])
+
+    await wrapper.findAll('[role="tab"]')[2].trigger('mousedown')
+    await flushPromises()
+    expect(wrapper.text()).toContain('Set progress body')
+    expect(wrapper.find('.panel-title').text()).toBe('SETS')
+
+    await wrapper.setProps({ hasSets: false })
+    await flushPromises()
+    expect(wrapper.findAll('[role="tab"]').map((tab) => tab.text())).toEqual(['Places', 'Legend'])
+    expect(wrapper.find('.panel-title').text()).toBe('PLACES AND SITES')
+    expect(wrapper.text()).not.toContain('Set progress body')
+    expect(wrapper.find('.panel-body').isVisible()).toBe(true)
   })
 })

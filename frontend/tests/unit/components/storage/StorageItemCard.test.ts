@@ -14,8 +14,27 @@ if (!globalThis.ResizeObserver) {
   }
 }
 
-const findButton = (wrapper: VueWrapper, label: string) =>
-  wrapper.findAll('button').find((button) => button.text().includes(label))!
+type CardProps = InstanceType<typeof StorageItemCard>['$props']
+
+/** Mounts the card with the required `item`/`itemType` filled; callers override what they need. */
+function renderCard(item: CardProps['item'], props: Partial<CardProps> = {}): VueWrapper {
+  return mount(StorageItemCard, {
+    props: { item, itemType: 'weapon', ...props } as CardProps,
+    global: { stubs: { Icon: true } },
+  })
+}
+
+function findButton(wrapper: VueWrapper, label: string) {
+  const found = wrapper.findAll('button').find((button) => button.text().includes(label))
+  if (!found) throw new Error(`No button labelled "${label}"`)
+  return found
+}
+
+function renderedTooltip(): HTMLElement {
+  const tooltip = document.querySelector<HTMLElement>('[role="tooltip"]')
+  if (!tooltip) throw new Error('No tooltip rendered')
+  return tooltip
+}
 
 // reka-ui's TooltipTrigger opens on native `focus` (immediate, no delay) and on
 // `pointermove` (delayed by TooltipProvider's delayDuration). jsdom's synthetic
@@ -24,9 +43,9 @@ const findButton = (wrapper: VueWrapper, label: string) =>
 const expectTooltip = async (button: ReturnType<typeof findButton>, text: string) => {
   button.element.dispatchEvent(new FocusEvent('focus'))
   await nextTick()
-  const tooltip = document.querySelector<HTMLElement>('[role="tooltip"]')
-  expect(tooltip?.textContent).toContain(text)
-  expect(button.attributes('aria-describedby')).toBe(tooltip?.id)
+  const tooltip = renderedTooltip()
+  expect(tooltip.textContent).toContain(text)
+  expect(button.attributes('aria-describedby')).toBe(tooltip.id)
   button.element.dispatchEvent(new FocusEvent('blur'))
   await nextTick()
 }
@@ -40,10 +59,11 @@ describe('StorageItemCard', () => {
   it.each(['weapon', 'junk', 'lunchbox', 'pet_carrier'])(
     'disables all %s actions until the refresh finishes',
     async (itemType) => {
-      const wrapper = mount(StorageItemCard, {
-        props: { item: { name: 'Stored item', value: 10 }, itemType, count: 3, disabled: true },
-        global: { stubs: { Icon: true } },
-      })
+      const wrapper = renderCard(
+        { name: 'Stored item', value: 10 },
+        { itemType, count: 3, disabled: true }
+      )
+
       const buttons = wrapper.findAll('button')
       expect(buttons.length).toBeGreaterThan(0)
       for (const button of buttons) {
@@ -60,35 +80,26 @@ describe('StorageItemCard', () => {
   )
 
   it('offers Open for a pet carrier with a carrier-specific tooltip', async () => {
-    const wrapper = mount(StorageItemCard, {
-      props: { item: { name: 'Pet Carrier', value: 10 }, itemType: 'pet_carrier', count: 1 },
-      global: { stubs: { Icon: true } },
-    })
+    const wrapper = renderCard(
+      { name: 'Pet Carrier', value: 10 },
+      { itemType: 'pet_carrier', count: 1 }
+    )
 
-    const open = findButton(wrapper, 'Open')
-    expect(open).toBeTruthy()
-    await expectTooltip(open, 'Open pet carrier')
+    await expectTooltip(findButton(wrapper, 'Open'), 'Open pet carrier')
     wrapper.unmount()
   })
 
   it('presents the item description and clearly labelled inventory actions', async () => {
-    const wrapper = mount(StorageItemCard, {
-      props: {
-        item: {
-          name: 'Sawed-off Shotgun',
-          description: 'Built for close-range combat.',
-          rarity: 'common',
-          value: 120,
-          weapon_subtype: 'shotgun',
-        },
-        itemType: 'weapon',
-      },
-      global: { stubs: { Icon: true } },
+    const wrapper = renderCard({
+      name: 'Sawed-off Shotgun',
+      description: 'Built for close-range combat.',
+      rarity: 'common',
+      value: 120,
+      weapon_subtype: 'shotgun',
     })
 
     expect(wrapper.text()).toContain('Built for close-range combat.')
 
-    const buttons = wrapper.findAll('button')
     const scrap = findButton(wrapper, 'Scrap')
     const sell = findButton(wrapper, 'Sell')
 
@@ -98,15 +109,12 @@ describe('StorageItemCard', () => {
     await expectTooltip(scrap, 'Scrap')
     await expectTooltip(sell, 'Sell')
 
-    const actions = buttons.map((button) => button.text())
+    const actions = wrapper.findAll('button').map((button) => button.text())
     expect(actions.indexOf('Sell')).toBeLessThan(actions.indexOf('Scrap'))
   })
 
   it('includes the junk quantity in the sell-all tooltip on hover', async () => {
-    const wrapper = mount(StorageItemCard, {
-      props: { item: { name: 'Desk Fan', value: 10 }, itemType: 'junk', count: 3 },
-      global: { stubs: { Icon: true } },
-    })
+    const wrapper = renderCard({ name: 'Desk Fan', value: 10 }, { itemType: 'junk', count: 3 })
 
     // The single-sell tooltip distinguishes the count>1 case.
     await expectTooltip(findButton(wrapper, 'Sell'), 'Sell one')
@@ -116,68 +124,46 @@ describe('StorageItemCard', () => {
     // TooltipProvider's delayDuration (200ms, matching the old UTooltip delay).
     sellAll.element.dispatchEvent(new MouseEvent('pointermove', { bubbles: true }))
     await vi.waitFor(() => {
-      const tooltip = document.querySelector<HTMLElement>('[role="tooltip"]')
-      expect(tooltip?.textContent).toContain('Sell all (3)')
+      expect(renderedTooltip().textContent).toContain('Sell all (3)')
     })
-    expect(sellAll.attributes('aria-describedby')).toBe(
-      document.querySelector<HTMLElement>('[role="tooltip"]')?.id
-    )
+    expect(sellAll.attributes('aria-describedby')).toBe(renderedTooltip().id)
   })
 
   it('emits the inventory actions on click', async () => {
-    const weapon = mount(StorageItemCard, {
-      props: {
-        item: {
-          name: '10mm Pistol',
-          rarity: 'rare',
-          value: 50,
-          weapon_subtype: 'pistol',
-        },
-        itemType: 'weapon',
-      },
-      global: { stubs: { Icon: true } },
+    const weapon = renderCard({
+      name: '10mm Pistol',
+      rarity: 'rare',
+      value: 50,
+      weapon_subtype: 'pistol',
     })
     await findButton(weapon, 'Scrap').trigger('click')
     expect(weapon.emitted('scrap')).toHaveLength(1)
     await findButton(weapon, 'Sell').trigger('click')
     expect(weapon.emitted('sell')).toHaveLength(1)
 
-    const lunchbox = mount(StorageItemCard, {
-      props: { item: { name: 'Lunchbox', value: 500 }, itemType: 'lunchbox' },
-      global: { stubs: { Icon: true } },
-    })
+    const lunchbox = renderCard({ name: 'Lunchbox', value: 500 }, { itemType: 'lunchbox' })
     await expectTooltip(findButton(lunchbox, 'Open'), 'Open lunchbox')
     await findButton(lunchbox, 'Open').trigger('click')
     expect(lunchbox.emitted('open')).toHaveLength(1)
 
-    const junk = mount(StorageItemCard, {
-      props: { item: { name: 'Desk Fan', value: 10 }, itemType: 'junk', count: 3 },
-      global: { stubs: { Icon: true } },
-    })
+    const junk = renderCard({ name: 'Desk Fan', value: 10 }, { itemType: 'junk', count: 3 })
     await findButton(junk, 'Sell all').trigger('click')
     expect(junk.emitted('sellAll')).toHaveLength(1)
   })
 
   it('renders the unified weapon stats including accuracy', () => {
-    const wrapper = mount(StorageItemCard, {
-      props: {
-        item: {
-          name: '10mm Pistol',
-          rarity: 'rare',
-          value: 50,
-          weapon_subtype: 'pistol',
-          damage_min: 2,
-          damage_max: 5,
-          stat: 'agility',
-          accuracy: 70,
-          weapon_type: 'gun',
-        },
-        itemType: 'weapon',
-      },
-      global: { stubs: { Icon: true } },
-    })
+    const text = renderCard({
+      name: '10mm Pistol',
+      rarity: 'rare',
+      value: 50,
+      weapon_subtype: 'pistol',
+      damage_min: 2,
+      damage_max: 5,
+      stat: 'agility',
+      accuracy: 70,
+      weapon_type: 'gun',
+    }).text()
 
-    const text = wrapper.text()
     expect(text).toContain('Damage:')
     expect(text).toContain('2-5')
     expect(text).toContain('Accuracy:')
@@ -186,21 +172,17 @@ describe('StorageItemCard', () => {
   })
 
   it('renders outfit SPECIAL bonuses alongside gender', () => {
-    const wrapper = mount(StorageItemCard, {
-      props: {
-        item: {
-          name: 'Lab Coat',
-          rarity: 'rare',
-          outfit_type: 'rare_outfit',
-          intelligence: 2,
-          gender: 'female',
-        },
-        itemType: 'outfit',
+    const text = renderCard(
+      {
+        name: 'Lab Coat',
+        rarity: 'rare',
+        outfit_type: 'rare_outfit',
+        intelligence: 2,
+        gender: 'female',
       },
-      global: { stubs: { Icon: true } },
-    })
+      { itemType: 'outfit' }
+    ).text()
 
-    const text = wrapper.text()
     expect(text).toContain('Intelligence:')
     expect(text).toContain('+2')
     expect(text).toContain('Gender:')
@@ -208,14 +190,10 @@ describe('StorageItemCard', () => {
   })
 
   it('renders generic supplies without inventory actions', () => {
-    const wrapper = mount(StorageItemCard, {
-      props: {
-        item: { name: 'Nuka-Cola Quantum', rarity: 'rare', value: 50, item_type: 'consumable' },
-        itemType: 'consumable',
-        count: 2,
-      },
-      global: { stubs: { Icon: true } },
-    })
+    const wrapper = renderCard(
+      { name: 'Nuka-Cola Quantum', rarity: 'rare', value: 50, item_type: 'consumable' },
+      { itemType: 'consumable', count: 2 }
+    )
 
     expect(wrapper.text()).toContain('Nuka-Cola Quantum')
     expect(wrapper.text()).toContain('×2')
@@ -223,23 +201,15 @@ describe('StorageItemCard', () => {
   })
 
   it('renders pet effect stats, omitting zero bonuses', () => {
-    const wrapper = mount(StorageItemCard, {
-      props: {
-        item: {
-          name: 'Dogmeat',
-          rarity: 'rare',
-          value: 100,
-          effect: {
-            strength: 2,
-            max_health: 50,
-            damage_pct: 0.25,
-            luck: 0,
-          },
-        },
-        itemType: 'pet',
+    const wrapper = renderCard(
+      {
+        name: 'Dogmeat',
+        rarity: 'rare',
+        value: 100,
+        effect: { strength: 2, max_health: 50, damage_pct: 0.25, luck: 0 },
       },
-      global: { stubs: { Icon: true } },
-    })
+      { itemType: 'pet' }
+    )
 
     const text = wrapper.text()
     expect(text).toContain('Strength:')

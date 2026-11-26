@@ -2,121 +2,61 @@ import { describe, it, expect } from 'vite-plus/test'
 import { loginSchema, registerSchema } from '@/modules/auth/schemas/auth'
 import { ZodError } from 'zod'
 
+const login = (username: string, password = 'password') => loginSchema.parse({ username, password })
+
+const register = (overrides: Partial<{ username: string; email: string; password: string }> = {}) =>
+  registerSchema.parse({
+    username: 'newuser',
+    email: 'user@example.com',
+    password: 'Password123',
+    ...overrides,
+  })
+
+/** Every rejection is a ZodError carrying the schema's own message. */
+function expectRejection(parse: () => unknown, message: string): void {
+  expect(parse).toThrow(ZodError)
+  expect(parse).toThrow(message)
+}
+
+const USERNAME_CHARSET = 'Username can only contain letters, numbers, underscores, and hyphens'
+
 describe('Auth Validation Schemas', () => {
   describe('loginSchema', () => {
     describe('Happy Path', () => {
-      it('should accept valid login credentials', () => {
-        const result = loginSchema.parse({
-          username: 'testuser',
-          password: 'password123',
-        })
+      it.each(['testuser', 'abc', 'test_user', 'test-user', 'user123'])(
+        'accepts the username %s',
+        (username) => {
+          expect(login(username).username).toBe(username)
+        }
+      )
+
+      it('accepts a password and returns it unchanged', () => {
+        const result = loginSchema.parse({ username: 'testuser', password: 'password123' })
+
         expect(result.username).toBe('testuser')
         expect(result.password).toBe('password123')
       })
 
-      it('should accept minimum valid username (3 chars)', () => {
-        const result = loginSchema.parse({
-          username: 'abc',
-          password: 'pass',
-        })
-        expect(result.username).toBe('abc')
-      })
-
-      it('should accept username with underscores', () => {
-        const result = loginSchema.parse({
-          username: 'test_user',
-          password: 'password',
-        })
-        expect(result.username).toBe('test_user')
-      })
-
-      it('should accept username with hyphens', () => {
-        const result = loginSchema.parse({
-          username: 'test-user',
-          password: 'password',
-        })
-        expect(result.username).toBe('test-user')
-      })
-
-      it('should accept username with numbers', () => {
-        const result = loginSchema.parse({
-          username: 'user123',
-          password: 'password',
-        })
-        expect(result.username).toBe('user123')
+      it('should accept any non-empty password for login', () => {
+        expect(login('testuser', 'x').password).toBe('x')
       })
     })
 
     describe('Username Validation', () => {
-      it('should reject username shorter than 3 characters', () => {
-        expect(() =>
-          loginSchema.parse({
-            username: 'ab',
-            password: 'password',
-          })
-        ).toThrow(ZodError)
-        expect(() =>
-          loginSchema.parse({
-            username: 'ab',
-            password: 'password',
-          })
-        ).toThrow('Username must be at least 3 characters')
-      })
-
-      it('should reject username longer than 50 characters', () => {
-        const longUsername = 'a'.repeat(51)
-        expect(() =>
-          loginSchema.parse({
-            username: longUsername,
-            password: 'password',
-          })
-        ).toThrow('Username must be less than 50 characters')
-      })
-
-      it('should reject username with spaces', () => {
-        expect(() =>
-          loginSchema.parse({
-            username: 'test user',
-            password: 'password',
-          })
-        ).toThrow('Username can only contain letters, numbers, underscores, and hyphens')
-      })
-
-      it('should reject username with special characters', () => {
-        expect(() =>
-          loginSchema.parse({
-            username: 'test@user',
-            password: 'password',
-          })
-        ).toThrow('Username can only contain letters, numbers, underscores, and hyphens')
-      })
-
-      it('should reject empty username', () => {
-        expect(() =>
-          loginSchema.parse({
-            username: '',
-            password: 'password',
-          })
-        ).toThrow()
+      it.each([
+        ['shorter than 3 characters', 'ab', 'Username must be at least 3 characters'],
+        ['longer than 50 characters', 'a'.repeat(51), 'Username must be less than 50 characters'],
+        ['with spaces', 'test user', USERNAME_CHARSET],
+        ['with special characters', 'test@user', USERNAME_CHARSET],
+        ['empty', '', 'Username must be at least 3 characters'],
+      ])('rejects a username %s', (_label, username, message) => {
+        expectRejection(() => login(username), message)
       })
     })
 
     describe('Password Validation', () => {
       it('should reject empty password', () => {
-        expect(() =>
-          loginSchema.parse({
-            username: 'testuser',
-            password: '',
-          })
-        ).toThrow('Password is required')
-      })
-
-      it('should accept any non-empty password for login', () => {
-        const result = loginSchema.parse({
-          username: 'testuser',
-          password: 'x',
-        })
-        expect(result.password).toBe('x')
+        expectRejection(() => login('testuser', ''), 'Password is required')
       })
     })
   })
@@ -124,203 +64,75 @@ describe('Auth Validation Schemas', () => {
   describe('registerSchema', () => {
     describe('Happy Path', () => {
       it('should accept valid registration data', () => {
-        const result = registerSchema.parse({
-          username: 'newuser',
-          email: 'user@example.com',
-          password: 'Password123',
-        })
+        const result = register()
+
         expect(result.username).toBe('newuser')
         expect(result.email).toBe('user@example.com')
         expect(result.password).toBe('Password123')
       })
 
-      it('should accept complex valid password', () => {
-        const result = registerSchema.parse({
-          username: 'newuser',
-          email: 'user@example.com',
-          password: 'MyP@ssw0rd123!',
-        })
-        expect(result.password).toBe('MyP@ssw0rd123!')
-      })
+      it.each(['MyP@ssw0rd123!', 'MySecure#Pass123', 'Password123' + 'a'.repeat(50), 'Password1'])(
+        'accepts the password %s',
+        (password) => {
+          expect(register({ password }).password).toBe(password)
+        }
+      )
 
       it('should accept email with subdomain', () => {
-        const result = registerSchema.parse({
-          username: 'newuser',
-          email: 'user@mail.example.com',
-          password: 'Password123',
-        })
-        expect(result.email).toBe('user@mail.example.com')
+        expect(register({ email: 'user@mail.example.com' }).email).toBe('user@mail.example.com')
+      })
+
+      it('should accept password with exactly 8 characters meeting all requirements', () => {
+        expect(register({ password: 'Pass123a' }).password).toBe('Pass123a')
       })
     })
 
     describe('Username Validation', () => {
-      it('should reject username shorter than 3 characters', () => {
-        expect(() =>
-          registerSchema.parse({
-            username: 'ab',
-            email: 'user@example.com',
-            password: 'Password123',
-          })
-        ).toThrow('Username must be at least 3 characters')
-      })
-
-      it('should reject username longer than 50 characters', () => {
-        const longUsername = 'a'.repeat(51)
-        expect(() =>
-          registerSchema.parse({
-            username: longUsername,
-            email: 'user@example.com',
-            password: 'Password123',
-          })
-        ).toThrow('Username must be less than 50 characters')
-      })
-
-      it('should reject username with invalid characters', () => {
-        expect(() =>
-          registerSchema.parse({
-            username: 'user@name',
-            email: 'user@example.com',
-            password: 'Password123',
-          })
-        ).toThrow('Username can only contain letters, numbers, underscores, and hyphens')
+      it.each([
+        ['shorter than 3 characters', 'ab', 'Username must be at least 3 characters'],
+        ['longer than 50 characters', 'a'.repeat(51), 'Username must be less than 50 characters'],
+        ['with invalid characters', 'user@name', USERNAME_CHARSET],
+      ])('rejects a username %s', (_label, username, message) => {
+        expectRejection(() => register({ username }), message)
       })
     })
 
     describe('Email Validation', () => {
-      it('should reject invalid email format', () => {
-        expect(() =>
-          registerSchema.parse({
-            username: 'newuser',
-            email: 'invalid-email',
-            password: 'Password123',
-          })
-        ).toThrow('Invalid email address')
-      })
-
-      it('should reject email without @', () => {
-        expect(() =>
-          registerSchema.parse({
-            username: 'newuser',
-            email: 'userexample.com',
-            password: 'Password123',
-          })
-        ).toThrow('Invalid email address')
-      })
-
-      it('should reject email without domain', () => {
-        expect(() =>
-          registerSchema.parse({
-            username: 'newuser',
-            email: 'user@',
-            password: 'Password123',
-          })
-        ).toThrow('Invalid email address')
-      })
-
-      it('should reject empty email', () => {
-        expect(() =>
-          registerSchema.parse({
-            username: 'newuser',
-            email: '',
-            password: 'Password123',
-          })
-        ).toThrow()
-      })
+      it.each(['invalid-email', 'userexample.com', 'user@', ''])(
+        'rejects the email %s',
+        (email) => {
+          expectRejection(() => register({ email }), 'Invalid email address')
+        }
+      )
     })
 
     describe('Password Complexity Validation', () => {
-      it('should reject password shorter than 8 characters', () => {
-        expect(() =>
-          registerSchema.parse({
-            username: 'newuser',
-            email: 'user@example.com',
-            password: 'Pass1',
-          })
-        ).toThrow('Password must be at least 8 characters')
-      })
-
-      it('should reject password without uppercase letter', () => {
-        expect(() =>
-          registerSchema.parse({
-            username: 'newuser',
-            email: 'user@example.com',
-            password: 'password123',
-          })
-        ).toThrow('Password must contain at least one uppercase letter')
-      })
-
-      it('should reject password without lowercase letter', () => {
-        expect(() =>
-          registerSchema.parse({
-            username: 'newuser',
-            email: 'user@example.com',
-            password: 'PASSWORD123',
-          })
-        ).toThrow('Password must contain at least one lowercase letter')
-      })
-
-      it('should reject password without number', () => {
-        expect(() =>
-          registerSchema.parse({
-            username: 'newuser',
-            email: 'user@example.com',
-            password: 'Password',
-          })
-        ).toThrow('Password must contain at least one number')
-      })
-
-      it('should accept password with exactly 8 characters meeting all requirements', () => {
-        const result = registerSchema.parse({
-          username: 'newuser',
-          email: 'user@example.com',
-          password: 'Pass123a',
-        })
-        expect(result.password).toBe('Pass123a')
-      })
-    })
-
-    describe('Security Edge Cases', () => {
-      it('should reject common weak passwords even if they meet criteria', () => {
-        // This is handled by password complexity rules
-        // Common passwords like "Password1" technically pass but we could add dictionary check later
-        const result = registerSchema.parse({
-          username: 'newuser',
-          email: 'user@example.com',
-          password: 'Password1',
-        })
-        expect(result.password).toBe('Password1')
-      })
-
-      it('should accept strong password with special characters', () => {
-        const result = registerSchema.parse({
-          username: 'newuser',
-          email: 'user@example.com',
-          password: 'MySecure#Pass123',
-        })
-        expect(result.password).toBe('MySecure#Pass123')
-      })
-
-      it('should accept very long password', () => {
-        const longPassword = 'Password123' + 'a'.repeat(50)
-        const result = registerSchema.parse({
-          username: 'newuser',
-          email: 'user@example.com',
-          password: longPassword,
-        })
-        expect(result.password).toBe(longPassword)
+      it.each([
+        ['shorter than 8 characters', 'Pass1', 'Password must be at least 8 characters'],
+        [
+          'without uppercase letter',
+          'password123',
+          'Password must contain at least one uppercase letter',
+        ],
+        [
+          'without lowercase letter',
+          'PASSWORD123',
+          'Password must contain at least one lowercase letter',
+        ],
+        ['without number', 'Password', 'Password must contain at least one number'],
+      ])('rejects a password %s', (_label, password, message) => {
+        expectRejection(() => register({ password }), message)
       })
     })
   })
 
   describe('Schema Type Inference', () => {
     it('should infer correct types from loginSchema', () => {
-      const data = loginSchema.parse({
-        username: 'test',
-        password: 'pass',
-      })
+      const data = loginSchema.parse({ username: 'test', password: 'pass' })
       // TypeScript should infer these as strings
       const username: string = data.username
       const password: string = data.password
+
       expect(username).toBe('test')
       expect(password).toBe('pass')
     })
@@ -335,6 +147,7 @@ describe('Auth Validation Schemas', () => {
       const username: string = data.username
       const email: string = data.email
       const password: string = data.password
+
       expect(username).toBe('test')
       expect(email).toBe('test@example.com')
       expect(password).toBe('Password123')

@@ -7,6 +7,12 @@ import { AuthError } from '@/modules/auth/types/auth'
 
 vi.mock('@/core/utils/api', () => createApiClientMock())
 
+/** The service contract: every failure surfaces as an AuthError carrying the stage message. */
+async function expectAuthFailure(run: () => Promise<unknown>, message: string): Promise<void> {
+  await expect(run()).rejects.toBeInstanceOf(AuthError)
+  await expect(run()).rejects.toThrow(message)
+}
+
 describe('authService', () => {
   afterEach(() => vi.restoreAllMocks())
   beforeEach(() => {
@@ -46,19 +52,10 @@ describe('authService', () => {
     it('should throw AuthError on login failure', async () => {
       vi.mocked(apiRequest).mockRejectedValue(new Error('Network error'))
 
-      await expect(
-        authService.login({
-          username: 'test@test.com',
-          password: 'wrong',
-        })
-      ).rejects.toThrow(AuthError)
-
-      await expect(
-        authService.login({
-          username: 'test@test.com',
-          password: 'wrong',
-        })
-      ).rejects.toThrow('Login failed')
+      await expectAuthFailure(
+        () => authService.login({ username: 'test@test.com', password: 'wrong' }),
+        'Login failed'
+      )
     })
 
     it('should convert login form to URLSearchParams correctly', async () => {
@@ -108,21 +105,15 @@ describe('authService', () => {
     it('should throw AuthError on registration failure', async () => {
       vi.mocked(apiRequest).mockRejectedValue(new Error('Email already exists'))
 
-      await expect(
-        authService.register({
-          username: 'newuser',
-          email: 'existing@test.com',
-          password: 'password123',
-        })
-      ).rejects.toThrow(AuthError)
-
-      await expect(
-        authService.register({
-          username: 'newuser',
-          email: 'existing@test.com',
-          password: 'password123',
-        })
-      ).rejects.toThrow('Registration failed')
+      await expectAuthFailure(
+        () =>
+          authService.register({
+            username: 'newuser',
+            email: 'existing@test.com',
+            password: 'password123',
+          }),
+        'Registration failed'
+      )
     })
 
     it('should send registration data in correct format', async () => {
@@ -179,8 +170,7 @@ describe('authService', () => {
     it('should throw AuthError on logout failure', async () => {
       vi.mocked(apiRequest).mockRejectedValue(new Error('Network error'))
 
-      await expect(authService.logout()).rejects.toThrow(AuthError)
-      await expect(authService.logout()).rejects.toThrow('Logout failed')
+      await expectAuthFailure(() => authService.logout(), 'Logout failed')
     })
 
     it('should not include manual authorization header', async () => {

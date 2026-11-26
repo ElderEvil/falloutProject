@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vite-plus/test'
-import { mount } from '@vue/test-utils'
+import { mount, flushPromises, type MountingOptions, type VueWrapper } from '@vue/test-utils'
 import ProfileEditor from '@/modules/profile/components/ProfileEditor.vue'
 import type { ProfileUpdate } from '@/models/profile'
 import { authService } from '@/modules/auth/services/authService'
@@ -8,20 +8,36 @@ vi.mock('@/modules/auth/services/authService', () => ({
   authService: { requestPasswordReset: vi.fn() },
 }))
 
-describe('ProfileEditor', () => {
-  const mockInitialData = {
-    bio: 'Test bio',
-    avatar_url: 'https://example.com/avatar.jpg',
-    preferences: { theme: 'dark', notifications: true },
-  }
+type ProfileEditorProps = InstanceType<typeof ProfileEditor>['$props']
+type MountOptions = Omit<MountingOptions<typeof ProfileEditor>, 'props'>
 
+const mockInitialData = {
+  bio: 'Test bio',
+  avatar_url: 'https://example.com/avatar.jpg',
+  preferences: { theme: 'dark', notifications: true },
+}
+
+/** Mounts the editor with the required `initialData` filled; callers override what they need. */
+function mountEditor(
+  props: Partial<ProfileEditorProps> = {},
+  options: MountOptions = {}
+): VueWrapper {
+  return mount(ProfileEditor, {
+    ...options,
+    props: { initialData: mockInitialData, ...props } as ProfileEditorProps,
+  })
+}
+
+function buttonWithText(wrapper: VueWrapper, text: string) {
+  const found = wrapper.findAll('button').find((button) => button.text().includes(text))
+  if (!found) throw new Error(`No button containing "${text}"`)
+  return found
+}
+
+describe('ProfileEditor', () => {
   describe('Component Rendering', () => {
     it('should render form with all fields', () => {
-      const wrapper = mount(ProfileEditor, {
-        props: {
-          initialData: mockInitialData,
-        },
-      })
+      const wrapper = mountEditor()
 
       expect(wrapper.find('#bio').exists()).toBe(true)
       expect(wrapper.find('#avatar_url').exists()).toBe(true)
@@ -29,11 +45,7 @@ describe('ProfileEditor', () => {
     })
 
     it('uses a warm terminal editor surface with terminal-themed fields', () => {
-      const wrapper = mount(ProfileEditor, {
-        props: {
-          initialData: mockInitialData,
-        },
-      })
+      const wrapper = mountEditor()
 
       expect(wrapper.find('.profile-editor').classes()).toContain('bg-surface')
       expect(wrapper.find('#bio').classes()).toContain('bg-surface-sunken')
@@ -41,78 +53,44 @@ describe('ProfileEditor', () => {
     })
 
     it('should populate fields with initial data', () => {
-      const wrapper = mount(ProfileEditor, {
-        props: {
-          initialData: mockInitialData,
-        },
-      })
+      const wrapper = mountEditor()
 
-      const bioTextarea = wrapper.find('#bio').element as HTMLTextAreaElement
-      const avatarInput = wrapper.find('#avatar_url').element as HTMLInputElement
-      const preferencesTextarea = wrapper.find('#preferences').element as HTMLTextAreaElement
-
-      expect(bioTextarea.value).toBe('Test bio')
-      expect(avatarInput.value).toBe('https://example.com/avatar.jpg')
-      expect(preferencesTextarea.value).toContain('"theme": "dark"')
+      expect((wrapper.find('#bio').element as HTMLTextAreaElement).value).toBe('Test bio')
+      expect((wrapper.find('#avatar_url').element as HTMLInputElement).value).toBe(
+        'https://example.com/avatar.jpg'
+      )
+      expect((wrapper.find('#preferences').element as HTMLTextAreaElement).value).toContain(
+        '"theme": "dark"'
+      )
     })
 
     it('should render with empty data', () => {
-      const wrapper = mount(ProfileEditor, {
-        props: {
-          initialData: {},
-        },
-      })
+      const wrapper = mountEditor({ initialData: {} })
 
-      const bioTextarea = wrapper.find('#bio').element as HTMLTextAreaElement
-      expect(bioTextarea.value).toBe('')
+      expect((wrapper.find('#bio').element as HTMLTextAreaElement).value).toBe('')
     })
   })
 
   describe('Bio Field', () => {
     it('should update bio when typing', async () => {
-      const wrapper = mount(ProfileEditor, {
-        props: {
-          initialData: mockInitialData,
-        },
-      })
-
-      const bioTextarea = wrapper.find('#bio')
+      const bioTextarea = mountEditor().find('#bio')
       await bioTextarea.setValue('Updated bio text')
 
       expect((bioTextarea.element as HTMLTextAreaElement).value).toBe('Updated bio text')
     })
 
     it('should show character count', () => {
-      const wrapper = mount(ProfileEditor, {
-        props: {
-          initialData: { bio: 'Test' },
-        },
-      })
-
-      expect(wrapper.text()).toContain('4 / 500 characters')
+      expect(mountEditor({ initialData: { bio: 'Test' } }).text()).toContain('4 / 500 characters')
     })
 
     it('should enforce maxlength of 500 characters', () => {
-      const wrapper = mount(ProfileEditor, {
-        props: {
-          initialData: mockInitialData,
-        },
-      })
-
-      const bioTextarea = wrapper.find('#bio')
-      expect(bioTextarea.attributes('maxlength')).toBe('500')
+      expect(mountEditor().find('#bio').attributes('maxlength')).toBe('500')
     })
   })
 
   describe('Avatar URL Field', () => {
     it('should update avatar URL when typing', async () => {
-      const wrapper = mount(ProfileEditor, {
-        props: {
-          initialData: mockInitialData,
-        },
-      })
-
-      const avatarInput = wrapper.find('#avatar_url')
+      const avatarInput = mountEditor().find('#avatar_url')
       await avatarInput.setValue('https://example.com/new-avatar.jpg')
 
       expect((avatarInput.element as HTMLInputElement).value).toBe(
@@ -120,89 +98,48 @@ describe('ProfileEditor', () => {
       )
     })
 
-    it('should show avatar preview when URL is provided', async () => {
-      const wrapper = mount(ProfileEditor, {
-        props: {
-          initialData: mockInitialData,
-        },
-      })
+    it('should show avatar preview when URL is provided', () => {
+      const img = mountEditor().find('img[alt="Avatar preview"]')
 
-      const img = wrapper.find('img[alt="Avatar preview"]')
       expect(img.exists()).toBe(true)
       expect(img.attributes('src')).toBe('https://example.com/avatar.jpg')
     })
 
     it('should not show avatar preview when URL is empty', () => {
-      const wrapper = mount(ProfileEditor, {
-        props: {
-          initialData: { bio: 'Test' },
-        },
-      })
-
-      const img = wrapper.find('img[alt="Avatar preview"]')
-      expect(img.exists()).toBe(false)
+      expect(
+        mountEditor({ initialData: { bio: 'Test' } })
+          .find('img[alt="Avatar preview"]')
+          .exists()
+      ).toBe(false)
     })
 
     it('renders the avatar URL field with the Input primitive', () => {
-      const wrapper = mount(ProfileEditor, {
-        props: {
-          initialData: mockInitialData,
-        },
-      })
-
-      const avatarInput = wrapper.find('#avatar_url')
-      expect(avatarInput.attributes('data-slot')).toBe('input')
+      expect(mountEditor().find('#avatar_url').attributes('data-slot')).toBe('input')
     })
 
     it('should enforce maxlength of 255 characters', () => {
-      const wrapper = mount(ProfileEditor, {
-        props: {
-          initialData: mockInitialData,
-        },
-      })
-
-      const avatarInput = wrapper.find('#avatar_url')
-      expect(avatarInput.attributes('maxlength')).toBe('255')
+      expect(mountEditor().find('#avatar_url').attributes('maxlength')).toBe('255')
     })
   })
 
   describe('Preferences Field', () => {
     it('should display preferences as formatted JSON', () => {
-      const wrapper = mount(ProfileEditor, {
-        props: {
-          initialData: mockInitialData,
-        },
-      })
+      const value = (mountEditor().find('#preferences').element as HTMLTextAreaElement).value
 
-      const preferencesTextarea = wrapper.find('#preferences').element as HTMLTextAreaElement
-      const parsed = JSON.parse(preferencesTextarea.value)
-
-      expect(parsed).toEqual({ theme: 'dark', notifications: true })
+      expect(JSON.parse(value)).toEqual({ theme: 'dark', notifications: true })
     })
 
     it('should show error for invalid JSON', async () => {
-      const wrapper = mount(ProfileEditor, {
-        props: {
-          initialData: mockInitialData,
-        },
-      })
-
-      const preferencesTextarea = wrapper.find('#preferences')
-      await preferencesTextarea.setValue('{ invalid json }')
+      const wrapper = mountEditor()
+      await wrapper.find('#preferences').setValue('{ invalid json }')
 
       expect(wrapper.text()).toContain('Invalid JSON format')
       expect((wrapper.find('details').element as HTMLDetailsElement).open).toBe(true)
     })
 
     it('should not show error for valid JSON', async () => {
-      const wrapper = mount(ProfileEditor, {
-        props: {
-          initialData: mockInitialData,
-        },
-      })
-
-      const preferencesTextarea = wrapper.find('#preferences')
-      await preferencesTextarea.setValue('{"valid": "json"}')
+      const wrapper = mountEditor()
+      await wrapper.find('#preferences').setValue('{"valid": "json"}')
 
       expect(wrapper.text()).not.toContain('Invalid JSON format')
     })
@@ -210,11 +147,7 @@ describe('ProfileEditor', () => {
 
   describe('Form Submission', () => {
     it('should emit submit event with updated data', async () => {
-      const wrapper = mount(ProfileEditor, {
-        props: {
-          initialData: mockInitialData,
-        },
-      })
+      const wrapper = mountEditor()
 
       await wrapper.find('#bio').setValue('New bio')
       await wrapper.find('form').trigger('submit')
@@ -225,11 +158,7 @@ describe('ProfileEditor', () => {
     })
 
     it('should not submit when JSON is invalid', async () => {
-      const wrapper = mount(ProfileEditor, {
-        props: {
-          initialData: mockInitialData,
-        },
-      })
+      const wrapper = mountEditor()
 
       await wrapper.find('#preferences').setValue('{ invalid }')
       await wrapper.find('form').trigger('submit')
@@ -238,11 +167,7 @@ describe('ProfileEditor', () => {
     })
 
     it('should convert empty strings to null', async () => {
-      const wrapper = mount(ProfileEditor, {
-        props: {
-          initialData: mockInitialData,
-        },
-      })
+      const wrapper = mountEditor()
 
       await wrapper.find('#bio').setValue('')
       await wrapper.find('#avatar_url').setValue('')
@@ -256,16 +181,10 @@ describe('ProfileEditor', () => {
 
   describe('Cancel Action', () => {
     it('should emit cancel event when cancel button is clicked', async () => {
-      const wrapper = mount(ProfileEditor, {
-        props: {
-          initialData: mockInitialData,
-        },
-      })
+      const wrapper = mountEditor()
 
       // The theme Select renders its trigger as a button, so locate Cancel by label.
-      const cancelButton = wrapper.findAll('button').find((button) => button.text() === 'Cancel')
-      expect(cancelButton).toBeTruthy()
-      await cancelButton!.trigger('click')
+      await buttonWithText(wrapper, 'Cancel').trigger('click')
 
       expect(wrapper.emitted('cancel')).toBeTruthy()
     })
@@ -273,55 +192,32 @@ describe('ProfileEditor', () => {
 
   describe('Loading State', () => {
     it('should disable submit button when loading', () => {
-      const wrapper = mount(ProfileEditor, {
-        props: {
-          initialData: mockInitialData,
-          loading: true,
-        },
-      })
+      const submitButton = mountEditor({ loading: true }).find('button[type="submit"]')
 
-      const submitButton = wrapper.find('button[type="submit"]')
       expect(submitButton.attributes('disabled')).toBeDefined()
     })
 
     it('should show loading text when loading', () => {
-      const wrapper = mount(ProfileEditor, {
-        props: {
-          initialData: mockInitialData,
-          loading: true,
-        },
-      })
-
-      expect(wrapper.text()).toContain('Saving...')
+      expect(mountEditor({ loading: true }).text()).toContain('Saving...')
     })
 
     it('should show normal text when not loading', () => {
-      const wrapper = mount(ProfileEditor, {
-        props: {
-          initialData: mockInitialData,
-          loading: false,
-        },
-      })
+      const text = mountEditor({ loading: false }).text()
 
-      expect(wrapper.text()).toContain('Save Changes')
-      expect(wrapper.text()).not.toContain('Saving...')
+      expect(text).toContain('Save Changes')
+      expect(text).not.toContain('Saving...')
     })
   })
 
   describe('Email Field', () => {
-    const mountEditor = (props = {}) =>
-      mount(ProfileEditor, {
-        props: { initialData: mockInitialData, email: 'old@test.com', ...props },
-      })
+    const withEmail = () => mountEditor({ email: 'old@test.com' })
 
     it('renders the current email', () => {
-      const wrapper = mountEditor()
-
-      expect((wrapper.find('#email').element as HTMLInputElement).value).toBe('old@test.com')
+      expect((withEmail().find('#email').element as HTMLInputElement).value).toBe('old@test.com')
     })
 
     it('emits a changed email as the third submit argument', async () => {
-      const wrapper = mountEditor()
+      const wrapper = withEmail()
 
       await wrapper.find('#email').setValue('new@test.com')
       await wrapper.find('form').trigger('submit')
@@ -330,7 +226,7 @@ describe('ProfileEditor', () => {
     })
 
     it('does not emit an email when it is unchanged', async () => {
-      const wrapper = mountEditor()
+      const wrapper = withEmail()
 
       await wrapper.find('form').trigger('submit')
 
@@ -338,7 +234,7 @@ describe('ProfileEditor', () => {
     })
 
     it('blocks submission and explains an invalid address', async () => {
-      const wrapper = mountEditor()
+      const wrapper = withEmail()
 
       await wrapper.find('#email').setValue('not-an-email')
       await wrapper.find('form').trigger('submit')
@@ -350,44 +246,27 @@ describe('ProfileEditor', () => {
 
   describe('Error Display', () => {
     it('should display error message when error prop is provided', () => {
-      const wrapper = mount(ProfileEditor, {
-        props: {
-          initialData: mockInitialData,
-          error: 'Failed to save profile',
-        },
-      })
-
-      expect(wrapper.text()).toContain('Failed to save profile')
+      expect(mountEditor({ error: 'Failed to save profile' }).text()).toContain(
+        'Failed to save profile'
+      )
     })
 
     it('should not display error when error prop is null', () => {
-      const wrapper = mount(ProfileEditor, {
-        props: {
-          initialData: mockInitialData,
-          error: null,
-        },
-      })
-
-      expect(wrapper.find('.text-red-500').exists()).toBe(false)
+      expect(mountEditor({ error: null }).find('.text-red-500').exists()).toBe(false)
     })
   })
 })
 
 describe('Sign-in methods', () => {
   it('offers adding a password for passwordless accounts', async () => {
-    const { flushPromises } = await import('@vue/test-utils')
-    const wrapper = mount(ProfileEditor, {
-      props: {
-        initialData: { bio: 'Test bio' },
-        email: 'overseer@example.com',
-        hasPassword: false,
-      },
+    const wrapper = mountEditor({
+      initialData: { bio: 'Test bio' },
+      email: 'overseer@example.com',
+      hasPassword: false,
     })
 
     expect(wrapper.text()).toContain("We'll email you a link to set a password")
-    const button = wrapper.findAll('button').find((item) => item.text().includes('ADD PASSWORD'))
-    expect(button).toBeTruthy()
-    await button!.trigger('click')
+    await buttonWithText(wrapper, 'ADD PASSWORD').trigger('click')
     await flushPromises()
 
     expect(authService.requestPasswordReset).toHaveBeenCalledWith('overseer@example.com')
@@ -395,12 +274,10 @@ describe('Sign-in methods', () => {
   })
 
   it('states when password sign-in is enabled', () => {
-    const wrapper = mount(ProfileEditor, {
-      props: { initialData: { bio: 'Test bio' }, hasPassword: true },
-    })
+    const text = mountEditor({ initialData: { bio: 'Test bio' }, hasPassword: true }).text()
 
-    expect(wrapper.text()).toContain('Password sign-in is enabled')
-    expect(wrapper.text()).toContain(
+    expect(text).toContain('Password sign-in is enabled')
+    expect(text).toContain(
       'Changing your email does not change which Google or GitHub identity is linked'
     )
   })

@@ -156,8 +156,12 @@ describe('ExplorationDetailView', () => {
     return wrapper
   }
 
-  const siteButton = () =>
-    wrapper.findAll('button').find((button) => button.text().includes('Expedition site'))
+  // Required, not optional: `siteButton().disabled` passes when the CTA never rendered.
+  const siteButton = () => {
+    const button = wrapper.findAll('button').find((candidate) => candidate.text().includes('Expedition site'))
+    if (!button) throw new Error('Expedition site CTA was not rendered')
+    return button
+  }
   const siteModal = () => wrapper.getComponent(ExpeditionSiteModal)
 
   beforeEach(async () => {
@@ -325,7 +329,7 @@ describe('ExplorationDetailView', () => {
 
       await mountView()
 
-      expect((siteButton()?.element as HTMLButtonElement).disabled).toBe(true)
+      expect((siteButton().element as HTMLButtonElement).disabled).toBe(true)
     })
 
     it('starts the Expedition site CTA dark until availability resolves', async () => {
@@ -339,13 +343,13 @@ describe('ExplorationDetailView', () => {
 
       await mountView()
 
-      expect(siteButton()?.classes()).toContain('bg-secondary')
-      expect(siteButton()?.classes()).not.toContain('bg-primary')
+      expect(siteButton().classes()).toContain('bg-secondary')
+      expect(siteButton().classes()).not.toContain('bg-primary')
 
       resolveSites([availableSite])
       await flushPromises()
 
-      expect(siteButton()?.classes()).toContain('bg-primary')
+      expect(siteButton().classes()).toContain('bg-primary')
       wrapper.unmount()
     })
 

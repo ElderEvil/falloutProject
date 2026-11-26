@@ -13,26 +13,25 @@ vi.mock('@/core/utils/errorHandler', async (importOriginal) => ({
 import { useChatMessages } from '@/modules/chat/composables/useChatMessages'
 
 describe('useChatMessages avatar URL', () => {
-  it('uses the API origin for backend static avatars', () => {
+  it.each([
+    [
+      'backend static',
+      '/static/legendary_dweller_images/FOS_Dw_Butch.png',
+      'http://localhost:8000/static/legendary_dweller_images/FOS_Dw_Butch.png',
+    ],
+    [
+      'absolute',
+      'https://s3-api.example.com/dweller-images/photo.png',
+      'https://s3-api.example.com/dweller-images/photo.png',
+    ],
+  ])('resolves %s avatar URLs', (_kind, dwellerAvatar, expected) => {
     const { dwellerAvatarUrl } = useChatMessages({
       dwellerId: 'dweller-1',
-      dwellerAvatar: '/static/legendary_dweller_images/FOS_Dw_Butch.png',
+      dwellerAvatar,
       token: null,
     })
 
-    expect(dwellerAvatarUrl.value).toBe(
-      'http://localhost:8000/static/legendary_dweller_images/FOS_Dw_Butch.png'
-    )
-  })
-
-  it('passes absolute avatar URLs through unchanged', () => {
-    const { dwellerAvatarUrl } = useChatMessages({
-      dwellerId: 'dweller-1',
-      dwellerAvatar: 'https://s3-api.example.com/dweller-images/photo.png',
-      token: null,
-    })
-
-    expect(dwellerAvatarUrl.value).toBe('https://s3-api.example.com/dweller-images/photo.png')
+    expect(dwellerAvatarUrl.value).toBe(expected)
   })
 })
 

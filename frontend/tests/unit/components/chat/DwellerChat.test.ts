@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi, type Mock } from 'vitest'
 import { createAxiosMock, createIconifyMock, createToastMock } from '../../helpers/mocks'
 import { ref } from 'vue'
-import { mount, flushPromises } from '@vue/test-utils'
+import { mount, flushPromises, type VueWrapper } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import DwellerChat from '@/modules/chat/components/DwellerChat.vue'
 import apiClient from '@/core/plugins/axios'
@@ -15,9 +15,7 @@ import * as trainingService from '@/modules/progression/services/trainingService
 vi.mock('@iconify/vue', () =>
   createIconifyMock({ template: '<span class="icon-stub" :data-icon="icon"></span>' })
 )
-
 vi.mock('@/core/plugins/axios', () => createAxiosMock())
-
 vi.mock('@/modules/chat/composables/useAudioRecorder', () => ({
   useAudioRecorder: () => ({
     recordingState: { value: 'inactive' },
@@ -32,7 +30,7 @@ vi.mock('@/modules/chat/composables/useAudioRecorder', () => ({
   }),
 }))
 
-// Mock useChatWebSocket with event handlers
+// Mock useChatWebSocket and capture the handlers the component subscribes to.
 const mockWebSocketHandlers: Record<string, Function[]> = {}
 const mockWsState = { value: 'disconnected' as 'connected' | 'disconnected' }
 const mockSendMessage = vi.fn()
@@ -43,28 +41,15 @@ vi.mock('@/core/composables/useWebSocket', () => ({
     sendTypingIndicator: vi.fn(),
     sendMessage: mockSendMessage,
     on: (event: string, handler: Function) => {
-      if (!mockWebSocketHandlers[event]) {
-        mockWebSocketHandlers[event] = []
-      }
-      mockWebSocketHandlers[event].push(handler)
+      mockWebSocketHandlers[event] = [...(mockWebSocketHandlers[event] ?? []), handler]
     },
     state: mockWsState,
   }),
 }))
 
-// Mock useToast
 const mockToast = createToastMock()
-
-vi.mock('@/core/composables/useToast', () => ({
-  useToast: () => mockToast,
-}))
-
-// Mock trainingService
-vi.mock('@/modules/progression/services/trainingService', () => ({
-  startTraining: vi.fn(),
-}))
-
-// Mock useVaultStore
+vi.mock('@/core/composables/useToast', () => ({ useToast: () => mockToast }))
+vi.mock('@/modules/progression/services/trainingService', () => ({ startTraining: vi.fn() }))
 vi.mock('@/modules/vault/stores/vault', () => ({
   useVaultStore: () => ({
     activeVault: {},
@@ -73,27 +58,20 @@ vi.mock('@/modules/vault/stores/vault', () => ({
   }),
 }))
 
-// Mock useRoomStore
-const mockRooms = ref([
-  {
-    id: 'training-room-789',
-    name: 'Strength Training',
-    category: 'training',
-    ability: 'STRENGTH',
-    max_capacity: 5,
-  },
-  {
-    id: 'room-456',
-    name: 'Power Plant',
-    category: 'production',
-    ability: null,
-    max_capacity: 3,
-  },
-])
-const { mockFetchRooms } = vi.hoisted(() => ({
-  mockFetchRooms: vi.fn(),
-}))
-
+const trainingRoom = (id: string, ability: string | null, extra: object = {}) => ({
+  id,
+  name: id,
+  category: 'training',
+  ability,
+  max_capacity: 5,
+  ...extra,
+})
+const DEFAULT_ROOMS = [
+  trainingRoom('training-room-789', 'STRENGTH'),
+  { id: 'room-456', name: 'Power Plant', category: 'production', ability: null, max_capacity: 3 },
+]
+const mockRooms = ref<any[]>(DEFAULT_ROOMS)
+const { mockFetchRooms } = vi.hoisted(() => ({ mockFetchRooms: vi.fn() }))
 vi.mock('@/modules/rooms/stores/room', () => ({
   useRoomStore: () => ({
     get rooms() {
@@ -114,7 +92,6 @@ const {
   mockCompleteExploration: vi.fn(),
   mockFetchExplorationProgress: vi.fn(),
 }))
-
 vi.mock('@/modules/exploration/stores/exploration', () => ({
   useExplorationStore: () => ({
     sendDwellerToWasteland: mockSendDwellerToWasteland,
@@ -124,22 +101,13 @@ vi.mock('@/modules/exploration/stores/exploration', () => ({
   }),
 }))
 
-const { mockSuggestHeading } = vi.hoisted(() => ({
-  mockSuggestHeading: vi.fn(),
-}))
-
+const { mockSuggestHeading } = vi.hoisted(() => ({ mockSuggestHeading: vi.fn() }))
 vi.mock('@/modules/exploration/api/exploration', () => ({
-  explorationApi: {
-    suggestHeading: mockSuggestHeading,
-    dispatchToLocation: vi.fn(),
-  },
+  explorationApi: { suggestHeading: mockSuggestHeading, dispatchToLocation: vi.fn() },
 }))
 
-const { mockRefreshMap } = vi.hoisted(() => ({
-  mockRefreshMap: vi.fn(),
-}))
+const { mockRefreshMap } = vi.hoisted(() => ({ mockRefreshMap: vi.fn() }))
 const mockMapLocations = ref<any[]>([])
-
 vi.mock('@/modules/map/stores/map', () => ({
   useMapStore: () => ({
     locations: mockMapLocations.value,
@@ -149,19 +117,98 @@ vi.mock('@/modules/map/stores/map', () => ({
   }),
 }))
 
-describe('DwellerChat', () => {
-  const defaultProps = {
-    dwellerId: 'dweller-123',
-    dwellerName: 'Test Dweller',
-    username: 'TestUser',
-    dwellerAvatar: undefined,
-    vaultId: 'vault-123',
-  }
+const defaultProps = {
+  dwellerId: 'dweller-123',
+  dwellerName: 'Test Dweller',
+  username: 'TestUser',
+  dwellerAvatar: undefined,
+  vaultId: 'vault-123',
+}
 
+const mountChat = (props: Record<string, unknown> = {}) =>
+  mount(DwellerChat, {
+    props: { ...defaultProps, ...props },
+    global: {
+      stubs: {
+        Icon: { template: '<span class="icon-stub" :data-icon="icon"></span>', props: ['icon'] },
+        // The chat's send-wasteland modal teleports; render it inline so tests can interact.
+        Teleport: { template: '<div><slot /></div>' },
+      },
+    },
+  })
+
+const mounted = async (props: Record<string, unknown> = {}) => {
+  const wrapper = mountChat(props)
+  await flushPromises()
+  return wrapper
+}
+
+/** Send `text` through the composer, queueing one reply payload for the POST. */
+const send = async (
+  wrapper: VueWrapper,
+  text: string,
+  reply: Record<string, unknown> = {}
+): Promise<void> => {
+  ;(apiClient.post as Mock).mockResolvedValueOnce({
+    data: { response: 'ok', happiness_impact: null, action_suggestion: null, ...reply },
+  })
+  await wrapper.get('.chat-input-field').setValue(text)
+  await wrapper.get('.chat-send-btn').trigger('click')
+  await flushPromises()
+}
+
+const confirmAction = async (wrapper: VueWrapper) => {
+  await wrapper.get('.action-confirm-btn').trigger('click')
+  await flushPromises()
+}
+
+const openSendModal = async (wrapper: VueWrapper) => {
+  await confirmAction(wrapper)
+  await wrapper.get('.modal-button.confirm').trigger('click')
+  await flushPromises()
+}
+
+/** A dweller row shaped like the store's filter list, with the fields the chat reads. */
+const dweller = (overrides: Record<string, unknown> = {}) => ({
+  id: 'dweller-123',
+  first_name: 'Test',
+  last_name: 'Dweller',
+  room_id: null,
+  level: 1,
+  happiness: 50,
+  strength: 5,
+  perception: 5,
+  endurance: 5,
+  charisma: 5,
+  intelligence: 5,
+  agility: 5,
+  luck: 5,
+  status: 'idle',
+  age_group: 'adult',
+  ...overrides,
+})
+
+const seedDwellers = (...rows: object[]) =>
+  useDwellerStore().filter.$patch({ dwellers: rows.length ? rows : [dweller()] })
+
+const explorationReply = (overrides: Record<string, unknown> = {}) => ({
+  response: 'Ready to explore!',
+  action_suggestion: {
+    action_type: 'start_exploration',
+    duration_hours: 8,
+    stimpaks: 5,
+    radaways: 3,
+    reason: 'Good stats for exploration',
+  },
+  ...overrides,
+})
+
+describe('DwellerChat', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     setActivePinia(createPinia())
     mockWsState.value = 'disconnected'
+    for (const event of Object.keys(mockWebSocketHandlers)) mockWebSocketHandlers[event] = []
 
     mockSendDwellerToWasteland.mockReset()
     mockRecallDweller.mockReset()
@@ -170,57 +217,22 @@ describe('DwellerChat', () => {
     mockFetchRooms.mockReset()
     mockSuggestHeading.mockReset()
     mockSuggestHeading.mockResolvedValue(null)
-
-    mockRooms.value = [
-      {
-        id: 'training-room-789',
-        name: 'Strength Training',
-        category: 'training',
-        ability: 'STRENGTH',
-        max_capacity: 5,
-      },
-      {
-        id: 'room-456',
-        name: 'Power Plant',
-        category: 'production',
-        ability: null,
-        max_capacity: 3,
-      },
-    ]
+    mockRooms.value = DEFAULT_ROOMS
     mockMapLocations.value = []
 
-    const authStore = useAuthStore()
-    authStore.$patch({
+    useAuthStore().$patch({
       token: 'test-token',
       user: { id: 'user-123', username: 'TestUser' },
     })
-
     ;(apiClient.get as Mock).mockResolvedValue({ data: [] })
   })
-
-  const mountComponent = (props = {}) => {
-    return mount(DwellerChat, {
-      props: { ...defaultProps, ...props },
-      global: {
-        stubs: {
-          Icon: {
-            template: '<span class="icon-stub" :data-icon="icon"></span>',
-            props: ['icon'],
-          },
-          // The chat's send-wasteland modal teleports; render it inline so tests can interact.
-          Teleport: { template: '<div><slot /></div>' },
-        },
-      },
-    })
-  }
 
   describe('Conversation starters', () => {
     it('prefills the composer from a known place without sending a message', async () => {
       mockMapLocations.value = [
         { id: 'megaton', name: 'Megaton', dwellers: [{ dweller_id: 'dweller-123' }] },
       ]
-      const wrapper = mountComponent()
-      await flushPromises()
+      const wrapper = await mounted()
 
       await wrapper.get('.conversation-starter').trigger('click')
 
@@ -232,8 +244,8 @@ describe('DwellerChat', () => {
   })
 
   describe('Dweller activity', () => {
-    it('shows the dweller assignment in the chat header', () => {
-      const wrapper = mountComponent({ dwellerStatus: 'working', roomName: 'Power Plant' })
+    it('shows the dweller assignment in the chat header', async () => {
+      const wrapper = mountChat({ dwellerStatus: 'working', roomName: 'Power Plant' })
 
       expect(wrapper.get('.identity-status').text()).toBe('ON DUTY · POWER PLANT')
     })
@@ -242,51 +254,33 @@ describe('DwellerChat', () => {
   describe('Voice verification reminder', () => {
     const reminder = '.voice-verification-reminder'
 
-    const signIn = (emailVerified: boolean) => {
+    const signIn = (emailVerified: boolean) =>
       useAuthStore().$patch({
         user: { id: 'user-123', username: 'TestUser', email_verified: emailVerified },
       })
-    }
 
-    const switchToVoice = async (wrapper: ReturnType<typeof mountComponent>) => {
-      await wrapper.get('button[aria-label="Switch to voice input"]').trigger('click')
-    }
+    it.each([
+      ['text mode', false, false, false],
+      ['voice, unverified', false, true, true],
+      ['voice, verified', true, true, false],
+    ])(
+      'shows the reminder only for unverified voice users (%s)',
+      async (_case, verified, voice, shown) => {
+        signIn(verified as boolean)
+        const wrapper = await mounted()
+        if (voice) await wrapper.get('button[aria-label="Switch to voice input"]').trigger('click')
 
-    it('stays hidden while the composer is in text mode', async () => {
-      signIn(false)
-      const wrapper = mountComponent()
-      await flushPromises()
-
-      expect(wrapper.find(reminder).exists()).toBe(false)
-    })
-
-    it('appears when an unverified user switches to voice', async () => {
-      signIn(false)
-      const wrapper = mountComponent()
-      await flushPromises()
-
-      await switchToVoice(wrapper)
-
-      expect(wrapper.get(reminder).text()).toContain('Voice chat uses AI credits')
-    })
-
-    it('stays hidden for verified users in voice mode', async () => {
-      signIn(true)
-      const wrapper = mountComponent()
-      await flushPromises()
-
-      await switchToVoice(wrapper)
-
-      expect(wrapper.find(reminder).exists()).toBe(false)
-    })
+        expect(wrapper.find(reminder).exists()).toBe(shown)
+        if (shown) expect(wrapper.get(reminder).text()).toContain('Voice chat uses AI credits')
+      }
+    )
 
     it('resends the verification email from the reminder', async () => {
       signIn(false)
       const resendSpy = vi.spyOn(useAuthStore(), 'resendVerificationEmail').mockResolvedValue(true)
-      const wrapper = mountComponent()
-      await flushPromises()
+      const wrapper = await mounted()
 
-      await switchToVoice(wrapper)
+      await wrapper.get('button[aria-label="Switch to voice input"]').trigger('click')
       await wrapper.get(reminder).get('button').trigger('click')
       await flushPromises()
 
@@ -295,620 +289,251 @@ describe('DwellerChat', () => {
     })
   })
 
-  describe('Scenario D: Happiness Impact Display', () => {
-    it('should render happiness impact badge when response includes happiness_impact', async () => {
-      const wrapper = mountComponent()
-      await flushPromises()
-
-      // Mock chat response with happiness_impact
-      ;(apiClient.post as Mock).mockResolvedValueOnce({
-        data: {
-          response: 'Thanks for checking in!',
-          happiness_impact: {
-            delta: 5,
-            reason_text: 'Positive conversation',
-          },
-          action_suggestion: null,
-        },
+  describe('Happiness impact', () => {
+    it.each([
+      [5, '+5', 'mdi:emoticon-happy'],
+      [-3, '-3', 'mdi:emoticon-sad'],
+      [0, '0', 'mdi:emoticon-neutral'],
+    ])('renders a %s delta badge', async (delta, label, icon) => {
+      const wrapper = await mounted()
+      await send(wrapper, 'Hello there!', {
+        response: 'Noted.',
+        happiness_impact: { delta, reason_text: 'Conversation' },
       })
 
-      // Type and send message
-      const input = wrapper.find('.chat-input-field')
-      await input.setValue('Hello there!')
-      await wrapper.find('.chat-send-btn').trigger('click')
-      await flushPromises()
-
-      // Verify happiness indicator is rendered
-      const happinessIndicator = wrapper.find('.happiness-indicator')
-      expect(happinessIndicator.exists()).toBe(true)
-      expect(happinessIndicator.text()).toContain('+5')
-      expect(happinessIndicator.find('.icon-stub').attributes('data-icon')).toBe(
-        'mdi:emoticon-happy'
-      )
+      const badge = wrapper.get('.happiness-indicator')
+      expect(badge.text()).toContain(label)
+      expect(badge.get('.icon-stub').attributes('data-icon')).toBe(icon)
     })
 
-    it('should render negative happiness impact with red color', async () => {
-      const wrapper = mountComponent()
-      await flushPromises()
+    it('omits the badge when the reply carries no happiness impact', async () => {
+      const wrapper = await mounted()
+      await send(wrapper, 'Hi', { response: 'Hello!' })
 
-      // Mock chat response with negative happiness_impact
-      ;(apiClient.post as Mock).mockResolvedValueOnce({
-        data: {
-          response: 'That was mean...',
-          happiness_impact: {
-            delta: -3,
-            reason_text: 'Negative conversation',
-          },
-          action_suggestion: null,
-        },
-      })
-
-      // Type and send message
-      const input = wrapper.find('.chat-input-field')
-      await input.setValue('Go away!')
-      await wrapper.find('.chat-send-btn').trigger('click')
-      await flushPromises()
-
-      // Verify happiness indicator shows negative
-      const happinessIndicator = wrapper.find('.happiness-indicator')
-      expect(happinessIndicator.exists()).toBe(true)
-      expect(happinessIndicator.text()).toContain('-3')
-      expect(happinessIndicator.find('.icon-stub').attributes('data-icon')).toBe('mdi:emoticon-sad')
-    })
-
-    it('should render neutral happiness impact with gray color', async () => {
-      const wrapper = mountComponent()
-      await flushPromises()
-
-      // Mock chat response with zero happiness_impact
-      ;(apiClient.post as Mock).mockResolvedValueOnce({
-        data: {
-          response: 'Okay.',
-          happiness_impact: {
-            delta: 0,
-            reason_text: 'Neutral conversation',
-          },
-          action_suggestion: null,
-        },
-      })
-
-      // Type and send message
-      const input = wrapper.find('.chat-input-field')
-      await input.setValue('Status report')
-      await wrapper.find('.chat-send-btn').trigger('click')
-      await flushPromises()
-
-      // Verify happiness indicator shows neutral
-      const happinessIndicator = wrapper.find('.happiness-indicator')
-      expect(happinessIndicator.exists()).toBe(true)
-      expect(happinessIndicator.text()).toContain('0')
-      expect(happinessIndicator.find('.icon-stub').attributes('data-icon')).toBe(
-        'mdi:emoticon-neutral'
-      )
-    })
-
-    it('should not render happiness indicator when response has no happiness_impact', async () => {
-      const wrapper = mountComponent()
-      await flushPromises()
-
-      // Mock chat response without happiness_impact
-      ;(apiClient.post as Mock).mockResolvedValueOnce({
-        data: {
-          response: 'Hello!',
-          happiness_impact: null,
-          action_suggestion: null,
-        },
-      })
-
-      // Type and send message
-      const input = wrapper.find('.chat-input-field')
-      await input.setValue('Hi')
-      await wrapper.find('.chat-send-btn').trigger('click')
-      await flushPromises()
-
-      // Verify no happiness indicator
-      const happinessIndicator = wrapper.find('.happiness-indicator')
-      expect(happinessIndicator.exists()).toBe(false)
+      expect(wrapper.find('.happiness-indicator').exists()).toBe(false)
     })
   })
 
-  describe('Scenario D: Action Suggestion with Confirm Button', () => {
-    it('should render action suggestion card with confirm button for assign_to_room', async () => {
-      const wrapper = mountComponent()
-      await flushPromises()
+  describe('Action suggestions', () => {
+    const assignSuggestion = {
+      action_type: 'assign_to_room',
+      room_id: 'room-456',
+      room_name: 'Power Plant',
+      reason: 'High strength makes this a great fit',
+    }
 
-      // Mock chat response with action_suggestion
-      ;(apiClient.post as Mock).mockResolvedValueOnce({
-        data: {
+    it.each([
+      {
+        suggestion: assignSuggestion,
+        reply: {
           response: 'I would love to work in the power plant!',
           happiness_impact: { delta: 2, reason_text: 'Excited about work' },
-          action_suggestion: {
-            action_type: 'assign_to_room',
-            room_id: 'room-456',
-            room_name: 'Power Plant',
-            reason: 'High strength makes this a great fit',
-          },
         },
+        label: 'Assign to Power Plant',
+      },
+      {
+        suggestion: {
+          action_type: 'start_training',
+          stat: 'strength',
+          reason: 'Low strength, needs improvement',
+        },
+        reply: {
+          response: 'I want to get stronger!',
+          happiness_impact: { delta: 3, reason_text: 'Motivated' },
+        },
+        label: 'Train strength',
+      },
+    ])(
+      'renders a $suggestion.action_type card with its reason and confirm button',
+      async (testCase) => {
+        const wrapper = await mounted()
+        await send(wrapper, 'What next?', {
+          ...testCase.reply,
+          action_suggestion: testCase.suggestion,
+        })
+
+        const card = wrapper.get('.action-suggestion-card')
+        expect(card.text()).toContain('Suggested Action')
+        expect(card.text()).toContain(testCase.label)
+        expect(card.text()).toContain(testCase.suggestion.reason)
+        expect(wrapper.get('.action-confirm-btn').text()).toContain('Confirm')
+      }
+    )
+
+    it('assigns the dweller and clears the card on confirm', async () => {
+      const assignSpy = vi
+        .spyOn(useDwellerStore().management, 'assignDwellerToRoom')
+        .mockResolvedValue({} as any)
+      const wrapper = await mounted()
+      await send(wrapper, 'Work assignment', {
+        response: 'I would love to work there!',
+        action_suggestion: assignSuggestion,
       })
 
-      // Type and send message
-      const input = wrapper.find('.chat-input-field')
-      await input.setValue('Where would you like to work?')
-      await wrapper.find('.chat-send-btn').trigger('click')
-      await flushPromises()
+      await confirmAction(wrapper)
 
-      // Verify action suggestion card is rendered
-      const actionCard = wrapper.find('.action-suggestion-card')
-      expect(actionCard.exists()).toBe(true)
-      expect(actionCard.text()).toContain('Suggested Action')
-      expect(actionCard.text()).toContain('Assign to Power Plant')
-      expect(actionCard.text()).toContain('High strength makes this a great fit')
-
-      // Verify confirm button exists
-      const confirmBtn = wrapper.find('.action-confirm-btn')
-      expect(confirmBtn.exists()).toBe(true)
-      expect(confirmBtn.text()).toContain('Confirm')
-    })
-
-    it('should trigger assignDwellerToRoom when confirm button is clicked for assign_to_room', async () => {
-      const dwellerStore = useDwellerStore().management
-      const assignSpy = vi.spyOn(dwellerStore, 'assignDwellerToRoom').mockResolvedValue({} as any)
-
-      const wrapper = mountComponent()
-      await flushPromises()
-
-      // Mock chat response with assign_to_room action
-      ;(apiClient.post as Mock).mockResolvedValueOnce({
-        data: {
-          response: 'I would love to work there!',
-          happiness_impact: { delta: 2, reason_text: 'Happy' },
-          action_suggestion: {
-            action_type: 'assign_to_room',
-            room_id: 'room-456',
-            room_name: 'Power Plant',
-            reason: 'Good fit',
-          },
-        },
-      })
-
-      // Send message
-      const input = wrapper.find('.chat-input-field')
-      await input.setValue('Work assignment')
-      await wrapper.find('.chat-send-btn').trigger('click')
-      await flushPromises()
-
-      // Click confirm button
-      const confirmBtn = wrapper.find('.action-confirm-btn')
-      await confirmBtn.trigger('click')
-      await flushPromises()
-
-      // Verify store action was called
       expect(assignSpy).toHaveBeenCalledWith('dweller-123', 'room-456')
-
-      // Verify action card is removed
       expect(wrapper.find('.action-suggestion-card').exists()).toBe(false)
     })
 
-    it('should render action suggestion card with confirm button for start_training', async () => {
-      const wrapper = mountComponent()
-      await flushPromises()
-
-      // Mock chat response with start_training action
-      ;(apiClient.post as Mock).mockResolvedValueOnce({
-        data: {
-          response: 'I want to get stronger!',
-          happiness_impact: { delta: 3, reason_text: 'Motivated' },
-          action_suggestion: {
-            action_type: 'start_training',
-            stat: 'strength',
-            reason: 'Low strength, needs improvement',
-          },
-        },
-      })
-
-      // Send message
-      const input = wrapper.find('.chat-input-field')
-      await input.setValue('What skill do you want to improve?')
-      await wrapper.find('.chat-send-btn').trigger('click')
-      await flushPromises()
-
-      // Verify action suggestion card
-      const actionCard = wrapper.find('.action-suggestion-card')
-      expect(actionCard.exists()).toBe(true)
-      expect(actionCard.text()).toContain('Train strength')
-      expect(actionCard.text()).toContain('Low strength, needs improvement')
-
-      // Verify confirm button
-      const confirmBtn = wrapper.find('.action-confirm-btn')
-      expect(confirmBtn.exists()).toBe(true)
-    })
-
-    it('should use a carried stimpack when a medical request is confirmed', async () => {
-      const dwellerStore = useDwellerStore()
-      dwellerStore.filter.$patch({
+    it('spends a carried stimpak when the medical request is confirmed', async () => {
+      useDwellerStore().filter.$patch({
         detailedDwellers: {
           'dweller-123': { id: 'dweller-123', stimpack: 1, radaway: 0 } as any,
         },
       })
       const useStimpackSpy = vi
-        .spyOn(dwellerStore.medical, 'useStimpack')
+        .spyOn(useDwellerStore().medical, 'useStimpack')
         .mockResolvedValue({} as any)
-
-      const wrapper = mountComponent()
-      await flushPromises()
-
-      ;(apiClient.post as Mock).mockResolvedValueOnce({
-        data: {
-          response: 'Please, Overseer. I need a Stimpak.',
-          happiness_impact: null,
-          action_suggestion: {
-            action_type: 'request_stimpak',
-            reason: 'Health is below 50%.',
-          },
-        },
+      const wrapper = await mounted()
+      await send(wrapper, 'I feel very weak.', {
+        response: 'Please, Overseer. I need a Stimpak.',
+        action_suggestion: { action_type: 'request_stimpak', reason: 'Health is below 50%.' },
       })
 
-      const input = wrapper.find('.chat-input-field')
-      await input.setValue('I feel very weak.')
-      await wrapper.find('.chat-send-btn').trigger('click')
-      await flushPromises()
-
-      expect(wrapper.find('.action-suggestion-card').text()).toContain('Give Stimpak')
-      await wrapper.find('.action-confirm-btn').trigger('click')
-      await flushPromises()
+      expect(wrapper.get('.action-suggestion-card').text()).toContain('Give Stimpak')
+      await confirmAction(wrapper)
 
       expect(useStimpackSpy).toHaveBeenCalledWith('dweller-123')
       expect(wrapper.find('.action-suggestion-card').exists()).toBe(false)
     })
 
-    it('should trigger startTraining when confirm button is clicked for start_training', async () => {
-      const dwellerStore = useDwellerStore().filter
-      // Add dweller with room_id to the store
-      dwellerStore.$patch({
-        dwellers: [
-          {
-            id: 'dweller-123',
-            first_name: 'Test',
-            last_name: 'Dweller',
-            room_id: 'training-room-789',
-            level: 1,
-            happiness: 50,
-            strength: 5,
-            perception: 5,
-            endurance: 5,
-            charisma: 5,
-            intelligence: 5,
-            agility: 5,
-            luck: 5,
-            status: 'idle',
-          },
-        ],
-      })
-
-      const wrapper = mountComponent()
-      await flushPromises()
-
-      // Mock chat response with start_training action
-      ;(apiClient.post as Mock).mockResolvedValueOnce({
-        data: {
-          response: 'Ready to train!',
-          happiness_impact: { delta: 2, reason_text: 'Excited' },
-          action_suggestion: {
-            action_type: 'start_training',
-            stat: 'strength',
-            reason: 'Needs strength training',
-          },
+    it('starts training in the dweller room on confirm', async () => {
+      seedDwellers(dweller({ room_id: 'training-room-789' }))
+      const wrapper = await mounted()
+      await send(wrapper, 'Train me', {
+        response: 'Ready to train!',
+        action_suggestion: {
+          action_type: 'start_training',
+          stat: 'strength',
+          reason: 'Needs strength training',
         },
       })
 
-      // Send message
-      const input = wrapper.find('.chat-input-field')
-      await input.setValue('Train me')
-      await wrapper.find('.chat-send-btn').trigger('click')
-      await flushPromises()
+      await confirmAction(wrapper)
 
-      // Click confirm button
-      const confirmBtn = wrapper.find('.action-confirm-btn')
-      await confirmBtn.trigger('click')
-      await flushPromises()
-
-      // Verify training service was called
       expect(trainingService.startTraining).toHaveBeenCalledWith('dweller-123', 'training-room-789')
-
-      // Verify action card is removed
       expect(wrapper.find('.action-suggestion-card').exists()).toBe(false)
     })
 
-    it('should not render action suggestion for no_action type', async () => {
-      const wrapper = mountComponent()
-      await flushPromises()
-
-      // Mock chat response with no_action
-      ;(apiClient.post as Mock).mockResolvedValueOnce({
-        data: {
-          response: 'Just chatting.',
-          happiness_impact: { delta: 1, reason_text: 'Nice chat' },
-          action_suggestion: {
-            action_type: 'no_action',
-            reason: 'No action needed',
-          },
-        },
+    it('dismisses the card without acting', async () => {
+      const wrapper = await mounted()
+      await send(wrapper, 'Suggest something', {
+        response: 'Work suggestion',
+        action_suggestion: { ...assignSuggestion, room_id: 'room-123', room_name: 'Diner' },
       })
 
-      // Send message
-      const input = wrapper.find('.chat-input-field')
-      await input.setValue('Just saying hi')
-      await wrapper.find('.chat-send-btn').trigger('click')
-      await flushPromises()
-
-      // Verify no action card is rendered
-      const actionCard = wrapper.find('.action-suggestion-card')
-      expect(actionCard.exists()).toBe(false)
-    })
-
-    it('should dismiss action suggestion when dismiss button is clicked', async () => {
-      const wrapper = mountComponent()
-      await flushPromises()
-
-      // Mock chat response with action_suggestion
-      ;(apiClient.post as Mock).mockResolvedValueOnce({
-        data: {
-          response: 'Work suggestion',
-          happiness_impact: { delta: 1, reason_text: 'Okay' },
-          action_suggestion: {
-            action_type: 'assign_to_room',
-            room_id: 'room-123',
-            room_name: 'Diner',
-            reason: 'Good fit',
-          },
-        },
-      })
-
-      // Send message
-      const input = wrapper.find('.chat-input-field')
-      await input.setValue('Suggest something')
-      await wrapper.find('.chat-send-btn').trigger('click')
-      await flushPromises()
-
-      // Verify action card exists
       expect(wrapper.find('.action-suggestion-card').exists()).toBe(true)
-
-      // Click dismiss button
-      const dismissBtn = wrapper.find('.action-dismiss-btn')
-      await dismissBtn.trigger('click')
+      await wrapper.get('.action-dismiss-btn').trigger('click')
       await flushPromises()
 
-      // Verify action card is removed
       expect(wrapper.find('.action-suggestion-card').exists()).toBe(false)
     })
 
-    it('should not render action suggestion when response has null action_suggestion', async () => {
-      const wrapper = mountComponent()
-      await flushPromises()
-
-      // Mock chat response without action_suggestion
-      ;(apiClient.post as Mock).mockResolvedValueOnce({
-        data: {
-          response: 'Regular response',
-          happiness_impact: { delta: 1, reason_text: 'Good' },
-          action_suggestion: null,
-        },
+    it.each([
+      ['an explicit no_action', { action_type: 'no_action', reason: 'No action needed' }],
+      ['no suggestion at all', null],
+    ])('renders no card for %s', async (_case, suggestion) => {
+      const wrapper = await mounted()
+      await send(wrapper, 'Just saying hi', {
+        response: 'Just chatting.',
+        action_suggestion: suggestion,
       })
 
-      // Send message
-      const input = wrapper.find('.chat-input-field')
-      await input.setValue('Hello')
-      await wrapper.find('.chat-send-btn').trigger('click')
-      await flushPromises()
-
-      // Verify no action card
-      const actionCard = wrapper.find('.action-suggestion-card')
-      expect(actionCard.exists()).toBe(false)
+      expect(wrapper.find('.action-suggestion-card').exists()).toBe(false)
     })
   })
 
-  describe('Message Sending', () => {
-    it('should send message and display response', async () => {
-      const wrapper = mountComponent()
-      await flushPromises()
+  describe('Message sending', () => {
+    it('sends the message, renders the reply and disables an empty composer', async () => {
+      const wrapper = await mounted()
+      expect((wrapper.get('.chat-send-btn').element as HTMLButtonElement).disabled).toBe(true)
 
-      // Mock chat response
-      ;(apiClient.post as Mock).mockResolvedValueOnce({
-        data: {
-          response: 'Hello, Overseer!',
-          happiness_impact: null,
-          action_suggestion: null,
-        },
-      })
-
-      // Type and send message
-      const input = wrapper.find('.chat-input-field')
-      await input.setValue('Hello!')
-      await wrapper.find('.chat-send-btn').trigger('click')
-      await flushPromises()
+      await send(wrapper, 'Hello!', { response: 'Hello, Overseer!' })
 
       expect(apiClient.post).toHaveBeenCalledWith(
         '/api/v1/chat/dweller-123',
         { message: 'Hello!' },
-        {
-          params: { debug: undefined },
-        }
+        { params: { debug: undefined } }
       )
-
-      // Verify messages are displayed
-      const messages = wrapper.findAll('.message-wrapper')
-      expect(messages.length).toBe(2) // user message + dweller response
+      expect(wrapper.findAll('.message-wrapper')).toHaveLength(2)
+      expect((wrapper.get('.chat-send-btn').element as HTMLButtonElement).disabled).toBe(true)
     })
 
-    it('should disable send button when input is empty', () => {
-      const wrapper = mountComponent()
+    it('enables the send button once the composer has text', async () => {
+      const wrapper = mountChat()
 
-      const sendBtn = wrapper.find('.chat-send-btn')
-      expect((sendBtn.element as HTMLButtonElement).disabled).toBe(true)
+      await wrapper.get('.chat-input-field').setValue('Hello')
+
+      expect((wrapper.get('.chat-send-btn').element as HTMLButtonElement).disabled).toBe(false)
     })
 
-    it('should enable send button when input has text', async () => {
-      const wrapper = mountComponent()
-
-      const input = wrapper.find('.chat-input-field')
-      await input.setValue('Hello')
-
-      const sendBtn = wrapper.find('.chat-send-btn')
-      expect((sendBtn.element as HTMLButtonElement).disabled).toBe(false)
-    })
-  })
-
-  describe('Rendering', () => {
-    it('should render chat container with dweller name', () => {
-      const wrapper = mountComponent()
-
-      expect(wrapper.find('.chat-container').exists()).toBe(true)
-      expect(wrapper.find('.identity-name').text()).toBe('Test Dweller')
-    })
-
-    it('should show typing indicator when waiting for response', async () => {
-      const wrapper = mountComponent()
-      await flushPromises()
-
-      // Mock slow response
+    it('shows the typing indicator while a reply is outstanding', async () => {
+      const wrapper = await mounted()
       ;(apiClient.post as Mock).mockImplementation(
         () => new Promise((resolve) => setTimeout(() => resolve({ data: { response: 'Hi' } }), 100))
       )
 
-      // Send message
-      const input = wrapper.find('.chat-input-field')
-      await input.setValue('Hello')
-      await wrapper.find('.chat-send-btn').trigger('click')
+      await wrapper.get('.chat-input-field').setValue('Hello')
+      await wrapper.get('.chat-send-btn').trigger('click')
 
-      // Typing indicator should be visible
       expect(wrapper.find('.typing-indicator').exists()).toBe(true)
     })
   })
 
-  describe('WebSocket Typing Indicator Bug Fix', () => {
-    it('should not throw error when typing before WebSocket is connected', async () => {
-      // This test reproduces the bug from the error log:
-      // "WebSocket not connected, cannot send message"
-      // The bug happens when user starts typing before WS connection is established
+  describe('Rendering', () => {
+    it('renders the chat container with the dweller name', () => {
+      const wrapper = mountChat()
 
-      const wrapper = mountComponent()
-      await flushPromises()
-
-      // Try to type in the input field (this triggers handleTyping via @input event)
-      const input = wrapper.find('.chat-input-field')
-
-      // This should NOT throw an error even if WebSocket is not connected yet
-      expect(() => {
-        input.trigger('input')
-      }).not.toThrow()
-
-      // The sendTypingIndicator should either:
-      // 1. Not be called if WS is not connected, OR
-      // 2. Be called but handle the error gracefully (not throw)
-      // With the fix, sendTypingIndicator checks ws.state before sending
+      expect(wrapper.get('.identity-name').text()).toBe('Test Dweller')
+      expect(wrapper.find('.chat-container').exists()).toBe(true)
     })
+  })
 
-    it('should gracefully handle typing when WebSocket connection fails', async () => {
-      const wrapper = mountComponent()
-      await flushPromises()
+  describe('WebSocket typing indicator', () => {
+    it('tolerates typing before the socket connects', async () => {
+      const wrapper = await mounted()
+      const input = wrapper.get('.chat-input-field')
 
-      // Simulate typing - should not crash even if WS fails
-      const input = wrapper.find('.chat-input-field')
+      expect(() => input.trigger('input')).not.toThrow()
       await input.setValue('H')
       await input.trigger('input')
 
-      // Component should still be functional
       expect(wrapper.find('.chat-input-field').exists()).toBe(true)
     })
   })
 
-  describe('WebSocket Happiness Update and Action Suggestion - Only Latest Message', () => {
-    beforeEach(() => {
-      mockWebSocketHandlers['happiness_update'] = []
-      mockWebSocketHandlers['action_suggestion'] = []
+  describe('WebSocket happiness and action updates', () => {
+    const reply = (id: string, response: string) => ({
+      dweller_message_id: id,
+      response,
+      happiness_impact: null,
+      action_suggestion: null,
     })
 
-    it('should update the correct dweller message by message_id via WebSocket happiness_update', async () => {
-      const wrapper = mountComponent()
-      await flushPromises()
+    it('updates only the dweller message addressed by message_id', async () => {
+      const wrapper = await mounted()
+      await send(wrapper, 'First message', reply('msg-first', 'First response'))
+      await send(wrapper, 'Second message', reply('msg-second', 'Second response'))
+      expect(wrapper.findAll('.message-wrapper')).toHaveLength(4)
 
-      // Send first user message
-      ;(apiClient.post as Mock).mockResolvedValueOnce({
-        data: {
-          dweller_message_id: 'msg-first',
-          response: 'First response',
-          happiness_impact: null,
-          action_suggestion: null,
-        },
-      })
-      const input = wrapper.find('.chat-input-field')
-      await input.setValue('First message')
-      await wrapper.find('.chat-send-btn').trigger('click')
-      await flushPromises()
-
-      // Send second user message
-      ;(apiClient.post as Mock).mockResolvedValueOnce({
-        data: {
-          dweller_message_id: 'msg-second',
-          response: 'Second response',
-          happiness_impact: null,
-          action_suggestion: null,
-        },
-      })
-      await input.setValue('Second message')
-      await wrapper.find('.chat-send-btn').trigger('click')
-      await flushPromises()
-
-      // Verify we have 4 messages: user1, dweller1, user2, dweller2
-      let messages = wrapper.findAll('.message-wrapper')
-      expect(messages.length).toBe(4)
-
-      // Trigger WebSocket happiness_update targeting the SECOND dweller message
-      const happinessHandlers = mockWebSocketHandlers['happiness_update']
-      expect(happinessHandlers.length).toBeGreaterThan(0)
-      happinessHandlers[0]({
+      mockWebSocketHandlers['happiness_update'][0]({
         message_id: 'msg-second',
-        happiness_impact: {
-          delta: 5,
-          reason_text: 'Good conversation',
-        },
+        happiness_impact: { delta: 5, reason_text: 'Good conversation' },
       })
       await wrapper.vm.$nextTick()
 
-      // Verify only the targeted dweller message has happiness impact
-      messages = wrapper.findAll('.message-wrapper')
       const dwellerMessages = wrapper.findAll('.message-wrapper.dweller')
-      expect(dwellerMessages.length).toBe(2)
-
-      // First dweller message should NOT have happiness indicator
-      const firstDwellerHappiness = dwellerMessages[0].find('.happiness-indicator')
-      expect(firstDwellerHappiness.exists()).toBe(false)
-
-      // Second dweller message SHOULD have happiness indicator
-      const secondDwellerHappiness = dwellerMessages[1].find('.happiness-indicator')
-      expect(secondDwellerHappiness.exists()).toBe(true)
-      expect(secondDwellerHappiness.text()).toContain('+5')
+      expect(dwellerMessages).toHaveLength(2)
+      expect(dwellerMessages[0].find('.happiness-indicator').exists()).toBe(false)
+      expect(dwellerMessages[1].get('.happiness-indicator').text()).toContain('+5')
     })
 
-    it('should ignore happiness_update without message_id', async () => {
-      const wrapper = mountComponent()
-      await flushPromises()
+    it('ignores a happiness update without a message_id', async () => {
+      const wrapper = await mounted()
+      await send(wrapper, 'Test', reply('msg-1', 'A response'))
 
-      ;(apiClient.post as Mock).mockResolvedValueOnce({
-        data: {
-          dweller_message_id: 'msg-1',
-          response: 'A response',
-          happiness_impact: null,
-          action_suggestion: null,
-        },
-      })
-      const input = wrapper.find('.chat-input-field')
-      await input.setValue('Test')
-      await wrapper.find('.chat-send-btn').trigger('click')
-      await flushPromises()
-
-      const happinessHandlers = mockWebSocketHandlers['happiness_update']
-      happinessHandlers[0]({
+      mockWebSocketHandlers['happiness_update'][0]({
         happiness_impact: { delta: 3, reason_text: 'No message_id' },
       })
       await wrapper.vm.$nextTick()
@@ -916,45 +541,12 @@ describe('DwellerChat', () => {
       expect(wrapper.find('.happiness-indicator').exists()).toBe(false)
     })
 
-    it('should only update the latest dweller message with action suggestion via WebSocket', async () => {
-      const wrapper = mountComponent()
-      await flushPromises()
+    it('attaches an action suggestion only to the latest message', async () => {
+      const wrapper = await mounted()
+      await send(wrapper, 'First message', reply('msg-first', 'First response'))
+      await send(wrapper, 'Second message', reply('msg-second', 'Second response'))
 
-      // Send first user message
-      ;(apiClient.post as Mock).mockResolvedValueOnce({
-        data: {
-          dweller_message_id: 'msg-first',
-          response: 'First response',
-          happiness_impact: null,
-          action_suggestion: null,
-        },
-      })
-      const input = wrapper.find('.chat-input-field')
-      await input.setValue('First message')
-      await wrapper.find('.chat-send-btn').trigger('click')
-      await flushPromises()
-
-      // Send second user message
-      ;(apiClient.post as Mock).mockResolvedValueOnce({
-        data: {
-          dweller_message_id: 'msg-second',
-          response: 'Second response',
-          happiness_impact: null,
-          action_suggestion: null,
-        },
-      })
-      await input.setValue('Second message')
-      await wrapper.find('.chat-send-btn').trigger('click')
-      await flushPromises()
-
-      // Verify we have 4 messages
-      let messages = wrapper.findAll('.message-wrapper')
-      expect(messages.length).toBe(4)
-
-      // Trigger WebSocket action_suggestion event for the SECOND (latest) message
-      const actionHandlers = mockWebSocketHandlers['action_suggestion']
-      expect(actionHandlers.length).toBeGreaterThan(0)
-      actionHandlers[0]({
+      mockWebSocketHandlers['action_suggestion'][0]({
         message_id: 'msg-second',
         action_suggestion: {
           action_type: 'assign_to_room',
@@ -965,536 +557,116 @@ describe('DwellerChat', () => {
       })
       await wrapper.vm.$nextTick()
 
-      // Verify only the LAST dweller message has action suggestion
-      messages = wrapper.findAll('.message-wrapper')
-      const actionCards = wrapper.findAll('.action-suggestion-card')
-      expect(actionCards.length).toBe(1)
-
-      // The action card should be in the last message
-      const lastMessage = messages[messages.length - 1]
-      expect(lastMessage.find('.action-suggestion-card').exists()).toBe(true)
-      expect(lastMessage.text()).toContain('Assign to Power Plant')
+      const cards = wrapper.findAll('.action-suggestion-card')
+      expect(cards).toHaveLength(1)
+      const messages = wrapper.findAll('.message-wrapper')
+      expect(messages.at(-1)!.find('.action-suggestion-card').exists()).toBe(true)
+      expect(messages.at(-1)!.text()).toContain('Assign to Power Plant')
     })
   })
 
-  describe('Bug #4: Training Room Auto-Assignment', () => {
-    it('should auto-assign dweller to training room before starting training', async () => {
-      const { filter: dwellerStore, management: dwellerManagementStore } = useDwellerStore()
-      const assignSpy = vi
-        .spyOn(dwellerManagementStore, 'assignDwellerToRoom')
-        .mockResolvedValue({} as any)
+  describe('Training room selection', () => {
+    const trainReply = {
+      response: 'I want to get stronger!',
+      happiness_impact: { delta: 3, reason_text: 'Motivated' },
+      action_suggestion: {
+        action_type: 'start_training',
+        stat: 'strength',
+        reason: 'Low strength, needs improvement',
+      },
+    }
 
-      dwellerStore.$patch({
-        dwellers: [
-          {
-            id: 'dweller-123',
-            first_name: 'Test',
-            last_name: 'Dweller',
-            room_id: 'room-456',
-            level: 1,
-            happiness: 50,
-            strength: 5,
-            perception: 5,
-            endurance: 5,
-            charisma: 5,
-            intelligence: 5,
-            agility: 5,
-            luck: 5,
-            status: 'idle',
-          },
+    it.each([
+      {
+        name: 'the only available training room',
+        rooms: DEFAULT_ROOMS,
+        dwellerRoom: 'room-456',
+        expected: 'training-room-789',
+      },
+      {
+        name: 'the stat-matching room over a generic one',
+        rooms: [
+          trainingRoom('generic-training', 'ENDURANCE'),
+          trainingRoom('strength-training', 'STRENGTH'),
+          { id: 'room-456', name: 'Power Plant', category: 'production', ability: null },
         ],
-      })
-
-      const wrapper = mountComponent()
-      await flushPromises()
-
-      ;(apiClient.post as Mock).mockResolvedValueOnce({
-        data: {
-          response: 'I want to get stronger!',
-          happiness_impact: { delta: 3, reason_text: 'Motivated' },
-          action_suggestion: {
-            action_type: 'start_training',
-            stat: 'strength',
-            reason: 'Low strength, needs improvement',
-          },
-        },
-      })
-
-      const input = wrapper.find('.chat-input-field')
-      await input.setValue('Train me')
-      await wrapper.find('.chat-send-btn').trigger('click')
-      await flushPromises()
-
-      const confirmBtn = wrapper.find('.action-confirm-btn')
-      await confirmBtn.trigger('click')
-      await flushPromises()
-
-      expect(assignSpy).toHaveBeenCalledWith('dweller-123', 'training-room-789')
-      expect(trainingService.startTraining).toHaveBeenCalledWith('dweller-123', 'training-room-789')
-    })
-
-    it('should prefer matching-stat training room over generic training room', async () => {
-      mockRooms.value = [
-        {
-          id: 'generic-training',
-          name: 'Generic Training',
-          category: 'training',
-          ability: 'ENDURANCE',
-          max_capacity: 5,
-        },
-        {
-          id: 'strength-training',
-          name: 'Strength Training',
-          category: 'training',
-          ability: 'STRENGTH',
-          max_capacity: 5,
-        },
-        {
-          id: 'room-456',
-          name: 'Power Plant',
-          category: 'production',
-          ability: null,
-          max_capacity: 3,
-        },
-      ]
-
-      const { filter: dwellerStore, management: dwellerManagementStore } = useDwellerStore()
-      const assignSpy = vi
-        .spyOn(dwellerManagementStore, 'assignDwellerToRoom')
-        .mockResolvedValue({} as any)
-
-      dwellerStore.$patch({
-        dwellers: [
-          {
-            id: 'dweller-123',
-            first_name: 'Test',
-            last_name: 'Dweller',
-            room_id: 'room-456',
-            level: 1,
-            happiness: 50,
-            strength: 5,
-            perception: 5,
-            endurance: 5,
-            charisma: 5,
-            intelligence: 5,
-            agility: 5,
-            luck: 5,
-            status: 'idle',
-          },
+        dwellerRoom: 'room-456',
+        expected: 'strength-training',
+      },
+      {
+        name: 'any training room when no stat matches',
+        rooms: [trainingRoom('endurance-training', 'ENDURANCE')],
+        dwellerRoom: null,
+        expected: 'endurance-training',
+      },
+      {
+        name: 'a fallback when the matching room is full',
+        rooms: [
+          trainingRoom('strength-training', 'STRENGTH', { size: 3 }),
+          trainingRoom('endurance-training', 'ENDURANCE', { size_min: 6 }),
         ],
-      })
-
-      const wrapper = mountComponent()
-      await flushPromises()
-
-      ;(apiClient.post as Mock).mockResolvedValueOnce({
-        data: {
-          response: 'I want to get stronger!',
-          happiness_impact: { delta: 3, reason_text: 'Motivated' },
-          action_suggestion: {
-            action_type: 'start_training',
-            stat: 'strength',
-            reason: 'Low strength, needs improvement',
-          },
-        },
-      })
-
-      const input = wrapper.find('.chat-input-field')
-      await input.setValue('Train strength')
-      await wrapper.find('.chat-send-btn').trigger('click')
-      await flushPromises()
-
-      const confirmBtn = wrapper.find('.action-confirm-btn')
-      await confirmBtn.trigger('click')
-      await flushPromises()
-
-      expect(assignSpy).toHaveBeenCalledWith('dweller-123', 'strength-training')
-      expect(trainingService.startTraining).toHaveBeenCalledWith('dweller-123', 'strength-training')
-    })
-
-    it('should fallback to any training room when no stat-matching room available', async () => {
-      mockRooms.value = [
-        {
-          id: 'endurance-training',
-          name: 'Endurance Training',
-          category: 'training',
-          ability: 'ENDURANCE',
-          max_capacity: 5,
-        },
-      ]
-
-      const { filter: dwellerStore, management: dwellerManagementStore } = useDwellerStore()
-      const assignSpy = vi
-        .spyOn(dwellerManagementStore, 'assignDwellerToRoom')
-        .mockResolvedValue({} as any)
-
-      dwellerStore.$patch({
-        dwellers: [
-          {
-            id: 'dweller-123',
-            first_name: 'Test',
-            last_name: 'Dweller',
-            room_id: null,
-            level: 1,
-            happiness: 50,
-            strength: 5,
-            perception: 5,
-            endurance: 5,
-            charisma: 5,
-            intelligence: 5,
-            agility: 5,
-            luck: 5,
-            status: 'idle',
-          },
+        dwellerRoom: null,
+        fillers: [{ room: 'strength-training', count: 2 }],
+        expected: 'endurance-training',
+      },
+      {
+        name: 'an error when no training rooms exist',
+        rooms: [{ id: 'room-456', name: 'Power Plant', category: 'production', ability: null }],
+        dwellerRoom: 'room-456',
+        error: 'No training rooms available',
+      },
+      {
+        name: 'an error when every training room is at capacity',
+        rooms: [
+          trainingRoom('strength-training', 'STRENGTH', { max_capacity: 5 }),
+          trainingRoom('endurance-training', 'ENDURANCE', { max_capacity: 3 }),
         ],
-      })
-
-      const wrapper = mountComponent()
-      await flushPromises()
-
-      ;(apiClient.post as Mock).mockResolvedValueOnce({
-        data: {
-          response: 'I want to train perception!',
-          happiness_impact: { delta: 2, reason_text: 'Eager' },
-          action_suggestion: {
-            action_type: 'start_training',
-            stat: 'perception',
-            reason: 'Improve perception',
-          },
-        },
-      })
-
-      const input = wrapper.find('.chat-input-field')
-      await input.setValue('Train perception')
-      await wrapper.find('.chat-send-btn').trigger('click')
-      await flushPromises()
-
-      const confirmBtn = wrapper.find('.action-confirm-btn')
-      await confirmBtn.trigger('click')
-      await flushPromises()
-
-      expect(assignSpy).toHaveBeenCalledWith('dweller-123', 'endurance-training')
-      expect(trainingService.startTraining).toHaveBeenCalledWith(
-        'dweller-123',
-        'endurance-training'
+        dwellerRoom: 'room-456',
+        fillers: [
+          { room: 'strength-training', count: 5 },
+          { room: 'endurance-training', count: 3 },
+        ],
+        error: 'No available training rooms (all at capacity)',
+      },
+    ])('picks $name', async ({ rooms, dwellerRoom, fillers, expected, error }) => {
+      mockRooms.value = rooms
+      const fillers_ = (fillers ?? []).flatMap(({ room, count }) =>
+        Array.from({ length: count }, (_, i) =>
+          dweller({ id: `${room}-filler-${i}`, room_id: room, first_name: 'Filler' })
+        )
       )
-    })
-
-    it('should skip a full stat-matching room based on its size and use an available fallback', async () => {
-      mockRooms.value = [
-        {
-          id: 'strength-training',
-          name: 'Strength Training',
-          category: 'training',
-          ability: 'STRENGTH',
-          size: 3,
-        },
-        {
-          id: 'endurance-training',
-          name: 'Endurance Training',
-          category: 'training',
-          ability: 'ENDURANCE',
-          size_min: 6,
-        },
-      ]
-
-      const { filter: dwellerStore, management: dwellerManagementStore } = useDwellerStore()
+      seedDwellers(...fillers_, dweller({ room_id: dwellerRoom }))
       const assignSpy = vi
-        .spyOn(dwellerManagementStore, 'assignDwellerToRoom')
+        .spyOn(useDwellerStore().management, 'assignDwellerToRoom')
         .mockResolvedValue({} as any)
+      const wrapper = await mounted()
+      await send(wrapper, 'Train me', trainReply)
 
-      dwellerStore.$patch({
-        dwellers: [
-          ...Array.from({ length: 2 }, (_, index) => ({
-            id: `strength-dweller-${index}`,
-            first_name: 'Strength',
-            last_name: `Dweller${index}`,
-            room_id: 'strength-training',
-            level: 1,
-            happiness: 50,
-            strength: 5,
-            perception: 5,
-            endurance: 5,
-            charisma: 5,
-            intelligence: 5,
-            agility: 5,
-            luck: 5,
-            status: 'idle',
-          })),
-          {
-            id: 'dweller-123',
-            first_name: 'Test',
-            last_name: 'Dweller',
-            room_id: null,
-            level: 1,
-            happiness: 50,
-            strength: 5,
-            perception: 5,
-            endurance: 5,
-            charisma: 5,
-            intelligence: 5,
-            agility: 5,
-            luck: 5,
-            status: 'idle',
-          },
-        ],
-      })
+      await confirmAction(wrapper)
 
-      const wrapper = mountComponent()
-      await flushPromises()
-
-      ;(apiClient.post as Mock).mockResolvedValueOnce({
-        data: {
-          response: 'I want to get stronger!',
-          happiness_impact: { delta: 3, reason_text: 'Motivated' },
-          action_suggestion: {
-            action_type: 'start_training',
-            stat: 'strength',
-            reason: 'Low strength, needs improvement',
-          },
-        },
-      })
-
-      await wrapper.find('.chat-input-field').setValue('Train strength')
-      await wrapper.find('.chat-send-btn').trigger('click')
-      await flushPromises()
-      await wrapper.find('.action-confirm-btn').trigger('click')
-      await flushPromises()
-
-      expect(assignSpy).toHaveBeenCalledWith('dweller-123', 'endurance-training')
+      if (error) {
+        expect(mockToast.error).toHaveBeenCalledWith(error)
+        expect(assignSpy).not.toHaveBeenCalled()
+        return
+      }
+      expect(assignSpy).toHaveBeenCalledWith('dweller-123', expected)
+      expect(trainingService.startTraining).toHaveBeenCalledWith('dweller-123', expected)
     })
 
-    it('should show error when no training rooms available', async () => {
-      mockRooms.value = [
-        {
-          id: 'room-456',
-          name: 'Power Plant',
-          category: 'production',
-          ability: null,
-          max_capacity: 3,
-        },
-      ]
-
-      const dwellerStore = useDwellerStore().filter
-
-      dwellerStore.$patch({
-        dwellers: [
-          {
-            id: 'dweller-123',
-            first_name: 'Test',
-            last_name: 'Dweller',
-            room_id: 'room-456',
-            level: 1,
-            happiness: 50,
-            strength: 5,
-            perception: 5,
-            endurance: 5,
-            charisma: 5,
-            intelligence: 5,
-            agility: 5,
-            luck: 5,
-            status: 'idle',
-          },
-        ],
-      })
-
-      const wrapper = mountComponent()
-      await flushPromises()
-
-      ;(apiClient.post as Mock).mockResolvedValueOnce({
-        data: {
-          response: 'I want to train strength!',
-          happiness_impact: { delta: 2, reason_text: 'Eager' },
-          action_suggestion: {
-            action_type: 'start_training',
-            stat: 'strength',
-            reason: 'Improve strength',
-          },
-        },
-      })
-
-      const input = wrapper.find('.chat-input-field')
-      await input.setValue('Train strength')
-      await wrapper.find('.chat-send-btn').trigger('click')
-      await flushPromises()
-
-      const confirmBtn = wrapper.find('.action-confirm-btn')
-      await confirmBtn.trigger('click')
-      await flushPromises()
-
-      expect(mockToast.error).toHaveBeenCalledWith('No training rooms available')
-    })
-
-    it('should show error when all training rooms at capacity', async () => {
-      mockRooms.value = [
-        {
-          id: 'strength-training',
-          name: 'Strength Training',
-          category: 'training',
-          ability: 'STRENGTH',
-          max_capacity: 5,
-        },
-        {
-          id: 'endurance-training',
-          name: 'Endurance Training',
-          category: 'training',
-          ability: 'ENDURANCE',
-          max_capacity: 3,
-        },
-      ]
-
-      const dwellerStore = useDwellerStore().filter
-
-      // Fill all training rooms to capacity
-      const strengthFillers = Array.from({ length: 5 }, (_, i) => ({
-        id: `dweller-strength-${i}`,
-        first_name: `Strength`,
-        last_name: `Dweller${i}`,
-        room_id: 'strength-training',
-        level: 1,
-        happiness: 50,
-        strength: 5,
-        perception: 5,
-        endurance: 5,
-        charisma: 5,
-        intelligence: 5,
-        agility: 5,
-        luck: 5,
-        status: 'idle',
-      }))
-      const enduranceFillers = Array.from({ length: 3 }, (_, i) => ({
-        id: `dweller-endurance-${i}`,
-        first_name: `Endurance`,
-        last_name: `Dweller${i}`,
-        room_id: 'endurance-training',
-        level: 1,
-        happiness: 50,
-        strength: 5,
-        perception: 5,
-        endurance: 5,
-        charisma: 5,
-        intelligence: 5,
-        agility: 5,
-        luck: 5,
-        status: 'idle',
-      }))
-
-      dwellerStore.$patch({
-        dwellers: [
-          ...strengthFillers,
-          ...enduranceFillers,
-          {
-            id: 'dweller-123',
-            first_name: 'Test',
-            last_name: 'Dweller',
-            room_id: 'room-456',
-            level: 1,
-            happiness: 50,
-            strength: 5,
-            perception: 5,
-            endurance: 5,
-            charisma: 5,
-            intelligence: 5,
-            agility: 5,
-            luck: 5,
-            status: 'idle',
-          },
-        ],
-      })
-
-      const wrapper = mountComponent()
-      await flushPromises()
-
-      ;(apiClient.post as Mock).mockResolvedValueOnce({
-        data: {
-          response: 'I want to train strength!',
-          happiness_impact: { delta: 2, reason_text: 'Eager' },
-          action_suggestion: {
-            action_type: 'start_training',
-            stat: 'strength',
-            reason: 'Improve strength',
-          },
-        },
-      })
-
-      const input = wrapper.find('.chat-input-field')
-      await input.setValue('Train strength')
-      await wrapper.find('.chat-send-btn').trigger('click')
-      await flushPromises()
-
-      const confirmBtn = wrapper.find('.action-confirm-btn')
-      await confirmBtn.trigger('click')
-      await flushPromises()
-
-      expect(mockToast.error).toHaveBeenCalledWith('No available training rooms (all at capacity)')
-    })
-  })
-
-  describe('Bug #5: Training works via roomStore when activeVault has no rooms', () => {
-    it('should fetch rooms from roomStore and start training when vault has no rooms array', async () => {
+    it('fetches rooms from the room store when the vault carries none', async () => {
       mockRooms.value = []
       mockFetchRooms.mockImplementation(() => {
-        mockRooms.value = [
-          {
-            id: 'training-room-789',
-            name: 'Strength Training',
-            category: 'training',
-            ability: 'STRENGTH',
-            max_capacity: 5,
-          },
-        ]
+        mockRooms.value = [trainingRoom('training-room-789', 'STRENGTH')]
         return Promise.resolve()
       })
-
-      const { filter: dwellerStore, management: dwellerManagementStore } = useDwellerStore()
+      seedDwellers(dweller({ room_id: 'room-456' }))
       const assignSpy = vi
-        .spyOn(dwellerManagementStore, 'assignDwellerToRoom')
+        .spyOn(useDwellerStore().management, 'assignDwellerToRoom')
         .mockResolvedValue({} as any)
+      const wrapper = await mounted()
+      await send(wrapper, 'Train', trainReply)
 
-      dwellerStore.$patch({
-        dwellers: [
-          {
-            id: 'dweller-123',
-            first_name: 'Test',
-            last_name: 'Dweller',
-            room_id: 'room-456',
-            level: 1,
-            happiness: 50,
-            strength: 5,
-            perception: 5,
-            endurance: 5,
-            charisma: 5,
-            intelligence: 5,
-            agility: 5,
-            luck: 5,
-            status: 'idle',
-          },
-        ],
-      })
-
-      const wrapper = mountComponent()
-      await flushPromises()
-
-      ;(apiClient.post as Mock).mockResolvedValueOnce({
-        data: {
-          response: 'Train me!',
-          happiness_impact: { delta: 2, reason_text: 'Eager' },
-          action_suggestion: {
-            action_type: 'start_training',
-            stat: 'strength',
-            reason: 'Needs training',
-          },
-        },
-      })
-
-      const input = wrapper.find('.chat-input-field')
-      await input.setValue('Train')
-      await wrapper.find('.chat-send-btn').trigger('click')
-      await flushPromises()
-
-      const confirmBtn = wrapper.find('.action-confirm-btn')
-      await confirmBtn.trigger('click')
-      await flushPromises()
+      await confirmAction(wrapper)
 
       expect(mockFetchRooms).toHaveBeenCalledWith('vault-123')
       expect(assignSpy).toHaveBeenCalledWith('dweller-123', 'training-room-789')
@@ -1502,453 +674,198 @@ describe('DwellerChat', () => {
     })
   })
 
-  describe('Latest-Only Action Suggestion Rendering', () => {
-    beforeEach(() => {
-      mockWebSocketHandlers['happiness_update'] = []
-      mockWebSocketHandlers['action_suggestion'] = []
+  describe('Sticky latest suggestion', () => {
+    const reply = (id: string, suggestion: object | null) => ({
+      dweller_message_id: id,
+      response: 'Noted.',
+      happiness_impact: null,
+      action_suggestion: suggestion,
     })
 
-    it('should render only ONE action-suggestion-card even if multiple messages have suggestions', async () => {
-      // This test verifies that only the LATEST actionable suggestion is displayed
-      // Even when multiple messages in history have action_suggestion data
-      const wrapper = mountComponent()
-      await flushPromises()
+    it('shows only the latest card when several messages carry suggestions', async () => {
+      const wrapper = await mounted()
+      await send(
+        wrapper,
+        'Where do you want to work?',
+        reply('msg-1', {
+          action_type: 'assign_to_room',
+          room_id: 'room-111',
+          room_name: 'Diner',
+          reason: 'Good fit for diner',
+        })
+      )
+      await send(
+        wrapper,
+        'Changed your mind?',
+        reply('msg-2', {
+          action_type: 'assign_to_room',
+          room_id: 'room-222',
+          room_name: 'Power Plant',
+          reason: 'High strength',
+        })
+      )
 
-      // First message with action suggestion
-      ;(apiClient.post as Mock).mockResolvedValueOnce({
-        data: {
-          dweller_message_id: 'msg-1',
-          response: 'I want to work in the diner!',
-          happiness_impact: null,
-          action_suggestion: {
-            action_type: 'assign_to_room',
-            room_id: 'room-111',
-            room_name: 'Diner',
-            reason: 'Good fit for diner',
-          },
-        },
-      })
-      const input = wrapper.find('.chat-input-field')
-      await input.setValue('Where do you want to work?')
-      await wrapper.find('.chat-send-btn').trigger('click')
-      await flushPromises()
-
-      // Second message with different action suggestion
-      ;(apiClient.post as Mock).mockResolvedValueOnce({
-        data: {
-          dweller_message_id: 'msg-2',
-          response: 'Actually, I prefer the power plant!',
-          happiness_impact: null,
-          action_suggestion: {
-            action_type: 'assign_to_room',
-            room_id: 'room-222',
-            room_name: 'Power Plant',
-            reason: 'High strength',
-          },
-        },
-      })
-      await input.setValue('Changed your mind?')
-      await wrapper.find('.chat-send-btn').trigger('click')
-      await flushPromises()
-
-      // Should have exactly ONE action card visible (the latest one)
-      const actionCards = wrapper.findAll('.action-suggestion-card')
-      expect(actionCards.length).toBe(1)
-      // And it should be the LATEST suggestion
-      expect(actionCards[0].text()).toContain('Power Plant')
-      expect(actionCards[0].text()).not.toContain('Diner')
+      const cards = wrapper.findAll('.action-suggestion-card')
+      expect(cards).toHaveLength(1)
+      expect(cards[0].text()).toContain('Power Plant')
+      expect(cards[0].text()).not.toContain('Diner')
     })
 
-    it('should keep previous actionable suggestion visible when new message has null action_suggestion', async () => {
-      // This test verifies sticky behavior: if a new dweller response has no action,
-      // the previously displayed actionable suggestion remains visible
-      const wrapper = mountComponent()
-      await flushPromises()
+    it.each([
+      ['a null suggestion', null],
+      ['an explicit no_action', { action_type: 'no_action', reason: 'Just conversing' }],
+    ])('keeps the previous actionable card for %s', async (_case, suggestion) => {
+      const wrapper = await mounted()
+      await send(
+        wrapper,
+        'What should you do?',
+        reply('msg-1', { action_type: 'start_training', stat: 'strength', reason: 'Low strength' })
+      )
+      expect(wrapper.get('.action-suggestion-card').text()).toContain('Train strength')
 
-      // First message WITH action suggestion
-      ;(apiClient.post as Mock).mockResolvedValueOnce({
-        data: {
-          dweller_message_id: 'msg-1',
-          response: 'I should train strength!',
-          happiness_impact: { delta: 2, reason_text: 'Motivated' },
-          action_suggestion: {
-            action_type: 'start_training',
-            stat: 'strength',
-            reason: 'Low strength needs work',
-          },
-        },
-      })
-      const input = wrapper.find('.chat-input-field')
-      await input.setValue('What should you do?')
-      await wrapper.find('.chat-send-btn').trigger('click')
-      await flushPromises()
+      await send(wrapper, 'How are you feeling?', reply('msg-2', suggestion))
 
-      // Verify action card exists
-      expect(wrapper.find('.action-suggestion-card').exists()).toBe(true)
-      expect(wrapper.find('.action-suggestion-card').text()).toContain('Train strength')
-
-      // Second message with NO action suggestion (null)
-      ;(apiClient.post as Mock).mockResolvedValueOnce({
-        data: {
-          dweller_message_id: 'msg-2',
-          response: 'Just chatting now.',
-          happiness_impact: { delta: 1, reason_text: 'Nice chat' },
-          action_suggestion: null,
-        },
-      })
-      await input.setValue('How are you feeling?')
-      await wrapper.find('.chat-send-btn').trigger('click')
-      await flushPromises()
-
-      // Previous action suggestion should STILL be visible (sticky behavior)
-      const actionCard = wrapper.find('.action-suggestion-card')
-      expect(actionCard.exists()).toBe(true)
-      expect(actionCard.text()).toContain('Train strength')
-    })
-
-    it('should keep previous actionable suggestion visible when new message has no_action type', async () => {
-      // Similar to above but with explicit no_action type instead of null
-      const wrapper = mountComponent()
-      await flushPromises()
-
-      // First message WITH action suggestion
-      ;(apiClient.post as Mock).mockResolvedValueOnce({
-        data: {
-          dweller_message_id: 'msg-1',
-          response: 'Send me to explore!',
-          happiness_impact: { delta: 3, reason_text: 'Adventurous' },
-          action_suggestion: {
-            action_type: 'start_exploration',
-            duration_hours: 8,
-            stimpaks: 3,
-            radaways: 2,
-            reason: 'Ready for adventure',
-          },
-        },
-      })
-      const input = wrapper.find('.chat-input-field')
-      await input.setValue('What do you want?')
-      await wrapper.find('.chat-send-btn').trigger('click')
-      await flushPromises()
-
-      // Verify action card exists
-      expect(wrapper.find('.action-suggestion-card').exists()).toBe(true)
-      expect(wrapper.find('.action-suggestion-card').text()).toContain('Explore wasteland')
-
-      // Second message with no_action type
-      ;(apiClient.post as Mock).mockResolvedValueOnce({
-        data: {
-          dweller_message_id: 'msg-2',
-          response: 'Nothing else to say.',
-          happiness_impact: null,
-          action_suggestion: {
-            action_type: 'no_action',
-            reason: 'Just conversing',
-          },
-        },
-      })
-      await input.setValue('Anything else?')
-      await wrapper.find('.chat-send-btn').trigger('click')
-      await flushPromises()
-
-      // Previous action suggestion should STILL be visible
-      const actionCard = wrapper.find('.action-suggestion-card')
-      expect(actionCard.exists()).toBe(true)
-      expect(actionCard.text()).toContain('Explore wasteland')
+      const card = wrapper.get('.action-suggestion-card')
+      expect(card.text()).toContain('Train strength')
     })
   })
 
-  describe('WebSocket Message ID Correlation', () => {
-    beforeEach(() => {
-      mockWebSocketHandlers['happiness_update'] = []
-      mockWebSocketHandlers['action_suggestion'] = []
+  describe('WebSocket message id correlation', () => {
+    const reply = (id: string, response: string) => ({
+      dweller_message_id: id,
+      response,
+      happiness_impact: null,
+      action_suggestion: null,
     })
 
-    it('should update ONLY the message with matching ID when WS emits action_suggestion with message_id', async () => {
-      // This test verifies ID-based correlation: WS events with message_id
-      // should only update that specific message, not the latest
-      const wrapper = mountComponent()
-      await flushPromises()
-
-      // Send first message (msg-A)
-      ;(apiClient.post as Mock).mockResolvedValueOnce({
-        data: {
-          dweller_message_id: 'msg-A',
-          response: 'First response without action',
-          happiness_impact: null,
-          action_suggestion: null,
-        },
-      })
-      const input = wrapper.find('.chat-input-field')
-      await input.setValue('First question')
-      await wrapper.find('.chat-send-btn').trigger('click')
-      await flushPromises()
-
-      // Send second message (msg-B)
-      ;(apiClient.post as Mock).mockResolvedValueOnce({
-        data: {
-          dweller_message_id: 'msg-B',
-          response: 'Second response without action',
-          happiness_impact: null,
-          action_suggestion: null,
-        },
-      })
-      await input.setValue('Second question')
-      await wrapper.find('.chat-send-btn').trigger('click')
-      await flushPromises()
-
-      // Verify we have 4 messages (2 user + 2 dweller)
-      const messages = wrapper.findAll('.message-wrapper')
-      expect(messages.length).toBe(4)
-
-      // No action cards yet
-      expect(wrapper.findAll('.action-suggestion-card').length).toBe(0)
-
-      // Now WS emits action_suggestion specifically for msg-A (the FIRST dweller message)
-      const actionHandlers = mockWebSocketHandlers['action_suggestion']
-      expect(actionHandlers.length).toBeGreaterThan(0)
-      actionHandlers[0]({
-        type: 'action_suggestion',
-        message_id: 'msg-A',
-        action_suggestion: {
+    it.each([
+      {
+        name: 'two replies, event for the older one',
+        replies: [
+          ['First question', 'msg-A'],
+          ['Second question', 'msg-B'],
+        ],
+        suggestion: {
           action_type: 'assign_to_room',
           room_id: 'room-target',
           room_name: 'Target Room',
-          reason: 'Targeted update for msg-A only',
+          reason: 'Targeted update',
         },
-      })
-      await wrapper.vm.$nextTick()
-
-      // Should have exactly one action card
-      const actionCards = wrapper.findAll('.action-suggestion-card')
-      expect(actionCards.length).toBe(1)
-
-      // The action card should be associated with msg-A (first dweller message, index 1)
-      // NOT the latest message (msg-B at index 3)
-      const dwellerMessages = wrapper.findAll('.message-wrapper.dweller')
-      expect(dwellerMessages.length).toBe(2)
-
-      // First dweller message SHOULD have the action card
-      expect(dwellerMessages[0].find('.action-suggestion-card').exists()).toBe(true)
-      expect(dwellerMessages[0].text()).toContain('Target Room')
-
-      // Second dweller message should NOT have an action card
-      expect(dwellerMessages[1].find('.action-suggestion-card').exists()).toBe(false)
-    })
-
-    it('should handle out-of-order WS events - emit for message A after message B exists', async () => {
-      // This test verifies that late-arriving WS events still target the correct message
-      // Simulates network delay where suggestion for msg-A arrives after msg-B is rendered
-      const wrapper = mountComponent()
-      await flushPromises()
-
-      // Send message A
-      ;(apiClient.post as Mock).mockResolvedValueOnce({
-        data: {
-          dweller_message_id: 'msg-A',
-          response: 'Response A - will get delayed WS update',
-          happiness_impact: null,
-          action_suggestion: null,
-        },
-      })
-      const input = wrapper.find('.chat-input-field')
-      await input.setValue('Message A')
-      await wrapper.find('.chat-send-btn').trigger('click')
-      await flushPromises()
-
-      // Send message B (before WS event for A arrives)
-      ;(apiClient.post as Mock).mockResolvedValueOnce({
-        data: {
-          dweller_message_id: 'msg-B',
-          response: 'Response B - no action',
-          happiness_impact: null,
-          action_suggestion: null,
-        },
-      })
-      await input.setValue('Message B')
-      await wrapper.find('.chat-send-btn').trigger('click')
-      await flushPromises()
-
-      // Send message C
-      ;(apiClient.post as Mock).mockResolvedValueOnce({
-        data: {
-          dweller_message_id: 'msg-C',
-          response: 'Response C - also no action',
-          happiness_impact: null,
-          action_suggestion: null,
-        },
-      })
-      await input.setValue('Message C')
-      await wrapper.find('.chat-send-btn').trigger('click')
-      await flushPromises()
-
-      // Now we have 6 messages (3 user + 3 dweller)
-      expect(wrapper.findAll('.message-wrapper').length).toBe(6)
-
-      // Delayed WS event arrives for msg-A (which is now 2 messages behind)
-      const actionHandlers = mockWebSocketHandlers['action_suggestion']
-      actionHandlers[0]({
-        type: 'action_suggestion',
-        message_id: 'msg-A',
-        action_suggestion: {
+        label: 'Target Room',
+      },
+      {
+        name: 'three replies, late event for the first',
+        replies: [
+          ['Message A', 'msg-A'],
+          ['Message B', 'msg-B'],
+          ['Message C', 'msg-C'],
+        ],
+        suggestion: {
           action_type: 'start_training',
           stat: 'perception',
-          reason: 'Delayed suggestion for message A',
+          reason: 'Delayed suggestion',
         },
-      })
-      await wrapper.vm.$nextTick()
+        label: 'Train perception',
+      },
+    ])(
+      'targets the matching message even when it is not the latest ($name)',
+      async ({ replies, suggestion, label }) => {
+        const wrapper = await mounted()
+        for (const [text, id] of replies) await send(wrapper, text, reply(id, `Reply ${id}`))
+        expect(wrapper.findAll('.message-wrapper')).toHaveLength(replies.length * 2)
+        expect(wrapper.findAll('.action-suggestion-card')).toHaveLength(0)
 
-      // Should have exactly one action card
-      const actionCards = wrapper.findAll('.action-suggestion-card')
-      expect(actionCards.length).toBe(1)
+        mockWebSocketHandlers['action_suggestion'][0]({
+          type: 'action_suggestion',
+          message_id: 'msg-A',
+          action_suggestion: suggestion,
+        })
+        await wrapper.vm.$nextTick()
 
-      // Action card should be on the FIRST dweller message (msg-A), not the latest
-      const dwellerMessages = wrapper.findAll('.message-wrapper.dweller')
-      expect(dwellerMessages.length).toBe(3)
+        expect(wrapper.findAll('.action-suggestion-card')).toHaveLength(1)
+        const dwellerMessages = wrapper.findAll('.message-wrapper.dweller')
+        expect(dwellerMessages).toHaveLength(replies.length)
+        expect(dwellerMessages[0].get('.action-suggestion-card').exists()).toBe(true)
+        expect(dwellerMessages[0].text()).toContain(label)
+        for (const later of dwellerMessages.slice(1)) {
+          expect(later.find('.action-suggestion-card').exists()).toBe(false)
+        }
+      }
+    )
 
-      // msg-A (index 0) should have the action card
-      expect(dwellerMessages[0].find('.action-suggestion-card').exists()).toBe(true)
-      expect(dwellerMessages[0].text()).toContain('Train perception')
+    it('ignores an event for an unknown message_id', async () => {
+      const wrapper = await mounted()
+      await send(wrapper, 'Test message', reply('msg-real', 'Real response'))
 
-      // msg-B and msg-C should NOT have action cards
-      expect(dwellerMessages[1].find('.action-suggestion-card').exists()).toBe(false)
-      expect(dwellerMessages[2].find('.action-suggestion-card').exists()).toBe(false)
-    })
-
-    it('should ignore WS action_suggestion with unknown message_id', async () => {
-      // Edge case: WS emits for a message_id that does not exist in current chat
-      const wrapper = mountComponent()
-      await flushPromises()
-
-      // Send a message
-      ;(apiClient.post as Mock).mockResolvedValueOnce({
-        data: {
-          dweller_message_id: 'msg-real',
-          response: 'Real response',
-          happiness_impact: null,
-          action_suggestion: null,
-        },
-      })
-      const input = wrapper.find('.chat-input-field')
-      await input.setValue('Test message')
-      await wrapper.find('.chat-send-btn').trigger('click')
-      await flushPromises()
-
-      // WS emits for unknown message_id
-      const actionHandlers = mockWebSocketHandlers['action_suggestion']
-      actionHandlers[0]({
+      mockWebSocketHandlers['action_suggestion'][0]({
         type: 'action_suggestion',
         message_id: 'msg-nonexistent',
-        action_suggestion: {
-          action_type: 'assign_to_room',
-          room_id: 'room-123',
-          room_name: 'Unknown Room',
-          reason: 'Should be ignored',
-        },
+        action_suggestion: { action_type: 'assign_to_room', room_id: 'room-123', room_name: 'X' },
       })
       await wrapper.vm.$nextTick()
 
-      // No action cards should appear
-      expect(wrapper.findAll('.action-suggestion-card').length).toBe(0)
+      expect(wrapper.findAll('.action-suggestion-card')).toHaveLength(0)
     })
   })
 
-  describe('Exploration Actions from Chat', () => {
-    it('should render action suggestion card for start_exploration', async () => {
-      const wrapper = mountComponent()
-      await flushPromises()
+  describe('Exploration actions', () => {
+    const startExploration = {
+      action_type: 'start_exploration',
+      duration_hours: 8,
+      stimpaks: 5,
+      radaways: 3,
+      reason: 'Good stats for exploration',
+    }
 
-      ;(apiClient.post as Mock).mockResolvedValueOnce({
-        data: {
-          response: 'I want to explore the wasteland!',
-          happiness_impact: { delta: 2, reason_text: 'Adventurous' },
-          action_suggestion: {
-            action_type: 'start_exploration',
-            duration_hours: 4,
-            stimpaks: 2,
-            radaways: 1,
-            reason: 'High endurance makes them ideal for exploration',
-          },
+    const prepare = async ({ room_id = null, ...props }: Record<string, unknown> = {}) => {
+      vi.spyOn(useDwellerStore().filter, 'fetchDwellerDetails').mockResolvedValue({} as any)
+      mockSendDwellerToWasteland.mockResolvedValue({})
+      seedDwellers(dweller({ age_group: 'adult', room_id: room_id as string | null }))
+      const wrapper = await mounted(props)
+      await send(wrapper, 'Explore', { response: 'Ready!', action_suggestion: startExploration })
+      return wrapper
+    }
+
+    it('renders the start-exploration card', async () => {
+      const wrapper = await mounted()
+      await send(wrapper, 'Go explore', {
+        response: 'I want to explore the wasteland!',
+        happiness_impact: { delta: 2, reason_text: 'Adventurous' },
+        action_suggestion: {
+          action_type: 'start_exploration',
+          duration_hours: 4,
+          stimpaks: 2,
+          radaways: 1,
+          reason: 'High endurance makes them ideal for exploration',
         },
       })
 
-      const input = wrapper.find('.chat-input-field')
-      await input.setValue('Go explore')
-      await wrapper.find('.chat-send-btn').trigger('click')
-      await flushPromises()
-
-      const actionCard = wrapper.find('.action-suggestion-card')
-      expect(actionCard.exists()).toBe(true)
-      expect(actionCard.text()).toContain('Suggested Action')
-      expect(actionCard.text()).toContain('Explore wasteland for 4h')
-      expect(actionCard.text()).toContain('High endurance makes them ideal for exploration')
+      const card = wrapper.get('.action-suggestion-card')
+      expect(card.text()).toContain('Suggested Action')
+      expect(card.text()).toContain('Explore wasteland for 4h')
+      expect(card.text()).toContain('High endurance makes them ideal for exploration')
     })
 
-    it('should open the prefilled send modal instead of dispatching instantly for start_exploration', async () => {
-      const dwellerStore = useDwellerStore().filter
-      vi.spyOn(dwellerStore, 'fetchDwellerDetails').mockResolvedValue({} as any)
-      mockSendDwellerToWasteland.mockResolvedValue({})
+    it('opens the prefilled modal and releases the room only on departure confirm', async () => {
+      const unassignSpy = vi
+        .spyOn(useDwellerStore().management, 'unassignDwellerFromRoom')
+        .mockResolvedValue({} as any)
+      const wrapper = await prepare({ room_id: 'room-456' })
 
-      dwellerStore.$patch({
-        dwellers: [
-          {
-            id: 'dweller-123',
-            first_name: 'Test',
-            last_name: 'Dweller',
-            room_id: null,
-            level: 1,
-            happiness: 50,
-            strength: 5,
-            perception: 5,
-            endurance: 5,
-            charisma: 5,
-            intelligence: 5,
-            agility: 5,
-            luck: 5,
-            status: 'idle',
-            age_group: 'adult',
-          },
-        ],
-      })
-
-      const wrapper = mountComponent()
-      await flushPromises()
-
-      ;(apiClient.post as Mock).mockResolvedValueOnce({
-        data: {
-          response: 'Ready to explore!',
-          happiness_impact: { delta: 3, reason_text: 'Excited' },
-          action_suggestion: {
-            action_type: 'start_exploration',
-            duration_hours: 8,
-            stimpaks: 5,
-            radaways: 3,
-            reason: 'Good stats for exploration',
-          },
-        },
-      })
-
-      const input = wrapper.find('.chat-input-field')
-      await input.setValue('Explore')
-      await wrapper.find('.chat-send-btn').trigger('click')
-      await flushPromises()
-
-      const confirmBtn = wrapper.find('.action-confirm-btn')
-      await confirmBtn.trigger('click')
-      await flushPromises()
-
-      // The suggestion is accepted into the shared send flow, the modal opens
-      // prefilled with the suggestion's plan, and nothing dispatches yet. The
-      // suggestion card stays until the departure is actually confirmed.
+      // Opening presents the modal with the suggestion's plan; nothing is sent
+      // and the worker keeps their room until the departure is confirmed.
+      await confirmAction(wrapper)
       expect(mockSendDwellerToWasteland).not.toHaveBeenCalled()
-      expect(wrapper.find('.duration-button.active').text()).toBe('8h')
+      expect(unassignSpy).not.toHaveBeenCalled()
+      expect(wrapper.get('.duration-button.active').text()).toBe('8h')
       expect(wrapper.text()).toContain('5 / 10')
       expect(wrapper.text()).toContain('3 / 10')
       expect(wrapper.find('.action-suggestion-card').exists()).toBe(true)
 
-      await wrapper.find('.modal-button.confirm').trigger('click')
+      await wrapper.get('.modal-button.confirm').trigger('click')
       await flushPromises()
 
+      expect(unassignSpy).toHaveBeenCalledWith('dweller-123')
       expect(mockSendDwellerToWasteland).toHaveBeenCalledWith(
         'vault-123',
         'dweller-123',
@@ -1960,54 +877,12 @@ describe('DwellerChat', () => {
       expect(wrapper.find('.action-suggestion-card').exists()).toBe(false)
     })
 
-    it('should refuse to open the send modal for an underage dweller', async () => {
-      const dwellerStore = useDwellerStore().filter
-      dwellerStore.$patch({
-        dwellers: [
-          {
-            id: 'dweller-123',
-            first_name: 'Test',
-            last_name: 'Dweller',
-            room_id: null,
-            level: 1,
-            happiness: 50,
-            strength: 5,
-            perception: 5,
-            endurance: 5,
-            charisma: 5,
-            intelligence: 5,
-            agility: 5,
-            luck: 5,
-            status: 'idle',
-            age_group: 'child',
-          },
-        ],
-      })
+    it('refuses to open the modal for an underage dweller', async () => {
+      seedDwellers(dweller({ age_group: 'child' }))
+      const wrapper = await mounted()
+      await send(wrapper, 'Go explore', explorationReply({ response: 'Can I explore?' }))
 
-      const wrapper = mountComponent()
-      await flushPromises()
-
-      ;(apiClient.post as Mock).mockResolvedValueOnce({
-        data: {
-          response: 'Can I explore?',
-          happiness_impact: { delta: 1, reason_text: 'Curious' },
-          action_suggestion: {
-            action_type: 'start_exploration',
-            duration_hours: 4,
-            stimpaks: 2,
-            radaways: 1,
-            reason: 'Wants adventure',
-          },
-        },
-      })
-
-      const input = wrapper.find('.chat-input-field')
-      await input.setValue('Go explore')
-      await wrapper.find('.chat-send-btn').trigger('click')
-      await flushPromises()
-
-      await wrapper.find('.action-confirm-btn').trigger('click')
-      await flushPromises()
+      await confirmAction(wrapper)
 
       expect(mockToast.error).toHaveBeenCalledWith('Test Dweller is too young for the wasteland')
       expect(mockSendDwellerToWasteland).not.toHaveBeenCalled()
@@ -2015,197 +890,43 @@ describe('DwellerChat', () => {
       expect(wrapper.find('.action-suggestion-card').exists()).toBe(true)
     })
 
-    it('should unassign dweller from room when the prefilled modal confirms', async () => {
-      const { filter: dwellerStore, management: dwellerManagementStore } = useDwellerStore()
-      const unassignSpy = vi
-        .spyOn(dwellerManagementStore, 'unassignDwellerFromRoom')
-        .mockResolvedValue({} as any)
-      vi.spyOn(dwellerStore, 'fetchDwellerDetails').mockResolvedValue({} as any)
-      mockSendDwellerToWasteland.mockResolvedValue({})
+    it('keeps the card when the send modal is cancelled', async () => {
+      const wrapper = await prepare()
 
-      dwellerStore.$patch({
-        dwellers: [
-          {
-            id: 'dweller-123',
-            first_name: 'Test',
-            last_name: 'Dweller',
-            room_id: 'room-456',
-            level: 1,
-            happiness: 50,
-            strength: 5,
-            perception: 5,
-            endurance: 5,
-            charisma: 5,
-            intelligence: 5,
-            agility: 5,
-            luck: 5,
-            status: 'idle',
-            age_group: 'adult',
-          },
-        ],
-      })
-
-      const wrapper = mountComponent()
-      await flushPromises()
-
-      ;(apiClient.post as Mock).mockResolvedValueOnce({
-        data: {
-          response: 'Leave my post? Sure!',
-          happiness_impact: { delta: 1, reason_text: 'Curious' },
-          action_suggestion: {
-            action_type: 'start_exploration',
-            duration_hours: 4,
-            stimpaks: 2,
-            radaways: 1,
-            reason: 'Wants adventure',
-          },
-        },
-      })
-
-      const input = wrapper.find('.chat-input-field')
-      await input.setValue('Go explore')
-      await wrapper.find('.chat-send-btn').trigger('click')
-      await flushPromises()
-
-      const confirmBtn = wrapper.find('.action-confirm-btn')
-      await confirmBtn.trigger('click')
-      await flushPromises()
-
-      // The room is released only at departure confirm; cancelling the modal
-      // never strands a worker without their room.
-      expect(mockSendDwellerToWasteland).not.toHaveBeenCalled()
-      expect(unassignSpy).not.toHaveBeenCalled()
-
-      await wrapper.find('.modal-button.confirm').trigger('click')
-      await flushPromises()
-
-      expect(unassignSpy).toHaveBeenCalledWith('dweller-123')
-      expect(mockSendDwellerToWasteland).toHaveBeenCalled()
-    })
-
-    it('should keep the suggestion card when the send modal is cancelled', async () => {
-      const dwellerStore = useDwellerStore().filter
-      dwellerStore.$patch({
-        dwellers: [
-          {
-            id: 'dweller-123',
-            first_name: 'Test',
-            last_name: 'Dweller',
-            room_id: null,
-            level: 1,
-            happiness: 50,
-            strength: 5,
-            perception: 5,
-            endurance: 5,
-            charisma: 5,
-            intelligence: 5,
-            agility: 5,
-            luck: 5,
-            status: 'idle',
-            age_group: 'adult',
-          },
-        ],
-      })
-
-      const wrapper = mountComponent()
-      await flushPromises()
-
-      ;(apiClient.post as Mock).mockResolvedValueOnce({
-        data: {
-          response: 'I want to explore!',
-          happiness_impact: { delta: 1, reason_text: 'Curious' },
-          action_suggestion: {
-            action_type: 'start_exploration',
-            duration_hours: 8,
-            stimpaks: 5,
-            radaways: 3,
-            reason: 'Wants adventure',
-          },
-        },
-      })
-
-      await wrapper.find('.chat-input-field').setValue('Go explore')
-      await wrapper.find('.chat-send-btn').trigger('click')
-      await flushPromises()
-
-      // Opening the modal reports no success yet, so the card is retained.
-      await wrapper.find('.action-confirm-btn').trigger('click')
-      await flushPromises()
+      await confirmAction(wrapper)
       expect(wrapper.find('.action-suggestion-card').exists()).toBe(true)
 
-      // Cancelling the modal leaves the suggestion intact.
-      await wrapper.find('.modal-button.cancel').trigger('click')
+      await wrapper.get('.modal-button.cancel').trigger('click')
       await flushPromises()
+
       expect(wrapper.find('.action-suggestion-card').exists()).toBe(true)
       expect(mockSendDwellerToWasteland).not.toHaveBeenCalled()
     })
 
-    it('should not release the room again while a send is already in flight', async () => {
-      const { filter: dwellerStore, management: dwellerManagementStore } = useDwellerStore()
-      const unassignSpy = vi
-        .spyOn(dwellerManagementStore, 'unassignDwellerFromRoom')
-        .mockResolvedValue({} as any)
-      vi.spyOn(dwellerStore, 'fetchDwellerDetails').mockResolvedValue({} as any)
-
+    it('does not release the room twice while a send is in flight', async () => {
       let resolveDispatch: (value: unknown) => void = () => {}
       mockSendDwellerToWasteland.mockReturnValue(
         new Promise((resolve) => {
           resolveDispatch = resolve
         })
       )
-
-      dwellerStore.$patch({
-        dwellers: [
-          {
-            id: 'dweller-123',
-            first_name: 'Test',
-            last_name: 'Dweller',
-            room_id: 'room-456',
-            level: 1,
-            happiness: 50,
-            strength: 5,
-            perception: 5,
-            endurance: 5,
-            charisma: 5,
-            intelligence: 5,
-            agility: 5,
-            luck: 5,
-            status: 'idle',
-            age_group: 'adult',
-          },
-        ],
+      const unassignSpy = vi
+        .spyOn(useDwellerStore().management, 'unassignDwellerFromRoom')
+        .mockResolvedValue({} as any)
+      seedDwellers(dweller({ room_id: 'room-456' }))
+      vi.spyOn(useDwellerStore().filter, 'fetchDwellerDetails').mockResolvedValue({} as any)
+      const wrapper = await mounted()
+      await send(wrapper, 'Go explore', {
+        response: 'Leaving my post!',
+        action_suggestion: explorationReply().action_suggestion,
       })
 
-      const wrapper = mountComponent()
-      await flushPromises()
-
-      ;(apiClient.post as Mock).mockResolvedValueOnce({
-        data: {
-          response: 'Leaving my post!',
-          happiness_impact: null,
-          action_suggestion: {
-            action_type: 'start_exploration',
-            duration_hours: 4,
-            stimpaks: 2,
-            radaways: 1,
-            reason: 'Wants adventure',
-          },
-        },
-      })
-
-      await wrapper.find('.chat-input-field').setValue('Go explore')
-      await wrapper.find('.chat-send-btn').trigger('click')
-      await flushPromises()
-      await wrapper.find('.action-confirm-btn').trigger('click')
-      await flushPromises()
-
-      // First confirm releases the room once and starts the (pending) dispatch.
-      await wrapper.find('.modal-button.confirm').trigger('click')
+      await confirmAction(wrapper)
+      await wrapper.get('.modal-button.confirm').trigger('click')
       await flushPromises()
       expect(unassignSpy).toHaveBeenCalledTimes(1)
 
-      // Duplicate confirm while sending must not release the room a second time.
-      await wrapper.find('.modal-button.confirm').trigger('click')
+      await wrapper.get('.modal-button.confirm').trigger('click')
       await flushPromises()
       expect(unassignSpy).toHaveBeenCalledTimes(1)
 
@@ -2213,238 +934,150 @@ describe('DwellerChat', () => {
       await flushPromises()
     })
 
-    it('should reassign the dweller to their original room when the send fails', async () => {
-      const { filter: dwellerStore, management: dwellerManagementStore } = useDwellerStore()
+    it('reassigns the original room and keeps the card when the send fails', async () => {
+      const management = useDwellerStore().management
       const unassignSpy = vi
-        .spyOn(dwellerManagementStore, 'unassignDwellerFromRoom')
+        .spyOn(management, 'unassignDwellerFromRoom')
         .mockResolvedValue({} as any)
-      const assignSpy = vi
-        .spyOn(dwellerManagementStore, 'assignDwellerToRoom')
-        .mockResolvedValue({} as any)
-      vi.spyOn(dwellerStore, 'fetchDwellerDetails').mockResolvedValue({} as any)
+      const assignSpy = vi.spyOn(management, 'assignDwellerToRoom').mockResolvedValue({} as any)
+      seedDwellers(dweller({ room_id: 'room-456' }))
+      vi.spyOn(useDwellerStore().filter, 'fetchDwellerDetails').mockResolvedValue({} as any)
       mockSendDwellerToWasteland.mockRejectedValue(new Error('dispatch failed'))
-
-      dwellerStore.$patch({
-        dwellers: [
-          {
-            id: 'dweller-123',
-            first_name: 'Test',
-            last_name: 'Dweller',
-            room_id: 'room-456',
-            level: 1,
-            happiness: 50,
-            strength: 5,
-            perception: 5,
-            endurance: 5,
-            charisma: 5,
-            intelligence: 5,
-            agility: 5,
-            luck: 5,
-            status: 'idle',
-            age_group: 'adult',
-          },
-        ],
+      const wrapper = await mounted()
+      await send(wrapper, 'Go explore', {
+        response: 'Leaving my post!',
+        action_suggestion: explorationReply().action_suggestion,
       })
 
-      const wrapper = mountComponent()
-      await flushPromises()
-
-      ;(apiClient.post as Mock).mockResolvedValueOnce({
-        data: {
-          response: 'Leaving my post!',
-          happiness_impact: null,
-          action_suggestion: {
-            action_type: 'start_exploration',
-            duration_hours: 4,
-            stimpaks: 2,
-            radaways: 1,
-            reason: 'Wants adventure',
-          },
-        },
-      })
-
-      await wrapper.find('.chat-input-field').setValue('Go explore')
-      await wrapper.find('.chat-send-btn').trigger('click')
-      await flushPromises()
-      await wrapper.find('.action-confirm-btn').trigger('click')
-      await flushPromises()
-      await wrapper.find('.modal-button.confirm').trigger('click')
-      await flushPromises()
+      await openSendModal(wrapper)
 
       expect(unassignSpy).toHaveBeenCalledWith('dweller-123')
       expect(assignSpy).toHaveBeenCalledWith('dweller-123', 'room-456')
       expect(mockToast.error).toHaveBeenCalledWith('Failed to send dweller to wasteland')
-      // A failed send keeps the card so the player can retry.
       expect(wrapper.find('.action-suggestion-card').exists()).toBe(true)
     })
 
-    it('should render action suggestion card for recall_exploration', async () => {
-      const wrapper = mountComponent()
-      await flushPromises()
-
-      ;(apiClient.post as Mock).mockResolvedValueOnce({
-        data: {
-          response: 'I miss home...',
-          happiness_impact: { delta: -1, reason_text: 'Homesick' },
-          action_suggestion: {
-            action_type: 'recall_exploration',
-            exploration_id: 'exploration-999',
-            reason: 'Dweller wants to return',
-          },
+    it('renders the recall card', async () => {
+      const wrapper = await mounted()
+      await send(wrapper, 'How are you doing out there?', {
+        response: 'I miss home...',
+        happiness_impact: { delta: -1, reason_text: 'Homesick' },
+        action_suggestion: {
+          action_type: 'recall_exploration',
+          exploration_id: 'exploration-999',
+          reason: 'Dweller wants to return',
         },
       })
 
-      const input = wrapper.find('.chat-input-field')
-      await input.setValue('How are you doing out there?')
-      await wrapper.find('.chat-send-btn').trigger('click')
-      await flushPromises()
-
-      const actionCard = wrapper.find('.action-suggestion-card')
-      expect(actionCard.exists()).toBe(true)
-      expect(actionCard.text()).toContain('Recall from wasteland')
-      expect(actionCard.text()).toContain('Dweller wants to return')
+      const card = wrapper.get('.action-suggestion-card')
+      expect(card.text()).toContain('Recall from wasteland')
+      expect(card.text()).toContain('Dweller wants to return')
     })
 
-    it('should call recallDweller when confirm clicked for recall with progress < 100', async () => {
-      const dwellerStore = useDwellerStore().filter
-      vi.spyOn(dwellerStore, 'fetchDwellerDetails').mockResolvedValue({} as any)
-      mockFetchExplorationProgress.mockResolvedValue({ progress_percentage: 50 })
+    it.each([
+      { progress: 50, expected: 'recallDweller' },
+      { progress: 100, expected: 'completeExploration' },
+    ])('$expected a recall confirmed at $progress% progress', async ({ progress, expected }) => {
+      vi.spyOn(useDwellerStore().filter, 'fetchDwellerDetails').mockResolvedValue({} as any)
+      mockFetchExplorationProgress.mockResolvedValue({ progress_percentage: progress })
       mockRecallDweller.mockResolvedValue({})
-
-      const wrapper = mountComponent()
-      await flushPromises()
-
-      ;(apiClient.post as Mock).mockResolvedValueOnce({
-        data: {
-          response: 'Please bring me back!',
-          happiness_impact: { delta: -2, reason_text: 'Tired' },
-          action_suggestion: {
-            action_type: 'recall_exploration',
-            exploration_id: 'exploration-999',
-            reason: 'Low health',
-          },
-        },
-      })
-
-      const input = wrapper.find('.chat-input-field')
-      await input.setValue('Come back')
-      await wrapper.find('.chat-send-btn').trigger('click')
-      await flushPromises()
-
-      const confirmBtn = wrapper.find('.action-confirm-btn')
-      await confirmBtn.trigger('click')
-      await flushPromises()
-
-      expect(mockFetchExplorationProgress).toHaveBeenCalledWith('exploration-999')
-      expect(mockRecallDweller).toHaveBeenCalledWith('exploration-999')
-      expect(mockCompleteExploration).not.toHaveBeenCalled()
-
-      // Verify action card is removed
-      expect(wrapper.find('.action-suggestion-card').exists()).toBe(false)
-    })
-
-    it('should call completeExploration when confirm clicked for recall with progress >= 100', async () => {
-      const dwellerStore = useDwellerStore().filter
-      vi.spyOn(dwellerStore, 'fetchDwellerDetails').mockResolvedValue({} as any)
-      mockFetchExplorationProgress.mockResolvedValue({ progress_percentage: 100 })
       mockCompleteExploration.mockResolvedValue({})
-
-      const wrapper = mountComponent()
-      await flushPromises()
-
-      ;(apiClient.post as Mock).mockResolvedValueOnce({
-        data: {
-          response: 'I found great loot!',
-          happiness_impact: { delta: 5, reason_text: 'Successful' },
-          action_suggestion: {
-            action_type: 'recall_exploration',
-            exploration_id: 'exploration-999',
-            reason: 'Exploration complete',
-          },
+      const wrapper = await mounted()
+      await send(wrapper, 'Come back', {
+        response: 'Please bring me back!',
+        action_suggestion: {
+          action_type: 'recall_exploration',
+          exploration_id: 'exploration-999',
+          reason: 'Low health',
         },
       })
 
-      const input = wrapper.find('.chat-input-field')
-      await input.setValue('How was exploring?')
-      await wrapper.find('.chat-send-btn').trigger('click')
-      await flushPromises()
-
-      const confirmBtn = wrapper.find('.action-confirm-btn')
-      await confirmBtn.trigger('click')
-      await flushPromises()
+      await confirmAction(wrapper)
 
       expect(mockFetchExplorationProgress).toHaveBeenCalledWith('exploration-999')
-      expect(mockCompleteExploration).toHaveBeenCalledWith('exploration-999')
-      expect(mockRecallDweller).not.toHaveBeenCalled()
-
-      // Verify action card is removed
+      if (expected === 'recallDweller') {
+        expect(mockRecallDweller).toHaveBeenCalledWith('exploration-999')
+        expect(mockCompleteExploration).not.toHaveBeenCalled()
+      } else {
+        expect(mockCompleteExploration).toHaveBeenCalledWith('exploration-999')
+        expect(mockRecallDweller).not.toHaveBeenCalled()
+      }
       expect(wrapper.find('.action-suggestion-card').exists()).toBe(false)
     })
   })
 
-  describe('Map discoveries', () => {
-    it('renders map intel beside the dweller message', async () => {
-      const wrapper = mountComponent()
-      await flushPromises()
+  describe('Map intel', () => {
+    const discoveries = [{ location_id: 'place-old-north', name: 'Old North Church' }]
 
-      ;(apiClient.post as Mock).mockResolvedValueOnce({
-        data: {
-          response: 'I remember the old roads.',
-          happiness_impact: null,
-          action_suggestion: null,
-          unlocked_places: [{ location_id: 'place-old-north', name: 'Old North Church' }],
-        },
+    it('renders intel from a reply beside the dweller message', async () => {
+      const wrapper = await mounted()
+      await send(wrapper, 'Tell me about Boston.', {
+        response: 'I remember the old roads.',
+        unlocked_places: discoveries,
       })
 
-      await wrapper.find('.chat-input-field').setValue('Tell me about Boston.')
-      await wrapper.find('.chat-send-btn').trigger('click')
+      const indicator = wrapper.get('.map-discovery-indicator')
+      expect(indicator.text()).toContain('1')
+      expect(indicator.attributes('title')).toBe('Map intel: Old North Church unlocked')
+      expect(wrapper.get('.map-discovery-link').attributes('href')).toBe(
+        '/vault/vault-123/map?place=place-old-north'
+      )
+    })
+
+    it('renders intel from a streamed response', async () => {
+      mockWsState.value = 'connected'
+      const wrapper = await mounted()
+      await wrapper.get('.chat-input-field').setValue('What places do you know?')
+      await wrapper.get('.chat-send-btn').trigger('click')
       await flushPromises()
 
-      const discovery = wrapper.find('.map-discovery-indicator')
-      expect(discovery.exists()).toBe(true)
-      expect(discovery.text()).toContain('1')
-      expect(discovery.attributes('title')).toBe('Map intel: Old North Church unlocked')
-      expect(wrapper.find('.map-discovery-link').attributes('href')).toBe(
-        '/vault/vault-123/map?place=place-old-north'
+      mockWebSocketHandlers['token'][0]({ text: 'Try the old overpass.' })
+      mockWebSocketHandlers['done'][0]({
+        dweller_message_id: 'msg-stream-discovery',
+        happiness_impact: null,
+        action_suggestion: null,
+        unlocked_places: [{ location_id: 'place-rivet-city', name: 'Rivet City' }],
+      })
+      await flushPromises()
+
+      expect(wrapper.get('.map-discovery-indicator').attributes('title')).toBe(
+        'Map intel: Rivet City unlocked'
+      )
+      expect(wrapper.get('.map-discovery-link').attributes('href')).toBe(
+        '/vault/vault-123/map?place=place-rivet-city'
       )
     })
   })
 
-  describe('WebSocket Message Streaming', () => {
+  describe('WebSocket streaming', () => {
     beforeEach(() => {
       mockWsState.value = 'connected'
-      mockWebSocketHandlers['token'] = []
-      mockWebSocketHandlers['done'] = []
-      mockWebSocketHandlers['error'] = []
     })
 
-    it('should send message via WebSocket and render streamed tokens', async () => {
-      const wrapper = mountComponent()
+    const startStream = async (wrapper: VueWrapper, text: string) => {
+      await wrapper.get('.chat-input-field').setValue(text)
+      await wrapper.get('.chat-send-btn').trigger('click')
       await flushPromises()
+    }
 
-      const input = wrapper.find('.chat-input-field')
-      await input.setValue('Hello stream')
-      await wrapper.find('.chat-send-btn').trigger('click')
-      await flushPromises()
+    it('streams tokens over the socket instead of posting', async () => {
+      const wrapper = await mounted()
+      await startStream(wrapper, 'Hello stream')
 
       expect(mockSendMessage).toHaveBeenCalledWith('Hello stream', false)
       expect(apiClient.post).not.toHaveBeenCalled()
-
-      let messages = wrapper.findAll('.message-wrapper')
-      expect(messages.length).toBe(1)
+      const messages = wrapper.findAll('.message-wrapper')
+      expect(messages).toHaveLength(1)
       expect(messages[0].text()).toContain('Hello stream')
       expect(wrapper.find('.typing-indicator').exists()).toBe(true)
 
-      const tokenHandlers = mockWebSocketHandlers['token']
-      expect(tokenHandlers.length).toBeGreaterThan(0)
-      tokenHandlers[0]({ text: 'Hel' })
+      mockWebSocketHandlers['token'][0]({ text: 'Hel' })
       await wrapper.vm.$nextTick()
-      tokenHandlers[0]({ text: 'lo' })
+      mockWebSocketHandlers['token'][0]({ text: 'lo' })
       await wrapper.vm.$nextTick()
 
-      messages = wrapper.findAll('.message-wrapper')
-      expect(messages.length).toBe(2)
-      expect(messages[1].text()).toContain('Hello')
+      expect(wrapper.findAll('.message-wrapper')).toHaveLength(2)
+      expect(wrapper.findAll('.message-wrapper')[1].text()).toContain('Hello')
 
       mockWebSocketHandlers['done'][0]({
         dweller_message_id: 'msg-stream-1',
@@ -2455,14 +1088,9 @@ describe('DwellerChat', () => {
       expect(wrapper.find('.typing-indicator').exists()).toBe(false)
     })
 
-    it('should attach happiness impact and action suggestion from done event', async () => {
-      const wrapper = mountComponent()
-      await flushPromises()
-
-      const input = wrapper.find('.chat-input-field')
-      await input.setValue('Stream with metadata')
-      await wrapper.find('.chat-send-btn').trigger('click')
-      await flushPromises()
+    it('attaches the done payload happiness and suggestion', async () => {
+      const wrapper = await mounted()
+      await startStream(wrapper, 'Stream with metadata')
 
       mockWebSocketHandlers['token'][0]({ text: 'Great!' })
       await wrapper.vm.$nextTick()
@@ -2477,68 +1105,30 @@ describe('DwellerChat', () => {
       })
       await wrapper.vm.$nextTick()
 
-      const happiness = wrapper.find('.happiness-indicator')
-      expect(happiness.exists()).toBe(true)
-      expect(happiness.text()).toContain('+5')
-
-      const actionCard = wrapper.find('.action-suggestion-card')
-      expect(actionCard.exists()).toBe(true)
-      expect(actionCard.text()).toContain('Train strength')
+      expect(wrapper.get('.happiness-indicator').text()).toContain('+5')
+      expect(wrapper.get('.action-suggestion-card').text()).toContain('Train strength')
     })
 
-    it('renders map intel from a streamed response', async () => {
-      const wrapper = mountComponent()
-      await flushPromises()
-
-      await wrapper.find('.chat-input-field').setValue('What places do you know?')
-      await wrapper.find('.chat-send-btn').trigger('click')
-      await flushPromises()
-
-      mockWebSocketHandlers['token'][0]({ text: 'Try the old overpass.' })
-      mockWebSocketHandlers['done'][0]({
-        dweller_message_id: 'msg-stream-discovery',
-        happiness_impact: null,
-        action_suggestion: null,
-        unlocked_places: [{ location_id: 'place-rivet-city', name: 'Rivet City' }],
-      })
-      await flushPromises()
-
-      expect(wrapper.find('.map-discovery-indicator').attributes('title')).toBe(
-        'Map intel: Rivet City unlocked'
-      )
-      expect(wrapper.find('.map-discovery-link').attributes('href')).toBe(
-        '/vault/vault-123/map?place=place-rivet-city'
-      )
-    })
-
-    it('should mark message as failed when stream errors', async () => {
-      const wrapper = mountComponent()
-      await flushPromises()
-
-      const input = wrapper.find('.chat-input-field')
-      await input.setValue('Trigger error')
-      await wrapper.find('.chat-send-btn').trigger('click')
-      await flushPromises()
+    it('marks the message failed when the stream errors', async () => {
+      const wrapper = await mounted()
+      await startStream(wrapper, 'Trigger error')
 
       mockWebSocketHandlers['error'][0]({ detail: 'AI quota exceeded' })
       await wrapper.vm.$nextTick()
 
       expect(wrapper.find('.typing-indicator').exists()).toBe(false)
       expect(wrapper.text()).toContain('AI quota exceeded')
-      expect(wrapper.find('.message-error').attributes()).toMatchObject({
+      expect(wrapper.get('.message-error').attributes()).toMatchObject({
         role: 'alert',
         'aria-live': 'polite',
       })
     })
 
     it('retries a failed message', async () => {
-      mockWsState.value = 'connected'
-      const wrapper = mountComponent()
-      await flushPromises()
+      const wrapper = await mounted()
+      await startStream(wrapper, 'Status report')
 
-      await wrapper.find('.chat-input-field').setValue('Status report')
-      await wrapper.find('.chat-send-btn').trigger('click')
-      mockWebSocketHandlers['error'].at(-1)({ detail: 'Connection lost' })
+      mockWebSocketHandlers['error'].at(-1)!({ detail: 'Connection lost' })
       await flushPromises()
       await wrapper.get('.message-error button').trigger('click')
       await flushPromises()
@@ -2548,7 +1138,7 @@ describe('DwellerChat', () => {
   })
 
   describe('AI budget readiness', () => {
-    it('shows a compact remaining-budget signal when usage has loaded', () => {
+    it('shows the remaining budget once usage has loaded', () => {
       useProfileStore().$patch({
         aiUsageStats: {
           all_time: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 },
@@ -2566,36 +1156,34 @@ describe('DwellerChat', () => {
         },
       })
 
-      const wrapper = mountComponent()
-
-      expect(wrapper.find('.chat-budget-status').text()).toContain('650 tokens remaining')
+      expect(mountChat().get('.chat-budget-status').text()).toContain('650 tokens remaining')
     })
   })
 
   describe('Dead dweller read-only chat', () => {
-    it('disables the composer, shows the dead notice and revive CTA, and never sends', async () => {
-      const wrapper = mountComponent({ isDead: true })
-      await flushPromises()
+    it.each([false, true])(
+      'disables the composer for a dead dweller (permanently dead: %s) and never sends',
+      async (permanently) => {
+        const wrapper = await mounted({ isDead: true, isPermanentlyDead: permanently })
 
-      expect(wrapper.get('.dead-notice').text()).toContain('The dead cannot reply')
-      expect((wrapper.get('.chat-input-field').element as HTMLInputElement).disabled).toBe(true)
-      expect((wrapper.get('.chat-send-btn').element as HTMLButtonElement).disabled).toBe(true)
-      expect(wrapper.find('.dead-revive-btn').exists()).toBe(true)
+        expect(wrapper.get('.dead-notice').text()).toContain('The dead cannot reply')
+        expect((wrapper.get('.chat-input-field').element as HTMLInputElement).disabled).toBe(true)
+        expect((wrapper.get('.chat-send-btn').element as HTMLButtonElement).disabled).toBe(true)
+        expect(wrapper.find('.dead-revive-btn').exists()).toBe(!permanently)
+        expect(wrapper.text().includes('Permanently dead')).toBe(permanently)
 
-      await wrapper.get('.chat-input-field').setValue('Anyone there?')
-      await wrapper.get('.chat-send-btn').trigger('click')
-      await flushPromises()
+        await wrapper.get('.chat-input-field').setValue('Anyone there?')
+        await wrapper.get('.chat-send-btn').trigger('click')
+        await flushPromises()
+        expect(apiClient.post).not.toHaveBeenCalled()
+      }
+    )
 
-      expect(apiClient.post).not.toHaveBeenCalled()
-    })
-
-    it('re-enables the composer after a successful revive without reloading', async () => {
+    it('re-enables the composer after a successful revive', async () => {
       const reviveSpy = vi
         .spyOn(useDwellerDeathStore(), 'reviveDweller')
         .mockResolvedValue({ dweller: { first_name: 'Test' }, caps_spent: 5 } as any)
-
-      const wrapper = mountComponent({ isDead: true })
-      await flushPromises()
+      const wrapper = await mounted({ isDead: true })
 
       await wrapper.get('.dead-revive-btn').trigger('click')
       await flushPromises()
@@ -2608,19 +1196,8 @@ describe('DwellerChat', () => {
       expect((wrapper.get('.chat-send-btn').element as HTMLButtonElement).disabled).toBe(false)
     })
 
-    it('shows the notice without a revive action for permanently dead dwellers', async () => {
-      const wrapper = mountComponent({ isDead: true, isPermanentlyDead: true })
-      await flushPromises()
-
-      expect(wrapper.find('.dead-notice').exists()).toBe(true)
-      expect(wrapper.find('.dead-revive-btn').exists()).toBe(false)
-      expect(wrapper.text()).toContain('Permanently dead')
-      expect((wrapper.get('.chat-input-field').element as HTMLInputElement).disabled).toBe(true)
-    })
-
-    it('leaves live dwellers with an enabled composer and no dead notice', async () => {
-      const wrapper = mountComponent()
-      await flushPromises()
+    it('leaves a live dweller with an enabled composer', async () => {
+      const wrapper = await mounted()
 
       expect(wrapper.find('.dead-notice').exists()).toBe(false)
       expect((wrapper.get('.chat-input-field').element as HTMLInputElement).disabled).toBe(false)

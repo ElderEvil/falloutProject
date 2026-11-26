@@ -98,33 +98,42 @@ describe('ChatMessageList', () => {
     })
   })
 
-  it('renders dweller avatars via DwellerPortrait with the app-standard fallback', () => {
-    const dwellerMessage = [{ type: 'dweller', content: 'Hi' }] as ChatMessageDisplay[]
+  it.each([
+    [
+      'dweller',
+      'dweller',
+      'mdi:account',
+      'Amata',
+      'dwellerAvatarUrl',
+      '/media/thumbs/amata.png',
+      'http://localhost:8000/media/thumbs/amata.png',
+    ],
+    [
+      'user',
+      'user',
+      'mdi:account-circle',
+      'Overseer',
+      'userAvatarUrl',
+      '/media/avatars/overseer.png',
+      'http://localhost:8000/media/avatars/overseer.png',
+    ],
+  ] as const)(
+    'renders %s avatars via DwellerPortrait with the app-standard fallback',
+    (_kind, type, fallbackIcon, name, prop, url, resolved) => {
+      const message = [{ type, content: 'Hi' }] as ChatMessageDisplay[]
 
-    // No avatar -> fallback icon (mdi:account, matching the rest of the app)
-    const fallback = mountList(dwellerMessage)
-    expect(fallback.find('span[role="img"]').attributes('aria-label')).toBe('Amata')
-    expect(fallback.find('.icon-stub').attributes('data-icon')).toBe('mdi:account')
+      // No avatar -> fallback icon matching the rest of the app.
+      const fallback = mountList(message)
+      expect(fallback.find('span[role="img"]').attributes('aria-label')).toBe(name)
+      expect(fallback.find('.icon-stub').attributes('data-icon')).toBe(fallbackIcon)
 
-    // With avatar -> img with the dweller's name as alt
-    const withAvatar = mountList(dwellerMessage, { dwellerAvatarUrl: '/media/thumbs/amata.png' })
-    const img = withAvatar.find('img.avatar-image')
-    expect(img.attributes('src')).toBe('http://localhost:8000/media/thumbs/amata.png')
-    expect(img.attributes('alt')).toBe('Amata')
-  })
-
-  it('renders user avatars via DwellerPortrait with the profile fallback icon', () => {
-    const userMessage = [{ type: 'user', content: 'Hi' }] as ChatMessageDisplay[]
-
-    const fallback = mountList(userMessage)
-    expect(fallback.find('span[role="img"]').attributes('aria-label')).toBe('Overseer')
-    expect(fallback.find('.icon-stub').attributes('data-icon')).toBe('mdi:account-circle')
-
-    const withAvatar = mountList(userMessage, { userAvatarUrl: '/media/avatars/overseer.png' })
-    const img = withAvatar.find('img.avatar-image')
-    expect(img.attributes('src')).toBe('http://localhost:8000/media/avatars/overseer.png')
-    expect(img.attributes('alt')).toBe('Overseer')
-  })
+      // With avatar -> img with the speaker's name as alt.
+      const withAvatar = mountList(message, { [prop]: url } as Partial<ListProps>)
+      const img = withAvatar.find('img.avatar-image')
+      expect(img.attributes('src')).toBe(resolved)
+      expect(img.attributes('alt')).toBe(name)
+    }
+  )
 
   it('links known dweller locations in chat text to their map markers', () => {
     const wrapper = mountList([{ type: 'dweller', content: 'Megaton taught me to keep moving.' }], {

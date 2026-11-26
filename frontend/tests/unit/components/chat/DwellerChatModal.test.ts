@@ -71,17 +71,27 @@ describe('DwellerChatModal', () => {
     })
   }
 
+  /** Mount with the dweller fetch stubbed to resolve `value`. */
+  async function mountWithDweller(value: unknown = fakeDweller, props = {}) {
+    vi.spyOn(useDwellerStore().filter, 'fetchDwellerDetails').mockResolvedValue(value as never)
+    const wrapper = mountModal(props)
+    await flushPromises()
+    return wrapper
+  }
+
   it('fetches dweller details and renders DwellerChat with the dweller data', async () => {
     const dwellerStore = useDwellerStore().filter
-    vi.spyOn(dwellerStore, 'fetchDwellerDetails').mockImplementation(async (id: string) => {
-      dwellerStore.detailedDwellers[id] = fakeDweller
-      return fakeDweller
-    })
+    const fetchSpy = vi
+      .spyOn(dwellerStore, 'fetchDwellerDetails')
+      .mockImplementation(async (id: string) => {
+        dwellerStore.detailedDwellers[id] = fakeDweller
+        return fakeDweller
+      })
 
     const wrapper = mountModal()
     await flushPromises()
 
-    expect(dwellerStore.fetchDwellerDetails).toHaveBeenCalledWith('dweller-1')
+    expect(fetchSpy).toHaveBeenCalledWith('dweller-1')
     const chat = wrapper.findComponent(DwellerChatStub)
     expect(chat.exists()).toBe(true)
     expect(chat.props('dwellerId')).toBe('dweller-1')
@@ -96,14 +106,7 @@ describe('DwellerChatModal', () => {
   })
 
   it('prefers the provided vaultId prop over the dweller-derived one', async () => {
-    const dwellerStore = useDwellerStore().filter
-    vi.spyOn(dwellerStore, 'fetchDwellerDetails').mockImplementation(async (id: string) => {
-      dwellerStore.detailedDwellers[id] = fakeDweller
-      return fakeDweller
-    })
-
-    const wrapper = mountModal({ vaultId: 'vault-9' })
-    await flushPromises()
+    const wrapper = await mountWithDweller(fakeDweller, { vaultId: 'vault-9' })
 
     const chat = wrapper.findComponent(DwellerChatStub)
     expect(chat.props('vaultId')).toBe('vault-9')
@@ -112,11 +115,8 @@ describe('DwellerChatModal', () => {
   it('updates the chat username when the authenticated user loads', async () => {
     const authStore = useAuthStore()
     authStore.user = null
-    const dwellerStore = useDwellerStore().filter
-    vi.spyOn(dwellerStore, 'fetchDwellerDetails').mockResolvedValue(fakeDweller)
 
-    const wrapper = mountModal()
-    await flushPromises()
+    const wrapper = await mountWithDweller()
     expect(wrapper.findComponent(DwellerChatStub).props('username')).toBe('User')
 
     authStore.user = { id: 'user-1', username: 'Overseer' }
@@ -127,14 +127,8 @@ describe('DwellerChatModal', () => {
   it('does not switch the selected vault when chatting with a dweller from another vault', async () => {
     const vaultStore = useVaultStore()
     const ensureVaultLoaded = vi.spyOn(vaultStore, 'ensureVaultLoaded')
-    const dwellerStore = useDwellerStore().filter
-    vi.spyOn(dwellerStore, 'fetchDwellerDetails').mockResolvedValue({
-      ...fakeDweller,
-      vault: { ...fakeDweller.vault!, id: 'vault-2' },
-    })
 
-    mountModal()
-    await flushPromises()
+    await mountWithDweller({ ...fakeDweller, vault: { ...fakeDweller.vault!, id: 'vault-2' } })
 
     expect(ensureVaultLoaded).not.toHaveBeenCalled()
     expect(vaultStore.activeVaultId).toBe('vault-1')
@@ -142,11 +136,7 @@ describe('DwellerChatModal', () => {
   })
 
   it('shows the unavailable state when the dweller cannot be fetched', async () => {
-    const dwellerStore = useDwellerStore().filter
-    vi.spyOn(dwellerStore, 'fetchDwellerDetails').mockResolvedValue(null)
-
-    const wrapper = mountModal()
-    await flushPromises()
+    const wrapper = await mountWithDweller(null)
 
     expect(wrapper.text()).toContain('Dweller information unavailable.')
     expect(wrapper.findComponent(DwellerChatStub).exists()).toBe(false)
@@ -154,9 +144,7 @@ describe('DwellerChatModal', () => {
 
   it('removes loaded chat data when the session ends', async () => {
     const authStore = useAuthStore()
-    vi.spyOn(useDwellerStore().filter, 'fetchDwellerDetails').mockResolvedValue(fakeDweller)
-    const wrapper = mountModal()
-    await flushPromises()
+    const wrapper = await mountWithDweller()
     expect(wrapper.findComponent(DwellerChatStub).exists()).toBe(true)
 
     authStore.token = null
@@ -168,9 +156,7 @@ describe('DwellerChatModal', () => {
 
   it('removes loaded chat data when another user signs in', async () => {
     const authStore = useAuthStore()
-    vi.spyOn(useDwellerStore().filter, 'fetchDwellerDetails').mockResolvedValue(fakeDweller)
-    const wrapper = mountModal()
-    await flushPromises()
+    const wrapper = await mountWithDweller()
 
     authStore.user = { id: 'user-2', username: 'Another Overseer' }
     await wrapper.vm.$nextTick()

@@ -69,6 +69,12 @@ describe('useAudioRecorder scope disposal', () => {
     })
   })
 
+  /** The composable inside its own scope, so disposal can be exercised. */
+  const setup = () => {
+    const scope = effectScope()
+    return { scope, recorder: scope.run(() => useAudioRecorder())! }
+  }
+
   afterEach(() => {
     MediaRecorderStub.failOnStop = false
     MediaRecorderStub.failConstruct = false
@@ -78,8 +84,7 @@ describe('useAudioRecorder scope disposal', () => {
   })
 
   it('stops the microphone and the duration timer when the scope is disposed mid-recording', async () => {
-    const scope = effectScope()
-    const recorder = scope.run(() => useAudioRecorder())!
+    const { scope, recorder } = setup()
 
     await recorder.startRecording()
     expect(recorder.recordingState.value).toBe('recording')
@@ -98,8 +103,7 @@ describe('useAudioRecorder scope disposal', () => {
   })
 
   it('is a no-op when the scope is disposed while idle', () => {
-    const scope = effectScope()
-    const recorder = scope.run(() => useAudioRecorder())!
+    const { scope, recorder } = setup()
 
     expect(() => scope.stop()).not.toThrow()
     expect(trackStop).not.toHaveBeenCalled()
@@ -107,8 +111,7 @@ describe('useAudioRecorder scope disposal', () => {
   })
 
   it('cancelRecording still releases the stream and resets the clock', async () => {
-    const scope = effectScope()
-    const recorder = scope.run(() => useAudioRecorder())!
+    const { scope, recorder } = setup()
 
     await recorder.startRecording()
     vi.advanceTimersByTime(2000)
@@ -132,8 +135,7 @@ describe('useAudioRecorder scope disposal', () => {
           resolveMedia = resolve
         })
     )
-    const scope = effectScope()
-    const recorder = scope.run(() => useAudioRecorder())!
+    const { scope, recorder } = setup()
 
     const starting = recorder.startRecording()
     scope.stop()
@@ -149,8 +151,7 @@ describe('useAudioRecorder scope disposal', () => {
 
   it('releases the microphone and the timer when the recorder errors mid-stop', async () => {
     MediaRecorderStub.failOnStop = true
-    const scope = effectScope()
-    const recorder = scope.run(() => useAudioRecorder())!
+    const { scope, recorder } = setup()
 
     await recorder.startRecording()
     vi.advanceTimersByTime(2000)
@@ -168,8 +169,7 @@ describe('useAudioRecorder scope disposal', () => {
   })
   it('stops the acquired stream when the recorder cannot be constructed', async () => {
     MediaRecorderStub.failConstruct = true
-    const scope = effectScope()
-    const recorder = scope.run(() => useAudioRecorder())!
+    const { scope, recorder } = setup()
 
     await expect(recorder.startRecording()).rejects.toThrow('Failed to access microphone')
 
@@ -181,8 +181,7 @@ describe('useAudioRecorder scope disposal', () => {
 
   it('releases the recorder and the stream when start throws', async () => {
     MediaRecorderStub.failStart = true
-    const scope = effectScope()
-    const recorder = scope.run(() => useAudioRecorder())!
+    const { scope, recorder } = setup()
 
     await expect(recorder.startRecording()).rejects.toThrow('Failed to access microphone')
 
@@ -202,8 +201,7 @@ describe('useAudioRecorder scope disposal', () => {
       .mockImplementationOnce(async () => stream)
       .mockImplementationOnce(async () => secondStream)
 
-    const scope = effectScope()
-    const recorder = scope.run(() => useAudioRecorder())!
+    const { scope, recorder } = setup()
 
     await recorder.startRecording()
     await recorder.stopRecording()

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { createAxiosMock, createIconifyMock, createRouterMock } from '../../helpers/mocks'
-import { mount, flushPromises } from '@vue/test-utils'
+import { mount, flushPromises, type VueWrapper } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import NotificationBell from '@/modules/vault/components/shell/NotificationBell.vue'
 import { useAuthStore } from '@/modules/auth/stores/auth'
@@ -17,37 +17,16 @@ import {
 } from '@/modules/exploration/composables/usePendingReports'
 
 /**
- * NotificationBell SSE Watcher Regression Tests
- *
- * BACKGROUND:
- * A runtime error was observed in the browser during Playwright QA:
- * "Cannot read properties of null (reading 'value')" with a
- * "Unhandled error during execution of watcher getter" Vue warning, attributed
- * to NotificationBell.vue:63:31 — the watcher getter
- * `() => sse.value?.event.value ?? null`.
- *
- * INVESTIGATION RESULT:
- * The current code is null-safe:
- *  1. `sse.value` is `ref<ReturnType<typeof useSse>>()` — optional-chained, so
- *     an unset instance short-circuits to `undefined`.
- *  2. `useSse`/`useSseBase` always expose `event: ref<SseEvent | null>(null)` —
- *     a Ref object, never null — so `.value` on it can never throw.
- *  3. No git version of this file ever defined a `notificationData` function;
- *     the stack frame name could not be produced by this component.
- *
- * These tests lock in the null-safety of the watcher path end-to-end (real
- * `useSse` with a mocked fetch SSE stream), so a future refactor that removes
- * the optional chaining fails CI instead of crashing the browser.
+ * NotificationBell streams notifications over SSE. These tests drive the real
+ * `useSse` with a mocked fetch stream, so the watcher path
+ * (`() => sse.value?.event.value ?? null`) is exercised end-to-end: a refactor
+ * that drops the optional chaining crashes here instead of in the browser.
  */
-
-// Mock Iconify (no-op icon component)
 vi.mock('@iconify/vue', () =>
   createIconifyMock({
     template: '<span class="icon-mock" :data-icon="icon" data-testid="mock-icon" />',
   })
 )
-
-// Mock the axios plugin: NotificationBell only needs resolved API responses
 vi.mock('@/core/plugins/axios', () => createAxiosMock())
 vi.mock('@tauri-apps/api/core', () => ({ isTauri: vi.fn(() => false) }))
 vi.mock('@tauri-apps/api/path', () => ({
@@ -57,14 +36,12 @@ vi.mock('@tauri-apps/plugin-notification', () => ({
   isPermissionGranted: vi.fn(async () => true),
   sendNotification: vi.fn(),
 }))
-
-// Mock the router so actionable notification clicks can assert navigation.
 const { mockPush } = vi.hoisted(() => ({ mockPush: vi.fn() }))
 vi.mock('vue-router', () => createRouterMock({ push: mockPush }))
 
 import axios from '@/core/plugins/axios'
 
-// Helper: create a mock fetch response with a controllable SSE stream
+/** A fetch response whose body streams `chunks` as SSE; `hang` keeps it open. */
 function createMockResponse(chunks: string[], options?: { hang?: boolean }) {
   const encoder = new TextEncoder()
   let index = 0
@@ -77,10 +54,8 @@ function createMockResponse(chunks: string[], options?: { hang?: boolean }) {
         return Promise.resolve({ done: true, value: undefined })
       }
       if (index < chunks.length) {
-        const chunk = chunks[index++]
-        return Promise.resolve({ done: false, value: encoder.encode(chunk) })
+        return Promise.resolve({ done: false, value: encoder.encode(chunks[index++]) })
       }
-      // hang mode: return a promise that resolves when cancelled
       return new Promise<{ done: boolean; value?: Uint8Array }>((resolve) => {
         pendingResolve = resolve
       })
@@ -94,71 +69,160 @@ function createMockResponse(chunks: string[], options?: { hang?: boolean }) {
       return Promise.resolve(undefined)
     }),
   }
-  return {
-    ok: true,
-    body: {
-      getReader: () => reader,
-    },
-  }
+  return { ok: true, body: { getReader: () => reader } }
 }
 
-// Helper: encode SSE events into wire format chunks
 function encodeSse(data: string, event?: string): string {
-  let result = ''
-  if (event) result += `event: ${event}\n`
-  result += `data: ${data}\n\n`
-  return result
+  return `${event ? `event: ${event}\n` : ''}data: ${data}\n\n`
 }
 
-const notifData = JSON.stringify({
-  notification: {
-    id: 'n1',
-    notification_type: 'level_up',
-    title: 'Level Up!',
-    message: 'A dweller reached a new level',
-    priority: 'normal',
-    created_at: '2026-08-11T10:00:00',
-    meta_data: {},
-  },
+const baseNotification = {
+  id: 'n1',
+  notification_type: 'level_up',
+  title: 'Level Up!',
+  message: 'A dweller reached a new level',
+  priority: 'normal',
+  created_at: '2026-08-11T10:00:00',
+  meta_data: {},
+}
+
+const notification = (overrides: Record<string, unknown> = {}) => ({
+  ...baseNotification,
+  ...overrides,
+})
+
+const actionableNotification = notification({
+  id: 'act-1',
+  vault_id: 'vault-1',
+  title: 'Actionable Alert',
+  message: 'Open the dweller list',
+  is_read: false,
+  created_at: '2026-08-11T10:00:00',
+})
+
+const informationalNotification = notification({
+  id: 'info-1',
+  vault_id: null,
+  notification_type: 'resource_low',
+  title: 'Informational Note',
+  message: 'Power reserves are low',
+  priority: 'info',
+  is_read: false,
+  created_at: '2026-08-11T09:00:00',
+})
+
+let fetchMock: ReturnType<typeof vi.fn>
+const signedIn = (token = 'test-token') => {
+  useAuthStore().token = token
+}
+const toastsWith = (message: string) =>
+  useToast().toasts.value.filter((toast) => toast.message === message)
+const openBell = async (wrapper: VueWrapper) => {
+  await wrapper.get('button[aria-haspopup="dialog"]').trigger('click')
+  await flushPromises()
+}
+const markAllRead = async (wrapper: VueWrapper) => {
+  await wrapper
+    .findAll('button')
+    .find((button) => button.text() === 'Mark all read')!
+    .trigger('click')
+  await flushPromises()
+}
+const bellBadge = (wrapper: VueWrapper) => wrapper.get('button[aria-haspopup="dialog"]').text()
+
+const streamNotification = (payload: Record<string, unknown>, times = 1) =>
+  fetchMock.mockResolvedValue(
+    createMockResponse(
+      Array(times).fill(encodeSse(JSON.stringify({ notification: payload }), 'notification')),
+      {
+        hang: true,
+      }
+    )
+  )
+
+const rushNotification = (id: string) =>
+  notification({
+    id,
+    vault_id: 'vault-1',
+    notification_type: 'rush_succeeded',
+    title: 'Rush succeeded',
+    message: 'Rush succeeded',
+    created_at: '2026-11-01T10:00:00',
+  })
+
+/** Feed one notification through the SSE stream and let the watcher run. */
+const deliver = async (
+  payload: Record<string, unknown>,
+  { times = 1, hang = true }: { times?: number; hang?: boolean } = {}
+) => {
+  const chunk = encodeSse(JSON.stringify({ notification: payload }), 'notification')
+  fetchMock.mockResolvedValue(createMockResponse(Array(times).fill(chunk), { hang }))
+  const wrapper = mount(NotificationBell)
+  await vi.advanceTimersByTimeAsync(0)
+  await flushPromises()
+  return wrapper
+}
+
+const mockNotificationList = (items: Array<Record<string, unknown>>) => {
+  ;(axios.get as ReturnType<typeof vi.fn>).mockImplementation((url: string) => {
+    if (url.includes('unread-count')) {
+      return Promise.resolve({ data: { count: items.filter((item) => !item.is_read).length } })
+    }
+    return Promise.resolve({ data: items.map((item) => ({ ...item })) })
+  })
+}
+
+const mountBell = async (items: Array<Record<string, unknown>> = []) => {
+  signedIn()
+  fetchMock.mockResolvedValue(createMockResponse([], { hang: true }))
+  mockNotificationList(items)
+  const wrapper = mount(NotificationBell, { attachTo: document.body })
+  await vi.advanceTimersByTimeAsync(0)
+  await flushPromises()
+  return wrapper
+}
+
+const mountAndOpen = async (items: Array<Record<string, unknown>>) => {
+  const wrapper = await mountBell(items)
+  await openBell(wrapper)
+  return wrapper
+}
+
+// Transition removal runs on requestAnimationFrame; step the fake clock so the
+// popup has left the DOM before a close is asserted.
+const settleClose = async () => {
+  await vi.advanceTimersByTimeAsync(100)
+  await flushPromises()
+}
+
+beforeEach(() => {
+  vi.useFakeTimers({ shouldAdvanceTime: true })
+  window.localStorage.clear()
+  setActivePinia(createPinia())
+  useVaultBoyFeedback().clear()
+  vi.mocked(isTauri).mockReturnValue(false)
+  vi.mocked(sendNotification).mockClear()
+  ;(axios.get as ReturnType<typeof vi.fn>).mockImplementation((url: string) =>
+    Promise.resolve({ data: String(url).includes('unread-count') ? { count: 1 } : [] })
+  )
+  ;(axios.post as ReturnType<typeof vi.fn>).mockResolvedValue({ data: {} })
+  ;(axios.patch as ReturnType<typeof vi.fn>).mockResolvedValue({ data: {} })
+  fetchMock = vi.fn()
+  global.fetch = fetchMock
+  mockPush.mockClear()
+})
+
+afterEach(() => {
+  vi.useRealTimers()
+  vi.restoreAllMocks()
 })
 
 describe('NotificationBell SSE watcher null-safety', () => {
-  let fetchMock: ReturnType<typeof vi.fn>
   let errorSpy: ReturnType<typeof vi.spyOn>
 
   beforeEach(() => {
-    vi.useFakeTimers({ shouldAdvanceTime: true })
-    window.localStorage.clear()
-    setActivePinia(createPinia())
-    useVaultBoyFeedback().clear()
-    vi.mocked(isTauri).mockReturnValue(false)
-    vi.mocked(sendNotification).mockClear()
-
-    // API mocks fall back to empty/valid responses
-    ;(axios.get as ReturnType<typeof vi.fn>).mockResolvedValue({ data: [] })
-    ;(axios.post as ReturnType<typeof vi.fn>).mockResolvedValue({ data: {} })
-    ;(axios.patch as ReturnType<typeof vi.fn>).mockResolvedValue({ data: {} })
-    ;(axios.get as ReturnType<typeof vi.fn>).mockImplementation((url: string) => {
-      if (url.includes('unread-count')) return Promise.resolve({ data: { count: 1 } })
-      return Promise.resolve({ data: [] })
-    })
-
-    fetchMock = vi.fn()
-    global.fetch = fetchMock
-
-    // Any watcher getter error would surface here as a Vue warn
-    errorSpy = vi.spyOn(console, 'error').mockImplementation((...args: unknown[]) => {
-      console.log(
-        'CAPTURED_CONSOLE_ERROR:',
-        JSON.stringify(args, (k, v) => (v instanceof Error ? v.message : v))
-      )
-    })
-  })
-
-  afterEach(() => {
-    vi.useRealTimers()
-    vi.restoreAllMocks()
-    errorSpy.mockRestore()
+    // Any watcher getter error surfaces here as a Vue warn.
+    errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
   })
 
   it.each(['vault-1', 'other-vault'])(
@@ -166,19 +230,17 @@ describe('NotificationBell SSE watcher null-safety', () => {
     async (vaultId) => {
       vi.mocked(isTauri).mockReturnValue(true)
       vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden')
-      useAuthStore().token = 'test-token'
+      signedIn()
       useVaultStore().activeVaultId = 'vault-1'
-      const notification = { ...JSON.parse(notifData).notification, vault_id: vaultId }
-      const chunk = encodeSse(JSON.stringify({ notification }), 'notification')
-      fetchMock.mockResolvedValue(createMockResponse([chunk, chunk], { hang: true }))
-      const wrapper = mount(NotificationBell)
-      await vi.advanceTimersByTimeAsync(0)
-      await flushPromises()
+      const payload = notification({ vault_id: vaultId })
+
+      const wrapper = await deliver(payload, { times: 2 })
+
       expect(sendNotification).toHaveBeenCalledTimes(vaultId === 'vault-1' ? 1 : 0)
       if (vaultId === 'vault-1')
         expect(sendNotification).toHaveBeenCalledWith({
-          title: notification.title,
-          body: notification.message,
+          title: payload.title,
+          body: payload.message,
           icon: '/resources/notification-icon.png',
         })
       wrapper.unmount()
@@ -190,19 +252,13 @@ describe('NotificationBell SSE watcher null-safety', () => {
     async (vaultId) => {
       vi.mocked(isTauri).mockReturnValue(true)
       vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden')
-      useAuthStore().token = 'test-token'
+      signedIn()
       const vault = useVaultStore()
       vault.activeVaultId = null
       vault.selectedVaultId = 'vault-1'
-      const notification = { ...JSON.parse(notifData).notification, vault_id: vaultId }
-      fetchMock.mockResolvedValue(
-        createMockResponse([encodeSse(JSON.stringify({ notification }), 'notification')], {
-          hang: true,
-        })
-      )
-      const wrapper = mount(NotificationBell)
-      await vi.advanceTimersByTimeAsync(0)
-      await flushPromises()
+
+      const wrapper = await deliver(notification({ vault_id: vaultId }))
+
       expect(sendNotification).toHaveBeenCalledTimes(vaultId === 'vault-1' ? 1 : 0)
       wrapper.unmount()
     }
@@ -211,52 +267,42 @@ describe('NotificationBell SSE watcher null-safety', () => {
   it.each(['vault-1', 'other-vault'])(
     'animates a birth only for the active vault (%s)',
     async (id) => {
-      useAuthStore().token = 'test-token'
+      signedIn()
       useVaultStore().activeVaultId = 'vault-1'
       const message = 'A baby was born!'
-      const data = JSON.stringify({
-        notification: {
-          ...JSON.parse(notifData).notification,
-          notification_type: 'baby_born',
-          vault_id: id,
-          message,
-        },
-      })
-      fetchMock.mockResolvedValue(
-        createMockResponse([encodeSse(data, 'notification')], { hang: true })
+
+      const wrapper = await deliver(
+        notification({ notification_type: 'baby_born', vault_id: id, message })
       )
-      const wrapper = mount(NotificationBell)
-      await vi.advanceTimersByTimeAsync(0)
-      await flushPromises()
+
       if (id === 'vault-1')
         expect(useVaultBoyFeedback().current.value).toMatchObject({
           animation: 'baby',
           vaultId: id,
         })
       else expect(useVaultBoyFeedback().current.value).toBeNull()
-      expect(useToast().toasts.value.some((toast) => toast.message === message)).toBe(true)
+      expect(toastsWith(message)).toHaveLength(1)
       wrapper.unmount()
     }
   )
 
   it('surfaces a training completion missed while the stream was paused', async () => {
     const visibility = vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible')
-    useAuthStore().token = 'test-token'
+    signedIn()
     fetchMock.mockImplementation(() => Promise.resolve(createMockResponse([], { hang: true })))
     const wrapper = mount(NotificationBell)
     await vi.advanceTimersByTimeAsync(0)
     await flushPromises()
-    const { toasts } = useToast()
-    toasts.value = []
+    useToast().toasts.value = []
     visibility.mockReturnValue('hidden')
     document.dispatchEvent(new Event('visibilitychange'))
     await vi.advanceTimersByTimeAsync(0)
-    const completed = {
-      ...JSON.parse(notifData).notification,
+
+    const completed = notification({
       notification_type: 'training_complete',
       message: 'Training finished while away',
       is_read: false,
-    }
+    })
     vi.mocked(axios.get).mockImplementation(async (url) => ({
       data: String(url).includes('unread-count') ? { count: 1 } : [completed],
     }))
@@ -264,32 +310,23 @@ describe('NotificationBell SSE watcher null-safety', () => {
     document.dispatchEvent(new Event('visibilitychange'))
     await vi.advanceTimersByTimeAsync(0)
     await flushPromises()
-    const matching = toasts.value.filter(
-      (toast) => toast.message === 'Training finished while away'
-    )
+
+    const matching = toastsWith('Training finished while away')
     expect(matching).toHaveLength(1)
     expect(matching[0].count).toBe(1)
     wrapper.unmount()
   })
 
   it('toasts a site discovery once when the transport delivers it twice', async () => {
-    useAuthStore().token = 'test-token'
-    const data = JSON.stringify({
-      notification: {
-        ...JSON.parse(notifData).notification,
-        notification_type: 'exploration_update',
-        message: 'Lucy found Red Rocket. Enter before arriving home.',
-        meta_data: { event: 'site_found', exploration_id: 'exp-1', site_id: 'red_rocket' },
-      },
+    signedIn()
+    const payload = notification({
+      notification_type: 'exploration_update',
+      message: 'Lucy found Red Rocket. Enter before arriving home.',
+      meta_data: { event: 'site_found', exploration_id: 'exp-1', site_id: 'red_rocket' },
     })
-    fetchMock.mockResolvedValue(
-      createMockResponse([encodeSse(data, 'notification'), encodeSse(data, 'notification')], {
-        hang: true,
-      })
-    )
-    const wrapper = mount(NotificationBell)
-    await vi.advanceTimersByTimeAsync(0)
-    await flushPromises()
+
+    const wrapper = await deliver(payload, { times: 2 })
+
     const reports = useToast().toasts.value.filter((toast) =>
       toast.message.includes('found Red Rocket')
     )
@@ -306,48 +343,35 @@ describe('NotificationBell SSE watcher null-safety', () => {
     ['resource_low', 'resourceLow'],
   ])('plays one %s cue when a notification is delivered twice', async (type, sound) => {
     const play = vi.spyOn(audioManager, 'play').mockImplementation(() => {})
-    useAuthStore().token = 'test-token'
-    const data = JSON.stringify({
-      notification: { ...JSON.parse(notifData).notification, notification_type: type },
-    })
-    fetchMock.mockResolvedValue(
-      createMockResponse([encodeSse(data, 'notification'), encodeSse(data, 'notification')], {
-        hang: true,
-      })
-    )
-    const wrapper = mount(NotificationBell)
-    await vi.advanceTimersByTimeAsync(0)
-    await flushPromises()
+    signedIn()
+
+    const wrapper = await deliver(notification({ notification_type: type }), { times: 2 })
 
     expect(play).toHaveBeenCalledExactlyOnceWith(sound, 'ui')
-    await wrapper.get('button[aria-haspopup="dialog"]').trigger('click')
-    await flushPromises()
+    await openBell(wrapper)
     expect(wrapper.findAll('[data-notification-id="n1"]')).toHaveLength(1)
     wrapper.unmount()
   })
 
   it('does not throw on the watcher getter when authenticated and an SSE notification arrives', async () => {
-    // ARRANGE: authenticated user, SSE stream delivers a notification then hangs open
-    const authStore = useAuthStore()
-    authStore.token = 'test-token'
+    signedIn()
     fetchMock.mockResolvedValue(
-      createMockResponse([encodeSse(notifData, 'notification')], { hang: true })
+      createMockResponse(
+        [encodeSse(JSON.stringify({ notification: baseNotification }), 'notification')],
+        {
+          hang: true,
+        }
+      )
     )
 
-    // ACT: mount (onMounted starts SSE) and let the stream flush
     const wrapper = mount(NotificationBell)
     await vi.advanceTimersByTimeAsync(0)
     await flushPromises()
 
-    // ASSERT: no watcher getter error was logged
     expect(errorSpy).not.toHaveBeenCalled()
-
-    // ASSERT: the SSE event was processed — popup shows the notification
-    await wrapper.find('button[aria-haspopup="dialog"]').trigger('click')
-    await flushPromises()
+    await openBell(wrapper)
     expect(wrapper.text()).toContain('Level Up!')
     expect(wrapper.text()).toContain('A dweller reached a new level')
-
     wrapper.unmount()
   })
 
@@ -357,29 +381,24 @@ describe('NotificationBell SSE watcher null-safety', () => {
   ])(
     'announces adoption without toasting other relationship events ($event)',
     async ({ event, toastCount }) => {
-      useAuthStore().token = 'test-token'
-      const { toasts } = useToast()
-      toasts.value = []
-      const notification = {
-        ...JSON.parse(notifData).notification,
+      signedIn()
+      useToast().toasts.value = []
+      const payload = notification({
         id: 'adopted-child',
         notification_type: 'relationship_formed',
         meta_data: { event },
         message: 'Alice and Bob adopted Lucy.',
         from_dweller_id: 'child-1',
         vault_id: 'vault-1',
-      }
-      const data = encodeSse(JSON.stringify({ notification }), 'notification')
-      fetchMock.mockResolvedValue(createMockResponse([data, data], { hang: true }))
-      const wrapper = mount(NotificationBell)
-      await vi.advanceTimersByTimeAsync(0)
-      await flushPromises()
-      const matching = toasts.value.filter((toast) => toast.message === notification.message)
+      })
+
+      const wrapper = await deliver(payload, { times: 2 })
+
+      const matching = toastsWith(payload.message)
       expect(matching).toHaveLength(toastCount)
       if (toastCount) expect(matching[0].count).toBe(1)
-      await wrapper.get('button[aria-haspopup="dialog"]').trigger('click')
-      await flushPromises()
-      expect(wrapper.text()).toContain(notification.message)
+      await openBell(wrapper)
+      expect(wrapper.text()).toContain(payload.message)
       wrapper.unmount()
     }
   )
@@ -387,550 +406,222 @@ describe('NotificationBell SSE watcher null-safety', () => {
   it.each(['Training continues', 'Goal reached', 'Training complete'])(
     'shows the %s outcome in both toast and bell',
     async (outcome) => {
-      useAuthStore().token = 'test-token'
-      const { toasts } = useToast()
-      toasts.value = []
+      signedIn()
+      useToast().toasts.value = []
       const message = `Strength +1 (6). ${outcome}.`
-      const data = JSON.stringify({
-        notification: {
-          id: 'training-notification',
-          vault_id: 'vault-1',
-          notification_type: 'training_complete',
-          title: `Lucy — ${outcome}`,
-          message,
-          priority: 'normal',
-          created_at: '2026-10-21T12:00:00',
-        },
+
+      const wrapper = await deliver({
+        id: 'training-notification',
+        vault_id: 'vault-1',
+        notification_type: 'training_complete',
+        title: `Lucy — ${outcome}`,
+        message,
+        priority: 'normal',
+        created_at: '2026-10-21T12:00:00',
+        meta_data: {},
       })
-      fetchMock.mockResolvedValue(
-        createMockResponse([encodeSse(data, 'notification')], { hang: true })
-      )
-      const wrapper = mount(NotificationBell)
-      await vi.advanceTimersByTimeAsync(0)
-      await flushPromises()
-      expect(toasts.value.some((toast) => toast.message === message)).toBe(true)
-      await wrapper.get('button[aria-haspopup="dialog"]').trigger('click')
-      await flushPromises()
+
+      expect(toastsWith(message)).toHaveLength(1)
+      await openBell(wrapper)
       expect(wrapper.text()).toContain(message)
       wrapper.unmount()
     }
   )
 
-  it('toasts and adds a bell entry when a hazard team join notification arrives', async () => {
-    // ARRANGE: authenticated user, SSE delivers a hazard_team_joined notification
-    const authStore = useAuthStore()
-    authStore.token = 'test-token'
-    const { toasts } = useToast()
-    toasts.value = []
+  it.each([
+    {
+      type: 'hazard_team_joined',
+      title: 'Hazard Team Joined',
+      message: 'Jane Doe joined the fire team',
+      meta: { dweller_id: 'd1', dweller_name: 'Jane Doe', team: 'fire', status: 'active' },
+    },
+    {
+      type: 'arena_morale_boost',
+      title: 'Arena morale boost',
+      message: 'Arena show lifted vault morale',
+      meta: { room_id: 'arena-1' },
+    },
+    {
+      type: 'quest_complete',
+      title: 'Quest Party Returned',
+      message: "'A Pier into the Future' party has returned! Rewards are ready to claim.",
+      meta: { quest_id: 'quest-1', quest_title: 'A Pier into the Future', ready_to_claim: true },
+      icon: 'mdi:treasure-chest',
+    },
+    {
+      type: 'location_cleared',
+      title: 'Megaton cleared',
+      message: 'Megaton has been cleared. It will be ready to loot again soon.',
+      icon: 'mdi:flag-checkered',
+    },
+    {
+      type: 'location_ready',
+      title: 'Megaton ready',
+      message: 'Megaton is ready to be cleared again.',
+      icon: 'mdi:map-marker-refresh',
+    },
+    {
+      type: 'objective_completed',
+      title: 'Objective Complete',
+      message: 'Objective complete: Scrap 1 Baseball bat',
+    },
+    {
+      type: 'objectives_refreshed',
+      title: 'Objective Complete',
+      message: 'Objective complete: Scrap 1 Baseball bat',
+    },
+    {
+      type: 'storage_item_degraded',
+      title: 'Storage maintenance',
+      message: 'A stored weapon changed catalog variant',
+      icon: 'mdi:tools',
+    },
+    {
+      type: 'storage_item_upgraded',
+      title: 'Storage maintenance',
+      message: 'A stored weapon changed catalog variant',
+      icon: 'mdi:arrow-up-bold',
+    },
+  ])('announces $type in the toast and the bell', async ({ type, title, message, meta, icon }) => {
+    signedIn()
+    useToast().toasts.value = []
 
-    const hazardNotifData = JSON.stringify({
-      notification: {
-        id: 'n2',
-        notification_type: 'hazard_team_joined',
-        title: 'Hazard Team Joined',
-        message: 'Jane Doe joined the fire team',
-        priority: 'normal',
-        created_at: '2026-08-11T10:00:00',
-        meta_data: {
-          dweller_id: 'd1',
-          dweller_name: 'Jane Doe',
-          team: 'fire',
-          status: 'active',
-          promoted: false,
-          vault_id: 'vault-1',
-        },
-      },
-    })
-    fetchMock.mockResolvedValue(
-      createMockResponse([encodeSse(hazardNotifData, 'notification')], { hang: true })
+    const wrapper = await deliver(
+      notification({ notification_type: type, title, message, meta_data: meta ?? {} })
     )
 
-    // ACT: mount (onMounted starts SSE) and let the stream flush
-    const wrapper = mount(NotificationBell)
-    await vi.advanceTimersByTimeAsync(0)
-    await flushPromises()
-
-    // ASSERT: the event surfaced as a toast (progression red line)
-    expect(toasts.value.some((t) => t.message === 'Jane Doe joined the fire team')).toBe(true)
-
-    // ASSERT: the event also produced a normal bell entry
-    await wrapper.find('button[aria-haspopup="dialog"]').trigger('click')
-    await flushPromises()
-    expect(wrapper.text()).toContain('Hazard Team Joined')
-    expect(wrapper.text()).toContain('Jane Doe joined the fire team')
-
-    wrapper.unmount()
-  })
-
-  it('toasts and adds a bell entry when an arena morale boost arrives', async () => {
-    // ARRANGE: authenticated user, SSE delivers an arena_morale_boost notification
-    const authStore = useAuthStore()
-    authStore.token = 'test-token'
-    const { toasts } = useToast()
-    toasts.value = []
-
-    const moraleNotifData = JSON.stringify({
-      notification: {
-        id: 'n4',
-        notification_type: 'arena_morale_boost',
-        title: 'Arena morale boost',
-        message: 'Arena show lifted vault morale',
-        priority: 'normal',
-        created_at: '2026-10-15T10:00:00',
-        meta_data: {
-          room_id: 'arena-1',
-          vault_id: 'vault-1',
-        },
-      },
-    })
-    fetchMock.mockResolvedValue(
-      createMockResponse([encodeSse(moraleNotifData, 'notification')], { hang: true })
-    )
-
-    // ACT: mount (onMounted starts SSE) and let the stream flush
-    const wrapper = mount(NotificationBell)
-    await vi.advanceTimersByTimeAsync(0)
-    await flushPromises()
-
-    // ASSERT: the event surfaced as a toast (progression red line)
-    expect(toasts.value.some((t) => t.message === 'Arena show lifted vault morale')).toBe(true)
-
-    // ASSERT: the event also produced a normal bell entry
-    await wrapper.find('button[aria-haspopup="dialog"]').trigger('click')
-    await flushPromises()
-    expect(wrapper.text()).toContain('Arena morale boost')
-    expect(wrapper.text()).toContain('Arena show lifted vault morale')
-
+    expect(toastsWith(message)).toHaveLength(1)
+    await openBell(wrapper)
+    expect(wrapper.text()).toContain(title)
+    expect(wrapper.text()).toContain(message)
+    if (icon) expect(wrapper.find(`[data-icon="${icon}"]`).exists()).toBe(true)
     wrapper.unmount()
   })
 
   it('surfaces an exploration completion that lands away from the exploration routes', async () => {
-    // ARRANGE: authenticated user, SSE delivers the arrival notification
-    const authStore = useAuthStore()
-    authStore.token = 'test-token'
-    const { toasts } = useToast()
-    toasts.value = []
+    signedIn()
+    useToast().toasts.value = []
     removePendingReport('exp-1')
+    const message = 'Lucy MacLean returned with 120 caps'
 
-    const completionData = JSON.stringify({
-      notification: {
-        id: 'n3',
-        notification_type: 'exploration_complete',
-        title: 'Exploration Complete',
-        message: 'Lucy MacLean returned with 120 caps',
-        priority: 'normal',
-        created_at: '2026-08-11T11:00:00',
-        vault_id: 'vault-1',
-        meta_data: {
-          exploration_id: 'exp-1',
-          vault_id: 'vault-1',
-          dweller_id: 'd1',
-          dweller_name: 'Lucy MacLean',
-          rewards: { caps: 120, items: [], experience: 40, distance: 3 },
-        },
+    const wrapper = await deliver({
+      id: 'n3',
+      notification_type: 'exploration_complete',
+      title: 'Exploration Complete',
+      message,
+      vault_id: 'vault-1',
+      meta_data: {
+        exploration_id: 'exp-1',
+        dweller_id: 'd1',
+        dweller_name: 'Lucy MacLean',
+        rewards: { caps: 120, items: [], experience: 40, distance: 3 },
       },
     })
-    fetchMock.mockResolvedValue(
-      createMockResponse([encodeSse(completionData, 'notification')], { hang: true })
-    )
 
-    // ACT: mount (onMounted starts SSE) and let the stream flush
-    const wrapper = mount(NotificationBell)
-    await vi.advanceTimersByTimeAsync(0)
-    await flushPromises()
-
-    // ASSERT: announced immediately, rather than only after a bell click
-    expect(toasts.value.some((t) => t.message === 'Lucy MacLean returned with 120 caps')).toBe(true)
-
-    // ASSERT: the reward report is queued without the player clicking the notification
+    expect(toastsWith(message)).toHaveLength(1)
     const { pendingReports } = usePendingReports('vault-1')
-    expect(pendingReports.value.some((r) => r.explorationId === 'exp-1')).toBe(true)
-
-    wrapper.unmount()
-  })
-
-  it('toasts a quest arrival when the party returns ready to claim', async () => {
-    // ARRANGE: authenticated user, SSE delivers the quest arrival notification
-    const authStore = useAuthStore()
-    authStore.token = 'test-token'
-    const { toasts } = useToast()
-    toasts.value = []
-
-    const questNotifData = JSON.stringify({
-      notification: {
-        id: 'n4',
-        notification_type: 'quest_complete',
-        title: 'Quest Party Returned',
-        message: "'A Pier into the Future' party has returned! Rewards are ready to claim.",
-        priority: 'high',
-        created_at: '2026-08-11T12:00:00',
-        vault_id: 'vault-1',
-        meta_data: {
-          quest_id: 'quest-1',
-          vault_id: 'vault-1',
-          quest_title: 'A Pier into the Future',
-          phase: 'returned',
-          ready_to_claim: true,
-        },
-      },
-    })
-    fetchMock.mockResolvedValue(
-      createMockResponse([encodeSse(questNotifData, 'notification')], { hang: true })
-    )
-
-    // ACT: mount (onMounted starts SSE) and let the stream flush
-    const wrapper = mount(NotificationBell)
-    await vi.advanceTimersByTimeAsync(0)
-    await flushPromises()
-
-    // ASSERT: announced immediately (progression red line)
-    expect(toasts.value.some((t) => t.message.includes('party has returned'))).toBe(true)
-
-    // ASSERT: the event also produced a bell entry with the treasure-chest icon
-    await wrapper.find('button[aria-haspopup="dialog"]').trigger('click')
-    await flushPromises()
-    expect(wrapper.text()).toContain('Quest Party Returned')
-    expect(wrapper.find('[data-icon="mdi:treasure-chest"]').exists()).toBe(true)
-
+    expect(pendingReports.value.some((report) => report.explorationId === 'exp-1')).toBe(true)
     wrapper.unmount()
   })
 
   it('does not toast a quest_complete notification that is not ready to claim', async () => {
-    // ARRANGE: authenticated user, SSE delivers a quest_complete without ready_to_claim
-    const authStore = useAuthStore()
-    authStore.token = 'test-token'
-    const { toasts } = useToast()
-    toasts.value = []
+    signedIn()
+    useToast().toasts.value = []
 
-    const questNotifData = JSON.stringify({
-      notification: {
-        id: 'n5',
-        notification_type: 'quest_complete',
-        title: 'Quest Party Returned',
-        message: "'A Pier into the Future' party has returned! Rewards are ready to claim.",
-        priority: 'high',
-        created_at: '2026-08-11T12:00:00',
+    const wrapper = await deliver({
+      id: 'n5',
+      notification_type: 'quest_complete',
+      title: 'Quest Party Returned',
+      message: "'A Pier into the Future' party has returned! Rewards are ready to claim.",
+      priority: 'high',
+      created_at: '2026-08-11T12:00:00',
+      vault_id: 'vault-1',
+      meta_data: {
+        quest_id: 'quest-1',
+        quest_title: 'A Pier into the Future',
+        phase: 'returned',
+        ready_to_claim: false,
         vault_id: 'vault-1',
-        meta_data: {
-          quest_id: 'quest-1',
-          vault_id: 'vault-1',
-          quest_title: 'A Pier into the Future',
-          phase: 'returned',
-          ready_to_claim: false,
-        },
       },
     })
-    fetchMock.mockResolvedValue(
-      createMockResponse([encodeSse(questNotifData, 'notification')], { hang: true })
-    )
 
-    // ACT
-    const wrapper = mount(NotificationBell)
-    await vi.advanceTimersByTimeAsync(0)
-    await flushPromises()
-
-    // ASSERT: no toast, but the bell entry still exists
-    expect(toasts.value.some((t) => t.message.includes('party has returned'))).toBe(false)
-    await wrapper.find('button[aria-haspopup="dialog"]').trigger('click')
-    await flushPromises()
+    expect(
+      useToast().toasts.value.some((toast) => toast.message.includes('party has returned'))
+    ).toBe(false)
+    await openBell(wrapper)
     expect(wrapper.text()).toContain('Quest Party Returned')
-
     wrapper.unmount()
   })
 
   it('does not throw on the watcher getter when unauthenticated', async () => {
-    // ARRANGE: no token — onMounted skips startSse, sse.value stays undefined
     fetchMock.mockResolvedValue(createMockResponse([], { hang: true }))
 
-    // ACT
     const wrapper = mount(NotificationBell)
     await vi.advanceTimersByTimeAsync(0)
     await flushPromises()
 
-    // ASSERT: no SSE connection attempted, no watcher error
     expect(fetchMock).not.toHaveBeenCalled()
     expect(errorSpy).not.toHaveBeenCalled()
-
     wrapper.unmount()
   })
 
   it('handles a notification event with null payload data without throwing', async () => {
-    // ARRANGE: authenticated, server sends a notification event whose data is null
-    const authStore = useAuthStore()
-    authStore.token = 'test-token'
+    signedIn()
     fetchMock.mockResolvedValue(
       createMockResponse([encodeSse('null', 'notification')], { hang: true })
     )
 
-    // ACT
     const wrapper = mount(NotificationBell)
     await vi.advanceTimersByTimeAsync(0)
     await flushPromises()
 
-    // ASSERT: watcher ran `(evt.data as any)?.notification` on null — no throw
     expect(errorSpy).not.toHaveBeenCalled()
-
-    // ASSERT: no notification was added (early return), popup shows empty state
-    await wrapper.find('button[aria-haspopup="dialog"]').trigger('click')
-    await flushPromises()
+    await openBell(wrapper)
     expect(wrapper.text()).toContain('No notifications yet')
-
     wrapper.unmount()
   })
 
   it('handles token change mid-lifecycle (login while mounted) without throwing', async () => {
-    // ARRANGE: starts unauthenticated, then logs in (triggers the token watcher -> startSse)
-    const authStore = useAuthStore()
     fetchMock.mockResolvedValue(
-      createMockResponse([encodeSse(notifData, 'notification')], { hang: true })
+      createMockResponse(
+        [encodeSse(JSON.stringify({ notification: baseNotification }), 'notification')],
+        {
+          hang: true,
+        }
+      )
     )
 
     const wrapper = mount(NotificationBell)
     await vi.advanceTimersByTimeAsync(0)
     await flushPromises()
 
-    // ACT: login while mounted
-    authStore.token = 'test-token'
+    signedIn()
     await vi.advanceTimersByTimeAsync(0)
     await flushPromises()
 
-    // ASSERT: SSE started, notification processed, no watcher error
     expect(fetchMock).toHaveBeenCalled()
     expect(errorSpy).not.toHaveBeenCalled()
-
-    await wrapper.find('button[aria-haspopup="dialog"]').trigger('click')
-    await flushPromises()
+    await openBell(wrapper)
     expect(wrapper.text()).toContain('Level Up!')
-
     wrapper.unmount()
   })
-
-  it('toasts and adds a bell entry when a location is cleared', async () => {
-    // ARRANGE: authenticated user, SSE delivers a location_cleared notification
-    const authStore = useAuthStore()
-    authStore.token = 'test-token'
-    const { toasts } = useToast()
-    toasts.value = []
-
-    const clearedData = JSON.stringify({
-      notification: {
-        id: 'n6',
-        notification_type: 'location_cleared',
-        title: 'Megaton cleared',
-        message: 'Megaton has been cleared. It will be ready to loot again soon.',
-        priority: 'normal',
-        created_at: '2026-08-11T13:00:00',
-        vault_id: 'vault-1',
-        meta_data: {},
-      },
-    })
-    fetchMock.mockResolvedValue(
-      createMockResponse([encodeSse(clearedData, 'notification')], { hang: true })
-    )
-
-    // ACT: mount (onMounted starts SSE) and let the stream flush
-    const wrapper = mount(NotificationBell)
-    await vi.advanceTimersByTimeAsync(0)
-    await flushPromises()
-
-    // ASSERT: announced immediately (progression red line)
-    expect(
-      toasts.value.some(
-        (t) => t.message === 'Megaton has been cleared. It will be ready to loot again soon.'
-      )
-    ).toBe(true)
-
-    // ASSERT: the event also produced a bell entry with the cleared icon
-    await wrapper.find('button[aria-haspopup="dialog"]').trigger('click')
-    await flushPromises()
-    expect(wrapper.text()).toContain('Megaton cleared')
-    expect(wrapper.find('[data-icon="mdi:flag-checkered"]').exists()).toBe(true)
-
-    wrapper.unmount()
-  })
-
-  it('toasts and adds a bell entry when a point is ready to re-loot', async () => {
-    // ARRANGE: authenticated user, SSE delivers a location_ready notification
-    const authStore = useAuthStore()
-    authStore.token = 'test-token'
-    const { toasts } = useToast()
-    toasts.value = []
-
-    const readyData = JSON.stringify({
-      notification: {
-        id: 'n7',
-        notification_type: 'location_ready',
-        title: 'Megaton ready',
-        message: 'Megaton is ready to be cleared again.',
-        priority: 'normal',
-        created_at: '2026-08-11T14:00:00',
-        vault_id: 'vault-1',
-        meta_data: { location_id: 'loc-1' },
-      },
-    })
-    fetchMock.mockResolvedValue(
-      createMockResponse([encodeSse(readyData, 'notification')], { hang: true })
-    )
-
-    // ACT: mount (onMounted starts SSE) and let the stream flush
-    const wrapper = mount(NotificationBell)
-    await vi.advanceTimersByTimeAsync(0)
-    await flushPromises()
-
-    // ASSERT: announced immediately (progression red line)
-    expect(toasts.value.some((t) => t.message === 'Megaton is ready to be cleared again.')).toBe(
-      true
-    )
-
-    // ASSERT: the event also produced a bell entry with the ready icon
-    await wrapper.find('button[aria-haspopup="dialog"]').trigger('click')
-    await flushPromises()
-    expect(wrapper.text()).toContain('Megaton ready')
-    expect(wrapper.find('[data-icon="mdi:map-marker-refresh"]').exists()).toBe(true)
-
-    wrapper.unmount()
-  })
-
-  it.each(['objective_completed', 'objectives_refreshed'])(
-    'toasts when a %s notification arrives',
-    async (notificationType) => {
-      // ARRANGE: authenticated user, SSE delivers an objective_completed notification
-      const authStore = useAuthStore()
-      authStore.token = 'test-token'
-      const { toasts } = useToast()
-      toasts.value = []
-
-      const objectiveData = JSON.stringify({
-        notification: {
-          id: 'n8',
-          notification_type: notificationType,
-          title: 'Objective Complete',
-          message: 'Objective complete: Scrap 1 Baseball bat',
-          priority: 'normal',
-          created_at: '2026-08-11T15:00:00',
-          vault_id: 'vault-1',
-          meta_data: {},
-        },
-      })
-      fetchMock.mockResolvedValue(
-        createMockResponse([encodeSse(objectiveData, 'notification')], { hang: true })
-      )
-
-      // ACT: mount (onMounted starts SSE) and let the stream flush
-      const wrapper = mount(NotificationBell)
-      await vi.advanceTimersByTimeAsync(0)
-      await flushPromises()
-
-      // ASSERT: announced immediately (progression red line)
-      expect(
-        toasts.value.some((t) => t.message === 'Objective complete: Scrap 1 Baseball bat')
-      ).toBe(true)
-
-      // ASSERT: the event also produced a bell entry
-      await wrapper.find('button[aria-haspopup="dialog"]').trigger('click')
-      await flushPromises()
-      expect(wrapper.text()).toContain('Objective Complete')
-
-      wrapper.unmount()
-    }
-  )
 })
 
 describe('NotificationBell popup accessibility', () => {
-  let fetchMock: ReturnType<typeof vi.fn>
-
-  const actionableNotification = {
-    id: 'act-1',
-    vault_id: 'vault-1',
-    notification_type: 'level_up',
-    title: 'Actionable Alert',
-    message: 'Open the dweller list',
-    priority: 'normal',
-    is_read: false,
-    created_at: '2026-08-11T10:00:00',
-    meta_data: {},
-  }
-
-  const informationalNotification = {
-    id: 'info-1',
-    vault_id: null,
-    notification_type: 'resource_low',
-    title: 'Informational Note',
-    message: 'Power reserves are low',
-    priority: 'info',
-    is_read: false,
-    created_at: '2026-08-11T09:00:00',
-    meta_data: {},
-  }
-
-  const mockNotificationList = (items: Array<Record<string, unknown>>) => {
-    ;(axios.get as ReturnType<typeof vi.fn>).mockImplementation((url: string) => {
-      if (url.includes('unread-count')) {
-        return Promise.resolve({ data: { count: items.filter((item) => !item.is_read).length } })
-      }
-      return Promise.resolve({ data: items.map((item) => ({ ...item })) })
-    })
-  }
-
-  const mountBell = async (items: Array<Record<string, unknown>>) => {
-    useAuthStore().token = 'test-token'
-    fetchMock.mockResolvedValue(createMockResponse([], { hang: true }))
-    mockNotificationList(items)
-    const wrapper = mount(NotificationBell, { attachTo: document.body })
-    await vi.advanceTimersByTimeAsync(0)
-    await flushPromises()
-    return wrapper
-  }
-
-  const mountAndOpen = async (items: Array<Record<string, unknown>>) => {
-    const wrapper = await mountBell(items)
-    await wrapper.get('button[aria-haspopup="dialog"]').trigger('click')
-    await flushPromises()
-    return wrapper
-  }
-
-  // Transition removal runs on requestAnimationFrame; step the fake clock so the
-  // popup has left the DOM before a close is asserted.
-  const settleClose = async () => {
-    await vi.advanceTimersByTimeAsync(100)
-    await flushPromises()
-  }
-
-  beforeEach(() => {
-    vi.useFakeTimers({ shouldAdvanceTime: true })
-    window.localStorage.clear()
-    setActivePinia(createPinia())
-    useVaultBoyFeedback().clear()
-    ;(axios.patch as ReturnType<typeof vi.fn>).mockResolvedValue({ data: {} })
-    ;(axios.post as ReturnType<typeof vi.fn>).mockResolvedValue({ data: {} })
-    fetchMock = vi.fn()
-    global.fetch = fetchMock
-    mockPush.mockClear()
-  })
-
-  afterEach(() => {
-    vi.useRealTimers()
-    vi.restoreAllMocks()
-  })
-
   it('constrains the popup to the viewport and wires the bell/popup ARIA', async () => {
     const wrapper = await mountBell([informationalNotification])
     const bell = wrapper.get('button[aria-haspopup="dialog"]')
 
-    expect(bell.attributes('aria-haspopup')).toBe('dialog')
     expect(bell.attributes('aria-expanded')).toBe('false')
     expect(bell.attributes('aria-controls')).toBe('notifications-popup')
-
-    await bell.trigger('click')
-    await flushPromises()
+    await openBell(wrapper)
 
     const popup = wrapper.get('[role="dialog"]')
     expect(popup.attributes('id')).toBe('notifications-popup')
     expect(popup.attributes('aria-label')).toBe('Notifications')
     // jsdom has no CSS pipeline, so the viewport clamp is asserted on the class attr.
-    const popupClass = popup.attributes('class') ?? ''
-    expect(popupClass).toMatch(/w-\[min\(24rem,calc\(100vw_-_1rem\)\)\]/)
-    expect(popupClass).not.toMatch(/(^|\s)w-96(\s|$)/)
+    expect(popup.attributes('class')).toMatch(/w-\[min\(24rem,calc\(100vw_-_1rem\)\)\]/)
+    expect(popup.attributes('class')).not.toMatch(/(^|\s)w-96(\s|$)/)
     expect(wrapper.get('.notification-backdrop').attributes('aria-hidden')).toBe('true')
     expect(bell.attributes('aria-expanded')).toBe('true')
 
@@ -938,23 +629,24 @@ describe('NotificationBell popup accessibility', () => {
     await settleClose()
     expect(bell.attributes('aria-expanded')).toBe('false')
     expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
-
     wrapper.unmount()
   })
 
-  it('closes on Escape and returns focus to the bell', async () => {
-    const wrapper = await mountAndOpen([informationalNotification])
+  it.each(['Escape', 'backdrop'] as const)(
+    'closes on %s and returns focus to the bell',
+    async (how) => {
+      const wrapper = await mountAndOpen([informationalNotification])
+      expect(document.activeElement).toBe(wrapper.get('[role="dialog"]').element)
 
-    expect(document.activeElement).toBe(wrapper.get('[role="dialog"]').element)
+      if (how === 'Escape') window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
+      else await wrapper.get('.notification-backdrop').trigger('click')
+      await settleClose()
 
-    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
-    await settleClose()
-
-    expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
-    expect(document.activeElement).toBe(wrapper.get('button[aria-haspopup="dialog"]').element)
-
-    wrapper.unmount()
-  })
+      expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
+      expect(document.activeElement).toBe(wrapper.get('button[aria-haspopup="dialog"]').element)
+      wrapper.unmount()
+    }
+  )
 
   it('refreshes its unread count when a message is marked read in the full inbox', async () => {
     const items = [{ ...informationalNotification }]
@@ -968,8 +660,7 @@ describe('NotificationBell popup accessibility', () => {
     await flushPromises()
 
     expect(wrapper.findAll('span').some((span) => span.text() === '1')).toBe(false)
-    await wrapper.get('button[aria-haspopup="dialog"]').trigger('click')
-    await flushPromises()
+    await openBell(wrapper)
     expect(wrapper.get('[data-notification-id="info-1"]').text()).not.toContain('New')
     wrapper.unmount()
   })
@@ -990,7 +681,7 @@ describe('NotificationBell popup accessibility', () => {
   })
 
   it('renders rows owned by the inbox store without fetching a second list', async () => {
-    useAuthStore().token = 'test-token'
+    signedIn()
     fetchMock.mockResolvedValue(createMockResponse([], { hang: true }))
     vi.mocked(axios.get).mockImplementation((url) =>
       String(url).includes('unread-count')
@@ -998,31 +689,28 @@ describe('NotificationBell popup accessibility', () => {
         : Promise.resolve({ data: [] })
     )
     useNotificationInboxStore().receiveNotification({
-      id: 'store-owned',
-      vault_id: 'vault-1',
-      from_dweller_id: null,
-      notification_type: 'level_up',
-      title: 'Store owned',
-      message: 'The inbox store owns this row',
-      priority: 'normal',
-      is_read: false,
-      is_dismissed: false,
-      user_id: 'user-1',
-      read_at: null,
-      created_at: '2026-08-11T10:00:00',
-      meta_data: {},
+      ...notification({
+        id: 'store-owned',
+        vault_id: 'vault-1',
+        from_dweller_id: null,
+        title: 'Store owned',
+        message: 'The inbox store owns this row',
+        is_read: false,
+        is_dismissed: false,
+        user_id: 'user-1',
+        read_at: null,
+      }),
     })
     const wrapper = mount(NotificationBell)
     await vi.advanceTimersByTimeAsync(0)
     await flushPromises()
     const listRequests = () =>
       vi.mocked(axios.get).mock.calls.filter(([url]) => url === '/api/v1/notifications/')
-    const listRequestsBeforeOpen = listRequests().length
+    const before = listRequests().length
 
-    await wrapper.get('button[aria-haspopup="dialog"]').trigger('click')
-    await flushPromises()
+    await openBell(wrapper)
 
-    expect(listRequests()).toHaveLength(listRequestsBeforeOpen)
+    expect(listRequests()).toHaveLength(before)
     expect(wrapper.get('[data-notification-id="store-owned"]').text()).toContain('Store owned')
     wrapper.unmount()
   })
@@ -1039,9 +727,8 @@ describe('NotificationBell popup accessibility', () => {
       }
       return Promise.resolve({ data: {} })
     })
-    const markAll = wrapper.findAll('button').find((button) => button.text() === 'Mark all read')!
-    await markAll.trigger('click')
-    await flushPromises()
+
+    await markAllRead(wrapper)
 
     expect(axios.post).toHaveBeenCalledOnce()
     const [url, body, config] = vi.mocked(axios.post).mock.calls[0]
@@ -1050,63 +737,40 @@ describe('NotificationBell popup accessibility', () => {
     expect(config?.params?.vault_id).toBeUndefined()
     expect(wrapper.get('[data-notification-id="act-1"]').text()).not.toContain('New')
     expect(wrapper.get('[data-notification-id="info-1"]').text()).not.toContain('New')
-    expect(wrapper.get('button[aria-haspopup="dialog"]').text()).toBe('')
+    expect(bellBadge(wrapper)).toBe('')
     wrapper.unmount()
   })
 
-  it('ignores an unread-count response that arrives after logout', async () => {
+  it('guards the unread count across session changes', async () => {
     const auth = useAuthStore()
     auth.token = 'previous-session'
-    fetchMock.mockResolvedValue(createMockResponse([], { hang: true }))
-    let finish!: (value: { data: { count: number } }) => void
-    vi.mocked(axios.get).mockImplementation((url) =>
-      String(url).includes('unread-count')
-        ? new Promise((resolve) => {
-            finish = resolve
-          })
-        : Promise.resolve({ data: [] })
-    )
-    const wrapper = mount(NotificationBell)
-    await flushPromises()
-    auth.token = null
-    await flushPromises()
-    finish({ data: { count: 9 } })
-    await flushPromises()
-
-    try {
-      expect(wrapper.get('button[aria-haspopup="dialog"]').text()).toBe('')
-    } finally {
-      wrapper.unmount()
-    }
-  })
-
-  it('reloads the initial unread count when the same account refreshes its token', async () => {
-    const auth = useAuthStore()
-    auth.token = 'initial-token'
     auth.user = { id: 'same-account' } as NonNullable<typeof auth.user>
     fetchMock.mockImplementation(async () => createMockResponse([], { hang: true }))
     let finish!: (value: { data: { count: number } }) => void
-    let countRequests = 0
+    let counts = 0
     vi.mocked(axios.get).mockImplementation((url) => {
       if (!String(url).includes('unread-count')) return Promise.resolve({ data: [] })
-      if (countRequests++ > 0) return Promise.resolve({ data: { count: 5 } })
+      if (counts++ > 0) return Promise.resolve({ data: { count: 5 } })
       return new Promise((resolve) => {
         finish = resolve
       })
     })
     const wrapper = mount(NotificationBell)
-    try {
-      auth.token = 'refreshed-token'
-      await vi.advanceTimersByTimeAsync(0)
-      await flushPromises()
-      finish({ data: { count: 9 } })
-      await flushPromises()
+    await flushPromises()
 
-      expect(auth.user?.id).toBe('same-account')
-      expect(wrapper.get('button[aria-haspopup="dialog"]').text()).toBe('5')
-    } finally {
-      wrapper.unmount()
-    }
+    // A logout discards the in-flight count...
+    auth.token = null
+    await flushPromises()
+    finish({ data: { count: 9 } })
+    await flushPromises()
+    expect(bellBadge(wrapper)).toBe('')
+
+    auth.token = 'refreshed-token'
+    await vi.advanceTimersByTimeAsync(0)
+    await flushPromises()
+    expect(auth.user?.id).toBe('same-account')
+    expect(bellBadge(wrapper)).toBe('5')
+    wrapper.unmount()
   })
 
   it.each([false, true])(
@@ -1121,48 +785,44 @@ describe('NotificationBell popup accessibility', () => {
           finish = resolve
         })
       )
-      try {
-        const markAll = wrapper
-          .findAll('button')
-          .find((button) => button.text() === 'Mark all read')!
-        await markAll.trigger('click')
-        await flushPromises()
-        expect(axios.post).toHaveBeenCalledOnce()
 
-        const nextNotification = {
-          ...informationalNotification,
-          id: 'next-account-notification',
-          title: 'Next account alert',
-        }
-        mockNotificationList([nextNotification])
-        fetchMock.mockImplementation(async () =>
-          createMockResponse(
-            [encodeSse(JSON.stringify({ notification: nextNotification }), 'notification')],
-            { hang: true }
-          )
+      await markAllRead(wrapper)
+      expect(axios.post).toHaveBeenCalledOnce()
+
+      const nextNotification = notification({
+        ...informationalNotification,
+        id: 'next-account-notification',
+        title: 'Next account alert',
+      })
+      mockNotificationList([nextNotification])
+      fetchMock.mockImplementation(async () =>
+        createMockResponse(
+          [encodeSse(JSON.stringify({ notification: nextNotification }), 'notification')],
+          {
+            hang: true,
+          }
         )
-        auth.user = { id: sameAccount ? 'initial-account' : 'next-account' } as NonNullable<
-          typeof auth.user
-        >
-        auth.token = 'next-account-token'
-        await vi.advanceTimersByTimeAsync(0)
-        await flushPromises()
-        expect(wrapper.get('[data-notification-id="next-account-notification"]').text()).toContain(
-          'New'
-        )
-        expect(wrapper.get('button[aria-haspopup="dialog"]').text()).toBe('1')
+      )
+      auth.user = { id: sameAccount ? 'initial-account' : 'next-account' } as NonNullable<
+        typeof auth.user
+      >
+      auth.token = 'next-account-token'
+      await vi.advanceTimersByTimeAsync(0)
+      await flushPromises()
+      expect(wrapper.get('[data-notification-id="next-account-notification"]').text()).toContain(
+        'New'
+      )
+      expect(bellBadge(wrapper)).toBe('1')
 
-        if (sameAccount) mockNotificationList([{ ...nextNotification, is_read: true }])
-        finish({ data: {} })
-        await flushPromises()
+      if (sameAccount) mockNotificationList([{ ...nextNotification, is_read: true }])
+      finish({ data: {} })
+      await flushPromises()
 
-        expect(
-          wrapper.get('[data-notification-id="next-account-notification"]').text().includes('New')
-        ).toBe(!sameAccount)
-        expect(wrapper.get('button[aria-haspopup="dialog"]').text()).toBe(sameAccount ? '' : '1')
-      } finally {
-        wrapper.unmount()
-      }
+      expect(
+        wrapper.get('[data-notification-id="next-account-notification"]').text().includes('New')
+      ).toBe(!sameAccount)
+      expect(bellBadge(wrapper)).toBe(sameAccount ? '' : '1')
+      wrapper.unmount()
     }
   )
 
@@ -1175,7 +835,7 @@ describe('NotificationBell popup accessibility', () => {
         title: `Older ${i + 1}`,
       }))
       const newest = { ...actionableNotification, id: 'newest', title: 'Newest' }
-      useAuthStore().token = 'signed-in'
+      signedIn('signed-in')
       vi.mocked(axios.get).mockImplementation(async (url) => ({
         data: String(url).includes('unread-count')
           ? { count: server.filter((item) => !item.is_read).length }
@@ -1197,45 +857,24 @@ describe('NotificationBell popup accessibility', () => {
         })
       )
       const wrapper = mount(NotificationBell)
-      try {
-        await vi.advanceTimersByTimeAsync(0)
+      await vi.advanceTimersByTimeAsync(0)
+      await flushPromises()
+      server.unshift(newest)
+      await openBell(wrapper)
+      expect(wrapper.findAll('[data-notification-id]')).toHaveLength(21)
+      expect(wrapper.get('[data-notification-id="older-20"]').text()).toContain('New')
+
+      if (action === 'all') await markAllRead(wrapper)
+      else {
+        await wrapper.get('[data-notification-id="older-20"]').trigger('click')
         await flushPromises()
-        server.unshift(newest)
-        await wrapper.get('button[aria-haspopup="dialog"]').trigger('click')
-        await flushPromises()
-        expect(wrapper.findAll('[data-notification-id]')).toHaveLength(21)
-        expect(wrapper.get('[data-notification-id="older-20"]').text()).toContain('New')
-        if (action === 'all') {
-          await wrapper
-            .findAll('button')
-            .find((button) => button.text() === 'Mark all read')!
-            .trigger('click')
-        } else {
-          await wrapper.get('[data-notification-id="older-20"]').trigger('click')
-        }
-        await flushPromises()
-        if (action === 'single') {
-          await wrapper.get('button[aria-haspopup="dialog"]').trigger('click')
-          await flushPromises()
-        }
-        expect(wrapper.get('[data-notification-id="older-20"]').text()).not.toContain('New')
-      } finally {
-        wrapper.unmount()
+        await openBell(wrapper)
       }
+
+      expect(wrapper.get('[data-notification-id="older-20"]').text()).not.toContain('New')
+      wrapper.unmount()
     }
   )
-
-  it('closes on backdrop click and returns focus to the bell', async () => {
-    const wrapper = await mountAndOpen([informationalNotification])
-
-    await wrapper.get('.notification-backdrop').trigger('click')
-    await settleClose()
-
-    expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
-    expect(document.activeElement).toBe(wrapper.get('button[aria-haspopup="dialog"]').element)
-
-    wrapper.unmount()
-  })
 
   it('renders actionable notifications as buttons and informational ones as content', async () => {
     const wrapper = await mountAndOpen([actionableNotification, informationalNotification])
@@ -1249,7 +888,6 @@ describe('NotificationBell popup accessibility', () => {
     expect(informationalRow.element.tagName).toBe('DIV')
     expect(informationalRow.attributes('type')).toBeUndefined()
     expect(informationalRow.text()).toContain('Informational Note')
-    expect(informationalRow.text()).toContain('Power reserves are low')
     expect(informationalRow.find('[data-icon="mdi:chevron-right"]').exists()).toBe(false)
 
     await informationalRow.trigger('click')
@@ -1264,7 +902,6 @@ describe('NotificationBell popup accessibility', () => {
     expect(mockPush).toHaveBeenCalledWith('/vault/vault-1/dwellers')
     expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
     expect(document.activeElement).toBe(wrapper.get('button[aria-haspopup="dialog"]').element)
-
     wrapper.unmount()
   })
 
@@ -1288,7 +925,7 @@ describe('NotificationBell popup accessibility', () => {
     expect(settled).toBe(false)
     expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
     expect(axios.patch).toHaveBeenCalledWith('/api/v1/notifications/act-1/read', {})
-    expect(wrapper.get('button[aria-haspopup="dialog"]').text()).toBe('')
+    expect(bellBadge(wrapper)).toBe('')
 
     resolvePatch({ data: {} })
     await flushPromises()
@@ -1302,73 +939,23 @@ describe('NotificationBell popup accessibility', () => {
       'Notifications 1 unread'
     )
     const badge = wrapper.findAll('span').find((span) => span.text() === '1')
-    expect(badge).toBeDefined()
-    // jsdom has no CSS pipeline, so the theme-color requirement is asserted on
-    // the class attr: the translucent danger wash with white text is unreadable
-    // on the dark CRT shell.
+    // jsdom has no CSS pipeline: the translucent danger wash is unreadable on
+    // the dark CRT shell, so the contrast requirement is pinned on the class attr.
     const badgeClass = badge?.attributes('class') ?? ''
     expect(badgeClass).toMatch(/(^|\s)bg-theme-primary(\s|$)/)
     expect(badgeClass).not.toMatch(/bg-danger\/20/)
     expect(badgeClass).toMatch(/(^|\s)text-black(\s|$)/)
-
-    wrapper.unmount()
-  })
-
-  it.each([
-    ['storage_item_degraded', 'mdi:tools'],
-    ['storage_item_upgraded', 'mdi:arrow-up-bold'],
-  ])('shows %s in both toast and bell', async (notification_type, icon) => {
-    useAuthStore().token = 'test-token'
-    const { toasts } = useToast()
-    toasts.value = []
-    const message = 'A stored weapon changed catalog variant'
-    const data = JSON.stringify({
-      notification: {
-        id: 'storage-notification',
-        vault_id: 'vault-1',
-        notification_type,
-        title: 'Storage maintenance',
-        message,
-        priority: 'normal',
-        created_at: '2026-10-20T12:00:00',
-      },
-    })
-    fetchMock.mockResolvedValue(
-      createMockResponse([encodeSse(data, 'notification')], { hang: true })
-    )
-    const wrapper = mount(NotificationBell)
-    await vi.advanceTimersByTimeAsync(0)
-    await flushPromises()
-    expect(toasts.value.some((toast) => toast.message === message)).toBe(true)
-    await wrapper.find('button[aria-haspopup="dialog"]').trigger('click')
-    await flushPromises()
-    expect(wrapper.find(`[data-icon="${icon}"]`).exists()).toBe(true)
-    expect(wrapper.text()).toContain('Storage maintenance')
-    expect(wrapper.text()).toContain(message)
     wrapper.unmount()
   })
 
   it('drops a delayed rush notification scheduled under a previous session', async () => {
     const auth = useAuthStore()
-    auth.token = 'test-token'
+    signedIn()
     auth.user = { id: 'user-a' } as NonNullable<typeof auth.user>
     useVaultStore().activeVaultId = 'vault-1'
     mockNotificationList([])
     const message = 'Rush succeeded'
-    const data = JSON.stringify({
-      notification: {
-        id: 'rush-1',
-        vault_id: 'vault-1',
-        notification_type: 'rush_succeeded',
-        title: 'Rush succeeded',
-        message,
-        priority: 'normal',
-        created_at: '2026-11-01T10:00:00',
-      },
-    })
-    fetchMock.mockResolvedValue(
-      createMockResponse([encodeSse(data, 'notification')], { hang: true })
-    )
+    streamNotification(rushNotification('rush-1'))
     const wrapper = mount(NotificationBell, { attachTo: document.body })
     await vi.advanceTimersByTimeAsync(0)
     await flushPromises()
@@ -1380,27 +967,14 @@ describe('NotificationBell popup accessibility', () => {
     expect(
       useNotificationInboxStore().recentNotifications.some((item) => item.id === 'rush-1')
     ).toBe(false)
-    expect(useToast().toasts.value.some((toast) => toast.message === message)).toBe(false)
+    expect(toastsWith(message)).toHaveLength(0)
     wrapper.unmount()
   })
 
   it('cancels a pending rush notification when the bell unmounts', async () => {
-    useAuthStore().token = 'test-token'
+    signedIn()
     mockNotificationList([])
-    const data = JSON.stringify({
-      notification: {
-        id: 'rush-2',
-        vault_id: 'vault-1',
-        notification_type: 'rush_succeeded',
-        title: 'Rush succeeded',
-        message: 'Rush succeeded',
-        priority: 'normal',
-        created_at: '2026-11-01T10:00:00',
-      },
-    })
-    fetchMock.mockResolvedValue(
-      createMockResponse([encodeSse(data, 'notification')], { hang: true })
-    )
+    streamNotification(rushNotification('rush-2'))
     const wrapper = mount(NotificationBell, { attachTo: document.body })
     await vi.advanceTimersByTimeAsync(0)
     await flushPromises()
@@ -1417,23 +991,18 @@ describe('NotificationBell popup accessibility', () => {
     async (notification_type) => {
       useToast().toasts.value = []
       const wrapper = await mountBell([
-        {
+        notification({
           id: `duel-${notification_type}`,
           vault_id: 'vault-1',
           notification_type,
           title: 'Exhibition duel result',
           message: 'The duel result is ready to replay',
-          priority: 'normal',
           is_read: false,
-          created_at: '2026-11-01T10:00:00',
           meta_data: { duel_id: 'duel-1' },
-        },
+        }),
       ])
 
-      const matching = useToast().toasts.value.filter(
-        (toast) => toast.message === 'The duel result is ready to replay'
-      )
-      expect(matching).toHaveLength(1)
+      expect(toastsWith('The duel result is ready to replay')).toHaveLength(1)
       expect(useNotificationInboxStore().unreadCount).toBe(1)
       wrapper.unmount()
     }

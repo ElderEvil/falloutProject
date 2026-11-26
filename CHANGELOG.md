@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 3.31.8 (2026-11-26)
+
+### Bug Fixes
+
+* **progression:** keep objective tab icons monochrome ([#1559](https://github.com/ElderEvil/falloutProject/issues/1559)) 3a76dc6
+
 ## 3.31.7 (2026-11-26)
 
 ### Bug Fixes

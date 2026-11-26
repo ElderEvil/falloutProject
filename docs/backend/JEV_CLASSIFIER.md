@@ -160,6 +160,14 @@ A first pass wired Jev into the codebase. Results, decisions, and traps found al
   benign 12/12, injection 8/8, toxic 3-4/4. Injection lands at **0.97+ confidence**;
   **toxic is unstable at 0.5-0.7** run to run — one threshold for both fields is wrong,
   the two need **per-field bars** (or the toxic field needs better criteria wording).
+  They now have separate settings, `JEV_GUARDRAIL_INJECTION_CONFIDENCE` and
+  `JEV_GUARDRAIL_TOXIC_CONFIDENCE`; both ship at 0.7 until a sweep says otherwise.
+- Screening sits at one boundary: `screen_input()` judges player text, commits its usage row
+  before the caller's transaction, and every transport calls it. Text chat, streaming chat and
+  voice chat all judge the message, and player-written dweller name/bio text is judged on
+  write because it lands inside the prompt's `<bio>` block. Model-written bios bypass it.
+  A new Jev surface passes its own `usage` tag to `record_usage` so it reports separately in
+  AI usage stats instead of merging into `jev_decision`.
 - A labelled corpus + `fo-cli jev-eval` is worth keeping: it turns threshold tuning into
   measurement, prints a false-positive/false-negative split, and records the resolved
   model version. Pin `JEV_MODEL` once a bar is tuned (`jev-latest` moves under it).

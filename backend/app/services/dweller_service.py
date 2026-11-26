@@ -9,6 +9,7 @@ from uuid import UUID
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
+from app.core.ai_constants import JEV_PROFILE_OPERATION
 from app.core.enums import (
     AgeGroupEnum,
     ContentProvenanceEnum,
@@ -48,6 +49,7 @@ from app.schemas.dweller import (
     DwellerUpdate,
     DwellerUpdateRequest,
 )
+from app.services.chat.guardrail import screen_input
 from app.services.exploration.event_service import event_service
 from app.services.exploration.journey_state import (
     close_open_site_run,
@@ -73,6 +75,7 @@ from app.utils.exceptions import (
     InvalidVaultTransferException,
     NoLivingSpaceError,
     ResourceConflictException,
+    ValidationException,
     VaultOperationException,
     ensure_found,
 )
@@ -83,6 +86,29 @@ if TYPE_CHECKING:
     from app.services.map.bio_registration import _MapDwellerLike
 
 logger = logging.getLogger(__name__)
+
+#: Fields a player may write that end up as dweller prompt material.
+PROFILE_TEXT_FIELDS = ("first_name", "last_name", "bio")
+
+
+async def _screen_player_profile(db_session: AsyncSession, *, user_id: UUID, data: dict[str, Any]) -> None:
+    """Judge player-written name/bio text before it becomes dweller prompt material.
+
+    Fail-open and advisory like chat screening; a blocked verdict rejects the whole update so
+    nothing is applied. Model-written bios bypass this path by calling ``update_dweller`` directly.
+    """
+    parts = [str(data[field]) for field in PROFILE_TEXT_FIELDS if data.get(field)]
+    if not parts:
+        return
+    verdict = await screen_input(
+        db_session,
+        user_id=user_id,
+        text="\n".join(parts),
+        kind="dweller profile",
+        usage=JEV_PROFILE_OPERATION,
+    )
+    if verdict.blocked:
+        raise ValidationException(detail=verdict.reason or "Profile blocked by content screening.")
 
 
 class DwellerService:
@@ -314,6 +340,23 @@ class DwellerService:
             sort_by=filters.sort_by,
             order=filters.order,
         )
+
+    async def update_player_dweller(
+        self,
+        db_session: AsyncSession,
+        dweller_id: UUID,
+        dweller_data: DwellerUpdate | DwellerUpdateRequest | dict[str, Any],
+        *,
+        user_id: UUID,
+    ) -> Any:
+        """Apply a player edit: screen player-written text, then update.
+
+        The single entry point for player-editable fields, so name/bio screening cannot be
+        enforced on one endpoint only — the same reason chat screening lives at a shared boundary.
+        """
+        data = dweller_data if isinstance(dweller_data, dict) else dweller_data.model_dump(exclude_unset=True)
+        await _screen_player_profile(db_session, user_id=user_id, data=data)
+        return await self.update_dweller(db_session, dweller_id, data)
 
     async def update_dweller(
         self,

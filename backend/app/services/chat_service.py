@@ -36,7 +36,7 @@ from app.services.chat.continuation import (
     complete_exchange,
     schedule_exchange_finish,
 )
-from app.services.chat.guardrail import GuardrailVerdict, screen_message
+from app.services.chat.guardrail import GuardrailVerdict, screen_input
 from app.services.chat.notifications import send_chat_notification, unlock_places_after_conversation
 from app.services.chat.persistence import persist_chat
 from app.services.chat.streaming import stream_with_fallback
@@ -109,9 +109,8 @@ class ChatService:
         quota_result = await quota_service.check_quota(user.id, db_session)
         quota_result.ensure_allowed()
 
-        verdict = await screen_message(message_text, db_session=db_session, user_id=user.id)
+        verdict = await screen_input(db_session, user_id=user.id, text=message_text)
 
-        await db_session.commit()
         if verdict.blocked:
             raise ValidationException(detail=verdict.reason or "Message blocked by content screening.")
 
@@ -195,9 +194,8 @@ class ChatService:
             quota_result = await quota_service.check_quota(user.id, db_session)
             quota_result.ensure_allowed()
 
-            verdict = await screen_message(message_text, db_session=db_session, user_id=user.id)
+            verdict = await screen_input(db_session, user_id=user.id, text=message_text)
 
-            await db_session.commit()
             if verdict.blocked:
                 yield ChatStreamError(detail=verdict.reason or "Message blocked by content screening.")
                 return

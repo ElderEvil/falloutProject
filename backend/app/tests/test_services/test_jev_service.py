@@ -110,6 +110,28 @@ def test_agent_carries_the_decision_timeout(monkeypatch: pytest.MonkeyPatch) -> 
         asyncio.run(jev_service.decide("anything", Triage))
 
 
+async def test_record_usage_tags_the_callers_operation(async_session) -> None:
+    """One Jev use case must be visible on its own in AI usage stats, not merged into jev_decision."""
+    from sqlalchemy import select
+
+    from app.models.llm_interaction import LLMInteraction
+
+    decision = JevDecision(
+        output=Triage(continue_run=True, risk="low"),
+        confidence={"continue_run": 0.9},
+        model_name="jev-1.13.0",
+        total_tokens=5,
+    )
+    user_id = uuid4()
+    await jev_service.record_usage(
+        async_session, user_id, decision, output_type_name="Triage", usage="jev_profile_screen"
+    )
+    await async_session.commit()
+
+    row = (await async_session.execute(select(LLMInteraction).where(LLMInteraction.user_id == user_id))).scalar_one()
+    assert row.usage == "jev_profile_screen"
+
+
 async def test_record_usage_swallows_a_failed_write(async_session) -> None:
     """A real flush failure must not raise and must leave the session usable."""
     from sqlalchemy import text

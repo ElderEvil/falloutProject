@@ -178,7 +178,12 @@ async def update_dweller(
         dweller_id,
         dweller_data.model_dump(exclude_unset=True),
     )
-    return await dweller_service.update_dweller(db_session=db_session, dweller_id=dweller_id, dweller_data=dweller_data)
+    return await dweller_service.update_player_dweller(
+        db_session=db_session,
+        dweller_id=dweller_id,
+        dweller_data=dweller_data,
+        user_id=user.id,
+    )
 
 
 @router.patch("/{dweller_id}/rename", response_model=DwellerRead)
@@ -194,10 +199,11 @@ async def rename_dweller(
         DwellerRead: The renamed dweller.
     """
     await verify_dweller_access(dweller_id, user, db_session)
-    return await dweller_service.update_dweller(
+    return await dweller_service.update_player_dweller(
         db_session=db_session,
         dweller_id=dweller_id,
         dweller_data=DwellerUpdate(**rename.model_dump(exclude_unset=True)),
+        user_id=user.id,
     )
 
 

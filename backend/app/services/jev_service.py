@@ -9,6 +9,7 @@ import logging
 import time
 from typing import TYPE_CHECKING, Any
 
+from app.core.ai_constants import JEV_OPERATION
 from app.core.config import settings
 from app.schemas.jev import JevDecision, OutputT
 from app.utils.exceptions import FeatureDisabledException
@@ -87,13 +88,14 @@ class JevService:
         decision: JevDecision,
         *,
         output_type_name: str,
+        usage: str = JEV_OPERATION,
     ) -> None:
         """Persist one Jev call as an LLM interaction so it appears in AI usage stats.
 
-        Tagged jev_decision. The write runs in its own savepoint: a failed flush aborts the transaction, and
+        Tagged ``usage`` (default jev_decision) so each decision surface reports separately.
+        The write runs in its own savepoint: a failed flush aborts the transaction, and
         catching it without rolling back to the savepoint would leave the shared session unusable.
         """
-        from app.core.ai_constants import JEV_OPERATION
         from app.crud.llm_interaction import llm_interaction as llm_interaction_crud
         from app.schemas.llm_interaction import LLMInteractionCreate
 
@@ -103,7 +105,7 @@ class JevService:
                     db_session,
                     LLMInteractionCreate(
                         user_id=user_id,
-                        usage=JEV_OPERATION,
+                        usage=usage,
                         provider="typesafe",
                         model=decision.model_name,
                         prompt_tokens=decision.prompt_tokens,

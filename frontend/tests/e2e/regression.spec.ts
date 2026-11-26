@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test'
 import { open, openAs } from './support/session'
+import { expectRouteRenders } from './support/surfaces'
 import { collectErrors, isRealJsError, type ErrorLog } from './support/telemetry'
 
 test.describe('Console error audit', () => {
@@ -18,9 +19,7 @@ test.describe('Console error audit', () => {
   })
 
   test('home page - no real JS errors', async ({ page }) => {
-    await openAs(page, '/')
-    await expect(page.locator('body')).toBeVisible()
-    await expect(page.locator('#vite-error-overlay')).toHaveCount(0)
+    await expectRouteRenders(page, '/')
   })
 
   test('login page - no console errors (no auth needed)', async ({ page }) => {
@@ -111,9 +110,7 @@ test.describe('Error handling / edge cases', () => {
   })
 
   test('vault page with empty id does not crash', async ({ page }) => {
-    await openAs(page, '/vault/')
-    await expect(page.locator('body')).toBeVisible({ timeout: 10000 })
-    await expect(page.locator('#vite-error-overlay')).toHaveCount(0)
+    await expectRouteRenders(page, '/vault/', { timeout: 10000 })
   })
 
   test('back-to-back rapid navigation does not cause errors', async ({ page }) => {

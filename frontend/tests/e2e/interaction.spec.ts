@@ -1,6 +1,10 @@
 import { test, expect } from '@playwright/test'
 import { PLAYER } from './support/data'
 import { TOKEN, open, openAs } from './support/session'
+import { expectRouteRenders, type RouteRenderOptions } from './support/surfaces'
+
+/** Options every seeded smoke route in this file shares. */
+const PLAYER_ROUTE: RouteRenderOptions = { user: PLAYER, dismissWhatsNew: true, timeout: 10000 }
 
 // ========================================
 // RESPONSIVE VIEWPORTS
@@ -25,13 +29,11 @@ test.describe('Responsive viewports', () => {
     for (const { url, name: pageName } of pages) {
       test(`${vp} ${pageName} — renders without crash`, async ({ page }) => {
         await page.setViewportSize({ width, height })
-        if (url === '/login') {
-          await open(page, url)
-        } else {
-          await openAs(page, url, { user: PLAYER, dismissWhatsNew: true })
-        }
-        await expect(page.locator('body')).toBeVisible({ timeout: 10000 })
-        await expect(page.locator('#vite-error-overlay')).toHaveCount(0)
+        const options: RouteRenderOptions =
+          url === '/login'
+            ? { session: 'anonymous', timeout: 10000 }
+            : { user: PLAYER, dismissWhatsNew: true, timeout: 10000 }
+        await expectRouteRenders(page, url, options)
         const bodyText = await page.locator('body').innerText()
         expect(bodyText.length).toBeGreaterThan(0)
       })
@@ -186,15 +188,11 @@ test.describe('Auth form pages structure', () => {
   })
 
   test('reset-password renders without errors', async ({ page }) => {
-    await open(page, '/reset-password')
-    await expect(page.locator('body')).toBeVisible()
-    await expect(page.locator('#vite-error-overlay')).toHaveCount(0)
+    await expectRouteRenders(page, '/reset-password', { session: 'anonymous' })
   })
 
   test('verify-email renders without errors', async ({ page }) => {
-    await open(page, '/verify-email')
-    await expect(page.locator('body')).toBeVisible()
-    await expect(page.locator('#vite-error-overlay')).toHaveCount(0)
+    await expectRouteRenders(page, '/verify-email', { session: 'anonymous' })
   })
 })
 
@@ -275,9 +273,7 @@ test.describe('Settings page structure', () => {
 // ========================================
 test.describe('Profile page', () => {
   test('profile page renders', async ({ page }) => {
-    await openAs(page, '/profile', { user: PLAYER, dismissWhatsNew: true })
-    await expect(page.locator('body')).toBeVisible({ timeout: 10000 })
-    await expect(page.locator('#vite-error-overlay')).toHaveCount(0)
+    await expectRouteRenders(page, '/profile', PLAYER_ROUTE)
   })
 })
 
@@ -286,9 +282,7 @@ test.describe('Profile page', () => {
 // ========================================
 test.describe('Preferences page', () => {
   test('preferences page renders', async ({ page }) => {
-    await openAs(page, '/preferences', { user: PLAYER, dismissWhatsNew: true })
-    await expect(page.locator('body')).toBeVisible({ timeout: 10000 })
-    await expect(page.locator('#vite-error-overlay')).toHaveCount(0)
+    await expectRouteRenders(page, '/preferences', PLAYER_ROUTE)
   })
 })
 
@@ -297,9 +291,7 @@ test.describe('Preferences page', () => {
 // ========================================
 test.describe('Changelog page', () => {
   test('changelog page renders', async ({ page }) => {
-    await openAs(page, '/changelog', { user: PLAYER, dismissWhatsNew: true })
-    await expect(page.locator('body')).toBeVisible({ timeout: 10000 })
-    await expect(page.locator('#vite-error-overlay')).toHaveCount(0)
+    await expectRouteRenders(page, '/changelog', PLAYER_ROUTE)
   })
 })
 
@@ -437,9 +429,7 @@ test.describe('Edge case URLs', () => {
 // ========================================
 test.describe('Graveyard page', () => {
   test('graveyard page renders without crash', async ({ page }) => {
-    await openAs(page, '/vault/fake-id/dwellers/graveyard', { user: PLAYER, dismissWhatsNew: true })
-    await expect(page.locator('body')).toBeVisible({ timeout: 10000 })
-    await expect(page.locator('#vite-error-overlay')).toHaveCount(0)
+    await expectRouteRenders(page, '/vault/fake-id/dwellers/graveyard', PLAYER_ROUTE)
     const bodyText = await page.locator('body').innerText()
     expect(bodyText.length).toBeGreaterThan(0)
   })
@@ -450,9 +440,7 @@ test.describe('Graveyard page', () => {
 // ========================================
 test.describe('Happiness page', () => {
   test('happiness page renders without crash', async ({ page }) => {
-    await openAs(page, '/vault/fake-id/happiness', { user: PLAYER, dismissWhatsNew: true })
-    await expect(page.locator('body')).toBeVisible({ timeout: 10000 })
-    await expect(page.locator('#vite-error-overlay')).toHaveCount(0)
+    await expectRouteRenders(page, '/vault/fake-id/happiness', PLAYER_ROUTE)
   })
 })
 
@@ -461,9 +449,7 @@ test.describe('Happiness page', () => {
 // ========================================
 test.describe('Exploration page', () => {
   test('exploration page renders without crash', async ({ page }) => {
-    await openAs(page, '/vault/fake-id/exploration', { user: PLAYER, dismissWhatsNew: true })
-    await expect(page.locator('body')).toBeVisible({ timeout: 10000 })
-    await expect(page.locator('#vite-error-overlay')).toHaveCount(0)
+    await expectRouteRenders(page, '/vault/fake-id/exploration', PLAYER_ROUTE)
   })
 })
 
@@ -472,9 +458,7 @@ test.describe('Exploration page', () => {
 // ========================================
 test.describe('Training page', () => {
   test('training page renders without crash', async ({ page }) => {
-    await openAs(page, '/vault/fake-id/training', { user: PLAYER, dismissWhatsNew: true })
-    await expect(page.locator('body')).toBeVisible({ timeout: 10000 })
-    await expect(page.locator('#vite-error-overlay')).toHaveCount(0)
+    await expectRouteRenders(page, '/vault/fake-id/training', PLAYER_ROUTE)
   })
 })
 
@@ -483,9 +467,7 @@ test.describe('Training page', () => {
 // ========================================
 test.describe('Quests page', () => {
   test('quests page renders without crash', async ({ page }) => {
-    await openAs(page, '/vault/fake-id/quests', { user: PLAYER, dismissWhatsNew: true })
-    await expect(page.locator('body')).toBeVisible({ timeout: 10000 })
-    await expect(page.locator('#vite-error-overlay')).toHaveCount(0)
+    await expectRouteRenders(page, '/vault/fake-id/quests', PLAYER_ROUTE)
   })
 })
 
@@ -494,9 +476,7 @@ test.describe('Quests page', () => {
 // ========================================
 test.describe('Objectives page', () => {
   test('objectives page renders without crash', async ({ page }) => {
-    await openAs(page, '/vault/fake-id/objectives', { user: PLAYER, dismissWhatsNew: true })
-    await expect(page.locator('body')).toBeVisible({ timeout: 10000 })
-    await expect(page.locator('#vite-error-overlay')).toHaveCount(0)
+    await expectRouteRenders(page, '/vault/fake-id/objectives', PLAYER_ROUTE)
   })
 })
 
@@ -505,9 +485,7 @@ test.describe('Objectives page', () => {
 // ========================================
 test.describe('Radio page', () => {
   test('radio page renders without crash', async ({ page }) => {
-    await openAs(page, '/vault/fake-id/radio', { user: PLAYER, dismissWhatsNew: true })
-    await expect(page.locator('body')).toBeVisible({ timeout: 10000 })
-    await expect(page.locator('#vite-error-overlay')).toHaveCount(0)
+    await expectRouteRenders(page, '/vault/fake-id/radio', PLAYER_ROUTE)
   })
 })
 
@@ -516,9 +494,7 @@ test.describe('Radio page', () => {
 // ========================================
 test.describe('Relationships page', () => {
   test('relationships page renders without crash', async ({ page }) => {
-    await openAs(page, '/vault/fake-id/relationships', { user: PLAYER, dismissWhatsNew: true })
-    await expect(page.locator('body')).toBeVisible({ timeout: 10000 })
-    await expect(page.locator('#vite-error-overlay')).toHaveCount(0)
+    await expectRouteRenders(page, '/vault/fake-id/relationships', PLAYER_ROUTE)
   })
 })
 

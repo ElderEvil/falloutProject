@@ -302,6 +302,19 @@ describe('ObjectivesView objective gating', () => {
     expect(wrapper.text()).toContain('Collect 100 caps')
   })
 
+  it('keeps the tab icons monochrome', async () => {
+    objectivesStore.objectives = [officeObjective(true), starterObjective(6), { ...dailyObjective }]
+
+    wrapper = mountView()
+    await wrapper.vm.$nextTick()
+
+    const icons = wrapper.findAll('[role="tab"] svg')
+    expect(icons.length).toBeGreaterThan(0)
+    for (const icon of icons) {
+      expect(icon.attributes('style') ?? '').not.toContain('color')
+    }
+  })
+
   it('shows a compact current-step action', async () => {
     objectivesStore.objectives = [
       { ...starterObjective(1), challenge: 'Match a dweller to their room' },

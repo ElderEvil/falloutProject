@@ -9,7 +9,7 @@ from pydantic_ai.exceptions import ModelHTTPError
 from pydantic_ai.usage import RunUsage
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.agents.chat_prompts import dweller_trait_lines
+from app.agents.chat_prompts import STAY_IN_CHARACTER_GUIDANCE, dweller_trait_lines
 from app.agents.chat_tools import load_family_members
 from app.agents.dweller_chat_agent import (
     DwellerChatDeps,
@@ -79,7 +79,7 @@ def build_dweller_prompt(
         <bio>{bio}</bio>
         Never contradict or invent biography details, and never invent family members who are not listed above.
         {length_rule}
-        Try to be in character and be in line with the Fallout universe.
+        {STAY_IN_CHARACTER_GUIDANCE}
         """
 
 

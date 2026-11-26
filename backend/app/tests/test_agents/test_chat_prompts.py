@@ -190,6 +190,14 @@ def test_fallback_prompt_includes_bio_traits_guardrail_and_length_rule() -> None
     assert "under 150 words" in build_dweller_prompt(_dweller(), for_audio=True)
 
 
+def test_prompts_refuse_general_assistant_tasks_and_stay_in_character() -> None:
+    prompts = (build_chat_instructions(_dweller()), build_dweller_prompt(_dweller()))
+    for prompt in prompts:
+        assert "not a general-purpose assistant" in prompt
+        assert "never write code" in prompt
+        assert "steer the conversation back to the vault" in prompt
+
+
 def _family_session(relatives: list, record: SimpleNamespace | None):
     result = MagicMock()
     result.scalars.return_value.all.return_value = relatives

@@ -151,6 +151,21 @@ class ChatGuardrail(BaseModel):
     ]
     """Does this message contain hateful, sexual, or graphically violent content?"""
 
+    abuse: Annotated[
+        bool,
+        BoolCriteria(
+            true=(
+                "The message asks the dweller to write code, translate text, do homework, give real-world "
+                "instructions, or otherwise perform a task outside the Fallout vault roleplay."
+            ),
+            false=(
+                "The message stays within the Fallout vault roleplay, including in-universe questions about "
+                "the vault, wasteland, or the dweller's life."
+            ),
+        ),
+    ]
+    """Does this message try to use the dweller as a general-purpose assistant instead of roleplaying?"""
+
 
 class ChatGuardrailDebug(BaseModel):
     """Whether the input screen ran and what it decided."""

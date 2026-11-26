@@ -156,12 +156,16 @@ A first pass wired Jev into the codebase. Results, decisions, and traps found al
 - Typed `decide(state, output_type) -> {output, per-field confidence, model_name}` is a
   clean seam. `JevDecision` must stay **generic** (`JevDecision[OutputType]`) so callers
   keep their concrete output type; a `BaseModel`-typed `output` loses the fields.
-- Screening chat input for injection + toxic is a genuine fit: on a 24-case synthetic set,
-  benign 12/12, injection 8/8, toxic 3-4/4. Injection lands at **0.97+ confidence**;
-  **toxic is unstable at 0.5-0.7** run to run — one threshold for both fields is wrong,
-  the two need **per-field bars** (or the toxic field needs better criteria wording).
-  They now have separate settings, `JEV_GUARDRAIL_INJECTION_CONFIDENCE` and
-  `JEV_GUARDRAIL_TOXIC_CONFIDENCE`; both ship at 0.7 until a sweep says otherwise.
+- Screening chat input for injection, toxic content and chat abuse is a genuine fit: on the
+  original 24-case synthetic set, benign 12/12, injection 8/8, toxic 3-4/4. Injection lands at
+  **0.97+ confidence**; **toxic is unstable at 0.5-0.7** run to run — one threshold for both
+  fields is wrong, the two need **per-field bars** (or the toxic field needs better criteria
+  wording). They now have separate settings, `JEV_GUARDRAIL_INJECTION_CONFIDENCE`,
+  `JEV_GUARDRAIL_TOXIC_CONFIDENCE` and `JEV_GUARDRAIL_ABUSE_CONFIDENCE`; all ship at 0.7
+  until a sweep says otherwise. The abuse field catches code generation, translation,
+  homework and other generic-assistant requests; the shared chat prompt also tells the
+  dweller to stay in character, so a Jev miss still does not turn the dweller into a
+  general-purpose assistant. Abuse examples were added to the eval corpus.
 - Screening sits at one boundary: `screen_input()` judges player text and commits before the
   caller's transaction, so the chat paths release the quota row lock screening was called behind;
   the voice path passes `commit=False` because its lock must survive until the exchange commits.

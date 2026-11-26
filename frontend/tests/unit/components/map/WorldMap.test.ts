@@ -4,7 +4,10 @@ import { mount, type VueWrapper } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import WorldMap from '@/modules/map/components/WorldMap.vue'
 import { MAX_ZOOM } from '@/modules/map/composables/useMapZoomPan'
-import { PLACE_MARKER_BODY_SCALE, PLACE_MARKER_GLYPH_SCALE } from '@/modules/map/models/markerTypeMeta'
+import {
+  PLACE_MARKER_BODY_SCALE,
+  PLACE_MARKER_GLYPH_SCALE,
+} from '@/modules/map/models/markerTypeMeta'
 import { bearingDegrees } from '@/modules/map/utils/bearing'
 import { isExploredTile } from '@/modules/map/utils/fog'
 import { ATLAS_TILES, registryToTile } from '@/modules/map/utils/atlasProjection'
@@ -148,12 +151,7 @@ function makeExplorerTrack(overrides: Partial<ExplorerTrack> = {}): ExplorerTrac
 }
 
 /** A discovery route fixture whose points are `[x, y]` pairs. */
-function makeRoute(
-  id: string,
-  points: [number, number][],
-  is_active = true,
-  freeRoam = false
-) {
+function makeRoute(id: string, points: [number, number][], is_active = true, freeRoam = false) {
   return {
     exploration_id: id,
     is_active,
@@ -222,7 +220,7 @@ describe('WorldMap', () => {
 
       await zoomPastDeclutterThreshold(wrapper)
       expect(
-        wrapper.findAllComponents(MapMarkerStub).some((m) => m.props('name') === 'Unknown vault')
+        wrapper.findAllComponents(MapMarkerStub).some((m) => m.props('name') === 'Vault 100')
       ).toBe(true)
     })
 
@@ -255,7 +253,7 @@ describe('WorldMap', () => {
       const markers = wrapper.findAllComponents(MapMarkerStub)
       const placeMarker = markers.find((m) => m.props('name') === place.name)!
       const homeMarker = markers.find((m) => m.props('name') === homeMarkerLocation.name)!
-      const vaultMarker = markers.find((m) => m.props('name') === 'Unknown vault')!
+      const vaultMarker = markers.find((m) => m.props('name') === 'Vault 100')!
 
       expect(placeMarker.props('iconScale')).toBe(PLACE_MARKER_GLYPH_SCALE)
       expect(placeMarker.props('bodyScale')).toBe(PLACE_MARKER_BODY_SCALE)
@@ -328,7 +326,12 @@ describe('WorldMap', () => {
   describe('Discovery routes', () => {
     it('renders API-projected event routes, including repeated location visits', () => {
       const wrapper = mountMap({
-        discoveryRoutes: [makeRoute('expl-1', [[20, 30], [20, 30]])],
+        discoveryRoutes: [
+          makeRoute('expl-1', [
+            [20, 30],
+            [20, 30],
+          ]),
+        ],
       })
 
       const d = wrapper.find('.discovery-route-line').attributes('d')!
@@ -340,7 +343,12 @@ describe('WorldMap', () => {
     it('anchors trails at the home vault coordinates', () => {
       const wrapper = mountMap({
         locations: [{ id: 'home-1', type: 'home_vault', coord_x: 50, coord_y: 50 } as never],
-        discoveryRoutes: [makeRoute('expl-1', [[20, 30], [20, 30]])],
+        discoveryRoutes: [
+          makeRoute('expl-1', [
+            [20, 30],
+            [20, 30],
+          ]),
+        ],
       })
 
       const d = wrapper.find('.discovery-route-line').attributes('d')!
@@ -369,7 +377,10 @@ describe('WorldMap', () => {
 
     it('draws only active routes while the fog still uses inactive ones', () => {
       const wrapper = mountMap({
-        discoveryRoutes: [makeRoute('active-1', [[10, 10]]), makeRoute('done-1', [[70, 10]], false)],
+        discoveryRoutes: [
+          makeRoute('active-1', [[10, 10]]),
+          makeRoute('done-1', [[70, 10]], false),
+        ],
       })
 
       const drawn = wrapper.findAll('.discovery-route-line')
@@ -419,7 +430,7 @@ describe('WorldMap', () => {
       expect(markers.find((m) => m.props('name') === target.name)!.props('exploring')).toBe(true)
     })
 
-    it('hides anonymous vault hints at overview zoom and reveals them when zoomed in', async () => {
+    it('hides seeded vault signals at overview zoom and reveals them when zoomed in', async () => {
       const wrapper = mountMap({ vaultMarkers: createVaultMarkers(3), fogDisabled: true })
 
       const hintCount = () => wrapper.findAllComponents(MapMarkerStub).length
@@ -567,16 +578,19 @@ describe('WorldMap', () => {
     it.each([
       { width: 1200, height: 600, viewBox: '0 -20 80 80' },
       { width: 400, height: 800, viewBox: '-20 0 80 80' },
-    ])('keeps an edge vault visible in a $width × $height pane', async ({ width, height, viewBox }) => {
-      vi.spyOn(SVGElement.prototype, 'getBoundingClientRect').mockReturnValue({
-        width,
-        height,
-      } as DOMRect)
-      const wrapper = mountMap({ locations: [{ ...home, coord_x: 16, coord_y: 16 }] })
-      await nextTick()
+    ])(
+      'keeps an edge vault visible in a $width × $height pane',
+      async ({ width, height, viewBox }) => {
+        vi.spyOn(SVGElement.prototype, 'getBoundingClientRect').mockReturnValue({
+          width,
+          height,
+        } as DOMRect)
+        const wrapper = mountMap({ locations: [{ ...home, coord_x: 16, coord_y: 16 }] })
+        await nextTick()
 
-      expect(wrapper.get('svg').attributes('viewBox')).toBe(viewBox)
-    })
+        expect(wrapper.get('svg').attributes('viewBox')).toBe(viewBox)
+      }
+    )
   })
 
   describe('Marker click emission', () => {
@@ -595,9 +609,39 @@ describe('WorldMap', () => {
       })
     })
 
+    it('opens a seeded vault signal but leaves another player vault anonymous', async () => {
+      const wrapper = mountMap({
+        vaultMarkers: createVaultMarkers(1),
+        playerVaults: [
+          { vault_id: 'v-other', number: 200, coord_x: 50, coord_y: 50, is_mine: false },
+        ],
+        fogDisabled: true,
+      })
+      await zoomPastDeclutterThreshold(wrapper)
+
+      const markers = wrapper.findAllComponents(MapMarkerStub)
+      const signal = markers.find((m) => m.props('name') === 'Vault 100')!
+      const hint = markers.find((m) => m.props('name') === 'Unknown vault')!
+
+      expect(signal.props('interactive')).toBe(true)
+      expect(hint.props('interactive')).toBe(false)
+
+      await signal.trigger('click')
+      expect(wrapper.emitted('marker-click')![0][0]).toEqual({
+        kind: 'vault',
+        data: createVaultMarkers(1)[0],
+      })
+    })
+
     it('renders foreign vaults as non-interactive anonymous hints where explored', async () => {
       const [base] = createLocations(1)
-      const homeLocation = { ...base, id: 'home', type: 'home_vault' as const, coord_x: 50, coord_y: 50 }
+      const homeLocation = {
+        ...base,
+        id: 'home',
+        type: 'home_vault' as const,
+        coord_x: 50,
+        coord_y: 50,
+      }
       const wrapper = mountMap({
         locations: [homeLocation],
         playerVaults: [
@@ -732,9 +776,9 @@ describe('WorldMap', () => {
 
   describe('Unseen discovery wiring', () => {
     it('passes unseen=true to an unlocked discovery the player has not viewed', () => {
-      const markers = mountMap({ locations: [discoveryLocation('loc-1', 10, 20)] }).findAllComponents(
-        MapMarkerStub
-      )
+      const markers = mountMap({
+        locations: [discoveryLocation('loc-1', 10, 20)],
+      }).findAllComponents(MapMarkerStub)
       expect(markers).toHaveLength(1)
       expect(markers[0].props('unseen')).toBe(true)
     })
@@ -866,9 +910,9 @@ describe('WorldMap', () => {
         vaultMarkers: createVaultMarkers(1),
       })
       expect(wrapper.findComponent(MarkerListPanelStub).props('docked')).toBeFalsy()
-      expect(
-        wrapper.find('.world-map-container').findComponent(MarkerListPanelStub).exists()
-      ).toBe(false)
+      expect(wrapper.find('.world-map-container').findComponent(MarkerListPanelStub).exists()).toBe(
+        false
+      )
     })
 
     it('emits marker-click and selects when the panel emits marker-select', async () => {
@@ -1147,9 +1191,24 @@ describe('WorldMap', () => {
 
     it.each([
       ['a ready site', {}, false, ['READY · LVL 5 · 3 ROOMS']],
-      ['a cooling-down site', { cleared: true, block_reason: 'cooldown', cooldown_remaining_seconds: 3600 }, true, ['CLEARED', 'COOLDOWN 1h 0m remaining']],
-      ['a cooldown-only site that was not cleared', { cleared: false, block_reason: 'cooldown', cooldown_remaining_seconds: 3600 }, false, ['READY · LVL 5 · 3 ROOMS']],
-      ['a site with an open run', { block_reason: 'open' }, false, ['IN PROGRESS · LVL 5 · 3 ROOMS']],
+      [
+        'a cooling-down site',
+        { cleared: true, block_reason: 'cooldown', cooldown_remaining_seconds: 3600 },
+        true,
+        ['CLEARED', 'COOLDOWN 1h 0m remaining'],
+      ],
+      [
+        'a cooldown-only site that was not cleared',
+        { cleared: false, block_reason: 'cooldown', cooldown_remaining_seconds: 3600 },
+        false,
+        ['READY · LVL 5 · 3 ROOMS'],
+      ],
+      [
+        'a site with an open run',
+        { block_reason: 'open' },
+        false,
+        ['IN PROGRESS · LVL 5 · 3 ROOMS'],
+      ],
     ])('passes cleared + status for %s', (_, overrides, cleared, statuses) => {
       const site = mountMap({
         expeditionSites: [createSite(overrides as Partial<ExpeditionSiteMarkerRead>)],
@@ -1172,7 +1231,9 @@ describe('WorldMap', () => {
     it('passes expedition sites to the marker list panel', () => {
       const sites = [createSite()]
       expect(
-        mountMap({ expeditionSites: sites }).findComponent(MarkerListPanelStub).props('expeditionSites')
+        mountMap({ expeditionSites: sites })
+          .findComponent(MarkerListPanelStub)
+          .props('expeditionSites')
       ).toEqual(sites)
     })
   })
@@ -1354,7 +1415,17 @@ describe('WorldMap', () => {
             lastKnown: { coord_x: 42, coord_y: 43 },
           }),
         ],
-        discoveryRoutes: [makeRoute('expl-2', [[0, 10], [10, 10]], true, true)],
+        discoveryRoutes: [
+          makeRoute(
+            'expl-2',
+            [
+              [0, 10],
+              [10, 10],
+            ],
+            true,
+            true
+          ),
+        ],
       }).find('.explorer-heading')
       expect(chevron.exists()).toBe(true)
       // Due east along the trail.
@@ -1406,7 +1477,14 @@ describe('WorldMap', () => {
     it.each([
       [
         true,
-        { clearable: true, cleared: true, clear_count: 2, tier: 1, time_remaining_seconds: 0, loot_table: null },
+        {
+          clearable: true,
+          cleared: true,
+          clear_count: 2,
+          tier: 1,
+          time_remaining_seconds: 0,
+          loot_table: null,
+        },
       ],
       [false, undefined],
     ])('passes cleared=%s from clear_state', async (cleared, clearState) => {

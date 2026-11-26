@@ -14,7 +14,9 @@ import type {
 
 // Mock vue-router
 const mockPush = vi.hoisted(() => vi.fn())
-vi.mock('vue-router', () => createRouterMock({ params: { id: 'vault-1' }, query: {}, push: mockPush }))
+vi.mock('vue-router', () =>
+  createRouterMock({ params: { id: 'vault-1' }, query: {}, push: mockPush })
+)
 
 const TELEPORT = { template: '<div><slot /></div>' }
 
@@ -67,7 +69,9 @@ describe('MarkerDetailModal', () => {
       [true, true],
       [false, false],
     ])('renders the dialog only when modelValue=%s', (modelValue, open) => {
-      expect(mountModal({ modelValue, location: loc() }).find('[role="dialog"]').exists()).toBe(open)
+      expect(mountModal({ modelValue, location: loc() }).find('[role="dialog"]').exists()).toBe(
+        open
+      )
     })
 
     it('renders the place name, badge, description, coordinates and linked dwellers', () => {
@@ -112,16 +116,18 @@ describe('MarkerDetailModal', () => {
   })
 
   describe('Vault marker display', () => {
-    it('renders the vault name, description and badge but no dweller section', () => {
+    it('renders the vault record and explains that a signal is not a destination', () => {
       const wrapper = mountModal({
         location: null,
         vaultMarker: createVaultMarker({
-          description: 'Unexplored vault signal - raiding available in a future update.',
+          description: 'A weak carrier wave out of the north.',
         }),
       })
       expect(wrapper.text()).toContain('Vault 88')
-      expect(wrapper.text()).toContain('Unexplored vault signal')
+      expect(wrapper.text()).toContain('A weak carrier wave out of the north.')
       expect(wrapper.text()).toContain('vault')
+      expect(wrapper.text()).toContain('not travel destinations')
+      expect(wrapper.text()).toContain("vault's raid board")
       expect(wrapper.text()).not.toContain('Linked Dwellers')
     })
   })
@@ -219,9 +225,27 @@ describe('MarkerDetailModal', () => {
         ...clearableState,
         xp_per_survivor: 34,
         loot_preview: [
-          { item_type: 'junk', rarity: 'common', junk_types: ['adhesive'], weapon_types: [], signature: true },
-          { item_type: 'junk', rarity: 'common', junk_types: ['steel', 'leather'], weapon_types: [], signature: false },
-          { item_type: 'outfit', rarity: 'common', junk_types: [], weapon_types: [], signature: false },
+          {
+            item_type: 'junk',
+            rarity: 'common',
+            junk_types: ['adhesive'],
+            weapon_types: [],
+            signature: true,
+          },
+          {
+            item_type: 'junk',
+            rarity: 'common',
+            junk_types: ['steel', 'leather'],
+            weapon_types: [],
+            signature: false,
+          },
+          {
+            item_type: 'outfit',
+            rarity: 'common',
+            junk_types: [],
+            weapon_types: [],
+            signature: false,
+          },
         ],
       }).text()
       expect(text).toContain('Signature roll: Adhesive')
@@ -238,7 +262,9 @@ describe('MarkerDetailModal', () => {
     it('explains an en-route party at a salvage site, where clear_state is null', () => {
       const wrapper = mountWithClearState(null, { dispatch_in_progress: true, action: 'salvage' })
       expect(wrapper.text()).toContain('Party en route')
-      expect(wrapper.findAll('button').filter((b) => /Dispatch|Search/.test(b.text()))).toHaveLength(0)
+      expect(
+        wrapper.findAll('button').filter((b) => /Dispatch|Search/.test(b.text()))
+      ).toHaveLength(0)
     })
 
     it('offers Search with a one-dweller party for a salvage point', () => {
@@ -500,8 +526,20 @@ describe('MarkerDetailModal', () => {
       return mountModal({
         location: loc({ action: 'trade', caravan: caravanState, ...overrides }),
         dwellers: [
-          { dweller_id: 'dweller-1', first_name: 'John', last_name: 'Doe', relation: 'visited', is_unlocked: true },
-          { dweller_id: 'dweller-2', first_name: 'Jane', last_name: null, relation: 'visited', is_unlocked: true },
+          {
+            dweller_id: 'dweller-1',
+            first_name: 'John',
+            last_name: 'Doe',
+            relation: 'visited',
+            is_unlocked: true,
+          },
+          {
+            dweller_id: 'dweller-2',
+            first_name: 'Jane',
+            last_name: null,
+            relation: 'visited',
+            is_unlocked: true,
+          },
         ],
         maxPartySize: 3,
         maxStimpaks: 8,

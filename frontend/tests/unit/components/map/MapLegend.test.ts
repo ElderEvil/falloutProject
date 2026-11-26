@@ -19,6 +19,10 @@ describe('MapLegend', () => {
     expect(wrapper.text()).toContain('Grouped markers')
   })
 
+  it('explains that vault signals are not travel destinations', () => {
+    expect(mountLegend().text()).toContain('Vault signals are distant vaults, not destinations')
+  })
+
   it('names the legend region for assistive technology', () => {
     expect(mountLegend().find('[role="region"]').attributes('aria-label')).toBe('Map legend')
   })

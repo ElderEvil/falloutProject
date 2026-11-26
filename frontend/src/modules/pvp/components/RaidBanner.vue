@@ -10,8 +10,9 @@ const flags = useFeatureFlagsStore()
 
 const to = computed(() => `/vault/${props.vaultId}/pvp`)
 
-// One line, most actionable first: a challenge waiting for a defender beats the
-// vault's own outstanding challenge.
+// Once this vault's board has loaded, always offer the way in: an empty board
+// still needs a door, or nobody can post the first challenge. Copy stays
+// actionable first — a waiting challenge beats the vault's own open one.
 const message = computed(() => {
   // With duels off the endpoints 404, so the banner would advertise a dead surface.
   if (!flags.pvpDuels) return null
@@ -21,7 +22,7 @@ const message = computed(() => {
   if (waiting === 1) return '1 CHALLENGE AWAITS A DEFENDER'
   if (waiting > 1) return `${waiting} CHALLENGES AWAIT A DEFENDER`
   if (store.hasOpenChallenge) return 'YOUR CHALLENGE AWAITS A DEFENDER'
-  return null
+  return 'RAID BOARD · POST A CHALLENGE'
 })
 
 // Flags arrive asynchronously (the shell fetches them), so react to the flag instead of deciding

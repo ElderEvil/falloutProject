@@ -57,7 +57,7 @@ describe('pvp store load failures', () => {
     // A banner on the vault page must never toast a failed background fetch.
     expect(handleStoreErrorMock).toHaveBeenCalledWith(
       expect.any(Error),
-      'Failed to load The Pit',
+      'Failed to load the raid board',
       notify
     )
   })

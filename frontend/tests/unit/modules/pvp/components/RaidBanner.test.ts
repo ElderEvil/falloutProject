@@ -66,11 +66,15 @@ describe('RaidBanner', () => {
     vi.restoreAllMocks()
   })
 
-  it('renders nothing when there is no raid state to advertise', async () => {
-    const wrapper = await mountBanner()
+  it('offers the raid board even when no challenge is waiting', async () => {
+    store.stateVaultId = 'vault-1'
 
-    expect(wrapper.find('a').exists()).toBe(false)
-    expect(wrapper.text()).toBe('')
+    const wrapper = await mountBanner()
+    const link = wrapper.find('a')
+
+    // An empty board still needs a door, or nobody can post the first challenge.
+    expect(link.text()).toContain('RAID BOARD · POST A CHALLENGE')
+    expect(link.attributes('href')).toBe('/vault/vault-1/pvp')
   })
 
   it('loads the duel board for its own vault, silently', async () => {
@@ -157,12 +161,12 @@ describe('RaidBanner', () => {
     expect(wrapper.text()).not.toContain('YOUR CHALLENGE')
   })
 
-  it('renders nothing once the vault own challenge is no longer open', async () => {
+  it('falls back to the raid-board entry once the vault own challenge settles', async () => {
     store.ownOpenDuel = ownDuel('ACCEPTED')
     store.stateVaultId = 'vault-1'
 
     const wrapper = await mountBanner()
 
-    expect(wrapper.find('a').exists()).toBe(false)
+    expect(wrapper.find('a').text()).toContain('RAID BOARD · POST A CHALLENGE')
   })
 })

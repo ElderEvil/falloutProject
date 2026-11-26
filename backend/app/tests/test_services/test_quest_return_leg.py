@@ -46,16 +46,6 @@ async def _expired_quest(async_session: AsyncSession, vault, *, duration_minutes
     return quest, link, dweller
 
 
-async def test_return_starts_at_expiry(async_session: AsyncSession, vault) -> None:
-    _quest, link, dweller = await _expired_quest(async_session, vault)
-    completed = await quest_service.check_and_complete_quests(async_session, vault_id=vault.id)
-    await async_session.refresh(link)
-    await async_session.refresh(dweller)
-    assert completed == 0
-    assert (link.return_started_at is not None, link.return_completes_at is not None) == (True, True)
-    assert (link.is_reward_ready, link.is_completed, dweller.status) == (False, False, DwellerStatusEnum.QUESTING)
-
-
 @pytest.mark.parametrize(
     ("method", "message"),
     [
@@ -122,8 +112,14 @@ async def test_tick_starts_return_then_finalizes_on_arrival(async_session: Async
     _quest, link, dweller = await _expired_quest(async_session, vault)
     first = await quest_service.check_and_complete_quests(async_session, vault_id=vault.id)
     await async_session.refresh(link)
+    await async_session.refresh(dweller)
     assert first == 0
-    assert (link.return_completes_at is not None, link.is_reward_ready) == (True, False)
+    assert (link.return_started_at is not None, link.return_completes_at is not None) == (True, True)
+    assert (link.is_reward_ready, link.is_completed, dweller.status) == (
+        False,
+        False,
+        DwellerStatusEnum.QUESTING,
+    )
     link.return_completes_at = utcnow() - timedelta(seconds=1)
     await async_session.commit()
     second = await quest_service.check_and_complete_quests(async_session, vault_id=vault.id)

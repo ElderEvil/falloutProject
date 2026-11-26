@@ -39,6 +39,11 @@ def _make_quest(*reqs: object) -> object:
     return SimpleNamespace(title="Test Quest", quest_requirements=list(reqs))
 
 
+def _req(spec: tuple) -> object:
+    requirement_type, requirement_data, *mandatory = spec
+    return _make_req(requirement_type, requirement_data, is_mandatory=mandatory[0] if mandatory else True)
+
+
 def _party_dweller(**attrs: object) -> object:
     defaults: dict[str, object] = dict.fromkeys(
         ("strength", "perception", "endurance", "charisma", "intelligence", "agility", "luck"), 1
@@ -99,11 +104,6 @@ async def _eligible_ids(async_client: AsyncClient, user, user_data, vault, quest
     response = await async_client.get(f"/quests/{vault.id}/{quest.id}/eligible-dwellers", headers=headers)
     assert response.status_code == 200, f"Expected 200, got {response.status_code}: {response.text}"
     return [dweller["id"] for dweller in response.json()]
-
-
-def _assert_ids(dweller_ids, included, excluded) -> None:
-    assert all(str(dweller.id) in dweller_ids for dweller in included)
-    assert all(str(dweller.id) not in dweller_ids for dweller in excluded)
 
 
 @pytest.mark.parametrize("room_name", ["Living room", "Living Quarters"])
@@ -211,162 +211,137 @@ def test_individual_meets_requirement_ignores_count() -> None:
     assert individual_meets_requirement(_party_dweller(level=4), req) is False
     # Vault-level and optional gates never disqualify an individual.
     flat = [
-        (_make_req(RequirementType.ROOM, {"room_type": "overseers_office"}),),
-        (_make_req(RequirementType.ITEM, {"item_name": "Vault 33 suit"}),),
-        (_make_req(RequirementType.LEVEL, {"level": 99, "count": 1}, is_mandatory=False),),
-    ]
-    assert all(individual_meets_requirement(dweller, req) is True for (req,) in flat)
-
-
-def test_party_missing_requirements_level_gate() -> None:
-    party = [_party_dweller(level=5), _party_dweller(level=6)]
-    quest = _make_quest(
-        _make_req(RequirementType.LEVEL, {"level": 5, "count": 2}),
+        _make_req(RequirementType.ROOM, {"room_type": "overseers_office"}),
+        _make_req(RequirementType.ITEM, {"item_name": "Vault 33 suit"}),
         _make_req(RequirementType.LEVEL, {"level": 99, "count": 1}, is_mandatory=False),
-    )
-    assert party_missing_requirements(party, quest) == []
-    quest = _make_quest(_make_req(RequirementType.LEVEL, {"level": 7, "count": 1}))
-    assert party_missing_requirements(party, quest) == ["Need a dweller at level 7 or higher"]
+    ]
+    assert all(individual_meets_requirement(dweller, req) is True for req in flat)
 
 
-def test_party_missing_requirements_ignores_item_gate() -> None:
-    party = [_party_dweller(weapon=SimpleNamespace(name="10mm Pistol"))]
-    assert (
-        party_missing_requirements(
-            party, _make_quest(_make_req(RequirementType.ITEM, {"item_name": "10mm Pistol", "count": 1}))
-        )
-        == []
-    )
-    assert (
-        party_missing_requirements(
-            party, _make_quest(_make_req(RequirementType.ITEM, {"item_name": "Vault Suit", "count": 1}))
-        )
-        == []
-    )
+LEVEL, ITEM, ATTACK, STAT = (
+    RequirementType.LEVEL,
+    RequirementType.ITEM,
+    RequirementType.ATTACK,
+    RequirementType.STAT,
+)
+PARTY_GATE_CASES = [
+    (
+        "level",
+        [(LEVEL, {"level": 5, "count": 2}), (LEVEL, {"level": 99}, False)],
+        [_party_dweller(level=5), _party_dweller(level=6)],
+        [],
+    ),
+    (
+        "level-short",
+        [(LEVEL, {"level": 7, "count": 1})],
+        [_party_dweller(level=5), _party_dweller(level=6)],
+        ["Need a dweller at level 7 or higher"],
+    ),
+    # Item gates are vault-wide, so a party never fails on the item it will carry.
+    (
+        "item-ignored",
+        [(ITEM, {"item_name": "10mm Pistol", "count": 1})],
+        [_party_dweller(weapon=SimpleNamespace(name="10mm Pistol"))],
+        [],
+    ),
+    (
+        "attack",
+        [(ATTACK, {"attack": 20, "count": 1})],
+        [_party_dweller(weapon=SimpleNamespace(name="Rifle", damage_min=10, damage_max=30))],
+        [],
+    ),
+    (
+        "attack-short",
+        [(ATTACK, {"attack": 21, "count": 1})],
+        [_party_dweller(weapon=SimpleNamespace(name="Rifle", damage_min=10, damage_max=30))],
+        ["Need a party dweller with 21+ attack"],
+    ),
+    (
+        "stat",
+        [(STAT, {"stat": "strength", "value": 15, "count": 1})],
+        [_party_dweller(strength=10, outfit=SimpleNamespace(strength=5))],
+        [],
+    ),
+    (
+        "stat-short",
+        [(STAT, {"stat": "strength", "value": 16, "count": 1})],
+        [_party_dweller(strength=10, outfit=SimpleNamespace(strength=5))],
+        ["Need a party dweller with Strength 16+"],
+    ),
+]
 
 
-def test_party_missing_requirements_attack_gate() -> None:
-    party = [_party_dweller(weapon=SimpleNamespace(name="Rifle", damage_min=10, damage_max=30))]
-    quest = _make_quest(_make_req(RequirementType.ATTACK, {"attack": 20, "count": 1}))
-    assert party_missing_requirements(party, quest) == []
-    quest = _make_quest(_make_req(RequirementType.ATTACK, {"attack": 21, "count": 1}))
-    assert party_missing_requirements(party, quest) == ["Need a party dweller with 21+ attack"]
+@pytest.mark.parametrize(
+    ("requirements", "party", "expected"), [case[1:] for case in PARTY_GATE_CASES], ids=[c[0] for c in PARTY_GATE_CASES]
+)
+def test_party_missing_requirements_gate_table(requirements, party, expected) -> None:
+    assert party_missing_requirements(party, _make_quest(*map(_req, requirements))) == expected
 
 
-def test_party_missing_requirements_stat_gate() -> None:
-    party = [_party_dweller(strength=10, outfit=SimpleNamespace(strength=5))]
-    quest = _make_quest(_make_req(RequirementType.STAT, {"stat": "strength", "value": 15, "count": 1}))
-    assert party_missing_requirements(party, quest) == []
-    quest = _make_quest(_make_req(RequirementType.STAT, {"stat": "strength", "value": 16, "count": 1}))
-    assert party_missing_requirements(party, quest) == ["Need a party dweller with Strength 16+"]
-
-
-async def test_get_eligible_dwellers_for_quest(async_client: AsyncClient, async_session: AsyncSession) -> None:
-    user_data, user, vault = await _user_vault(async_session)
-    quest = await _quest(
-        async_session, title="Level Quest", requirements=[(RequirementType.LEVEL, {"level": 5, "count": 1}, True)]
-    )
-    low = await _add_dweller(async_session, vault, "Low", level=1)
-    med = await _add_dweller(async_session, vault, "Med", level=5)
-    high = await _add_dweller(async_session, vault, "High", level=10)
-    await async_session.commit()
-    dweller_ids = await _eligible_ids(async_client, user, user_data, vault, quest)
-    assert len(dweller_ids) == 2, f"Expected 2 eligible dwellers, got {len(dweller_ids)}"
-    _assert_ids(dweller_ids, (med, high), (low,))
-
-
-async def test_get_eligible_dwellers_for_stat_requirement(
-    async_client: AsyncClient, async_session: AsyncSession
-) -> None:
+# Roster rows are (name, dweller fields, gear); gear is ("weapon"|"outfit", fields).
+RIFLE, WEAK_BLADE = ("weapon", {"damage_min": 10, "damage_max": 30}), ("weapon", {"damage_min": 1, "damage_max": 3})
+ELIGIBLE_CASES = [
+    (
+        "level",
+        (LEVEL, {"level": 5, "count": 1}),
+        [("Low", {"level": 1}, None), ("Med", {"level": 5}, None), ("High", {"level": 10}, None)],
+        ("Med", "High"),
+    ),
+    # Eligibility is per-individual: a count-2 gate still lists each qualifying dweller.
+    (
+        "count-two",
+        (LEVEL, {"level": 5, "count": 2}),
+        [("A", {"level": 5}, None), ("B", {"level": 6}, None), ("Low", {"level": 1}, None)],
+        ("A", "B"),
+    ),
     # A STAT gate must agree with the start path's party policy instead of returning an empty list.
-    user_data, user, vault = await _user_vault(async_session)
-    quest = await _quest(
-        async_session,
-        title="Strength Quest",
-        requirements=[(RequirementType.STAT, {"stat": "strength", "value": 10, "count": 1}, True)],
-    )
-    strong = await _add_dweller(async_session, vault, "Strong", strength=10)
-    weak = await _add_dweller(async_session, vault, "Weak", strength=5)
-    await async_session.commit()
-    dweller_ids = await _eligible_ids(async_client, user, user_data, vault, quest)
-    _assert_ids(dweller_ids, (strong,), (weak,))
-
-
-async def test_get_eligible_dwellers_for_count_two_requirement(
-    async_client: AsyncClient, async_session: AsyncSession
-) -> None:
-    # Eligibility is per-individual: each dweller meeting the threshold is listed even if a party needs 2.
-    user_data, user, vault = await _user_vault(async_session)
-    quest = await _quest(
-        async_session,
-        title="Two Dwellers Quest",
-        requirements=[(RequirementType.LEVEL, {"level": 5, "count": 2}, True)],
-    )
-    dweller_a = await _add_dweller(async_session, vault, "A", level=5)
-    dweller_b = await _add_dweller(async_session, vault, "B", level=6)
-    dweller_low = await _add_dweller(async_session, vault, "Low", level=1)
-    await async_session.commit()
-    dweller_ids = await _eligible_ids(async_client, user, user_data, vault, quest)
-    _assert_ids(dweller_ids, (dweller_a, dweller_b), (dweller_low,))
-
-
-async def test_get_eligible_dwellers_ignores_item_requirement(
-    async_client: AsyncClient, async_session: AsyncSession
-) -> None:
-    user_data, user, vault = await _user_vault(async_session)
-    quest = await _quest(
-        async_session,
-        title="Laser Pistol Quest",
-        requirements=[(RequirementType.ITEM, {"item_name": "Laser Pistol", "count": 1}, True)],
-    )
-    armed = await _add_dweller(async_session, vault, "Armed")
-    unarmed = await _add_dweller(async_session, vault, "Unarmed")
-    await async_session.commit()
-    await crud.weapon.create(
-        async_session, obj_in=create_fake_weapon() | {"name": "Laser Pistol", "dweller_id": armed.id}
-    )
-    dweller_ids = await _eligible_ids(async_client, user, user_data, vault, quest)
-    _assert_ids(dweller_ids, (armed, unarmed), ())
-
-
-async def test_get_eligible_dwellers_for_attack_requirement(
-    async_client: AsyncClient, async_session: AsyncSession
-) -> None:
-    user_data, user, vault = await _user_vault(async_session)
-    quest = await _quest(
-        async_session, title="Attack Quest", requirements=[(RequirementType.ATTACK, {"attack": 15, "count": 1}, True)]
-    )
-    strong = await _add_dweller(async_session, vault, "Strong")
-    weak = await _add_dweller(async_session, vault, "Weak")
-    await async_session.commit()
-    for dweller, damage in ((strong, (10, 30)), (weak, (1, 3))):  # avg 20 >= 15; avg 2 < 15
-        await crud.weapon.create(
-            async_session,
-            obj_in=create_fake_weapon() | {"damage_min": damage[0], "damage_max": damage[1], "dweller_id": dweller.id},
-        )
-    dweller_ids = await _eligible_ids(async_client, user, user_data, vault, quest)
-    _assert_ids(dweller_ids, (strong,), (weak,))
-
-
-async def test_get_eligible_dwellers_for_outfit_bonus_stat_requirement(
-    async_client: AsyncClient, async_session: AsyncSession
-) -> None:
+    (
+        "stat",
+        (STAT, {"stat": "strength", "value": 10, "count": 1}),
+        [("Strong", {"strength": 10}, None), ("Weak", {"strength": 5}, None)],
+        ("Strong",),
+    ),
     # Exercises the eager-loaded Dweller.outfit path feeding effective_stat.
+    (
+        "outfit-bonus",
+        (STAT, {"stat": "strength", "value": 10, "count": 1}),
+        [("Buffed", {"strength": 8}, ("outfit", {"strength": 2})), ("Weak", {"strength": 8}, None)],
+        ("Buffed",),
+    ),
+    (
+        "item-ignored",
+        (ITEM, {"item_name": "Laser Pistol", "count": 1}),
+        [("Armed", {}, ("weapon", {"name": "Laser Pistol"})), ("Unarmed", {}, None)],
+        ("Armed", "Unarmed"),
+    ),
+    ("attack", (ATTACK, {"attack": 15, "count": 1}), [("Strong", {}, RIFLE), ("Weak", {}, WEAK_BLADE)], ("Strong",)),
+]
+
+
+@pytest.mark.parametrize(
+    ("requirement", "roster", "expected"),
+    [case[1:] for case in ELIGIBLE_CASES],
+    ids=[case[0] for case in ELIGIBLE_CASES],
+)
+async def test_get_eligible_dwellers_applies_the_personal_gates(
+    async_client: AsyncClient, async_session: AsyncSession, requirement, roster, expected
+) -> None:
     user_data, user, vault = await _user_vault(async_session)
-    quest = await _quest(
-        async_session,
-        title="Strength Quest",
-        requirements=[(RequirementType.STAT, {"stat": "strength", "value": 10, "count": 1}, True)],
-    )
-    buffed = await _add_dweller(async_session, vault, "Buffed", strength=8)
-    weak = await _add_dweller(async_session, vault, "Weak", strength=8)
+    quest = await _quest(async_session, title="Gate Quest", requirements=[(*requirement, True)])
+    created = {name: await _add_dweller(async_session, vault, name, **fields) for name, fields, _gear in roster}
     await async_session.commit()
-    await crud.outfit.create(
-        async_session,
-        obj_in=create_fake_outfit() | {"strength": 2, "dweller_id": buffed.id},  # 8 + 2 = 10
-    )
+    for name, _fields, gear in roster:
+        if gear is None:
+            continue
+        kind, attributes = gear
+        crud_model, payload = (
+            (crud.weapon, create_fake_weapon()) if kind == "weapon" else (crud.outfit, create_fake_outfit())
+        )
+        await crud_model.create(async_session, obj_in=payload | attributes | {"dweller_id": created[name].id})
+
     dweller_ids = await _eligible_ids(async_client, user, user_data, vault, quest)
-    _assert_ids(dweller_ids, (buffed,), (weak,))
+
+    assert set(dweller_ids) == {str(created[name].id) for name in expected}
 
 
 async def test_get_available_quests_excludes_locked(async_client: AsyncClient, async_session: AsyncSession) -> None:

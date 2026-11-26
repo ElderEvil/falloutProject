@@ -47,8 +47,8 @@ async def _dispatch_team(async_session: AsyncSession, vault, exploration: Explor
     return team
 
 
-async def test_get_exploration_team_returns_team_with_members(async_session: AsyncSession) -> None:
-    vault, dwellers = await _vault_with_dwellers(async_session, 2)
+async def test_get_exploration_team_and_members(async_session: AsyncSession) -> None:
+    vault, dwellers = await _vault_with_dwellers(async_session, 3)
     exploration = await _create_exploration(async_session, vault, dwellers[0])
     team = await _dispatch_team(async_session, vault, exploration, dwellers)
     found = await crud.team_crud.get_exploration_team(async_session, exploration.id)
@@ -56,21 +56,12 @@ async def test_get_exploration_team_returns_team_with_members(async_session: Asy
     assert found.id == team.id
     assert found.exploration_id == exploration.id
     assert {member.dweller_id for member in found.members} == {dweller.id for dweller in dwellers}
-
-
-async def test_get_exploration_team_returns_none_for_unknown_run(async_session: AsyncSession) -> None:
-    assert await crud.team_crud.get_exploration_team(async_session, uuid4()) is None
-
-
-async def test_get_exploration_team_dwellers_returns_slot_ordered_dwellers(async_session: AsyncSession) -> None:
-    vault, dwellers = await _vault_with_dwellers(async_session, 3)
-    exploration = await _create_exploration(async_session, vault, dwellers[0])
-    await _dispatch_team(async_session, vault, exploration, dwellers)
     party = await crud.team_crud.get_exploration_team_dwellers(async_session, exploration.id)
     assert [dweller.id for dweller in party] == [dweller.id for dweller in dwellers]
 
 
-async def test_get_exploration_team_dwellers_empty_without_team(async_session: AsyncSession) -> None:
+async def test_team_reads_return_empty_without_a_team(async_session: AsyncSession) -> None:
+    assert await crud.team_crud.get_exploration_team(async_session, uuid4()) is None
     assert await crud.team_crud.get_exploration_team_dwellers(async_session, uuid4()) == []
 
 

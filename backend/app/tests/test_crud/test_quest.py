@@ -246,36 +246,6 @@ async def test_quest_cannot_complete_before_its_duration(async_session: AsyncSes
         await quest_service.claim_quest_rewards(async_session, quest.id, vault.id)
 
 
-async def test_check_and_complete_quests_for_vault(async_session: AsyncSession) -> None:
-    user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
-    vault_data = create_fake_vault()
-    vault = await crud.vault.create(async_session, obj_in=VaultCreateWithUserID(**vault_data, user_id=user.id))
-    quest = await _quest(async_session, "Auto Complete Quest", requirements="1 dweller", rewards="50 caps")
-    async_session.add(
-        QuestReward(quest_id=quest.id, reward_type=RewardType.CAPS, reward_data={"amount": 50}, reward_chance=1.0)
-    )
-    link = VaultQuestCompletionLink(vault_id=vault.id, quest_id=quest.id, is_visible=True, is_completed=False)
-    async_session.add(link)
-    await async_session.commit()
-    link.started_at = utcnow() - timedelta(minutes=120)
-    link.duration_minutes = 60
-    await async_session.commit()
-    completed = await quest_service.check_and_complete_quests(async_session, vault_id=vault.id)
-    assert completed == 0
-    await async_session.refresh(link)
-    assert link.return_completes_at is not None
-    assert link.is_reward_ready is False
-    link.return_completes_at = utcnow() - timedelta(seconds=1)
-    await async_session.commit()
-    completed = await quest_service.check_and_complete_quests(async_session, vault_id=vault.id)
-    assert completed >= 1
-    await async_session.refresh(link)
-    await async_session.refresh(vault)
-    assert link.is_completed is False
-    assert link.is_reward_ready is True
-    assert vault.bottle_caps == vault_data["bottle_caps"]
-
-
 async def test_timed_quest_completion_simulation(async_session: AsyncSession) -> None:
     user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
     vault_data = create_fake_vault()

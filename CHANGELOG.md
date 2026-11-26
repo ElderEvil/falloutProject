@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## 3.33.0 (2026-11-26)
+
+### Features
+
+* **pvp:** make raids reachable and player vaults legible ([#1570](https://github.com/ElderEvil/falloutProject/issues/1570)) 6c4e0e9
+
+### Bug Fixes
+
+* **chat:** screen chat abuse and keep dwellers in character ([#1571](https://github.com/ElderEvil/falloutProject/issues/1571)) 1b5dae5
+
 ## 3.32.1 (2026-11-26)
 
 ### Bug Fixes

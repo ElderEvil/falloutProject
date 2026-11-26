@@ -47,22 +47,18 @@ describe('pvp store load failures', () => {
     vi.restoreAllMocks()
   })
 
-  it('raises a toast when a player opens the board', async () => {
-    const ok = await usePvpStore().load('vault-1')
-
-    expect(ok).toBe(false)
-    expect(handleStoreErrorMock).toHaveBeenCalledWith(expect.any(Error), 'Failed to load The Pit', true)
-  })
-
-  it('stays quiet when a passive caller asks for a silent load', async () => {
-    const ok = await usePvpStore().load('vault-1', undefined, { silent: true })
+  it.each([
+    ['raises a toast when a player opens the board', {}, true],
+    ['stays quiet when a passive caller asks for a silent load', { silent: true }, false],
+  ] as [string, { silent?: boolean }, boolean][])('%s', async (_, options, notify) => {
+    const ok = await usePvpStore().load('vault-1', undefined, options)
 
     expect(ok).toBe(false)
     // A banner on the vault page must never toast a failed background fetch.
     expect(handleStoreErrorMock).toHaveBeenCalledWith(
       expect.any(Error),
       'Failed to load The Pit',
-      false
+      notify
     )
   })
 
@@ -72,7 +68,6 @@ describe('pvp store load failures', () => {
 
     const store = usePvpStore()
     expect(await store.load('vault-1')).toBe(true)
-
     expect(store.stateVaultId).toBe('vault-1')
     expect(store.board).toHaveLength(1)
   })
@@ -86,11 +81,9 @@ describe('pvp store load failures', () => {
     let release: (v: never[]) => void = () => undefined
     listMock.mockReturnValue(new Promise((resolve) => (release = resolve as (v: never[]) => void)))
     const pending = store.load('vault-2')
-
     // Nothing from vault-1 may survive the switch, even before vault-2 resolves.
     expect(store.board).toEqual([])
     expect(store.stateVaultId).toBeNull()
-
     release([] as never[])
     await pending
     expect(store.stateVaultId).toBe('vault-2')
@@ -106,7 +99,6 @@ describe('pvp store load failures', () => {
     const pending = store.load('vault-1')
     // Logout/login while the request is in flight: the result belongs to the old account.
     auth.sessionGeneration++
-
     release([boardEntry('stale')] as never[])
     expect(await pending).toBe(false)
     expect(store.board).toEqual([])

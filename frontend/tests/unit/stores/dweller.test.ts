@@ -10,7 +10,6 @@ describe('Dweller store slices', () => {
 
   it('exposes the five underlying Pinia stores by concern', () => {
     const store = useDwellerStore()
-
     expect(store.filter.$id).toBe('dwellerFilter')
     expect(store.generation.$id).toBe('dwellerGeneration')
     expect(store.management.$id).toBe('dwellerManagement')
@@ -20,9 +19,7 @@ describe('Dweller store slices', () => {
 
   it('keeps loading state independent for filter, generation, and death work', () => {
     const store = useDwellerStore()
-
     store.death.deadLoadingCount = 1
-
     expect(store.filter.isLoading).toBe(false)
     expect(store.death.isDeadLoading).toBe(true)
     expect('isLoading' in store.generation).toBe(false)
@@ -30,10 +27,8 @@ describe('Dweller store slices', () => {
 
   it('supports Pinia patches on every stateful slice', () => {
     const store = useDwellerStore()
-
     store.filter.$patch({ dwellers: [] })
     store.death.$patch({ deadLoadingCount: 2 })
-
     expect(store.filter.dwellers).toEqual([])
     expect(store.death.isDeadLoading).toBe(true)
   })
@@ -41,74 +36,34 @@ describe('Dweller store slices', () => {
   it('returns reactive refs from the filter slice', () => {
     const store = useDwellerStore()
     const { dwellers } = storeToRefs(store.filter)
-
     store.filter.dwellers = [{ id: 'dweller-1' }] as never
-
     expect(dwellers.value).toHaveLength(1)
     expect(dwellers.value[0]?.id).toBe('dweller-1')
   })
 
-  it('keeps filter preferences on the filter slice', () => {
+  it('keeps every view preference on the filter slice', () => {
     const { filter } = useDwellerStore()
 
     filter.setFilterStatus('working')
-    filter.setSortDirection('desc')
-
-    expect(filter.filterStatus).toBe('working')
-    expect(filter.sortDirection).toBe('desc')
-  })
-
-  it('keeps age-group preferences on the filter slice', () => {
-    const { filter } = useDwellerStore()
-
     filter.setFilterAgeGroup('adult')
-
-    expect(filter.filterAgeGroup).toBe('adult')
-  })
-
-  it('keeps sort-field preferences on the filter slice', () => {
-    const { filter } = useDwellerStore()
-
     filter.setSortBy('happiness')
-
-    expect(filter.sortBy).toBe('happiness')
-  })
-
-  it('keeps the list and grid display preference on the filter slice', () => {
-    const { filter } = useDwellerStore()
-
+    filter.setSortDirection('desc')
     filter.setViewMode('grid')
-
-    expect(filter.viewMode).toBe('grid')
+    expect(filter).toMatchObject({
+      filterStatus: 'working',
+      filterAgeGroup: 'adult',
+      sortBy: 'happiness',
+      sortDirection: 'desc',
+      viewMode: 'grid',
+    })
   })
 
-  it('returns null for an unknown dweller status', () => {
-    const { filter } = useDwellerStore()
-
+  it('starts with the documented empty state on both slices', () => {
+    const { filter, death } = useDwellerStore()
     expect(filter.getDwellerStatus('missing')).toBeNull()
-  })
-
-  it('starts with an empty detailed-dweller cache', () => {
-    const { filter } = useDwellerStore()
-
     expect(filter.detailedDwellers).toEqual({})
-  })
-
-  it('starts with no revivable dwellers', () => {
-    const { death } = useDwellerStore()
-
     expect(death.deadDwellers).toEqual([])
-  })
-
-  it('starts with no graveyard dwellers', () => {
-    const { death } = useDwellerStore()
-
     expect(death.graveyardDwellers).toEqual([])
-  })
-
-  it('starts death loading as false', () => {
-    const { death } = useDwellerStore()
-
     expect(death.isDeadLoading).toBe(false)
   })
 })

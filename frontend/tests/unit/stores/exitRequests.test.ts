@@ -43,7 +43,6 @@ describe('useExitRequestStore', () => {
     })
 
     await store.load('vault-1')
-
     expect(axios.get).toHaveBeenCalledWith('/api/v1/dwellers/vault/vault-1/exit-requests')
     expect(store.requests).toEqual([pendingRequest])
     expect(store.isLoading).toBe(false)
@@ -54,7 +53,6 @@ describe('useExitRequestStore', () => {
     vi.mocked(axios.get).mockRejectedValue(new Error('boom'))
 
     await store.load('vault-1')
-
     expect(store.requests).toEqual([])
     expect(toastMock.error).toHaveBeenCalledWith(
       expect.stringContaining('Failed to load exit requests')
@@ -69,7 +67,6 @@ describe('useExitRequestStore', () => {
     })
 
     const result = await store.grant('dweller-1')
-
     expect(axios.post).toHaveBeenCalledWith('/api/v1/dwellers/dweller-1/grant-exit')
     expect(result).toBe(true)
     expect(store.requests).toEqual([])
@@ -84,7 +81,6 @@ describe('useExitRequestStore', () => {
     })
 
     const result = await store.refuse('dweller-1', 10)
-
     expect(axios.post).toHaveBeenCalledWith('/api/v1/dwellers/dweller-1/refuse-exit')
     expect(result).toBe(true)
     expect(store.requests).toEqual([])
@@ -97,12 +93,19 @@ describe('useExitRequestStore', () => {
     vi.mocked(axios.post).mockRejectedValue(new Error('boom'))
 
     const result = await store.refuse('dweller-1', 10)
-
     expect(result).toBe(false)
     expect(store.requests).toEqual([pendingRequest])
     expect(toastMock.error).toHaveBeenCalledWith(expect.stringContaining('Failed to refuse'))
   })
 })
+
+const mountModal = () =>
+  mount(ExitRequestModal, {
+    global: {
+      plugins: [createPinia()],
+      stubs: { Teleport: { template: '<div class="mock-modal"><slot /></div>' } },
+    },
+  })
 
 describe('ExitRequestModal', () => {
   beforeEach(() => {
@@ -117,18 +120,11 @@ describe('ExitRequestModal', () => {
       data: { dweller_id: 'dweller-1', dweller_name: 'Alice Smith', granted: false, happiness: 20 },
     })
 
-    const wrapper = mount(ExitRequestModal, {
-      global: {
-        plugins: [createPinia()],
-        stubs: { Teleport: { template: '<div class="mock-modal"><slot /></div>' } },
-      },
-    })
+    const wrapper = mountModal()
     await flushPromises()
-
     const refuse = wrapper.findAll('button').find((button) => button.text().includes('Refuse'))
     await refuse!.trigger('click')
     await flushPromises()
-
     expect(axios.post).toHaveBeenCalledWith('/api/v1/dwellers/dweller-1/refuse-exit')
     expect(wrapper.findComponent({ name: 'Dialog' }).props('open')).toBe(false)
   })
@@ -140,18 +136,11 @@ describe('ExitRequestModal', () => {
       data: { dweller_id: 'dweller-1', dweller_name: 'Alice Smith', granted: false, happiness: 20 },
     })
 
-    const wrapper = mount(ExitRequestModal, {
-      global: {
-        plugins: [createPinia()],
-        stubs: { Teleport: { template: '<div class="mock-modal"><slot /></div>' } },
-      },
-    })
+    const wrapper = mountModal()
     await flushPromises()
-
     const refuse = wrapper.findAll('button').find((button) => button.text().includes('Refuse'))
     await refuse!.trigger('click')
     await flushPromises()
-
     expect(wrapper.findComponent({ name: 'Dialog' }).props('open')).toBe(false)
   })
 
@@ -161,18 +150,11 @@ describe('ExitRequestModal', () => {
     try {
       vi.mocked(axios.get).mockResolvedValue({ data: [] })
 
-      const wrapper = mount(ExitRequestModal, {
-        global: {
-          plugins: [createPinia()],
-          stubs: { Teleport: { template: '<div class="mock-modal"><slot /></div>' } },
-        },
-      })
+      const wrapper = mountModal()
       await flushPromises()
       vi.mocked(axios.get).mockClear()
-
       vi.advanceTimersByTime(60_000)
       await flushPromises()
-
       expect(axios.get).toHaveBeenCalledWith(expect.stringContaining('/exit-requests'))
       wrapper.unmount()
     } finally {
@@ -185,25 +167,17 @@ describe('ExitRequestModal', () => {
       data: [pendingRequest],
     })
 
-    const wrapper = mount(ExitRequestModal, {
-      global: {
-        plugins: [createPinia()],
-        stubs: { Teleport: { template: '<div class="mock-modal"><slot /></div>' } },
-      },
-    })
+    const wrapper = mountModal()
     await flushPromises()
-
     expect(wrapper.find('.mock-modal').exists()).toBe(true)
     expect(wrapper.text()).toContain('Alice Smith')
     expect(wrapper.text()).toContain('the whole vault loses 10 happiness')
     expect(wrapper.text()).toContain('Refuse — vault −10')
-
     const decideLater = wrapper
       .findAll('button')
       .find((button) => button.text().includes('Decide Later'))
     await decideLater!.trigger('click')
     await flushPromises()
-
     expect(wrapper.findComponent({ name: 'Dialog' }).props('open')).toBe(false)
     expect(useExitRequestStore().requests).toEqual([pendingRequest])
     expect(Number(localStorage.getItem('exitRequestSnoozedUntil'))).toBeGreaterThan(Date.now())

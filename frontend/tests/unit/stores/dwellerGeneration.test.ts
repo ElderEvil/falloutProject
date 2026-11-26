@@ -33,7 +33,6 @@ describe('useDwellerGenerationStore', () => {
     })
 
     const result = await useDwellerGenerationStore().generateDwellerAppearance('dweller-1')
-
     expect(result).toBeNull()
     expect(mockToast.error).toHaveBeenCalledTimes(1)
     expect(mockToast.error).toHaveBeenCalledWith(
@@ -47,7 +46,6 @@ describe('useDwellerGenerationStore', () => {
     })
 
     const result = await useDwellerGenerationStore().extendDwellerBio('dweller-1')
-
     expect(axios.post).toHaveBeenCalledWith('/api/v1/dwellers/dweller-1/extend_bio/', null, {
       _skipErrorNotification: true,
     })

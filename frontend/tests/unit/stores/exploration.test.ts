@@ -51,57 +51,85 @@ vi.mock('@/modules/dwellers/stores/dweller', () => ({
   useDwellerStore: vi.fn(() => ({ filter: mockDwellerFilter })),
 }))
 
+/** A fresh base exploration; tests mutate store state, so it is rebuilt per test. */
+const baseExploration = () => ({
+  id: 'exploration-1',
+  vault_id: 'vault-1',
+  dweller_id: 'dweller-1',
+  status: 'active',
+  duration: 4,
+  start_time: '2025-01-01T00:00:00Z',
+  end_time: null,
+  events: [],
+  loot_collected: [],
+  total_distance: 0,
+  total_caps_found: 0,
+  enemies_encountered: 0,
+  created_at: '2025-01-01T00:00:00Z',
+  updated_at: '2025-01-01T00:00:00Z',
+  dweller_strength: 5,
+  dweller_perception: 6,
+  dweller_endurance: 7,
+  dweller_charisma: 4,
+  dweller_intelligence: 5,
+  dweller_agility: 6,
+  dweller_luck: 8,
+})
+
+let mockExploration = baseExploration()
+
+const mockExplorationProgress = {
+  id: 'exploration-1',
+  status: 'ACTIVE',
+  progress_percentage: 25.5,
+  time_remaining_seconds: 10800,
+  elapsed_time_seconds: 3600,
+  events: [],
+  loot_collected: [],
+}
+
+const mockRewardsSummary = {
+  caps: 150,
+  items: [
+    { item_name: 'Desk Fan', quantity: 1, rarity: 'Common', found_at: '2025-01-01T00:00:00Z' },
+  ],
+  experience: 750,
+  distance: 50,
+  enemies_defeated: 5,
+  events_encountered: 3,
+}
+
+/** An exploration row; only fields a test cares about need naming. */
+const run = (overrides: Record<string, unknown> = {}) =>
+  ({ ...mockExploration, ...overrides }) as typeof mockExploration
+
+/** A live exploration whose event log the SSE handler can append to. */
+const liveRun = (overrides: Record<string, unknown> = {}) =>
+  ({ ...mockExploration, events: [], ...overrides }) as typeof mockExploration
+
+const explorationEvent = (type: string, description: string) => ({
+  type,
+  description,
+  timestamp: '2026-01-01T00:05:00Z',
+  time_elapsed_hours: 0.1,
+})
+
+/** Push one SSE frame onto the mocked stream and let the watcher settle. */
+async function emitSse(data: Record<string, unknown>) {
+  mockSseEvent.value = { event: 'exploration', data }
+  await nextTick()
+}
+
+const toastShownFor = (message: string) =>
+  useToast().toasts.value.some((toast) => toast.message === message)
+
 describe('Exploration Store', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     vi.clearAllMocks()
+    mockExploration = baseExploration()
     useToast().toasts.value = []
   })
-
-  const mockExploration = {
-    id: 'exploration-1',
-    vault_id: 'vault-1',
-    dweller_id: 'dweller-1',
-    status: 'active',
-    duration: 4,
-    start_time: '2025-01-01T00:00:00Z',
-    end_time: null,
-    events: [],
-    loot_collected: [],
-    total_distance: 0,
-    total_caps_found: 0,
-    enemies_encountered: 0,
-    created_at: '2025-01-01T00:00:00Z',
-    updated_at: '2025-01-01T00:00:00Z',
-    dweller_strength: 5,
-    dweller_perception: 6,
-    dweller_endurance: 7,
-    dweller_charisma: 4,
-    dweller_intelligence: 5,
-    dweller_agility: 6,
-    dweller_luck: 8,
-  }
-
-  const mockExplorationProgress = {
-    id: 'exploration-1',
-    status: 'ACTIVE',
-    progress_percentage: 25.5,
-    time_remaining_seconds: 10800,
-    elapsed_time_seconds: 3600,
-    events: [],
-    loot_collected: [],
-  }
-
-  const mockRewardsSummary = {
-    caps: 150,
-    items: [
-      { item_name: 'Desk Fan', quantity: 1, rarity: 'Common', found_at: '2025-01-01T00:00:00Z' },
-    ],
-    experience: 750,
-    distance: 50,
-    enemies_defeated: 5,
-    events_encountered: 3,
-  }
 
   describe('State Initialization', () => {
     it('should initialize with empty state', () => {
@@ -117,86 +145,51 @@ describe('Exploration Store', () => {
   describe('Getters', () => {
     it('getExplorationByDwellerId should return active exploration for dweller', () => {
       const store = useExplorationStore()
-      store.explorations = [
-        mockExploration,
-        { ...mockExploration, id: 'exploration-2', dweller_id: 'dweller-2' },
-      ]
-
-      const exploration = store.getExplorationByDwellerId('dweller-1')
-      expect(exploration).toEqual(mockExploration)
+      store.explorations = [mockExploration, run({ id: 'exploration-2', dweller_id: 'dweller-2' })]
+      expect(store.getExplorationByDwellerId('dweller-1')).toEqual(mockExploration)
     })
 
-    it('getExplorationByDwellerId should return undefined when not found', () => {
+    it('getExplorationByDwellerId should return undefined for a missing or completed run', () => {
       const store = useExplorationStore()
-      store.explorations = [mockExploration]
-
-      const exploration = store.getExplorationByDwellerId('dweller-999')
-      expect(exploration).toBeUndefined()
+      store.explorations = [run({ status: 'completed' })]
+      expect(store.getExplorationByDwellerId('dweller-1')).toBeUndefined()
+      expect(store.getExplorationByDwellerId('dweller-999')).toBeUndefined()
     })
 
-    it('getExplorationByDwellerId should only return active explorations', () => {
-      const store = useExplorationStore()
-      const completedExploration = { ...mockExploration, status: 'completed' }
-      store.explorations = [completedExploration]
-
-      const exploration = store.getExplorationByDwellerId('dweller-1')
-      expect(exploration).toBeUndefined()
-    })
-
-    it('getActiveExplorationsForVault should filter by vault and status', () => {
+    it('getActiveExplorationsForVault should filter by vault and active-ish status', () => {
       const store = useExplorationStore()
       store.explorations = [
         mockExploration,
-        { ...mockExploration, id: 'exploration-2', dweller_id: 'dweller-2', vault_id: 'vault-1' },
-        {
-          ...mockExploration,
-          id: 'exploration-3',
-          dweller_id: 'dweller-3',
-          vault_id: 'vault-2',
-          status: 'active',
-        },
-        {
-          ...mockExploration,
-          id: 'exploration-4',
-          dweller_id: 'dweller-4',
-          vault_id: 'vault-1',
-          status: 'completed',
-        },
+        run({ id: 'exploration-2', dweller_id: 'dweller-2' }),
+        run({ id: 'exploration-3', dweller_id: 'dweller-3', vault_id: 'vault-2' }),
+        run({ id: 'exploration-4', dweller_id: 'dweller-4', status: 'completed' }),
       ]
 
       const vaultExplorations = store.getActiveExplorationsForVault('vault-1')
-      expect(vaultExplorations).toHaveLength(2)
-      expect(vaultExplorations.every((e) => e.vault_id === 'vault-1')).toBe(true)
-      expect(vaultExplorations.every((e) => e.status === 'active')).toBe(true)
+      expect(vaultExplorations.map((exploration) => exploration.id)).toEqual([
+        'exploration-1',
+        'exploration-2',
+      ])
     })
 
-    it('getExplorationByDwellerId should include a dweller on the return leg', () => {
+    it('treats the return leg as active and prefers an active run over a stale returning one', () => {
       const store = useExplorationStore()
-      store.explorations = [{ ...mockExploration, status: 'returning' }]
+      store.explorations = [run({ status: 'returning' })]
 
       expect(store.getExplorationByDwellerId('dweller-1')?.status).toBe('returning')
-    })
-
-    it('getExplorationByDwellerId should prefer an active run over a stale returning one', () => {
-      const store = useExplorationStore()
+      expect(store.getActiveExplorationsForVault('vault-1').map((entry) => entry.id)).toEqual([
+        'exploration-1',
+      ])
       store.explorations = [
-        { ...mockExploration, id: 'exploration-old', status: 'returning' },
-        { ...mockExploration, id: 'exploration-new', status: 'active' },
+        run({ id: 'exploration-old', status: 'returning' }),
+        run({ id: 'exploration-new', status: 'active' }),
+        run({ id: 'exploration-done', dweller_id: 'dweller-3', status: 'completed' }),
       ]
-
       expect(store.getExplorationByDwellerId('dweller-1')?.id).toBe('exploration-new')
-    })
-
-    it('getActiveExplorationsForVault should include returning explorations', () => {
-      const store = useExplorationStore()
-      store.explorations = [
-        mockExploration,
-        { ...mockExploration, id: 'exploration-2', dweller_id: 'dweller-2', status: 'returning' },
-        { ...mockExploration, id: 'exploration-3', dweller_id: 'dweller-3', status: 'completed' },
-      ]
-
-      const vaultExplorations = store.getActiveExplorationsForVault('vault-1')
-      expect(vaultExplorations.map((e) => e.id).sort()).toEqual(['exploration-1', 'exploration-2'])
+      expect(store.getActiveExplorationsForVault('vault-1').map((entry) => entry.id)).toEqual([
+        'exploration-old',
+        'exploration-new',
+      ])
     })
   })
 
@@ -206,7 +199,6 @@ describe('Exploration Store', () => {
       vi.mocked(explorationApi.sendDwellerToWasteland).mockResolvedValueOnce(mockExploration)
 
       const result = await store.sendDwellerToWasteland('vault-1', 'dweller-1', 4)
-
       expect(explorationApi.sendDwellerToWasteland).toHaveBeenCalledWith('vault-1', {
         dweller_id: 'dweller-1',
         duration: 4,
@@ -228,32 +220,16 @@ describe('Exploration Store', () => {
         loadingDuringRequest = store.isLoading
         return mockExploration
       })
-
       await store.sendDwellerToWasteland('vault-1', 'dweller-1', 4)
-
       expect(loadingDuringRequest).toBe(true)
       expect(store.isLoading).toBe(false)
     })
 
-    it('should handle error', async () => {
+    it('sends heading_degrees with supplies and omits it for a free-roam send', async () => {
       const store = useExplorationStore()
-      const error = new Error('Failed to send dweller')
-      vi.mocked(explorationApi.sendDwellerToWasteland).mockRejectedValueOnce(error)
-
-      await expect(store.sendDwellerToWasteland('vault-1', 'dweller-1', 4)).rejects.toThrow(
-        'Failed to send dweller'
-      )
-
-      expect(store.error).toBe('Failed to send dweller to wasteland')
-      expect(store.isLoading).toBe(false)
-    })
-
-    it('includes heading_degrees in the request body when a heading is given', async () => {
-      const store = useExplorationStore()
-      vi.mocked(explorationApi.sendDwellerToWasteland).mockResolvedValueOnce(mockExploration)
+      vi.mocked(explorationApi.sendDwellerToWasteland).mockResolvedValue(mockExploration)
 
       await store.sendDwellerToWasteland('vault-1', 'dweller-1', 4, 2, 1, 90)
-
       expect(explorationApi.sendDwellerToWasteland).toHaveBeenCalledWith('vault-1', {
         dweller_id: 'dweller-1',
         duration: 4,
@@ -261,15 +237,8 @@ describe('Exploration Store', () => {
         radaways: 1,
         heading_degrees: 90,
       })
-    })
-
-    it('omits heading_degrees for a free-roam send', async () => {
-      const store = useExplorationStore()
-      vi.mocked(explorationApi.sendDwellerToWasteland).mockResolvedValueOnce(mockExploration)
-
       await store.sendDwellerToWasteland('vault-1', 'dweller-1', 4)
-
-      expect(explorationApi.sendDwellerToWasteland).toHaveBeenCalledWith('vault-1', {
+      expect(explorationApi.sendDwellerToWasteland).toHaveBeenLastCalledWith('vault-1', {
         dweller_id: 'dweller-1',
         duration: 4,
         stimpaks: 0,
@@ -285,7 +254,6 @@ describe('Exploration Store', () => {
       vi.mocked(explorationApi.dispatchToLocation).mockResolvedValueOnce(mockExploration)
 
       const result = await store.dispatchToLocation('vault-1', ['dweller-1'], 'loc-1')
-
       expect(explorationApi.dispatchToLocation).toHaveBeenCalledWith('vault-1', {
         dwellerIds: ['dweller-1'],
         locationId: 'loc-1',
@@ -305,39 +273,23 @@ describe('Exploration Store', () => {
       useAuthStore().token = 'test-token'
       store.explorations = [mockExploration]
       store.activeExplorations = { 'exploration-1': mockExploration }
-
-      const updatedExploration = { ...mockExploration, total_caps_found: 100 }
-      vi.mocked(explorationApi.dispatchToLocation).mockResolvedValueOnce(updatedExploration)
-
-      await store.dispatchToLocation('vault-1', ['dweller-1', 'dweller-2'], 'loc-1')
-
-      expect(store.explorations).toHaveLength(1)
-      expect(store.explorations[0].total_caps_found).toBe(100)
-    })
-
-    it('should handle error', async () => {
-      const store = useExplorationStore()
-      useAuthStore().token = 'test-token'
-      const error = new Error('Dispatch failed')
-      vi.mocked(explorationApi.dispatchToLocation).mockRejectedValueOnce(error)
-
-      await expect(store.dispatchToLocation('vault-1', ['dweller-1'], 'loc-1')).rejects.toThrow(
-        'Dispatch failed'
+      vi.mocked(explorationApi.dispatchToLocation).mockResolvedValueOnce(
+        run({ total_caps_found: 100 })
       )
 
-      expect(store.error).toBe('Failed to dispatch dweller')
-      expect(store.isLoading).toBe(false)
+      await store.dispatchToLocation('vault-1', ['dweller-1', 'dweller-2'], 'loc-1')
+      expect(store.explorations).toHaveLength(1)
+      expect(store.explorations[0].total_caps_found).toBe(100)
     })
   })
 
   describe('fetchExplorationsByVault Action', () => {
     it('should fetch active explorations successfully', async () => {
       const store = useExplorationStore()
-      const explorations = [mockExploration, { ...mockExploration, id: 'exploration-2' }]
+      const explorations = [mockExploration, run({ id: 'exploration-2' })]
       vi.mocked(explorationApi.getExplorationsByVault).mockResolvedValueOnce(explorations)
 
       const result = await store.fetchExplorationsByVault('vault-1', true)
-
       expect(explorationApi.getExplorationsByVault).toHaveBeenCalledWith('vault-1', true)
       expect(result).toEqual(explorations)
       expect(store.explorations).toEqual(explorations)
@@ -347,58 +299,35 @@ describe('Exploration Store', () => {
     it('keeps the pack figures and activity the list payload now carries', async () => {
       const store = useExplorationStore()
       vi.mocked(explorationApi.getExplorationsByVault).mockResolvedValueOnce([
-        {
-          ...mockExploration,
-          events: [
-            {
-              type: 'loot',
-              description: 'Found a desk fan',
-              timestamp: '2025-01-01T00:10:00Z',
-              time_elapsed_hours: 1,
-            },
-          ],
-          loot_collected: [
-            {
-              item_name: 'Desk Fan',
-              quantity: 2,
-              rarity: 'Common',
-              found_at: '2025-01-01T00:10:00Z',
-            },
-          ],
+        run({
+          events: [explorationEvent('loot', 'Found a desk fan')],
+          loot_collected: mockRewardsSummary.items,
           carry_capacity: 21,
           pack_slots_used: 2,
-        },
+        }),
       ])
 
-      const [run] = await store.fetchExplorationsByVault('vault-1', true)
-
-      expect(run.carry_capacity).toBe(21)
-      expect(run.pack_slots_used).toBe(2)
-      expect(run.loot_collected).toHaveLength(1)
-      expect(run.events[0]?.description).toBe('Found a desk fan')
+      const [exploration] = await store.fetchExplorationsByVault('vault-1', true)
+      expect(exploration).toMatchObject({ carry_capacity: 21, pack_slots_used: 2 })
+      expect(exploration.loot_collected).toHaveLength(1)
+      expect(exploration.events[0]?.description).toBe('Found a desk fan')
     })
 
-    it('should fetch all explorations when activeOnly is false', async () => {
+    it('should fetch all explorations and map only the active ones when activeOnly is false', async () => {
       const store = useExplorationStore()
-      const explorations = [
-        mockExploration,
-        { ...mockExploration, id: 'exploration-2', status: 'completed' },
-      ]
+      const explorations = [mockExploration, run({ id: 'exploration-2', status: 'completed' })]
       vi.mocked(explorationApi.getExplorationsByVault).mockResolvedValueOnce(explorations)
 
       await store.fetchExplorationsByVault('vault-1', false)
-
       expect(explorationApi.getExplorationsByVault).toHaveBeenCalledWith('vault-1', false)
       expect(store.explorations).toEqual(explorations)
-      expect(Object.keys(store.activeExplorations)).toHaveLength(1) // Only active ones in map
+      expect(Object.keys(store.activeExplorations)).toHaveLength(1)
     })
 
     it('should handle empty response', async () => {
       const store = useExplorationStore()
       vi.mocked(explorationApi.getExplorationsByVault).mockResolvedValueOnce([])
-
       await store.fetchExplorationsByVault('vault-1')
-
       expect(store.explorations).toEqual([])
       expect(store.activeExplorations).toEqual({})
     })
@@ -410,11 +339,10 @@ describe('Exploration Store', () => {
       )
 
       void store.fetchExplorationsByVault('vault-1', true, true)
-
       expect(store.isLoading).toBe(false)
     })
 
-    it('keeps the previous error when a silent refresh fails', async () => {
+    it('keeps the previous error when a silent refresh fails and clears it on success', async () => {
       const store = useExplorationStore()
       store.error = 'previous error'
       vi.mocked(explorationApi.getExplorationsByVault).mockRejectedValueOnce(
@@ -424,30 +352,78 @@ describe('Exploration Store', () => {
       await expect(store.fetchExplorationsByVault('vault-1', true, true)).rejects.toThrow(
         'Fetch failed'
       )
-
       expect(store.error).toBe('previous error')
-    })
-
-    it('clears a previous error when a silent refresh succeeds', async () => {
-      const store = useExplorationStore()
-      store.error = 'previous error'
       vi.mocked(explorationApi.getExplorationsByVault).mockResolvedValueOnce([])
-
       await store.fetchExplorationsByVault('vault-1', true, true)
-
       expect(store.error).toBeNull()
     })
+  })
 
-    it('should handle error', async () => {
+  describe('action failures', () => {
+    it.each([
+      [
+        'sendDwellerToWasteland',
+        explorationApi.sendDwellerToWasteland,
+        (store: ReturnType<typeof useExplorationStore>) =>
+          store.sendDwellerToWasteland('vault-1', 'dweller-1', 4),
+        'Failed to send dweller',
+        'Failed to send dweller to wasteland',
+      ],
+      [
+        'dispatchToLocation',
+        explorationApi.dispatchToLocation,
+        (store: ReturnType<typeof useExplorationStore>) =>
+          store.dispatchToLocation('vault-1', ['dweller-1'], 'loc-1'),
+        'Dispatch failed',
+        'Failed to dispatch dweller',
+      ],
+      [
+        'recallDweller',
+        explorationApi.recallDweller,
+        (store: ReturnType<typeof useExplorationStore>) => store.recallDweller('exploration-1'),
+        'Recall failed',
+        'Failed to recall dweller',
+      ],
+      [
+        'completeExploration',
+        explorationApi.completeExploration,
+        (store: ReturnType<typeof useExplorationStore>) =>
+          store.completeExploration('exploration-1'),
+        'Complete failed',
+        'Failed to complete exploration',
+      ],
+      [
+        'fetchExplorationsByVault',
+        explorationApi.getExplorationsByVault,
+        (store: ReturnType<typeof useExplorationStore>) =>
+          store.fetchExplorationsByVault('vault-1'),
+        'Fetch failed',
+        'Failed to fetch explorations',
+      ],
+    ] as [string, () => unknown, (store: never) => Promise<unknown>, string, string][])(
+      '%s rejects, records the store error and clears loading',
+      async (_, api, invoke, thrown, recorded) => {
+        const store = useExplorationStore()
+        useAuthStore().token = 'test-token'
+        vi.mocked(api).mockRejectedValueOnce(new Error(thrown))
+
+        await expect(invoke(store as never)).rejects.toThrow(thrown)
+
+        expect(store.error).toBe(recorded)
+        expect(store.isLoading).toBe(false)
+      }
+    )
+
+    it('propagates a progress failure without touching the shared error', async () => {
       const store = useExplorationStore()
-      vi.mocked(explorationApi.getExplorationsByVault).mockRejectedValueOnce(
-        new Error('Fetch failed')
+      vi.mocked(explorationApi.getExplorationProgress).mockRejectedValueOnce(
+        new Error('Progress fetch failed')
       )
 
-      await expect(store.fetchExplorationsByVault('vault-1')).rejects.toThrow('Fetch failed')
-
-      expect(store.error).toBe('Failed to fetch explorations')
-      expect(store.isLoading).toBe(false)
+      await expect(store.fetchExplorationProgress('exploration-1')).rejects.toThrow(
+        'Progress fetch failed'
+      )
+      expect(store.error).toBeNull()
     })
   })
 
@@ -456,47 +432,38 @@ describe('Exploration Store', () => {
       const store = useExplorationStore()
       store.explorations = [mockExploration]
       store.activeExplorations = { 'exploration-1': mockExploration }
-
-      const updatedExploration = { ...mockExploration, total_distance: 50 }
+      const updatedExploration = run({ total_distance: 50 })
       vi.mocked(explorationApi.getExploration).mockResolvedValueOnce(updatedExploration)
 
       const result = await store.fetchExplorationDetails('exploration-1')
-
       expect(explorationApi.getExploration).toHaveBeenCalledWith('exploration-1')
       expect(result).toEqual(updatedExploration)
       expect(store.explorations[0]).toEqual(updatedExploration)
       expect(store.activeExplorations['exploration-1']).toEqual(updatedExploration)
     })
 
-    it('should remove from activeExplorations when status is not active', async () => {
+    it('drops a run from the active map once it completes but keeps it for the detail view', async () => {
       const store = useExplorationStore()
+      const completedExploration = run({ status: 'completed' })
       store.explorations = [mockExploration]
       store.activeExplorations = { 'exploration-1': mockExploration }
-
-      const completedExploration = { ...mockExploration, status: 'completed' }
       vi.mocked(explorationApi.getExploration).mockResolvedValueOnce(completedExploration)
 
       await store.fetchExplorationDetails('exploration-1')
-
       expect(store.activeExplorations['exploration-1']).toBeUndefined()
       expect(store.explorations[0].status).toBe('completed')
-    })
-
-    it('retains a directly loaded completed exploration for its detail view', async () => {
-      const store = useExplorationStore()
-      const completedExploration = { ...mockExploration, status: 'completed' }
+      // A directly loaded completed run is still retained when it was not cached.
+      const coldStore = useExplorationStore()
+      coldStore.explorations = []
       vi.mocked(explorationApi.getExploration).mockResolvedValueOnce(completedExploration)
-
-      await store.fetchExplorationDetails('exploration-1')
-
-      expect(store.explorations).toEqual([completedExploration])
-      expect(store.activeExplorations['exploration-1']).toBeUndefined()
+      await coldStore.fetchExplorationDetails('exploration-1')
+      expect(coldStore.explorations).toEqual([completedExploration])
+      expect(coldStore.activeExplorations['exploration-1']).toBeUndefined()
     })
 
-    it('should handle error', async () => {
+    it('surfaces the failure to the caller', async () => {
       const store = useExplorationStore()
       vi.mocked(explorationApi.getExploration).mockRejectedValueOnce(new Error('Fetch failed'))
-
       await expect(store.fetchExplorationDetails('exploration-1')).rejects.toThrow('Fetch failed')
     })
   })
@@ -509,20 +476,8 @@ describe('Exploration Store', () => {
       )
 
       const result = await store.fetchExplorationProgress('exploration-1')
-
       expect(explorationApi.getExplorationProgress).toHaveBeenCalledWith('exploration-1')
       expect(result).toEqual(mockExplorationProgress)
-    })
-
-    it('should handle error', async () => {
-      const store = useExplorationStore()
-      vi.mocked(explorationApi.getExplorationProgress).mockRejectedValueOnce(
-        new Error('Progress fetch failed')
-      )
-
-      await expect(store.fetchExplorationProgress('exploration-1')).rejects.toThrow(
-        'Progress fetch failed'
-      )
     })
   })
 
@@ -531,31 +486,18 @@ describe('Exploration Store', () => {
       const store = useExplorationStore()
       store.explorations = [mockExploration]
       store.activeExplorations = { 'exploration-1': mockExploration }
-
-      const recalledExploration = { ...mockExploration, status: 'recalled' }
       const response = {
-        exploration: recalledExploration,
+        exploration: run({ status: 'recalled' }),
         rewards_summary: { ...mockRewardsSummary, recalled_early: true, progress_percentage: 50 },
       }
       vi.mocked(explorationApi.recallDweller).mockResolvedValueOnce(response)
 
       const result = await store.recallDweller('exploration-1')
-
       expect(explorationApi.recallDweller).toHaveBeenCalledWith('exploration-1')
       expect(result).toEqual(response)
       expect(store.lastRewards).toEqual(response.rewards_summary)
       expect(store.explorations[0].status).toBe('recalled')
       expect(store.activeExplorations['exploration-1']).toBeUndefined()
-      expect(store.isLoading).toBe(false)
-    })
-
-    it('should handle error', async () => {
-      const store = useExplorationStore()
-      vi.mocked(explorationApi.recallDweller).mockRejectedValueOnce(new Error('Recall failed'))
-
-      await expect(store.recallDweller('exploration-1')).rejects.toThrow('Recall failed')
-
-      expect(store.error).toBe('Failed to recall dweller')
       expect(store.isLoading).toBe(false)
     })
   })
@@ -565,33 +507,18 @@ describe('Exploration Store', () => {
       const store = useExplorationStore()
       store.explorations = [mockExploration]
       store.activeExplorations = { 'exploration-1': mockExploration }
-
-      const completedExploration = { ...mockExploration, status: 'completed' }
       const response = {
-        exploration: completedExploration,
+        exploration: run({ status: 'completed' }),
         rewards_summary: mockRewardsSummary,
       }
       vi.mocked(explorationApi.completeExploration).mockResolvedValueOnce(response)
 
       const result = await store.completeExploration('exploration-1')
-
       expect(explorationApi.completeExploration).toHaveBeenCalledWith('exploration-1')
       expect(result).toEqual(response)
       expect(store.lastRewards).toEqual(response.rewards_summary)
       expect(store.explorations[0].status).toBe('completed')
       expect(store.activeExplorations['exploration-1']).toBeUndefined()
-      expect(store.isLoading).toBe(false)
-    })
-
-    it('should handle error', async () => {
-      const store = useExplorationStore()
-      vi.mocked(explorationApi.completeExploration).mockRejectedValueOnce(
-        new Error('Complete failed')
-      )
-
-      await expect(store.completeExploration('exploration-1')).rejects.toThrow('Complete failed')
-
-      expect(store.error).toBe('Failed to complete exploration')
       expect(store.isLoading).toBe(false)
     })
   })
@@ -600,46 +527,30 @@ describe('Exploration Store', () => {
     it('should clear error', () => {
       const store = useExplorationStore()
       store.error = 'Some error'
-
       store.clearError()
-
       expect(store.error).toBeNull()
     })
   })
 
   describe('State Management', () => {
-    it('should maintain explorations array and activeExplorations map in sync', async () => {
+    it('keeps the explorations array and the active map in sync on fetch and detail update', async () => {
       const store = useExplorationStore()
-      const explorations = [
+      vi.mocked(explorationApi.getExplorationsByVault).mockResolvedValueOnce([
         mockExploration,
-        { ...mockExploration, id: 'exploration-2', dweller_id: 'dweller-2', status: 'active' },
-        { ...mockExploration, id: 'exploration-3', dweller_id: 'dweller-3', status: 'completed' },
-      ]
-      vi.mocked(explorationApi.getExplorationsByVault).mockResolvedValueOnce(explorations)
+        run({ id: 'exploration-2', dweller_id: 'dweller-2' }),
+        run({ id: 'exploration-3', dweller_id: 'dweller-3', status: 'completed' }),
+      ])
 
       await store.fetchExplorationsByVault('vault-1')
-
       expect(store.explorations).toHaveLength(3)
-      expect(Object.keys(store.activeExplorations)).toHaveLength(2) // Only active ones
-      expect(store.activeExplorations['exploration-1']).toBeDefined()
-      expect(store.activeExplorations['exploration-2']).toBeDefined()
-      expect(store.activeExplorations['exploration-3']).toBeUndefined()
-    })
-
-    it('should update both explorations array and activeExplorations when updating exploration', async () => {
-      const store = useExplorationStore()
-      store.explorations = [mockExploration]
-      store.activeExplorations = { 'exploration-1': mockExploration }
-
-      const updatedExploration = {
-        ...mockExploration,
-        total_caps_found: 100,
-        events: [{ type: 'loot_found', description: 'Found loot!' }],
-      }
-      vi.mocked(explorationApi.getExploration).mockResolvedValueOnce(updatedExploration)
-
+      expect(Object.keys(store.activeExplorations)).toEqual(['exploration-1', 'exploration-2'])
+      vi.mocked(explorationApi.getExploration).mockResolvedValueOnce(
+        run({
+          total_caps_found: 100,
+          events: [{ type: 'loot_found', description: 'Found loot!' }],
+        })
+      )
       await store.fetchExplorationDetails('exploration-1')
-
       expect(store.explorations[0].total_caps_found).toBe(100)
       expect(store.activeExplorations['exploration-1'].total_caps_found).toBe(100)
       expect(store.explorations[0].events).toHaveLength(1)
@@ -651,18 +562,12 @@ describe('Exploration Store', () => {
       const store = useExplorationStore()
       store.startSseSubscription('vault-1', 'test-token')
 
-      mockSseEvent.value = {
-        event: 'exploration',
-        data: {
-          type: 'exploration_complete',
-          exploration_id: 'exploration-1',
-          dweller_id: 'dweller-1',
-          rewards: mockRewardsSummary,
-        },
-      }
-
-      await nextTick()
-
+      await emitSse({
+        type: 'exploration_complete',
+        exploration_id: 'exploration-1',
+        dweller_id: 'dweller-1',
+        rewards: mockRewardsSummary,
+      })
       expect(addPendingReport).toHaveBeenCalledWith({
         explorationId: 'exploration-1',
         vaultId: 'vault-1',
@@ -676,18 +581,12 @@ describe('Exploration Store', () => {
       const store = useExplorationStore()
       store.startSseSubscription('vault-1', 'test-token')
 
-      mockSseEvent.value = {
-        event: 'exploration',
-        data: {
-          type: 'exploration_complete',
-          exploration_id: 'exploration-2',
-          dweller_id: 'unknown-dweller',
-          rewards: mockRewardsSummary,
-        },
-      }
-
-      await nextTick()
-
+      await emitSse({
+        type: 'exploration_complete',
+        exploration_id: 'exploration-2',
+        dweller_id: 'unknown-dweller',
+        rewards: mockRewardsSummary,
+      })
       expect(addPendingReport).toHaveBeenCalledWith({
         explorationId: 'exploration-2',
         vaultId: 'vault-1',
@@ -701,17 +600,11 @@ describe('Exploration Store', () => {
       const store = useExplorationStore()
       store.startSseSubscription('vault-1', 'test-token')
 
-      mockSseEvent.value = {
-        event: 'exploration',
-        data: {
-          type: 'exploration_complete',
-          dweller_id: 'dweller-1',
-          rewards: mockRewardsSummary,
-        },
-      }
-
-      await nextTick()
-
+      await emitSse({
+        type: 'exploration_complete',
+        dweller_id: 'dweller-1',
+        rewards: mockRewardsSummary,
+      })
       expect(store.pendingSseRewards).toEqual({
         rewards: mockRewardsSummary,
         dwellerId: 'dweller-1',
@@ -722,23 +615,17 @@ describe('Exploration Store', () => {
   describe('SSE Deleted Exploration', () => {
     it('closes the journey without queuing a reward report', async () => {
       const store = useExplorationStore()
-      const closed = { ...mockExploration }
+      const closed = run()
       store.explorations = [closed]
       store.activeExplorations = { 'exploration-1': closed }
       store.startSseSubscription('vault-1', 'test-token')
 
-      mockSseEvent.value = {
-        event: 'exploration',
-        data: {
-          type: 'exploration_deleted',
-          exploration_id: 'exploration-1',
-          dweller_id: 'dweller-1',
-          status: 'recalled',
-        },
-      }
-
-      await nextTick()
-
+      await emitSse({
+        type: 'exploration_deleted',
+        exploration_id: 'exploration-1',
+        dweller_id: 'dweller-1',
+        status: 'recalled',
+      })
       expect(store.explorations[0].status).toBe('recalled')
       expect(store.activeExplorations['exploration-1']).toBeUndefined()
       expect(store.pendingSseRewards).toBeNull()
@@ -747,7 +634,12 @@ describe('Exploration Store', () => {
   })
 
   describe('SSE Live Event Log', () => {
-    const liveExploration = () => ({ ...mockExploration, events: [] as unknown[] })
+    beforeEach(() => {
+      const store = useExplorationStore()
+      store.explorations = [liveRun()]
+      store.activeExplorations = { 'exploration-1': liveRun() }
+      store.startSseSubscription('vault-1', 'test-token')
+    })
 
     afterEach(() => {
       useExplorationStore().stopSseSubscription()
@@ -755,201 +647,106 @@ describe('Exploration Store', () => {
     })
 
     it('appends live event frames and updates counters and health', async () => {
-      const store = useExplorationStore()
-      store.explorations = [liveExploration()]
-      store.activeExplorations = { 'exploration-1': liveExploration() }
-      store.startSseSubscription('vault-1', 'test-token')
+      await emitSse({
+        type: 'combat',
+        exploration_id: 'exploration-1',
+        event: explorationEvent('combat', 'Raider attacked'),
+        total_caps_found: 120,
+        enemies_encountered: 3,
+        stimpaks: 2,
+        radaways: 1,
+        health: 85,
+        radiation: 12,
+      })
 
-      mockSseEvent.value = {
-        event: 'exploration',
-        data: {
-          type: 'combat',
-          exploration_id: 'exploration-1',
-          event: {
-            type: 'combat',
-            description: 'Raider attacked',
-            timestamp: '2026-01-01T00:05:00Z',
-            time_elapsed_hours: 0.1,
-          },
-          total_caps_found: 120,
-          enemies_encountered: 3,
-          stimpaks: 2,
-          radaways: 1,
-          health: 85,
-          radiation: 12,
-        },
-      }
-
-      await nextTick()
-
-      const updated = store.activeExplorations['exploration-1']
+      const updated = useExplorationStore().activeExplorations['exploration-1']
       expect(updated.events).toHaveLength(1)
       expect(updated.events[0].description).toBe('Raider attacked')
-      expect(updated.total_caps_found).toBe(120)
-      expect(updated.enemies_encountered).toBe(3)
-      expect(updated.stimpaks).toBe(2)
-      expect(updated.radaways).toBe(1)
-      expect(updated.health).toBe(85)
-      expect(updated.radiation).toBe(12)
+      expect(updated).toMatchObject({
+        total_caps_found: 120,
+        enemies_encountered: 3,
+        stimpaks: 2,
+        radaways: 1,
+        health: 85,
+        radiation: 12,
+      })
     })
 
     it('deduplicates repeated event frames while still updating counters', async () => {
-      const store = useExplorationStore()
-      store.explorations = [liveExploration()]
-      store.activeExplorations = { 'exploration-1': liveExploration() }
-      store.startSseSubscription('vault-1', 'test-token')
-
       const frame = {
-        event: 'exploration',
-        data: {
-          type: 'loot',
-          exploration_id: 'exploration-1',
-          event: {
-            type: 'loot',
-            description: 'Found a stash',
-            timestamp: '2026-01-01T00:05:00Z',
-            time_elapsed_hours: 0.1,
-          },
-        },
+        type: 'loot',
+        exploration_id: 'exploration-1',
+        event: explorationEvent('loot', 'Found a stash'),
       }
-      mockSseEvent.value = frame
-      await nextTick()
-      mockSseEvent.value = { ...frame, data: { ...frame.data, total_caps_found: 55 } }
-      await nextTick()
+      await emitSse(frame)
+      await emitSse({ ...frame, total_caps_found: 55 })
 
-      const updated = store.activeExplorations['exploration-1']
+      const updated = useExplorationStore().activeExplorations['exploration-1']
       expect(updated.events).toHaveLength(1)
       expect(updated.total_caps_found).toBe(55)
     })
 
     it('ignores per-event frames for unknown explorations', async () => {
-      const store = useExplorationStore()
-      store.startSseSubscription('vault-1', 'test-token')
-
-      mockSseEvent.value = {
-        event: 'exploration',
-        data: {
-          type: 'combat',
-          exploration_id: 'unknown-exploration',
-          event: { type: 'combat', description: 'Ghost', timestamp: '', time_elapsed_hours: 0 },
-        },
-      }
-
-      await nextTick()
-
-      expect(store.pendingSseRewards).toBeNull()
+      await emitSse({
+        type: 'combat',
+        exploration_id: 'unknown-exploration',
+        event: explorationEvent('combat', 'Ghost'),
+      })
+      expect(useExplorationStore().pendingSseRewards).toBeNull()
     })
   })
 
   describe('SSE Equip Event', () => {
-    const liveExploration = () => ({ ...mockExploration, events: [] as unknown[] })
-
-    const profileWithNotifications = (disabledCategories: string[]): UserProfile => ({
-      id: 'profile-1',
-      user_id: 'user-1',
-      created_at: '2026-01-01T00:00:00Z',
-      updated_at: '2026-01-01T00:00:00Z',
-      total_dwellers_created: 0,
-      total_caps_earned: 0,
-      total_explorations: 0,
-      total_rooms_built: 0,
-      total_dwellers_born: 0,
-      total_dwellers_died: 0,
-      deaths_by_health: 0,
-      deaths_by_radiation: 0,
-      deaths_by_incident: 0,
-      deaths_by_exploration: 0,
-      deaths_by_combat: 0,
-      preferences: { notifications: { version: 1, disabled_categories: disabledCategories } },
-    })
+    const profileWithNotifications = (disabledCategories: string[]): UserProfile =>
+      ({
+        preferences: { notifications: { version: 1, disabled_categories: disabledCategories } },
+      }) as UserProfile
 
     const equipFrame = {
-      event: 'exploration',
-      data: {
-        type: 'combat',
-        exploration_id: 'exploration-1',
-        dweller_id: 'dweller-1',
-        event: {
-          type: 'equip',
-          description: 'Equipped a Hunting Rifle',
-          timestamp: '2026-01-01T00:05:00Z',
-          time_elapsed_hours: 0.1,
-        },
-      },
+      type: 'combat',
+      exploration_id: 'exploration-1',
+      dweller_id: 'dweller-1',
+      event: explorationEvent('equip', 'Equipped a Hunting Rifle'),
     }
+
+    beforeEach(() => {
+      const store = useExplorationStore()
+      store.explorations = [liveRun()]
+      store.activeExplorations = { 'exploration-1': liveRun() }
+      store.startSseSubscription('vault-1', 'test-token')
+    })
 
     afterEach(() => {
       useExplorationStore().stopSseSubscription()
       mockSseEvent.value = null
     })
 
-    it('shows an equip toast when exploration_updates is enabled', async () => {
-      const store = useExplorationStore()
-      useProfileStore().profile = profileWithNotifications([])
-      store.explorations = [liveExploration()]
-      store.activeExplorations = { 'exploration-1': liveExploration() }
-      store.startSseSubscription('vault-1', 'test-token')
+    it.each([
+      ['shows', 'exploration_updates is enabled', [], true],
+      ['does not toast', 'exploration_updates is disabled', ['exploration_updates'], false],
+    ] as [string, string, string[], boolean][])(
+      '%s an equip toast when %s',
+      async (_, __, disabledCategories, expected) => {
+        useProfileStore().profile = profileWithNotifications(disabledCategories)
 
-      mockSseEvent.value = equipFrame
-      await nextTick()
+        await emitSse(equipFrame)
 
-      expect(
-        useToast().toasts.value.some(
-          (t) => t.message === 'Amata Almodovar equipped a Hunting Rifle'
-        )
-      ).toBe(true)
-    })
-
-    it('does not toast when exploration_updates is disabled', async () => {
-      const store = useExplorationStore()
-      useProfileStore().profile = profileWithNotifications(['exploration_updates'])
-      store.explorations = [liveExploration()]
-      store.activeExplorations = { 'exploration-1': liveExploration() }
-      store.startSseSubscription('vault-1', 'test-token')
-
-      mockSseEvent.value = equipFrame
-      await nextTick()
-
-      expect(
-        useToast().toasts.value.some(
-          (t) => t.message === 'Amata Almodovar equipped a Hunting Rifle'
-        )
-      ).toBe(false)
-    })
+        expect(toastShownFor('Amata Almodovar equipped a Hunting Rifle')).toBe(expected)
+      }
+    )
 
     it('refreshes dweller details on an equip event', async () => {
-      const store = useExplorationStore()
-      store.explorations = [liveExploration()]
-      store.activeExplorations = { 'exploration-1': liveExploration() }
-      store.startSseSubscription('vault-1', 'test-token')
-
-      mockSseEvent.value = equipFrame
-      await nextTick()
-
+      await emitSse(equipFrame)
       expect(mockDwellerFilter.fetchDwellerDetails).toHaveBeenCalledWith('dweller-1', true)
     })
 
     it('does not refresh dweller details for a non-equip event', async () => {
-      const store = useExplorationStore()
-      store.explorations = [liveExploration()]
-      store.activeExplorations = { 'exploration-1': liveExploration() }
-      store.startSseSubscription('vault-1', 'test-token')
-
-      mockSseEvent.value = {
-        event: 'exploration',
-        data: {
-          type: 'combat',
-          exploration_id: 'exploration-1',
-          dweller_id: 'dweller-1',
-          event: {
-            type: 'combat',
-            description: 'Raider attacked',
-            timestamp: '2026-01-01T00:05:00Z',
-            time_elapsed_hours: 0.1,
-          },
-        },
-      }
-      await nextTick()
+      await emitSse({
+        type: 'combat',
+        exploration_id: 'exploration-1',
+        dweller_id: 'dweller-1',
+        event: explorationEvent('combat', 'Raider attacked'),
+      })
 
       expect(mockDwellerFilter.fetchDwellerDetails).not.toHaveBeenCalled()
     })
@@ -964,19 +761,16 @@ describe('Exploration Store', () => {
       const store = useExplorationStore()
       const explorations = [
         mockExploration,
-        { ...mockExploration, id: 'exploration-2', dweller_id: 'dweller-2', status: 'returning' },
-        { ...mockExploration, id: 'exploration-3', dweller_id: 'dweller-3', status: 'completed' },
+        run({ id: 'exploration-2', dweller_id: 'dweller-2', status: 'returning' }),
+        run({ id: 'exploration-3', dweller_id: 'dweller-3', status: 'completed' }),
       ]
       vi.mocked(explorationApi.getExplorationsByVault).mockResolvedValueOnce(explorations)
 
       const result = await store.refreshActiveExplorations('vault-1')
-
       expect(explorationApi.getExplorationsByVault).toHaveBeenCalledTimes(1)
       expect(explorationApi.getExplorationsByVault).toHaveBeenCalledWith('vault-1', true)
       expect(result).toEqual(explorations)
-      expect(store.activeExplorations['exploration-1']).toEqual(mockExploration)
-      expect(store.activeExplorations['exploration-2']).toBeDefined()
-      expect(store.activeExplorations['exploration-3']).toBeUndefined()
+      expect(Object.keys(store.activeExplorations)).toEqual(['exploration-1', 'exploration-2'])
       expect(explorationApi.getExplorationParty).not.toHaveBeenCalled()
     })
 
@@ -986,25 +780,20 @@ describe('Exploration Store', () => {
       vi.mocked(explorationApi.getExplorationParty).mockResolvedValueOnce([])
 
       await store.refreshActiveExplorations('vault-1', { includeParties: true })
-
       expect(explorationApi.getExplorationParty).toHaveBeenCalledWith('vault-1', 'exploration-1')
       expect(store.explorationPartyMap).toEqual({ 'exploration-1': [] })
     })
 
     it('refreshes parties from the newly fetched active map', async () => {
       const store = useExplorationStore()
-      store.activeExplorations = {
-        'stale-exploration': { ...mockExploration, id: 'stale-exploration' },
-      }
-      const explorations = [
-        { ...mockExploration, id: 'exploration-1' },
-        { ...mockExploration, id: 'exploration-2', dweller_id: 'dweller-2' },
-      ]
-      vi.mocked(explorationApi.getExplorationsByVault).mockResolvedValueOnce(explorations)
+      store.activeExplorations = { 'stale-exploration': run({ id: 'stale-exploration' }) }
+      vi.mocked(explorationApi.getExplorationsByVault).mockResolvedValueOnce([
+        run(),
+        run({ id: 'exploration-2', dweller_id: 'dweller-2' }),
+      ])
       vi.mocked(explorationApi.getExplorationParty).mockResolvedValue([])
 
       await store.refreshActiveExplorations('vault-1', { includeParties: true })
-
       expect(explorationApi.getExplorationParty).toHaveBeenCalledTimes(2)
       expect(explorationApi.getExplorationParty).toHaveBeenCalledWith('vault-1', 'exploration-1')
       expect(explorationApi.getExplorationParty).toHaveBeenCalledWith('vault-1', 'exploration-2')
@@ -1021,7 +810,6 @@ describe('Exploration Store', () => {
       )
 
       void store.refreshActiveExplorations('vault-1')
-
       expect(store.isLoading).toBe(true)
     })
 
@@ -1032,7 +820,6 @@ describe('Exploration Store', () => {
       )
 
       await expect(store.refreshActiveExplorations('vault-1')).rejects.toThrow('Fetch failed')
-
       expect(store.error).toBe('Failed to fetch explorations')
       expect(store.isLoading).toBe(false)
     })
@@ -1047,7 +834,6 @@ describe('Exploration Store', () => {
       await expect(store.refreshActiveExplorations('vault-1', { silent: true })).rejects.toThrow(
         'Fetch failed'
       )
-
       expect(store.error).toBe('previous error')
       expect(store.isLoading).toBe(false)
       expect(explorationApi.getExplorationParty).not.toHaveBeenCalled()
@@ -1058,8 +844,8 @@ describe('Exploration Store', () => {
     it('collects one roster per active run and retains empty dispatch parties', async () => {
       const store = useExplorationStore()
       store.activeExplorations = {
-        'exploration-1': { ...mockExploration },
-        'exploration-2': { ...mockExploration, id: 'exploration-2' },
+        'exploration-1': run(),
+        'exploration-2': run({ id: 'exploration-2' }),
       }
       vi.mocked(explorationApi.getExplorationParty)
         .mockResolvedValueOnce([
@@ -1077,7 +863,6 @@ describe('Exploration Store', () => {
         .mockResolvedValueOnce([])
 
       await store.fetchPartiesForActiveExplorations('vault-1')
-
       expect(explorationApi.getExplorationParty).toHaveBeenCalledWith('vault-1', 'exploration-1')
       expect(explorationApi.getExplorationParty).toHaveBeenCalledWith('vault-1', 'exploration-2')
       expect(store.explorationPartyMap['exploration-1']).toHaveLength(1)
@@ -1086,11 +871,9 @@ describe('Exploration Store', () => {
 
     it('falls back to an empty roster when a party fetch fails', async () => {
       const store = useExplorationStore()
-      store.activeExplorations = { 'exploration-1': { ...mockExploration } }
+      store.activeExplorations = { 'exploration-1': run() }
       vi.mocked(explorationApi.getExplorationParty).mockRejectedValueOnce(new Error('network'))
-
       await store.fetchPartiesForActiveExplorations('vault-1')
-
       expect(store.explorationPartyMap).toEqual({ 'exploration-1': [] })
     })
   })

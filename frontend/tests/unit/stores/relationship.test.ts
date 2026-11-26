@@ -22,31 +22,47 @@ vi.mock('@/core/utils/errorHandler', async (importOriginal) => ({
   handleStoreError: vi.fn(),
 }))
 
+const mockRelationship = {
+  id: 'rel-1',
+  dweller_1_id: 'dweller-1',
+  dweller_2_id: 'dweller-2',
+  relationship_type: 'acquaintance',
+  affinity: 50,
+  created_at: '2026-01-01T00:00:00Z',
+  updated_at: '2026-01-01T00:00:00Z',
+}
+
+const mockCompatibilityScore = {
+  dweller_1_id: 'dweller-1',
+  dweller_2_id: 'dweller-2',
+  score: 0.75,
+  special_score: 0.8,
+  happiness_score: 0.9,
+  level_score: 0.7,
+  proximity_score: 0.0,
+}
+
+const rel = (overrides: Record<string, unknown> = {}) => ({ ...mockRelationship, ...overrides })
+
+const seeded = (...rows: unknown[]) => {
+  const store = useRelationshipStore()
+  store.relationships = rows as never
+  return store
+}
+
+function deferred<T = unknown>() {
+  let resolve!: (value: T) => void
+  const promise = new Promise<T>((res) => {
+    resolve = res
+  })
+  return { promise, resolve }
+}
+
 describe('Relationship Store', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     vi.clearAllMocks()
   })
-
-  const mockRelationship = {
-    id: 'rel-1',
-    dweller_1_id: 'dweller-1',
-    dweller_2_id: 'dweller-2',
-    relationship_type: 'acquaintance',
-    affinity: 50,
-    created_at: '2026-01-01T00:00:00Z',
-    updated_at: '2026-01-01T00:00:00Z',
-  }
-
-  const mockCompatibilityScore = {
-    dweller_1_id: 'dweller-1',
-    dweller_2_id: 'dweller-2',
-    score: 0.75,
-    special_score: 0.8,
-    happiness_score: 0.9,
-    level_score: 0.7,
-    proximity_score: 0.0,
-  }
 
   describe('State Initialization', () => {
     it('should initialize with empty relationships', () => {
@@ -62,7 +78,6 @@ describe('Relationship Store', () => {
 
       const store = useRelationshipStore()
       await store.fetchVaultRelationships('vault-1')
-
       expect(relationshipApi.getByVault).toHaveBeenCalledWith('vault-1')
       expect(store.relationships).toEqual([mockRelationship])
       expect(store.isLoading).toBe(false)
@@ -70,22 +85,19 @@ describe('Relationship Store', () => {
 
     it('should handle fetch error', async () => {
       vi.mocked(relationshipApi.getByVault).mockRejectedValueOnce(new Error('Network error'))
-
       const store = useRelationshipStore()
       await expect(store.fetchVaultRelationships('vault-1')).rejects.toThrow('Network error')
-
       expect(store.relationships).toEqual([])
       expect(store.isLoading).toBe(false)
     })
 
     it('refreshes bond progress without replacing the list with a loading state', async () => {
       vi.mocked(relationshipApi.getByVault).mockResolvedValueOnce([
-        { ...mockRelationship, bond_change_per_tick: 3, bond_tick_seconds: 60 },
+        rel({ bond_change_per_tick: 3, bond_tick_seconds: 60 }),
       ])
 
       const store = useRelationshipStore()
       const refresh = store.fetchVaultRelationships('vault-1', { silent: true })
-
       expect(store.isLoading).toBe(false)
       await refresh
       expect(store.relationships[0].bond_change_per_tick).toBe(3)
@@ -98,7 +110,6 @@ describe('Relationship Store', () => {
       await expect(store.fetchVaultRelationships('vault-1', { silent: true })).rejects.toThrow(
         'Network error'
       )
-
       expect(handleStoreError).toHaveBeenCalledWith(
         expect.any(Error),
         'Failed to fetch relationships',
@@ -107,25 +118,17 @@ describe('Relationship Store', () => {
     })
 
     it('keeps a completed romance when an older fetch resolves later', async () => {
-      let resolveFetch!: (value: (typeof mockRelationship)[]) => void
-      vi.mocked(relationshipApi.getByVault).mockImplementationOnce(
-        () =>
-          new Promise((resolve) => {
-            resolveFetch = resolve
-          })
-      )
-      const romantic = { ...mockRelationship, relationship_type: 'romantic' }
-      vi.mocked(relationshipApi.initiateRomance).mockResolvedValueOnce(romantic)
+      const pendingFetch = deferred<unknown>()
+      vi.mocked(relationshipApi.getByVault).mockReturnValueOnce(pendingFetch.promise as never)
+      const romantic = rel({ relationship_type: 'romantic' })
+      vi.mocked(relationshipApi.initiateRomance).mockResolvedValueOnce(romantic as never)
 
-      const store = useRelationshipStore()
-      store.relationships = [mockRelationship]
-      const pendingFetch = store.fetchVaultRelationships('vault-1', { silent: true })
+      const store = seeded(mockRelationship)
+      const inFlight = store.fetchVaultRelationships('vault-1', { silent: true })
       await store.initiateRomance('rel-1')
-      resolveFetch([mockRelationship])
-      await pendingFetch
-
+      pendingFetch.resolve([mockRelationship])
+      await inFlight
       expect(store.relationships[0].relationship_type).toBe('romantic')
-
       vi.mocked(relationshipApi.getByVault).mockResolvedValueOnce([romantic])
       await store.fetchVaultRelationships('vault-1', { silent: true })
       expect(store.relationships[0]).toEqual(romantic)
@@ -133,48 +136,34 @@ describe('Relationship Store', () => {
   })
 
   describe('createRelationship', () => {
+    const request = { dweller_1_id: 'dweller-1', dweller_2_id: 'dweller-2' }
+
     it('should create relationship successfully', async () => {
       vi.mocked(relationshipApi.create).mockResolvedValueOnce(mockRelationship)
 
       const store = useRelationshipStore()
-      const result = await store.createRelationship({
-        dweller_1_id: 'dweller-1',
-        dweller_2_id: 'dweller-2',
-      })
-
-      expect(relationshipApi.create).toHaveBeenCalledWith({
-        dweller_1_id: 'dweller-1',
-        dweller_2_id: 'dweller-2',
-      })
+      const result = await store.createRelationship(request)
+      expect(relationshipApi.create).toHaveBeenCalledWith(request)
       expect(result).toEqual(mockRelationship)
       expect(store.relationships).toContainEqual(mockRelationship)
     })
 
     it('should handle create error', async () => {
       vi.mocked(relationshipApi.create).mockRejectedValueOnce(new Error('Failed'))
-
       const store = useRelationshipStore()
-      const result = await store.createRelationship({
-        dweller_1_id: 'dweller-1',
-        dweller_2_id: 'dweller-2',
-      })
-
-      expect(result).toBeNull()
+      expect(await store.createRelationship(request)).toBeNull()
     })
   })
 
   describe('initiateRomance', () => {
-    it('should initiate romance successfully', async () => {
-      const romanticRelationship = { ...mockRelationship, relationship_type: 'romantic' }
-      vi.mocked(relationshipApi.initiateRomance).mockResolvedValueOnce(romanticRelationship)
+    it('should initiate romance successfully and keep bond progress', async () => {
+      const romanticRelationship = rel({ relationship_type: 'romantic' })
+      vi.mocked(relationshipApi.initiateRomance).mockResolvedValueOnce(
+        romanticRelationship as never
+      )
 
-      const store = useRelationshipStore()
-      store.relationships = [
-        { ...mockRelationship, bond_change_per_tick: 3, bond_tick_seconds: 60 },
-      ]
-
+      const store = seeded(rel({ bond_change_per_tick: 3, bond_tick_seconds: 60 }))
       const result = await store.initiateRomance('rel-1')
-
       expect(relationshipApi.initiateRomance).toHaveBeenCalledWith('rel-1')
       expect(result?.relationship_type).toBe('romantic')
       expect(store.relationships[0].relationship_type).toBe('romantic')
@@ -185,24 +174,18 @@ describe('Relationship Store', () => {
       vi.mocked(relationshipApi.initiateRomance).mockRejectedValueOnce({
         response: { data: { detail: 'Affinity too low' } },
       })
-
       const store = useRelationshipStore()
-      const result = await store.initiateRomance('rel-1')
-
-      expect(result).toBeNull()
+      expect(await store.initiateRomance('rel-1')).toBeNull()
     })
   })
 
   describe('makePartners', () => {
     it('should make partners successfully', async () => {
-      const partnerRelationship = { ...mockRelationship, relationship_type: 'partner' }
-      vi.mocked(relationshipApi.makePartners).mockResolvedValueOnce(partnerRelationship)
+      const partnerRelationship = rel({ relationship_type: 'partner' })
+      vi.mocked(relationshipApi.makePartners).mockResolvedValueOnce(partnerRelationship as never)
 
-      const store = useRelationshipStore()
-      store.relationships = [{ ...mockRelationship, relationship_type: 'romantic' }]
-
+      const store = seeded(rel({ relationship_type: 'romantic' }))
       const result = await store.makePartners('rel-1')
-
       expect(relationshipApi.makePartners).toHaveBeenCalledWith('rel-1')
       expect(result?.relationship_type).toBe('partner')
       expect(store.relationships[0].relationship_type).toBe('partner')
@@ -213,11 +196,8 @@ describe('Relationship Store', () => {
     it('should break up relationship successfully', async () => {
       vi.mocked(relationshipApi.breakUp).mockResolvedValueOnce({ message: 'Relationship ended' })
 
-      const store = useRelationshipStore()
-      store.relationships = [mockRelationship]
-
+      const store = seeded(mockRelationship)
       const result = await store.breakUp('rel-1')
-
       expect(relationshipApi.breakUp).toHaveBeenCalledWith('rel-1')
       expect(result).toBe(true)
       expect(store.relationships[0].relationship_type).toBe('ex')
@@ -226,80 +206,51 @@ describe('Relationship Store', () => {
 
     it('should handle breakup error', async () => {
       vi.mocked(relationshipApi.breakUp).mockRejectedValueOnce(new Error('Failed'))
-
       const store = useRelationshipStore()
-      const result = await store.breakUp('rel-1')
-
-      expect(result).toBe(false)
+      expect(await store.breakUp('rel-1')).toBe(false)
     })
   })
 
   describe('calculateCompatibility', () => {
     it('should calculate compatibility successfully', async () => {
       vi.mocked(relationshipApi.getCompatibility).mockResolvedValueOnce(mockCompatibilityScore)
-
       const store = useRelationshipStore()
       const result = await store.calculateCompatibility('dweller-1', 'dweller-2')
-
       expect(relationshipApi.getCompatibility).toHaveBeenCalledWith('dweller-1', 'dweller-2')
       expect(result).toEqual(mockCompatibilityScore)
     })
 
     it('should handle compatibility error', async () => {
       vi.mocked(relationshipApi.getCompatibility).mockRejectedValueOnce(new Error('Failed'))
-
       const store = useRelationshipStore()
-      const result = await store.calculateCompatibility('dweller-1', 'dweller-2')
-
-      expect(result).toBeNull()
+      expect(await store.calculateCompatibility('dweller-1', 'dweller-2')).toBeNull()
     })
   })
 
   describe('Computed Properties', () => {
-    it('should get relationship by dwellers', () => {
-      const store = useRelationshipStore()
-      store.relationships = [mockRelationship]
-
-      const found = store.getRelationshipByDwellers('dweller-1', 'dweller-2')
-      expect(found).toEqual(mockRelationship)
-
-      // Should work in reverse order too
-      const foundReverse = store.getRelationshipByDwellers('dweller-2', 'dweller-1')
-      expect(foundReverse).toEqual(mockRelationship)
+    it('should get relationship by dwellers in either order', () => {
+      const store = seeded(mockRelationship)
+      expect(store.getRelationshipByDwellers('dweller-1', 'dweller-2')).toEqual(mockRelationship)
+      expect(store.getRelationshipByDwellers('dweller-2', 'dweller-1')).toEqual(mockRelationship)
     })
 
-    it('should get partner relationships', () => {
-      const store = useRelationshipStore()
-      store.relationships = [
+    it('should get partner and romantic relationships separately', () => {
+      const store = seeded(
         mockRelationship,
-        { ...mockRelationship, id: 'rel-2', relationship_type: 'partner' },
-        { ...mockRelationship, id: 'rel-3', relationship_type: 'romantic' },
-      ]
+        rel({ id: 'rel-2', relationship_type: 'partner' }),
+        rel({ id: 'rel-3', relationship_type: 'romantic' })
+      )
 
-      const partners = store.getPartnerRelationships
-      expect(partners).toHaveLength(1)
-      expect(partners[0].relationship_type).toBe('partner')
-    })
-
-    it('should get romantic relationships', () => {
-      const store = useRelationshipStore()
-      store.relationships = [
-        mockRelationship,
-        { ...mockRelationship, id: 'rel-2', relationship_type: 'romantic' },
-        { ...mockRelationship, id: 'rel-3', relationship_type: 'partner' },
-      ]
-
-      const romantics = store.getRomanticRelationships
-      expect(romantics).toHaveLength(1)
-      expect(romantics[0].relationship_type).toBe('romantic')
+      expect(store.getPartnerRelationships.map((row) => row.relationship_type)).toEqual(['partner'])
+      expect(store.getRomanticRelationships.map((row) => row.relationship_type)).toEqual([
+        'romantic',
+      ])
     })
   })
 
   describe('clearRelationships', () => {
     it('should clear all relationships', () => {
-      const store = useRelationshipStore()
-      store.relationships = [mockRelationship]
-
+      const store = seeded(mockRelationship)
       store.clearRelationships()
       expect(store.relationships).toEqual([])
     })

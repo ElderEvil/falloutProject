@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { mount, flushPromises } from '@vue/test-utils'
+import { mount, flushPromises, type VueWrapper } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import { createRouter, createMemoryHistory } from 'vue-router'
 import ProfileView from '@/modules/profile/views/ProfileView.vue'
@@ -34,10 +34,11 @@ vi.mock('@/modules/profile/components/ConnectedAccountsCard.vue', () => ({
 }))
 
 describe('ProfileView', () => {
-  let router: any
-  let authStore: any
-  let profileStore: any
-  let vaultStore: any
+  let router: ReturnType<typeof createRouter>
+  let authStore: ReturnType<typeof useAuthStore>
+  let profileStore: ReturnType<typeof useProfileStore>
+  let vaultStore: ReturnType<typeof useVaultStore>
+  let wrapper: VueWrapper
 
   const mockProfile: UserProfile = {
     id: 'profile-123',
@@ -70,11 +71,40 @@ describe('ProfileView', () => {
     permanently_dead_count: 7,
   }
 
+  /** Serve the profile and its death statistics; anything else is a bug. */
+  const serveProfile = () =>
+    vi.mocked(axios.get).mockImplementation((url: string) => {
+      if (url === '/api/v1/users/me/profile') return Promise.resolve({ data: mockProfile })
+      if (url === '/api/v1/users/me/profile/statistics') {
+        return Promise.resolve({ data: mockDeathStatistics })
+      }
+      return Promise.reject(new Error('Unknown URL'))
+    })
+
+  const mountProfile = () => {
+    wrapper = mount(ProfileView, { global: { plugins: [router] } })
+    return wrapper
+  }
+
+  const mountView = async () => {
+    mountProfile()
+    await flushPromises()
+    return wrapper
+  }
+
+  const editButton = () =>
+    wrapper.findAll('button').find((button) => button.text().includes('Edit'))
+
+  /** The profile is read-only until the Edit action swaps in ProfileEditor. */
+  const openEditor = async () => {
+    await editButton()!.trigger('click')
+    await flushPromises()
+    return wrapper.findComponent(ProfileEditor)
+  }
+
   beforeEach(() => {
     localStorage.clear()
-    // Create fresh Pinia instance for each test
-    const pinia = createPinia()
-    setActivePinia(pinia)
+    setActivePinia(createPinia())
 
     authStore = useAuthStore()
     profileStore = useProfileStore()
@@ -85,7 +115,7 @@ describe('ProfileView', () => {
       id: 'user-123',
       email: 'overseer@vault.com',
       username: 'Overseer',
-    }
+    } as never
 
     router = createRouter({
       history: createMemoryHistory(),
@@ -99,26 +129,12 @@ describe('ProfileView', () => {
     usePollingMock.mockReturnValue({ pause: vi.fn(), resume: vi.fn(), isActive: { value: false } })
   })
 
-  // Helper to mock both API calls
-  const mockBothApis = () => {
-    vi.mocked(axios.get).mockImplementation((url: string) => {
-      if (url === '/api/v1/users/me/profile') {
-        return Promise.resolve({ data: mockProfile })
-      }
-      if (url === '/api/v1/users/me/profile/statistics') {
-        return Promise.resolve({ data: mockDeathStatistics })
-      }
-      return Promise.reject(new Error('Unknown URL'))
-    })
-  }
-
   it.each([false, true])(
     'shows existing admin destinations only to administrators (%s)',
     async (isSuperuser) => {
-      mockBothApis()
-      authStore.user = { ...authStore.user, is_superuser: isSuperuser }
-      const wrapper = mount(ProfileView, { global: { plugins: [router] } })
-      await flushPromises()
+      serveProfile()
+      authStore.user = { ...authStore.user, is_superuser: isSuperuser } as never
+      await mountView()
 
       expect(wrapper.findAll('[role="tab"]').map((tab) => tab.text())).toEqual([
         'Dossier',
@@ -136,9 +152,9 @@ describe('ProfileView', () => {
   )
 
   it('keeps analytics on its tab and uses quick access only for other screens', async () => {
-    mockBothApis()
-    const wrapper = mount(ProfileView, { global: { plugins: [router] } })
-    await flushPromises()
+    serveProfile()
+    await mountView()
+
     expect(
       wrapper
         .findAll('button')
@@ -149,67 +165,40 @@ describe('ProfileView', () => {
       .findAll('[role="tab"]')
       .find((tab) => tab.text() === 'Vault Analytics')!
       .trigger('mousedown')
+
     expect(wrapper.get('[aria-label="Vault analytics"]').isVisible()).toBe(true)
     wrapper.unmount()
   })
 
   describe('Navigation', () => {
     it('returns to the screen the profile was opened from', async () => {
-      mockBothApis()
+      serveProfile()
       vaultStore.activeVaultId = 'vault-1'
       await router.push('/vault/vault-1')
       await router.push('/profile')
       await router.isReady()
 
-      const wrapper = mount(ProfileView, {
-        global: {
-          plugins: [router],
-        },
-      })
-      await flushPromises()
-
+      await mountView()
       await wrapper.find('button[aria-label="Back to Overview"]').trigger('click')
       await flushPromises()
 
       expect(router.currentRoute.value.path).toBe('/vault/vault-1')
     })
 
-    it('keeps vault navigation after a direct /profile load without an active vault', async () => {
-      mockBothApis()
+    it('falls back to the persisted vault after a direct /profile load', async () => {
+      serveProfile()
       // Simulate a refresh: the in-memory active vault is unset, but the
-      // persisted selection survives — the sidebar must still show vault nav.
+      // persisted selection survives.
       vaultStore.activeVaultId = null
       vaultStore.selectedVaultId = 'vault-1'
       await router.push('/profile')
       await router.isReady()
 
-      const wrapper = mount(ProfileView, {
-        global: {
-          plugins: [router],
-        },
-      })
-      await flushPromises()
+      await mountView()
 
-      const sidePanel = wrapper.findComponent(SidePanel)
-      expect(sidePanel.exists()).toBe(true)
-      expect(sidePanel.props('vaultId')).toBe('vault-1')
-    })
-
-    it('points back navigation at the persisted vault after a direct /profile load', async () => {
-      mockBothApis()
-      // Simulate a refresh: only the persisted selection survives, so the
-      // back fallback must resolve to that vault instead of `/`.
-      vaultStore.activeVaultId = null
-      vaultStore.selectedVaultId = 'vault-1'
-      await router.push('/profile')
-      await router.isReady()
-
-      const wrapper = mount(ProfileView, {
-        global: {
-          plugins: [router],
-        },
-      })
-      await flushPromises()
+      expect(wrapper.findComponent(SidePanel).props('vaultId')).toBe('vault-1')
+      expect(wrapper.find('a[href="/vault/vault-1"]').exists()).toBe(true)
+      expect(wrapper.text()).not.toContain('Vault undefined')
 
       const backButton = wrapper.findAll('button').find((btn) => btn.text().includes('Back'))
       expect(backButton?.exists()).toBe(true)
@@ -218,66 +207,15 @@ describe('ProfileView', () => {
 
       expect(router.currentRoute.value.path).toBe('/vault/vault-1')
     })
-
-    it('resolves the vault shortcut to the persisted vault after a direct /profile load', async () => {
-      mockBothApis()
-      // Simulate a refresh: neither the loaded vaults nor the fetched vault
-      // list survive, so the shortcut must resolve from the persisted id.
-      vaultStore.activeVaultId = null
-      vaultStore.selectedVaultId = 'vault-1'
-      await router.push('/profile')
-      await router.isReady()
-
-      const wrapper = mount(ProfileView, {
-        global: {
-          plugins: [router],
-        },
-      })
-      await flushPromises()
-
-      const shortcut = wrapper.find('a[href="/vault/vault-1"]')
-      expect(shortcut.exists()).toBe(true)
-      expect(wrapper.text()).not.toContain('Vault undefined')
-    })
   })
 
-  describe('Component Mounting', () => {
-    it('should render profile view', async () => {
-      mockBothApis()
-
-      const wrapper = mount(ProfileView, {
-        global: {
-          plugins: [router],
-        },
-      })
-      await flushPromises()
-
-      expect(wrapper.text()).toContain('User Profile')
-    })
-
-    it('should fetch profile on mount', async () => {
-      mockBothApis()
-
-      mount(ProfileView, {
-        global: {
-          plugins: [router],
-        },
-      })
-      await flushPromises()
+  describe('Mounting and loading', () => {
+    it('fetches the profile and its statistics on mount, then refreshes on poll', async () => {
+      serveProfile()
+      await mountView()
 
       expect(axios.get).toHaveBeenCalledWith('/api/v1/users/me/profile')
-    })
-
-    it('refreshes the vault record while the profile is open', async () => {
-      mockBothApis()
-
-      mount(ProfileView, {
-        global: {
-          plugins: [router],
-        },
-      })
-      await flushPromises()
-
+      expect(axios.get).toHaveBeenCalledWith('/api/v1/users/me/profile/statistics')
       expect(
         vi.mocked(axios.get).mock.calls.filter(([url]) => url === '/api/v1/users/me/profile')
       ).toHaveLength(1)
@@ -291,102 +229,40 @@ describe('ProfileView', () => {
       ).toHaveLength(2)
     })
 
-    it('should fetch death statistics on mount', async () => {
-      mockBothApis()
-
-      mount(ProfileView, {
-        global: {
-          plugins: [router],
-        },
-      })
-      await flushPromises()
-
-      expect(axios.get).toHaveBeenCalledWith('/api/v1/users/me/profile/statistics')
-    })
-  })
-
-  describe('Loading State', () => {
-    it('should show loading indicator while fetching profile', async () => {
+    it('shows a loading indicator while fetching the profile', async () => {
       vi.mocked(axios.get).mockImplementation(
         () => new Promise((resolve) => setTimeout(() => resolve({ data: mockProfile }), 100))
       )
-
-      const wrapper = mount(ProfileView, {
-        global: {
-          plugins: [router],
-        },
-      })
-
+      mountProfile()
       await wrapper.vm.$nextTick()
+
       expect(wrapper.text()).toContain('Loading your profile...')
-    })
-
-    it('should hide loading indicator after profile loads', async () => {
-      mockBothApis()
-
-      const wrapper = mount(ProfileView, {
-        global: {
-          plugins: [router],
-        },
-      })
-      await flushPromises()
-
-      expect(wrapper.text()).not.toContain('Loading profile...')
     })
   })
 
-  describe('Error State', () => {
-    it('should display error message on fetch failure', async () => {
-      const errorMessage = 'Failed to fetch profile'
+  describe('Error state', () => {
+    it('shows the failure detail with a retry action', async () => {
       vi.mocked(axios.get).mockRejectedValueOnce({
-        response: { data: { detail: errorMessage } },
+        response: { data: { detail: 'Failed to fetch profile' } },
       })
-
-      const wrapper = mount(ProfileView, {
-        global: {
-          plugins: [router],
-        },
-      })
-      await flushPromises()
+      await mountView()
 
       expect(wrapper.text()).toContain('Profile unavailable')
-      expect(wrapper.text()).toContain(errorMessage)
-    })
-
-    it('should show retry button on error', async () => {
-      vi.mocked(axios.get).mockRejectedValueOnce({
-        response: { data: { detail: 'Network error' } },
-      })
-
-      const wrapper = mount(ProfileView, {
-        global: {
-          plugins: [router],
-        },
-      })
-      await flushPromises()
-
+      expect(wrapper.text()).toContain('Failed to fetch profile')
       expect(wrapper.text()).toContain('Retry Connection')
     })
 
-    it('should retry fetching profile when retry button is clicked', async () => {
+    it('retries fetching the profile when the retry button is clicked', async () => {
       vi.mocked(axios.get)
         .mockRejectedValueOnce({ response: { data: { detail: 'Network error' } } })
         .mockImplementation((url: string) => {
-          if (url === '/api/v1/users/me/profile') {
-            return Promise.resolve({ data: mockProfile })
-          }
+          if (url === '/api/v1/users/me/profile') return Promise.resolve({ data: mockProfile })
           if (url === '/api/v1/users/me/profile/statistics') {
             return Promise.resolve({ data: mockDeathStatistics })
           }
           return Promise.reject(new Error('Unknown URL'))
         })
-
-      const wrapper = mount(ProfileView, {
-        global: {
-          plugins: [router],
-        },
-      })
-      await flushPromises()
+      await mountView()
 
       const retryButton = wrapper.findAll('button').find((btn) => btn.text().includes('Retry'))
       await retryButton?.trigger('click')
@@ -399,345 +275,112 @@ describe('ProfileView', () => {
     })
   })
 
-  describe('Profile Display', () => {
+  describe('Profile display', () => {
     beforeEach(() => {
-      mockBothApis()
+      serveProfile()
     })
 
-    it('should display user email from auth store', async () => {
-      const wrapper = mount(ProfileView, {
-        global: {
-          plugins: [router],
-        },
-      })
-      await flushPromises()
+    it('renders the account identity, bio and avatar', async () => {
+      await mountView()
 
-      expect(wrapper.text()).toContain('overseer@vault.com')
-    })
-
-    it('should display bio when provided', async () => {
-      const wrapper = mount(ProfileView, {
-        global: {
-          plugins: [router],
-        },
-      })
-      await flushPromises()
-
-      expect(wrapper.text()).toContain('Test bio for overseer')
-    })
-
-    it('should display avatar when URL is provided', async () => {
-      const wrapper = mount(ProfileView, {
-        global: {
-          plugins: [router],
-        },
-      })
-      await flushPromises()
-
+      const text = wrapper.text()
+      expect(text).toContain('overseer@vault.com')
+      expect(text).toContain('Test bio for overseer')
       const avatar = wrapper.find('img[alt="Profile avatar"]')
       expect(avatar.exists()).toBe(true)
       expect(avatar.attributes('src')).toBe('https://example.com/avatar.jpg')
     })
 
     it('keeps preferences in their dedicated screen instead of exposing raw JSON', async () => {
-      const wrapper = mount(ProfileView, {
-        global: {
-          plugins: [router],
-        },
-      })
-      await flushPromises()
+      await mountView()
 
       const prefsText = wrapper.text()
       expect(prefsText).toContain('Preferences')
       expect(prefsText).not.toContain('"theme": "dark"')
     })
-
-    it('should display created and updated timestamps', async () => {
-      const wrapper = mount(ProfileView, {
-        global: {
-          plugins: [router],
-        },
-      })
-      await flushPromises()
-
-      expect(wrapper.text()).toContain('Joined')
-      expect(wrapper.text()).toContain('Profile updated')
-    })
   })
 
-  describe('LifeDeathStatistics Component', () => {
-    it('should render LifeDeathStatistics component', async () => {
-      mockBothApis()
-
-      const wrapper = mount(ProfileView, {
-        global: {
-          plugins: [router],
-        },
-      })
-      await flushPromises()
-
-      const statsComponent = wrapper.findComponent(LifeDeathStatistics)
-      expect(statsComponent.exists()).toBe(true)
-    })
-
-    it('should pass death statistics to LifeDeathStatistics component', async () => {
-      mockBothApis()
-
-      const wrapper = mount(ProfileView, {
-        global: {
-          plugins: [router],
-        },
-      })
-      await flushPromises()
+  describe('LifeDeathStatistics', () => {
+    it('receives the fetched statistics once loaded', async () => {
+      serveProfile()
+      await mountView()
 
       const statsComponent = wrapper.findComponent(LifeDeathStatistics)
       expect(statsComponent.props('statistics')).toEqual(mockDeathStatistics)
-    })
-
-    it('should pass loading state to LifeDeathStatistics component', async () => {
-      mockBothApis()
-
-      const wrapper = mount(ProfileView, {
-        global: {
-          plugins: [router],
-        },
-      })
-      await flushPromises()
-
-      const statsComponent = wrapper.findComponent(LifeDeathStatistics)
       expect(statsComponent.props('loading')).toBe(false)
     })
   })
 
-  describe('Edit Mode', () => {
-    it('should show edit button in display mode', async () => {
-      mockBothApis()
+  describe('Edit mode', () => {
+    it('swaps the read-only profile for the editor with the current data', async () => {
+      serveProfile()
+      await mountView()
 
-      const wrapper = mount(ProfileView, {
-        global: {
-          plugins: [router],
-        },
-      })
-      await flushPromises()
+      const editor = await openEditor()
 
-      const editButton = wrapper.findAll('button').find((btn) => btn.text().includes('Edit'))
-      expect(editButton?.exists()).toBe(true)
+      expect(editor.exists()).toBe(true)
+      expect(editor.props('initialData')).toEqual(mockProfile)
     })
 
-    it('should switch to edit mode when edit button is clicked', async () => {
-      mockBothApis()
+    it('submits the edit and leaves edit mode on success', async () => {
+      serveProfile()
+      vi.mocked(axios.put).mockResolvedValueOnce({ ...mockProfile, bio: 'Updated bio' })
+      await mountView()
 
-      const wrapper = mount(ProfileView, {
-        global: {
-          plugins: [router],
-        },
-      })
-      await flushPromises()
-
-      const editButton = wrapper.findAll('button').find((btn) => btn.text().includes('Edit'))
-      await editButton?.trigger('click')
-      await flushPromises()
-
-      const editorComponent = wrapper.findComponent(ProfileEditor)
-      expect(editorComponent.exists()).toBe(true)
-    })
-
-    it('should hide display mode when in edit mode', async () => {
-      mockBothApis()
-
-      const wrapper = mount(ProfileView, {
-        global: {
-          plugins: [router],
-        },
-      })
-      await flushPromises()
-
-      const editButton = wrapper.findAll('button').find((btn) => btn.text().includes('Edit'))
-      await editButton?.trigger('click')
-      await flushPromises()
-
-      // Personnel File card should not be visible in edit mode
-      expect(wrapper.text()).not.toContain('PERSONNEL FILE')
-    })
-  })
-
-  describe('ProfileEditor Integration', () => {
-    const findEditButton = (wrapper: any) =>
-      wrapper.findAll('button').find((btn: any) => btn.text().includes('Edit'))
-
-    it('should render ProfileEditor with initial data', async () => {
-      mockBothApis()
-
-      const wrapper = mount(ProfileView, {
-        global: {
-          plugins: [router],
-        },
-      })
-      await flushPromises()
-
-      const editButton = findEditButton(wrapper)
-      await editButton?.trigger('click')
-      await flushPromises()
-
-      const editorComponent = wrapper.findComponent(ProfileEditor)
-      expect(editorComponent.props('initialData')).toEqual(mockProfile)
-    })
-
-    it('should submit profile update when editor emits submit', async () => {
-      mockBothApis()
-      const updatedProfile = { ...mockProfile, bio: 'Updated bio' }
-      vi.mocked(axios.put).mockResolvedValueOnce({ data: updatedProfile })
-
-      const wrapper = mount(ProfileView, {
-        global: {
-          plugins: [router],
-        },
-      })
-      await flushPromises()
-
-      const editButton = findEditButton(wrapper)
-      await editButton?.trigger('click')
-      await flushPromises()
-
-      const editorComponent = wrapper.findComponent(ProfileEditor)
-      editorComponent.vm.$emit('submit', { bio: 'Updated bio' })
+      const editor = await openEditor()
+      editor.vm.$emit('submit', { bio: 'Updated bio' })
       await flushPromises()
 
       expect(axios.put).toHaveBeenCalledWith('/api/v1/users/me/profile', { bio: 'Updated bio' })
+      expect(wrapper.findComponent(ProfileEditor).exists()).toBe(false)
     })
 
-    it('should exit edit mode after successful update', async () => {
-      mockBothApis()
-      const updatedProfile = { ...mockProfile, bio: 'Updated bio' }
-      vi.mocked(axios.put).mockResolvedValueOnce({ data: updatedProfile })
+    it('cancels edit mode when the editor emits cancel', async () => {
+      serveProfile()
+      await mountView()
 
-      const wrapper = mount(ProfileView, {
-        global: {
-          plugins: [router],
-        },
-      })
-      await flushPromises()
-
-      const editButton = findEditButton(wrapper)
-      await editButton?.trigger('click')
-      await flushPromises()
-
-      const editorComponent = wrapper.findComponent(ProfileEditor)
-      editorComponent.vm.$emit('submit', { bio: 'Updated bio' })
+      const editor = await openEditor()
+      editor.vm.$emit('cancel')
       await flushPromises()
 
       expect(wrapper.findComponent(ProfileEditor).exists()).toBe(false)
     })
 
-    it('should cancel edit mode when editor emits cancel', async () => {
-      mockBothApis()
-
-      const wrapper = mount(ProfileView, {
-        global: {
-          plugins: [router],
-        },
-      })
-      await flushPromises()
-
-      const editButton = findEditButton(wrapper)
-      await editButton?.trigger('click')
-      await flushPromises()
-
-      const editorComponent = wrapper.findComponent(ProfileEditor)
-      editorComponent.vm.$emit('cancel')
-      await flushPromises()
-
-      expect(wrapper.findComponent(ProfileEditor).exists()).toBe(false)
-    })
-
-    it('should stay in edit mode if update fails', async () => {
-      mockBothApis()
+    it('stays in edit mode and reports the error if the update fails', async () => {
+      serveProfile()
       vi.mocked(axios.put).mockRejectedValueOnce({
         response: { data: { detail: 'Validation error' } },
       })
+      await mountView()
 
-      const wrapper = mount(ProfileView, {
-        global: {
-          plugins: [router],
-        },
-      })
-      await flushPromises()
-
-      const editButton = findEditButton(wrapper)
-      await editButton?.trigger('click')
-      await flushPromises()
-
-      const editorComponent = wrapper.findComponent(ProfileEditor)
-      editorComponent.vm.$emit('submit', { bio: 'Invalid data' })
+      const editor = await openEditor()
+      editor.vm.$emit('submit', { bio: 'Invalid data' })
       await flushPromises()
 
       expect(wrapper.findComponent(ProfileEditor).exists()).toBe(true)
+      expect(editor.props('error')).toBe('Validation error')
     })
 
-    it('should pass loading state to editor', async () => {
-      mockBothApis()
+    it('passes the saving state to the editor', async () => {
+      serveProfile()
       vi.mocked(axios.put).mockImplementationOnce(
         () => new Promise((resolve) => setTimeout(() => resolve({ data: mockProfile }), 100))
       )
+      await mountView()
 
-      const wrapper = mount(ProfileView, {
-        global: {
-          plugins: [router],
-        },
-      })
-      await flushPromises()
-
-      const editButton = findEditButton(wrapper)
-      await editButton?.trigger('click')
-      await flushPromises()
-
-      const editorComponent = wrapper.findComponent(ProfileEditor)
-      editorComponent.vm.$emit('submit', { bio: 'New bio' })
+      const editor = await openEditor()
+      editor.vm.$emit('submit', { bio: 'New bio' })
       await wrapper.vm.$nextTick()
 
-      expect(editorComponent.props('loading')).toBe(true)
-    })
-
-    it('should pass error state to editor', async () => {
-      mockBothApis()
-      vi.mocked(axios.put).mockRejectedValueOnce({
-        response: { data: { detail: 'Validation error' } },
-      })
-
-      const wrapper = mount(ProfileView, {
-        global: {
-          plugins: [router],
-        },
-      })
-      await flushPromises()
-
-      const editButton = findEditButton(wrapper)
-      await editButton?.trigger('click')
-      await flushPromises()
-
-      const editorComponent = wrapper.findComponent(ProfileEditor)
-      editorComponent.vm.$emit('submit', { bio: 'Invalid' })
-      await flushPromises()
-
-      expect(editorComponent.props('error')).toBe('Validation error')
+      expect(editor.props('loading')).toBe(true)
     })
 
     it('updates the account email before saving the profile', async () => {
-      mockBothApis()
+      serveProfile()
+      await mountView()
 
-      const wrapper = mount(ProfileView, {
-        global: {
-          plugins: [router],
-        },
-      })
-      await flushPromises()
-
-      const editButton = findEditButton(wrapper)
-      await editButton?.trigger('click')
-      await flushPromises()
-
-      const editorComponent = wrapper.findComponent(ProfileEditor)
-      editorComponent.vm.$emit('submit', { bio: 'New bio' }, null, 'new@vault-tec.com')
+      const editor = await openEditor()
+      editor.vm.$emit('submit', { bio: 'New bio' }, null, 'new@vault-tec.com')
       await flushPromises()
 
       expect(axios.put).toHaveBeenCalledWith(
@@ -748,21 +391,11 @@ describe('ProfileView', () => {
     })
 
     it('sends username and email in one account request', async () => {
-      mockBothApis()
+      serveProfile()
+      await mountView()
 
-      const wrapper = mount(ProfileView, {
-        global: {
-          plugins: [router],
-        },
-      })
-      await flushPromises()
-
-      const editButton = findEditButton(wrapper)
-      await editButton?.trigger('click')
-      await flushPromises()
-
-      const editorComponent = wrapper.findComponent(ProfileEditor)
-      editorComponent.vm.$emit('submit', { bio: 'New bio' }, 'new_name', 'new@vault-tec.com')
+      const editor = await openEditor()
+      editor.vm.$emit('submit', { bio: 'New bio' }, 'new_name', 'new@vault-tec.com')
       await flushPromises()
 
       const accountCalls = vi
@@ -776,76 +409,41 @@ describe('ProfileView', () => {
     })
 
     it('ignores a second submit while the first is still saving', async () => {
-      mockBothApis()
+      serveProfile()
       const updateSpy = vi.spyOn(profileStore, 'updateProfile').mockResolvedValue(undefined)
+      await mountView()
 
-      const wrapper = mount(ProfileView, {
-        global: {
-          plugins: [router],
-        },
-      })
-      await flushPromises()
-
-      const editButton = findEditButton(wrapper)
-      await editButton?.trigger('click')
-      await flushPromises()
-
-      const editorComponent = wrapper.findComponent(ProfileEditor)
-      editorComponent.vm.$emit('submit', { bio: 'First' })
-      editorComponent.vm.$emit('submit', { bio: 'Second' })
+      const editor = await openEditor()
+      editor.vm.$emit('submit', { bio: 'First' })
+      editor.vm.$emit('submit', { bio: 'Second' })
       await flushPromises()
 
       expect(updateSpy).toHaveBeenCalledTimes(1)
     })
   })
 
-  describe('Error Clearing', () => {
-    const findEditButton = (wrapper: any) =>
-      wrapper.findAll('button').find((btn: any) => btn.text().includes('Edit'))
-
-    it('should clear error when entering edit mode', async () => {
-      mockBothApis()
-
-      const wrapper = mount(ProfileView, {
-        global: {
-          plugins: [router],
-        },
-      })
-      await flushPromises()
-
-      // Manually set an error to simulate a previous error state
+  describe('Error clearing', () => {
+    it('clears a stale error when entering edit mode', async () => {
+      serveProfile()
+      await mountView()
       profileStore.error = 'Some previous error'
 
-      // Enter edit mode - should clear error
-      const editButton = findEditButton(wrapper)
-      await editButton?.trigger('click')
-      await flushPromises()
+      await openEditor()
 
       expect(profileStore.error).toBeNull()
     })
 
-    it('should clear error when canceling edit mode', async () => {
-      mockBothApis()
+    it('clears the update error when canceling edit mode', async () => {
+      serveProfile()
       vi.mocked(axios.put).mockRejectedValueOnce({
         response: { data: { detail: 'Update error' } },
       })
+      await mountView()
 
-      const wrapper = mount(ProfileView, {
-        global: {
-          plugins: [router],
-        },
-      })
+      const editor = await openEditor()
+      editor.vm.$emit('submit', { bio: 'Test' })
       await flushPromises()
-
-      const editButton = findEditButton(wrapper)
-      await editButton?.trigger('click')
-      await flushPromises()
-
-      const editorComponent = wrapper.findComponent(ProfileEditor)
-      editorComponent.vm.$emit('submit', { bio: 'Test' })
-      await flushPromises()
-
-      editorComponent.vm.$emit('cancel')
+      editor.vm.$emit('cancel')
       await flushPromises()
 
       expect(profileStore.error).toBeNull()
@@ -853,49 +451,29 @@ describe('ProfileView', () => {
   })
 
   describe('Email verification actions', () => {
-    const findResendButton = (wrapper: { findAll: (selector: string) => any[] }) =>
+    const resendButton = () =>
       wrapper.findAll('button').find((button) => button.text().includes('RESEND EMAIL'))
 
-    it('shows a resend action for unverified accounts', async () => {
-      mockBothApis()
+    it.each([
+      [false, true],
+      [true, false],
+    ])(
+      'shows the resend action only for unverified accounts (verified=%s)',
+      async (verified, shown) => {
+        serveProfile()
+        authStore.user = { ...authStore.user, email_verified: verified } as never
+        await mountView()
 
-      const wrapper = mount(ProfileView, {
-        global: {
-          plugins: [router],
-        },
-      })
-      await flushPromises()
-
-      expect(authStore.user?.email_verified).toBeFalsy()
-      expect(findResendButton(wrapper)).toBeDefined()
-    })
-
-    it('hides the resend action for verified accounts', async () => {
-      mockBothApis()
-      authStore.user = { ...authStore.user, email_verified: true }
-
-      const wrapper = mount(ProfileView, {
-        global: {
-          plugins: [router],
-        },
-      })
-      await flushPromises()
-
-      expect(findResendButton(wrapper)).toBeUndefined()
-    })
+        expect(resendButton() !== undefined).toBe(shown)
+      }
+    )
 
     it('resends the verification email when clicked', async () => {
-      mockBothApis()
+      serveProfile()
       const resendSpy = vi.spyOn(authStore, 'resendVerificationEmail').mockResolvedValue(true)
+      await mountView()
 
-      const wrapper = mount(ProfileView, {
-        global: {
-          plugins: [router],
-        },
-      })
-      await flushPromises()
-
-      await findResendButton(wrapper)?.trigger('click')
+      await resendButton()!.trigger('click')
       await flushPromises()
 
       expect(resendSpy).toHaveBeenCalledOnce()

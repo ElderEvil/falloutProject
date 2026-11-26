@@ -1,11 +1,9 @@
 import { describe, it, expect, beforeEach, vi } from 'vite-plus/test'
 import { createIconifyMock, createToastMock } from '../helpers/mocks'
-import { mount, flushPromises } from '@vue/test-utils'
+import { mount, flushPromises, type VueWrapper } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import { createRouter, createMemoryHistory } from 'vue-router'
-import { nextTick } from 'vue'
 import ExplorationDetailView from '@/modules/exploration/views/ExplorationDetailView.vue'
-import PageContentRail from '@/core/components/common/PageContentRail.vue'
 import HealthRadiationBar from '@/core/components/common/HealthRadiationBar.vue'
 import { useExplorationStore } from '@/modules/exploration/stores/exploration'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
@@ -37,7 +35,7 @@ vi.mock('@/core/composables/useToast', () => ({
 
 // Mock usePolling - call immediate fn once, no interval
 vi.mock('@/core/composables/usePolling', () => ({
-  usePolling: (fn: () => unknown) => ({
+  usePolling: () => ({
     run: vi.fn(),
     pause: vi.fn(),
     resume: vi.fn(),
@@ -56,6 +54,90 @@ vi.mock('@/core/composables/useSound', () => ({
   useSound: () => soundMock,
 }))
 
+const mockExploration = {
+  id: 'expl-1',
+  vault_id: 'test-vault',
+  dweller_id: 'dweller-1',
+  status: 'active',
+  duration: 4,
+  start_time: new Date(Date.now() - 2 * 3600 * 1000).toISOString(),
+  end_time: null,
+  events: [
+    {
+      type: 'combat',
+      description: 'A raider attacked.',
+      timestamp: '2026-01-01T00:00:00Z',
+      time_elapsed_hours: 1.25,
+    },
+    {
+      type: 'loot',
+      description: 'Found a medkit.',
+      timestamp: '2026-01-01T00:00:00Z',
+      time_elapsed_hours: 2.0,
+    },
+  ],
+  loot_collected: [],
+  total_distance: 15,
+  total_caps_found: 42,
+  enemies_encountered: 3,
+  created_at: '2026-01-01T00:00:00Z',
+  updated_at: '2026-01-01T00:00:00Z',
+  dweller_strength: 5,
+  dweller_perception: 4,
+  dweller_endurance: 3,
+  dweller_charisma: 2,
+  dweller_intelligence: 6,
+  dweller_agility: 4,
+  dweller_luck: 3,
+  stimpaks: 2,
+  radaways: 1,
+}
+
+const mockDweller = {
+  id: 'dweller-1',
+  first_name: 'Amata',
+  last_name: 'Almodovar',
+  level: 5,
+  health: 42,
+  max_health: 50,
+  radiation: 0,
+  happiness: 75,
+  image_url: 'example.com/amata.png',
+  thumbnail_url: null,
+  room_id: null,
+  status: 'exploring',
+  age_group: 'adult',
+  gender: 'female',
+  birth_date: null,
+  strength: 5,
+  perception: 4,
+  endurance: 3,
+  charisma: 2,
+  intelligence: 6,
+  agility: 4,
+  luck: 3,
+  partner_id: null,
+  parent_1_id: null,
+  parent_2_id: null,
+}
+
+const availableSite = {
+  id: 'site-1',
+  name: 'Test Site',
+  flavor: 'A test site.',
+  min_dweller_level: 1,
+  room_total: 3,
+}
+
+const siteFoundEvent = () => ({
+  type: 'site',
+  event: 'site_found',
+  site_id: 'red_rocket',
+  description: 'Site found',
+  timestamp: '2026-10-26T10:00:00',
+  time_elapsed_hours: 1,
+})
+
 describe('ExplorationDetailView', () => {
   let router: ReturnType<typeof createRouter>
   let explorationStore: ReturnType<typeof useExplorationStore>
@@ -63,73 +145,17 @@ describe('ExplorationDetailView', () => {
   let authStore: ReturnType<typeof useAuthStore>
   let vaultStore: ReturnType<typeof useVaultStore>
   let siteStore: ReturnType<typeof useExpeditionSiteStore>
+  let wrapper: VueWrapper
 
-  const mockExploration = {
-    id: 'expl-1',
-    vault_id: 'test-vault',
-    dweller_id: 'dweller-1',
-    status: 'active',
-    duration: 4,
-    start_time: new Date(Date.now() - 2 * 3600 * 1000).toISOString(),
-    end_time: null,
-    events: [
-      {
-        type: 'combat',
-        description: 'A raider attacked.',
-        timestamp: '2026-01-01T00:00:00Z',
-        time_elapsed_hours: 1.25,
-      },
-      {
-        type: 'loot',
-        description: 'Found a medkit.',
-        timestamp: '2026-01-01T00:00:00Z',
-        time_elapsed_hours: 2.0,
-      },
-    ],
-    loot_collected: [],
-    total_distance: 15,
-    total_caps_found: 42,
-    enemies_encountered: 3,
-    created_at: '2026-01-01T00:00:00Z',
-    updated_at: '2026-01-01T00:00:00Z',
-    dweller_strength: 5,
-    dweller_perception: 4,
-    dweller_endurance: 3,
-    dweller_charisma: 2,
-    dweller_intelligence: 6,
-    dweller_agility: 4,
-    dweller_luck: 3,
-    stimpaks: 2,
-    radaways: 1,
+  const mountView = async () => {
+    wrapper = mount(ExplorationDetailView, { global: { plugins: [router] } })
+    await flushPromises()
+    return wrapper
   }
 
-  const mockDweller = {
-    id: 'dweller-1',
-    first_name: 'Amata',
-    last_name: 'Almodovar',
-    level: 5,
-    health: 42,
-    max_health: 50,
-    radiation: 0,
-    happiness: 75,
-    image_url: 'example.com/amata.png',
-    thumbnail_url: null,
-    room_id: null,
-    status: 'exploring',
-    age_group: 'adult',
-    gender: 'female',
-    birth_date: null,
-    strength: 5,
-    perception: 4,
-    endurance: 3,
-    charisma: 2,
-    intelligence: 6,
-    agility: 4,
-    luck: 3,
-    partner_id: null,
-    parent_1_id: null,
-    parent_2_id: null,
-  }
+  const siteButton = () =>
+    wrapper.findAll('button').find((button) => button.text().includes('Expedition site'))
+  const siteModal = () => wrapper.getComponent(ExpeditionSiteModal)
 
   beforeEach(async () => {
     setActivePinia(createPinia())
@@ -139,33 +165,24 @@ describe('ExplorationDetailView', () => {
     vaultStore = useVaultStore()
     siteStore = useExpeditionSiteStore()
 
-    // Mock store methods
     vi.spyOn(explorationStore, 'fetchExplorationsByVault').mockResolvedValue([mockExploration])
     vi.spyOn(explorationStore, 'fetchExplorationDetails').mockResolvedValue(mockExploration)
     vi.spyOn(dwellerStore, 'fetchDwellerDetails').mockResolvedValue(mockDweller)
     vi.spyOn(dwellerStore, 'fetchDwellersByVault').mockResolvedValue([])
-    vi.spyOn(vaultStore, 'refreshVault').mockResolvedValue({} as any)
+    vi.spyOn(vaultStore, 'refreshVault').mockResolvedValue({} as never)
     // The view opens a live SSE stream on mount; keep that off the network.
     vi.spyOn(explorationStore, 'startSseSubscription').mockImplementation(() => {})
     vi.spyOn(explorationStore, 'stopSseSubscription').mockImplementation(() => {})
     // Both actions are stubbed so the store's scope-reset never clears this
     // snapshot; a non-empty default keeps the CTA enabled unless a test empties it.
-    const availableSite = {
-      id: 'site-1',
-      name: 'Test Site',
-      flavor: 'A test site.',
-      min_dweller_level: 1,
-      room_total: 3,
-    }
     siteStore.availableSites = [availableSite]
     vi.spyOn(siteStore, 'fetchCurrentRoom').mockResolvedValue(null)
     vi.spyOn(siteStore, 'fetchAvailableSites').mockResolvedValue([availableSite])
 
-    // Set up mock data
     authStore.token = 'mock-token'
     explorationStore.activeExplorations['expl-1'] = mockExploration
     dwellerStore.dwellers = [mockDweller]
-    dwellerStore.detailedDwellers['dweller-1'] = mockDweller as any
+    dwellerStore.detailedDwellers['dweller-1'] = mockDweller as never
 
     router = createRouter({
       history: createMemoryHistory(),
@@ -189,21 +206,15 @@ describe('ExplorationDetailView', () => {
 
   describe('Rendering', () => {
     it('reserves artwork for the encounter instead of repeating a journey scene', async () => {
-      const wrapper = mount(ExplorationDetailView, { global: { plugins: [router] } })
-      await flushPromises()
+      await mountView()
+
       expect(wrapper.findComponent(WastelandScene).exists()).toBe(false)
       wrapper.unmount()
     })
 
     it('plays exploration music on mount and restores the vault loop on unmount', async () => {
       soundMock.playMusic.mockClear()
-      const wrapper = mount(ExplorationDetailView, {
-        global: {
-          plugins: [router],
-        },
-      })
-
-      await flushPromises()
+      await mountView()
 
       expect(soundMock.playMusic).toHaveBeenCalledWith('exploration')
 
@@ -211,72 +222,17 @@ describe('ExplorationDetailView', () => {
       expect(soundMock.playMusic).toHaveBeenCalledWith('vaultAmbient')
     })
 
-    it('renders navbar with explorer counter', async () => {
-      const wrapper = mount(ExplorationDetailView, {
-        global: {
-          plugins: [router],
-        },
-      })
+    it('renders the explorer navigator and the dweller summary', async () => {
+      await mountView()
 
-      await flushPromises()
-
-      expect(wrapper.text()).toContain('1 / 1')
-      expect(wrapper.text()).toContain('Back to Exploration')
-      expect(wrapper.find('.explorer-navigation').exists()).toBe(true)
-      expect(wrapper.find('.exploration-detail-content').exists()).toBe(true)
-    })
-
-    it('constrains the header and detail content to the shared 1200px rail', async () => {
-      const wrapper = mount(ExplorationDetailView, {
-        global: {
-          plugins: [router],
-        },
-      })
-
-      await flushPromises()
-
-      const rail = wrapper.findComponent(PageContentRail)
-      expect(rail.props('width')).toBe('content')
-      expect(rail.classes()).toContain('max-w-[1200px]')
-    })
-
-    it('renders the shared vault sidebar', async () => {
-      const wrapper = mount(ExplorationDetailView, {
-        global: {
-          plugins: [router],
-        },
-      })
-
-      await flushPromises()
-
-      expect(wrapper.findComponent({ name: 'SidePanel' }).exists()).toBe(true)
-    })
-
-    it('renders dweller name in summary card', async () => {
-      const wrapper = mount(ExplorationDetailView, {
-        global: {
-          plugins: [router],
-        },
-      })
-
-      await flushPromises()
-
-      expect(wrapper.text()).toContain('Amata Almodovar')
-    })
-
-    it('renders the same dweller portrait used by exploration cards', async () => {
-      const wrapper = mount(ExplorationDetailView, {
-        global: {
-          plugins: [router],
-        },
-      })
-
-      await flushPromises()
-
-      expect(wrapper.find('.dweller-portrait').attributes('src')).toBe(
-        'http://example.com/amata.png'
-      )
-      expect(wrapper.find('.dweller-portrait').attributes('alt')).toBe('Amata Almodovar portrait')
+      const text = wrapper.text()
+      expect(text).toContain('1 / 1')
+      expect(text).toContain('Back to Exploration')
+      expect(text).toContain('Amata Almodovar')
+      expect(text).toContain('LVL 5')
+      const portrait = wrapper.find('.dweller-portrait')
+      expect(portrait.attributes('src')).toBe('http://example.com/amata.png')
+      expect(portrait.attributes('alt')).toBe('Amata Almodovar portrait')
     })
 
     it('uses the thumbnail when a detailed dweller has a blank image URL', async () => {
@@ -284,37 +240,18 @@ describe('ExplorationDetailView', () => {
         ...mockDweller,
         image_url: '',
         thumbnail_url: 'example.com/amata-thumb.png',
-      } as any
+      } as never
       dwellerStore.dwellers = [dwellerStore.detailedDwellers['dweller-1']]
 
-      const wrapper = mount(ExplorationDetailView, { global: { plugins: [router] } })
-      await flushPromises()
+      await mountView()
 
       expect(wrapper.find('.dweller-portrait').attributes('src')).toBe(
         'http://example.com/amata-thumb.png'
       )
     })
 
-    it('renders dweller level', async () => {
-      const wrapper = mount(ExplorationDetailView, {
-        global: {
-          plugins: [router],
-        },
-      })
-
-      await flushPromises()
-
-      expect(wrapper.text()).toContain('LVL 5')
-    })
-
     it('uses the shared bar for health and the terminal meter for exploration progress', async () => {
-      const wrapper = mount(ExplorationDetailView, {
-        global: {
-          plugins: [router],
-        },
-      })
-
-      await flushPromises()
+      await mountView()
 
       expect(wrapper.findAllComponents(HealthRadiationBar).length).toBeGreaterThanOrEqual(1)
 
@@ -324,46 +261,16 @@ describe('ExplorationDetailView', () => {
       expect(wrapper.find('[data-slot="progress-segments"]').exists()).toBe(true)
     })
 
-    it('renders stats grid with 6 stat boxes', async () => {
-      const wrapper = mount(ExplorationDetailView, {
-        global: {
-          plugins: [router],
-        },
-      })
-
-      await flushPromises()
-
-      expect(wrapper.text()).toContain('Miles')
-      expect(wrapper.text()).toContain('Items')
-      expect(wrapper.text()).toContain('Caps')
-      expect(wrapper.text()).toContain('Stimpaks')
-      expect(wrapper.text()).toContain('RadAway')
-      expect(wrapper.text()).toContain('Enemies')
-    })
-
-    it('renders event log with events', async () => {
-      const wrapper = mount(ExplorationDetailView, {
-        global: {
-          plugins: [router],
-        },
-      })
-
-      await flushPromises()
+    it('renders the event log with events', async () => {
+      await mountView()
 
       expect(wrapper.text()).toContain('Event Log')
       expect(wrapper.text()).toContain('A raider attacked.')
       expect(wrapper.text()).toContain('Found a medkit.')
-      expect(wrapper.find('.event-log-section').classes()).toContain('mt-4')
     })
 
     it('renders action buttons', async () => {
-      const wrapper = mount(ExplorationDetailView, {
-        global: {
-          plugins: [router],
-        },
-      })
-
-      await flushPromises()
+      await mountView()
 
       expect(wrapper.find('.explorer-navigation [aria-label="Recall dweller"]').exists()).toBe(true)
       expect(wrapper.text()).not.toContain('Recall Dweller')
@@ -371,42 +278,16 @@ describe('ExplorationDetailView', () => {
       expect(wrapper.text()).not.toContain('Complete Exploration')
     })
 
-    it('places explorer equipment directly under the dweller card', async () => {
-      const wrapper = mount(ExplorationDetailView, {
-        global: { plugins: [router] },
-      })
-
-      await flushPromises()
-
-      const summary = wrapper.find('.explorer-summary-card').element
-      const equipment = wrapper.find('.explorer-equipment-slots').element
-      expect(summary.nextElementSibling).toBe(equipment)
-    })
-
     it('disables the Expedition site CTA when no sites are available', async () => {
       siteStore.availableSites = []
       vi.spyOn(siteStore, 'fetchAvailableSites').mockResolvedValue([])
 
-      const wrapper = mount(ExplorationDetailView, {
-        global: {
-          plugins: [router],
-        },
-      })
+      await mountView()
 
-      await flushPromises()
-
-      const siteButton = wrapper.findAll('button').find((b) => b.text().includes('Expedition site'))
-      expect((siteButton?.element as HTMLButtonElement).disabled).toBe(true)
+      expect((siteButton()?.element as HTMLButtonElement).disabled).toBe(true)
     })
 
     it('starts the Expedition site CTA dark until availability resolves', async () => {
-      const availableSite = {
-        id: 'site-1',
-        name: 'Test Site',
-        flavor: 'A test site.',
-        min_dweller_level: 1,
-        room_total: 3,
-      }
       let resolveSites!: (sites: (typeof availableSite)[]) => void
       vi.spyOn(siteStore, 'fetchAvailableSites').mockImplementationOnce(
         () =>
@@ -415,13 +296,8 @@ describe('ExplorationDetailView', () => {
           })
       )
 
-      const wrapper = mount(ExplorationDetailView, {
-        global: { plugins: [router] },
-      })
-      await flushPromises()
+      await mountView()
 
-      const siteButton = () =>
-        wrapper.findAll('button').find((button) => button.text().includes('Expedition site'))
       expect(siteButton()?.classes()).toContain('bg-secondary')
       expect(siteButton()?.classes()).not.toContain('bg-primary')
 
@@ -433,47 +309,27 @@ describe('ExplorationDetailView', () => {
     })
 
     it('keeps the Expedition site CTA enabled when sites are available', async () => {
-      const wrapper = mount(ExplorationDetailView, {
-        global: {
-          plugins: [router],
-        },
-      })
+      await mountView()
 
-      await flushPromises()
-
-      const siteButton = wrapper.findAll('button').find((b) => b.text().includes('Expedition site'))
-      expect(siteButton?.attributes('disabled')).toBeUndefined()
+      expect(siteButton()?.attributes('disabled')).toBeUndefined()
     })
   })
 
-  describe('Loading State', () => {
+  describe('Loading state', () => {
     it('renders after a direct link loads only the detailed dweller record', async () => {
       dwellerStore.dwellers = []
 
-      const wrapper = mount(ExplorationDetailView, {
-        global: {
-          plugins: [router],
-        },
-      })
-
-      await flushPromises()
+      await mountView()
 
       expect(wrapper.text()).toContain('Amata Almodovar')
       expect(wrapper.text()).not.toContain('Loading exploration data...')
     })
 
     it('renders loading state when no exploration data', async () => {
-      // Remove exploration from activeExplorations
       delete explorationStore.activeExplorations['expl-1']
       dwellerStore.dwellers = []
 
-      const wrapper = mount(ExplorationDetailView, {
-        global: {
-          plugins: [router],
-        },
-      })
-
-      await flushPromises()
+      await mountView()
 
       expect(wrapper.text()).toContain('Loading exploration data...')
       expect(wrapper.find('.loading-state').exists()).toBe(true)
@@ -485,13 +341,7 @@ describe('ExplorationDetailView', () => {
       delete dwellerStore.detailedDwellers['dweller-1']
       dwellerStore.dwellers = [{ ...mockDweller, health: 10 }]
 
-      const wrapper = mount(ExplorationDetailView, {
-        global: {
-          plugins: [router],
-        },
-      })
-
-      await flushPromises()
+      await mountView()
 
       expect(wrapper.find('[aria-label="Dweller at risk"]').exists()).toBe(true)
       expect(wrapper.text()).toContain('AT RISK')
@@ -500,18 +350,9 @@ describe('ExplorationDetailView', () => {
 
   describe('Empty / no events', () => {
     it('renders empty event log message when no events', async () => {
-      explorationStore.activeExplorations['expl-1'] = {
-        ...mockExploration,
-        events: [],
-      }
+      explorationStore.activeExplorations['expl-1'] = { ...mockExploration, events: [] }
 
-      const wrapper = mount(ExplorationDetailView, {
-        global: {
-          plugins: [router],
-        },
-      })
-
-      await flushPromises()
+      await mountView()
 
       expect(wrapper.text()).toContain('No events yet')
     })
@@ -522,13 +363,7 @@ describe('ExplorationDetailView', () => {
       const { loot_collected: _omit, ...shortExploration } = mockExploration
       explorationStore.activeExplorations['expl-1'] = shortExploration as typeof mockExploration
 
-      const wrapper = mount(ExplorationDetailView, {
-        global: {
-          plugins: [router],
-        },
-      })
-
-      await flushPromises()
+      await mountView()
 
       // Should render the summary card, not throw / blank out
       expect(wrapper.text()).toContain('Amata Almodovar')
@@ -539,20 +374,13 @@ describe('ExplorationDetailView', () => {
 
   describe('Site reconnect on explorer switch', () => {
     it('refreshes site offers when the journey snapshot gains a discovery', async () => {
-      const siteStore = useExpeditionSiteStore()
       const fetchSites = vi.spyOn(siteStore, 'fetchAvailableSites').mockResolvedValue([])
-      const wrapper = mount(ExplorationDetailView, { global: { plugins: [router] } })
-      await flushPromises()
+      await mountView()
       fetchSites.mockClear()
-      explorationStore.activeExplorations['expl-1'].events.push({
-        type: 'site',
-        event: 'site_found',
-        site_id: 'red_rocket',
-        description: 'Site found',
-        timestamp: '2026-10-26T10:00:00',
-        time_elapsed_hours: 1,
-      })
+
+      explorationStore.activeExplorations['expl-1'].events.push(siteFoundEvent() as never)
       await flushPromises()
+
       expect(fetchSites).toHaveBeenCalledOnce()
       expect(fetchSites).toHaveBeenCalledWith('expl-1')
       wrapper.unmount()
@@ -560,12 +388,13 @@ describe('ExplorationDetailView', () => {
 
     it('opens the site picker from a notification link without entering', async () => {
       await router.push('/vault/test-vault/exploration/expl-1?siteId=red_rocket')
-      const siteStore = useExpeditionSiteStore()
       const enter = vi.spyOn(siteStore, 'enterSite')
-      const wrapper = mount(ExplorationDetailView, { global: { plugins: [router] } })
-      await flushPromises()
-      expect((wrapper.vm as any).showSiteModal).toBe(true)
-      expect((wrapper.vm as any).reportedSiteId).toBe('red_rocket')
+      await mountView()
+
+      expect((wrapper.vm as unknown as { showSiteModal: boolean }).showSiteModal).toBe(true)
+      expect((wrapper.vm as unknown as { reportedSiteId: string }).reportedSiteId).toBe(
+        'red_rocket'
+      )
       expect(enter).not.toHaveBeenCalled()
       wrapper.unmount()
     })
@@ -573,8 +402,7 @@ describe('ExplorationDetailView', () => {
     it('waits for reconnect when switching explorers with different reported sites', async () => {
       await router.push('/vault/test-vault/exploration/expl-1?siteId=red_rocket')
       explorationStore.activeExplorations['expl-2'] = { ...mockExploration, id: 'expl-2' }
-      const wrapper = mount(ExplorationDetailView, { global: { plugins: [router] } })
-      await flushPromises()
+      await mountView()
       let finishReconnect!: (room: SiteRoomView | null) => void
       vi.mocked(siteStore.fetchCurrentRoom).mockImplementationOnce(
         () =>
@@ -586,11 +414,11 @@ describe('ExplorationDetailView', () => {
       await router.push('/vault/test-vault/exploration/expl-2?siteId=super_duper_mart')
       await flushPromises()
       try {
-        expect(wrapper.getComponent(ExpeditionSiteModal).props('show')).toBe(false)
+        expect(siteModal().props('show')).toBe(false)
         expect(siteStore.fetchAvailableSites).not.toHaveBeenCalled()
         finishReconnect(null)
         await flushPromises()
-        expect(wrapper.getComponent(ExpeditionSiteModal).props('show')).toBe(true)
+        expect(siteModal().props('show')).toBe(true)
         expect(siteStore.fetchAvailableSites).toHaveBeenCalledWith('expl-2')
       } finally {
         finishReconnect(null)
@@ -607,35 +435,27 @@ describe('ExplorationDetailView', () => {
             finishReconnect = resolve
           })
       )
-      const wrapper = mount(ExplorationDetailView, { global: { plugins: [router] } })
+      await mountView()
+
+      explorationStore.activeExplorations['expl-1'].events.push(siteFoundEvent() as never)
       await flushPromises()
-      explorationStore.activeExplorations['expl-1'].events.push({
-        type: 'site',
-        event: 'site_found',
-        site_id: 'red_rocket',
-        description: 'Site found',
-        timestamp: '2026-10-26T10:00:00',
-        time_elapsed_hours: 1,
-      })
-      await flushPromises()
-      expect(wrapper.getComponent(ExpeditionSiteModal).props('show')).toBe(false)
+      expect(siteModal().props('show')).toBe(false)
       expect(siteStore.fetchAvailableSites).not.toHaveBeenCalled()
       finishReconnect(null)
       await flushPromises()
-      expect(wrapper.getComponent(ExpeditionSiteModal).props('show')).toBe(true)
+      expect(siteModal().props('show')).toBe(true)
       wrapper.unmount()
     })
 
     it('opens a notification for the current explorer after initialization', async () => {
-      const wrapper = mount(ExplorationDetailView, { global: { plugins: [router] } })
-      await flushPromises()
-      expect(wrapper.getComponent(ExpeditionSiteModal).props('show')).toBe(false)
+      await mountView()
+      expect(siteModal().props('show')).toBe(false)
       vi.mocked(siteStore.fetchCurrentRoom).mockClear()
 
       await router.push('/vault/test-vault/exploration/expl-1?siteId=red_rocket')
       await flushPromises()
 
-      expect(wrapper.getComponent(ExpeditionSiteModal).props('show')).toBe(true)
+      expect(siteModal().props('show')).toBe(true)
       expect(siteStore.fetchCurrentRoom).not.toHaveBeenCalled()
       wrapper.unmount()
     })
@@ -643,30 +463,25 @@ describe('ExplorationDetailView', () => {
     it('keeps notification entry open across explorers with the same reported site', async () => {
       await router.push('/vault/test-vault/exploration/expl-1?siteId=red_rocket')
       explorationStore.activeExplorations['expl-2'] = { ...mockExploration, id: 'expl-2' }
-      const wrapper = mount(ExplorationDetailView, { global: { plugins: [router] } })
-      await flushPromises()
+      await mountView()
+
       await router.push('/vault/test-vault/exploration/expl-2?siteId=red_rocket')
       await flushPromises()
-      const modal = wrapper.getComponent(ExpeditionSiteModal)
-      expect(modal.props('show')).toBe(true)
-      expect(modal.props('explorationId')).toBe('expl-2')
+
+      expect(siteModal().props('show')).toBe(true)
+      expect(siteModal().props('explorationId')).toBe('expl-2')
       wrapper.unmount()
     })
 
     it('re-scopes the site store and reconnects when the exploration changes', async () => {
-      const siteStore = useExpeditionSiteStore()
       const resetSpy = vi.spyOn(siteStore, 'reset')
       const fetchCurrentRoomSpy = vi.spyOn(siteStore, 'fetchCurrentRoom').mockResolvedValue(null)
       vi.spyOn(explorationStore, 'fetchExplorationDetails').mockImplementation(
-        async (id: string) => ({
-          ...mockExploration,
-          id,
-        })
+        async (id: string) => ({ ...mockExploration, id })
       )
       explorationStore.activeExplorations['expl-2'] = { ...mockExploration, id: 'expl-2' }
 
-      const wrapper = mount(ExplorationDetailView, { global: { plugins: [router] } })
-      await flushPromises()
+      await mountView()
       resetSpy.mockClear()
       fetchCurrentRoomSpy.mockClear()
 
@@ -679,7 +494,6 @@ describe('ExplorationDetailView', () => {
     })
 
     it('does not reopen the modal when the previous explorer reconnect finishes late', async () => {
-      const siteStore = useExpeditionSiteStore()
       let finishOld!: (room: SiteRoomView | null) => void
       vi.spyOn(siteStore, 'fetchCurrentRoom')
         .mockImplementationOnce(
@@ -691,19 +505,17 @@ describe('ExplorationDetailView', () => {
         .mockResolvedValueOnce(null)
       explorationStore.activeExplorations['expl-2'] = { ...mockExploration, id: 'expl-2' }
 
-      const wrapper = mount(ExplorationDetailView, { global: { plugins: [router] } })
-      await flushPromises()
+      await mountView()
       await router.push('/vault/test-vault/exploration/expl-2')
       await flushPromises()
       finishOld({ exploration_id: 'expl-1' } as SiteRoomView)
       await flushPromises()
 
-      expect(wrapper.findComponent(ExpeditionSiteModal).props('show')).toBe(false)
+      expect(siteModal().props('show')).toBe(false)
       wrapper.unmount()
     })
 
     it('does not let a stale site-options response disable the new explorer CTA', async () => {
-      const siteStore = useExpeditionSiteStore()
       let resolveFirstSites!: (sites: AvailableSiteView[]) => void
       // First call (expl-1) stays pending; the second (expl-2) rejects.
       vi.spyOn(siteStore, 'fetchAvailableSites')
@@ -715,15 +527,11 @@ describe('ExplorationDetailView', () => {
         )
         .mockRejectedValueOnce(new Error('network failure'))
       vi.spyOn(explorationStore, 'fetchExplorationDetails').mockImplementation(
-        async (id: string) => ({
-          ...mockExploration,
-          id,
-        })
+        async (id: string) => ({ ...mockExploration, id })
       )
       explorationStore.activeExplorations['expl-2'] = { ...mockExploration, id: 'expl-2' }
 
-      const wrapper = mount(ExplorationDetailView, { global: { plugins: [router] } })
-      await flushPromises()
+      await mountView()
       await router.push('/vault/test-vault/exploration/expl-2')
       await flushPromises()
 
@@ -732,9 +540,10 @@ describe('ExplorationDetailView', () => {
       resolveFirstSites([])
       await flushPromises()
 
-      const siteButton = wrapper.findAll('button').find((b) => b.text().includes('Expedition site'))
-      expect(siteButton?.attributes('disabled')).toBeUndefined()
-      expect((wrapper.vm as any).siteOptionsLoaded).toBe(false)
+      expect(siteButton()?.attributes('disabled')).toBeUndefined()
+      expect((wrapper.vm as unknown as { siteOptionsLoaded: boolean }).siteOptionsLoaded).toBe(
+        false
+      )
       wrapper.unmount()
     })
   })

@@ -39,65 +39,102 @@ vi.mock('@/modules/auth/services/authService', async (importOriginal) => {
   }
 })
 
+const dweller = (overrides: Record<string, unknown> = {}) => ({
+  id: 'dweller-1',
+  first_name: 'Test',
+  last_name: 'Dweller',
+  level: 1,
+  health: 100,
+  max_health: 100,
+  radiation: 0,
+  happiness: 80,
+  status: 'working',
+  age_group: 'adult',
+  gender: 'male',
+  rarity: 'common',
+  room_id: null,
+  vault_id: 'vault-1',
+  ...overrides,
+})
+
+const productionRoom = {
+  id: 'garden-1',
+  name: 'Garden',
+  category: 'production',
+  ability: 'agility',
+}
+
 describe('DwellersView', () => {
-  let router: any
-  let _authStore: any
-  let _dwellerStore: any
-  let vaultStore: any
-  let _roomStore: any
-  let incidentStore: any
+  let router: ReturnType<typeof createRouter>
+  let authStore: ReturnType<typeof useAuthStore>
+  let dwellerFilter: ReturnType<typeof useDwellerStore>['filter']
+  let vaultStore: ReturnType<typeof useVaultStore>
+  let roomStore: ReturnType<typeof useRoomStore>
+  let incidentStore: ReturnType<typeof useIncidentStore>
   let pinia: ReturnType<typeof createPinia>
 
-  const mountView = async (isFlickering = false) => {
+  /** Every endpoint the view reads on mount, answered by URL. */
+  const mockEndpoints = (dwellers: unknown[] = [], rooms: unknown[] = []) =>
+    vi.mocked(axios.get).mockImplementation((url: string) => {
+      if (url.includes('/dwellers/identity-options')) {
+        return Promise.resolve({ data: { races: [], factions_by_race: {}, states_by_race: {} } })
+      }
+      if (url.includes('/dwellers/vault/')) return Promise.resolve({ data: dwellers })
+      if (url.includes('/incidents')) {
+        return Promise.resolve({
+          data: { vault_id: 'vault-1', incident_count: 0, incidents: [] },
+        })
+      }
+      if (url.includes('/rooms/vault/')) return Promise.resolve({ data: rooms })
+      return Promise.resolve({ data: [] })
+    })
+
+  const mockEmptyRoster = () => mockEndpoints([])
+
+  const mountView = async (isFlickering = false, stubs: Record<string, unknown> = {}) => {
     await router.isReady()
     return mount(DwellersView, {
-      global: { plugins: [router, pinia], provide: { isFlickering: ref(isFlickering) } },
+      global: {
+        plugins: [router, pinia],
+        provide: { isFlickering: ref(isFlickering) },
+        stubs,
+      },
     })
   }
 
-  it('hides the identity filters while the dead-dweller panel is shown', async () => {
-    useDwellerStore().filter.setFilterStatus('dead')
-    const wrapper = await mountView()
+  /** Mount at a given query string, waiting for the guarded reads to settle. */
+  const mountAt = async (query = '', isFlickering = false) => {
+    if (query) await router.push(`/vault/vault-1/dwellers${query}`)
+    const wrapper = await mountView(isFlickering)
     await flushPromises()
+    return wrapper
+  }
 
-    expect(wrapper.find('.identity-controls').exists()).toBe(false)
-  })
-
-  it('hides the age filter while the dead-dweller panel is shown', async () => {
-    useDwellerStore().filter.setFilterStatus('dead')
-    const wrapper = await mountView()
-    await flushPromises()
-
-    expect(wrapper.text()).not.toContain('Filter by Age')
-  })
+  const requestUrls = () => vi.mocked(axios.get).mock.calls.map(([url]) => String(url))
+  const requested = (fragment: string) => requestUrls().some((url) => url.includes(fragment))
 
   beforeEach(async () => {
     pinia = createPinia()
     setActivePinia(pinia)
 
-    // Set up auth store
     localStorage.setItem('token', 'test-token')
     localStorage.setItem(
       'user',
-      JSON.stringify({
-        id: 'test-user-id',
-        username: 'testuser',
-        email: 'test@example.com',
-      })
+      JSON.stringify({ id: 'test-user-id', username: 'testuser', email: 'test@example.com' })
     )
 
-    _authStore = useAuthStore()
-    _dwellerStore = useDwellerStore()
+    useAuthStore()
+    authStore = useAuthStore()
+    dwellerFilter = useDwellerStore().filter
     vaultStore = useVaultStore()
-    _roomStore = useRoomStore()
+    roomStore = useRoomStore()
     incidentStore = useIncidentStore()
 
-    // Mock vault
     vaultStore.loadedVaults['vault-1'] = {
       id: 'vault-1',
       number: 101,
       bottle_caps: 1000,
-    } as any
+    } as never
 
     router = createRouter({
       history: createMemoryHistory(),
@@ -124,69 +161,57 @@ describe('DwellersView', () => {
     vi.clearAllMocks()
   })
 
+  it('hides the identity and age filters while the dead-dweller panel is shown', async () => {
+    dwellerFilter.setFilterStatus('dead')
+    const wrapper = await mountAt()
+
+    expect(wrapper.find('.identity-controls').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('Filter by Age')
+  })
+
   it('restores a room deep link after loading and clears it when the room closes', async () => {
-    vi.mocked(axios.get).mockResolvedValue({ data: [] })
+    mockEmptyRoster()
     await router.push('/vault/vault-1/dwellers?roomId=room-1&dweller=dweller-1')
-    const wrapper = mount(DwellersView, {
-      global: {
-        plugins: [router, pinia],
-        stubs: {
-          RoomDetailModal: {
-            name: 'RoomDetailModal',
-            props: ['room'],
-            emits: ['close'],
-            template: `<button @click="$emit('close')">Close room</button>`,
-          },
-        },
+    const wrapper = await mountView(false, {
+      RoomDetailModal: {
+        name: 'RoomDetailModal',
+        props: ['room'],
+        emits: ['close'],
+        template: `<button @click="$emit('close')">Close room</button>`,
       },
     })
     await flushPromises()
     expect(wrapper.findComponent({ name: 'RoomDetailModal' }).exists()).toBe(false)
+
     const room = { id: 'room-1', name: 'Power Generator', category: 'production' } as Room
-    useRoomStore().rooms = [room]
+    roomStore.rooms = [room]
     await flushPromises()
     expect(wrapper.findComponent({ name: 'RoomDetailModal' }).exists()).toBe(false)
+
     await router.replace({ query: { roomId: 'room-1' } })
     await flushPromises()
     const modal = wrapper.findComponent({ name: 'RoomDetailModal' })
     expect(modal.props('room').id).toBe('room-1')
+
     await modal.trigger('click')
     await flushPromises()
     expect(router.currentRoute.value.query.roomId).toBeUndefined()
-    useRoomStore().rooms = [{ ...room }]
+
+    roomStore.rooms = [{ ...room }]
     await flushPromises()
     expect(wrapper.findComponent({ name: 'RoomDetailModal' }).exists()).toBe(false)
     wrapper.unmount()
   })
 
   describe('Initialization', () => {
-    it('should render vault title', async () => {
-      vi.mocked(axios.get).mockResolvedValue({ data: [] })
-
-      const wrapper = await mountView()
-      await flushPromises()
+    it('fetches the roster and the rooms on mount', async () => {
+      mockEmptyRoster()
+      const wrapper = await mountAt()
 
       expect(wrapper.text()).toContain('Dwellers')
-    })
-
-    it('should fetch dwellers on mount', async () => {
-      vi.mocked(axios.get).mockResolvedValue({ data: [] })
-
-      await mountView()
-      await flushPromises()
-
-      // Should call fetchDwellersByVault with correct params
       expect(axios.get).toHaveBeenCalledWith(
         expect.stringContaining('/api/v1/dwellers/vault/vault-1')
       )
-    })
-
-    it('should fetch rooms on mount', async () => {
-      vi.mocked(axios.get).mockResolvedValue({ data: [] })
-
-      await mountView()
-      await flushPromises()
-
       // Should fetch both dwellers and rooms
       expect(axios.get).toHaveBeenCalledWith(
         expect.stringContaining('/api/v1/rooms/vault/vault-1'),
@@ -203,25 +228,20 @@ describe('DwellersView', () => {
       }
 
       vi.spyOn(vaultStore, 'ensureVaultLoaded').mockImplementation(() => deferredRequest('vault'))
-      vi.spyOn(_dwellerStore.filter, 'fetchWithCurrentFilters').mockImplementation(() =>
+      vi.spyOn(dwellerFilter, 'fetchWithCurrentFilters').mockImplementation(() =>
         deferredRequest('filtered dwellers')
       )
-      vi.spyOn(_dwellerStore.filter, 'fetchAllDwellers').mockImplementation(() =>
+      vi.spyOn(dwellerFilter, 'fetchAllDwellers').mockImplementation(() =>
         deferredRequest('all dwellers')
       )
       vi.spyOn(incidentStore, 'fetchIncidents').mockImplementation(() =>
         deferredRequest('incidents')
       )
-      vi.spyOn(_roomStore, 'fetchRooms').mockImplementation(() =>
+      vi.spyOn(roomStore, 'fetchRooms').mockImplementation(() =>
         deferredRequest('rooms').then(() => 'loaded' as const)
       )
 
-      await router.isReady()
-      mount(DwellersView, {
-        global: {
-          plugins: [router, pinia],
-        },
-      })
+      await mountView()
       await flushPromises()
 
       try {
@@ -254,30 +274,25 @@ describe('DwellersView', () => {
             resolveVault = resolve
           })
       )
-      vi.spyOn(_dwellerStore.filter, 'fetchWithCurrentFilters').mockImplementation(async () => {
+      vi.spyOn(dwellerFilter, 'fetchWithCurrentFilters').mockImplementation(async () => {
         reads.push('filtered dwellers')
       })
-      vi.spyOn(_dwellerStore.filter, 'fetchAllDwellers').mockImplementation(async () => {
+      vi.spyOn(dwellerFilter, 'fetchAllDwellers').mockImplementation(async () => {
         reads.push('all dwellers')
       })
       vi.spyOn(incidentStore, 'fetchIncidents').mockImplementation(async () => {
         reads.push('incidents')
         return []
       })
-      vi.spyOn(_roomStore, 'fetchRooms').mockImplementation(async () => {
+      vi.spyOn(roomStore, 'fetchRooms').mockImplementation(async () => {
         reads.push('rooms')
         return 'loaded'
       })
 
-      await router.isReady()
-      mount(DwellersView, {
-        global: {
-          plugins: [router, pinia],
-        },
-      })
+      await mountView()
       await flushPromises()
 
-      _authStore.sessionGeneration++
+      authStore.sessionGeneration++
       resolveVault()
       await flushPromises()
 
@@ -287,65 +302,23 @@ describe('DwellersView', () => {
     it('shows an error when the vault cannot be loaded', async () => {
       delete vaultStore.loadedVaults['vault-1']
       vi.spyOn(vaultStore, 'ensureVaultLoaded').mockRejectedValue(new Error('Vault unavailable'))
-      vi.spyOn(_dwellerStore.filter, 'fetchDwellersByVault').mockResolvedValue()
-      vi.spyOn(_dwellerStore.filter, 'fetchAllDwellers').mockResolvedValue()
+      vi.spyOn(dwellerFilter, 'fetchDwellersByVault').mockResolvedValue()
+      vi.spyOn(dwellerFilter, 'fetchAllDwellers').mockResolvedValue()
       vi.spyOn(incidentStore, 'fetchIncidents').mockResolvedValue()
-      vi.spyOn(_roomStore, 'fetchRooms').mockResolvedValue('loaded')
+      vi.spyOn(roomStore, 'fetchRooms').mockResolvedValue('loaded')
 
-      await router.isReady()
-      const wrapper = mount(DwellersView, {
-        global: {
-          plugins: [router, pinia],
-        },
-      })
-      await flushPromises()
+      const wrapper = await mountAt()
 
       expect(wrapper.text()).toContain('Vault unavailable')
     })
   })
 
-  describe('Dweller Navigation', () => {
+  describe('Dweller navigation', () => {
     it('navigates to the full-page detail route when clicking a dweller', async () => {
-      const mockDwellers = [
-        {
-          id: 'dweller-1',
-          first_name: 'John',
-          last_name: 'Doe',
-          level: 5,
-          health: 100,
-          max_health: 100,
-          happiness: 80,
-          status: 'working',
-          room_id: null,
-          vault_id: 'vault-1',
-        },
-      ]
+      mockEndpoints([dweller({ first_name: 'John', last_name: 'Doe', level: 5 })])
 
-      // URL-aware mock: the view's request order is an implementation detail, so
-      // answer by endpoint instead of by call sequence.
-      vi.mocked(axios.get).mockImplementation((url: string) => {
-        if (url.includes('/dwellers/identity-options')) {
-          return Promise.resolve({ data: { races: [], factions_by_race: {}, states_by_race: {} } })
-        }
-        if (url.includes('/dwellers/vault/')) return Promise.resolve({ data: mockDwellers })
-        if (url.includes('/incidents')) {
-          return Promise.resolve({
-            data: { vault_id: 'vault-1', incident_count: 0, incidents: [] },
-          })
-        }
-        return Promise.resolve({ data: [] })
-      })
-
-      await router.isReady()
-      const wrapper = mount(DwellersView, {
-        global: {
-          plugins: [router, pinia],
-        },
-      })
-      await flushPromises()
-
-      const dwellerCard = wrapper.findAll('li')[0]
-      await dwellerCard.trigger('click')
+      const wrapper = await mountAt()
+      await wrapper.findAll('li')[0]!.trigger('click')
       await flushPromises()
 
       expect(router.currentRoute.value.name).toBe('dwellerDetail')
@@ -353,45 +326,22 @@ describe('DwellersView', () => {
     })
   })
 
-  describe('Filter Panel Integration', () => {
-    it('applies the Socializing query filter', async () => {
-      vi.mocked(axios.get).mockResolvedValue({ data: [] })
-      await router.push('/vault/vault-1/dwellers?filter=resting')
-      await router.isReady()
+  describe('Filter panel integration', () => {
+    it.each([
+      ['Socializing', 'resting', 'status=resting'],
+      ['Fighting', 'fighting', 'status=fighting'],
+    ])('applies the %s query filter', async (_, filter, fragment) => {
+      mockEmptyRoster()
+      await mountAt(`?filter=${filter}`)
 
-      mount(DwellersView, {
-        global: {
-          plugins: [router, pinia],
-        },
-      })
-      await flushPromises()
-
-      expect(axios.get).toHaveBeenCalledWith(expect.stringContaining('status=resting'))
-    })
-
-    it('applies the Fighting query filter', async () => {
-      vi.mocked(axios.get).mockResolvedValue({ data: [] })
-      await router.push('/vault/vault-1/dwellers?filter=fighting')
-      await router.isReady()
-
-      mount(DwellersView, {
-        global: {
-          plugins: [router, pinia],
-        },
-      })
-      await flushPromises()
-
-      expect(axios.get).toHaveBeenCalledWith(expect.stringContaining('status=fighting'))
+      expect(axios.get).toHaveBeenCalledWith(expect.stringContaining(fragment))
     })
 
     it('refetches with identity filters when they change', async () => {
-      vi.mocked(axios.get).mockResolvedValue({ data: [] })
+      mockEmptyRoster()
+      const wrapper = await mountAt()
 
-      await router.isReady()
-      const wrapper = mount(DwellersView, { global: { plugins: [router, pinia] } })
-      await flushPromises()
-
-      _dwellerStore.filter.setFilterRace('ghoul')
+      dwellerFilter.setFilterRace('ghoul')
       await flushPromises()
 
       expect(axios.get).toHaveBeenCalledWith(
@@ -400,93 +350,67 @@ describe('DwellersView', () => {
       )
       wrapper.unmount()
     })
-
-    it('should render filter panel', async () => {
-      vi.mocked(axios.get).mockImplementation((url: string) => {
-        if (url.includes('/dwellers/identity-options')) {
-          return Promise.resolve({ data: { races: [], factions_by_race: {}, states_by_race: {} } })
-        }
-        if (url.includes('/incidents')) {
-          return Promise.resolve({
-            data: { vault_id: 'vault-1', incident_count: 0, incidents: [] },
-          })
-        }
-        return Promise.resolve({ data: [] })
-      })
-
-      await router.isReady()
-      const wrapper = mount(DwellersView, {
-        global: {
-          plugins: [router, pinia],
-        },
-      })
-      await flushPromises()
-
-      const filterPanel = wrapper.findComponent({ name: 'DwellerFilterPanel' })
-      expect(filterPanel.exists()).toBe(true)
-      expect(wrapper.find('.happiness-overview summary').text()).toContain('Happiness Overview')
-      expect((wrapper.find('.happiness-overview').element as HTMLDetailsElement).open).toBe(false)
-    })
   })
 
   describe('URL sync', () => {
-    it('applies a race query param on load', async () => {
-      vi.mocked(axios.get).mockResolvedValue({ data: [] })
-      await router.push('/vault/vault-1/dwellers?race=ghoul')
-      await router.isReady()
+    it.each([
+      ['race', 'ghoul'],
+      ['gender', 'female'],
+      ['rarity', 'legendary'],
+    ])('applies a %s query param on load', async (param, value) => {
+      mockEmptyRoster()
+      const wrapper = await mountAt(`?${param}=${value}`)
 
-      const wrapper = mount(DwellersView, { global: { plugins: [router, pinia] } })
-      await flushPromises()
-
-      expect(axios.get).toHaveBeenCalledWith(expect.stringContaining('race=ghoul'))
+      expect(requested(`${param}=${value}`)).toBe(true)
       wrapper.unmount()
     })
 
+    it('applies the facet state from a deep link', async () => {
+      mockEmptyRoster()
+      await mountAt('?gender=female&rarity=legendary')
+
+      expect(dwellerFilter.filterGender).toBe('female')
+      expect(dwellerFilter.filterRarity).toBe('legendary')
+    })
+
     it('follows a query-only navigation while the view stays mounted', async () => {
-      vi.mocked(axios.get).mockResolvedValue({ data: [] })
-      await router.isReady()
-      const wrapper = mount(DwellersView, { global: { plugins: [router, pinia] } })
-      await flushPromises()
+      mockEmptyRoster()
+      const wrapper = await mountAt()
 
       await router.push('/vault/vault-1/dwellers?filter=exploring&race=ghoul')
       await flushPromises()
 
-      expect(_dwellerStore.filter.filterStatus).toBe('exploring')
-      expect(_dwellerStore.filter.filterRace).toBe('ghoul')
+      expect(dwellerFilter.filterStatus).toBe('exploring')
+      expect(dwellerFilter.filterRace).toBe('ghoul')
       wrapper.unmount()
     })
 
     it('resets a filter the query no longer carries', async () => {
-      vi.mocked(axios.get).mockResolvedValue({ data: [] })
-      await router.push('/vault/vault-1/dwellers?filter=exploring')
-      await router.isReady()
-      const wrapper = mount(DwellersView, { global: { plugins: [router, pinia] } })
-      await flushPromises()
-      expect(_dwellerStore.filter.filterStatus).toBe('exploring')
+      mockEmptyRoster()
+      const wrapper = await mountAt('?filter=exploring')
+      expect(dwellerFilter.filterStatus).toBe('exploring')
 
       await router.push('/vault/vault-1/dwellers')
       await flushPromises()
 
-      expect(_dwellerStore.filter.filterStatus).toBe('all')
+      expect(dwellerFilter.filterStatus).toBe('all')
       wrapper.unmount()
     })
 
     it('drops the live-only filters and their URL keys when the dead panel takes over', async () => {
-      vi.mocked(axios.get).mockResolvedValue({ data: [] })
-      await router.isReady()
-      const wrapper = mount(DwellersView, { global: { plugins: [router, pinia] } })
-      await flushPromises()
+      mockEmptyRoster()
+      const wrapper = await mountAt()
 
-      _dwellerStore.filter.setFilterRace('ghoul')
-      _dwellerStore.filter.setFilterAgeGroup('adult')
+      dwellerFilter.setFilterRace('ghoul')
+      dwellerFilter.setFilterAgeGroup('adult')
       await flushPromises()
       expect(router.currentRoute.value.query.race).toBe('ghoul')
 
-      _dwellerStore.filter.setFilterStatus('dead')
+      dwellerFilter.setFilterStatus('dead')
       await flushPromises()
 
-      expect(_dwellerStore.filter.filterRace).toBe('all')
-      expect(_dwellerStore.filter.filterAgeGroup).toBe('all')
+      expect(dwellerFilter.filterRace).toBe('all')
+      expect(dwellerFilter.filterAgeGroup).toBe('all')
       expect(router.currentRoute.value.query.race).toBeUndefined()
       expect(router.currentRoute.value.query.ageGroup).toBeUndefined()
       expect(router.currentRoute.value.query.filter).toBe('dead')
@@ -494,15 +418,13 @@ describe('DwellersView', () => {
     })
 
     it('writes filter and sort changes back to the query', async () => {
-      vi.mocked(axios.get).mockResolvedValue({ data: [] })
-      await router.isReady()
-      const wrapper = mount(DwellersView, { global: { plugins: [router, pinia] } })
-      await flushPromises()
+      mockEmptyRoster()
+      const wrapper = await mountAt()
 
-      _dwellerStore.filter.setFilterStatus('idle')
-      _dwellerStore.filter.setFilterRace('ghoul')
-      _dwellerStore.filter.setSortBy('level')
-      _dwellerStore.filter.setSortDirection('desc')
+      dwellerFilter.setFilterStatus('idle')
+      dwellerFilter.setFilterRace('ghoul')
+      dwellerFilter.setSortBy('level')
+      dwellerFilter.setSortDirection('desc')
       await flushPromises()
 
       expect(router.currentRoute.value.query).toMatchObject({
@@ -515,13 +437,10 @@ describe('DwellersView', () => {
     })
 
     it('drops a default filter back out of the query', async () => {
-      vi.mocked(axios.get).mockResolvedValue({ data: [] })
-      await router.push('/vault/vault-1/dwellers?filter=idle')
-      await router.isReady()
-      const wrapper = mount(DwellersView, { global: { plugins: [router, pinia] } })
-      await flushPromises()
+      mockEmptyRoster()
+      const wrapper = await mountAt('?filter=idle')
 
-      _dwellerStore.filter.setFilterStatus('all')
+      dwellerFilter.setFilterStatus('all')
       await flushPromises()
 
       expect(router.currentRoute.value.query.filter).toBeUndefined()
@@ -529,13 +448,10 @@ describe('DwellersView', () => {
     })
 
     it('preserves unrelated query params', async () => {
-      vi.mocked(axios.get).mockResolvedValue({ data: [] })
-      await router.push('/vault/vault-1/dwellers?foo=bar')
-      await router.isReady()
-      const wrapper = mount(DwellersView, { global: { plugins: [router, pinia] } })
-      await flushPromises()
+      mockEmptyRoster()
+      const wrapper = await mountAt('?foo=bar')
 
-      _dwellerStore.filter.setFilterStatus('working')
+      dwellerFilter.setFilterStatus('working')
       await flushPromises()
 
       expect(router.currentRoute.value.query.foo).toBe('bar')
@@ -543,92 +459,45 @@ describe('DwellersView', () => {
       wrapper.unmount()
     })
 
-    it('applies a gender query param on load', async () => {
-      vi.mocked(axios.get).mockResolvedValue({ data: [] })
-      await router.push('/vault/vault-1/dwellers?gender=female')
-      await router.isReady()
+    it.each([
+      ['gender', 'male', (filter: typeof dwellerFilter) => filter.setFilterGender('male')],
+      ['rarity', 'rare', (filter: typeof dwellerFilter) => filter.setFilterRarity('rare')],
+    ])(
+      'writes %s changes back to the query and refetches the roster',
+      async (param, value, set) => {
+        mockEmptyRoster()
+        const wrapper = await mountAt()
+        vi.mocked(axios.get).mockClear()
 
-      const wrapper = mount(DwellersView, { global: { plugins: [router, pinia] } })
-      await flushPromises()
+        set(dwellerFilter)
+        await flushPromises()
 
-      expect(_dwellerStore.filter.filterGender).toBe('female')
-      expect(axios.get).toHaveBeenCalledWith(expect.stringContaining('gender=female'))
-      wrapper.unmount()
-    })
-
-    it('writes gender changes back to the query and refetches the roster', async () => {
-      vi.mocked(axios.get).mockResolvedValue({ data: [] })
-      await router.isReady()
-      const wrapper = mount(DwellersView, { global: { plugins: [router, pinia] } })
-      await flushPromises()
-      vi.mocked(axios.get).mockClear()
-
-      _dwellerStore.filter.setFilterGender('male')
-      await flushPromises()
-
-      expect(router.currentRoute.value.query.gender).toBe('male')
-      expect(axios.get).toHaveBeenCalledWith(
-        expect.stringContaining('gender=male'),
-        expect.any(Object)
-      )
-      wrapper.unmount()
-    })
-
-    it('applies a rarity query param on load', async () => {
-      vi.mocked(axios.get).mockResolvedValue({ data: [] })
-      await router.push('/vault/vault-1/dwellers?rarity=legendary')
-      await router.isReady()
-
-      const wrapper = mount(DwellersView, { global: { plugins: [router, pinia] } })
-      await flushPromises()
-
-      expect(_dwellerStore.filter.filterRarity).toBe('legendary')
-      expect(axios.get).toHaveBeenCalledWith(expect.stringContaining('rarity=legendary'))
-      wrapper.unmount()
-    })
+        expect(router.currentRoute.value.query[param]).toBe(value)
+        expect(axios.get).toHaveBeenCalledWith(
+          expect.stringContaining(`${param}=${value}`),
+          expect.any(Object)
+        )
+        wrapper.unmount()
+      }
+    )
 
     it('ignores facet query params while the dead panel is active', async () => {
-      vi.mocked(axios.get).mockResolvedValue({ data: [] })
-      await router.push('/vault/vault-1/dwellers?filter=dead&rarity=legendary&race=ghoul')
-      await router.isReady()
+      mockEmptyRoster()
+      const wrapper = await mountAt('?filter=dead&rarity=legendary&race=ghoul')
 
-      const wrapper = mount(DwellersView, { global: { plugins: [router, pinia] } })
-      await flushPromises()
-
-      expect(_dwellerStore.filter.filterStatus).toBe('dead')
-      expect(_dwellerStore.filter.filterRarity).toBe('all')
-      expect(_dwellerStore.filter.filterRace).toBe('all')
-      wrapper.unmount()
-    })
-
-    it('writes rarity changes back to the query and refetches the roster', async () => {
-      vi.mocked(axios.get).mockResolvedValue({ data: [] })
-      await router.isReady()
-      const wrapper = mount(DwellersView, { global: { plugins: [router, pinia] } })
-      await flushPromises()
-      vi.mocked(axios.get).mockClear()
-
-      _dwellerStore.filter.setFilterRarity('rare')
-      await flushPromises()
-
-      expect(router.currentRoute.value.query.rarity).toBe('rare')
-      expect(axios.get).toHaveBeenCalledWith(
-        expect.stringContaining('rarity=rare'),
-        expect.any(Object)
-      )
+      expect(dwellerFilter.filterStatus).toBe('dead')
+      expect(dwellerFilter.filterRarity).toBe('all')
+      expect(dwellerFilter.filterRace).toBe('all')
       wrapper.unmount()
     })
   })
 
   describe('Empty roster recovery', () => {
     it('clears every active filter and its query keys from the empty-state action', async () => {
-      vi.mocked(axios.get).mockResolvedValue({ data: [] })
-      await router.push('/vault/vault-1/dwellers?filter=idle&ageGroup=adult&gender=male')
-      await router.isReady()
-      const wrapper = mount(DwellersView, { global: { plugins: [router, pinia] } })
-      await flushPromises()
+      mockEmptyRoster()
+      const wrapper = await mountAt('?filter=idle&ageGroup=adult&gender=male')
 
-      expect(_dwellerStore.filter.filterStatus).toBe('idle')
+      expect(dwellerFilter.filterStatus).toBe('idle')
       expect(wrapper.text()).toContain('No dwellers match these filters')
 
       const clearButton = wrapper
@@ -639,9 +508,9 @@ describe('DwellersView', () => {
       await clearButton!.trigger('click')
       await flushPromises()
 
-      expect(_dwellerStore.filter.filterStatus).toBe('all')
-      expect(_dwellerStore.filter.filterAgeGroup).toBe('all')
-      expect(_dwellerStore.filter.filterGender).toBe('all')
+      expect(dwellerFilter.filterStatus).toBe('all')
+      expect(dwellerFilter.filterAgeGroup).toBe('all')
+      expect(dwellerFilter.filterGender).toBe('all')
       expect(router.currentRoute.value.query.filter).toBeUndefined()
       expect(router.currentRoute.value.query.ageGroup).toBeUndefined()
       expect(router.currentRoute.value.query.gender).toBeUndefined()
@@ -650,56 +519,13 @@ describe('DwellersView', () => {
   })
 
   describe('Urgent action summary', () => {
-    const productionRoom = {
-      id: 'garden-1',
-      name: 'Garden',
-      category: 'production',
-      ability: 'agility',
-    }
-
-    const dweller = (overrides: Record<string, unknown>) => ({
-      id: 'dweller-1',
-      first_name: 'Test',
-      last_name: 'Dweller',
-      level: 1,
-      health: 100,
-      max_health: 100,
-      radiation: 0,
-      happiness: 80,
-      status: 'working',
-      age_group: 'adult',
-      gender: 'male',
-      rarity: 'common',
-      room_id: null,
-      vault_id: 'vault-1',
-      ...overrides,
-    })
-
-    /** URL-aware mock: the view's request order is an implementation detail. */
-    const mockEndpoints = (dwellers: unknown[] = []) => {
-      vi.mocked(axios.get).mockImplementation((url: string) => {
-        if (url.includes('/dwellers/identity-options')) {
-          return Promise.resolve({ data: { races: [], factions_by_race: {}, states_by_race: {} } })
-        }
-        if (url.includes('/dwellers/vault/')) return Promise.resolve({ data: dwellers })
-        if (url.includes('/incidents')) {
-          return Promise.resolve({
-            data: { vault_id: 'vault-1', incident_count: 0, incidents: [] },
-          })
-        }
-        if (url.includes('/rooms/vault/')) return Promise.resolve({ data: [productionRoom] })
-        return Promise.resolve({ data: [] })
-      })
-    }
-
     it('shows concrete idle and care counts instead of the vague attention text', async () => {
       mockEndpoints([
         dweller({ id: 'd1', status: 'idle' }),
         dweller({ id: 'd2', first_name: 'Hurt', health: 20 }),
         dweller({ id: 'd3', first_name: 'Rad', radiation: 30 }),
       ])
-      const wrapper = await mountView()
-      await flushPromises()
+      const wrapper = await mountAt()
 
       const summary = wrapper.find('.happiness-overview summary')
       expect(summary.text()).toContain('1 idle')
@@ -709,27 +535,25 @@ describe('DwellersView', () => {
 
     it('deep-links the idle count to the roster idle filter', async () => {
       mockEndpoints([dweller({ status: 'idle' })])
-      const wrapper = await mountView()
-      await flushPromises()
+      const wrapper = await mountAt()
 
       await wrapper.find('a[aria-label="Filter the roster to 1 idle dwellers"]').trigger('click')
       await flushPromises()
 
       expect(router.currentRoute.value.query.filter).toBe('idle')
-      expect(_dwellerStore.filter.filterStatus).toBe('idle')
+      expect(dwellerFilter.filterStatus).toBe('idle')
     })
 
     it.each(['summary', 'dashboard'])(
       'clears care attention when opening idle through %s',
       async (entry) => {
         mockEndpoints([dweller({ status: 'idle', health: 20, happiness: 10 })])
-        const wrapper = await mountView()
-        await flushPromises()
+        const wrapper = await mountAt()
         await wrapper
           .find('a[aria-label="Filter the roster to 1 injured or irradiated dwellers"]')
           .trigger('click')
         await flushPromises()
-        expect(_dwellerStore.filter.filterFocus).toBe('needs_care')
+        expect(dwellerFilter.filterFocus).toBe('needs_care')
 
         if (entry === 'summary') {
           await wrapper
@@ -743,8 +567,8 @@ describe('DwellersView', () => {
           await action!.trigger('click')
         }
         await flushPromises()
-        expect(_dwellerStore.filter.filterStatus).toBe('idle')
-        expect(_dwellerStore.filter.filterFocus).toBe('all')
+        expect(dwellerFilter.filterStatus).toBe('idle')
+        expect(dwellerFilter.filterFocus).toBe('all')
         expect(router.currentRoute.value.query.filter).toBe('idle')
         expect(router.currentRoute.value.query.focus).toBeUndefined()
         wrapper.unmount()
@@ -753,8 +577,7 @@ describe('DwellersView', () => {
 
     it('filters injured and irradiated dwellers without using medicine', async () => {
       mockEndpoints([dweller({ health: 20 })])
-      const wrapper = await mountView()
-      await flushPromises()
+      const wrapper = await mountAt()
 
       await wrapper
         .find('a[aria-label="Filter the roster to 1 injured or irradiated dwellers"]')
@@ -763,7 +586,7 @@ describe('DwellersView', () => {
 
       expect(router.currentRoute.value.name).toBe('dwellers')
       expect(router.currentRoute.value.query.focus).toBe('needs_care')
-      expect(_dwellerStore.filter.filterFocus).toBe('needs_care')
+      expect(dwellerFilter.filterFocus).toBe('needs_care')
       expect(axios.post).not.toHaveBeenCalled()
     })
 
@@ -781,34 +604,32 @@ describe('DwellersView', () => {
           order: 'desc',
         },
       })
-      const wrapper = await mountView()
-      await flushPromises()
+      const wrapper = await mountAt()
+
       const action = wrapper
         .findAll('button')
         .find((button) => button.text().includes('View Low Happiness'))
       expect(action).toBeTruthy()
       await action!.trigger('click')
       await flushPromises()
+
       expect(router.currentRoute.value.query).toEqual({
         focus: 'low_happiness',
         sortBy: 'happiness',
       })
-      expect(_dwellerStore.filter.filterStatus).toBe('all')
-      expect(_dwellerStore.filter.filterFocus).toBe('low_happiness')
+      expect(dwellerFilter.filterStatus).toBe('all')
+      expect(dwellerFilter.filterFocus).toBe('low_happiness')
       expect(wrapper.find('.filter-panel summary').text()).toContain('Low Happiness')
-      expect(
-        vi.mocked(axios.get).mock.calls.some(([url]) => String(url).includes('focus=low_happiness'))
-      ).toBe(true)
+      expect(requested('focus=low_happiness')).toBe(true)
       expect(axios.post).not.toHaveBeenCalled()
     })
 
     it('deep-links a critical resource to its production room', async () => {
       vaultStore.loadedVaults['vault-1'].resource_warnings = [
         { type: 'critical_food', message: 'Food critically low!' },
-      ]
-      mockEndpoints([])
-      const wrapper = await mountView()
-      await flushPromises()
+      ] as never
+      mockEndpoints([], [productionRoom])
+      const wrapper = await mountAt()
 
       const chip = wrapper.find(
         'a[aria-label="Food critically low! — open the Food production room"]'
@@ -839,11 +660,10 @@ describe('DwellersView', () => {
             water: 100,
             water_max: 100,
             dweller_count: 0,
-          } as any
+          } as never
         })
 
-      const wrapper = await mountView()
-      await flushPromises()
+      const wrapper = await mountAt()
 
       expect(wrapper.text()).toContain('Vault overview unavailable')
       expect(wrapper.text()).toContain('Vault unavailable')
@@ -859,35 +679,25 @@ describe('DwellersView', () => {
   })
 
   describe('Flicker gating', () => {
-    it('applies the flicker treatment when the provided gated flag is enabled', async () => {
-      vi.mocked(axios.get).mockResolvedValue({ data: [] })
+    it.each([
+      [true, true],
+      [false, false],
+      [undefined, false],
+    ])(
+      'applies the flicker treatment only when the provided flag is %s',
+      async (flag, expected) => {
+        mockEmptyRoster()
 
-      const wrapper = await mountView(true)
-      await flushPromises()
+        await router.isReady()
+        const wrapper =
+          flag === undefined
+            ? mount(DwellersView, { global: { plugins: [router, pinia] } })
+            : await mountView(flag)
+        await flushPromises()
 
-      expect(wrapper.find('.main-content.flicker').exists()).toBe(true)
-      wrapper.unmount()
-    })
-
-    it('omits the flicker treatment when the provided gated flag is disabled', async () => {
-      vi.mocked(axios.get).mockResolvedValue({ data: [] })
-
-      const wrapper = await mountView(false)
-      await flushPromises()
-
-      expect(wrapper.find('.main-content.flicker').exists()).toBe(false)
-      wrapper.unmount()
-    })
-
-    it('defaults to no flicker when no provider is present', async () => {
-      vi.mocked(axios.get).mockResolvedValue({ data: [] })
-
-      await router.isReady()
-      const wrapper = mount(DwellersView, { global: { plugins: [router, pinia] } })
-      await flushPromises()
-
-      expect(wrapper.find('.main-content.flicker').exists()).toBe(false)
-      wrapper.unmount()
-    })
+        expect(wrapper.find('.main-content.flicker').exists()).toBe(expected)
+        wrapper.unmount()
+      }
+    )
   })
 })

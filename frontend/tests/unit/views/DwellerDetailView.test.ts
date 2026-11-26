@@ -101,23 +101,14 @@ describe('DwellerDetailView deep-link (?tab / ?stat)', () => {
     return wrapper
   }
 
-  it('passes ?tab and ?stat through to the detail pane', async () => {
-    const wrapper = await mountWith('?tab=SPECIAL&stat=SPECIAL')
+  it.each([
+    ['a tab and stat deep link', '?tab=SPECIAL&stat=SPECIAL'],
+    ['no query at all', ''],
+    ['an equipment tab link', '?tab=equipment&stat=luck'],
+  ])('mounts the detail pane for %s', async (_, query) => {
+    const wrapper = await mountWith(query)
     const pane = wrapper.findComponent({ name: 'DwellerDetailPane' })
-    expect(pane.exists()).toBe(true)
-    expect(dwellerStore.fetchDwellerDetails).toHaveBeenCalledWith('dweller-1')
-  })
 
-  it('defaults to no tab when the query is absent', async () => {
-    const wrapper = await mountWith('')
-    const pane = wrapper.findComponent({ name: 'DwellerDetailPane' })
-    expect(pane.exists()).toBe(true)
-    expect(dwellerStore.fetchDwellerDetails).toHaveBeenCalledWith('dweller-1')
-  })
-
-  it('reflects a changed query on a fresh mount', async () => {
-    const wrapper = await mountWith('?tab=equipment&stat=luck')
-    const pane = wrapper.findComponent({ name: 'DwellerDetailPane' })
     expect(pane.exists()).toBe(true)
     expect(dwellerStore.fetchDwellerDetails).toHaveBeenCalledWith('dweller-1')
   })

@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 3.31.7 (2026-11-26)
+
+### Bug Fixes
+
+* **collectibles:** record when a claim stops paying its finder ([#1552](https://github.com/ElderEvil/falloutProject/issues/1552)) 3d2fe94
+
 ## 3.31.6 (2026-11-25)
 
 ### Bug Fixes

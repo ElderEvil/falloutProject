@@ -38,18 +38,14 @@ from app.schemas.dweller import (
     DwellerUpdate,
 )
 from app.services.room_assignment_policy import adult_assignment_conditions
+from app.utils.dweller_generation import create_dweller_from_template, create_random_common_dweller
 from app.utils.dweller_lifecycle import (
     excluded_from_public_offers_conditions,
     graveyard_conditions,
     not_memorial_conditions,
     pool_eligible_conditions,
 )
-from app.utils.dwellers import (
-    clamp_level_for_rarity,
-    create_dweller_from_template,
-    create_random_common_dweller,
-    level_progress,
-)
+from app.utils.dwellers import clamp_level_for_rarity, level_progress
 from app.utils.exceptions import ResourceConflictException, ensure_found
 from app.utils.static_data import game_data_store
 from app.utils.time import utcnow

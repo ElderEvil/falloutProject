@@ -19,7 +19,7 @@ appearance subsets, weights, personality lines, templates and rumors. Their reco
 shapes live in `schemas/dweller_catalog.py` as `TypedDict` definitions, preserving
 ordinary dictionaries while checking required fields and trait names statically.
 
-Pure generation and rendering live in `utils/dwellers.py`, `utils/appearance_roll.py`
+Pure generation and rendering live in `utils/dweller_generation.py`, `utils/appearance_roll.py`
 and `utils/bios.py`. Helpers take an RNG where selection needs seeded reproducibility.
 Services retain gameplay orchestration and persistence. Canonical appearance choices
 remain in `options/appearance.py`; shared enums remain in `core/enums.py`.

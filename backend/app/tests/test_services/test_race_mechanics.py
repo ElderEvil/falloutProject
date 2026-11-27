@@ -179,7 +179,7 @@ class TestAgelessRaces:
         assert view["ageless"] is True
 
     def test_pregen_non_humans_never_spawn_as_elders(self) -> None:
-        from app.utils.dwellers import create_random_common_dweller
+        from app.utils.dweller_generation import create_random_common_dweller
 
         for seed in range(50):
             dweller = create_random_common_dweller(seed=seed)

@@ -19,7 +19,8 @@ from app.schemas.dweller import DwellerCreate
 from app.services.dweller_service import dweller_service
 from app.tests.factory.dwellers import create_fake_adult_dweller
 from app.utils.appearance_roll import describe_appearance, roll_appearance
-from app.utils.dwellers import create_dweller_from_template, create_random_common_dweller, roll_child_identity
+from app.utils.dweller_generation import create_dweller_from_template, create_random_common_dweller
+from app.utils.dwellers import roll_child_identity
 from app.utils.static_data import game_data_store
 
 

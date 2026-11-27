@@ -7,12 +7,8 @@ from faker import Faker
 from app.core.enums import GenderEnum, SynthTypeEnum
 from app.options.dweller_names import SUPER_MUTANT_EPITHETS, SUPER_MUTANT_NAMES
 from app.options.races import RaceOption
-from app.utils.dwellers import (
-    create_random_common_dweller,
-    get_race_based_name,
-    get_super_mutant_name,
-    get_synth_designation,
-)
+from app.utils.dweller_generation import create_random_common_dweller
+from app.utils.dwellers import get_race_based_name, get_super_mutant_name, get_synth_designation
 
 DESIGNATION = re.compile(r"^[A-Z]\d-\d{2}$")
 EPITHETS = {epithet.removeprefix("the ") for epithet in SUPER_MUTANT_EPITHETS}
@@ -78,7 +74,7 @@ def test_human_passing_races_keep_faker_names() -> None:
 def test_random_dweller_uses_race_appropriate_names(
     monkeypatch: pytest.MonkeyPatch, identity: dict, check: str, seed: int
 ) -> None:
-    monkeypatch.setattr("app.utils.dwellers._roll_identity", lambda _rng: identity)
+    monkeypatch.setattr("app.utils.dweller_generation._roll_identity", lambda _rng: identity)
     dweller = create_random_common_dweller(seed=seed)
     assert dweller["first_name"]
     if check == "mutant":

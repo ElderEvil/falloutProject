@@ -1,7 +1,7 @@
 import pytest
 
 from app.schemas.dweller import DwellerTemplate
-from app.utils.dwellers import create_dweller_from_template
+from app.utils.dweller_generation import create_dweller_from_template
 from app.utils.static_data import game_data_store
 
 PAYLOAD = {

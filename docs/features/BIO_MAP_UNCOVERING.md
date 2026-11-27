@@ -93,7 +93,7 @@ Quest chains (already modeled via `chain_id` / `previous_quest_id` /
 | Area | Change |
 |---|---|
 | `backend/app/services/map_service.py` | rarity-scaled visited cap; failure surfacing |
-| `backend/app/utils/dwellers.py` | procedural template bio in `create_random_common_dweller` |
+| `backend/app/utils/dweller_generation.py` | procedural template bio in `create_random_common_dweller` |
 | `backend/app/crud/dweller.py` | pass bio through creation path |
 | `backend/app/services/radio_service.py` | optional rare roll (config) |
 | `backend/app/core/game_config.py` | `bio.visited_by_rarity`, `radio.rare_chance` |

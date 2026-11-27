@@ -18,7 +18,7 @@ from app.options.bios import ZONE_RUMORS
 from app.options.presets import archetypes
 from app.options.races import RaceOption
 from app.utils.appearance_roll import describe_appearance, roll_appearance
-from app.utils.dwellers import create_random_common_dweller
+from app.utils.dweller_generation import create_random_common_dweller
 
 POOL_SOURCES = {
     "skin_tone": lambda race: skin_tone_options.get(race, []),

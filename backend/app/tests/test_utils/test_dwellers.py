@@ -13,16 +13,13 @@ from app.options.factions import faction_restrictions
 from app.options.races import STATE_OF_BEING_VALUES, RaceOption
 from app.utils import bios
 from app.utils.bios import maybe_zone_rumor, render_adopted_child_bio, render_bio, render_newborn_bio
-from app.utils.dwellers import (
+from app.utils.dweller_generation import (
     _PLACE_POOL,
-    _calendar_years_ago,
-    _identity_for_race,
     _procedural_bio_places,
-    _roll_identity,
     create_dweller_from_template,
     create_random_common_dweller,
-    roll_spawn_birth_date,
 )
+from app.utils.dwellers import _calendar_years_ago, _identity_for_race, _roll_identity, roll_spawn_birth_date
 from app.utils.places import GENERIC_ORIGIN_SKIP
 from app.utils.static_data import game_data_store
 

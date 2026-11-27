@@ -31,7 +31,7 @@ from app.services.game_tick.tick_results import (
 )
 from app.services.vault_service import vault_service
 from app.utils.dweller_availability import DwellerAction, purposeful_action_error
-from app.utils.dwellers import group_dwellers_by_room
+from app.utils.dweller_roster import group_dwellers_by_room
 from app.utils.exceptions import NoLivingSpaceError
 
 if TYPE_CHECKING:

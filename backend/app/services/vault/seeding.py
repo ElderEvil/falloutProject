@@ -64,7 +64,7 @@ from app.services.vault.seed_types import (
     CreatedRooms,
     PreparedRooms,
 )
-from app.utils.dwellers import group_dwellers_by_room
+from app.utils.dweller_roster import group_dwellers_by_room
 from app.utils.exceptions import (
     ResourceConflictException,
     ResourceNotFoundException,

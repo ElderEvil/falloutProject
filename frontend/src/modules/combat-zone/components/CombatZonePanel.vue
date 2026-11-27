@@ -108,16 +108,20 @@ function defaultSelection(): void {
 
 async function load(): Promise<void> {
   const token = authStore.token
+  const requestedVaultId = props.vaultId
   if (!open.value || !token) return
   rosterError.value = null
-  await combatZone.open(props.vaultId, token)
+  await combatZone.open(requestedVaultId, token)
   try {
-    await dwellerStore.fetchAllDwellers(props.vaultId, true)
+    await dwellerStore.fetchAllDwellers(requestedVaultId, true)
   } catch (err) {
-    if (err instanceof Error && err.message === DWELLER_LIST_CHANGED_MESSAGE) {
-      rosterError.value = `Roster for vault ${props.vaultId} changed while loading. Retry.`
-    }
+    if (!open.value || requestedVaultId !== props.vaultId) return
+    rosterError.value =
+      err instanceof Error && err.message === DWELLER_LIST_CHANGED_MESSAGE
+        ? `Roster for vault ${requestedVaultId} changed while loading. Retry.`
+        : `Roster for vault ${requestedVaultId} failed to load. Retry.`
   }
+  if (!open.value || requestedVaultId !== props.vaultId) return
   if (props.initialMatchId) await combatZone.watchMatch(props.initialMatchId)
   defaultSelection()
 }

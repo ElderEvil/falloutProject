@@ -296,6 +296,32 @@ describe('Combat Zone store', () => {
     }
   })
 
+  it('keeps an older successful refresh when a newer one fails', async () => {
+    let resolveLobby!: (value: CombatZoneLobbyRead) => void
+    let resolveParty!: (value: CombatZonePartyRead) => void
+    const lobbyPending = new Promise<CombatZoneLobbyRead>((resolve) => {
+      resolveLobby = resolve
+    })
+    const partyPending = new Promise<CombatZonePartyRead>((resolve) => {
+      resolveParty = resolve
+    })
+    const store = useCombatZoneStore()
+    await store.open('vault-1', 'token')
+    vi.mocked(combatZoneService.getLobby)
+      .mockReturnValueOnce(lobbyPending)
+      .mockRejectedValueOnce(new Error('newer poll failed'))
+    vi.mocked(combatZoneService.getParty).mockReturnValueOnce(partyPending)
+    const older = store.refresh()
+    const newer = store.refresh()
+    resolveLobby(lobby)
+    resolveParty(party)
+    await older
+    await newer
+
+    expect(store.lobby).toEqual(lobby)
+    expect(store.party).toEqual(party)
+  })
+
   it('rejects a refresh started during a stance command', async () => {
     let resolveStance!: (value: CombatZonePartyRead) => void
     const stancePending = new Promise<CombatZonePartyRead>((resolve) => {

@@ -26,7 +26,9 @@ export const useCombatZoneStore = defineStore('combatZone', () => {
   let _vaultId: string | null = null
   let _token: string | null = null
   let _generation = 0
-  let _refreshRequest = 0
+  let _refreshGeneration = 0
+  let _refreshSeq = 0
+  let _lastAppliedRefresh = 0
   let _matchRequest = 0
 
   const toast = useToast()
@@ -36,12 +38,13 @@ export const useCombatZoneStore = defineStore('combatZone', () => {
   const matchPoll = usePolling(refreshMatch, { interval: 2000, immediate: false })
 
   function invalidateRefresh(): void {
-    _refreshRequest++
+    _refreshGeneration++
     isRefreshing.value = false
   }
 
   async function refresh(): Promise<void> {
-    const request = ++_refreshRequest
+    const request = ++_refreshSeq
+    const invalidation = _refreshGeneration
     const generation = _generation
     const token = _token
     const vaultId = _vaultId
@@ -54,20 +57,22 @@ export const useCombatZoneStore = defineStore('combatZone', () => {
         combatZoneService.getParty(token, vaultId),
       ])
       if (
-        request !== _refreshRequest ||
+        invalidation !== _refreshGeneration ||
         generation !== _generation ||
         _token !== token ||
-        _vaultId !== vaultId
+        _vaultId !== vaultId ||
+        request < _lastAppliedRefresh
       )
         return
+      _lastAppliedRefresh = request
       lobby.value = nextLobby
       party.value = nextParty
     } catch (err) {
-      if (request === _refreshRequest && generation === _generation) {
+      if (invalidation === _refreshGeneration && generation === _generation) {
         error.value = handleStoreError(err, 'Failed to load the Combat Zone')
       }
     } finally {
-      if (request === _refreshRequest) isRefreshing.value = false
+      if (request === _refreshSeq) isRefreshing.value = false
     }
   }
 

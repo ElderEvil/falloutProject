@@ -163,10 +163,12 @@ class CRUDItem[ModelType: Weapon | Outfit | Pet, CreateSchemaType: SQLModel, Upd
         db_session: AsyncSession,
         id: int | UUID,
         obj_in: UpdateSchemaType | dict[str, Any],
+        *,
+        commit: bool = True,
     ) -> ModelType:
         if obj_in.storage_id and obj_in.dweller_id:
             raise InvalidItemAssignmentException(self.model)
-        return await super().update(db_session, id=id, obj_in=obj_in)
+        return await super().update(db_session, id=id, obj_in=obj_in, commit=commit)
 
     async def equip(
         self,

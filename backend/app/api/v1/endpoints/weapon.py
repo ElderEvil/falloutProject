@@ -6,7 +6,6 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends
 
-from app import crud
 from app.api.deps import (
     CurrentActiveUser,
     CurrentSuperuser,
@@ -18,7 +17,6 @@ from app.api.deps import (
     verify_item_access,
 )
 from app.core.game_data import get_static_game_data
-from app.crud.item_base import get_items_by_vault
 from app.models.weapon import Weapon
 from app.schemas.responses import NULL_BODY_RESPONSES, JunkListResponse
 from app.schemas.weapon import WeaponCreate, WeaponRead, WeaponUpdate
@@ -35,7 +33,7 @@ async def create_weapon(
     _: CurrentSuperuser,
 ) -> Weapon:
     """Create a new weapon (administrators only)."""
-    return await crud.weapon.create(db_session, weapon_data)
+    return await item_service.create_item(db_session, model=Weapon, item_data=weapon_data)
 
 
 @router.get("/", response_model=list[WeaponRead])
@@ -52,7 +50,9 @@ async def read_weapon_list(
     players' gear.
     """
     await get_user_vault_or_403(vault_id, user, db_session)
-    return await get_items_by_vault(db_session, Weapon, vault_id, pagination.skip, pagination.limit)
+    return await item_service.list_items_for_vault(
+        db_session, model=Weapon, vault_id=vault_id, skip=pagination.skip, limit=pagination.limit
+    )
 
 
 @router.get("/{weapon_id}", response_model=WeaponRead)
@@ -63,7 +63,7 @@ async def read_weapon(
 ) -> Weapon:
     """Retrieve a weapon by ID."""
     await verify_item_access(weapon_id, Weapon, user, db_session)
-    return await crud.weapon.get(db_session, weapon_id)
+    return await item_service.get_item(db_session, model=Weapon, item_id=weapon_id)
 
 
 @router.put("/{weapon_id}", response_model=WeaponRead)
@@ -74,7 +74,7 @@ async def update_weapon(
     _: CurrentSuperuser,
 ) -> Weapon:
     """Update a weapon (administrators only)."""
-    return await crud.weapon.update(db_session, weapon_id, weapon_data)
+    return await item_service.update_item(db_session, model=Weapon, item_id=weapon_id, item_data=weapon_data)
 
 
 @router.delete("/{weapon_id}", status_code=204)
@@ -84,7 +84,7 @@ async def delete_weapon(
     _: CurrentSuperuser,
 ) -> None:
     """Delete a weapon (administrators only)."""
-    await crud.weapon.delete(db_session, weapon_id)
+    await item_service.delete_item(db_session, model=Weapon, item_id=weapon_id)
 
 
 @router.post("/{dweller_id}/equip/{weapon_id}", response_model=WeaponRead)

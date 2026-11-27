@@ -7,6 +7,7 @@ import TerminalModal from '@/core/components/common/TerminalModal.vue'
 import { useAuthStore } from '@/modules/auth/stores/auth'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useDwellerStore } from '@/modules/dwellers/stores/dweller'
+import { DWELLER_LIST_CHANGED_MESSAGE } from '@/modules/dwellers/stores/dwellerFilter'
 import { isMature } from '@/modules/dwellers/models/dweller'
 import { formatRemaining } from '@/modules/exploration/composables/useExplorationProgress'
 import type { CombatZoneMarkerRead } from '@/modules/map/models/map'
@@ -37,6 +38,7 @@ const combatZone = useCombatZoneStore()
 const tab = ref<'overview' | 'board'>('overview')
 const selectedDwellerId = ref<string | null>(null)
 const replaying = ref(false)
+const rosterError = ref<string | null>(null)
 const now = useNow(1000)
 
 const party = computed(() => combatZone.party)
@@ -107,8 +109,15 @@ function defaultSelection(): void {
 async function load(): Promise<void> {
   const token = authStore.token
   if (!open.value || !token) return
+  rosterError.value = null
   await combatZone.open(props.vaultId, token)
-  await dwellerStore.fetchAllDwellers(props.vaultId, true).catch(() => {})
+  try {
+    await dwellerStore.fetchAllDwellers(props.vaultId, true)
+  } catch (err) {
+    if (err instanceof Error && err.message === DWELLER_LIST_CHANGED_MESSAGE) {
+      rosterError.value = `Roster for vault ${props.vaultId} changed while loading. Retry.`
+    }
+  }
   if (props.initialMatchId) await combatZone.watchMatch(props.initialMatchId)
   defaultSelection()
 }
@@ -120,12 +129,29 @@ watch(
       void load()
     } else {
       replaying.value = false
+      rosterError.value = null
+      etaRefreshSent = false
       combatZone.close()
       selectedDwellerId.value = null
       tab.value = 'overview'
     }
   },
   { immediate: true }
+)
+
+watch(
+  () => props.vaultId,
+  (next, previous) => {
+    if (next === previous) return
+    replaying.value = false
+    rosterError.value = null
+    etaRefreshSent = false
+    selectedDwellerId.value = null
+    tab.value = 'overview'
+    if (!open.value) return
+    combatZone.close()
+    void load()
+  }
 )
 
 watch(
@@ -161,6 +187,11 @@ async function challenge(target: CombatZoneLobbyParty): Promise<void> {
 
 function commandStance(stance: CombatZoneStance): void {
   void combatZone.setStance(stance)
+}
+
+function backToLobby(): void {
+  replaying.value = false
+  combatZone.backToLobby()
 }
 
 function closePanel(): void {
@@ -204,12 +235,12 @@ function closePanel(): void {
     <template v-else>
       <CombatZoneMatch
         v-if="match"
-        :key="replaying ? 'replay' : 'live'"
+        :key="`${match.id}:${replaying ? 'replay' : 'live'}`"
         :match="match"
         :viewer-vault-id="vaultId"
         :replay="replaying"
         @stance="commandStance"
-        @back="combatZone.backToLobby()"
+        @back="backToLobby"
       />
 
       <template v-else>
@@ -236,6 +267,12 @@ function closePanel(): void {
           class="rounded border border-status-fighting/40 bg-status-fighting/10 p-3 text-xs text-status-fighting"
         >
           {{ combatZone.error }}
+        </p>
+        <p
+          v-if="rosterError"
+          class="rounded border border-status-fighting/40 bg-status-fighting/10 p-3 text-xs text-status-fighting"
+        >
+          {{ rosterError }}
         </p>
 
         <section v-if="tab === 'overview'" class="space-y-4">

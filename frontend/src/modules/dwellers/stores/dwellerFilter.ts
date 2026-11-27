@@ -36,6 +36,8 @@ import { useRoomStore } from '@/modules/rooms/stores/room'
  */
 export const ALL_DWELLERS_FETCH_LIMIT = 1000
 
+export const DWELLER_LIST_CHANGED_MESSAGE = 'Dweller list changed while loading. Try again.'
+
 export const DWELLER_STATUSES = [
   'idle',
   'working',
@@ -584,8 +586,7 @@ export const useDwellerFilterStore = defineStore('dwellerFilter', () => {
     }
     try {
       const applied = await request.promise
-      if (!applied && throwOnError)
-        throw new Error('Dweller list changed while loading. Try again.')
+      if (!applied && throwOnError) throw new Error(DWELLER_LIST_CHANGED_MESSAGE)
     } catch (error) {
       if (throwOnError) throw error
     } finally {

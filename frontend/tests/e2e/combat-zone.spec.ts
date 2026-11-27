@@ -18,6 +18,7 @@ for (const width of [390, 1280]) {
     await expect(
       page.locator('#replay-bout').getByRole('progressbar', { name: 'Bob HP' })
     ).toHaveAttribute('aria-valuenow', '88')
+    await expect(page.locator('#replay-bout').getByText('88 / 100 HP')).toBeVisible()
 
     await page.locator('#finish-live').click()
     await expect(page.locator('#live-bout').getByRole('heading', { name: 'Victory' })).toBeVisible()

@@ -4,6 +4,7 @@ import { createToastMock } from '../helpers/mocks'
 import { useCombatZoneStore } from '@/modules/combat-zone/stores/combatZone'
 import * as combatZoneService from '@/modules/combat-zone/api/combatZoneService'
 import type {
+  CombatZoneHistoryEntry,
   CombatZoneLobbyRead,
   CombatZoneMatchRead,
   CombatZonePartyRead,
@@ -208,6 +209,117 @@ describe('Combat Zone store', () => {
     await older
 
     expect(store.match?.status).toBe('finished')
+  })
+
+  it('does not let an older refresh overwrite a recall', async () => {
+    let resolveStale!: (value: CombatZonePartyRead) => void
+    const stalePending = new Promise<CombatZonePartyRead>((resolve) => {
+      resolveStale = resolve
+    })
+    const returning = { ...party, status: 'returning' as const }
+    vi.mocked(combatZoneService.getParty)
+      .mockResolvedValueOnce(null)
+      .mockReturnValueOnce(stalePending)
+      .mockResolvedValueOnce(returning)
+
+    const store = useCombatZoneStore()
+    await store.open('vault-1', 'token')
+    const stale = store.refresh()
+    await store.recallParty()
+    resolveStale(party)
+    await stale
+
+    expect(store.party?.status).toBe('returning')
+  })
+
+  it('clears vault-scoped state when opening a different vault', async () => {
+    let resolveLobby!: (value: CombatZoneLobbyRead) => void
+    const pending = new Promise<CombatZoneLobbyRead>((resolve) => {
+      resolveLobby = resolve
+    })
+    const store = useCombatZoneStore()
+    await store.open('vault-1', 'token')
+    vi.mocked(combatZoneService.getLobby).mockReturnValueOnce(pending)
+    store.party = party
+    store.lobby = lobby
+    store.history = [{ match_id: 'old-match' } as CombatZoneHistoryEntry]
+
+    const opening = store.open('vault-2', 'token')
+    expect(store.party).toBeNull()
+    expect(store.lobby).toBeNull()
+    expect(store.history).toEqual([])
+
+    resolveLobby(lobby)
+    await opening
+  })
+
+  it('refreshes history when switching to a different finished match', async () => {
+    const finishedA = {
+      ...match,
+      id: 'match-a',
+      status: 'finished',
+      cursor: { sequence: 4, round_seq: 4, status: 'finished' },
+    } as CombatZoneMatchRead
+    const finishedB = {
+      ...match,
+      id: 'match-b',
+      status: 'finished',
+      cursor: { sequence: 5, round_seq: 5, status: 'finished' },
+    } as CombatZoneMatchRead
+    vi.mocked(combatZoneService.getMatch).mockResolvedValueOnce(finishedB)
+
+    const store = useCombatZoneStore()
+    await store.open('vault-1', 'token')
+    store.match = finishedA
+    await store.watchMatch('match-b')
+
+    expect(combatZoneService.getHistory).toHaveBeenCalledTimes(2)
+    expect(store.match?.id).toBe('match-b')
+  })
+
+  it('resumes active-match polling after reopening the same vault', async () => {
+    localStorage.setItem('token', 'test-token')
+    vi.useFakeTimers()
+    try {
+      const store = useCombatZoneStore()
+      await store.open('vault-1', 'token')
+      store.match = match
+      store.activeMatchId = 'match-1'
+
+      await store.open('vault-1', 'token')
+      const calls = vi.mocked(combatZoneService.getMatch).mock.calls.length
+      await vi.advanceTimersByTimeAsync(2000)
+
+      expect(vi.mocked(combatZoneService.getMatch).mock.calls.length).toBe(calls + 1)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('rejects a refresh started during a stance command', async () => {
+    let resolveStance!: (value: CombatZonePartyRead) => void
+    const stancePending = new Promise<CombatZonePartyRead>((resolve) => {
+      resolveStance = resolve
+    })
+    let resolveOld!: (value: CombatZonePartyRead) => void
+    const oldPending = new Promise<CombatZonePartyRead>((resolve) => {
+      resolveOld = resolve
+    })
+    vi.mocked(combatZoneService.setStance).mockReturnValueOnce(stancePending)
+    vi.mocked(combatZoneService.getParty)
+      .mockResolvedValueOnce(null)
+      .mockReturnValueOnce(oldPending)
+
+    const store = useCombatZoneStore()
+    await store.open('vault-1', 'token')
+    const stance = store.setStance('focus')
+    const stale = store.refresh()
+    resolveStance({ ...party, stance: 'focus' })
+    await stance
+    resolveOld({ ...party, stance: 'aggressive' })
+    await stale
+
+    expect(store.party?.stance).toBe('focus')
   })
 
   it('sets a stance and keeps the party in sync', async () => {

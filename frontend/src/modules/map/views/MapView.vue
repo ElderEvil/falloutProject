@@ -117,6 +117,12 @@ watch(
   },
   { immediate: true }
 )
+watch(showCombatZone, (isOpen) => {
+  if (isOpen || !route.query.combatZoneMatch) return
+  const query = { ...route.query }
+  delete query.combatZoneMatch
+  void router.replace({ query })
+})
 // Single selection identity; selected objects derive from store state so polling
 // refreshes them automatically instead of manual re-selection after each refresh.
 const selectedMarkerId = ref<string | null>(null)

@@ -148,9 +148,13 @@ const ringState = computed(() => ({
 
 const events = computed(() => (props.match.events ?? []).slice(-12))
 
+function currentHealth(party: CombatZoneMatchPartyRead): number {
+  return health.value[party.fighter.id] ?? party.fighter.health
+}
+
 function hpPercent(party: CombatZoneMatchPartyRead): number {
   if (party.fighter.max_health <= 0) return 0
-  return Math.max(0, Math.min(100, (party.fighter.health / party.fighter.max_health) * 100))
+  return Math.max(0, Math.min(100, (currentHealth(party) / party.fighter.max_health) * 100))
 }
 
 function displayName(party: CombatZoneMatchPartyRead, isMine: boolean): string {
@@ -205,7 +209,7 @@ function eventTime(iso: string | null | undefined): string {
         </p>
         <Progress :model-value="hpPercent(left)" class="mt-3 h-2" />
         <p class="mt-1 text-xs text-theme-primary/70">
-          {{ left.fighter.health }} / {{ left.fighter.max_health }} HP
+          {{ currentHealth(left) }} / {{ left.fighter.max_health }} HP
           <span v-if="left.credited_caps !== null"> · {{ left.credited_caps }} caps credited</span>
         </p>
         <p v-if="viewerIsA" class="mt-3 text-xs text-theme-primary/60">Stance: {{ left.stance }}</p>
@@ -225,7 +229,7 @@ function eventTime(iso: string | null | undefined): string {
         </p>
         <Progress :model-value="hpPercent(right)" class="mt-3 h-2" />
         <p class="mt-1 text-xs text-theme-primary/70">
-          {{ right.fighter.health }} / {{ right.fighter.max_health }} HP
+          {{ currentHealth(right) }} / {{ right.fighter.max_health }} HP
           <span v-if="right.credited_caps !== null">
             · {{ right.credited_caps }} caps credited</span
           >

@@ -26,6 +26,7 @@ export const useCombatZoneStore = defineStore('combatZone', () => {
   let _vaultId: string | null = null
   let _token: string | null = null
   let _generation = 0
+  let _refreshRequest = 0
   let _matchRequest = 0
 
   const toast = useToast()
@@ -34,7 +35,13 @@ export const useCombatZoneStore = defineStore('combatZone', () => {
   const lobbyPoll = usePolling(refresh, { interval: 5000, immediate: false })
   const matchPoll = usePolling(refreshMatch, { interval: 2000, immediate: false })
 
+  function invalidateRefresh(): void {
+    _refreshRequest++
+    isRefreshing.value = false
+  }
+
   async function refresh(): Promise<void> {
+    const request = ++_refreshRequest
     const generation = _generation
     const token = _token
     const vaultId = _vaultId
@@ -46,24 +53,38 @@ export const useCombatZoneStore = defineStore('combatZone', () => {
         combatZoneService.getLobby(token),
         combatZoneService.getParty(token, vaultId),
       ])
-      if (generation !== _generation || _token !== token || _vaultId !== vaultId) return
+      if (
+        request !== _refreshRequest ||
+        generation !== _generation ||
+        _token !== token ||
+        _vaultId !== vaultId
+      )
+        return
       lobby.value = nextLobby
       party.value = nextParty
     } catch (err) {
-      if (generation === _generation) {
+      if (request === _refreshRequest && generation === _generation) {
         error.value = handleStoreError(err, 'Failed to load the Combat Zone')
       }
     } finally {
-      isRefreshing.value = false
+      if (request === _refreshRequest) isRefreshing.value = false
     }
   }
 
   async function open(vaultId: string, token: string): Promise<void> {
+    const sameVault = _vaultId === vaultId
     const generation = ++_generation
+    invalidateRefresh()
+    if (!sameVault) {
+      lobby.value = null
+      party.value = null
+      history.value = []
+      error.value = null
+      match.value = null
+      activeMatchId.value = null
+    }
     _vaultId = vaultId
     _token = token
-    match.value = null
-    activeMatchId.value = null
     lobbyPoll.pause()
     matchPoll.pause()
     await refresh()
@@ -71,10 +92,13 @@ export const useCombatZoneStore = defineStore('combatZone', () => {
     await loadHistory()
     if (generation !== _generation) return
     lobbyPoll.resume()
+    if (activeMatchId.value && match.value?.status !== 'finished') matchPoll.resume()
+    else matchPoll.pause()
   }
 
   function close(): void {
     _generation++
+    invalidateRefresh()
     _matchRequest++
     lobbyPoll.pause()
     matchPoll.pause()
@@ -90,6 +114,7 @@ export const useCombatZoneStore = defineStore('combatZone', () => {
 
   async function sendParty(dwellerId: string): Promise<boolean> {
     const generation = _generation
+    invalidateRefresh()
     const token = _token
     const vaultId = _vaultId
     if (!token || !vaultId) return false
@@ -98,6 +123,7 @@ export const useCombatZoneStore = defineStore('combatZone', () => {
     try {
       const nextParty = await combatZoneService.sendParty(token, vaultId, dwellerId)
       if (generation !== _generation || _token !== token || _vaultId !== vaultId) return false
+      invalidateRefresh()
       party.value = nextParty
       toast.success('Contender dispatched to Interchange 77')
       await refresh()
@@ -114,6 +140,7 @@ export const useCombatZoneStore = defineStore('combatZone', () => {
 
   async function recallParty(): Promise<boolean> {
     const generation = _generation
+    invalidateRefresh()
     const token = _token
     const vaultId = _vaultId
     if (!token || !vaultId) return false
@@ -122,6 +149,7 @@ export const useCombatZoneStore = defineStore('combatZone', () => {
     try {
       const nextParty = await combatZoneService.recallParty(token, vaultId)
       if (generation !== _generation || _token !== token || _vaultId !== vaultId) return false
+      invalidateRefresh()
       party.value = nextParty
       toast.success('Contender recalled')
       await refresh()
@@ -138,6 +166,7 @@ export const useCombatZoneStore = defineStore('combatZone', () => {
 
   async function setStance(stance: CombatZoneStance): Promise<void> {
     const generation = _generation
+    invalidateRefresh()
     const token = _token
     const vaultId = _vaultId
     if (!token || !vaultId) return
@@ -145,6 +174,7 @@ export const useCombatZoneStore = defineStore('combatZone', () => {
     try {
       const nextParty = await combatZoneService.setStance(token, vaultId, stance)
       if (generation !== _generation || _token !== token || _vaultId !== vaultId) return
+      invalidateRefresh()
       party.value = nextParty
       if (activeMatchId.value) await refreshMatch()
     } catch (err) {
@@ -156,6 +186,7 @@ export const useCombatZoneStore = defineStore('combatZone', () => {
 
   async function challenge(targetPartyId: string): Promise<boolean> {
     const generation = _generation
+    invalidateRefresh()
     const token = _token
     const vaultId = _vaultId
     if (!token || !vaultId) return false
@@ -164,6 +195,7 @@ export const useCombatZoneStore = defineStore('combatZone', () => {
     try {
       const nextMatch = await combatZoneService.challenge(token, vaultId, targetPartyId)
       if (generation !== _generation || _token !== token || _vaultId !== vaultId) return false
+      invalidateRefresh()
       match.value = nextMatch
       activeMatchId.value = nextMatch.id
       matchPoll.resume()
@@ -196,6 +228,7 @@ export const useCombatZoneStore = defineStore('combatZone', () => {
     isMatchLoading.value = true
     try {
       const previousStatus = match.value?.status
+      const previousMatchId = match.value?.id
       const nextMatch = await combatZoneService.getMatch(token, matchId)
       if (
         request !== _matchRequest ||
@@ -211,7 +244,7 @@ export const useCombatZoneStore = defineStore('combatZone', () => {
       match.value = nextMatch
       if (nextMatch.status === 'finished') {
         matchPoll.pause()
-        if (previousStatus !== 'finished') await loadHistory()
+        if (previousStatus !== 'finished' || previousMatchId !== matchId) await loadHistory()
       }
     } catch (err) {
       if (request === _matchRequest && generation === _generation) {

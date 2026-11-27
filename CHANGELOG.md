@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 3.35.3 (2026-11-27)
+
+### Code Refactoring
+
+* **api:** route weapon and outfit endpoints through the item service ([#1588](https://github.com/ElderEvil/falloutProject/issues/1588)) 2a4597b
+
 ## 3.35.2 (2026-11-27)
 
 ### Code Refactoring

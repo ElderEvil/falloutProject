@@ -221,8 +221,10 @@ describe('NavBar', () => {
     const account = wrapper.find('[aria-label="Account and notifications"]')
     expect(vaults.element.nextElementSibling).toBe(account.element.parentElement)
     expect(population.element.nextElementSibling).toBe(resources.element)
-    expect(resources.element.nextElementSibling).toBe(currency.element)
-    expect(currency.element.parentElement?.nextElementSibling).toBe(account.element)
+    // Currency must sit outside the horizontally scrolled resource row: anything inside it
+    // is clipped at narrow widths, which hid the caps counter behind the account chip.
+    expect(resources.element.parentElement?.nextElementSibling).toBe(currency.element)
+    expect(currency.element.nextElementSibling).toBe(account.element)
     expect(account.classes()).toContain('ml-auto')
     expect(
       population.findAllComponents(PageHeaderMetric).map((item) => item.props('label'))
@@ -238,6 +240,9 @@ describe('NavBar', () => {
     expect(currency.findAllComponents(PageHeaderMetric).map((item) => item.props('label'))).toEqual(
       ['Caps', 'Nuka bottles']
     )
+    // Nuka bottles is the secondary currency: it yields to caps below 1536px rather than
+    // forcing the row to clip the counter the player actually spends.
+    expect(metric(wrapper, 'Nuka bottles').element.closest('div.hidden')).toBeTruthy()
     expect(metric(wrapper, 'Caps').props('value')).toBe('500')
     expect(metric(wrapper, 'Nuka bottles').props('value')).toBe('42')
     expect(account.find('notification-bell-stub').exists()).toBe(true)

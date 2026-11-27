@@ -339,19 +339,22 @@ onUnmounted(() => {
               />
             </div>
           </div>
-          <div
-            v-if="isVaultRoute && isAuthenticated && isReady"
-            class="flex shrink-0 items-center gap-3 tabular-nums"
-            role="group"
-            aria-label="Vault currency"
-          >
-            <PageHeaderMetric
-              compact
-              icon="mdi:coins"
-              :value="bottleCaps.toLocaleString('en-US')"
-              label="Caps"
-              :tooltip="capsTooltip"
-            />
+        </div>
+        <div
+          v-if="isVaultRoute && isAuthenticated && isReady"
+          class="flex shrink-0 items-center gap-2 tabular-nums"
+          role="group"
+          aria-label="Vault currency"
+        >
+          <PageHeaderMetric
+            compact
+            icon="mdi:coins"
+            :value="bottleCaps.toLocaleString('en-US')"
+            label="Caps"
+            :tooltip="capsTooltip"
+          />
+          <!-- Secondary currency yields before caps: the scrolled row clips whatever sits last. -->
+          <div class="hidden items-center 2xl:flex">
             <PageHeaderMetric
               compact
               icon="mdi:bottle-soda-classic"

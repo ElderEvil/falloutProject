@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## 3.36.0 (2026-11-27)
+
+### Features
+
+* **map:** draw the look silhouette as a hexagon ([#1587](https://github.com/ElderEvil/falloutProject/issues/1587)) c3c979a
+
+### Bug Fixes
+
+* **vault:** repair drag and drop jitter and Windows desktop drops ([#1581](https://github.com/ElderEvil/falloutProject/issues/1581)) 165a414
+
 ## 3.35.4 (2026-11-27)
 
 ### Code Refactoring

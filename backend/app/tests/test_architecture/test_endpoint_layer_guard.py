@@ -31,7 +31,6 @@ ENDPOINT_CRUD_BASELINE = frozenset(
         ("junk.py", "app.crud"),
         ("objective.py", "app.crud"),
         ("pregnancy.py", "app.crud"),
-        ("quest.py", "app.crud"),
         ("room.py", "app.crud"),
         ("storage.py", "app.crud"),
         ("vault.py", "app.crud"),

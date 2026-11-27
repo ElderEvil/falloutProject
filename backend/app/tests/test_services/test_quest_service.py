@@ -2,13 +2,15 @@ from datetime import timedelta
 from uuid import uuid4
 
 import pytest
+from sqlalchemy import event, inspect
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import crud
-from app.core.enums import QuestType, RequirementType
+from app.core.enums import QuestType, RequirementType, RewardType
 from app.models.dweller import Dweller
 from app.models.quest import Quest
 from app.models.quest_requirement import QuestRequirement
+from app.models.quest_reward import QuestReward
 from app.models.room import Room
 from app.models.vault_quest import VaultQuestCompletionLink
 from app.schemas.quest import QuestCreate
@@ -578,3 +580,43 @@ async def test_dead_dweller_does_not_unlock_read_path_requirements(async_session
     quest_read = await _read_quest(async_session, vault, quest)
     assert quest_read.is_locked is True
     assert ("level" in quest_read.lock_reason, "attack" in quest_read.lock_reason) == (True, True)
+
+
+async def test_delete_quest_template_rolls_back_template_and_dependents(async_session: AsyncSession) -> None:
+    quest = await crud.quest_crud.create(
+        async_session,
+        obj_in=QuestCreate(
+            title="Rollback Template",
+            short_description="Rollback",
+            long_description="A failed delete must keep the template and its dependents.",
+            requirements="None",
+            rewards="None",
+        ),
+    )
+    requirement = QuestRequirement(
+        quest_id=quest.id, requirement_type=RequirementType.LEVEL, requirement_data={"level": 5}
+    )
+    reward = QuestReward(quest_id=quest.id, reward_type=RewardType.CAPS, reward_data={"amount": 100})
+    async_session.add_all([requirement, reward])
+    await async_session.commit()
+
+    def fail_commit(_session):
+        assert inspect(quest).deleted
+        assert inspect(requirement).deleted
+        assert inspect(reward).deleted
+        raise RuntimeError("delete commit failed")
+
+    event.listen(async_session.sync_session, "before_commit", fail_commit)
+    try:
+        with pytest.raises(RuntimeError, match="delete commit failed"):
+            await quest_service.delete_quest_template(async_session, quest.id)
+    finally:
+        event.remove(async_session.sync_session, "before_commit", fail_commit)
+        await async_session.rollback()
+
+    await async_session.refresh(quest)
+    await async_session.refresh(requirement)
+    await async_session.refresh(reward)
+    assert quest.title == "Rollback Template"
+    assert requirement.quest_id == quest.id
+    assert reward.quest_id == quest.id

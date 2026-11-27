@@ -5,7 +5,6 @@ from uuid import UUID
 
 from fastapi import APIRouter
 
-from app import crud
 from app.api.deps import CurrentActiveUser, CurrentSuperuser, DBSession, PaginationParams, get_user_vault_or_403
 from app.models.quest import Quest
 from app.models.team import TeamMember
@@ -22,7 +21,7 @@ from app.schemas.quest import (
 from app.schemas.rewards import granted_reward_adapter
 from app.services.progression.quests.rotation import ensure_current_quest_rotation
 from app.services.progression.quests.service import quest_service
-from app.utils.exceptions import ValidationException, ensure_found
+from app.utils.exceptions import ValidationException
 from app.utils.serialize import serialize_optional_utc_datetime
 
 router = APIRouter(prefix="/quests", tags=["Quest"])
@@ -52,7 +51,7 @@ async def read_all_quests(
     pagination: PaginationParams,
 ) -> Sequence[QuestRead]:
     """Get all available quests (not vault-specific)."""
-    return await crud.quest_crud.get_multi(db_session, skip=pagination.skip, limit=pagination.limit)
+    return await quest_service.list_quest_templates(db_session, skip=pagination.skip, limit=pagination.limit)
 
 
 # Global quest templates retain legacy vault URLs; the vault segment is unused.
@@ -61,9 +60,9 @@ async def create_quest(
     quest_data: QuestCreate,
     db_session: DBSession,
     _: CurrentSuperuser,
-) -> Quest:
+) -> QuestRead:
     """Create a new quest."""
-    return await crud.quest_crud.create(db_session, quest_data)
+    return await quest_service.create_quest_template(db_session, quest_data)
 
 
 @router.get("/{vault_id}/", response_model=list[QuestRead])
@@ -101,14 +100,11 @@ async def read_quest(
     user: CurrentActiveUser,
     vault_id: UUID,
     db_session: DBSession,
-) -> Quest:
+) -> QuestRead:
     """Retrieve a quest by ID within a vault."""
     await get_user_vault_or_403(vault_id, user, db_session)
 
-    link = await crud.quest_crud.get_link(db_session, quest_id=quest_id, vault_id=vault_id)
-    link = ensure_found(link, Quest, identifier=quest_id)
-
-    return await crud.quest_crud.get(db_session, quest_id)
+    return await quest_service.get_vault_quest(db_session, vault_id, quest_id)
 
 
 @router.put("/{vault_id}/{quest_id}", response_model=QuestRead)  # ruff: ignore[fast-api-unused-path-parameter] - global template, legacy vault URL
@@ -118,13 +114,13 @@ async def update_quest(
     _vault_id: UUID,
     db_session: DBSession,
     _: CurrentSuperuser,
-) -> Quest:
+) -> QuestRead:
     """Update a quest definition (administrators only).
 
     Quests are global templates shared by every vault, so vault ownership cannot
     authorize this write — editing one here would change it for all players.
     """
-    return await crud.quest_crud.update(db_session, quest_id, quest_data)
+    return await quest_service.update_quest_template(db_session, quest_id, quest_data)
 
 
 @router.delete("/{vault_id}/{quest_id}", status_code=204)  # ruff: ignore[fast-api-unused-path-parameter] - global template, legacy vault URL
@@ -138,7 +134,7 @@ async def delete_quest(
 
     Like update, this removes a global template shared by every vault.
     """
-    await crud.quest_crud.delete(db_session, quest_id)
+    await quest_service.delete_quest_template(db_session, quest_id)
 
 
 @router.post("/{vault_id}/{quest_id}/assign", response_model=VaultQuestCompletionLink, status_code=201)
@@ -184,7 +180,7 @@ async def get_quest_party(
 ) -> list[QuestPartyMemberRead]:
     """Get party members assigned to a quest."""
     await get_user_vault_or_403(vault_id, user, db_session)
-    members = await crud.team_crud.get_quest_team(db_session, quest_id, vault_id)
+    members = await quest_service.get_party_members(db_session, quest_id, vault_id)
     return [_to_party_member_read(member, quest_id, vault_id) for member in members]
 
 

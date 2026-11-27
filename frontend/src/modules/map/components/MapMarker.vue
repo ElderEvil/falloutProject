@@ -83,11 +83,13 @@ const displayIcon = computed(() => icon.value)
 const displayLabel = computed(() => (isLocked.value ? 'Unknown Location' : props.name))
 const shouldPulse = computed(() => isDiscovery.value && !isLocked.value && props.unseen)
 
-// Glyph size in marker user units; the backing disc is r=3.8, so this leaves a
-// ring of dark margin around every glyph. Passed to Iconify with an explicit
-// unit: a unitless nested-<svg> width is rejected by Chromium (it then
-// shrink-wraps each icon to its artwork) but honoured by Firefox.
-const glyphSize = computed(() => MARKER_GLYPH_SIZE * props.iconScale)
+// Glyph size in marker user units. It follows the body scale, so the glyph keeps
+// the same share of the body whether the marker is a full-size signal or a
+// shrunk place marker — the old split left signal glyphs at 89% of their disc.
+// Passed to Iconify with an explicit unit: a unitless nested-<svg> width is
+// rejected by Chromium (it then shrink-wraps each icon to its artwork) but
+// honoured by Firefox.
+const glyphSize = computed(() => MARKER_GLYPH_SIZE * props.iconScale * props.bodyScale)
 const glyphSizeCss = computed(() => `${glyphSize.value}px`)
 
 // Every body dimension derives from one factor so disc, rings, badge, portrait

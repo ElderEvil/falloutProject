@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vite-plus/test'
 import { mount } from '@vue/test-utils'
 import { Icon } from '@iconify/vue'
 import MapMarker from '@/modules/map/components/MapMarker.vue'
-import { MARKER_GLYPH_SIZE, PLACE_MARKER_GLYPH_SCALE } from '@/modules/map/models/markerTypeMeta'
+import { MARKER_GLYPH_SIZE } from '@/modules/map/models/markerTypeMeta'
 
 /**
  * Regression tests for invisible markers on the World Map.
@@ -12,7 +12,7 @@ import { MARKER_GLYPH_SIZE, PLACE_MARKER_GLYPH_SCALE } from '@/modules/map/model
  * `<foreignObject>` under an HTML parent collapses to 0x0 in Chromium and made
  * fully-rendered markers invisible.
  */
-const glyphWidth = `${MARKER_GLYPH_SIZE * PLACE_MARKER_GLYPH_SCALE}px`
+const glyphWidth = `${MARKER_GLYPH_SIZE}px`
 
 function mountMarker(props: Record<string, unknown> = {}) {
   return mount(MapMarker, {
@@ -29,7 +29,7 @@ describe('MapMarker', () => {
   })
 
   it('shrinks only the glyph when iconScale is set', () => {
-    const wrapper = mountMarker({ iconScale: PLACE_MARKER_GLYPH_SCALE })
+    const wrapper = mountMarker()
     expect(wrapper.findComponent(Icon).props('width')).toBe(glyphWidth)
     expect(wrapper.find('circle.marker-hit-area').attributes('r')).toBe('6')
     expect(wrapper.find('circle.marker-backing').attributes('r')).toBe('4.2')
@@ -37,18 +37,17 @@ describe('MapMarker', () => {
 
   it('shrinks disc, rings, portrait and label together when bodyScale is set', () => {
     const wrapper = mountMarker({
-      iconScale: PLACE_MARKER_GLYPH_SCALE,
       bodyScale: 0.72,
       selected: true,
       exploring: true,
     })
-    // Body geometry follows the factor, the glyph keeps its own size and the
-    // hit area stays full, so a smaller marker never costs an easier click.
+    // Body and glyph follow the factor together, and the hit area stays full, so
+    // a smaller marker never costs an easier click.
     expect(wrapper.find('circle.marker-backing').attributes('r')).toBe('3.024')
     expect(wrapper.find('circle.marker-select-ring').attributes('r')).toBe('2.232')
     expect(wrapper.find('circle.marker-exploring-ring').attributes('r')).toBe('2.232')
     expect(wrapper.find('circle.marker-hit-area').attributes('r')).toBe('6')
-    expect(wrapper.findComponent(Icon).props('width')).toBe(glyphWidth)
+    expect(wrapper.findComponent(Icon).props('width')).toBe(`${MARKER_GLYPH_SIZE * 0.72}px`)
     const label = wrapper.find('text.marker-label')
     expect(label.attributes('y')).toBe('-2.448')
     expect(label.attributes('style')).toContain('font-size: 1.728px')

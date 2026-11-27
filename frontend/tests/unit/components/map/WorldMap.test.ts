@@ -4,10 +4,7 @@ import { mount, type VueWrapper } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import WorldMap from '@/modules/map/components/WorldMap.vue'
 import { MAX_ZOOM } from '@/modules/map/composables/useMapZoomPan'
-import {
-  PLACE_MARKER_BODY_SCALE,
-  PLACE_MARKER_GLYPH_SCALE,
-} from '@/modules/map/models/markerTypeMeta'
+import { PLACE_MARKER_BODY_SCALE } from '@/modules/map/models/markerTypeMeta'
 import { bearingDegrees } from '@/modules/map/utils/bearing'
 import { isExploredTile } from '@/modules/map/utils/fog'
 import { ATLAS_TILES, registryToTile } from '@/modules/map/utils/atlasProjection'
@@ -290,7 +287,7 @@ describe('WorldMap', () => {
       expect(wrapper.findAll('.map-marker-stub')).toHaveLength(5)
     })
 
-    it('renders place markers at the smaller place glyph and body scale only', async () => {
+    it('renders place markers at the smaller body scale, which the glyph follows', async () => {
       const [location] = createLocations(1)
       const place = { ...location, type: 'visited' as const }
       // The home vault rides the same locations list, but it is the player's own
@@ -313,7 +310,7 @@ describe('WorldMap', () => {
       const homeMarker = markerNamed(wrapper, homeMarkerLocation.name)
       const vaultMarker = markerNamed(wrapper, 'Vault 100')
 
-      expect(placeMarker.props('iconScale')).toBe(PLACE_MARKER_GLYPH_SCALE)
+      expect(placeMarker.props('iconScale')).toBeUndefined()
       expect(placeMarker.props('bodyScale')).toBe(PLACE_MARKER_BODY_SCALE)
       expect(homeMarker.props('bodyScale')).toBe(1)
       expect(vaultMarker.props('iconScale')).toBeUndefined()

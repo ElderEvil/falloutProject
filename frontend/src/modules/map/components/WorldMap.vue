@@ -17,7 +17,6 @@ import type {
 import {
   EXPEDITION_SITE_ICON,
   PLACE_MARKER_BODY_SCALE,
-  PLACE_MARKER_GLYPH_SCALE,
   locationMarkerIcon,
 } from '../models/markerTypeMeta'
 import { groupColor } from '../models/groupColors'
@@ -587,7 +586,6 @@ function handleTouchEnd(event: TouchEvent) {
              cluster are rendered as the badge below instead) -->
         <MapMarker
           :scale="markerScale"
-          :icon-scale="PLACE_MARKER_GLYPH_SCALE"
           :body-scale="loc.type === 'home_vault' ? 1 : PLACE_MARKER_BODY_SCALE"
           v-for="loc in renderedLocationsIndividual"
           :key="`loc-${loc.id}`"

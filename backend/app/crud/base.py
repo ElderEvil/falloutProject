@@ -179,7 +179,7 @@ class CRUDBase[ModelType: SQLModel, CreateSchemaType: (SQLModel | None), UpdateS
 
         return obj
 
-    async def soft_delete(self, db_session: AsyncSession, id: int | UUID) -> ModelType:
+    async def soft_delete(self, db_session: AsyncSession, id: int | UUID, *, commit: bool = True) -> ModelType:
         """Soft delete an object by ID; raises ResourceNotFoundException when missing and
         AttributeError when the model lacks soft-delete support.
         """
@@ -190,11 +190,14 @@ class CRUDBase[ModelType: SQLModel, CreateSchemaType: (SQLModel | None), UpdateS
 
         obj.soft_delete()
         db_session.add(obj)
-        await db_session.commit()
-        await db_session.refresh(obj)
+        if commit:
+            await db_session.commit()
+            await db_session.refresh(obj)
+        else:
+            await db_session.flush()
         return obj
 
-    async def restore(self, db_session: AsyncSession, id: int | UUID) -> ModelType:
+    async def restore(self, db_session: AsyncSession, id: int | UUID, *, commit: bool = True) -> ModelType:
         """Restore a soft-deleted object by ID; raises ResourceNotFoundException when missing and
         AttributeError when the model lacks soft-delete support.
         """
@@ -205,8 +208,11 @@ class CRUDBase[ModelType: SQLModel, CreateSchemaType: (SQLModel | None), UpdateS
 
         obj.restore()
         db_session.add(obj)
-        await db_session.commit()
-        await db_session.refresh(obj)
+        if commit:
+            await db_session.commit()
+            await db_session.refresh(obj)
+        else:
+            await db_session.flush()
         return obj
 
     async def get_deleted(

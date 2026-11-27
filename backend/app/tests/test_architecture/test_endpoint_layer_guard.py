@@ -26,7 +26,6 @@ ENDPOINTS_DIR = APP_DIR / "api" / "v1" / "endpoints"
 #: Pre-existing endpoint -> CRUD imports, as ``(file name, module)``. Shrink only.
 ENDPOINT_CRUD_BASELINE = frozenset(
     {
-        ("dweller.py", "app.crud"),
         ("exploration.py", "app.crud"),
         ("game_control.py", "app.crud"),
         ("junk.py", "app.crud"),

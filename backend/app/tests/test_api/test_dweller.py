@@ -86,6 +86,23 @@ async def test_delete_dweller(async_client, superuser_token_headers, dweller) ->
     assert (await async_client.get(f"/dwellers/{dweller.id}", headers=superuser_token_headers)).status_code == 404
 
 
+async def test_soft_delete_then_restore_round_trip(
+    async_client, async_session, superuser_token_headers, dweller
+) -> None:
+    deleted = await async_client.post(f"/dwellers/{dweller.id}/soft-delete", headers=superuser_token_headers)
+    assert deleted.status_code == 200
+    assert deleted.json()["id"] == str(dweller.id)
+    await async_session.refresh(dweller)
+    assert dweller.is_deleted is True
+    assert dweller.deleted_at is not None
+
+    restored = await async_client.post(f"/dwellers/{dweller.id}/restore", headers=superuser_token_headers)
+    assert restored.status_code == 200
+    assert restored.json()["id"] == str(dweller.id)
+    await async_session.refresh(dweller)
+    assert dweller.is_deleted is False
+
+
 async def test_delete_exploring_dweller_closes_journey(
     async_client, superuser_token_headers, async_session, dweller, vault
 ) -> None:

@@ -6,7 +6,6 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
-from app import crud
 from app.api.deps import (
     CurrentActiveUser,
     CurrentSuperuser,
@@ -85,7 +84,7 @@ async def read_dweller_list(
     Returns:
         list[DwellerReadLess]: List of dwellers.
     """
-    return await crud.dweller.get_multi(db_session=db_session, skip=pagination.skip, limit=pagination.limit)
+    return await dweller_service.list_all_dwellers(db_session, skip=pagination.skip, limit=pagination.limit)
 
 
 @router.get("/identity-options", response_model=DwellerIdentityOptions)
@@ -315,7 +314,7 @@ async def add_bio_addendum(
     """Record a player-confirmed conversation detail into the dweller's biography."""
     await verify_dweller_access(dweller_id, user, db_session)
     await bio_service.append_player_entry(db_session, dweller_id, request.text, user_id=user.id)
-    return await crud.dweller.get_full_info(db_session, dweller_id)
+    return await dweller_service.get_full_info(db_session, dweller_id)
 
 
 @router.post("/{dweller_id}/generate_visual_attributes/", response_model=DwellerReadFull)
@@ -504,7 +503,7 @@ async def get_dead_dwellers(
         list[DwellerDeadRead]: List of revivable dead dwellers with days until permanent death.
     """
     await get_user_vault_or_403(vault_id, user, db_session)
-    dwellers = await crud.dweller.get_dead_dwellers(
+    dwellers = await dweller_service.list_dead_dwellers(
         db_session, vault_id, include_permanent=False, skip=pagination.skip, limit=pagination.limit
     )
 
@@ -531,7 +530,7 @@ async def get_graveyard(
         list[DwellerDeadRead]: List of permanently dead dwellers.
     """
     await get_user_vault_or_403(vault_id, user, db_session)
-    dwellers = await crud.dweller.get_graveyard(db_session, vault_id, skip=pagination.skip, limit=pagination.limit)
+    dwellers = await dweller_service.list_graveyard(db_session, vault_id, skip=pagination.skip, limit=pagination.limit)
     return [DwellerDeadRead.model_validate(dweller) for dweller in dwellers]
 
 
@@ -580,7 +579,7 @@ async def soft_delete_dweller(
         DwellerRead: The soft-deleted dweller.
     """
     await verify_dweller_access(dweller_id, user, db_session)
-    return await crud.dweller.soft_delete(db_session, dweller_id)
+    return await dweller_service.soft_delete_dweller(db_session, dweller_id)
 
 
 @router.post("/{dweller_id}/restore", response_model=DwellerRead)
@@ -595,9 +594,9 @@ async def restore_dweller(
         DwellerRead: The restored dweller.
     """
     # Note: We need to verify access with include_deleted=True
-    dweller = await crud.dweller.get(db_session, dweller_id, include_deleted=True)
+    dweller = await dweller_service.get_including_deleted(db_session, dweller_id)
     await get_user_vault_or_403(dweller.vault_id, user, db_session)
-    return await crud.dweller.restore(db_session, dweller_id)
+    return await dweller_service.restore_dweller(db_session, dweller_id)
 
 
 @router.get("/vault/{vault_id}/deleted", response_model=list[DwellerReadLess])
@@ -613,8 +612,8 @@ async def read_deleted_dwellers_by_vault(
         list[DwellerReadLess]: List of soft-deleted dwellers.
     """
     await get_user_vault_or_403(vault_id, user, db_session)
-    return await crud.dweller.get_deleted_by_vault(
-        db_session=db_session, vault_id=vault_id, skip=pagination.skip, limit=pagination.limit
+    return await dweller_service.list_deleted_dwellers(
+        db_session, vault_id, skip=pagination.skip, limit=pagination.limit
     )
 
 
@@ -660,7 +659,7 @@ async def grant_exit_request(
     Returns:
         ExitDecisionResponse: The departure outcome; ``epitaph`` stays null.
     """
-    dweller = await crud.dweller.get(db_session, dweller_id, include_deleted=True)
+    dweller = await dweller_service.get_including_deleted(db_session, dweller_id)
     vault = await get_user_vault_or_403(dweller.vault_id, user, db_session)
     dweller = await exit_request_service.grant_exit(db_session, vault, dweller_id)
     return ExitDecisionResponse(
@@ -683,7 +682,7 @@ async def refuse_exit_request(
     Returns:
         ExitDecisionResponse: The refusal outcome and updated happiness.
     """
-    dweller = await crud.dweller.get(db_session, dweller_id, include_deleted=True)
+    dweller = await dweller_service.get_including_deleted(db_session, dweller_id)
     vault = await get_user_vault_or_403(dweller.vault_id, user, db_session)
     dweller = await exit_request_service.refuse_exit(db_session, vault, dweller_id)
     return ExitDecisionResponse(

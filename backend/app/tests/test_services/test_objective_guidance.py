@@ -9,7 +9,11 @@ from app.schemas.dweller import DwellerCreate
 from app.schemas.objective import ObjectiveCreate
 from app.schemas.room import RoomCreate
 from app.services.exploration_service import exploration_service
-from app.services.progression.objectives.guidance import create_objective_for_vault, current_state_progress
+from app.services.progression.objectives.guidance import (
+    create_objective_for_vault,
+    current_state_progress,
+    read_objectives,
+)
 from app.tests.test_services._transaction_helpers import fail_sql
 
 ROOM = {
@@ -131,3 +135,30 @@ async def test_create_objective_rolls_back_template_when_link_insert_fails(async
     ).scalar_one()
     assert templates == 0
     assert links_after == links_before
+
+
+async def test_read_objectives_credits_reach_state_for_every_step_not_just_the_current_one(
+    async_session, vault
+):
+    """A reach card the player already satisfies must not read 0/N while its reward is claimable."""
+    for index in range(5):
+        await _dweller(async_session, vault, first_name=f"Reach{index}")
+
+    for challenge, amount in (("Reach 3 Dwellers", 3), ("Reach 10 Dwellers", 10)):
+        await create_objective_for_vault(
+            async_session,
+            vault.id,
+            ObjectiveCreate(
+                challenge=challenge,
+                reward="50 caps",
+                category=ObjectiveCategoryEnum.STARTER,
+                objective_type="reach",
+                target_entity={"reach_type": "dweller_count"},
+                target_amount=amount,
+            ),
+        )
+
+    progress = {objective.challenge: objective.progress for objective in await read_objectives(async_session, vault.id)}
+
+    assert progress["Reach 3 Dwellers"] == 3, "progress is capped at the objective target"
+    assert progress["Reach 10 Dwellers"] == 5, "a non-current reach step still reports the true population"

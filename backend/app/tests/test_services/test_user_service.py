@@ -14,6 +14,7 @@ from app import crud
 from app.crud.user_profile import profile_crud
 from app.models.user_profile import UserProfile
 from app.schemas.user import UserCreate, UserWithTokens
+from app.schemas.user_profile import ProfileUpdate
 from app.services.user_service import user_service
 from app.tests.factory.users import create_fake_user
 from app.tests.test_services._transaction_helpers import counting_commit, fail_sql
@@ -25,6 +26,10 @@ def _inserts_profile(statement: str) -> bool:
 
 def _updates_user(statement: str) -> bool:
     return statement.lower().startswith("update user ")
+
+
+def _updates_profile(statement: str) -> bool:
+    return statement.lower().startswith("update userprofile")
 
 
 async def _register(async_session: AsyncSession, redis_client: Redis, data: dict[str, str]) -> UserWithTokens:
@@ -118,3 +123,22 @@ async def test_get_or_create_profile_creates_once_at_the_service_boundary(
 
     assert second.id == first.id
     assert len(commits) == 1
+
+
+async def test_update_profile_owns_one_commit_and_survives_a_failed_write(async_session: AsyncSession) -> None:
+    user = await crud.user.create(async_session, obj_in=UserCreate(**create_fake_user()))
+    profile = await user_service.get_or_create_profile(async_session, user.id)
+
+    commits = counting_commit(async_session)
+    updated = await user_service.update_profile(async_session, user.id, ProfileUpdate(bio="Changed bio"))
+    assert len(commits) == 1
+    assert updated.bio == "Changed bio"
+    await async_session.refresh(profile)
+    assert profile.bio == "Changed bio"
+
+    async with fail_sql(async_session, _updates_profile, "injected profile update failure"):
+        with pytest.raises(RuntimeError, match="injected profile update failure"):
+            await user_service.update_profile(async_session, user.id, ProfileUpdate(bio="Never persisted"))
+    await async_session.rollback()
+    await async_session.refresh(profile)
+    assert profile.bio == "Changed bio"

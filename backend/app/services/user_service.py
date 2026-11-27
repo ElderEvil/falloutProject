@@ -1,6 +1,7 @@
 """User registration and profile business logic."""
 
 import logging
+from collections.abc import Sequence
 from datetime import datetime, timedelta
 from typing import Literal
 from uuid import UUID
@@ -19,6 +20,7 @@ from app.models.user import User
 from app.models.user_profile import UserProfile
 from app.models.vault import Vault
 from app.schemas.user import UserCreate, UserWithTokens
+from app.schemas.user_profile import ProfileUpdate
 from app.services.auth_service import auth_service
 from app.utils.exceptions import (
     AccessDeniedException,
@@ -26,6 +28,7 @@ from app.utils.exceptions import (
     EmailDeliveryException,
     ResourceAlreadyExistsException,
     ResourceConflictException,
+    ResourceNotFoundException,
     ValidationException,
     ensure_found,
 )
@@ -50,6 +53,16 @@ def _cooldown_until(last_change: datetime | None, cooldown_days: int) -> datetim
 
 class UserService:
     """Service for user registration and profile operations."""
+
+    async def list_users(self, db_session: AsyncSession, *, skip: int = 0, limit: int = 100) -> Sequence[User]:
+        """Admin user list."""
+        return await crud.user.get_multi(db_session, skip=skip, limit=limit)
+
+    async def get_user_for_reader(self, db_session: AsyncSession, *, requester: User, user_id: UUID) -> User:
+        """A user's own record, or any user for a superuser."""
+        if user_id != requester.id and not requester.is_superuser:
+            raise ResourceNotFoundException(model=User, identifier=user_id)
+        return await crud.user.get(db_session, id=user_id)
 
     async def update_account(
         self,
@@ -206,6 +219,14 @@ class UserService:
         await db_session.commit()
         await db_session.refresh(profile)
         return profile
+
+    async def update_profile(self, db_session: AsyncSession, user_id: UUID, profile_data: ProfileUpdate) -> UserProfile:
+        """Update the user's editable profile fields; the service owns the commit."""
+        profile = await profile_crud.get_by_user_id(db_session, user_id)
+        profile = ensure_found(profile, UserProfile, identifier=user_id)
+        updated = await profile_crud.update(db_session, id=profile.id, obj_in=profile_data, commit=False)
+        await db_session.commit()
+        return updated
 
     async def get_ai_usage(
         self,

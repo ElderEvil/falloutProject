@@ -38,8 +38,6 @@ ENDPOINT_CRUD_BASELINE = frozenset(
         ("websocket.py", "app.crud.user"),
         ("training.py", "app.crud"),
         ("training.py", "app.crud.dweller"),
-        ("user.py", "app.crud"),
-        ("user.py", "app.crud.user_profile"),
     }
 )
 

@@ -61,6 +61,8 @@ spec:
               value: "1"
             - name: SECURITY_REDIS_FAIL_OPEN
               value: "true"
+            - name: FEATURE_PVP_DUELS
+              value: "true"
             - name: POSTGRES_MAX_CONNECTIONS
               value: "100"
             # Pin the uvicorn process count: a WEB_CONCURRENCY value inherited

@@ -1,0 +1,93 @@
+name: Configure Hetzner SSH
+description: >-
+  Install the deploy key, trust the host, and define the `hetzner-prod` SSH alias
+  so later steps can run `ssh hetzner-prod ...` without repeating connection options.
+
+inputs:
+  host:
+    description: Production host name or address.
+    required: true
+  user:
+    description: SSH user on the production host.
+    required: true
+  key:
+    description: Private deploy key.
+    required: true
+  probe:
+    description: >-
+      none skips the reachability check, simple retries a bare connection three
+      times, diagnostic also prints DNS/TCP/auth evidence for troubleshooting.
+    required: false
+    default: simple
+
+runs:
+  using: composite
+  steps:
+    - name: Install key and SSH alias
+      shell: bash
+      env:
+        DEPLOY_HOST: ${{ inputs.host }}
+        DEPLOY_KEY: ${{ inputs.key }}
+        DEPLOY_USER: ${{ inputs.user }}
+      run: |
+        set -euo pipefail
+        install -d -m 700 "$HOME/.ssh"
+        printf '%s\n' "$DEPLOY_KEY" > "$HOME/.ssh/hetzner_key"
+        chmod 600 "$HOME/.ssh/hetzner_key"
+        ssh-keyscan -H "$DEPLOY_HOST" >> "$HOME/.ssh/known_hosts"
+        cat >> "$HOME/.ssh/config" <<EOF
+        Host hetzner-prod
+          HostName $DEPLOY_HOST
+          User $DEPLOY_USER
+          IdentityFile ~/.ssh/hetzner_key
+          IdentitiesOnly yes
+          BatchMode yes
+          ConnectTimeout 20
+          ServerAliveInterval 15
+          ServerAliveCountMax 3
+        EOF
+
+    # A runner that cannot reach the host used to fail inside a later step with a raw
+    # `ssh: connect ... timed out`, which says nothing about the cause. The diagnostic
+    # probe names the usual suspects (see docs/DEPLOYMENT.md "Runner cannot reach the host").
+    # The host is redacted from output: this repository's Actions logs are public.
+    - name: Probe SSH connectivity
+      if: ${{ inputs.probe == 'diagnostic' }}
+      shell: bash
+      env:
+        DEPLOY_HOST: ${{ inputs.host }}
+      run: |
+        set -uo pipefail
+        redact() { sed -e "s/${DEPLOY_HOST}/***/g"; }
+        echo "Host fingerprint: sha256:$(printf '%s' "$DEPLOY_HOST" | sha256sum | cut -c1-12)"
+        if getent hosts "$DEPLOY_HOST" >/dev/null 2>&1; then echo "DNS: resolves"; else echo "DNS: does NOT resolve"; fi
+        if timeout 10 bash -c "exec 3<>/dev/tcp/${DEPLOY_HOST}/22" 2>/dev/null; then
+          echo "TCP 22: open"
+        else
+          echo "TCP 22: unreachable (packets dropped before sshd, or nothing listening)"
+        fi
+        for attempt in 1 2 3; do
+          if ssh -v -o ConnectTimeout=15 -o ConnectionAttempts=3 hetzner-prod 'echo ssh-reachable' 2>&1 | redact; then
+            echo "✅ SSH reachable"
+            exit 0
+          fi
+          echo "Attempt $attempt/3 failed; retrying in 10s"
+          sleep 10
+        done
+        echo "::error::GitHub runners cannot reach the production host over SSH. Read the verbose output above: 'connect to host ... timed out' means packets never arrived (Hetzner Cloud Firewall, or a fail2ban DROP on that source), while a completed key exchange followed by 'Connection closed by remote host' after ~120s means authentication never finished - 120s is sshd's LoginGraceTime, and a ban landing mid-session drops the auth packets. fail2ban's sshd jail on this host runs mode=aggressive with maxretry=3, which bans shared CI addresses; check sudo fail2ban-client status sshd. See docs/DEPLOYMENT.md 'Runner cannot reach the host'."
+        exit 1
+
+    - name: Probe SSH connectivity (simple)
+      if: ${{ inputs.probe == 'simple' }}
+      shell: bash
+      run: |
+        set -uo pipefail
+        for attempt in 1 2 3; do
+          if ssh hetzner-prod 'echo ssh-reachable'; then
+            exit 0
+          fi
+          echo "Attempt $attempt/3 failed; retrying in 10s"
+          sleep 10
+        done
+        echo "::error::GitHub runners cannot reach the production host over SSH"
+        exit 1

@@ -1,19 +1,22 @@
 """Item service: canonical sell flow for weapons, outfits, and junk."""
 
 import contextlib
+from collections.abc import Sequence
 from uuid import UUID
 
 from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app import crud
-from app.crud.item_base import CRUDItem, get_item_vault_id
+from app.crud.item_base import CRUDItem, get_item_vault_id, get_items_by_vault
 from app.crud.junk import CRUDJunk
 from app.models.junk import Junk
 from app.models.outfit import Outfit
 from app.models.pet import Pet
 from app.models.vault import Vault
 from app.models.weapon import Weapon
+from app.schemas.outfit import OutfitCreate, OutfitUpdate
+from app.schemas.weapon import WeaponCreate, WeaponUpdate
 from app.services.vault_service import vault_service
 from app.utils.dweller_availability import require_vault_equipment_access
 from app.utils.exceptions import ensure_found
@@ -31,6 +34,47 @@ def _crud_for(model: ItemModel):
 
 class ItemService:
     """Item lifecycle operations that span items and vault resources."""
+
+    async def list_items_for_vault[ItemT: (Weapon, Outfit)](
+        self, db_session: AsyncSession, *, model: type[ItemT], vault_id: UUID, skip: int = 0, limit: int = 100
+    ) -> Sequence[ItemT]:
+        """Items in a vault's storage or equipped by its dwellers."""
+        return await get_items_by_vault(db_session, model, vault_id, skip, limit)
+
+    async def get_item[ItemT: (Weapon, Outfit)](
+        self, db_session: AsyncSession, *, model: type[ItemT], item_id: UUID
+    ) -> ItemT:
+        """Item by id; missing rows raise ResourceNotFoundException."""
+        return await _crud_for(model).get(db_session, item_id)
+
+    async def create_item[ItemT: (Weapon, Outfit)](
+        self, db_session: AsyncSession, *, model: type[ItemT], item_data: WeaponCreate | OutfitCreate
+    ) -> ItemT:
+        """Admin create; the service owns the commit."""
+        item = await _crud_for(model).create(db_session, item_data, commit=False)
+        await db_session.commit()
+        await db_session.refresh(item)
+        return item
+
+    async def update_item[ItemT: (Weapon, Outfit)](
+        self,
+        db_session: AsyncSession,
+        *,
+        model: type[ItemT],
+        item_id: UUID,
+        item_data: WeaponUpdate | OutfitUpdate,
+    ) -> ItemT:
+        """Admin update; the service owns the commit."""
+        item = await _crud_for(model).update(db_session, item_id, item_data, commit=False)
+        await db_session.commit()
+        return item
+
+    async def delete_item[ItemT: (Weapon, Outfit)](
+        self, db_session: AsyncSession, *, model: type[ItemT], item_id: UUID
+    ) -> None:
+        """Admin delete; the service owns the commit."""
+        await _crud_for(model).delete(db_session, item_id, commit=False)
+        await db_session.commit()
 
     async def equip_item[ItemT: (Weapon, Outfit)](
         self, db_session: AsyncSession, *, item_id: UUID, dweller_id: UUID, model: type[ItemT]

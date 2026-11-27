@@ -6,7 +6,6 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends
 
-from app import crud
 from app.api.deps import (
     CurrentActiveUser,
     CurrentSuperuser,
@@ -18,7 +17,6 @@ from app.api.deps import (
     verify_item_access,
 )
 from app.core.game_data import get_static_game_data
-from app.crud.item_base import get_items_by_vault
 from app.models.outfit import Outfit
 from app.schemas.outfit import OutfitCreate, OutfitRead, OutfitUpdate
 from app.schemas.responses import NULL_BODY_RESPONSES, JunkListResponse
@@ -35,7 +33,7 @@ async def create_outfit(
     _: CurrentSuperuser,
 ) -> Outfit:
     """Create a new outfit (administrators only)."""
-    return await crud.outfit.create(db_session, outfit_data)
+    return await item_service.create_item(db_session, model=Outfit, item_data=outfit_data)
 
 
 @router.get("/", response_model=list[OutfitRead])
@@ -52,7 +50,9 @@ async def read_outfit_list(
     players' gear.
     """
     await get_user_vault_or_403(vault_id, user, db_session)
-    return await get_items_by_vault(db_session, Outfit, vault_id, pagination.skip, pagination.limit)
+    return await item_service.list_items_for_vault(
+        db_session, model=Outfit, vault_id=vault_id, skip=pagination.skip, limit=pagination.limit
+    )
 
 
 @router.get("/{outfit_id}", response_model=OutfitRead)
@@ -63,7 +63,7 @@ async def read_outfit(
 ) -> Outfit:
     """Retrieve an outfit by ID."""
     await verify_item_access(outfit_id, Outfit, user, db_session)
-    return await crud.outfit.get(db_session, outfit_id)
+    return await item_service.get_item(db_session, model=Outfit, item_id=outfit_id)
 
 
 @router.put("/{outfit_id}", response_model=OutfitRead)
@@ -74,7 +74,7 @@ async def update_outfit(
     _: CurrentSuperuser,
 ) -> Outfit:
     """Update an outfit (administrators only)."""
-    return await crud.outfit.update(db_session, outfit_id, outfit_data)
+    return await item_service.update_item(db_session, model=Outfit, item_id=outfit_id, item_data=outfit_data)
 
 
 @router.delete("/{outfit_id}", status_code=204)
@@ -84,7 +84,7 @@ async def delete_outfit(
     _: CurrentSuperuser,
 ) -> None:
     """Delete an outfit (administrators only)."""
-    await crud.outfit.delete(db_session, outfit_id)
+    await item_service.delete_item(db_session, model=Outfit, item_id=outfit_id)
 
 
 @router.post("/{dweller_id}/equip/{outfit_id}", response_model=OutfitRead)

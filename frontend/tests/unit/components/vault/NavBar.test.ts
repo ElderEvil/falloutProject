@@ -391,6 +391,19 @@ describe('NavBar', () => {
     wrapper.unmount()
   })
 
+  it('caps the username width so a long name cannot push the header off-screen', async () => {
+    signIn()
+
+    const wrapper = await mountNavBar()
+
+    // Measured at 640px with an incident alarm present: an unbounded username pushed the
+    // account group 145px past the viewport, taking the caps counter with it.
+    const name = wrapper.get('button[aria-label="User menu for Overseer"] span')
+    expect(name.classes()).toContain('truncate')
+    expect(name.classes()).toContain('max-w-24')
+    wrapper.unmount()
+  })
+
   it('keeps the generic icon when the profile has no avatar', async () => {
     signIn()
 

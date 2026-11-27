@@ -365,7 +365,7 @@ onUnmounted(() => {
           </div>
         </div>
         <div
-          class="ml-auto flex shrink-0 items-center gap-2 sm:gap-4"
+          class="ml-auto flex min-w-0 shrink-0 items-center gap-2 sm:gap-4"
           role="group"
           aria-label="Account and notifications"
         >
@@ -452,7 +452,7 @@ onUnmounted(() => {
                 @error="avatarLoadFailed = true"
               />
               <Icon v-else icon="mdi:account-circle" class="h-7 w-7" :ariaHidden="true" />
-              <span class="hidden sm:inline">{{ user?.username }}</span>
+              <span class="hidden max-w-24 truncate sm:inline-block">{{ user?.username }}</span>
             </button>
             <Transition name="dropdown">
               <!-- Raw role="menuitem" rows: a DropdownMenu primitive is not vendored (docs/frontend/RAW_NATIVE_CONTROLS.md). -->

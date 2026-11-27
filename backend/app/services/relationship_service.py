@@ -206,6 +206,11 @@ class RelationshipService:
         return await relationship_crud.get_by_dweller_pair(db_session, dweller_1_id, dweller_2_id)
 
     @staticmethod
+    async def get_relationship_by_id(db_session: AsyncSession, relationship_id: UUID) -> Relationship:
+        """Get a relationship by id; missing rows raise ResourceNotFoundException."""
+        return await relationship_crud.get(db_session, relationship_id)
+
+    @staticmethod
     async def get_or_create_relationship(
         db_session: AsyncSession,
         dweller_1_id: UUID,

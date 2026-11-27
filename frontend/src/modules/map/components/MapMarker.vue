@@ -3,7 +3,7 @@ import { computed, ref, useId, watch, type CSSProperties } from 'vue'
 import { Icon } from '@iconify/vue'
 import { getStaticImageUrl, normalizeImageUrl } from '@/core/utils/image'
 import { MARKER_GLYPH_SIZE, markerTypeMeta, type MarkerType } from '../models/markerTypeMeta'
-import { purposeMeta, type PlacePurpose } from '../models/purposeMeta'
+import { shapeMeta, type MarkerShape } from '../models/markerShape'
 import { riskLabel } from '../utils/dangerStyle'
 import { isHintLocation } from '../utils/visibility'
 
@@ -12,8 +12,8 @@ interface Props {
   y: number
   name: string
   type: MarkerType
-  /** What the place is for; drives the body shape. Null keeps the plain disc. */
-  purpose?: PlacePurpose | null
+  /** Body silhouette the marker draws. Null keeps the plain disc. */
+  shape?: MarkerShape | null
   selected?: boolean
   is_unlocked?: boolean
   unseen?: boolean
@@ -41,7 +41,7 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), {
   color: null,
-  purpose: null,
+  shape: null,
   selected: false,
   is_unlocked: true,
   unseen: false,
@@ -101,14 +101,20 @@ const labelY = computed(() => -body(3.4))
 const labelStyle = computed<CSSProperties>(() => ({ fontSize: `${body(2.4)}px` }))
 const portraitClipId = useId()
 
-// Body shape carries purpose: circle = clear, diamond = trade, open ring = look,
-// square = your vault. A marker without a purpose keeps the plain disc, so
+// Body silhouette carries purpose: circle = clear, diamond = trade, open triangle
+// = look, square = your vault. A marker without a shape keeps the plain disc, so
 // signals and parties read exactly as they always have.
-const purposeShape = computed(() => (props.purpose ? purposeMeta(props.purpose).shape : 'circle'))
-const purposeLabel = computed(() => (props.purpose ? purposeMeta(props.purpose).label : null))
-const diamondPath = computed(() => {
+const bodyShape = computed<MarkerShape>(() => props.shape ?? 'circle')
+const purposeLabel = computed(() => (props.shape ? shapeMeta(props.shape).label : null))
+const bodyPath = computed(() => {
   const r = discRadius.value
-  return `M 0 ${-r} L ${r} 0 L 0 ${r} L ${-r} 0 Z`
+  if (bodyShape.value === 'diamond') return `M 0 ${-r} L ${r} 0 L 0 ${r} L ${-r} 0 Z`
+  if (bodyShape.value === 'triangle') {
+    // Rounded to the same thousandth as the radius so the DOM stays readable.
+    const dx = Math.round(((r * Math.sqrt(3)) / 2) * 1000) / 1000
+    return `M 0 ${-r} L ${dx} ${r / 2} L ${-dx} ${r / 2} Z`
+  }
+  return ''
 })
 
 // Explorer thumbnail: normalise the backend static path and fall back to the
@@ -163,14 +169,14 @@ const tooltipText = computed(() => {
     <circle class="marker-hit-area" r="6" fill="transparent" />
     <title>{{ tooltipText }}</title>
     <!-- Dark knockout body: keeps the glyph and rings legible over any terrain.
-         Its shape encodes purpose — circle clear, diamond trade, open ring look,
-         square home — while signals keep the plain disc. -->
-    <circle v-if="purposeShape === 'circle'" class="marker-backing" :r="discRadius" />
-    <path v-else-if="purposeShape === 'diamond'" class="marker-backing" :d="diamondPath" />
-    <circle
-      v-else-if="purposeShape === 'ring'"
-      class="marker-backing marker-backing-open"
-      :r="discRadius"
+         Its silhouette encodes purpose — circle clear, diamond trade, open triangle
+         look, square home — while signals keep the plain disc. -->
+    <circle v-if="bodyShape === 'circle'" class="marker-backing" :r="discRadius" />
+    <path
+      v-else-if="bodyShape === 'diamond' || bodyShape === 'triangle'"
+      class="marker-backing"
+      :class="{ 'marker-backing-open': bodyShape === 'triangle' }"
+      :d="bodyPath"
     />
     <rect
       v-else

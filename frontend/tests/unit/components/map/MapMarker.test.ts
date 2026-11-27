@@ -355,20 +355,20 @@ describe('MapMarker zoom compensation', () => {
     )
   })
 
-  describe('purpose shapes', () => {
-    it('keeps the plain disc when a marker has no purpose', () => {
+  describe('body shapes', () => {
+    it('keeps the plain disc when a marker has no shape', () => {
       const wrapper = mountMarker()
       expect(wrapper.find('circle.marker-backing').exists()).toBe(true)
       expect(wrapper.find('path.marker-backing').exists()).toBe(false)
     })
 
     it.each([
-      ['clear', 'circle'],
-      ['trade', 'path'],
-      ['look', 'circle'],
-      ['home', 'rect'],
-    ])('draws %s as a %s body', (purpose, tag) => {
-      const wrapper = mountMarker({ purpose })
+      ['circle', 'circle'],
+      ['diamond', 'path'],
+      ['triangle', 'path'],
+      ['square', 'rect'],
+    ])('draws %s as a %s body', (shape, tag) => {
+      const wrapper = mountMarker({ shape })
       expect(wrapper.find(`${tag}.marker-backing`).exists()).toBe(true)
       const others = ['circle', 'path', 'rect'].filter((t) => t !== tag)
       for (const other of others)
@@ -376,23 +376,32 @@ describe('MapMarker zoom compensation', () => {
     })
 
     it('opens the body for Look places so they never read as a raid target', () => {
-      expect(mountMarker({ purpose: 'look' }).find('.marker-backing-open').exists()).toBe(true)
-      expect(mountMarker({ purpose: 'clear' }).find('.marker-backing-open').exists()).toBe(false)
+      expect(mountMarker({ shape: 'triangle' }).find('.marker-backing-open').exists()).toBe(true)
+      expect(mountMarker({ shape: 'circle' }).find('.marker-backing-open').exists()).toBe(false)
+      expect(mountMarker({ shape: 'diamond' }).find('.marker-backing-open').exists()).toBe(false)
     })
 
     it('keeps the diamond body inside the disc footprint', () => {
-      const d = mountMarker({ purpose: 'trade' }).find('path.marker-backing').attributes('d') ?? ''
+      const d = mountMarker({ shape: 'diamond' }).find('path.marker-backing').attributes('d') ?? ''
       expect(d).toBe('M 0 -4.2 L 4.2 0 L 0 4.2 L -4.2 0 Z')
     })
 
+    it('draws the look triangle with three vertices inside the same footprint', () => {
+      const d = mountMarker({ shape: 'triangle' }).find('path.marker-backing').attributes('d') ?? ''
+      // Three points, apex up, base on the +2.1 line of the r=4.2 disc.
+      expect(d).toBe('M 0 -4.2 L 3.637 2.1 L -3.637 2.1 Z')
+    })
+
     it('names the purpose in the accessible label', () => {
-      expect(mountMarker({ purpose: 'trade' }).attributes('aria-label')).toContain('Trade')
-      expect(mountMarker({ purpose: 'clear' }).attributes('aria-label')).toContain('Clear')
+      expect(mountMarker({ shape: 'diamond' }).attributes('aria-label')).toContain('Trade')
+      expect(mountMarker({ shape: 'circle' }).attributes('aria-label')).toContain('Clear')
+      expect(mountMarker({ shape: 'triangle' }).attributes('aria-label')).toContain('Look')
+      expect(mountMarker({ shape: 'square' }).attributes('aria-label')).toContain('Home')
     })
 
     it('leaves the hit area the same size whatever the shape', () => {
-      for (const purpose of ['clear', 'trade', 'look', 'home'])
-        expect(mountMarker({ purpose }).find('circle.marker-hit-area').attributes('r')).toBe('6')
+      for (const shape of ['circle', 'diamond', 'triangle', 'square'])
+        expect(mountMarker({ shape }).find('circle.marker-hit-area').attributes('r')).toBe('6')
     })
   })
 })

@@ -21,7 +21,7 @@ import {
   locationMarkerIcon,
 } from '../models/markerTypeMeta'
 import { groupColor } from '../models/groupColors'
-import { purposeFor } from '../models/purposeMeta'
+import { shapeFor } from '../models/markerShape'
 import MapClusterMarker from './MapClusterMarker.vue'
 import MapMarker from './MapMarker.vue'
 import MapLegend from './MapLegend.vue'
@@ -595,7 +595,7 @@ function handleTouchEnd(event: TouchEvent) {
           :y="loc.coord_y"
           :name="loc.name"
           :type="loc.type"
-          :purpose="purposeFor(loc)"
+          :shape="shapeFor(loc)"
           :icon="locationMarkerIcon(loc.type, loc.group_key, groupIconByKey)"
           :is_unlocked="loc.is_unlocked"
           :unseen="mapStore.isUnseenDiscovery(loc)"
@@ -634,7 +634,7 @@ function handleTouchEnd(event: TouchEvent) {
           :y="pv.coord_y"
           :name="`Vault ${pv.number}`"
           type="home_vault"
-          purpose="home"
+          shape="square"
           label="Your Vault"
           :status="`View details`"
           @click="onOwnVaultClick(pv)"

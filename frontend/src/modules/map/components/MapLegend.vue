@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Icon } from '@iconify/vue'
-import { PURPOSE_META } from '../models/purposeMeta'
+import { PURPOSE_META } from '../models/markerShape'
 
 const states = [
   { label: 'Unscouted', hint: 'dashed', icon: 'mdi:map-marker-outline' },
@@ -28,17 +28,15 @@ const signals = [
         <span v-for="entry in PURPOSE_META" :key="entry.purpose" class="legend-item">
           <svg viewBox="0 0 10 10" class="size-3.5 shrink-0" aria-hidden="true">
             <circle v-if="entry.shape === 'circle'" cx="5" cy="5" r="4" class="legend-shape" />
-            <circle
-              v-else-if="entry.shape === 'ring'"
-              cx="5"
-              cy="5"
-              r="4"
-              class="legend-shape ring"
-            />
             <path
               v-else-if="entry.shape === 'diamond'"
               d="M5 1 9 5 5 9 1 5Z"
               class="legend-shape"
+            />
+            <path
+              v-else-if="entry.shape === 'triangle'"
+              d="M5 1.2 9 8.4 1 8.4Z"
+              class="legend-shape ring"
             />
             <rect v-else x="1.2" y="1.2" width="7.6" height="7.6" rx="1.4" class="legend-shape" />
           </svg>

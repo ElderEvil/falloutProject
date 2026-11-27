@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vite-plus/test'
+import { canDepartToWasteland } from '@/modules/dwellers/models/dweller'
 import {
   ORIENTATION_STEPS,
   type OnboardingLesson,
@@ -127,6 +128,24 @@ describe('onboardingSteps', () => {
     expect(chapterThree[0]?.kind).toBe('tap')
     expect(chapterThree[1]?.kind).toBe('tap')
     expect(chapterThree[chapterThree.length - 1]?.kind).toBe('objective-explanation')
+  })
+
+  it('shares the roster departability predicate with the drag-source anchor', () => {
+    expect(canDepartToWasteland({ age_group: 'elder', status: 'idle', health: 1 })).toBe(true)
+    expect(canDepartToWasteland({ age_group: 'child', status: 'idle', health: 100 })).toBe(false)
+    expect(canDepartToWasteland({ age_group: 'adult', status: 'idle', health: 0 })).toBe(false)
+    expect(canDepartToWasteland({ age_group: 'adult', status: 'exploring', health: 100 })).toBe(
+      false
+    )
+    expect(canDepartToWasteland({ age_group: 'adult', status: 'dead', health: 100 })).toBe(false)
+
+    // A wounded adult blocks all three departure steps with the same remedy the cards obey.
+    const wounded = departureSnapshot([{ id: 'a', age_group: 'adult', status: 'idle', health: 0 }])
+    for (const step of ORIENTATION_STEPS.filter((lesson) => lesson.chapter === 3)) {
+      expect(step.eligibility(wounded)).toEqual({
+        blocked: 'Treat a wounded dweller before sending them out',
+      })
+    }
   })
 
   it('gives housing a fallback route back to construction', () => {

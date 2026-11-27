@@ -601,10 +601,32 @@ export function orderRoomDwellers<T extends { apprentice_stat?: string | null }>
   return [...workers, ...apprentices]
 }
 
+/**
+ * Statuses that take a dweller off the vault floor: dead, or away on a run or quest.
+ * Shared so the roster, the unassigned tray and the onboarding guide agree.
+ */
+const UNAVAILABLE_STATUSES = new Set(['dead', 'questing', 'exploring'])
+
 /** A dweller with no room assignment that is not dead or away from the vault (available to assign). */
 export function isAvailableUnassignedDweller(dweller: {
   room_id?: string | null
   status: string
 }): boolean {
-  return !dweller.room_id && !['dead', 'questing', 'exploring'].includes(dweller.status)
+  return !dweller.room_id && !UNAVAILABLE_STATUSES.has(dweller.status)
+}
+
+/**
+ * True when a dweller may be sent to the wasteland: a mature adult, present in the
+ * vault, and unharmed. Mirrors the departure eligibility the onboarding guide reports.
+ */
+export function canDepartToWasteland(dweller: {
+  age_group: string
+  status: string
+  health: number
+}): boolean {
+  return (
+    ADULT_AGE_GROUPS.has(dweller.age_group) &&
+    !UNAVAILABLE_STATUSES.has(dweller.status) &&
+    dweller.health > 0
+  )
 }

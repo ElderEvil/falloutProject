@@ -10,6 +10,7 @@ import type { components } from '@/core/types/api.generated'
 import { getRarityColor } from '@/core/models/items'
 import {
   GENDER_CONFIG_MAP,
+  canDepartToWasteland,
   getDwellerDisplayName,
   isAvailableUnassignedDweller,
   type DwellerShort,
@@ -240,7 +241,9 @@ const handleDropZoneDrop = async (event: DragEvent) => {
           v-for="dweller in unassignedDwellers"
           :key="dweller.id"
           class="dweller-card"
-          v-bind="{ 'data-onboarding': 'dweller-drag-source' }"
+          v-bind="{
+            'data-onboarding': canDepartToWasteland(dweller) ? 'dweller-drag-source' : undefined,
+          }"
           draggable="true"
           @dragstart="handleDragStart($event, dweller)"
           @dragend="handleDragEnd"

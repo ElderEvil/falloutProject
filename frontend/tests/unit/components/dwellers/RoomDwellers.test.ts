@@ -119,6 +119,29 @@ it('orders workers before apprentices and marks the apprentice avatar', () => {
   expect(avatars[1].find('.apprentice-badge').exists()).toBe(true)
 })
 
+it('carries the drag-source anchor only on a dweller that can depart', () => {
+  setFilteredDwellers([
+    { ...alice, id: 'kid', first_name: 'Kid', age_group: 'child' },
+    { ...alice, id: 'hurt', first_name: 'Hurt', health: 0 },
+    { ...alice, id: 'away', first_name: 'Away', status: 'exploring' },
+    { ...alice, id: 'elder', first_name: 'Elder', age_group: 'elder' },
+  ])
+
+  const wrapper = mountDwellers()
+  const anchorFor = (name: string) =>
+    wrapper
+      .findAll('.dweller-avatar')
+      .find((avatar) => avatar.attributes('aria-label')?.startsWith(name))
+      ?.attributes('data-onboarding')
+
+  // The guide asks for a healthy adult, so the spotlight must not land on a child,
+  // a wounded dweller or one already away.
+  expect(anchorFor('Kid')).toBeUndefined()
+  expect(anchorFor('Hurt')).toBeUndefined()
+  expect(anchorFor('Away')).toBeUndefined()
+  expect(anchorFor('Elder')).toBe('dweller-drag-source')
+})
+
 it('keeps the worker visible while a build refresh reloads the filtered page', async () => {
   const filter = useDwellerFilterStore()
   const roomStore = useRoomStore()

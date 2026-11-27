@@ -1,3 +1,4 @@
+import { canDepartToWasteland } from '@/modules/dwellers/models/dweller'
 import type { Objective } from './objective'
 
 /**
@@ -93,7 +94,6 @@ const OBJECTIVE_KEYS = {
 
 const MATURE_AGE_GROUPS = new Set(['adult', 'elder'])
 const AWAY_STATUSES = new Set(['exploring', 'questing'])
-const UNAVAILABLE_DEPARTURE_STATUSES = new Set(['exploring', 'questing', 'dead'])
 
 const alwaysEligible = (): TeachingEligibility => 'eligible'
 
@@ -109,8 +109,9 @@ const objectiveEligibility =
 
 const isMature = (dweller: SnapshotDweller): boolean => MATURE_AGE_GROUPS.has(dweller.age_group)
 
-const canDepart = (dweller: SnapshotDweller): boolean =>
-  isMature(dweller) && !UNAVAILABLE_DEPARTURE_STATUSES.has(dweller.status) && dweller.health > 0
+// Shared with the roster cards that carry the drag-source anchor, so the step the guide
+// asks for and the card it highlights agree.
+const canDepart = canDepartToWasteland
 
 // Mirrors backend get_room_build_price: catalog cost plus an increment per existing room
 // in the same category, so an already-built vault raises the next Living Quarters above base.
@@ -244,7 +245,7 @@ export const ORIENTATION_STEPS: readonly OnboardingLesson[] = [
     chapter: 3,
     kind: 'tap',
     title: 'Drag the card to The Wasteland',
-    body: 'Hold the card and drag it onto the dashed “The Wasteland” panel below the rooms; it reads “Release to send!” while you hover, so let go there. The Wasteland button on a dweller card opens the same run panel without a drag.',
+    body: 'Hold the card and drag it onto the dashed “The Wasteland” panel below the rooms — it reads “Release to send!” while you hover. The panel that opens asks for hours, stimpaks, radaways and a heading; check them, then Send to Wasteland. The Wasteland button on a dweller card skips the drag.',
     templateKeys: OBJECTIVE_KEYS.departure,
     anchors: ['wasteland'],
     route: '',
@@ -256,7 +257,7 @@ export const ORIENTATION_STEPS: readonly OnboardingLesson[] = [
     chapter: 3,
     kind: 'objective-explanation',
     title: 'Send a dweller exploring',
-    body: 'Dropping the card opens the run panel: pick hours, choose how many stimpaks and radaways to pack, check the heading, then Send to Wasteland. Sending a worker leaves their production room short; the guide will suggest something useful to do while they are away.',
+    body: 'Sending a worker leaves their production room short, so choose someone whose room can spare them for the run; the guide will suggest something useful to do while they are away.',
     templateKeys: OBJECTIVE_KEYS.departure,
     anchors: ['wasteland', 'dweller-departure'],
     route: '',

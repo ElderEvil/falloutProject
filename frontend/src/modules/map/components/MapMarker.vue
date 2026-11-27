@@ -3,6 +3,7 @@ import { computed, ref, useId, watch, type CSSProperties } from 'vue'
 import { Icon } from '@iconify/vue'
 import { getStaticImageUrl, normalizeImageUrl } from '@/core/utils/image'
 import { MARKER_GLYPH_SIZE, markerTypeMeta, type MarkerType } from '../models/markerTypeMeta'
+import { purposeMeta, type PlacePurpose } from '../models/purposeMeta'
 import { riskLabel } from '../utils/dangerStyle'
 import { isHintLocation } from '../utils/visibility'
 
@@ -11,6 +12,8 @@ interface Props {
   y: number
   name: string
   type: MarkerType
+  /** What the place is for; drives the body shape. Null keeps the plain disc. */
+  purpose?: PlacePurpose | null
   selected?: boolean
   is_unlocked?: boolean
   unseen?: boolean
@@ -38,6 +41,7 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), {
   color: null,
+  purpose: null,
   selected: false,
   is_unlocked: true,
   unseen: false,
@@ -97,6 +101,16 @@ const labelY = computed(() => -body(3.4))
 const labelStyle = computed<CSSProperties>(() => ({ fontSize: `${body(2.4)}px` }))
 const portraitClipId = useId()
 
+// Body shape carries purpose: circle = clear, diamond = trade, open ring = look,
+// square = your vault. A marker without a purpose keeps the plain disc, so
+// signals and parties read exactly as they always have.
+const purposeShape = computed(() => (props.purpose ? purposeMeta(props.purpose).shape : 'circle'))
+const purposeLabel = computed(() => (props.purpose ? purposeMeta(props.purpose).label : null))
+const diamondPath = computed(() => {
+  const r = discRadius.value
+  return `M 0 ${-r} L ${r} 0 L 0 ${r} L ${-r} 0 Z`
+})
+
 // Explorer thumbnail: normalise the backend static path and fall back to the
 // icon glyph if the image fails to load (restores DwellerPortrait's behaviour
 // after moving the glyph off <foreignObject>).
@@ -118,6 +132,7 @@ const glyphStyle = computed<CSSProperties>(() => ({
 const tooltipText = computed(() => {
   const base = `${displayLabel.value} (${label.value})`
   const details = [
+    purposeLabel.value,
     isLocked.value ? null : riskLabel(props.risk, props.baseDifficulty),
     props.cooldown ? 'Cooldown' : props.cleared ? 'Cleared' : null,
     props.status,
@@ -147,8 +162,25 @@ const tooltipText = computed(() => {
   >
     <circle class="marker-hit-area" r="6" fill="transparent" />
     <title>{{ tooltipText }}</title>
-    <!-- Dark knockout disc: keeps the glyph and rings legible over any terrain -->
-    <circle class="marker-backing" :r="discRadius" />
+    <!-- Dark knockout body: keeps the glyph and rings legible over any terrain.
+         Its shape encodes purpose — circle clear, diamond trade, open ring look,
+         square home — while signals keep the plain disc. -->
+    <circle v-if="purposeShape === 'circle'" class="marker-backing" :r="discRadius" />
+    <path v-else-if="purposeShape === 'diamond'" class="marker-backing" :d="diamondPath" />
+    <circle
+      v-else-if="purposeShape === 'ring'"
+      class="marker-backing marker-backing-open"
+      :r="discRadius"
+    />
+    <rect
+      v-else
+      class="marker-backing"
+      :x="-discRadius"
+      :y="-discRadius"
+      :width="discRadius * 2"
+      :height="discRadius * 2"
+      :rx="discRadius * 0.32"
+    />
     <circle v-if="selected" class="marker-select-ring" :r="ringRadius" />
     <circle v-if="selected" class="marker-select-ping" :r="ringRadius" />
     <circle v-if="exploring" class="marker-exploring-ring" :r="ringRadius" />
@@ -254,6 +286,11 @@ const tooltipText = computed(() => {
 
 .marker-glyph {
   pointer-events: none;
+}
+
+/* Look places (landmarks, regions) are open bodies: you read them, you do not raid them. */
+.marker-backing-open {
+  fill: none;
 }
 
 .marker-discovery {

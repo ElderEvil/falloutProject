@@ -106,26 +106,25 @@ describe('MapMarker', () => {
     expect(wrapper.find('g.marker-glyph').classes()).not.toContain('marker-discovery')
   })
 
-  it.each([true, false])(
-    'renders selection as a static ring only when selected=%s',
-    (selected) => {
-      const wrapper = mountMarker({
-        type: 'discovery',
-        is_unlocked: true,
-        unseen: !selected,
-        selected,
-      })
-      expect(wrapper.find('.marker-select-ring').exists()).toBe(selected)
-      if (selected) {
-        expect(wrapper.find('g.marker-glyph').classes()).not.toContain('marker-discovery')
-      } else {
-        expect(wrapper.find('.marker-select-ping').exists()).toBe(false)
-      }
+  it.each([true, false])('renders selection as a static ring only when selected=%s', (selected) => {
+    const wrapper = mountMarker({
+      type: 'discovery',
+      is_unlocked: true,
+      unseen: !selected,
+      selected,
+    })
+    expect(wrapper.find('.marker-select-ring').exists()).toBe(selected)
+    if (selected) {
+      expect(wrapper.find('g.marker-glyph').classes()).not.toContain('marker-discovery')
+    } else {
+      expect(wrapper.find('.marker-select-ping').exists()).toBe(false)
     }
-  )
+  })
 
   it('emits a single ping element on the click transition', () => {
-    expect(mountMarker({ type: 'visited', selected: true }).findAll('.marker-select-ping')).toHaveLength(1)
+    expect(
+      mountMarker({ type: 'visited', selected: true }).findAll('.marker-select-ping')
+    ).toHaveLength(1)
   })
 
   describe('Expedition site markers', () => {
@@ -156,7 +155,11 @@ describe('MapMarker', () => {
       [true, true],
       [false, false],
     ])('renders the cleared badge only when cleared=%s', (cleared, shown) => {
-      const wrapper = mountMarker({ name: 'Red Rocket Gas Station', type: 'expedition_site', cleared })
+      const wrapper = mountMarker({
+        name: 'Red Rocket Gas Station',
+        type: 'expedition_site',
+        cleared,
+      })
       expect(wrapper.find('.marker-cleared-badge').exists()).toBe(shown)
     })
   })
@@ -193,7 +196,13 @@ describe('MapMarker', () => {
     })
 
     it('does not emit click for a non-interactive marker', async () => {
-      const wrapper = mountMarker({ x: 42, y: 43, name: 'Bob', type: 'explorer', interactive: false })
+      const wrapper = mountMarker({
+        x: 42,
+        y: 43,
+        name: 'Bob',
+        type: 'explorer',
+        interactive: false,
+      })
       await wrapper.trigger('click')
       expect(wrapper.emitted('click')).toBeUndefined()
     })
@@ -229,7 +238,11 @@ describe('MapMarker', () => {
 
     it.each([
       ['an absolute URL', 'https://cdn.example/bob.png', 'https://cdn.example/bob.png'],
-      ['backend-static art', '/static/portraits/bob.png', 'http://localhost:8000/static/portraits/bob.png'],
+      [
+        'backend-static art',
+        '/static/portraits/bob.png',
+        'http://localhost:8000/static/portraits/bob.png',
+      ],
       ['location data-URL art', 'data:image/png;base64,art', 'data:image/png;base64,art'],
     ])('resolves %s to a usable href', (_, artSrc, href) => {
       const wrapper = mountMarker({ name: 'Bob', type: 'explorer', icon: 'mdi:walk', artSrc })
@@ -287,7 +300,10 @@ describe('MapMarker', () => {
 
     it.each([
       ['without catalog risk data', { name: 'Old Shack', type: 'visited' }],
-      ['for a locked location', { name: 'Hidden Camp', type: 'discovery', is_unlocked: false, risk: 'high' }],
+      [
+        'for a locked location',
+        { name: 'Hidden Camp', type: 'discovery', is_unlocked: false, risk: 'high' },
+      ],
     ])('keeps the neutral ramp %s', (_, props) => {
       const wrapper = mountMarker(props)
       expect(wrapper.find('g.map-marker.marker-risk-medium').exists()).toBe(false)
@@ -307,10 +323,14 @@ describe('MapMarker zoom compensation', () => {
       color: 'var(--color-family-threat)',
       risk: 'high',
     })
-    expect(wrapper.find('.marker-glyph').attributes('style')).toContain('var(--color-family-threat)')
+    expect(wrapper.find('.marker-glyph').attributes('style')).toContain(
+      'var(--color-family-threat)'
+    )
     expect(wrapper.attributes('aria-label')).toContain('High risk')
     await wrapper.setProps({ is_unlocked: false })
-    expect(wrapper.find('.marker-glyph').attributes('style')).toContain('var(--color-theme-primary)')
+    expect(wrapper.find('.marker-glyph').attributes('style')).toContain(
+      'var(--color-theme-primary)'
+    )
     expect(wrapper.attributes('aria-label')).not.toContain('High risk')
   })
 
@@ -333,5 +353,46 @@ describe('MapMarker zoom compensation', () => {
     expect(wrapper.find('g.map-marker').attributes('transform')).toBe(
       'translate(20, 30) scale(0.5)'
     )
+  })
+
+  describe('purpose shapes', () => {
+    it('keeps the plain disc when a marker has no purpose', () => {
+      const wrapper = mountMarker()
+      expect(wrapper.find('circle.marker-backing').exists()).toBe(true)
+      expect(wrapper.find('path.marker-backing').exists()).toBe(false)
+    })
+
+    it.each([
+      ['clear', 'circle'],
+      ['trade', 'path'],
+      ['look', 'circle'],
+      ['home', 'rect'],
+    ])('draws %s as a %s body', (purpose, tag) => {
+      const wrapper = mountMarker({ purpose })
+      expect(wrapper.find(`${tag}.marker-backing`).exists()).toBe(true)
+      const others = ['circle', 'path', 'rect'].filter((t) => t !== tag)
+      for (const other of others)
+        expect(wrapper.find(`${other}.marker-backing`).exists()).toBe(false)
+    })
+
+    it('opens the body for Look places so they never read as a raid target', () => {
+      expect(mountMarker({ purpose: 'look' }).find('.marker-backing-open').exists()).toBe(true)
+      expect(mountMarker({ purpose: 'clear' }).find('.marker-backing-open').exists()).toBe(false)
+    })
+
+    it('keeps the diamond body inside the disc footprint', () => {
+      const d = mountMarker({ purpose: 'trade' }).find('path.marker-backing').attributes('d') ?? ''
+      expect(d).toBe('M 0 -4.2 L 4.2 0 L 0 4.2 L -4.2 0 Z')
+    })
+
+    it('names the purpose in the accessible label', () => {
+      expect(mountMarker({ purpose: 'trade' }).attributes('aria-label')).toContain('Trade')
+      expect(mountMarker({ purpose: 'clear' }).attributes('aria-label')).toContain('Clear')
+    })
+
+    it('leaves the hit area the same size whatever the shape', () => {
+      for (const purpose of ['clear', 'trade', 'look', 'home'])
+        expect(mountMarker({ purpose }).find('circle.marker-hit-area').attributes('r')).toBe('6')
+    })
   })
 })

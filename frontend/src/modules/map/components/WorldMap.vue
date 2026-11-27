@@ -21,6 +21,7 @@ import {
   locationMarkerIcon,
 } from '../models/markerTypeMeta'
 import { groupColor } from '../models/groupColors'
+import { purposeFor } from '../models/purposeMeta'
 import MapClusterMarker from './MapClusterMarker.vue'
 import MapMarker from './MapMarker.vue'
 import MapLegend from './MapLegend.vue'
@@ -594,6 +595,7 @@ function handleTouchEnd(event: TouchEvent) {
           :y="loc.coord_y"
           :name="loc.name"
           :type="loc.type"
+          :purpose="purposeFor(loc)"
           :icon="locationMarkerIcon(loc.type, loc.group_key, groupIconByKey)"
           :is_unlocked="loc.is_unlocked"
           :unseen="mapStore.isUnseenDiscovery(loc)"
@@ -831,7 +833,7 @@ function handleTouchEnd(event: TouchEvent) {
       @marker-select="onPanelMarkerSelect"
     >
       <template #toggle-label="{ count }">Places and sites · {{ count }}</template>
-      <template #legend><MapLegend :group-colors="groupColors" /></template>
+      <template #legend><MapLegend /></template>
       <template v-if="mapStore.collectibleSets.length > 0" #sets>
         <CollectibleSetsPanel :sets="mapStore.collectibleSets" />
       </template>

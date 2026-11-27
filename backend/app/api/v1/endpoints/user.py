@@ -9,9 +9,7 @@ from fastapi import APIRouter, Body, Depends
 from pydantic.networks import EmailStr
 from redis.asyncio import Redis
 
-from app import crud
 from app.api.deps import CurrentActiveUser, CurrentSuperuser, DBSession, PaginationParams, get_redis_client
-from app.crud.user_profile import profile_crud
 from app.models.user import User
 from app.models.user_profile import UserProfile
 from app.schemas.ai_usage import AIUsageResponse
@@ -20,7 +18,6 @@ from app.schemas.user_profile import ProfileRead, ProfileUpdate
 from app.services.admin_service import create_user_account, update_user_account
 from app.services.family.death_service import death_service
 from app.services.user_service import user_service
-from app.utils.exceptions import ResourceNotFoundException, ensure_found
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +43,7 @@ async def read_users(
     pagination: PaginationParams,
 ) -> Sequence[User]:
     """Retrieve users."""
-    return await crud.user.get_multi(db_session, skip=pagination.skip, limit=pagination.limit)
+    return await user_service.list_users(db_session, skip=pagination.skip, limit=pagination.limit)
 
 
 @router.put("/me", response_model=UserRead)
@@ -101,9 +98,7 @@ async def read_user_by_id(
     user: CurrentActiveUser,
 ) -> User:
     """Get a specific user by id."""
-    if user_id != user.id and not crud.user.is_superuser(user):
-        raise ResourceNotFoundException(model=User, identifier=user_id)
-    return await crud.user.get(db_session, id=user_id)
+    return await user_service.get_user_for_reader(db_session, requester=user, user_id=user_id)
 
 
 @router.put("/{user_id}", response_model=UserRead)
@@ -147,10 +142,7 @@ async def update_my_profile(
     Statistics fields (total_dwellers_created, total_caps_earned, etc.) are
     managed internally by the game and cannot be modified directly.
     """
-    profile = await profile_crud.get_by_user_id(db_session, user.id)
-    profile = ensure_found(profile, UserProfile, identifier=user.id)
-
-    return await profile_crud.update(db_session, id=profile.id, obj_in=profile_data)
+    return await user_service.update_profile(db_session, user.id, profile_data)
 
 
 @router.get("/me/profile/statistics", response_model=DeathStatsResponse)

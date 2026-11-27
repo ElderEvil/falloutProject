@@ -137,9 +137,7 @@ async def test_create_objective_rolls_back_template_when_link_insert_fails(async
     assert links_after == links_before
 
 
-async def test_read_objectives_credits_reach_state_for_every_step_not_just_the_current_one(
-    async_session, vault
-):
+async def test_read_objectives_credits_reach_state_for_every_step_not_just_the_current_one(async_session, vault):
     """A reach card the player already satisfies must not read 0/N while its reward is claimable."""
     for index in range(5):
         await _dweller(async_session, vault, first_name=f"Reach{index}")

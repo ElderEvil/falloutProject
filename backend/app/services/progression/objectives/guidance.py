@@ -111,11 +111,7 @@ async def reach_progress_by_objective(
     if "level" in kinds:
         current["level"] = await dweller_crud.get_max_level(db_session, vault_id) or 0
 
-    return {
-        objective.id: current[kind]
-        for objective in objectives
-        if (kind := _reach_type(objective)) in current
-    }
+    return {objective.id: current[kind] for objective in objectives if (kind := _reach_type(objective)) in current}
 
 
 async def read_objectives(

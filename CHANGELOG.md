@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 3.35.0 (2026-11-27)
+
+### Features
+
+* **onboarding:** teach the drag-to-wasteland gesture step by step ([#1584](https://github.com/ElderEvil/falloutProject/issues/1584)) c17f0be
+
 ## 3.34.3 (2026-11-27)
 
 ### Code Refactoring

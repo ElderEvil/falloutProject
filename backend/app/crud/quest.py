@@ -70,50 +70,11 @@ def _build_quest_read(
 ) -> QuestRead:
     """Global quest read schema; vault fields keep their defaults."""
     return QuestRead(
-        id=quest.id,
-        title=quest.title,
-        short_description=quest.short_description,
-        long_description=quest.long_description,
-        requirements=quest.requirements,
-        rewards=quest.rewards,
-        quest_type=quest.quest_type,
-        quest_category=quest.quest_category,
-        chain_id=quest.chain_id,
-        chain_order=quest.chain_order,
+        **quest.model_dump(exclude={"duration_minutes"}),
         duration_minutes=effective_quest_duration_minutes(quest.duration_minutes),
-        previous_quest_id=quest.previous_quest_id,
-        next_quest_id=quest.next_quest_id,
-        created_at=quest.created_at,
-        updated_at=quest.updated_at,
-        is_visible=True,
-        is_completed=False,
-        is_reward_ready=False,
-        started_at=None,
-        return_started_at=None,
-        return_completes_at=None,
-        quest_requirements=[
-            QuestRequirementRead(
-                id=req.id,
-                requirement_type=req.requirement_type,
-                requirement_data=req.requirement_data,
-                is_mandatory=req.is_mandatory,
-            )
-            for req in requirements
-        ]
-        if requirements
-        else None,
-        quest_rewards=[
-            QuestRewardRead(
-                id=rew.id,
-                reward_type=rew.reward_type,
-                reward_data=rew.reward_data,
-                reward_chance=rew.reward_chance,
-                item_data=rew.item_data,
-            )
-            for rew in rewards
-        ]
-        if rewards
-        else None,
+        quest_requirements=[QuestRequirementRead(**req.model_dump(exclude={"quest_id"})) for req in requirements]
+        or None,
+        quest_rewards=[QuestRewardRead(**rew.model_dump(exclude={"quest_id"})) for rew in rewards] or None,
     )
 
 

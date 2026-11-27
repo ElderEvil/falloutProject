@@ -73,9 +73,23 @@ const objectiveFor = (lesson: OnboardingLesson): Objective | undefined =>
     ?.map((key) => objectiveByKey.value.get(key))
     .find((objective) => objective !== undefined)
 
+/** Chapter 3 lessons that read dweller state and retire with the departure objective. */
+const DEPARTURE_STEP_IDS: readonly string[] = [
+  'orientation.departure.crew',
+  'orientation.departure.drag',
+  'orientation.departure',
+]
+
+/** Equipment steps a finished departure retires for vaults that skipped them. */
+const RETIRED_BY_DEPARTURE = new Set<string>([
+  'orientation.weapon',
+  'orientation.outfit',
+  ...DEPARTURE_STEP_IDS,
+])
+
 const isHandled = (lesson: OnboardingLesson): boolean => {
   if (ledger.value[lesson.id]) return true
-  if (!replayMode.value && ['orientation.weapon', 'orientation.outfit'].includes(lesson.id)) {
+  if (!replayMode.value && RETIRED_BY_DEPARTURE.has(lesson.id)) {
     // Preserve completed introductions and legacy cohorts without equipment objectives.
     if (ledger.value['orientation.departure']) return true
     const departure = ORIENTATION_STEPS.find((step) => step.id === 'orientation.departure')
@@ -183,7 +197,7 @@ watch(
       }
     }
     if (
-      lesson.id === 'orientation.departure' &&
+      DEPARTURE_STEP_IDS.includes(lesson.id) &&
       dwellerStore.filter.allDwellersLoadedVaultId !== vaultId.value
     ) {
       void dwellerStore.filter.fetchAllDwellers(vaultId.value)

@@ -426,10 +426,16 @@ for (const width of [1280, 390]) {
     await guide.getByRole('button', { name: 'Claim Mara Voss', exact: true }).click()
     await expect(celebration).toContainText('Mara Voss has joined your vault')
     await celebration.getByRole('button', { name: 'Close', exact: true }).last().click()
-    await expect(guide.getByRole('heading', { name: 'Send a dweller exploring' })).toBeVisible()
+    await expect(guide.getByRole('heading', { name: 'Pick your explorer' })).toBeVisible()
     expect([...claimed]).toEqual(['weapon', 'outfit'])
+    await guide.getByRole('button', { name: 'Continue', exact: true }).click()
+    await expect(
+      guide.getByRole('heading', { name: 'Drag the card to The Wasteland' })
+    ).toBeVisible()
     await page.reload()
-    await expect(guide.getByRole('heading', { name: 'Send a dweller exploring' })).toBeVisible()
+    await expect(
+      guide.getByRole('heading', { name: 'Drag the card to The Wasteland' })
+    ).toBeVisible()
   })
 }
 

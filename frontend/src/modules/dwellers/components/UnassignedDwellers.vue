@@ -240,6 +240,7 @@ const handleDropZoneDrop = async (event: DragEvent) => {
           v-for="dweller in unassignedDwellers"
           :key="dweller.id"
           class="dweller-card"
+          v-bind="{ 'data-onboarding': 'dweller-drag-source' }"
           draggable="true"
           @dragstart="handleDragStart($event, dweller)"
           @dragend="handleDragEnd"

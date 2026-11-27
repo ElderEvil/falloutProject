@@ -11,6 +11,8 @@ export type LessonId =
   | 'orientation.housing'
   | 'orientation.weapon'
   | 'orientation.outfit'
+  | 'orientation.departure.crew'
+  | 'orientation.departure.drag'
   | 'orientation.departure'
 
 /** How a lesson is presented and acknowledged. */
@@ -226,15 +228,39 @@ export const ORIENTATION_STEPS: readonly OnboardingLesson[] = [
     eligibility: objectiveEligibility(OBJECTIVE_KEYS.outfit),
   },
   {
+    id: 'orientation.departure.crew',
+    chapter: 3,
+    kind: 'tap',
+    title: 'Pick your explorer',
+    body: 'Back on the vault floor, every card inside a room can be picked up, and the tray below the rooms holds anyone unassigned. Choose a healthy adult now; that card is what you grab next.',
+    templateKeys: OBJECTIVE_KEYS.departure,
+    anchors: ['dweller-drag-source'],
+    route: '',
+    routeLabel: 'Open Vault',
+    eligibility: departureEligibility,
+  },
+  {
+    id: 'orientation.departure.drag',
+    chapter: 3,
+    kind: 'tap',
+    title: 'Drag the card to The Wasteland',
+    body: 'Hold the card and drag it onto the dashed “The Wasteland” panel below the rooms; it reads “Release to send!” while you hover, so let go there. The Wasteland button on a dweller card opens the same run panel without a drag.',
+    templateKeys: OBJECTIVE_KEYS.departure,
+    anchors: ['wasteland'],
+    route: '',
+    routeLabel: 'Open Vault',
+    eligibility: departureEligibility,
+  },
+  {
     id: 'orientation.departure',
     chapter: 3,
     kind: 'objective-explanation',
     title: 'Send a dweller exploring',
-    body: 'Your newcomer is an option if they are healthy and available. Review equipment, supplies and the run length before sending an adult out. Sending a worker leaves their production room short; the guide will suggest something useful to do while they are away.',
+    body: 'Dropping the card opens the run panel: pick hours, choose how many stimpaks and radaways to pack, check the heading, then Send to Wasteland. Sending a worker leaves their production room short; the guide will suggest something useful to do while they are away.',
     templateKeys: OBJECTIVE_KEYS.departure,
-    anchors: ['dweller-departure', 'wasteland', 'nav-exploration'],
-    route: 'exploration',
-    routeLabel: 'Open Exploration',
+    anchors: ['wasteland', 'dweller-departure'],
+    route: '',
+    routeLabel: 'Open Vault',
     eligibility: departureEligibility,
   },
 ]

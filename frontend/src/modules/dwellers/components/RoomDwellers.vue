@@ -66,6 +66,7 @@ const handleDragEnd = () => {
         <div
           class="dweller-avatar"
           role="group"
+          v-bind="{ 'data-onboarding': 'dweller-drag-source' }"
           :class="{ 'dweller-avatar--apprentice': isApprentice(dweller) }"
           draggable="true"
           tabindex="0"

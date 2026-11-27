@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## 3.35.1 (2026-11-27)
+
+### Code Refactoring
+
+* **api:** route quest endpoints through the service 0177264
+* **api:** route quest endpoints through the service ([#1585](https://github.com/ElderEvil/falloutProject/issues/1585)) f2d7279
+* **crud:** build quest reads from model fields ce19d9e
+
 ## 3.35.0 (2026-11-27)
 
 ### Features

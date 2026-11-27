@@ -339,19 +339,22 @@ onUnmounted(() => {
               />
             </div>
           </div>
-          <div
-            v-if="isVaultRoute && isAuthenticated && isReady"
-            class="flex shrink-0 items-center gap-3 tabular-nums"
-            role="group"
-            aria-label="Vault currency"
-          >
-            <PageHeaderMetric
-              compact
-              icon="mdi:coins"
-              :value="bottleCaps.toLocaleString('en-US')"
-              label="Caps"
-              :tooltip="capsTooltip"
-            />
+        </div>
+        <div
+          v-if="isVaultRoute && isAuthenticated && isReady"
+          class="flex shrink-0 items-center gap-2 tabular-nums"
+          role="group"
+          aria-label="Vault currency"
+        >
+          <PageHeaderMetric
+            compact
+            icon="mdi:coins"
+            :value="bottleCaps.toLocaleString('en-US')"
+            label="Caps"
+            :tooltip="capsTooltip"
+          />
+          <!-- Secondary currency yields before caps: the scrolled row clips whatever sits last. -->
+          <div class="hidden items-center 2xl:flex">
             <PageHeaderMetric
               compact
               icon="mdi:bottle-soda-classic"
@@ -362,7 +365,7 @@ onUnmounted(() => {
           </div>
         </div>
         <div
-          class="ml-auto flex shrink-0 items-center gap-2 sm:gap-4"
+          class="ml-auto flex min-w-0 shrink-0 items-center gap-2 sm:gap-4"
           role="group"
           aria-label="Account and notifications"
         >
@@ -449,7 +452,7 @@ onUnmounted(() => {
                 @error="avatarLoadFailed = true"
               />
               <Icon v-else icon="mdi:account-circle" class="h-7 w-7" :ariaHidden="true" />
-              <span class="hidden sm:inline">{{ user?.username }}</span>
+              <span class="hidden max-w-24 truncate sm:inline-block">{{ user?.username }}</span>
             </button>
             <Transition name="dropdown">
               <!-- Raw role="menuitem" rows: a DropdownMenu primitive is not vendored (docs/frontend/RAW_NATIVE_CONTROLS.md). -->

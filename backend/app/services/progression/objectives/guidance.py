@@ -81,11 +81,48 @@ async def current_state_progress(db_session: AsyncSession, vault_id: UUID, objec
     return 0
 
 
+def _reach_type(objective: ObjectiveBase) -> str | None:
+    """The reach kind an objective measures, normalised, or None for other types."""
+    if objective.objective_type != "reach":
+        return None
+    target = objective.target_entity or {}
+    reach_type = target.get("reach_type", target.get("target"))
+    if not isinstance(reach_type, str):
+        return None
+    return "dweller_count" if reach_type == "population" else reach_type
+
+
+async def reach_progress_by_objective(
+    db_session: AsyncSession, vault_id: UUID, objectives: Sequence[ObjectiveRead]
+) -> dict[UUID, int]:
+    """Derive reach progress for a whole page with at most one query per reach kind.
+
+    Reach objectives record progress from membership events, so a vault that reached
+    the milestone before the objective was assigned would otherwise read 0 — while the
+    claim path credits the same state. Both paths must agree, not just the current step.
+    """
+    kinds = {kind for objective in objectives if (kind := _reach_type(objective)) is not None}
+    if not kinds:
+        return {}
+
+    current: dict[str, int] = {}
+    if "dweller_count" in kinds:
+        current["dweller_count"] = await dweller_crud.count_living_in_vault(db_session, vault_id)
+    if "level" in kinds:
+        current["level"] = await dweller_crud.get_max_level(db_session, vault_id) or 0
+
+    return {objective.id: current[kind] for objective in objectives if (kind := _reach_type(objective)) in current}
+
+
 async def read_objectives(
     db_session: AsyncSession, vault_id: UUID, *, skip: int = 0, limit: int = 100
 ) -> Sequence[ObjectiveRead]:
-    """Read progress, deriving already-met state only for the current guided step."""
+    """Read progress, deriving already-met state for the guided step and every reach objective."""
     objectives = await objective_crud.get_multi_for_vault(db_session, vault_id, skip=skip, limit=limit)
+    reach_progress = await reach_progress_by_objective(db_session, vault_id, objectives)
+    for objective in objectives:
+        if objective.id in reach_progress:
+            objective.progress = min(objective.total, max(objective.progress, reach_progress[objective.id]))
     current_id = await objective_crud.get_current_starter_id(db_session, vault_id)
     current = next((objective for objective in objectives if objective.id == current_id), None)
     if current is not None:

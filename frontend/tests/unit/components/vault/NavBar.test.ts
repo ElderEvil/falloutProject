@@ -221,8 +221,10 @@ describe('NavBar', () => {
     const account = wrapper.find('[aria-label="Account and notifications"]')
     expect(vaults.element.nextElementSibling).toBe(account.element.parentElement)
     expect(population.element.nextElementSibling).toBe(resources.element)
-    expect(resources.element.nextElementSibling).toBe(currency.element)
-    expect(currency.element.parentElement?.nextElementSibling).toBe(account.element)
+    // Currency must sit outside the horizontally scrolled resource row: anything inside it
+    // is clipped at narrow widths, which hid the caps counter behind the account chip.
+    expect(resources.element.parentElement?.nextElementSibling).toBe(currency.element)
+    expect(currency.element.nextElementSibling).toBe(account.element)
     expect(account.classes()).toContain('ml-auto')
     expect(
       population.findAllComponents(PageHeaderMetric).map((item) => item.props('label'))
@@ -238,6 +240,9 @@ describe('NavBar', () => {
     expect(currency.findAllComponents(PageHeaderMetric).map((item) => item.props('label'))).toEqual(
       ['Caps', 'Nuka bottles']
     )
+    // Nuka bottles is the secondary currency: it yields to caps below 1536px rather than
+    // forcing the row to clip the counter the player actually spends.
+    expect(metric(wrapper, 'Nuka bottles').element.closest('div.hidden')).toBeTruthy()
     expect(metric(wrapper, 'Caps').props('value')).toBe('500')
     expect(metric(wrapper, 'Nuka bottles').props('value')).toBe('42')
     expect(account.find('notification-bell-stub').exists()).toBe(true)
@@ -383,6 +388,19 @@ describe('NavBar', () => {
     expect(img.exists()).toBe(true)
     expect(img.attributes('src')).toBe('https://example.com/overseer.png')
     expect(img.classes()).toContain('size-7')
+    wrapper.unmount()
+  })
+
+  it('caps the username width so a long name cannot push the header off-screen', async () => {
+    signIn()
+
+    const wrapper = await mountNavBar()
+
+    // Measured at 640px with an incident alarm present: an unbounded username pushed the
+    // account group 145px past the viewport, taking the caps counter with it.
+    const name = wrapper.get('button[aria-label="User menu for Overseer"] span')
+    expect(name.classes()).toContain('truncate')
+    expect(name.classes()).toContain('max-w-24')
     wrapper.unmount()
   })
 

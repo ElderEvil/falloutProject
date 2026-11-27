@@ -1,6 +1,7 @@
 """Training service for managing dweller SPECIAL stat training."""
 
 import logging
+from collections.abc import Sequence
 from datetime import timedelta
 from uuid import UUID
 
@@ -31,6 +32,18 @@ from app.utils.time import utcnow
 
 
 class TrainingService:
+    async def get_active_training_for_dweller(self, db_session: AsyncSession, dweller_id: UUID) -> Training | None:
+        return await training_crud.training.get_active_by_dweller(db_session, dweller_id)
+
+    async def list_active_trainings_for_vault(self, db_session: AsyncSession, vault_id: UUID) -> Sequence[Training]:
+        return await training_crud.training.get_active_by_vault(db_session, vault_id)
+
+    async def get_training(self, db_session: AsyncSession, training_id: UUID) -> Training:
+        return await training_crud.training.get(db_session, training_id)
+
+    async def list_active_trainings_for_room(self, db_session: AsyncSession, room_id: UUID) -> Sequence[Training]:
+        return await training_crud.training.get_active_by_room(db_session, room_id)
+
     """Service for managing dweller training in training rooms."""
 
     def __init__(self):

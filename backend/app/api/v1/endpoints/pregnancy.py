@@ -5,7 +5,6 @@ from uuid import UUID
 
 from fastapi import APIRouter, HTTPException
 
-from app import crud
 from app.api.deps import CurrentActiveUser, CurrentSuperuser, DBSession, get_user_vault_or_403
 from app.schemas.pregnancy import DeliveredChild, DeliveryResult, PregnancyRead
 from app.services.family.breeding_service import breeding_service
@@ -51,7 +50,7 @@ async def get_pregnancy(
         HTTPException: 404 if pregnancy not found or access denied.
     """
     try:
-        pregnancy, mother = await crud.pregnancy.get_with_mother(db_session, pregnancy_id)
+        pregnancy, mother = await breeding_service.get_pregnancy_with_mother(db_session, pregnancy_id)
         await get_user_vault_or_403(mother.vault_id, user, db_session)
     except (ResourceNotFoundException, AccessDeniedException) as exc:
         raise HTTPException(status_code=404, detail=exc.detail) from exc
@@ -75,7 +74,7 @@ async def deliver_baby(
         HTTPException: 400 if delivery conditions not met.
     """
     try:
-        _, mother = await crud.pregnancy.get_with_mother(db_session, pregnancy_id)
+        _, mother = await breeding_service.get_pregnancy_with_mother(db_session, pregnancy_id)
         await get_user_vault_or_403(mother.vault_id, user, db_session)
     except (ResourceNotFoundException, AccessDeniedException) as exc:
         raise HTTPException(status_code=404, detail=exc.detail) from exc

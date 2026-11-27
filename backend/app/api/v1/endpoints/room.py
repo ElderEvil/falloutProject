@@ -5,7 +5,6 @@ from uuid import UUID
 
 from fastapi import APIRouter
 
-from app import crud
 from app.api.deps import (
     CurrentActiveUser,
     CurrentSuperuser,
@@ -44,7 +43,7 @@ async def read_room_list(
     Returns:
         List of rooms.
     """
-    return await crud.room.get_multi(db_session, skip=pagination.skip, limit=pagination.limit)
+    return await room_service.list_rooms(db_session, skip=pagination.skip, limit=pagination.limit)
 
 
 @router.get("/vault/{vault_id}/", response_model=list[RoomRead])
@@ -60,9 +59,7 @@ async def read_rooms_by_vault(
         List of rooms in the vault.
     """
     await get_user_vault_or_403(vault_id, user, db_session)
-    return await crud.room.get_multy_by_vault(
-        db_session=db_session, skip=pagination.skip, limit=pagination.limit, vault_id=vault_id
-    )
+    return await room_service.list_vault_rooms(db_session, vault_id, skip=pagination.skip, limit=pagination.limit)
 
 
 @router.get("/{room_id}", response_model=RoomRead)
@@ -72,8 +69,8 @@ async def read_room(room_id: UUID, user: CurrentActiveUser, db_session: DBSessio
     Returns:
         The requested room.
     """
-    await verify_room_access(room_id, user, db_session)
-    return await crud.room.get(db_session, room_id)
+    room, _ = await verify_room_access(room_id, user, db_session)
+    return room
 
 
 @router.get("/{room_id}/rush", response_model=RoomRushQuote)
@@ -105,8 +102,7 @@ async def read_barbershop_status(
     db_session: DBSession,
 ) -> BarbershopStatus:
     """Return the Barbershop's availability, fee, and preset swatches."""
-    await verify_room_access(room_id, user, db_session)
-    room = await crud.room.get(db_session, room_id)
+    room, _ = await verify_room_access(room_id, user, db_session)
     return await barbershop_service.get_status_for_room(db_session, room)
 
 
@@ -119,8 +115,7 @@ async def change_dweller_appearance(
     db_session: DBSession,
 ) -> BarbershopChangeResponse:
     """Change a human adult's skin tone and hair color for the Barbershop fee."""
-    await verify_room_access(room_id, user, db_session)
-    room = await crud.room.get(db_session, room_id)
+    room, _ = await verify_room_access(room_id, user, db_session)
     return await barbershop_service.change_appearance(
         db_session,
         room=room,

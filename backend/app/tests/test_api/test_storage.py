@@ -252,3 +252,17 @@ async def test_storage_maintenance_summary_is_read_only(
 async def test_storage_maintenance_refuses_another_players_vault(async_client, normal_user_token_headers, vault):
     response = await async_client.get(f"/storage/vault/{vault.id}/maintenance", headers=normal_user_token_headers)
     assert response.status_code == 403
+
+
+async def test_storage_space_missing_storage_returns_exact_404(async_client, async_session, superuser_token_headers):
+    user = await crud.user.get_by_email(async_session, email=settings.FIRST_SUPERUSER_EMAIL)
+    assert user is not None
+    vault = await crud.vault.create(
+        async_session,
+        VaultCreateWithUserID(**{**create_fake_vault(), "user_id": str(user.id)}),
+    )
+
+    response = await async_client.get(f"/storage/vault/{vault.id}/space", headers=superuser_token_headers)
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Storage not found for vault"

@@ -1,6 +1,7 @@
 """Service for room operations: build, destroy, upgrade, and queries."""
 
 import logging
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any
 from uuid import UUID, uuid7
@@ -111,6 +112,14 @@ async def _apply_merged_size(
 
 
 class RoomService:
+    async def list_rooms(self, db_session: AsyncSession, *, skip: int = 0, limit: int = 100) -> Sequence[Room]:
+        return await crud.room.get_multi(db_session, skip=skip, limit=limit)
+
+    async def list_vault_rooms(
+        self, db_session: AsyncSession, vault_id: UUID, *, skip: int = 0, limit: int = 100
+    ) -> Sequence[Room]:
+        return await crud.room.get_multy_by_vault(db_session=db_session, vault_id=vault_id, skip=skip, limit=limit)
+
     """Service for room operations."""
 
     async def merge_adjacent_rooms(

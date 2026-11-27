@@ -5,7 +5,6 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from app import crud
 from app.api.deps import CurrentActiveUser, CurrentSuperuser, DBSession, get_user_vault_or_403
 from app.core.enums import IncidentType
 from app.core.game_config import game_config
@@ -272,7 +271,7 @@ async def delete_all_incidents(
     _user: CurrentSuperuser,
 ) -> DeleteIncidentsResponse:
     """Delete all incidents for a vault."""
-    count = await crud.incident_crud.remove_all_by_vault(db_session, vault.id)
+    count = await incident_service.remove_vault_incidents(db_session, vault.id)
 
     return DeleteIncidentsResponse(
         message=f"Successfully deleted {count} incidents",
@@ -291,11 +290,11 @@ async def delete_incident(
 ) -> DeleteIncidentsResponse:
     """Delete a specific incident."""
     # Verify incident belongs to vault
-    incident = await crud.incident_crud.get(db_session, incident_id)
+    incident = await incident_service.get_incident(db_session, incident_id)
     if not incident or incident.vault_id != vault.id:
         raise HTTPException(status_code=404, detail="Incident not found")
 
-    success = await crud.incident_crud.remove(db_session, incident_id)
+    success = await incident_service.remove_incident(db_session, incident_id)
 
     if not success:
         raise HTTPException(status_code=400, detail="Failed to delete incident")

@@ -590,6 +590,12 @@ class BreedingService:
 
         return aged_dwellers
 
+    async def get_pregnancy_with_mother(
+        self, db_session: AsyncSession, pregnancy_id: UUID
+    ) -> tuple[Pregnancy, Dweller]:
+        """Pregnancy and its mother; the same lookup the pregnancy routes authorize on."""
+        return await pregnancy_crud.get_with_mother(db_session, pregnancy_id)
+
     @staticmethod
     async def get_active_pregnancies(
         db_session: AsyncSession,

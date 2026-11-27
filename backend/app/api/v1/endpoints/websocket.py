@@ -15,9 +15,9 @@ if TYPE_CHECKING:
 
 from app.core.security import decode_token_subject
 from app.core.websocket_manager import manager
-from app.crud.user import user as user_crud
 from app.db.session import async_session_maker
 from app.services.chat_service import chat_service
+from app.services.user_service import user_service
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -57,7 +57,7 @@ async def _handle_chat_message(websocket: WebSocket, data: str, user_id: UUID, d
 
             session_context = cast("AbstractAsyncContextManager[AsyncSession]", async_session_maker())
             async with session_context as db_session:
-                user = await user_crud.get(db_session, user_id)
+                user = await user_service.find_user(db_session, user_id)
                 if not user:
                     await websocket.send_json({"type": "error", "detail": "User not found"})
                     return

@@ -9,6 +9,10 @@ from uuid import uuid4
 
 import jwt
 import pytest
+from sqlalchemy.ext.asyncio import create_async_engine
+from sqlalchemy.pool import StaticPool
+from sqlmodel import SQLModel
+from sqlmodel.ext.asyncio.session import AsyncSession
 from starlette.testclient import TestClient
 from starlette.websockets import WebSocketDisconnect
 
@@ -40,11 +44,28 @@ class _FakeSessionCM:
         return None
 
 
+class _EmptyUserSessionCM:
+    """A real (empty) user table so the WebSocket lookup runs for a missing id."""
+
+    async def __aenter__(self) -> AsyncSession:
+        self._engine = create_async_engine("sqlite+aiosqlite:///:memory:", poolclass=StaticPool)
+        async with self._engine.begin() as connection:
+            await connection.run_sync(SQLModel.metadata.create_all)
+        self._session = AsyncSession(bind=self._engine, expire_on_commit=False)
+        return self._session
+
+    async def __aexit__(self, *args: object) -> None:
+        await self._session.close()
+        await self._engine.dispose()
+
+
 @contextmanager
 def _ws_patches(user, stream=None):
     with ExitStack() as stack:
         stack.enter_context(patch("app.api.v1.endpoints.websocket.async_session_maker", return_value=_FakeSessionCM()))
-        stack.enter_context(patch("app.api.v1.endpoints.websocket.user_crud.get", new=AsyncMock(return_value=user)))
+        stack.enter_context(
+            patch("app.api.v1.endpoints.websocket.user_service.find_user", new=AsyncMock(return_value=user))
+        )
         if stream is not None:
             stack.enter_context(patch("app.api.v1.endpoints.websocket.chat_service.stream_response", new=stream))
         yield
@@ -105,7 +126,10 @@ class TestChatWebSocketStreaming:
 
     def test_user_not_found_returns_error(self, ws_client: TestClient) -> None:
         user_id = uuid4()
-        with _ws_patches(None), _connect(ws_client, user_id, token=_token(user_id)) as ws:
+        with (
+            patch("app.api.v1.endpoints.websocket.async_session_maker", new=lambda: _EmptyUserSessionCM()),
+            _connect(ws_client, user_id, token=_token(user_id)) as ws,
+        ):
             ws.send_json({"type": "message", "content": "Hello!"})
             assert ws.receive_json() == {"type": "error", "detail": "User not found"}
 

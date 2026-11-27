@@ -23,7 +23,9 @@ class CRUDObjective(CRUDBase[Objective, ObjectiveCreate, ObjectiveUpdate]):
         super().__init__(model)
         self.link_model = link_model
 
-    async def create_for_vault(self, db_session: AsyncSession, vault_id: UUID, obj_in: ObjectiveCreate) -> Objective:
+    async def create_for_vault(
+        self, db_session: AsyncSession, vault_id: UUID, obj_in: ObjectiveCreate, *, commit: bool = True
+    ) -> Objective:
         db_obj = self.model(**obj_in.model_dump())
         db_session.add(db_obj)
 
@@ -34,8 +36,11 @@ class CRUDObjective(CRUDBase[Objective, ObjectiveCreate, ObjectiveUpdate]):
         )
         db_session.add(link_obj)
 
-        await db_session.commit()
-        await db_session.refresh(link_obj)
+        if commit:
+            await db_session.commit()
+            await db_session.refresh(link_obj)
+        else:
+            await db_session.flush()
 
         return db_obj
 

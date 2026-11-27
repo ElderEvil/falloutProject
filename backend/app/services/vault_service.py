@@ -1,6 +1,7 @@
 """Vault facade: owns the creation transaction, delegates seeding/economy/reads."""
 
 import logging
+from collections.abc import Sequence
 from uuid import UUID
 
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -30,6 +31,15 @@ class VaultService:
 
     def __init__(self):
         self.logger = logging.getLogger(__name__)
+
+    async def list_vaults(self, db_session: AsyncSession, *, skip: int = 0, limit: int = 100) -> Sequence[Vault]:
+        return await vault_crud.get_multi(db_session, skip=skip, limit=limit)
+
+    async def update_vault(self, db_session: AsyncSession, vault_id: UUID, vault_data: VaultUpdate) -> Vault:
+        """Update a vault; the service owns the commit."""
+        vault = await vault_crud.update(db_session, vault_id, vault_data, commit=False)
+        await db_session.commit()
+        return vault
 
     async def initiate_vault(
         self,

@@ -24,22 +24,7 @@ APP_DIR = Path(__file__).resolve().parents[2]
 ENDPOINTS_DIR = APP_DIR / "api" / "v1" / "endpoints"
 
 #: Pre-existing endpoint -> CRUD imports, as ``(file name, module)``. Shrink only.
-ENDPOINT_CRUD_BASELINE = frozenset(
-    {
-        ("exploration.py", "app.crud"),
-        ("game_control.py", "app.crud"),
-        ("junk.py", "app.crud"),
-        ("objective.py", "app.crud"),
-        ("pregnancy.py", "app.crud"),
-        ("room.py", "app.crud"),
-        ("storage.py", "app.crud"),
-        ("vault.py", "app.crud"),
-        ("notifications.py", "app.crud.notification"),
-        ("websocket.py", "app.crud.user"),
-        ("training.py", "app.crud"),
-        ("training.py", "app.crud.dweller"),
-    }
-)
+ENDPOINT_CRUD_BASELINE = frozenset()
 
 SESSION_RECEIVERS = frozenset({"db_session", "session", "async_session"})
 QUERY_ATTRIBUTES = frozenset({"execute"})

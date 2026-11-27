@@ -164,6 +164,10 @@ class DwellerService:
         for exploration in explorations:
             await event_service.publish_sse(exploration, "exploration_deleted", status=exploration.status)
 
+    async def get_dweller(self, db_session: AsyncSession, dweller_id: UUID) -> Dweller:
+        """Dweller by id; missing rows raise ResourceNotFoundException."""
+        return await crud.dweller.get(db_session, dweller_id)
+
     async def get_including_deleted(self, db_session: AsyncSession, dweller_id: UUID) -> Dweller:
         """Load a dweller even when soft-deleted; restore and exit decisions act on those."""
         return await crud.dweller.get(db_session, dweller_id, include_deleted=True)

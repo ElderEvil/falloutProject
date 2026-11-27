@@ -45,6 +45,28 @@ class NotificationService:
         )
 
     @staticmethod
+    async def get_unread_count(db: AsyncSession, user_id: UUID) -> int:
+        return await notification_crud.get_unread_count(db, user_id=user_id)
+
+    @staticmethod
+    async def mark_as_read(db: AsyncSession, notification_id: UUID, user_id: UUID) -> Notification | None:
+        notification = await notification_crud.mark_as_read(
+            db, notification_id=notification_id, user_id=user_id, commit=False
+        )
+        if notification is not None:
+            await db.commit()
+        return notification
+
+    @staticmethod
+    async def dismiss(db: AsyncSession, notification_id: UUID, user_id: UUID) -> Notification | None:
+        notification = await notification_crud.dismiss(
+            db, notification_id=notification_id, user_id=user_id, commit=False
+        )
+        if notification is not None:
+            await db.commit()
+        return notification
+
+    @staticmethod
     async def mark_all_read(db: AsyncSession, user_id: UUID, *, vault_id: UUID | None = None) -> int:
         return await notification_crud.mark_all_as_read(db, user_id=user_id, vault_id=vault_id)
 

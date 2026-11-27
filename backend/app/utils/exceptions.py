@@ -65,6 +65,13 @@ def ensure_found[T](obj: T | None, model: type[SQLModel], identifier: str | UUID
     return obj
 
 
+class StorageNotFoundException(DomainError):
+    """Raised when a vault has no storage row."""
+
+    status_code = status.HTTP_404_NOT_FOUND
+    default_detail = "Storage not found for vault"
+
+
 class ResourceAlreadyExistsException(DomainError):
     """Raised when creating or updating a resource would violate unique constraints."""
 

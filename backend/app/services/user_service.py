@@ -58,6 +58,10 @@ class UserService:
         """Admin user list."""
         return await crud.user.get_multi(db_session, skip=skip, limit=limit)
 
+    async def find_user(self, db_session: AsyncSession, user_id: UUID) -> User | None:
+        """User by id, or None when absent (WebSocket paths must not raise)."""
+        return await crud.user.get_or_none(db_session, user_id)
+
     async def get_user_for_reader(self, db_session: AsyncSession, *, requester: User, user_id: UUID) -> User:
         """A user's own record, or any user for a superuser."""
         if user_id != requester.id and not requester.is_superuser:

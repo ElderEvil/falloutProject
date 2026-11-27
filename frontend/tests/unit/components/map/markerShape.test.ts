@@ -22,18 +22,18 @@ describe('shapeFor', () => {
     expect(shapeFor(place({ action: 'trade', group_key: 'city' }))).toBe('diamond')
   })
 
-  it('gives an actionless place the triangle', () => {
-    expect(shapeFor(place({ action: 'none', group_key: 'landmark' }))).toBe('triangle')
+  it('gives an actionless place the hexagon', () => {
+    expect(shapeFor(place({ action: 'none', group_key: 'landmark' }))).toBe('hexagon')
   })
 
   it.each([['settlement'], ['city']])('falls back to the diamond for the %s group', (group_key) => {
     expect(shapeFor({ type: 'visited', group_key })).toBe('diamond')
   })
 
-  it('falls back to the triangle when neither action nor group say otherwise', () => {
-    expect(shapeFor({ type: 'origin', group_key: 'factory' })).toBe('triangle')
-    expect(shapeFor(null)).toBe('triangle')
-    expect(shapeFor(undefined)).toBe('triangle')
+  it('falls back to the hexagon when neither action nor group say otherwise', () => {
+    expect(shapeFor({ type: 'origin', group_key: 'factory' })).toBe('hexagon')
+    expect(shapeFor(null)).toBe('hexagon')
+    expect(shapeFor(undefined)).toBe('hexagon')
   })
 })
 
@@ -44,9 +44,9 @@ describe('marker shapes', () => {
     expect(shapes.filter((shape) => shape === 'circle')).toHaveLength(1)
   })
 
-  it('defaults an unknown shape to the Look triangle, never to a raid circle', () => {
+  it('defaults an unknown shape to the Look hexagon, never to a raid circle', () => {
     expect(shapeMeta(null).purpose).toBe('look')
-    expect(shapeMeta(null).shape).toBe('triangle')
+    expect(shapeMeta(null).shape).toBe('hexagon')
   })
 
   it('maps each shape back to the legend entry that names it', () => {

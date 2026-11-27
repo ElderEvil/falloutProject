@@ -103,7 +103,7 @@ const labelY = computed(() => -body(3.4))
 const labelStyle = computed<CSSProperties>(() => ({ fontSize: `${body(2.4)}px` }))
 const portraitClipId = useId()
 
-// Body silhouette carries purpose: circle = clear, diamond = trade, open triangle
+// Body silhouette carries purpose: circle = clear, diamond = trade, open hexagon
 // = look, square = your vault. A marker without a shape keeps the plain disc, so
 // signals and parties read exactly as they always have.
 const bodyShape = computed<MarkerShape>(() => props.shape ?? 'circle')
@@ -111,13 +111,14 @@ const purposeLabel = computed(() => (props.shape ? shapeMeta(props.shape).label 
 const bodyPath = computed(() => {
   const r = discRadius.value
   if (bodyShape.value === 'diamond') return `M 0 ${-r} L ${r} 0 L 0 ${r} L ${-r} 0 Z`
-  if (bodyShape.value === 'triangle') {
-    // A triangle carries far less area than a disc of the same circumradius, so it
-    // gets 1.4x the radius: at equal circumradius it read as a small badge lost
-    // beside the circles. Centroid still sits on the coordinate.
-    const t = Math.round(r * 1.4 * 1000) / 1000
-    const dx = Math.round(((t * Math.sqrt(3)) / 2) * 1000) / 1000
-    return `M 0 ${-t} L ${dx} ${Math.round((t / 2) * 1000) / 1000} L ${-dx} ${Math.round((t / 2) * 1000) / 1000} Z`
+  if (bodyShape.value === 'hexagon') {
+    // A hexagon holds ~83% of a disc's area at equal circumradius, so 1.1x brings
+    // its footprint back to parity and it does not read as a small badge beside the
+    // circles. Point-up, so the top vertex sits where the disc's edge did.
+    const h = Math.round(r * 1.1 * 1000) / 1000
+    const dx = Math.round(h * (Math.sqrt(3) / 2) * 1000) / 1000
+    const dy = Math.round((h / 2) * 1000) / 1000
+    return `M 0 ${-h} L ${dx} ${-dy} L ${dx} ${dy} L 0 ${h} L ${-dx} ${dy} L ${-dx} ${-dy} Z`
   }
   return ''
 })
@@ -174,13 +175,13 @@ const tooltipText = computed(() => {
     <circle class="marker-hit-area" r="6" fill="transparent" />
     <title>{{ tooltipText }}</title>
     <!-- Dark knockout body: keeps the glyph and rings legible over any terrain.
-         Its silhouette encodes purpose — circle clear, diamond trade, open triangle
+         Its silhouette encodes purpose — circle clear, diamond trade, open hexagon
          look, square home — while signals keep the plain disc. -->
     <circle v-if="bodyShape === 'circle'" class="marker-backing" :r="discRadius" />
     <path
-      v-else-if="bodyShape === 'diamond' || bodyShape === 'triangle'"
+      v-else-if="bodyShape === 'diamond' || bodyShape === 'hexagon'"
       class="marker-backing"
-      :class="{ 'marker-backing-open': bodyShape === 'triangle' }"
+      :class="{ 'marker-backing-open': bodyShape === 'hexagon' }"
       :d="bodyPath"
     />
     <rect

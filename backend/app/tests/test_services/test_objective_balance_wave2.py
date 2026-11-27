@@ -9,6 +9,7 @@ from app.models import Dweller, Room
 from app.models.game_state import GameState
 from app.models.objective import Objective
 from app.models.vault_objective import VaultObjectiveProgressLink
+from app.seeding.seed_objectives import seed_objectives_from_json
 from app.services.progression.objectives.evaluators import (
     AssignEvaluator,
     BuildEvaluator,
@@ -17,7 +18,6 @@ from app.services.progression.objectives.evaluators import (
 )
 from app.services.resource_manager_service import ResourceManager
 from app.services.rewards.settlement import claim_objective_reward
-from app.utils.seed_objectives import seed_objectives_from_json
 
 POWER = {"resource_type": "power"}
 PROD_ONLY = {**POWER, "production_only": True}

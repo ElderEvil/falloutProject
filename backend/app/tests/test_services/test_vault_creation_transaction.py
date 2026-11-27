@@ -20,11 +20,11 @@ from app.models.vault import Vault
 from app.models.vault_objective import VaultObjectiveProgressLink
 from app.models.vault_slot import VaultSlot
 from app.schemas.vault import VaultCreate, VaultNumber
+from app.seeding.seed_objectives import seed_objectives_from_json
 from app.services.notification_service import NotificationService
 from app.services.vault_service import vault_service
 from app.tests.factory.vaults import create_fake_vault, random_vault_number
 from app.tests.test_services._transaction_helpers import count_rows, counting_commit, fail_sql
-from app.utils.seed_objectives import seed_objectives_from_json
 
 pytestmark = pytest.mark.asyncio
 

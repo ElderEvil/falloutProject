@@ -145,8 +145,8 @@ def createsuperuser(
 @cli.command()
 def seed() -> None:
     """Re-seed quests and objectives from JSON files into the database."""
-    from app.utils.seed_objectives import seed_objectives_from_json
-    from app.utils.seed_quests import seed_quests_from_json
+    from app.seeding.seed_objectives import seed_objectives_from_json
+    from app.seeding.seed_quests import seed_quests_from_json
 
     async def _seed() -> None:
         async with async_session_maker() as session:
@@ -162,7 +162,7 @@ def seed() -> None:
 @cli.command(name="seed-prompts")
 def seed_prompts() -> None:
     """Seed the prompt registry with v1 agent instructions (skips existing names)."""
-    from app.utils.seed_prompts import seed_prompts as seed_prompt_rows
+    from app.seeding.seed_prompts import seed_prompts as seed_prompt_rows
 
     async def _seed() -> int:
         async with async_session_maker() as session:

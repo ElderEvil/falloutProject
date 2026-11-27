@@ -46,6 +46,7 @@ from app.schemas.vault import (
     VaultNumber,
     VaultUpdate,
 )
+from app.seeding.seed_objectives import seed_objectives_from_json
 from app.services import broadcast_service
 from app.services.catalog_service import load_outfits, load_weapons
 from app.services.dweller_service import dweller_service
@@ -63,7 +64,6 @@ from app.utils.exceptions import (
     VaultOperationException,
 )
 from app.utils.room_assets import get_room_image_url
-from app.utils.seed_objectives import seed_objectives_from_json
 from app.utils.static_data import game_data_store
 
 # Valid UUIDv4 constants for use in mocked objects

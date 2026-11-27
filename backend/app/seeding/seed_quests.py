@@ -14,15 +14,16 @@ from app.models.quest import Quest
 from app.models.quest_requirement import QuestRequirement
 from app.models.quest_reward import QuestReward
 from app.schemas.quest import QuestChainJSON, QuestJSON, QuestRequirementJSON, QuestRewardJSON
-from app.utils.load_quests import load_all_quest_chain_files
+from app.seeding.load_quests import load_all_quest_chain_files
 from app.utils.static_data import game_data_store
 
 logger = logging.getLogger(__name__)
 
 
 def generate_rewards_string(quest_json: QuestJSON) -> str:
-    """Human-readable rewards string: prefers the authored "Rewards" text when valid
-    (>= 3 chars), else generates from structured quest_rewards.
+    """Build a human-readable rewards string.
+
+    Prefers the authored "Rewards" text when valid (>= 3 chars), else generates from structured quest_rewards.
     """
     if quest_json.rewards and len(quest_json.rewards) >= 3:
         return quest_json.rewards
@@ -382,9 +383,7 @@ def _update_existing_quest_metadata(
 
 
 async def seed_quests_from_json(db_session: AsyncSession, quest_dir: Path | None = None) -> int:
-    """Seed quests from JSON files if they don't already exist (default dir app/data/quests);
-    returns the number seeded.
-    """
+    """Seed quests from JSON files (default dir app/data/quests); returns the number seeded."""
     quest_chains = load_all_quest_chain_files(quest_dir)
     all_quest_jsons, quest_chain_ids = _load_quest_jsons(quest_chains)
 

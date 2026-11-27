@@ -9,6 +9,7 @@ from sqlmodel import select
 from app.crud.objective import objective_crud
 from app.models.objective import Objective
 from app.models.vault_objective import VaultObjectiveProgressLink
+from app.seeding.seed_objectives import seed_objectives_from_json
 from app.services import catalog_service as data_loader
 from app.utils.objective_constants import (
     VALID_REACH_TYPES,
@@ -17,7 +18,6 @@ from app.utils.objective_constants import (
     normalize_resource_type,
     normalize_room_type,
 )
-from app.utils.seed_objectives import seed_objectives_from_json
 from app.utils.static_data import DATA_DIR
 
 

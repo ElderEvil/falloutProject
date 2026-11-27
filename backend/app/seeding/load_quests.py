@@ -1,3 +1,5 @@
+"""Load quest-chain JSON files into validated schema objects."""
+
 import json
 import logging
 from pathlib import Path
@@ -8,8 +10,9 @@ logger = logging.getLogger(__name__)
 
 
 def load_quest_chain_from_json(file_path: str) -> QuestChainJSON:
-    """Load a quest chain from JSON; accepts a single-quest object or a chain object
-    ({chain_id, quests: [...]}).
+    """Load a quest chain from JSON.
+
+    Accepts a single-quest object or a chain object (``{chain_id, quests: [...]}``).
     """
     path = Path(file_path)
     with path.open(encoding="utf-8") as file:

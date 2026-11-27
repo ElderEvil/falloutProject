@@ -63,6 +63,8 @@ from app.core.websocket_manager import manager
 from app.db.redis import close_shared_redis
 from app.db.session import async_engine, get_async_session
 from app.middleware.request_id import RequestIdMiddleware
+from app.seeding.seed_objectives import seed_objectives_from_json
+from app.seeding.seed_quests import seed_quests_from_json
 from app.services.ai_settings_service import ai_settings_service
 from app.services.place_seed_service import seed_places_from_json
 from app.services.progression.objectives.evaluators import evaluator_manager
@@ -70,8 +72,6 @@ from app.services.progression.objectives.notifications import register_objective
 from app.services.recipe_unlock_service import register_recipe_unlock_handlers
 from app.services.world_snapshot_service import world_snapshot_service
 from app.utils.exceptions import DomainError, QuotaExceededException
-from app.utils.seed_objectives import seed_objectives_from_json
-from app.utils.seed_quests import seed_quests_from_json
 
 if settings.ENABLE_RATE_LIMITING:
     from guard.middleware import SecurityMiddleware

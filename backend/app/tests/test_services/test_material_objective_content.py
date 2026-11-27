@@ -2,8 +2,8 @@ from unittest.mock import patch
 
 from app.core.enums import ObjectiveCategoryEnum
 from app.crud.objective import objective_crud
+from app.seeding.seed_objectives import seed_objectives_from_json
 from app.services.progression.objectives.assignment import ObjectiveAssignmentService
-from app.utils.seed_objectives import seed_objectives_from_json
 
 MATERIAL = {"weekly:salvage 6 adhesive", "weekly:recover 4 circuitry"}
 

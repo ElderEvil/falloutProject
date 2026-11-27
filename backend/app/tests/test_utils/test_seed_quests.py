@@ -13,8 +13,8 @@ from app.models.quest import Quest
 from app.models.quest_requirement import QuestRequirement
 from app.models.quest_reward import QuestReward
 from app.schemas.quest import QuestJSON, QuestRewardJSON
-from app.utils.load_quests import load_all_quest_chain_files, load_quest_chain_from_json
-from app.utils.seed_quests import seed_quests_from_json
+from app.seeding.load_quests import load_all_quest_chain_files, load_quest_chain_from_json
+from app.seeding.seed_quests import seed_quests_from_json
 from app.utils.static_data import game_data_store
 
 _LEVEL_GATE_RE = re.compile(r"level\s+(\d+)", re.IGNORECASE)

@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## 3.35.2 (2026-11-27)
+
+### Code Refactoring
+
+* **api:** route user endpoints through the service fbe0270
+* **api:** route user endpoints through the service ([#1586](https://github.com/ElderEvil/falloutProject/issues/1586)) 3a0355e
+
 ## 3.35.1 (2026-11-27)
 
 ### Code Refactoring

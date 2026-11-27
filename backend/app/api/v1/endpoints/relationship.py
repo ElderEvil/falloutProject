@@ -1,10 +1,17 @@
 """Relationship endpoints."""
 
+from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
-from app.api.deps import CurrentActiveUser, DBSession, get_user_vault_or_403, verify_dweller_access
+from app.api.deps import (
+    CurrentActiveUser,
+    DBSession,
+    get_accessible_relationship,
+    get_user_vault_or_403,
+    verify_dweller_access,
+)
 from app.models.relationship import Relationship
 from app.schemas.relationship import (
     CompatibilityScore,
@@ -17,16 +24,6 @@ from app.services.game_loop_service import game_loop_service
 from app.services.relationship_service import relationship_service
 
 router = APIRouter(prefix="/relationships", tags=["Relationship"])
-
-
-async def _require_relationship(
-    relationship_id: UUID,
-    user: CurrentActiveUser,
-    db_session: DBSession,
-) -> Relationship:
-    relationship = await relationship_service.get_relationship_by_id(db_session, relationship_id)
-    await verify_dweller_access(relationship.dweller_1_id, user, db_session)
-    return relationship
 
 
 @router.get("/vault/{vault_id}", response_model=list[VaultRelationshipRead])
@@ -46,9 +43,7 @@ async def get_vault_relationships(
 
 @router.get("/{relationship_id}", response_model=RelationshipRead)
 async def get_relationship(
-    relationship_id: UUID,
-    user: CurrentActiveUser,
-    db_session: DBSession,
+    relationship: Annotated[Relationship, Depends(get_accessible_relationship)],
 ) -> Relationship:
     """Retrieve a relationship by ID.
 
@@ -59,7 +54,7 @@ async def get_relationship(
         HTTPException: 404 if relationship not found.
         HTTPException: 403 if user doesn't have access.
     """
-    return await _require_relationship(relationship_id, user, db_session)
+    return relationship
 
 
 @router.post("/", response_model=RelationshipRead)
@@ -85,8 +80,7 @@ async def create_relationship(
 
 @router.put("/{relationship_id}/romance", response_model=RelationshipRead)
 async def initiate_romance(
-    relationship_id: UUID,
-    user: CurrentActiveUser,
+    relationship: Annotated[Relationship, Depends(get_accessible_relationship)],
     db_session: DBSession,
 ) -> Relationship:
     """Initiate romance between two dwellers in a relationship.
@@ -99,8 +93,6 @@ async def initiate_romance(
         HTTPException: 400 if romance cannot be initiated.
         HTTPException: 403 if user doesn't have access.
     """
-    relationship = await _require_relationship(relationship_id, user, db_session)
-
     return await relationship_service.initiate_romance(
         db_session,
         relationship.dweller_1_id,
@@ -110,8 +102,7 @@ async def initiate_romance(
 
 @router.put("/{relationship_id}/partner", response_model=RelationshipRead)
 async def make_partners(
-    relationship_id: UUID,
-    user: CurrentActiveUser,
+    relationship: Annotated[Relationship, Depends(get_accessible_relationship)],
     db_session: DBSession,
 ) -> Relationship:
     """Make two dwellers in a relationship romantic partners.
@@ -124,8 +115,6 @@ async def make_partners(
         HTTPException: 400 if partnership cannot be established.
         HTTPException: 403 if user doesn't have access.
     """
-    relationship = await _require_relationship(relationship_id, user, db_session)
-
     return await relationship_service.make_partners(
         db_session,
         relationship.dweller_1_id,
@@ -135,8 +124,7 @@ async def make_partners(
 
 @router.put("/{relationship_id}/marry", response_model=RelationshipRead)
 async def marry(
-    relationship_id: UUID,
-    user: CurrentActiveUser,
+    relationship: Annotated[Relationship, Depends(get_accessible_relationship)],
     db_session: DBSession,
 ) -> Relationship:
     """Marry two partners in a relationship.
@@ -149,16 +137,13 @@ async def marry(
         HTTPException: 400 if marriage cannot be performed.
         HTTPException: 403 if user doesn't have access.
     """
-    await _require_relationship(relationship_id, user, db_session)
-
     # marry raises ValidationException (HTTP 400) for invalid marriage attempts.
-    return await relationship_service.marry(db_session, relationship_id)
+    return await relationship_service.marry(db_session, relationship.id)
 
 
 @router.delete("/{relationship_id}", response_model=RelationshipActionResponse)
 async def break_up_relationship(
-    relationship_id: UUID,
-    user: CurrentActiveUser,
+    relationship: Annotated[Relationship, Depends(get_accessible_relationship)],
     db_session: DBSession,
 ) -> RelationshipActionResponse:
     """Break up a relationship between two dwellers.
@@ -171,9 +156,7 @@ async def break_up_relationship(
         HTTPException: 400 if breakup cannot be performed.
         HTTPException: 403 if user doesn't have access.
     """
-    await _require_relationship(relationship_id, user, db_session)
-
-    await relationship_service.break_up(db_session, relationship_id)
+    await relationship_service.break_up(db_session, relationship.id)
     return RelationshipActionResponse(message="Relationship ended")
 
 

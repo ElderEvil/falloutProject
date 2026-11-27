@@ -18,12 +18,14 @@ from app.db.session import get_async_session
 from app.models.dweller import Dweller
 from app.models.junk import Junk
 from app.models.outfit import Outfit
+from app.models.relationship import Relationship
 from app.models.room import Room
 from app.models.user import User
 from app.models.vault import Vault
 from app.models.weapon import Weapon
 from app.schemas.pagination import NotificationPagination, OffsetPagination, Pagination, PetPagination
 from app.services import access_service
+from app.services.relationship_service import relationship_service
 from app.utils.exceptions import AccessDeniedException, ensure_found
 
 reusable_oauth2 = OAuth2PasswordBearer(
@@ -139,6 +141,17 @@ async def verify_dweller_access(
 ) -> Dweller:
     """Apply the shared dweller access policy; returns the eager-loaded dweller so callers don't re-read it."""
     return await access_service.verify_dweller_access(dweller_id, user, db_session)
+
+
+async def get_accessible_relationship(
+    relationship_id: UUID,
+    user: CurrentActiveUser,
+    db_session: DBSession,
+) -> Relationship:
+    """Load a relationship and require access to its first dweller."""
+    relationship = await relationship_service.get_relationship_by_id(db_session, relationship_id)
+    await verify_dweller_access(relationship.dweller_1_id, user, db_session)
+    return relationship
 
 
 async def verify_room_access(

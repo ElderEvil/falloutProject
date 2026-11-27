@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 3.36.1 (2026-11-27)
+
+### Bug Fixes
+
+* show reach progress on every objective and keep caps visible at 1280 ([#1592](https://github.com/ElderEvil/falloutProject/issues/1592)) d81609a
+
 ## 3.36.0 (2026-11-27)
 
 ### Features

@@ -634,6 +634,7 @@ function handleTouchEnd(event: TouchEvent) {
           :y="pv.coord_y"
           :name="`Vault ${pv.number}`"
           type="home_vault"
+          purpose="home"
           label="Your Vault"
           :status="`View details`"
           @click="onOwnVaultClick(pv)"

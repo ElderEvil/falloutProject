@@ -30,6 +30,7 @@ const MapMarkerStub = {
     y: null,
     name: null,
     type: null,
+    purpose: { default: null },
     selected: null,
     unseen: null,
     is_unlocked: null,
@@ -768,6 +769,11 @@ describe('WorldMap', () => {
       expect(vault765).toHaveLength(1)
       expect(vault765[0].props('label')).not.toBe('Your Vault')
       expect(markers.some((m) => m.props('name') === 'Vault 777')).toBe(true)
+
+      // Every home-vault marker draws the Home shape, including the ones that come
+      // from `playerVaults` rather than from the location list.
+      for (const marker of markers.filter((m) => m.props('type') === 'home_vault'))
+        expect(marker.props('purpose')).toBe('home')
 
       // The surviving marker is the home-vault location; clicking it must open
       // the summary panel for the current vault, not the generic details modal.

@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## 3.34.1 (2026-11-27)
+
+### Code Refactoring
+
+* **api:** draw dweller reads through the service layer 7a6b3ce
+* **api:** draw dweller reads through the service layer ([#1579](https://github.com/ElderEvil/falloutProject/issues/1579)) 16bcfd8
+* **crud:** stage dweller soft-delete and restore for the service aaf5b2e
+
 ## 3.34.0 (2026-11-27)
 
 ### Features

@@ -14,8 +14,9 @@ from app.core.event_bus import GameEvent, event_bus
 from app.crud.game_state import game_state_crud
 from app.crud.quest import SCHEDULED_QUEST_TYPES
 from app.models.quest import Quest
+from app.models.team import TeamMember
 from app.models.vault_quest import VaultQuestCompletionLink
-from app.schemas.quest import EligibleDwellerRead, QuestRead
+from app.schemas.quest import EligibleDwellerRead, QuestCreate, QuestRead, QuestUpdate
 from app.schemas.rewards import format_reward_summary, granted_reward_adapter
 from app.services.notification_service import notification_service
 from app.services.progression.objectives.refresh_service import objective_periods
@@ -296,6 +297,43 @@ class QuestService:
     ) -> Sequence[QuestRead]:
         """Vault quest read; delegates to the availability policy."""
         return await availability.get_quests_for_vault(db_session, vault_id, skip, limit, available_only)
+
+    async def list_quest_templates(
+        self, db_session: AsyncSession, *, skip: int = 0, limit: int = 100
+    ) -> Sequence[QuestRead]:
+        """List global quest templates (not vault-scoped)."""
+        return await crud.quest_crud.get_multi(db_session, skip=skip, limit=limit)
+
+    async def create_quest_template(self, db_session: AsyncSession, quest_data: QuestCreate) -> QuestRead:
+        """Create a global quest template; the service owns the commit."""
+        quest = await crud.quest_crud.create(db_session, quest_data, commit=False)
+        result = await crud.quest_crud.build_read(db_session, quest)
+        await db_session.commit()
+        return result
+
+    async def get_vault_quest(self, db_session: AsyncSession, vault_id: UUID, quest_id: UUID) -> QuestRead:
+        """Load a quest only when it is assigned to the vault."""
+        link = await crud.quest_crud.get_link(db_session, quest_id=quest_id, vault_id=vault_id)
+        ensure_found(link, Quest, identifier=quest_id)
+        return await crud.quest_crud.get_read(db_session, quest_id)
+
+    async def update_quest_template(
+        self, db_session: AsyncSession, quest_id: UUID, quest_data: QuestUpdate
+    ) -> QuestRead:
+        """Update a global quest template; the service owns the commit."""
+        quest = await crud.quest_crud.update(db_session, quest_id, quest_data, commit=False)
+        result = await crud.quest_crud.build_read(db_session, quest)
+        await db_session.commit()
+        return result
+
+    async def delete_quest_template(self, db_session: AsyncSession, quest_id: UUID) -> None:
+        """Delete a global quest template; the service owns the commit."""
+        await crud.quest_crud.delete(db_session, quest_id, commit=False)
+        await db_session.commit()
+
+    async def get_party_members(self, db_session: AsyncSession, quest_id: UUID, vault_id: UUID) -> Sequence[TeamMember]:
+        """Party members assigned to a quest for a vault."""
+        return await crud.team_crud.get_quest_team(db_session, quest_id, vault_id)
 
     async def mark_quest_ready_to_claim(self, db_session: AsyncSession, quest_id: UUID, vault_id: UUID) -> Quest:
         """Return a finished party and make its rewards available to claim."""

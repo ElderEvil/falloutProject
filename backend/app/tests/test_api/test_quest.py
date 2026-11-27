@@ -1,6 +1,6 @@
 from datetime import timedelta
 from unittest.mock import AsyncMock, patch
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -170,3 +170,37 @@ async def test_assign_returns_the_completion_link_wire_shape(async_client, async
     }
     assert body["vault_id"] == str(vault.id)
     assert body["is_visible"] is True
+
+
+async def test_superuser_create_update_delete_quest_template_round_trip(
+    async_client, async_session: AsyncSession, superuser_token_headers
+) -> None:
+    vault_id = uuid4()
+    payload = {
+        "title": "Admin Template",
+        "short_description": "Template CRUD",
+        "long_description": "Create, update and delete a global quest template.",
+        "requirements": "None",
+        "rewards": "None",
+        "duration_minutes": 60,
+    }
+    created = await async_client.post(f"/quests/{vault_id}/", json=payload, headers=superuser_token_headers)
+    assert created.status_code == 200, created.text
+    quest_id = UUID(created.json()["id"])
+
+    updated = await async_client.put(
+        f"/quests/{vault_id}/{quest_id}",
+        params={"_vault_id": str(vault_id)},
+        json=payload | {"title": "Admin Template Updated"},
+        headers=superuser_token_headers,
+    )
+    assert updated.status_code == 200, updated.text
+    assert updated.json()["title"] == "Admin Template Updated"
+
+    deleted = await async_client.delete(
+        f"/quests/{vault_id}/{quest_id}",
+        params={"_vault_id": str(vault_id)},
+        headers=superuser_token_headers,
+    )
+    assert deleted.status_code == 204, deleted.text
+    assert await crud.quest_crud.get_or_none(async_session, quest_id) is None

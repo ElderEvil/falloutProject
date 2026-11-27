@@ -18,11 +18,11 @@ describe('MapLegend', () => {
     const shapes = mountLegend()
       .findAll('svg .legend-shape')
       .map((node) => node.element.tagName.toLowerCase())
-    // circle, diamond, triangle, square — the look shape is never a second circle.
+    // circle, diamond, hexagon, square — the look shape is never a second circle.
     expect(shapes).toEqual(['circle', 'path', 'path', 'rect'])
   })
 
-  it('marks the look triangle as an open body in the key', () => {
+  it('marks the look hexagon as an open body in the key', () => {
     const open = mountLegend().findAll('svg .legend-shape.ring')
     expect(open).toHaveLength(1)
   })

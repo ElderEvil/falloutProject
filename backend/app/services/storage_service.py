@@ -1,6 +1,7 @@
 """Vault inventory service: assemble the storage item lists and resolve missing art."""
 
 import logging
+from uuid import UUID
 
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -12,10 +13,10 @@ from app.schemas.item import ItemRead
 from app.schemas.junk import JunkRead
 from app.schemas.outfit import OutfitRead
 from app.schemas.pet import PetRead
-from app.schemas.storage import StorageItemsResponse
+from app.schemas.storage import StorageItemsResponse, StorageSpaceResponse
 from app.schemas.weapon import WeaponRead
 from app.services.recipe_unlock_service import recipe_description
-from app.utils.exceptions import ensure_found
+from app.utils.exceptions import StorageNotFoundException, ensure_found
 from app.utils.junk_assets import get_junk_image_url
 from app.utils.pet_assets import get_pet_image_url
 
@@ -24,6 +25,14 @@ logger = logging.getLogger(__name__)
 
 class StorageService:
     """Read model for a vault's inventory, resolving legacy art on the way out."""
+
+    async def get_space(self, db_session: AsyncSession, vault_id: UUID) -> StorageSpaceResponse:
+        """Used/max space plus carried medical supplies for a vault's storage."""
+        storage = await storage_crud.get_storage_by_vault(db_session, vault_id)
+        if storage is None:
+            raise StorageNotFoundException
+        info = await storage_crud.get_storage_info(db_session, storage.id)
+        return StorageSpaceResponse(**info, stimpack=storage.stimpack or 0, radaway=storage.radaway or 0)
 
     async def get_items(self, db_session: AsyncSession, vault: Vault) -> StorageItemsResponse:
         """Every item in the vault's storage, grouped by kind, with missing images filled in.

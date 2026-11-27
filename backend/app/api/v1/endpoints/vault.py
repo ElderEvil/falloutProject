@@ -6,7 +6,6 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
 
-from app import crud
 from app.api.deps import CurrentActiveUser, CurrentSuperuser, DBSession, PaginationParams, get_user_vault_or_403
 from app.core.enums import AgeGroupEnum
 from app.models.vault import Vault
@@ -47,7 +46,7 @@ async def read_vault_list(
     pagination: PaginationParams,
 ) -> Sequence[Vault]:
     """Retrieve a paginated list of all vaults (admin only)."""
-    return await crud.vault.get_multi(db_session, skip=pagination.skip, limit=pagination.limit)
+    return await vault_service.list_vaults(db_session, skip=pagination.skip, limit=pagination.limit)
 
 
 @router.get("/my", response_model=list[VaultReadWithNumbers])
@@ -101,7 +100,7 @@ async def update_vault(
     _: Annotated[Vault, Depends(get_user_vault_or_403)],
 ) -> Vault:
     """Update a vault."""
-    return await crud.vault.update(db_session, vault_id, vault_data)
+    return await vault_service.update_vault(db_session, vault_id, vault_data)
 
 
 @router.delete("/{vault_id}", status_code=204)

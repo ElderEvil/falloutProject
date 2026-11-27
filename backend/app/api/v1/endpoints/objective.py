@@ -5,7 +5,6 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends
 
-from app import crud
 from app.api.deps import (
     CurrentActiveUser,
     CurrentSuperuser,
@@ -15,14 +14,16 @@ from app.api.deps import (
     get_user_vault_or_403,
 )
 from app.models.objective import Objective
-from app.models.vault import Vault
 from app.models.vault_objective import VaultObjectiveProgressLink
 from app.schemas.objective import ObjectiveCreate, ObjectiveRead
 from app.schemas.responses import AssignedResponse
 from app.services.progression.objectives.assignment import ObjectiveAssignmentService
-from app.services.progression.objectives.guidance import read_objectives
+from app.services.progression.objectives.guidance import (
+    create_objective_for_vault,
+    get_objective_template,
+    read_objectives,
+)
 from app.services.reward_service import reward_service
-from app.utils.exceptions import ensure_found
 
 router = APIRouter(prefix="/objectives", tags=["Objective"], dependencies=[Depends(get_current_active_user)])
 
@@ -35,7 +36,7 @@ async def create_objective(
     _: CurrentSuperuser,
 ) -> Objective:
     """Create an objective for a vault (administrators only)."""
-    return await crud.objective_crud.create_for_vault(db_session, vault_id, objective_data)
+    return await create_objective_for_vault(db_session, vault_id, objective_data)
 
 
 @router.get("/{vault_id}/", response_model=list[ObjectiveRead])
@@ -61,7 +62,7 @@ async def read_objective(
     Objectives are global templates; a vault links to them with its own progress,
     so any authenticated caller may read one (vault-scoped lists stay owner-only).
     """
-    return await crud.objective_crud.get(db_session, objective_id)
+    return await get_objective_template(db_session, objective_id)
 
 
 @router.post("/{vault_id}/{objective_id}/claim", response_model=VaultObjectiveProgressLink)
@@ -107,10 +108,7 @@ async def assign_random_objectives(
     count: int = 5,
 ) -> AssignedResponse:
     """Assign random available objectives to a vault (administrators only)."""
-    # Validate vault exists first to avoid orphan links
-    vault = await crud.vault.get_or_none(db_session, vault_id)
-    vault = ensure_found(vault, Vault, identifier=vault_id)
-
     service = ObjectiveAssignmentService(db_session)
+    await service.require_vault(vault_id)
     assigned = await service.assign_random_objectives(vault_id, count)
     return AssignedResponse(assigned=len(assigned), message=f"Assigned {len(assigned)} objectives to vault")

@@ -1,12 +1,16 @@
 import pytest
+from sqlalchemy import func, select
 
 from app import crud
-from app.core.enums import AgeGroupEnum, GenderEnum, RarityEnum, RoomTypeEnum, SPECIALEnum
+from app.core.enums import AgeGroupEnum, GenderEnum, ObjectiveCategoryEnum, RarityEnum, RoomTypeEnum, SPECIALEnum
 from app.models.objective import Objective
+from app.models.vault_objective import VaultObjectiveProgressLink
 from app.schemas.dweller import DwellerCreate
+from app.schemas.objective import ObjectiveCreate
 from app.schemas.room import RoomCreate
 from app.services.exploration_service import exploration_service
-from app.services.progression.objectives.guidance import current_state_progress
+from app.services.progression.objectives.guidance import create_objective_for_vault, current_state_progress
+from app.tests.test_services._transaction_helpers import fail_sql
 
 ROOM = {
     "category": RoomTypeEnum.PRODUCTION,
@@ -93,3 +97,37 @@ async def test_explore_credits_an_existing_run_but_not_quest_completion(async_se
     expedition = _objective("expedition", amount=3, challenge="Complete 3 Quests", reward="300 caps")
     assert await current_state_progress(async_session, vault.id, explore) == 1
     assert await current_state_progress(async_session, vault.id, expedition) == 0
+
+
+def _inserts_objective_link(statement: str) -> bool:
+    return statement.lower().startswith("insert into vaultobjectiveprogresslink")
+
+
+async def test_create_objective_rolls_back_template_when_link_insert_fails(async_session, vault):
+    links_before = (
+        await async_session.execute(select(func.count()).select_from(VaultObjectiveProgressLink))
+    ).scalar_one()
+    objective_data = ObjectiveCreate(
+        challenge="Rollback Objective",
+        reward="50 caps",
+        category=ObjectiveCategoryEnum.DAILY,
+        objective_type="collect",
+        target_entity={"resource_type": "caps"},
+        target_amount=3,
+    )
+
+    async with fail_sql(async_session, _inserts_objective_link, "injected link failure"):
+        with pytest.raises(RuntimeError, match="injected link failure"):
+            await create_objective_for_vault(async_session, vault.id, objective_data)
+
+    await async_session.rollback()
+    templates = (
+        await async_session.execute(
+            select(func.count()).select_from(Objective).where(Objective.challenge == "Rollback Objective")
+        )
+    ).scalar_one()
+    links_after = (
+        await async_session.execute(select(func.count()).select_from(VaultObjectiveProgressLink))
+    ).scalar_one()
+    assert templates == 0
+    assert links_after == links_before

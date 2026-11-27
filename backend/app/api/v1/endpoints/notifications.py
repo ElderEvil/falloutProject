@@ -5,7 +5,6 @@ from uuid import UUID
 from fastapi import APIRouter, HTTPException
 
 from app.api.deps import CurrentActiveUser, DBSession, NotificationPaginationParams
-from app.crud.notification import notification as notification_crud
 from app.models.notification import Notification, NotificationRead
 from app.schemas.responses import CountResponse, MarkReadResponse
 from app.services.notification_service import NotificationService
@@ -48,7 +47,7 @@ async def get_unread_count(
     Returns:
         Count of unread notifications.
     """
-    count = await notification_crud.get_unread_count(db_session, user_id=user.id)
+    count = await NotificationService.get_unread_count(db_session, user_id=user.id)
     return CountResponse(count=count)
 
 
@@ -66,7 +65,7 @@ async def mark_notification_as_read(
     Raises:
         HTTPException: 404 if notification not found.
     """
-    notification = await notification_crud.mark_as_read(db_session, notification_id=notification_id, user_id=user.id)
+    notification = await NotificationService.mark_as_read(db_session, notification_id=notification_id, user_id=user.id)
     if not notification:
         raise HTTPException(status_code=404, detail="Notification not found")
     return notification
@@ -101,7 +100,7 @@ async def dismiss_notification(
     Raises:
         HTTPException: 404 if notification not found.
     """
-    notification = await notification_crud.dismiss(db_session, notification_id=notification_id, user_id=user.id)
+    notification = await NotificationService.dismiss(db_session, notification_id=notification_id, user_id=user.id)
     if not notification:
         raise HTTPException(status_code=404, detail="Notification not found")
     return notification

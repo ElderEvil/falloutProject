@@ -6,7 +6,6 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends
 
-from app import crud
 from app.api.deps import (
     CurrentActiveUser,
     CurrentSuperuser,
@@ -33,7 +32,7 @@ async def create_junk(
     _: CurrentSuperuser,
 ) -> Junk:
     """Create a new junk item (administrators only)."""
-    return await crud.junk.create(db_session, junk_data)
+    return await item_service.create_item(db_session, model=Junk, item_data=junk_data)
 
 
 @router.get("/", response_model=list[JunkRead])
@@ -50,7 +49,9 @@ async def read_junk_list(
     players' materials.
     """
     await get_user_vault_or_403(vault_id, user, db_session)
-    return await crud.junk.get_multi_for_vault(db_session, vault_id, skip=pagination.skip, limit=pagination.limit)
+    return await item_service.list_junk_for_vault(
+        db_session, vault_id=vault_id, skip=pagination.skip, limit=pagination.limit
+    )
 
 
 @router.get("/{junk_id}", response_model=JunkRead)
@@ -61,7 +62,7 @@ async def read_junk(
 ) -> Junk:
     """Retrieve a junk item by ID."""
     await verify_item_access(junk_id, Junk, user, db_session)
-    return await crud.junk.get(db_session, junk_id)
+    return await item_service.get_item(db_session, model=Junk, item_id=junk_id)
 
 
 @router.put("/{junk_id}", response_model=JunkRead)
@@ -72,7 +73,7 @@ async def update_junk(
     _: CurrentSuperuser,
 ) -> Junk:
     """Update a junk item (administrators only)."""
-    return await crud.junk.update(db_session, junk_id, junk_data)
+    return await item_service.update_item(db_session, model=Junk, item_id=junk_id, item_data=junk_data)
 
 
 @router.delete("/{junk_id}", status_code=204)
@@ -82,7 +83,7 @@ async def delete_junk(
     _: CurrentSuperuser,
 ) -> None:
     """Delete a junk item (administrators only)."""
-    await crud.junk.delete(db_session, junk_id)
+    await item_service.delete_item(db_session, model=Junk, item_id=junk_id)
 
 
 @router.get("/read_data/", response_model=list[JunkCreate])

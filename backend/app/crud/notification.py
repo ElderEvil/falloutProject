@@ -105,15 +105,20 @@ class CRUDNotification(CRUDBase[Notification, NotificationCreate, NotificationUp
         result = await db.execute(query)  # ty: ignore[deprecated] -- Compatible with tick/test SQLAlchemy sessions.
         return int(result.scalar_one())
 
-    async def mark_as_read(self, db: AsyncSession, notification_id: UUID, user_id: UUID) -> Notification | None:
-        """Mark notification as read"""
+    async def mark_as_read(
+        self, db: AsyncSession, notification_id: UUID, user_id: UUID, *, commit: bool = True
+    ) -> Notification | None:
+        """Mark notification as read."""
         notification = await self.get(db, id=notification_id)
         if notification and notification.user_id == user_id:
             notification.is_read = True
             notification.read_at = utcnow()
             db.add(notification)
-            await db.commit()
-            await db.refresh(notification)
+            if commit:
+                await db.commit()
+                await db.refresh(notification)
+            else:
+                await db.flush()
             return notification
         return None
 
@@ -132,14 +137,19 @@ class CRUDNotification(CRUDBase[Notification, NotificationCreate, NotificationUp
         await db.commit()
         return cast("CursorResult", result).rowcount or 0
 
-    async def dismiss(self, db: AsyncSession, notification_id: UUID, user_id: UUID) -> Notification | None:
-        """Dismiss (soft delete) a notification"""
+    async def dismiss(
+        self, db: AsyncSession, notification_id: UUID, user_id: UUID, *, commit: bool = True
+    ) -> Notification | None:
+        """Dismiss (soft delete) a notification."""
         notification = await self.get(db, id=notification_id)
         if notification and notification.user_id == user_id:
             notification.is_dismissed = True
             db.add(notification)
-            await db.commit()
-            await db.refresh(notification)
+            if commit:
+                await db.commit()
+                await db.refresh(notification)
+            else:
+                await db.flush()
             return notification
         return None
 

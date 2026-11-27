@@ -186,7 +186,7 @@ async def test_start_training_errors(async_client, superuser_token_headers, erro
 async def test_get_dweller_training_success(async_client, superuser_token_headers):
     mock_training = _make_mock_training()
     with _patched(
-        (f"{EP}crud_training.training.get_active_by_dweller", AsyncMock(return_value=mock_training)),
+        (f"{EP}training_service.get_active_training_for_dweller", AsyncMock(return_value=mock_training)),
         (f"{EP}get_user_vault_or_403", AsyncMock(return_value=None)),
     ):
         response = await async_client.get(
@@ -199,14 +199,17 @@ async def test_get_dweller_training_success(async_client, superuser_token_header
 
 
 @pytest.mark.parametrize(
-    ("segment", "crud_method", "kwarg"),
-    [("vault", "get_active_by_vault", "vault_id"), ("room", "get_active_by_room", "room_id")],
+    ("segment", "service_method", "kwarg"),
+    [
+        ("vault", "list_active_trainings_for_vault", "vault_id"),
+        ("room", "list_active_trainings_for_room", "room_id"),
+    ],
 )
-async def test_list_training_success(async_client, superuser_token_headers, segment, crud_method, kwarg):
+async def test_list_training_success(async_client, superuser_token_headers, segment, service_method, kwarg):
     ident = uuid4()
     items = [_make_mock_training(**{kwarg: ident}) for _ in range(2)]
     with _patched(
-        (f"{EP}crud_training.training.{crud_method}", AsyncMock(return_value=items)),
+        (f"{EP}training_service.{service_method}", AsyncMock(return_value=items)),
         (f"{EP}get_user_vault_or_403", AsyncMock(return_value=None)),
     ):
         response = await async_client.get(f"/training/{segment}/{ident}", headers=superuser_token_headers)
@@ -217,7 +220,7 @@ async def test_list_training_success(async_client, superuser_token_headers, segm
 async def test_get_training_success(async_client, superuser_token_headers):
     mock_training = _make_mock_training(progress=0.75)
     with _patched(
-        (f"{EP}crud_training.training.get", AsyncMock(return_value=mock_training)),
+        (f"{EP}training_service.get_training", AsyncMock(return_value=mock_training)),
         (f"{EP}get_user_vault_or_403", AsyncMock(return_value=None)),
         (f"{EP}training_service.update_training_progress", AsyncMock(return_value=mock_training)),
     ):
@@ -233,13 +236,12 @@ async def test_get_training_success(async_client, superuser_token_headers):
 @pytest.mark.parametrize("action", ["view", "cancel"])
 async def test_training_session_not_found(async_client, superuser_token_headers, action):
     training_id = uuid4()
-    with _patched((f"{EP}crud_training.training.get", AsyncMock(return_value=None))):
-        if action == "view":
-            response = await async_client.get(f"/training/{training_id}", headers=superuser_token_headers)
-        else:
-            response = await async_client.post(f"/training/{training_id}/cancel", headers=superuser_token_headers)
+    if action == "view":
+        response = await async_client.get(f"/training/{training_id}", headers=superuser_token_headers)
+    else:
+        response = await async_client.post(f"/training/{training_id}/cancel", headers=superuser_token_headers)
     assert response.status_code == 404
-    assert "training session not found" in response.json()["detail"].lower()
+    assert response.json()["detail"] == f"Unable to find the Training with id {training_id}."
 
 
 @pytest.mark.parametrize(
@@ -254,7 +256,7 @@ async def test_training_session_not_found(async_client, superuser_token_headers,
 async def test_training_action_service_errors(async_client, superuser_token_headers, action, error, status):
     mock_training = _make_mock_training()
     with _patched(
-        (f"{EP}crud_training.training.get", AsyncMock(return_value=mock_training)),
+        (f"{EP}training_service.get_training", AsyncMock(return_value=mock_training)),
         (f"{EP}get_user_vault_or_403", AsyncMock(return_value=None)),
         (f"{EP}training_service.{action}_training", AsyncMock(side_effect=error)),
     ):

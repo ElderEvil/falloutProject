@@ -10,8 +10,10 @@ from app.core.event_bus import GameEvent, event_bus
 from app.crud.objective import objective_crud
 from app.crud.vault import vault as vault_crud
 from app.models.objective import Objective
+from app.models.vault import Vault
 from app.models.vault_objective import VaultObjectiveProgressLink
 from app.services.progression.objectives.guidance import current_state_progress
+from app.utils.exceptions import ensure_found
 
 logger = logging.getLogger(__name__)
 
@@ -259,6 +261,11 @@ class ObjectiveAssignmentService:
             logger.info(f"Cleared {len(links)} {category} objectives for vault {vault_id}")
 
         return len(links)
+
+    async def require_vault(self, vault_id: UUID) -> Vault:
+        """Validate the vault before assigning so a bad id cannot create orphan links."""
+        vault = await vault_crud.get_or_none(self._db_session, vault_id)
+        return ensure_found(vault, Vault, identifier=vault_id)
 
     async def assign_random_objectives(self, vault_id: UUID, count: int = 5) -> list[Objective]:
         """Assign random unassigned objectives to a vault (testing/debugging)."""

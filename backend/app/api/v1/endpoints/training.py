@@ -1,14 +1,15 @@
 """Training endpoints."""
 
+from collections.abc import Sequence
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Query
 
 from app.api.deps import CurrentActiveUser, DBSession, get_user_vault_or_403
-from app.crud import training as crud_training
 from app.models.training import Training
 from app.schemas.training import TrainingGoalUpdate, TrainingProgress, TrainingRead
+from app.services.dweller_service import dweller_service
 from app.services.training_service import training_service
 
 router = APIRouter(prefix="/training", tags=["Training"])
@@ -31,11 +32,7 @@ async def start_training(
         HTTPException: 400 if training cannot be started.
         HTTPException: 409 if dweller already training.
     """
-    from app.crud.dweller import dweller as dweller_crud
-
-    dweller = await dweller_crud.get(db_session, dweller_id)
-    if not dweller:
-        raise HTTPException(status_code=404, detail="Dweller not found")
+    dweller = await dweller_service.get_dweller(db_session, dweller_id)
     await get_user_vault_or_403(dweller.vault_id, user, db_session)
 
     return await training_service.start_training(db_session, dweller_id, room_id)
@@ -52,7 +49,7 @@ async def get_dweller_training(
     Returns:
         Active training session or None.
     """
-    training = await crud_training.training.get_active_by_dweller(db_session, dweller_id)
+    training = await training_service.get_active_training_for_dweller(db_session, dweller_id)
 
     if training:
         await get_user_vault_or_403(training.vault_id, user, db_session)
@@ -65,7 +62,7 @@ async def list_vault_training(
     vault_id: UUID,
     user: CurrentActiveUser,
     db_session: DBSession,
-) -> list[Training]:
+) -> Sequence[Training]:
     """List all active training sessions in a vault.
 
     Returns:
@@ -73,7 +70,7 @@ async def list_vault_training(
     """
     await get_user_vault_or_403(vault_id, user, db_session)
 
-    return await crud_training.training.get_active_by_vault(db_session, vault_id)
+    return await training_service.list_active_trainings_for_vault(db_session, vault_id)
 
 
 @router.get("/{training_id}", response_model=TrainingProgress)
@@ -90,9 +87,7 @@ async def get_training(
     Raises:
         HTTPException: 404 if training session not found.
     """
-    training = await crud_training.training.get(db_session, training_id)
-    if not training:
-        raise HTTPException(status_code=404, detail="Training session not found")
+    training = await training_service.get_training(db_session, training_id)
 
     # Verify training belongs to user's vault
     await get_user_vault_or_403(training.vault_id, user, db_session)
@@ -123,9 +118,7 @@ async def complete_training(
         HTTPException: 404 if training not found.
         HTTPException: 400 if training not active or already completed.
     """
-    training = await crud_training.training.get(db_session, training_id)
-    if not training:
-        raise HTTPException(status_code=404, detail="Training session not found")
+    training = await training_service.get_training(db_session, training_id)
 
     # Verify training belongs to user's vault
     await get_user_vault_or_403(training.vault_id, user, db_session)
@@ -148,9 +141,7 @@ async def cancel_training(
         HTTPException: 404 if training not found.
         HTTPException: 400 if training not active.
     """
-    training = await crud_training.training.get(db_session, training_id)
-    if not training:
-        raise HTTPException(status_code=404, detail="Training session not found")
+    training = await training_service.get_training(db_session, training_id)
 
     # Verify training belongs to user's vault
     await get_user_vault_or_403(training.vault_id, user, db_session)
@@ -163,13 +154,13 @@ async def list_room_training(
     room_id: UUID,
     user: CurrentActiveUser,
     db_session: DBSession,
-) -> list[Training]:
+) -> Sequence[Training]:
     """List all active training sessions in a room.
 
     Returns:
         List of active training sessions in the room.
     """
-    trainings = await crud_training.training.get_active_by_room(db_session, room_id)
+    trainings = await training_service.list_active_trainings_for_room(db_session, room_id)
 
     if trainings:
         # Verify room belongs to user's vault (check via first training's vault)
@@ -186,8 +177,6 @@ async def set_training_goal(
     db_session: DBSession,
 ) -> Training:
     """Set a dweller's goal for the current training chain."""
-    training = await crud_training.training.get(db_session, training_id)
-    if not training:
-        raise HTTPException(status_code=404, detail="Training session not found")
+    training = await training_service.get_training(db_session, training_id)
     await get_user_vault_or_403(training.vault_id, user, db_session)
     return await training_service.set_training_goal(db_session, training_id, goal.goal_stat_value)

@@ -1,11 +1,11 @@
 """Exploration endpoints."""
 
+from collections.abc import Sequence
 from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Query
 
-from app import crud
 from app.api.deps import CurrentActiveUser, DBSession, get_user_vault_or_403, verify_exploration_access
 from app.models.exploration import Exploration
 from app.schemas.expedition import (
@@ -111,18 +111,14 @@ async def list_explorations_by_vault(
     user: CurrentActiveUser,
     db_session: DBSession,
     active_only: bool = True,
-) -> list[Exploration]:
+) -> Sequence[Exploration]:
     """List all explorations for a vault.
 
     Returns:
         list[ExplorationReadShort]: List of explorations.
     """
     await get_user_vault_or_403(vault_id, user, db_session)
-    return await crud.exploration.get_by_vault(
-        db_session,
-        vault_id=vault_id,
-        active_only=active_only,
-    )
+    return await exploration_service.list_for_vault(db_session, vault_id, active_only=active_only)
 
 
 @router.get("/vault/{vault_id}/{exploration_id}/party", response_model=list[ExplorationPartyMemberRead])
@@ -167,7 +163,7 @@ async def get_exploration(
         ExplorationRead: Exploration details.
     """
     await verify_exploration_access(exploration_id, user, db_session)
-    return await crud.exploration.get(db_session, exploration_id)
+    return await exploration_service.get_exploration(db_session, exploration_id)
 
 
 @router.get("/{exploration_id}/progress", response_model=ExplorationProgress)

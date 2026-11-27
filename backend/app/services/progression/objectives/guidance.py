@@ -15,11 +15,24 @@ from app.crud.objective import objective_crud
 from app.crud.quest import quest_crud
 from app.crud.room import room as room_crud
 from app.crud.training import training as training_crud
-from app.models.objective import ObjectiveBase
-from app.schemas.objective import ObjectiveRead
+from app.models.objective import Objective, ObjectiveBase
+from app.schemas.objective import ObjectiveCreate, ObjectiveRead
 from app.services.room_assignment_policy import get_highest_special
 from app.utils.objective_constants import normalize_room_type
 from app.utils.time import utcnow
+
+
+async def create_objective_for_vault(
+    db_session: AsyncSession, vault_id: UUID, objective_data: ObjectiveCreate
+) -> Objective:
+    """Create a global objective template and link it to the vault; the service owns the commit."""
+    objective = await objective_crud.create_for_vault(db_session, vault_id, objective_data, commit=False)
+    await db_session.commit()
+    return objective
+
+
+async def get_objective_template(db_session: AsyncSession, objective_id: UUID) -> Objective:
+    return await objective_crud.get(db_session, objective_id)
 
 
 async def current_state_progress(db_session: AsyncSession, vault_id: UUID, objective: ObjectiveBase) -> int:

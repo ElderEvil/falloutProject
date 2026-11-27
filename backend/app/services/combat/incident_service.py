@@ -82,6 +82,23 @@ class IncidentService:
         names = await room_crud.get_names_by_ids(db_session, [room_id])
         return names.get(room_id)
 
+    @staticmethod
+    async def get_incident(db_session: AsyncSession, incident_id: UUID) -> Incident | None:
+        return await incident_crud.get(db_session, incident_id)
+
+    async def remove_incident(self, db_session: AsyncSession, incident_id: UUID) -> bool:
+        """Delete one incident; the service owns the commit when a row was removed."""
+        removed = await incident_crud.remove(db_session, incident_id, commit=False)
+        if removed:
+            await db_session.commit()
+        return removed
+
+    async def remove_vault_incidents(self, db_session: AsyncSession, vault_id: UUID) -> int:
+        """Delete every incident in a vault; the service owns the commit."""
+        count = await incident_crud.remove_all_by_vault(db_session, vault_id, commit=False)
+        await db_session.commit()
+        return count
+
     async def get_active_incident_list(self, db_session: AsyncSession, vault_id: UUID) -> IncidentListResponse:
         """Build the active-incident list contract for a vault."""
         incidents = await incident_crud.get_active_by_vault(db_session, vault_id, started_only=True)

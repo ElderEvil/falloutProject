@@ -152,12 +152,15 @@ class CRUDIncident:
         return incident
 
     @staticmethod
-    async def remove(db_session: AsyncSession, incident_id: UUID) -> bool:
+    async def remove(db_session: AsyncSession, incident_id: UUID, *, commit: bool = True) -> bool:
         """Delete an incident."""
         incident = await CRUDIncident.get(db_session, incident_id)
         if incident:
             await db_session.delete(incident)
-            await db_session.commit()
+            if commit:
+                await db_session.commit()
+            else:
+                await db_session.flush()
             return True
         return False
 
@@ -205,7 +208,7 @@ class CRUDIncident:
         return result.scalars().first()
 
     @staticmethod
-    async def remove_all_by_vault(db_session: AsyncSession, vault_id: UUID) -> int:
+    async def remove_all_by_vault(db_session: AsyncSession, vault_id: UUID, *, commit: bool = True) -> int:
         """Delete all incidents for a vault."""
         query = select(Incident).where(Incident.vault_id == vault_id)
         result = await db_session.execute(query)
@@ -213,7 +216,10 @@ class CRUDIncident:
         count = len(incidents)
         for incident in incidents:
             await db_session.delete(incident)
-        await db_session.commit()
+        if commit:
+            await db_session.commit()
+        else:
+            await db_session.flush()
         return count
 
 

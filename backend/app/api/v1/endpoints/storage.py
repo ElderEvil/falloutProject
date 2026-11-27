@@ -3,10 +3,9 @@
 import logging
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 
 from app.api.deps import CurrentActiveUser, DBSession, get_user_vault_or_403
-from app.crud import storage as crud_storage
 from app.schemas.rewards import (
     LunchboxOpened,
     LunchboxOpenRequest,
@@ -39,32 +38,21 @@ async def get_storage_space(
         HTTPException: 403 if user lacks access to the vault.
         HTTPException: 404 if storage not found for vault.
     """
-    # Verify ownership
     vault = await get_user_vault_or_403(vault_id, current_user, db_session)
 
-    # Get storage explicitly (avoid lazy load)
-    storage = await crud_storage.get_storage_by_vault(db_session, vault.id)
-    if not storage:
-        raise HTTPException(status_code=404, detail="Storage not found for vault")
-
-    # Get storage info
-    storage_info = await crud_storage.get_storage_info(db_session, storage.id)
+    space = await storage_service.get_space(db_session, vault.id)
 
     logger.info(
         "Storage space queried",
         extra={
             "vault_id": str(vault_id),
             "user_id": str(current_user.id),
-            "used_space": storage_info["used_space"],
-            "max_space": storage_info["max_space"],
+            "used_space": space.used_space,
+            "max_space": space.max_space,
         },
     )
 
-    return StorageSpaceResponse(
-        **storage_info,
-        stimpack=storage.stimpack or 0,
-        radaway=storage.radaway or 0,
-    )
+    return space
 
 
 @router.get("/vault/{vault_id}/items")

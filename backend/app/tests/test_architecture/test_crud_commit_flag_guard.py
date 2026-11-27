@@ -17,12 +17,10 @@ DEBT: dict[str, str] = {
     "base.py": "CRUDBase.create_all CRUDBase.upsert",
     "exploration.py": "CRUDExploration.add_event CRUDExploration.add_loot CRUDExploration.update_stats",
     "game_state.py": "CRUDGameState.pause CRUDGameState.record_presence CRUDGameState.resume CRUDGameState.update_tick",
-    "incident.py": "CRUDIncident.resolve CRUDIncident.spread_to_room CRUDIncident.remove CRUDIncident.remove_all_by_vault",
+    "incident.py": "CRUDIncident.resolve CRUDIncident.spread_to_room",
     "mixins.py": "CompletionMixin.complete",
-    "notification.py": "CRUDNotification.mark_as_read CRUDNotification.mark_all_as_read CRUDNotification.dismiss",
-    "objective.py": (
-        "CRUDObjective.create_for_vault CRUDObjective.sync_starter_templates CRUDObjective.sync_achievement_templates"
-    ),
+    "notification.py": "CRUDNotification.mark_all_as_read",
+    "objective.py": "CRUDObjective.sync_starter_templates CRUDObjective.sync_achievement_templates",
     "quest.py": "CRUDQuest.get_multi_for_vault CRUDQuest.create_quest",
     "room.py": "CRUDRoom.apply_remodel",
     "user.py": "CRUDUser.authenticate",

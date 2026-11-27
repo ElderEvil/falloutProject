@@ -87,6 +87,14 @@ def _to_exploration_party_member_read(
 
 
 class ExplorationService:
+    async def list_for_vault(
+        self, db_session: AsyncSession, vault_id: UUID, *, active_only: bool = True
+    ) -> Sequence[Exploration]:
+        return await crud_exploration.get_by_vault(db_session, vault_id=vault_id, active_only=active_only)
+
+    async def get_exploration(self, db_session: AsyncSession, exploration_id: UUID) -> Exploration:
+        return await crud_exploration.get(db_session, exploration_id)
+
     """Exploration service for managing wasteland explorations.
 
     This class provides a unified API for exploration operations and delegates

@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## 3.34.2 (2026-11-27)
+
+### Code Refactoring
+
+* **seeding:** extract the seeding family from utils ([#1580](https://github.com/ElderEvil/falloutProject/issues/1580)) 81f4c49
+* **utils:** split dweller identity from payload generation ([#1582](https://github.com/ElderEvil/falloutProject/issues/1582)) 9495220
+
 ## 3.34.1 (2026-11-27)
 
 ### Code Refactoring

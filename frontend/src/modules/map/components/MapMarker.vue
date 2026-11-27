@@ -3,6 +3,7 @@ import { computed, ref, useId, watch, type CSSProperties } from 'vue'
 import { Icon } from '@iconify/vue'
 import { getStaticImageUrl, normalizeImageUrl } from '@/core/utils/image'
 import { MARKER_GLYPH_SIZE, markerTypeMeta, type MarkerType } from '../models/markerTypeMeta'
+import { shapeMeta, type MarkerShape } from '../models/markerShape'
 import { riskLabel } from '../utils/dangerStyle'
 import { isHintLocation } from '../utils/visibility'
 
@@ -11,6 +12,8 @@ interface Props {
   y: number
   name: string
   type: MarkerType
+  /** Body silhouette the marker draws. Null keeps the plain disc. */
+  shape?: MarkerShape | null
   selected?: boolean
   is_unlocked?: boolean
   unseen?: boolean
@@ -38,6 +41,7 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), {
   color: null,
+  shape: null,
   selected: false,
   is_unlocked: true,
   unseen: false,
@@ -79,11 +83,13 @@ const displayIcon = computed(() => icon.value)
 const displayLabel = computed(() => (isLocked.value ? 'Unknown Location' : props.name))
 const shouldPulse = computed(() => isDiscovery.value && !isLocked.value && props.unseen)
 
-// Glyph size in marker user units; the backing disc is r=3.8, so this leaves a
-// ring of dark margin around every glyph. Passed to Iconify with an explicit
-// unit: a unitless nested-<svg> width is rejected by Chromium (it then
-// shrink-wraps each icon to its artwork) but honoured by Firefox.
-const glyphSize = computed(() => MARKER_GLYPH_SIZE * props.iconScale)
+// Glyph size in marker user units. It follows the body scale, so the glyph keeps
+// the same share of the body whether the marker is a full-size signal or a
+// shrunk place marker — the old split left signal glyphs at 89% of their disc.
+// Passed to Iconify with an explicit unit: a unitless nested-<svg> width is
+// rejected by Chromium (it then shrink-wraps each icon to its artwork) but
+// honoured by Firefox.
+const glyphSize = computed(() => MARKER_GLYPH_SIZE * props.iconScale * props.bodyScale)
 const glyphSizeCss = computed(() => `${glyphSize.value}px`)
 
 // Every body dimension derives from one factor so disc, rings, badge, portrait
@@ -96,6 +102,25 @@ const portraitSize = computed(() => body(6.2))
 const labelY = computed(() => -body(3.4))
 const labelStyle = computed<CSSProperties>(() => ({ fontSize: `${body(2.4)}px` }))
 const portraitClipId = useId()
+
+// Body silhouette carries purpose: circle = clear, diamond = trade, open triangle
+// = look, square = your vault. A marker without a shape keeps the plain disc, so
+// signals and parties read exactly as they always have.
+const bodyShape = computed<MarkerShape>(() => props.shape ?? 'circle')
+const purposeLabel = computed(() => (props.shape ? shapeMeta(props.shape).label : null))
+const bodyPath = computed(() => {
+  const r = discRadius.value
+  if (bodyShape.value === 'diamond') return `M 0 ${-r} L ${r} 0 L 0 ${r} L ${-r} 0 Z`
+  if (bodyShape.value === 'triangle') {
+    // A triangle carries far less area than a disc of the same circumradius, so it
+    // gets 1.4x the radius: at equal circumradius it read as a small badge lost
+    // beside the circles. Centroid still sits on the coordinate.
+    const t = Math.round(r * 1.4 * 1000) / 1000
+    const dx = Math.round(((t * Math.sqrt(3)) / 2) * 1000) / 1000
+    return `M 0 ${-t} L ${dx} ${Math.round((t / 2) * 1000) / 1000} L ${-dx} ${Math.round((t / 2) * 1000) / 1000} Z`
+  }
+  return ''
+})
 
 // Explorer thumbnail: normalise the backend static path and fall back to the
 // icon glyph if the image fails to load (restores DwellerPortrait's behaviour
@@ -118,6 +143,7 @@ const glyphStyle = computed<CSSProperties>(() => ({
 const tooltipText = computed(() => {
   const base = `${displayLabel.value} (${label.value})`
   const details = [
+    purposeLabel.value,
     isLocked.value ? null : riskLabel(props.risk, props.baseDifficulty),
     props.cooldown ? 'Cooldown' : props.cleared ? 'Cleared' : null,
     props.status,
@@ -147,8 +173,25 @@ const tooltipText = computed(() => {
   >
     <circle class="marker-hit-area" r="6" fill="transparent" />
     <title>{{ tooltipText }}</title>
-    <!-- Dark knockout disc: keeps the glyph and rings legible over any terrain -->
-    <circle class="marker-backing" :r="discRadius" />
+    <!-- Dark knockout body: keeps the glyph and rings legible over any terrain.
+         Its silhouette encodes purpose — circle clear, diamond trade, open triangle
+         look, square home — while signals keep the plain disc. -->
+    <circle v-if="bodyShape === 'circle'" class="marker-backing" :r="discRadius" />
+    <path
+      v-else-if="bodyShape === 'diamond' || bodyShape === 'triangle'"
+      class="marker-backing"
+      :class="{ 'marker-backing-open': bodyShape === 'triangle' }"
+      :d="bodyPath"
+    />
+    <rect
+      v-else
+      class="marker-backing"
+      :x="-discRadius"
+      :y="-discRadius"
+      :width="discRadius * 2"
+      :height="discRadius * 2"
+      :rx="discRadius * 0.32"
+    />
     <circle v-if="selected" class="marker-select-ring" :r="ringRadius" />
     <circle v-if="selected" class="marker-select-ping" :r="ringRadius" />
     <circle v-if="exploring" class="marker-exploring-ring" :r="ringRadius" />
@@ -254,6 +297,11 @@ const tooltipText = computed(() => {
 
 .marker-glyph {
   pointer-events: none;
+}
+
+/* Look places (landmarks, regions) are open bodies: you read them, you do not raid them. */
+.marker-backing-open {
+  fill: none;
 }
 
 .marker-discovery {

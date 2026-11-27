@@ -17,10 +17,10 @@ import type {
 import {
   EXPEDITION_SITE_ICON,
   PLACE_MARKER_BODY_SCALE,
-  PLACE_MARKER_GLYPH_SCALE,
   locationMarkerIcon,
 } from '../models/markerTypeMeta'
 import { groupColor } from '../models/groupColors'
+import { shapeFor } from '../models/markerShape'
 import MapClusterMarker from './MapClusterMarker.vue'
 import MapMarker from './MapMarker.vue'
 import MapLegend from './MapLegend.vue'
@@ -586,7 +586,6 @@ function handleTouchEnd(event: TouchEvent) {
              cluster are rendered as the badge below instead) -->
         <MapMarker
           :scale="markerScale"
-          :icon-scale="PLACE_MARKER_GLYPH_SCALE"
           :body-scale="loc.type === 'home_vault' ? 1 : PLACE_MARKER_BODY_SCALE"
           v-for="loc in renderedLocationsIndividual"
           :key="`loc-${loc.id}`"
@@ -594,6 +593,7 @@ function handleTouchEnd(event: TouchEvent) {
           :y="loc.coord_y"
           :name="loc.name"
           :type="loc.type"
+          :shape="shapeFor(loc)"
           :icon="locationMarkerIcon(loc.type, loc.group_key, groupIconByKey)"
           :is_unlocked="loc.is_unlocked"
           :unseen="mapStore.isUnseenDiscovery(loc)"
@@ -623,7 +623,9 @@ function handleTouchEnd(event: TouchEvent) {
           @click="onClusterClick(cluster)"
         />
 
-        <!-- Your vaults (identity shown) -->
+        <!-- Your vaults (identity shown). The Home shape belongs to the vault you
+             are standing in, not to every vault you happen to own: a square for
+             each alt vault buries the one that matters. -->
         <MapMarker
           :scale="markerScale"
           v-for="pv in ownPlayerVaults"
@@ -831,7 +833,7 @@ function handleTouchEnd(event: TouchEvent) {
       @marker-select="onPanelMarkerSelect"
     >
       <template #toggle-label="{ count }">Places and sites · {{ count }}</template>
-      <template #legend><MapLegend :group-colors="groupColors" /></template>
+      <template #legend><MapLegend /></template>
       <template v-if="mapStore.collectibleSets.length > 0" #sets>
         <CollectibleSetsPanel :sets="mapStore.collectibleSets" />
       </template>

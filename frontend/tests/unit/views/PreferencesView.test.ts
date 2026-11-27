@@ -274,20 +274,31 @@ describe('PreferencesView', () => {
     )
   })
 
-  it.each([
-    ['colourful-badges', 'Colourful Badges'],
-    ['map-group-colors', 'Colourful Map Markers'],
-  ])('starts the %s switch on and flips it off', async (id, label) => {
+  it('starts the colourful-badges switch on and flips it off', async () => {
     useProfileStore().profile = mockProfile
     const wrapper = await mountView()
 
-    const switchButton = wrapper.find(`button#${id}`)
-    // Both tints are on by default; the toggle exists to go back to mono.
-    expect(wrapper.find(`label[for="${id}"]`).text()).toContain(label)
+    const switchButton = wrapper.find('button#colourful-badges')
+    // Badges stay tinted by default; the toggle exists to go back to mono.
+    expect(wrapper.find('label[for="colourful-badges"]').text()).toContain('Colourful Badges')
     expect(switchButton.attributes('aria-checked')).toBe('true')
 
     await switchButton.trigger('click')
 
     expect(switchButton.attributes('aria-checked')).toBe('false')
+  })
+
+  it('starts the map-group-colors switch off and flips it on', async () => {
+    useProfileStore().profile = mockProfile
+    const wrapper = await mountView()
+
+    const switchButton = wrapper.find('button#map-group-colors')
+    // The map reads purpose-first by default; family tints are opt-in.
+    expect(wrapper.find('label[for="map-group-colors"]').text()).toContain('Colourful Map Markers')
+    expect(switchButton.attributes('aria-checked')).toBe('false')
+
+    await switchButton.trigger('click')
+
+    expect(switchButton.attributes('aria-checked')).toBe('true')
   })
 })

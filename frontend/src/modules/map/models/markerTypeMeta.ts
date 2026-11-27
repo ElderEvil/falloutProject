@@ -16,11 +16,10 @@ export interface MarkerTypeMeta {
 // render the same star marker regardless of the site's name.
 export const EXPEDITION_SITE_ICON = 'mdi:map-marker-star'
 
-/** Base glyph size in marker user units (vault signals, parties, explorers). */
-export const MARKER_GLYPH_SIZE = 5.4
-
-/** Place markers render at 67% glyph size now that roads share the atlas. */
-export const PLACE_MARKER_GLYPH_SCALE = 0.67
+/** Base glyph size in marker user units, before the body scale is applied. At
+ *  the default body radius of 4.2 this fills about 52% of the body's width, and
+ *  it keeps that share wherever the body is scaled down. */
+export const MARKER_GLYPH_SIZE = 4.4
 
 /**
  * Place markers draw on a 72% body: the backing disc, selection rings, badges

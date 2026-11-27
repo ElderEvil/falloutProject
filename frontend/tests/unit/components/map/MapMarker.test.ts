@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vite-plus/test'
 import { mount } from '@vue/test-utils'
 import { Icon } from '@iconify/vue'
 import MapMarker from '@/modules/map/components/MapMarker.vue'
-import { MARKER_GLYPH_SIZE, PLACE_MARKER_GLYPH_SCALE } from '@/modules/map/models/markerTypeMeta'
+import { MARKER_GLYPH_SIZE } from '@/modules/map/models/markerTypeMeta'
 
 /**
  * Regression tests for invisible markers on the World Map.
@@ -12,7 +12,7 @@ import { MARKER_GLYPH_SIZE, PLACE_MARKER_GLYPH_SCALE } from '@/modules/map/model
  * `<foreignObject>` under an HTML parent collapses to 0x0 in Chromium and made
  * fully-rendered markers invisible.
  */
-const glyphWidth = `${MARKER_GLYPH_SIZE * PLACE_MARKER_GLYPH_SCALE}px`
+const glyphWidth = `${MARKER_GLYPH_SIZE}px`
 
 function mountMarker(props: Record<string, unknown> = {}) {
   return mount(MapMarker, {
@@ -29,7 +29,7 @@ describe('MapMarker', () => {
   })
 
   it('shrinks only the glyph when iconScale is set', () => {
-    const wrapper = mountMarker({ iconScale: PLACE_MARKER_GLYPH_SCALE })
+    const wrapper = mountMarker()
     expect(wrapper.findComponent(Icon).props('width')).toBe(glyphWidth)
     expect(wrapper.find('circle.marker-hit-area').attributes('r')).toBe('6')
     expect(wrapper.find('circle.marker-backing').attributes('r')).toBe('4.2')
@@ -37,18 +37,17 @@ describe('MapMarker', () => {
 
   it('shrinks disc, rings, portrait and label together when bodyScale is set', () => {
     const wrapper = mountMarker({
-      iconScale: PLACE_MARKER_GLYPH_SCALE,
       bodyScale: 0.72,
       selected: true,
       exploring: true,
     })
-    // Body geometry follows the factor, the glyph keeps its own size and the
-    // hit area stays full, so a smaller marker never costs an easier click.
+    // Body and glyph follow the factor together, and the hit area stays full, so
+    // a smaller marker never costs an easier click.
     expect(wrapper.find('circle.marker-backing').attributes('r')).toBe('3.024')
     expect(wrapper.find('circle.marker-select-ring').attributes('r')).toBe('2.232')
     expect(wrapper.find('circle.marker-exploring-ring').attributes('r')).toBe('2.232')
     expect(wrapper.find('circle.marker-hit-area').attributes('r')).toBe('6')
-    expect(wrapper.findComponent(Icon).props('width')).toBe(glyphWidth)
+    expect(wrapper.findComponent(Icon).props('width')).toBe(`${MARKER_GLYPH_SIZE * 0.72}px`)
     const label = wrapper.find('text.marker-label')
     expect(label.attributes('y')).toBe('-2.448')
     expect(label.attributes('style')).toContain('font-size: 1.728px')
@@ -106,26 +105,25 @@ describe('MapMarker', () => {
     expect(wrapper.find('g.marker-glyph').classes()).not.toContain('marker-discovery')
   })
 
-  it.each([true, false])(
-    'renders selection as a static ring only when selected=%s',
-    (selected) => {
-      const wrapper = mountMarker({
-        type: 'discovery',
-        is_unlocked: true,
-        unseen: !selected,
-        selected,
-      })
-      expect(wrapper.find('.marker-select-ring').exists()).toBe(selected)
-      if (selected) {
-        expect(wrapper.find('g.marker-glyph').classes()).not.toContain('marker-discovery')
-      } else {
-        expect(wrapper.find('.marker-select-ping').exists()).toBe(false)
-      }
+  it.each([true, false])('renders selection as a static ring only when selected=%s', (selected) => {
+    const wrapper = mountMarker({
+      type: 'discovery',
+      is_unlocked: true,
+      unseen: !selected,
+      selected,
+    })
+    expect(wrapper.find('.marker-select-ring').exists()).toBe(selected)
+    if (selected) {
+      expect(wrapper.find('g.marker-glyph').classes()).not.toContain('marker-discovery')
+    } else {
+      expect(wrapper.find('.marker-select-ping').exists()).toBe(false)
     }
-  )
+  })
 
   it('emits a single ping element on the click transition', () => {
-    expect(mountMarker({ type: 'visited', selected: true }).findAll('.marker-select-ping')).toHaveLength(1)
+    expect(
+      mountMarker({ type: 'visited', selected: true }).findAll('.marker-select-ping')
+    ).toHaveLength(1)
   })
 
   describe('Expedition site markers', () => {
@@ -156,7 +154,11 @@ describe('MapMarker', () => {
       [true, true],
       [false, false],
     ])('renders the cleared badge only when cleared=%s', (cleared, shown) => {
-      const wrapper = mountMarker({ name: 'Red Rocket Gas Station', type: 'expedition_site', cleared })
+      const wrapper = mountMarker({
+        name: 'Red Rocket Gas Station',
+        type: 'expedition_site',
+        cleared,
+      })
       expect(wrapper.find('.marker-cleared-badge').exists()).toBe(shown)
     })
   })
@@ -193,7 +195,13 @@ describe('MapMarker', () => {
     })
 
     it('does not emit click for a non-interactive marker', async () => {
-      const wrapper = mountMarker({ x: 42, y: 43, name: 'Bob', type: 'explorer', interactive: false })
+      const wrapper = mountMarker({
+        x: 42,
+        y: 43,
+        name: 'Bob',
+        type: 'explorer',
+        interactive: false,
+      })
       await wrapper.trigger('click')
       expect(wrapper.emitted('click')).toBeUndefined()
     })
@@ -229,7 +237,11 @@ describe('MapMarker', () => {
 
     it.each([
       ['an absolute URL', 'https://cdn.example/bob.png', 'https://cdn.example/bob.png'],
-      ['backend-static art', '/static/portraits/bob.png', 'http://localhost:8000/static/portraits/bob.png'],
+      [
+        'backend-static art',
+        '/static/portraits/bob.png',
+        'http://localhost:8000/static/portraits/bob.png',
+      ],
       ['location data-URL art', 'data:image/png;base64,art', 'data:image/png;base64,art'],
     ])('resolves %s to a usable href', (_, artSrc, href) => {
       const wrapper = mountMarker({ name: 'Bob', type: 'explorer', icon: 'mdi:walk', artSrc })
@@ -287,7 +299,10 @@ describe('MapMarker', () => {
 
     it.each([
       ['without catalog risk data', { name: 'Old Shack', type: 'visited' }],
-      ['for a locked location', { name: 'Hidden Camp', type: 'discovery', is_unlocked: false, risk: 'high' }],
+      [
+        'for a locked location',
+        { name: 'Hidden Camp', type: 'discovery', is_unlocked: false, risk: 'high' },
+      ],
     ])('keeps the neutral ramp %s', (_, props) => {
       const wrapper = mountMarker(props)
       expect(wrapper.find('g.map-marker.marker-risk-medium').exists()).toBe(false)
@@ -307,10 +322,14 @@ describe('MapMarker zoom compensation', () => {
       color: 'var(--color-family-threat)',
       risk: 'high',
     })
-    expect(wrapper.find('.marker-glyph').attributes('style')).toContain('var(--color-family-threat)')
+    expect(wrapper.find('.marker-glyph').attributes('style')).toContain(
+      'var(--color-family-threat)'
+    )
     expect(wrapper.attributes('aria-label')).toContain('High risk')
     await wrapper.setProps({ is_unlocked: false })
-    expect(wrapper.find('.marker-glyph').attributes('style')).toContain('var(--color-theme-primary)')
+    expect(wrapper.find('.marker-glyph').attributes('style')).toContain(
+      'var(--color-theme-primary)'
+    )
     expect(wrapper.attributes('aria-label')).not.toContain('High risk')
   })
 
@@ -333,5 +352,58 @@ describe('MapMarker zoom compensation', () => {
     expect(wrapper.find('g.map-marker').attributes('transform')).toBe(
       'translate(20, 30) scale(0.5)'
     )
+  })
+
+  describe('body shapes', () => {
+    it('keeps the plain disc when a marker has no shape', () => {
+      const wrapper = mountMarker()
+      expect(wrapper.find('circle.marker-backing').exists()).toBe(true)
+      expect(wrapper.find('path.marker-backing').exists()).toBe(false)
+    })
+
+    it.each([
+      ['circle', 'circle'],
+      ['diamond', 'path'],
+      ['triangle', 'path'],
+      ['square', 'rect'],
+    ])('draws %s as a %s body', (shape, tag) => {
+      const wrapper = mountMarker({ shape })
+      expect(wrapper.find(`${tag}.marker-backing`).exists()).toBe(true)
+      const others = ['circle', 'path', 'rect'].filter((t) => t !== tag)
+      for (const other of others)
+        expect(wrapper.find(`${other}.marker-backing`).exists()).toBe(false)
+    })
+
+    it('opens the body for Look places so they never read as a raid target', () => {
+      expect(mountMarker({ shape: 'triangle' }).find('.marker-backing-open').exists()).toBe(true)
+      expect(mountMarker({ shape: 'circle' }).find('.marker-backing-open').exists()).toBe(false)
+      expect(mountMarker({ shape: 'diamond' }).find('.marker-backing-open').exists()).toBe(false)
+    })
+
+    it('keeps the diamond body inside the disc footprint', () => {
+      const d = mountMarker({ shape: 'diamond' }).find('path.marker-backing').attributes('d') ?? ''
+      expect(d).toBe('M 0 -4.2 L 4.2 0 L 0 4.2 L -4.2 0 Z')
+    })
+
+    it('draws the look triangle larger than a disc of the same circumradius', () => {
+      const d = mountMarker({ shape: 'triangle' }).find('path.marker-backing').attributes('d') ?? ''
+      // Three points, apex up, 1.4x radius: a triangle of equal circumradius reads
+      // as a small badge, and its corners still sit inside the r=6 hit area.
+      expect(d).toBe('M 0 -5.88 L 5.092 2.94 L -5.092 2.94 Z')
+      const apexY = Number(d.split(' ')[2])
+      expect(Math.abs(apexY)).toBeLessThan(6)
+    })
+
+    it('names the purpose in the accessible label', () => {
+      expect(mountMarker({ shape: 'diamond' }).attributes('aria-label')).toContain('Trade')
+      expect(mountMarker({ shape: 'circle' }).attributes('aria-label')).toContain('Clear')
+      expect(mountMarker({ shape: 'triangle' }).attributes('aria-label')).toContain('Look')
+      expect(mountMarker({ shape: 'square' }).attributes('aria-label')).toContain('Home')
+    })
+
+    it('leaves the hit area the same size whatever the shape', () => {
+      for (const shape of ['circle', 'diamond', 'triangle', 'square'])
+        expect(mountMarker({ shape }).find('circle.marker-hit-area').attributes('r')).toBe('6')
+    })
   })
 })

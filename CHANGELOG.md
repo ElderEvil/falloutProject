@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 3.34.0 (2026-11-27)
+
+### Features
+
+* **map:** encode place purpose in marker shape and legend ([#1576](https://github.com/ElderEvil/falloutProject/issues/1576)) 2bcc376
+
 ## 3.33.0 (2026-11-26)
 
 ### Features

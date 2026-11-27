@@ -50,6 +50,32 @@ describe('WastelandDropzone', () => {
     expect(wrapper.text()).toContain('Release to send!')
   })
 
+  it('keeps the drop hint in the layout while dragging over so the zone cannot resize', async () => {
+    const wrapper = mountDropzone()
+
+    await dragOver(wrapper)
+
+    // Hiding this line with `v-if` shortened the zone by a line, moving the
+    // bottom border out from under a cursor parked on the edge and strobing
+    // dragleave/dragover forever. `visibility` hides it without the shrink.
+    expect(wrapper.find('.drag-hint').exists()).toBe(true)
+    expect(wrapper.text()).toContain('Drag dwellers here to send them exploring')
+  })
+
+  it('ignores dragleave fired when the pointer crosses onto a child element', async () => {
+    const wrapper = mount(WastelandDropzone, {
+      slots: { default: '<div class="slot-content"></div>' },
+    })
+    const zone = wrapper.find('.wasteland-dropzone')
+    await dragOver(wrapper)
+
+    await zone.trigger('dragleave', { relatedTarget: wrapper.find('.slot-content').element })
+    expect(wrapper.find('.drag-over').exists()).toBe(true)
+
+    await zone.trigger('dragleave', { relatedTarget: document.body })
+    expect(wrapper.find('.drag-over').exists()).toBe(false)
+  })
+
   it.each([
     ['dragleave', undefined],
     ['drop', JSON.stringify({ dwellerId: 'x', firstName: 'F', lastName: 'L' })],

@@ -36,6 +36,20 @@ export async function notifyDesktop(
   }
 }
 
+/** Payload type every in-page dweller drag writes; see the vault drop zones. */
+const DWELLER_DRAG_TYPE = 'application/json'
+
+/**
+ * Dropping an OS file or a foreign URL onto the webview navigates it away from
+ * the app. The Tauri shell used to register a native drop handler that
+ * swallowed those, but the window now runs with `dragDropEnabled: false` (its
+ * handler broke HTML5 drag and drop on Windows), so the page has to refuse them.
+ * Dweller drags stay untouched so their drop zones keep working.
+ */
+const swallowForeignDrops = (event: DragEvent) => {
+  if (!event.dataTransfer?.types.includes(DWELLER_DRAG_TYPE)) event.preventDefault()
+}
+
 export async function initializeDesktop(): Promise<void> {
   if (!isDesktop()) return
   const openExternalLink = (event: MouseEvent) => {
@@ -54,6 +68,8 @@ export async function initializeDesktop(): Promise<void> {
   }
   document.addEventListener('click', openExternalLink)
   document.addEventListener('auxclick', openExternalLink)
+  document.addEventListener('dragover', swallowForeignDrops)
+  document.addEventListener('drop', swallowForeignDrops)
   try {
     const { isPermissionGranted, requestPermission } =
       await import('@tauri-apps/plugin-notification')

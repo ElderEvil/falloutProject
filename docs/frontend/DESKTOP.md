@@ -73,6 +73,14 @@ an OAuth return flow exists. Browser OAuth and existing connection management
 remain available. Capabilities permit only the main window's notification and
 scoped HTTP(S) opener operations, with no filesystem opener permission.
 
+The window sets `dragDropEnabled: false`, which keeps Tauri from replacing
+WebView2's drop target — with its own handler installed, every in-page HTML5 drag
+(`dragstart` → `dragover` → `drop`) is swallowed on Windows, so vault drag and drop
+(dweller assignment, unassign, send to wasteland) silently stops working there.
+Nothing consumes Tauri `DragDropEvent`s, so the shell loses nothing; the desktop
+bootstrap instead refuses OS file/URL drops at the document level, which a disabled
+native handler would otherwise hand to the webview as a navigation.
+
 The supplied 1024px vault/lightning source is `frontend/src-tauri/app-icon.png`.
 Tauri's icon CLI generates platform sizes. The source and embedded PNGs in
 `icons/icon.icns` were palette-compressed with pngquant to fit the 500 KB guard;

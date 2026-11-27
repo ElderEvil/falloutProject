@@ -1,6 +1,6 @@
 """freeze Combat Zone terminal stances and protect match history
 
-Revision ID: e6f7a8b9c0d1
+Revision ID: b9d4e2f7a1c6
 Revises: d1e4b8c2a9f5
 Create Date: 2026-11-27 00:02:00.000000
 
@@ -17,7 +17,7 @@ import sqlalchemy as sa
 
 from alembic import op
 
-revision: str = "e6f7a8b9c0d1"
+revision: str = "b9d4e2f7a1c6"
 down_revision: str | Sequence[str] | None = "d1e4b8c2a9f5"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None

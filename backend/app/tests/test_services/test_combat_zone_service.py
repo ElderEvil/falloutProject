@@ -25,7 +25,7 @@ from app.core.enums import (
 )
 from app.core.game_config import game_config
 from app.crud.combat_zone import combat_zone_crud
-from app.models.combat_zone import CombatZoneMatch
+from app.models.combat_zone import CombatZoneEvent, CombatZoneMatch
 from app.models.dweller import Dweller
 from app.models.incident import Incident
 from app.models.notification import Notification
@@ -430,6 +430,7 @@ async def test_challenge_late_failure_rolls_back_both_parties_and_skips_the_tick
     stored_a = await combat_zone_crud.get_party_by_vault(async_session, vault_a_id)
     stored_b = await combat_zone_crud.get_party_by_vault(async_session, vault_b_id)
     matches = (await async_session.execute(select(CombatZoneMatch))).scalars().all()
+    events = (await async_session.execute(select(CombatZoneEvent))).scalars().all()
     assert stored_a is not None
     assert stored_b is not None
     assert stored_a.status == CombatZonePartyStatus.QUEUED
@@ -437,6 +438,7 @@ async def test_challenge_late_failure_rolls_back_both_parties_and_skips_the_tick
     assert stored_a.escrow_caps == escrow
     assert stored_b.escrow_caps == escrow
     assert matches == []
+    assert events == []
     assert ticks == []
 
 

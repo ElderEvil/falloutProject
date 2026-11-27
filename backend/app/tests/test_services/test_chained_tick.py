@@ -52,10 +52,9 @@ async def test_run_chained_tick_skips_the_runner_when_the_lease_is_lost(monkeypa
 
     fake_redis = _FakeRedis()
     monkeypatch.setattr(chained, "claim_tick_chain", claim)
-    monkeypatch.setattr(chained, "task_session", lambda: _FakeSession())
     monkeypatch.setattr(chained.Redis, "from_url", lambda *args, **kwargs: fake_redis)
 
-    async def runner(session: str) -> int:
+    async def runner(session: AsyncSession) -> int:
         raise AssertionError("runner must not execute without a lease")
 
     token, result = await chained.run_chained_tick("chain", "stale", runner)

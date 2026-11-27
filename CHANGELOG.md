@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 3.34.3 (2026-11-27)
+
+### Code Refactoring
+
+* **api:** route relationship lookups through the service ([#1583](https://github.com/ElderEvil/falloutProject/issues/1583)) 2195d1c
+
 ## 3.34.2 (2026-11-27)
 
 ### Code Refactoring

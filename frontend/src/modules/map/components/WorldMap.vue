@@ -625,7 +625,9 @@ function handleTouchEnd(event: TouchEvent) {
           @click="onClusterClick(cluster)"
         />
 
-        <!-- Your vaults (identity shown) -->
+        <!-- Your vaults (identity shown). The Home shape belongs to the vault you
+             are standing in, not to every vault you happen to own: a square for
+             each alt vault buries the one that matters. -->
         <MapMarker
           :scale="markerScale"
           v-for="pv in ownPlayerVaults"
@@ -634,7 +636,6 @@ function handleTouchEnd(event: TouchEvent) {
           :y="pv.coord_y"
           :name="`Vault ${pv.number}`"
           type="home_vault"
-          shape="square"
           label="Your Vault"
           :status="`View details`"
           @click="onOwnVaultClick(pv)"

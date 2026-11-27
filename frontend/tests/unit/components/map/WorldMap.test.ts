@@ -770,10 +770,10 @@ describe('WorldMap', () => {
       expect(vault765[0].props('label')).not.toBe('Your Vault')
       expect(markers.some((m) => m.props('name') === 'Vault 777')).toBe(true)
 
-      // Every home-vault marker draws the Home shape, including the ones that come
-      // from `playerVaults` rather than from the location list.
-      for (const marker of markers.filter((m) => m.props('type') === 'home_vault'))
-        expect(marker.props('shape')).toBe('square')
+      // The Home shape marks the vault you are standing in. An alt vault you own
+      // keeps the plain disc, so owning many never buries the one that matters.
+      expect(markers.find((m) => m.props('name') === 'Vault 765')!.props('shape')).toBe('square')
+      expect(markers.find((m) => m.props('name') === 'Vault 777')!.props('shape')).toBeNull()
 
       // The surviving marker is the home-vault location; clicking it must open
       // the summary panel for the current vault, not the generic details modal.

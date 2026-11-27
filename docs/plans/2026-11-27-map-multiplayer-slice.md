@@ -507,14 +507,12 @@ uv run pytest app/tests/test_services/test_combat_zone_service.py \
              app/tests/test_services/test_pvp_*.py \
              app/tests/test_api/test_pvp_duel.py \
              app/tests/test_db/test_pvp_duel_accept_concurrency.py \
-             app/tests/test_db/test_combat_zone_send_concurrency.py \
-             app/tests/test_db/test_combat_zone_settlement_concurrency.py \
+             app/tests/test_db/test_combat_zone_concurrency.py \
              app/tests/test_db/test_enum_drift.py \
              app/tests/test_db/test_utc_migration_contract.py -q
 # PostgreSQL race tests must execute, not skip:
 uv run pytest app/tests/test_db/test_pvp_duel_accept_concurrency.py \
-             app/tests/test_db/test_combat_zone_send_concurrency.py \
-             app/tests/test_db/test_combat_zone_settlement_concurrency.py \
+             app/tests/test_db/test_combat_zone_concurrency.py \
              -m integration -q -rs
 uv run pytest app/tests -q
 uv run --no-sync alembic heads        # exactly one head

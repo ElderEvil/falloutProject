@@ -59,3 +59,14 @@ def test_damage_multiplier_scales_raw_damage_before_the_cap() -> None:
 
     assert resolved[0].action.targets[0].damage == 60
     assert defender.health == 940
+
+
+def test_damage_multiplier_scales_before_the_cap() -> None:
+    attacker = _fighter("a1", power=100.0, health=100, max_health=100)
+    defender = _fighter("b1", power=80.0, health=100, max_health=100)
+    carry: dict[str, float] = {}
+
+    resolved = resolve_attacks([attacker], [defender], 2, set(), carry, damage_multiplier=1.5)
+
+    assert resolved[0].action.targets[0].damage == 10
+    assert defender.health == 90

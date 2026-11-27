@@ -3,6 +3,7 @@
 from datetime import UTC, datetime, timedelta
 
 import pytest
+from sqlalchemy import text
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -36,6 +37,7 @@ from app.schemas.user import UserCreate
 from app.schemas.vault import VaultCreate
 from app.services.combat.combat_zone_engine import CombatZoneTickStats, combat_zone_engine
 from app.services.combat.combat_zone_service import combat_zone_service
+from app.services.dweller_service import dweller_service
 from app.services.notification_service import NotificationService
 from app.utils.exceptions import (
     FeatureDisabledException,
@@ -114,7 +116,7 @@ async def _make_dweller(
     )
 
 
-async def _make_room(session: AsyncSession, vault: Vault) -> Room:
+async def _make_room(session: AsyncSession, vault: Vault, *, size: int = 2) -> Room:
     return await crud.room.create(
         db_session=session,
         obj_in=RoomCreate(
@@ -130,7 +132,7 @@ async def _make_room(session: AsyncSession, vault: Vault) -> Room:
             output=10,
             size_min=1,
             size_max=3,
-            size=2,
+            size=size,
             tier=1,
             coordinate_x=0,
             coordinate_y=0,
@@ -296,6 +298,163 @@ async def test_challenge_ignores_the_power_band(async_session: AsyncSession):
     match = await _start_challenge(async_session, vault_a, party_b)
     assert match.status == CombatZoneMatchStatus.ACTIVE
     assert match.pot_caps == game_config.combat_zone.entry_fee_caps * 2
+
+
+@pytest.mark.parametrize("field", ["is_dead", "is_deleted"])
+async def test_challenge_rejects_dead_or_soft_deleted_dweller(async_session: AsyncSession, field: str):
+    vault_a, _vault_b, _dweller_a, dweller_b, _party_a, party_b = await _queued_pair(async_session)
+    setattr(dweller_b, field, True)
+    async_session.add(dweller_b)
+    await async_session.commit()
+
+    with pytest.raises(ResourceConflictException):
+        await _start_challenge(async_session, vault_a, party_b)
+
+
+async def test_hard_delete_refuses_a_dweller_still_owned_by_the_combat_zone_party(async_session: AsyncSession):
+    vault_a, _vault_b, dweller_a, _dweller_b, _party_a, party_b = await _queued_pair(async_session)
+    match = await _start_challenge(async_session, vault_a, party_b)
+
+    with pytest.raises(ResourceConflictException, match="Combat Zone party"):
+        await dweller_service.delete_dweller(async_session, dweller_a.id, soft=False)
+
+    assert await combat_zone_crud.get_party_by_dweller(async_session, dweller_a.id) is not None
+    assert await combat_zone_crud.get_match(async_session, match.id) is not None
+
+
+async def test_return_does_not_overfill_the_origin_room(async_session: AsyncSession):
+    vault = await _make_vault(async_session, 823)
+    room = await _make_room(async_session, vault, size=3)
+    dweller = await _make_dweller(async_session, vault, first_name="Returning")
+    dweller.room_id = room.id
+    dweller.status = DwellerStatusEnum.WORKING
+    async_session.add(dweller)
+    await async_session.commit()
+
+    party = await _deploy(async_session, vault, dweller)
+    for name in ("Filler One", "Filler Two"):
+        filler = await _make_dweller(async_session, vault, first_name=name)
+        filler.room_id = room.id
+        filler.status = DwellerStatusEnum.WORKING
+        async_session.add(filler)
+    await async_session.commit()
+
+    party.status = CombatZonePartyStatus.RETURNING
+    party.arrives_at = datetime.now(UTC) - timedelta(seconds=1)
+    async_session.add(party)
+    await async_session.commit()
+    await combat_zone_service.process_ticks(async_session, now=_tick_now(1))
+
+    await async_session.refresh(dweller)
+    assert dweller.room_id is None
+    assert dweller.status == DwellerStatusEnum.IDLE
+
+
+async def test_both_due_retreats_are_resolved_by_the_earlier_order(async_session: AsyncSession):
+    vault_a, _vault_b, _dweller_a, _dweller_b, party_a, party_b = await _queued_pair(async_session)
+    match = await _start_challenge(async_session, vault_a, party_b)
+    now = datetime.now(UTC)
+    party_a.stance = CombatZoneStance.RETREAT
+    party_a.stance_updated_at = now - timedelta(seconds=30)
+    party_b.stance = CombatZoneStance.RETREAT
+    party_b.stance_updated_at = now - timedelta(seconds=20)
+    async_session.add_all([party_a, party_b])
+    await async_session.commit()
+
+    await combat_zone_service.process_ticks(async_session, now=_tick_now(0), seconds_passed=2)
+
+    await async_session.refresh(match)
+    assert match.status == CombatZoneMatchStatus.FINISHED
+    assert match.finish_reason == "retreat"
+    assert match.winner_party_id == party_b.id
+
+
+async def test_draw_journal_reports_actual_partial_refunds(async_session: AsyncSession):
+    vault_a, _vault_b, _dweller_a, _dweller_b, party_a, party_b = await _queued_pair(async_session)
+    match = await _start_challenge(async_session, vault_a, party_b)
+    party_a.escrow_caps = 4
+    party_b.escrow_caps = 10
+    match.max_ends_at = datetime.now(UTC) - timedelta(seconds=1)
+    async_session.add_all([party_a, party_b, match])
+    await async_session.commit()
+
+    await combat_zone_service.process_ticks(async_session, now=_tick_now(0), seconds_passed=2)
+
+    events = await combat_zone_crud.list_events(async_session, match.id)
+    finish = next(event for event in events if event.kind == "finish")
+    assert "4 + 10 caps" in finish.message
+
+
+async def test_finished_match_keeps_the_terminal_stance(async_session: AsyncSession):
+    vault_a, _vault_b, _dweller_a, dweller_b, party_a, party_b = await _queued_pair(async_session)
+    match = await _start_challenge(async_session, vault_a, party_b)
+    party_a.stance = CombatZoneStance.FOCUS
+    party_a.stance_updated_at = datetime.now(UTC)
+    dweller_b.health = 1
+    async_session.add_all([party_a, dweller_b])
+    await async_session.commit()
+
+    await combat_zone_service.process_ticks(async_session, now=_tick_now(0), seconds_passed=2)
+
+    view = await combat_zone_service.get_match(async_session, match.id, viewer_user_id=vault_a.user_id)
+    assert view.party_a.stance == CombatZoneStance.FOCUS
+    history = await combat_zone_service.history(async_session, vault_a.id)
+    assert history[0].party_a.stance == CombatZoneStance.FOCUS
+
+
+async def test_challenge_late_failure_rolls_back_both_parties_and_skips_the_tick(
+    async_session: AsyncSession, monkeypatch
+):
+    vault_a, vault_b, _dweller_a, _dweller_b, party_a, party_b = await _queued_pair(async_session)
+    escrow = party_a.escrow_caps
+    vault_a_id = vault_a.id
+    vault_b_id = vault_b.id
+    ticks: list[bool] = []
+    monkeypatch.setattr("app.services.combat.combat_zone_service.request_combat_zone_tick", lambda: ticks.append(True))
+    await async_session.execute(
+        text(
+            "CREATE TRIGGER fail_combat_zone_event BEFORE INSERT ON combat_zone_event "
+            "BEGIN SELECT RAISE(ABORT, 'simulated challenge write failure'); END"
+        )
+    )
+    await async_session.commit()
+
+    try:
+        with pytest.raises(Exception, match="simulated challenge write failure"):
+            await combat_zone_service.challenge(async_session, vault_a.id, party_b.id)
+    finally:
+        await async_session.rollback()
+        await async_session.execute(text("DROP TRIGGER IF EXISTS fail_combat_zone_event"))
+        await async_session.commit()
+
+    stored_a = await combat_zone_crud.get_party_by_vault(async_session, vault_a_id)
+    stored_b = await combat_zone_crud.get_party_by_vault(async_session, vault_b_id)
+    matches = (await async_session.execute(select(CombatZoneMatch))).scalars().all()
+    assert stored_a is not None
+    assert stored_b is not None
+    assert stored_a.status == CombatZonePartyStatus.QUEUED
+    assert stored_b.status == CombatZonePartyStatus.QUEUED
+    assert stored_a.escrow_caps == escrow
+    assert stored_b.escrow_caps == escrow
+    assert matches == []
+    assert ticks == []
+
+
+async def test_challenge_reads_the_new_match_as_the_challenger_owner(async_session: AsyncSession, monkeypatch):
+    vault_a, _vault_b, _dweller_a, _dweller_b, _party_a, party_b = await _queued_pair(async_session)
+    captured: list[object] = []
+    original_get_match = combat_zone_service.get_match
+
+    async def capture_get_match(db_session, match_id, viewer_user_id=None):
+        captured.append(viewer_user_id)
+        return await original_get_match(db_session, match_id, viewer_user_id=viewer_user_id)
+
+    monkeypatch.setattr(combat_zone_service, "get_match", capture_get_match)
+
+    view = await combat_zone_service.challenge(async_session, vault_a.id, party_b.id)
+
+    assert view.id
+    assert captured == [vault_a.user_id]
 
 
 async def test_rounds_alternate_and_journal_each_hit(async_session: AsyncSession):

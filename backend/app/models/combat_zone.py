@@ -24,7 +24,9 @@ class CombatZoneParty(BaseUUIDModel, TimeStampMixin, table=True):
 
     ``dweller_id`` is the party in v1 (1v1 encounters). ``origin_room_id`` lets a
     returned worker go back to the room they left; it is captured at send time and
-    cleared when the return is finalized.
+    cleared when the return is finalized. Permanent dweller deletion is refused in
+    ``DwellerService`` while this row references the dweller; CASCADE is kept for
+    whole-vault/account deletion.
     """
 
     __tablename__ = "combat_zone_party"
@@ -106,6 +108,9 @@ class CombatZoneMatch(BaseUUIDModel, TimeStampMixin, table=True):
     party_b_max_health: int | None = Field(default=None)
     party_a_credited_caps: int | None = Field(default=None)
     party_b_credited_caps: int | None = Field(default=None)
+    # Terminal stance at settlement: the party row is reset/reused, so history must not read it.
+    party_a_stance: str | None = Field(default=None, max_length=16)
+    party_b_stance: str | None = Field(default=None, max_length=16)
     # Fractional per-fighter damage carried between micro-rounds, keyed by dweller id.
     carry: dict[str, float] | None = Field(default=None, sa_column=sa.Column(sa.JSON, nullable=True))
     started_at: datetime | None = Field(default=None, sa_type=UTCDateTime)

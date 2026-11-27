@@ -32,7 +32,9 @@ from app.models.combat_zone import CombatZoneEvent, CombatZoneMatch, CombatZoneP
 from app.services.combat.arena_participants import participant_from_dweller
 from app.services.combat.attack_service import resolve_attacks
 from app.services.notification_service import NotificationService
+from app.services.room_assignment_policy import validate_room_worker_capacity
 from app.utils.combat import combat_power
+from app.utils.exceptions import ResourceConflictException
 from app.utils.time import utcnow
 
 if TYPE_CHECKING:
@@ -136,7 +138,11 @@ class CombatZoneTickEngine:
         dweller_b = await combat_zone_crud.get_dweller_for_update(db_session, locked_second.dweller_id)
         vault_a = await vault_crud.get_or_none(db_session, locked_first.vault_id)
         vault_b = await vault_crud.get_or_none(db_session, locked_second.vault_id)
-        if dweller_a is None or dweller_b is None or vault_a is None or vault_b is None:
+        if dweller_a is None or dweller_b is None:
+            return None
+        if dweller_a.is_dead or dweller_b.is_dead or dweller_a.is_deleted or dweller_b.is_deleted:
+            return None
+        if vault_a is None or vault_b is None:
             return None
 
         config = game_config.combat_zone
@@ -249,6 +255,13 @@ class CombatZoneTickEngine:
         if origin_room_id is not None:
             room = await combat_zone_crud.get_room(db_session, origin_room_id)
             if room is not None:
+                try:
+                    await validate_room_worker_capacity(db_session, room)
+                except ResourceConflictException:
+                    # Another assignment filled the room while the fighter was away. The
+                    # return is not allowed to overfill it; the dweller waits idle instead.
+                    dweller.status = DwellerStatusEnum.IDLE
+                    return
                 dweller.room_id = room.id
                 dweller.status = determine_status_for_room(room.category, room.name)
                 return
@@ -350,7 +363,9 @@ class CombatZoneTickEngine:
         stance_b = self._effective_stance(party_b, now)
         db_session.add_all([party_a, party_b])
 
-        forfeiting = self._retreating_party(party_a, now) or self._retreating_party(party_b, now)
+        retreat_a = self._retreating_party(party_a, now)
+        retreat_b = self._retreating_party(party_b, now)
+        forfeiting = self._retreat_forfeit(retreat_a, retreat_b)
         if forfeiting is not None:
             winner = party_b if forfeiting is party_a else party_a
             await self._add_event(
@@ -441,6 +456,19 @@ class CombatZoneTickEngine:
         return party if now - _aware(party.stance_updated_at) >= forfeit else None
 
     @staticmethod
+    def _retreat_forfeit(
+        retreat_a: CombatZoneParty | None, retreat_b: CombatZoneParty | None
+    ) -> CombatZoneParty | None:
+        """Choose the forfeiting side deterministically when both retreats are due.
+
+        The order that has stood longer forfeits first; the UUID breaks an exact timestamp
+        tie so seat order and tick cadence cannot decide the winner.
+        """
+        if retreat_a is None or retreat_b is None:
+            return retreat_a or retreat_b
+        return min((retreat_a, retreat_b), key=lambda party: (_aware(party.stance_updated_at), str(party.id)))
+
+    @staticmethod
     def _hp_winner(
         party_a: CombatZoneParty, dweller_a: Dweller, party_b: CombatZoneParty, dweller_b: Dweller
     ) -> CombatZoneParty | None:
@@ -484,6 +512,9 @@ class CombatZoneTickEngine:
             match.party_b_health = dweller_b.health
             match.party_b_max_health = dweller_b.effective_max_health
 
+        match.party_a_stance = party_a.stance.value if party_a is not None else None
+        match.party_b_stance = party_b.stance.value if party_b is not None else None
+
         credited: dict[UUID4, int] = {}
         if winner is not None:
             credited[winner.id] = await self.credit_vault(db_session, winner.vault_id, match.pot_caps)
@@ -522,7 +553,9 @@ class CombatZoneTickEngine:
         if winner is not None:
             message = f"Match over ({reason}). The {credited.get(winner.id, 0)} cap pot goes to the winner."
         else:
-            message = f"Match over ({reason}). Both parties recover their entry fee."
+            refund_a = credited.get(party_a.id, 0) if party_a is not None else 0
+            refund_b = credited.get(party_b.id, 0) if party_b is not None else 0
+            message = f"Match over ({reason}). Refunds: {refund_a} + {refund_b} caps."
         await self._add_event(db_session, match, match.round_seq, "finish", message)
 
     async def _notify_participants(

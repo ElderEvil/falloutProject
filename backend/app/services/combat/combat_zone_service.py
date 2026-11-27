@@ -11,8 +11,6 @@ import logging
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING
 
-from sqlalchemy.exc import IntegrityError
-
 from app.core import db_locks
 from app.core.combat_zone_dispatch import request_combat_zone_tick
 from app.core.enums import (
@@ -308,10 +306,15 @@ class CombatZoneService:
         if vault.bottle_caps < fee:
             raise ValidationException(f"Sending a party requires {fee} bottle caps.")
 
-        vault.bottle_caps -= fee
         if party is None:
+            # The vault row lock serializes concurrent first sends; re-read now so the
+            # loser returns a domain conflict instead of surfacing a unique-constraint error.
+            if await combat_zone_crud.get_party_by_vault(db_session, vault_id) is not None:
+                raise ResourceConflictException("This vault already has a party in the Combat Zone.")
             party = CombatZoneParty(vault_id=vault_id, dweller_id=dweller.id)
             db_session.add(party)
+
+        vault.bottle_caps -= fee
 
         party.dweller_id = dweller.id
         party.origin_room_id = dweller.room_id
@@ -328,11 +331,7 @@ class CombatZoneService:
         db_session.add(vault)
         db_session.add(dweller)
         db_session.add(party)
-        try:
-            await db_session.commit()
-        except IntegrityError:
-            await db_session.rollback()
-            raise ResourceConflictException("This vault already has a party in the Combat Zone.") from None
+        await db_session.commit()
         await db_session.refresh(party)
         request_combat_zone_tick()
         return await self._party_read(db_session, party)
@@ -400,13 +399,17 @@ class CombatZoneService:
             )
             if target.vault_id == attacker.vault_id:
                 raise ValidationException("A vault cannot challenge its own party.")
+            challenger_vault = await vault_crud.get_or_none(db_session, attacker.vault_id)
+            if challenger_vault is None or challenger_vault.user_id is None:
+                raise ResourceConflictException("The challenging vault is no longer available.")
             match = await combat_zone_engine.create_match(db_session, attacker, target, _now())
             if match is None:
                 raise ResourceConflictException("One of the parties is no longer queued.")
             await db_session.commit()
             match_id = match.id
+            challenger_user_id = challenger_vault.user_id
         request_combat_zone_tick()
-        return await self.get_match(db_session, match_id)
+        return await self.get_match(db_session, match_id, viewer_user_id=challenger_user_id)
 
     # -- Tick ---------------------------------------------------------------------
 
@@ -484,13 +487,19 @@ class CombatZoneService:
                 race=race,
             )
 
+        stance = party.stance
+        if match.status == CombatZoneMatchStatus.FINISHED:
+            stored_stance = match.party_a_stance if side == "A" else match.party_b_stance
+            if stored_stance is not None:
+                stance = CombatZoneStance(stored_stance)
+
         return CombatZoneMatchPartyRead(
             fighter=fighter,
             party_id=party.id,
             vault_id=party.vault_id,
             vault_number=vault_number,
             dweller_id=dweller_id,
-            stance=party.stance,
+            stance=stance,
             is_winner=match.winner_party_id == party.id,
             credited_caps=credited,
         )

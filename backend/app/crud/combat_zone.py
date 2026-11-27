@@ -46,6 +46,12 @@ class CRUDCombatZone:
         )
         return result.scalar_one_or_none()
 
+    async def get_party_by_dweller(self, db_session: AsyncSession, dweller_id: UUID) -> CombatZoneParty | None:
+        result = await db_session.execute(
+            select(CombatZoneParty).where(CombatZoneParty.dweller_id == dweller_id).limit(1)
+        )
+        return result.scalar_one_or_none()
+
     async def get_party_for_update(self, db_session: AsyncSession, party_id: UUID) -> CombatZoneParty | None:
         result = await db_session.execute(
             select(CombatZoneParty)

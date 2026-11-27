@@ -254,9 +254,11 @@ async def test_match_reads_use_one_snapshot(live_pg_engine: AsyncEngine, monkeyp
 
     async def _tick() -> None:
         await paused.wait()
-        async with maker() as session:
-            await combat_zone_service.process_ticks(session, seconds_passed=2)
-        resume.set()
+        try:
+            async with maker() as session:
+                await combat_zone_service.process_ticks(session, seconds_passed=2)
+        finally:
+            resume.set()
 
     task = asyncio.create_task(_tick())
     async with maker() as session:

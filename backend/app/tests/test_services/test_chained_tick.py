@@ -1,6 +1,10 @@
 """Unit coverage for the shared chained-tick wrapper."""
 
+from contextlib import asynccontextmanager
 from typing import Any
+
+from sqlalchemy import text
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 import app.core.chained_tick as chained
 
@@ -13,26 +17,24 @@ class _FakeRedis:
         self.closed = True
 
 
-class _FakeSession:
-    async def __aenter__(self) -> str:
-        return "session"
-
-    async def __aexit__(self, *exc: object) -> bool:
-        return False
-
-
-async def test_run_chained_tick_claims_then_runs_in_a_task_session(monkeypatch) -> None:
+async def test_run_chained_tick_claims_then_runs_in_a_task_session(async_session: AsyncSession, monkeypatch) -> None:
     async def claim(redis: Any, chain_key: str, chain_token: str | None) -> str:
         return "next-token"
 
     fake_redis = _FakeRedis()
     monkeypatch.setattr(chained, "claim_tick_chain", claim)
-    monkeypatch.setattr(chained, "task_session", lambda: _FakeSession())
+
+    @asynccontextmanager
+    async def task_session():
+        yield async_session
+
+    monkeypatch.setattr(chained, "task_session", task_session)
     monkeypatch.setattr(chained.Redis, "from_url", lambda *args, **kwargs: fake_redis)
 
-    seen: list[str] = []
+    seen: list[AsyncSession] = []
 
-    async def runner(session: str) -> int:
+    async def runner(session: AsyncSession) -> int:
+        await session.execute(text("SELECT 1"))
         seen.append(session)
         return 42
 
@@ -40,7 +42,7 @@ async def test_run_chained_tick_claims_then_runs_in_a_task_session(monkeypatch) 
 
     assert token == "next-token"
     assert result == 42
-    assert seen == ["session"]
+    assert seen == [async_session]
     assert fake_redis.closed is True
 
 

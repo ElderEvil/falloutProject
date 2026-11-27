@@ -385,10 +385,13 @@ describe('MapMarker zoom compensation', () => {
       expect(d).toBe('M 0 -4.2 L 4.2 0 L 0 4.2 L -4.2 0 Z')
     })
 
-    it('draws the look triangle with three vertices inside the same footprint', () => {
+    it('draws the look triangle larger than a disc of the same circumradius', () => {
       const d = mountMarker({ shape: 'triangle' }).find('path.marker-backing').attributes('d') ?? ''
-      // Three points, apex up, base on the +2.1 line of the r=4.2 disc.
-      expect(d).toBe('M 0 -4.2 L 3.637 2.1 L -3.637 2.1 Z')
+      // Three points, apex up, 1.4x radius: a triangle of equal circumradius reads
+      // as a small badge, and its corners still sit inside the r=6 hit area.
+      expect(d).toBe('M 0 -5.88 L 5.092 2.94 L -5.092 2.94 Z')
+      const apexY = Number(d.split(' ')[2])
+      expect(Math.abs(apexY)).toBeLessThan(6)
     })
 
     it('names the purpose in the accessible label', () => {

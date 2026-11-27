@@ -112,9 +112,12 @@ const bodyPath = computed(() => {
   const r = discRadius.value
   if (bodyShape.value === 'diamond') return `M 0 ${-r} L ${r} 0 L 0 ${r} L ${-r} 0 Z`
   if (bodyShape.value === 'triangle') {
-    // Rounded to the same thousandth as the radius so the DOM stays readable.
-    const dx = Math.round(((r * Math.sqrt(3)) / 2) * 1000) / 1000
-    return `M 0 ${-r} L ${dx} ${r / 2} L ${-dx} ${r / 2} Z`
+    // A triangle carries far less area than a disc of the same circumradius, so it
+    // gets 1.4x the radius: at equal circumradius it read as a small badge lost
+    // beside the circles. Centroid still sits on the coordinate.
+    const t = Math.round(r * 1.4 * 1000) / 1000
+    const dx = Math.round(((t * Math.sqrt(3)) / 2) * 1000) / 1000
+    return `M 0 ${-t} L ${dx} ${Math.round((t / 2) * 1000) / 1000} L ${-dx} ${Math.round((t / 2) * 1000) / 1000} Z`
   }
   return ''
 })

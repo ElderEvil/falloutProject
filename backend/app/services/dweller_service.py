@@ -169,11 +169,17 @@ class DwellerService:
         return await crud.dweller.get(db_session, dweller_id, include_deleted=True)
 
     async def soft_delete_dweller(self, db_session: AsyncSession, dweller_id: UUID) -> Dweller:
-        """Soft-delete a dweller without closing journeys (the dedicated soft-delete route)."""
-        return await crud.dweller.soft_delete(db_session, dweller_id)
+        """Soft-delete for this HTTP entry point; journeys stay open (delete_dweller closes them)."""
+        dweller = await crud.dweller.soft_delete(db_session, dweller_id, commit=False)
+        await db_session.commit()
+        await db_session.refresh(dweller)
+        return dweller
 
     async def restore_dweller(self, db_session: AsyncSession, dweller_id: UUID) -> Dweller:
-        return await crud.dweller.restore(db_session, dweller_id)
+        dweller = await crud.dweller.restore(db_session, dweller_id, commit=False)
+        await db_session.commit()
+        await db_session.refresh(dweller)
+        return dweller
 
     def get_identity_options(self) -> DwellerIdentityOptions:
         factions_by_race = (

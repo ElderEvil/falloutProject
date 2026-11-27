@@ -14,7 +14,7 @@ FIX = "add `commit: bool = True` (keyword-only) and gate the write with `if comm
 # Shrink-only: delete an entry in the PR that gives that method its flag; never add one.
 DEBT: dict[str, str] = {
     "ai_settings.py": "CRUDAISettings.upsert",
-    "base.py": "CRUDBase.create_all CRUDBase.upsert CRUDBase.soft_delete CRUDBase.restore",
+    "base.py": "CRUDBase.create_all CRUDBase.upsert",
     "exploration.py": "CRUDExploration.add_event CRUDExploration.add_loot CRUDExploration.update_stats",
     "game_state.py": "CRUDGameState.pause CRUDGameState.record_presence CRUDGameState.resume CRUDGameState.update_tick",
     "incident.py": "CRUDIncident.resolve CRUDIncident.spread_to_room CRUDIncident.remove CRUDIncident.remove_all_by_vault",

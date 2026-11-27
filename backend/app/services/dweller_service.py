@@ -44,6 +44,7 @@ from app.schemas.dweller import (
     DwellerCreate,
     DwellerCreateCommonOverride,
     DwellerIdentityOptions,
+    DwellerReadFull,
     DwellerReadWithRoomID,
     DwellerRosterFilters,
     DwellerUpdate,
@@ -162,6 +163,17 @@ class DwellerService:
         await db_session.commit()
         for exploration in explorations:
             await event_service.publish_sse(exploration, "exploration_deleted", status=exploration.status)
+
+    async def get_including_deleted(self, db_session: AsyncSession, dweller_id: UUID) -> Dweller:
+        """Load a dweller even when soft-deleted; restore and exit decisions act on those."""
+        return await crud.dweller.get(db_session, dweller_id, include_deleted=True)
+
+    async def soft_delete_dweller(self, db_session: AsyncSession, dweller_id: UUID) -> Dweller:
+        """Soft-delete a dweller without closing journeys (the dedicated soft-delete route)."""
+        return await crud.dweller.soft_delete(db_session, dweller_id)
+
+    async def restore_dweller(self, db_session: AsyncSession, dweller_id: UUID) -> Dweller:
+        return await crud.dweller.restore(db_session, dweller_id)
 
     def get_identity_options(self) -> DwellerIdentityOptions:
         factions_by_race = (
@@ -346,6 +358,39 @@ class DwellerService:
             sort_by=filters.sort_by,
             order=filters.order,
         )
+
+    async def list_all_dwellers(
+        self, db_session: AsyncSession, *, skip: int = 0, limit: int = 100
+    ) -> Sequence[Dweller]:
+        """Unrestricted roster behind the superuser list endpoint."""
+        return await crud.dweller.get_multi(db_session=db_session, skip=skip, limit=limit)
+
+    async def get_full_info(self, db_session: AsyncSession, dweller_id: UUID) -> DwellerReadFull:
+        """Dweller with its equipment graph for a full read."""
+        return await crud.dweller.get_full_info(db_session, dweller_id)
+
+    async def list_dead_dwellers(
+        self,
+        db_session: AsyncSession,
+        vault_id: UUID,
+        *,
+        include_permanent: bool = False,
+        skip: int = 0,
+        limit: int = 100,
+    ) -> Sequence[Dweller]:
+        return await crud.dweller.get_dead_dwellers(
+            db_session, vault_id, include_permanent=include_permanent, skip=skip, limit=limit
+        )
+
+    async def list_graveyard(
+        self, db_session: AsyncSession, vault_id: UUID, *, skip: int = 0, limit: int = 100
+    ) -> Sequence[Dweller]:
+        return await crud.dweller.get_graveyard(db_session, vault_id, skip=skip, limit=limit)
+
+    async def list_deleted_dwellers(
+        self, db_session: AsyncSession, vault_id: UUID, *, skip: int = 0, limit: int = 100
+    ) -> Sequence[Dweller]:
+        return await crud.dweller.get_deleted_by_vault(db_session, vault_id, skip=skip, limit=limit)
 
     async def update_player_dweller(
         self,

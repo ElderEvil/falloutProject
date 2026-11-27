@@ -17,6 +17,7 @@ from app.utils.exceptions import AccessDeniedException, ValidationException
 pytestmark = pytest.mark.asyncio(scope="module")
 
 EP = "app.api.v1.endpoints.relationship."
+DEPS = "app.api.deps."
 
 
 async def _vault(async_session, number):
@@ -140,9 +141,9 @@ async def test_get_vault_relationships_includes_bond_progress(async_client, supe
 async def test_get_relationship_access_denied(async_client, superuser_token_headers):
     mock_rel = _make_mock_relationship()
     with (
-        patch(f"{EP}relationship_crud.get", AsyncMock(return_value=mock_rel)),
+        patch(f"{DEPS}relationship_service.get_relationship_by_id", AsyncMock(return_value=mock_rel)),
         patch(
-            f"{EP}verify_dweller_access",
+            f"{DEPS}verify_dweller_access",
             AsyncMock(side_effect=AccessDeniedException("The user doesn't have enough privileges")),
         ),
     ):
@@ -151,15 +152,17 @@ async def test_get_relationship_access_denied(async_client, superuser_token_head
 
 
 @pytest.mark.parametrize(
-    ("method", "suffix"), [("put", "romance"), ("put", "partner"), ("delete", ""), ("put", "marry")]
+    ("method", "suffix"),
+    [("get", ""), ("put", "romance"), ("put", "partner"), ("delete", ""), ("put", "marry")],
 )
-async def test_relationship_actions_not_found(async_client, superuser_token_headers, method, suffix):
+async def test_relationship_routes_return_not_found_for_missing_id(
+    async_client, superuser_token_headers, method, suffix
+):
     fake_id = uuid4()
     url = f"/relationships/{fake_id}" + (f"/{suffix}" if suffix else "")
-    with patch(f"{EP}relationship_crud.get", AsyncMock(return_value=None)):
-        response = await getattr(async_client, method)(url, headers=superuser_token_headers)
+    response = await getattr(async_client, method)(url, headers=superuser_token_headers)
     assert response.status_code == 404
-    assert "Relationship not found" in response.json()["detail"]
+    assert response.json()["detail"] == f"Unable to find the Relationship with id {fake_id}."
 
 
 @pytest.mark.parametrize(
@@ -218,8 +221,8 @@ async def test_marry(async_client, async_session, superuser_token_headers):
 async def test_marry_value_error(async_client, superuser_token_headers):
     mock_rel = _make_mock_relationship()
     with (
-        patch(f"{EP}relationship_crud.get", AsyncMock(return_value=mock_rel)),
-        patch(f"{EP}verify_dweller_access", AsyncMock(return_value=None)),
+        patch(f"{DEPS}relationship_service.get_relationship_by_id", AsyncMock(return_value=mock_rel)),
+        patch(f"{DEPS}verify_dweller_access", AsyncMock(return_value=None)),
         patch(
             f"{EP}relationship_service.marry",
             AsyncMock(side_effect=ValidationException("Affinity too low for marriage")),

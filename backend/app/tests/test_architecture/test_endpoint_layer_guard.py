@@ -36,7 +36,6 @@ ENDPOINT_CRUD_BASELINE = frozenset(
         ("storage.py", "app.crud"),
         ("vault.py", "app.crud"),
         ("notifications.py", "app.crud.notification"),
-        ("relationship.py", "app.crud.relationship"),
         ("websocket.py", "app.crud.user"),
         ("outfit.py", "app.crud"),
         ("outfit.py", "app.crud.item_base"),

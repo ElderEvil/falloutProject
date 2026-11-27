@@ -37,6 +37,7 @@ const MapMarkerStub = {
     cleared: null,
     exploring: null,
     status: null,
+    pulse: null,
     interactive: null,
     risk: null,
     baseDifficulty: null,

@@ -24,6 +24,7 @@ describe('Feature flags store', () => {
       faction_mechanics: true,
       world_events: false,
       pvp_duels: false,
+      combat_zone: false,
     })
     const store = useFeatureFlagsStore()
 
@@ -44,6 +45,7 @@ describe('Feature flags store', () => {
       faction_mechanics: true,
       world_events: false,
       pvp_duels: false,
+      combat_zone: false,
     })
     await store.fetchFlags()
     expect(store.factionMechanics).toBe(true)

@@ -229,7 +229,7 @@ function processNotification(notificationData: InboxNotification) {
         : notificationData.message
     )
   }
-  if (notificationData.meta_data?.duel_id) {
+  if (notificationData.meta_data?.duel_id || notificationData.meta_data?.combat_zone_match_id) {
     if (notificationData.notification_type === 'combat_victory')
       toast.success(notificationData.message)
     if (notificationData.notification_type === 'combat_defeat') toast.info(notificationData.message)
@@ -269,7 +269,7 @@ const fetchNotifications = async (catchUp = false, recoverDuels = false) => {
         (notification) =>
           catchUp ||
           (['combat_victory', 'combat_defeat'].includes(notification.notification_type) &&
-            !!notification.meta_data?.duel_id)
+            !!(notification.meta_data?.duel_id || notification.meta_data?.combat_zone_match_id))
       )
       .reverse()
       .forEach(processNotification)

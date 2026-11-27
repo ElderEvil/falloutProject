@@ -7,7 +7,7 @@ import {
 } from '@/modules/map/models/markerTypeMeta'
 
 describe('markerTypeMeta', () => {
-  it('exposes the six marker types in display order', () => {
+  it('exposes the seven marker types in display order', () => {
     expect(MARKER_TYPES.map((meta) => meta.type)).toEqual([
       'home_vault',
       'origin',
@@ -15,6 +15,7 @@ describe('markerTypeMeta', () => {
       'discovery',
       'vault',
       'expedition_site',
+      'combat_zone',
     ])
   })
 

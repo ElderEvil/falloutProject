@@ -6,6 +6,7 @@ import { Button } from '@/core/components/ui/button'
 import { formatRemaining } from '@/modules/exploration/composables/useExplorationProgress'
 import type {
   DiscoveryRouteRead,
+  CombatZoneMarkerRead,
   ExpeditionSiteMarkerRead,
   ExplorerTrack,
   MarkerClickPayload,
@@ -48,6 +49,7 @@ interface Props {
   playerVaults?: PlayerVaultMarkerRead[]
   discoveryRoutes?: DiscoveryRouteRead[]
   expeditionSites?: ExpeditionSiteMarkerRead[]
+  combatZone?: CombatZoneMarkerRead | null
   explorerTracks?: ExplorerTrack[]
   groupColors?: boolean
   fogDisabled?: boolean
@@ -60,6 +62,7 @@ const props = withDefaults(defineProps<Props>(), {
   playerVaults: () => [],
   discoveryRoutes: () => [],
   expeditionSites: () => [],
+  combatZone: null,
   explorerTracks: () => [],
   groupColors: true,
   fogDisabled: false,
@@ -400,6 +403,12 @@ const selectedMarkerId = computed<string | null>({
 const { hasDragMoved, onLocationClick, onVaultClick, onSiteClick, onPanelMarkerSelect } =
   useMarkerSelection(selectedMarkerId, focusOnMarker, emit)
 
+function onCombatZoneClick() {
+  if (hasDragMoved.value || !props.combatZone) return
+  selectedMarkerId.value = 'combat-zone'
+  emit('marker-click', { kind: 'combat_zone', data: props.combatZone })
+}
+
 // The home vault renders as a location marker rather than a player-vault
 // marker, so route its click to the own-vault summary too; every other
 // location keeps the generic details flow.
@@ -673,6 +682,21 @@ function handleTouchEnd(event: TouchEvent) {
           :interactive="true"
           :selected="selectedMarkerId === `pv-${vault.vault_id}`"
           @click="onForeignPlayerVaultClick(vault)"
+        />
+
+        <MapMarker
+          v-if="combatZone"
+          :scale="markerScale"
+          :x="combatZone.coord_x"
+          :y="combatZone.coord_y"
+          :name="combatZone.name"
+          type="combat_zone"
+          icon="mdi:sword-cross"
+          label="Combat Zone"
+          :status="combatZone.enabled ? 'Regulation bouts' : 'Signal dark'"
+          :pulse="combatZone.enabled"
+          :selected="selectedMarkerId === 'combat-zone'"
+          @click="onCombatZoneClick"
         />
 
         <!-- Expedition site markers (fixed coordinates, already viewBox-scaled) -->

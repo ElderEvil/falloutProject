@@ -30,10 +30,12 @@ import {
 } from '@/core/components/ui/select'
 import WorldMap from '../components/WorldMap.vue'
 import MarkerDetailModal from '../components/MarkerDetailModal.vue'
+import CombatZonePanel from '@/modules/combat-zone/components/CombatZonePanel.vue'
 import VaultInfoModal from '../components/VaultInfoModal.vue'
 import DwellerMarkerPopover from '../components/DwellerMarkerPopover.vue'
 import { useSidePanel } from '@/core/composables/useSidePanel'
 import type {
+  CombatZoneMarkerRead,
   ExpeditionSiteMarkerRead,
   ExplorerTrack,
   PlayerVaultMarkerRead,
@@ -104,6 +106,17 @@ const siteTypeFilterSelect = computed<AcceptableValue>({
 
 // Modal state
 const showModal = ref(false)
+const showCombatZone = ref(false)
+const combatZoneMatchId = computed(() =>
+  typeof route.query.combatZoneMatch === 'string' ? route.query.combatZoneMatch : null
+)
+watch(
+  combatZoneMatchId,
+  (matchId) => {
+    if (matchId) showCombatZone.value = true
+  },
+  { immediate: true }
+)
 // Single selection identity; selected objects derive from store state so polling
 // refreshes them automatically instead of manual re-selection after each refresh.
 const selectedMarkerId = ref<string | null>(null)
@@ -427,6 +440,7 @@ function handleMarkerClick(
     | { kind: 'location'; data: WastelandLocationWithDwellers }
     | { kind: 'vault'; data: VaultMarkerRead }
     | { kind: 'site'; data: ExpeditionSiteMarkerRead }
+    | { kind: 'combat_zone'; data: CombatZoneMarkerRead }
 ) {
   closeExplorerPopover()
   if (payload.kind === 'location') {
@@ -443,6 +457,12 @@ function handleMarkerClick(
   } else if (payload.kind === 'site') {
     selectedMarkerId.value = `site-${payload.data.id}`
     clearPlaceQuery()
+  } else if (payload.kind === 'combat_zone') {
+    selectedMarkerId.value = 'combat-zone'
+    clearPlaceQuery()
+    showModal.value = false
+    showCombatZone.value = true
+    return
   } else {
     selectedMarkerId.value = `vault-${payload.data.name}`
     clearPlaceQuery()
@@ -618,6 +638,7 @@ const hasNoData = computed(
               :player-vaults="mapStore.playerVaults"
               :discovery-routes="mapStore.discoveryRoutes"
               :expedition-sites="mapStore.expeditionSites"
+              :combat-zone="mapStore.combatZone"
               :explorer-tracks="explorerTracks"
               :group-colors="groupColors"
               :fog-disabled="fogDisabled"
@@ -756,6 +777,13 @@ const hasNoData = computed(
             :max-radaways="vaultMedicalSupplies.radaways"
             :supplies-loading="isPreparingDispatch"
             @dispatch="handleDispatch"
+          />
+
+          <CombatZonePanel
+            v-model:open="showCombatZone"
+            :vault-id="vaultId"
+            :marker="mapStore.combatZone"
+            :initial-match-id="combatZoneMatchId"
           />
 
           <!-- Own-vault summary: same fields as the vault-selection card -->

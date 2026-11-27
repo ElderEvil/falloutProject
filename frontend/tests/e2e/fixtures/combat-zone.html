@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Combat Zone</title>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module">
+      import '../../../src/assets/tailwind.css'
+      import '../../../src/assets/main.css'
+      import { createApp, h, ref } from 'vue'
+      import { createPinia } from 'pinia'
+      import CombatZoneMatch from '../../../src/modules/combat-zone/components/CombatZoneMatch.vue'
+      import CombatZonePanel from '../../../src/modules/combat-zone/components/CombatZonePanel.vue'
+      import { useCombatZoneStore } from '../../../src/modules/combat-zone/stores/combatZone'
+      import { useAuthStore } from '../../../src/modules/auth/stores/auth'
+      import { useVaultStore } from '../../../src/modules/vault/stores/vault'
+      import { useDwellerStore } from '../../../src/modules/dwellers/stores/dweller'
+
+      const fighter = (id, name, health = 100) => ({
+        id,
+        name,
+        level: 7,
+        health,
+        max_health: 100,
+        power: 48,
+        age_group: 'adult',
+        race: 'human',
+      })
+
+      const party = (vaultId, vaultNumber, member) => ({
+        fighter: member,
+        party_id: `party-${vaultNumber}`,
+        vault_id: vaultId,
+        vault_number: vaultNumber,
+        dweller_id: member.id,
+        stance: 'defensive',
+        is_winner: false,
+        credited_caps: null,
+      })
+
+      const impact = (target, before, after) => ({
+        target_id: target,
+        body: 'human',
+        damage: before - after,
+        health_before: before,
+        health_after: after,
+      })
+
+      const hit = (id, round, actor, target, before, after, message) => ({
+        id,
+        sequence: Number(id.slice(1)),
+        round_seq: round,
+        kind: 'hit',
+        message,
+        action: {
+          actor_id: actor,
+          actor_body: 'human',
+          effect: 'strike',
+          targets: [impact(target, before, after)],
+        },
+        created_at: '2026-11-27T18:00:00Z',
+      })
+
+      const active = {
+        id: 'match-live',
+        status: 'active',
+        round_seq: 3,
+        next_attack_party: 'A',
+        pot_caps: 200,
+        party_a: party('vault-a', 101, fighter('a', 'Alice')),
+        party_b: party('vault-b', 202, fighter('b', 'Bob', 76)),
+        events: [
+          hit('e1', 1, 'a', 'b', 100, 88, 'Alice hits Bob for 12.'),
+          hit('e2', 2, 'b', 'a', 100, 94, 'Bob hits Alice for 6.'),
+        ],
+        cursor: { sequence: 2, round_seq: 3, status: 'active' },
+      }
+
+      const finished = {
+        ...active,
+        id: 'match-finished',
+        status: 'finished',
+        round_seq: 4,
+        finish_reason: 'victory',
+        party_a: { ...active.party_a, is_winner: true, credited_caps: 200 },
+        party_b: { ...active.party_b, fighter: fighter('b', 'Bob', 0), health: 0 },
+        events: [...active.events, hit('e3', 3, 'a', 'b', 76, 0, 'Alice hits Bob for 76.')],
+        cursor: { sequence: 3, round_seq: 4, status: 'finished' },
+      }
+
+      const lobby = {
+        enabled: true,
+        server_time: '2026-11-27T18:00:00Z',
+        entry_fee_caps: 100,
+        travel_seconds: 60,
+        queued: [],
+        active_matches: [],
+      }
+
+      createApp({
+        setup() {
+          const live = ref(active)
+          const resultOpen = ref(false)
+          const finish = () => {
+            live.value = finished
+          }
+          const auth = useAuthStore()
+          auth.token = 'fixture-token'
+          const vaults = useVaultStore()
+          vaults.loadedVaults['vault-a'] = { number: 101, bottle_caps: 1_000 }
+          const filter = useDwellerStore().filter
+          filter.allDwellers = []
+          filter.fetchAllDwellers = async () => {}
+
+          const zone = useCombatZoneStore()
+          zone.open = async () => {
+            zone.lobby = lobby
+            zone.party = null
+            zone.history = []
+          }
+          zone.loadHistory = async () => {
+            zone.history = []
+          }
+          zone.watchMatch = async () => {
+            zone.match = finished
+          }
+          zone.close = () => {}
+          return { live, finish, resultOpen }
+        },
+        render() {
+          return h('main', { class: 'min-h-screen bg-surface-base p-4 sm:p-8 terminal-text' }, [
+            h(
+              'button',
+              {
+                id: 'finish-live',
+                class: 'mb-4 rounded border px-3 py-1',
+                onClick: this.finish,
+              },
+              'Finish live bout'
+            ),
+            h(
+              'button',
+              {
+                id: 'open-result',
+                class: 'mb-4 ml-2 rounded border px-3 py-1',
+                onClick: () => (this.resultOpen = true),
+              },
+              'Open result link'
+            ),
+            h('section', { id: 'replay-bout', class: 'mx-auto max-w-5xl' }, [
+              h(CombatZoneMatch, {
+                match: active,
+                viewerVaultId: 'vault-a',
+                replay: true,
+                onStance: () => {},
+                onBack: () => {},
+              }),
+            ]),
+            h('section', { id: 'live-bout', class: 'mx-auto mt-10 max-w-5xl' }, [
+              h(CombatZoneMatch, {
+                match: this.live,
+                viewerVaultId: 'vault-a',
+                onStance: () => {},
+                onBack: () => {},
+              }),
+            ]),
+            h('section', { id: 'deep-link', class: 'mx-auto mt-10 max-w-5xl' }, [
+              h(CombatZonePanel, {
+                open: this.resultOpen,
+                'onUpdate:open': (value) => (this.resultOpen = value),
+                vaultId: 'vault-a',
+                marker: null,
+                initialMatchId: 'match-finished',
+              }),
+            ]),
+          ])
+        },
+      })
+        .use(createPinia())
+        .mount('#app')
+    </script>
+  </body>
+</html>

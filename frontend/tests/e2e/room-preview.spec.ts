@@ -285,7 +285,7 @@ test('flying pets hover beside the owner instead of standing on the floor', asyn
   expect(geometry.ownerBottom - geometry.bottom).toBeGreaterThan(geometry.ownerHeight * 0.3)
   await expect(pet.locator('.actor-ground-shadow')).toHaveCount(0)
   await pet.locator('img').evaluate((img) => {
-    img.src = 'data:image/png;base64,not-an-image'
+    ;(img as HTMLImageElement).src = 'data:image/png;base64,not-an-image'
   })
   await expect(pet.locator('svg[role="img"]')).toHaveAttribute('aria-label', /Polly/)
   const fallbackBottom = await pet.evaluate((el) => el.getBoundingClientRect().bottom)

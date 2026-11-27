@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { collectNativeDialogs } from './support/telemetry'
 
 for (const [theme, color] of [
   ['fo4', 'rgb(0, 255, 0)'],
@@ -6,12 +7,8 @@ for (const [theme, color] of [
   ['fnv', 'rgb(255, 183, 0)'],
 ]) {
   test(`confirmations use the ${theme} palette and require approval`, async ({ page }) => {
-    const nativeDialogs: string[] = []
+    const nativeDialogs = collectNativeDialogs(page)
     const pageErrors: string[] = []
-    page.on('dialog', async (dialog) => {
-      nativeDialogs.push(dialog.message())
-      await dialog.dismiss()
-    })
     page.on('pageerror', (error) => pageErrors.push(error.message))
     let mutations = 0
     await page.route('**/api/v1/**', async (route) => {
@@ -75,12 +72,8 @@ for (const [theme, color] of [
   ] as const) {
     test(`${flow} confirmation uses ${theme} and keeps cancellation safe`, async ({ page }) => {
       let mutations = 0
-      const nativeDialogs: string[] = []
+      const nativeDialogs = collectNativeDialogs(page)
       const errors: string[] = []
-      page.on('dialog', async (dialog) => {
-        nativeDialogs.push(dialog.message())
-        await dialog.dismiss()
-      })
       page.on('pageerror', (error) => errors.push(error.message))
       const vault = {
         id: 'vault-1',

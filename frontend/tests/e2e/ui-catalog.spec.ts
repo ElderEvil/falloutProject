@@ -42,7 +42,9 @@ test.describe('UI catalog', () => {
     test(`meter fill follows the ${theme} palette`, async ({ page }) => {
       await page.addInitScript((name) => window.localStorage.setItem('theme', name), theme)
       await page.goto('/dev/ui-catalog')
-      await expect(page.getByRole('heading', { name: 'UI Catalog' })).toBeVisible({ timeout: 10000 })
+      await expect(page.getByRole('heading', { name: 'UI Catalog' })).toBeVisible({
+        timeout: 10000,
+      })
 
       const indicator = page
         .locator('section[aria-labelledby="h-progress"] [data-slot="progress-indicator"]')

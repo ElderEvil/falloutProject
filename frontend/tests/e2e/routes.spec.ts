@@ -1,49 +1,21 @@
-import { test, expect, type Page } from '@playwright/test'
+import { expect, test, type Page } from '@playwright/test'
+import { open, seedSession } from './support/session'
+import { collectErrors } from './support/telemetry'
 
 /**
  * Navigate to a public page (no auth required).
  * Verifies 0 console errors, 0 page errors, body renders, no vite overlay.
  */
 async function checkPublicPage(page: Page, url: string) {
-  const consoleErrors: string[] = []
-  const pageErrors: string[] = []
+  const errors = collectErrors(page)
 
-  page.on('console', (msg) => {
-    if (msg.type() === 'error') consoleErrors.push(msg.text())
-  })
-  page.on('pageerror', (err) => {
-    pageErrors.push(`PAGE ERROR: ${err.message}`)
-  })
-
-  await page.goto(url)
-  await page.waitForLoadState('networkidle')
+  await open(page, url)
   await expect(page.locator('body')).toBeVisible({ timeout: 10000 })
   await expect(page.locator('#vite-error-overlay')).toHaveCount(0)
 
-  if (pageErrors.length > 0) {
-    console.log('Page errors:', JSON.stringify(pageErrors, null, 2))
-  }
-  if (consoleErrors.length > 0) {
-    console.log('Console errors:', JSON.stringify(consoleErrors, null, 2))
-  }
-
-  expect(pageErrors).toHaveLength(0)
-  expect(consoleErrors).toHaveLength(0)
-}
-
-/**
- * True JS crash errors (TypeError, ReferenceError, SyntaxError, etc.)
- * These are always real bugs regardless of auth state.
- */
-function isRealJsError(msg: string): boolean {
-  const networkErrors = [
-    'Request failed with status code',
-    'Failed to load resource',
-    'Network Error',
-    'timeout of',
-    'canceled',
-  ]
-  return !networkErrors.some((prefix) => msg.includes(prefix))
+  if (errors.all.length > 0) console.log(`Errors on ${url}:`, JSON.stringify(errors.all, null, 2))
+  expect(errors.page).toHaveLength(0)
+  expect(errors.console).toHaveLength(0)
 }
 
 /**
@@ -52,44 +24,19 @@ function isRealJsError(msg: string): boolean {
  * but checks for NO real JS crashes (TypeError, ReferenceError, etc.) and NO vite overlay.
  */
 async function checkAuthPage(page: Page, url: string) {
-  const allPageErrors: string[] = []
-  const realJSErrors: string[] = []
-
-  page.on('pageerror', (err) => {
-    const msg = `PAGE ERROR: ${err.message}`
-    allPageErrors.push(msg)
-    if (isRealJsError(msg)) {
-      realJSErrors.push(msg)
-    }
-  })
+  const errors = collectErrors(page)
 
   // Login first to set localStorage on the origin
   await page.goto('/login')
-  await page.evaluate(() => {
-    localStorage.setItem('token', 'test-token-12345')
-    localStorage.setItem(
-      'user',
-      JSON.stringify({
-        id: 'test-user-id',
-        email: 'test@example.com',
-        is_active: true,
-        is_superuser: true,
-      })
-    )
-  })
-  await page.goto(url)
-  await page.waitForLoadState('networkidle')
+  await seedSession(page)
+  await open(page, url)
   await expect(page.locator('body')).toBeVisible({ timeout: 10000 })
   await expect(page.locator('#vite-error-overlay')).toHaveCount(0)
 
-  if (allPageErrors.length > 0) {
-    console.log(`Page errors on ${url}:`, JSON.stringify(allPageErrors, null, 2))
+  if (errors.all.length > 0) {
+    console.log(`Errors on ${url}:`, JSON.stringify(errors.all, null, 2))
   }
-  if (realJSErrors.length > 0) {
-    console.log(`REAL JS ERRORS on ${url}:`, JSON.stringify(realJSErrors, null, 2))
-  }
-
-  expect(realJSErrors).toHaveLength(0)
+  expect(errors.real).toHaveLength(0)
 }
 
 test.describe('Public page coverage — 0 console errors expected', () => {

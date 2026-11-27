@@ -1,14 +1,11 @@
-import { fileURLToPath } from 'node:url'
 import { expect, test } from '@playwright/test'
-
-const staticFile = (url: string) => {
-  const pathname = decodeURIComponent(new URL(url).pathname).replace(/^\/static\//, '')
-  return fileURLToPath(new URL(`../../../backend/app/static/${pathname}`, import.meta.url))
-}
+import { staticFile } from './support/api'
 
 test.beforeEach(async ({ page }) => {
   await page.route('**/static/**', (route) =>
-    route.fulfill({ path: staticFile(route.request().url()) })
+    route.fulfill({
+      path: staticFile(new URL(route.request().url()).pathname.replace('/static/', '')),
+    })
   )
   await page.route('**/api/v1/**', (route) => {
     const url = route.request().url()

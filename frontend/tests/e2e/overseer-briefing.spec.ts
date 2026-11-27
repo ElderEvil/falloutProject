@@ -1,28 +1,15 @@
-import { test, expect } from '@playwright/test'
-import type { Page } from '@playwright/test'
-import { setAuthToken } from './fixtures/auth'
+import { test, expect, type Page } from '@playwright/test'
+import { json, mockApi, sse } from './support/api'
+import { GRID_CONFIG, vault as vaultFixture } from './support/data'
+import { openAs } from './support/session'
 
-const vault = {
-  id: 'vault-1',
-  number: 42,
-  bottle_caps: 1250,
-  happiness: 82,
-  power: 80,
-  power_max: 100,
-  food: 70,
-  food_max: 100,
-  water: 18,
-  water_max: 100,
-  population_max: 10,
-  radio_mode: 'recruitment',
+const CRITICAL_WATER = { type: 'critical_water', message: 'Water reserves are critical' }
+
+const vault = vaultFixture({
   created_at: '2026-08-22T00:00:00Z',
   updated_at: '2026-08-22T00:00:00Z',
-  resource_warnings: [{ type: 'critical_water', message: 'Water reserves are critical' }],
-  room_count: 1,
-  dweller_count: 8,
-  stimpack: 4,
-  radaway: 2,
-}
+  resource_warnings: [CRITICAL_WATER],
+})
 
 const dwellers = [
   {
@@ -184,71 +171,63 @@ const rooms = [
   },
 ]
 
-async function mockVaultApi(page: Page) {
-  await page.route('**/api/v1/**', async (route) => {
-    const path = new URL(route.request().url()).pathname
-
-    if (path === '/api/v1/vaults/my') return route.fulfill({ json: [vault] })
-    if (path === '/api/v1/vaults/vault-1') return route.fulfill({ json: vault })
-    if (path === '/api/v1/rooms/vault/vault-1/') return route.fulfill({ json: rooms })
-    if (path === '/api/v1/dwellers/vault/vault-1/') return route.fulfill({ json: dwellers })
-    if (path.startsWith('/api/v1/dwellers/')) {
-      return route.fulfill({ json: { ...dwellers.find((dweller) => path.endsWith(dweller.id)), weapon: null, outfit: null } })
-    }
-    if (path === '/api/v1/explorations/vault/vault-1') return route.fulfill({ json: explorations })
-    if (path === '/api/v1/game/vaults/vault-1/game-state') {
-      return route.fulfill({ json: { is_paused: true, total_game_time: 3600, paused_at: null } })
-    }
-    if (path === '/api/v1/game/vaults/vault-1/incidents') {
-      return route.fulfill({
-        json: {
-          vault_id: 'vault-1',
-          incident_count: incidents.length,
-          incidents,
-        },
-      })
-    }
-    if (path.startsWith('/api/v1/game/vaults/vault-1/incidents/')) {
-      const incident = incidents.find(({ id }) => path.endsWith(id)) ?? incidents[0]
-      return route.fulfill({ json: incident })
-    }
-    if (path === '/api/v1/notifications/unread-count') return route.fulfill({ json: { count: 0 } })
-    if (path === '/api/v1/notifications/') return route.fulfill({ json: [] })
-    if (path === '/api/v1/users/me/profile') {
-      return route.fulfill({
-        json: { id: 'user-1', email: 'overseer@vault-tec.com', username: 'overseer', is_active: true, is_superuser: true },
-      })
-    }
-    if (path === '/api/v1/system/features') {
-      return route.fulfill({ json: { race_mechanics: true, faction_mechanics: true } })
-    }
-    if (path === '/api/v1/rooms/grid-config/') {
-      return route.fulfill({
-        json: {
-          units_per_room: 3,
-          elevator_units: 1,
-          floor_units: 3,
-          shaft_x: 3,
-          left_slot_starts: [0, 1, 2, 4, 5, 6],
-          right_slot_starts: [9, 10, 11, 13, 14, 15],
-          y_max: 25,
-          build_y_max: 24,
-        },
-      })
-    }
-    if (path.startsWith('/api/v1/stream/')) {
-      return route.fulfill({ contentType: 'text/event-stream', body: ': connected\n\n' })
-    }
-
-    throw new Error(`Unhandled API request: ${route.request().method()} ${path}`)
-  })
-}
+const mockVaultApi = (page: Page) =>
+  mockApi(
+    page,
+    [
+      { path: '/api/v1/vaults/my', reply: json([vault]) },
+      { path: '/api/v1/vaults/vault-1', reply: json(vault) },
+      { path: '/api/v1/rooms/vault/vault-1/', reply: json(rooms) },
+      { path: '/api/v1/dwellers/vault/vault-1/', reply: json(dwellers) },
+      {
+        prefix: '/api/v1/dwellers/',
+        reply: (_route, url) =>
+          json({
+            ...dwellers.find((entry) => url.pathname.endsWith(entry.id)),
+            weapon: null,
+            outfit: null,
+          }),
+      },
+      { path: '/api/v1/explorations/vault/vault-1', reply: json(explorations) },
+      {
+        path: '/api/v1/game/vaults/vault-1/game-state',
+        reply: json({ is_paused: true, total_game_time: 3600, paused_at: null }),
+      },
+      {
+        path: '/api/v1/game/vaults/vault-1/incidents',
+        reply: json({ vault_id: 'vault-1', incident_count: incidents.length, incidents }),
+      },
+      {
+        prefix: '/api/v1/game/vaults/vault-1/incidents/',
+        reply: (_route, url) =>
+          json(incidents.find(({ id }) => url.pathname.endsWith(id)) ?? incidents[0]),
+      },
+      {
+        path: '/api/v1/users/me/profile',
+        reply: json({
+          id: 'user-1',
+          email: 'overseer@vault-tec.com',
+          username: 'overseer',
+          is_active: true,
+          is_superuser: true,
+        }),
+      },
+      {
+        path: '/api/v1/system/features',
+        reply: json({ race_mechanics: true, faction_mechanics: true }),
+      },
+      { path: '/api/v1/rooms/grid-config/', reply: json(GRID_CONFIG) },
+      { path: '/api/v1/notifications/unread-count', reply: json({ count: 0 }) },
+      { path: '/api/v1/notifications/', reply: json([]) },
+      { prefix: '/api/v1/stream/', reply: sse() },
+    ],
+    // An unhandled request means the mock no longer covers the screen under test.
+    { fallback: 'throw' }
+  )
 
 test('authenticated vault route keeps the briefing in the Overseer’s Office', async ({ page }) => {
   await mockVaultApi(page)
-  await page.goto('/login')
-  await setAuthToken(page, 'deterministic-e2e-token')
-  await page.goto('/vault/vault-1')
+  await openAs(page, '/vault/vault-1', { token: 'deterministic-e2e-token' })
 
   await expect(page.locator('.overseer-briefing')).toHaveCount(0)
 

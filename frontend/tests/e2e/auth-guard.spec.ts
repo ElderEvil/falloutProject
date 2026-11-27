@@ -1,7 +1,10 @@
 import { test, expect, type Page } from '@playwright/test'
 import type { AISettingsRead } from '../../src/modules/ai-settings/models/aiSettings'
-import type { DeathStatistics } from '../../src/core/types/death'
 import { TEST_USER, type TestUser } from './fixtures/auth'
+import { json, mockApi } from './support/api'
+import { deathStatistics, profile, standardApi } from './support/data'
+import { seedSessionBeforeLoad } from './support/session'
+import { collectErrors, type ErrorLog } from './support/telemetry'
 
 const TOKEN = 'deterministic-e2e-token'
 const AI_SETTINGS_URL = '/api/v1/ai-settings/'
@@ -31,12 +34,8 @@ const NON_ADMIN_USER: TestUser = {
   is_superuser: false,
 }
 
-const PROFILE = {
-  id: 'test-user-id',
-  user_id: 'test-user-id',
+const PROFILE = profile({
   bio: 'Overseer of Vault 42',
-  avatar_url: null,
-  preferences: { setup: { version: 1, completed: true, skipped: false } },
   total_dwellers_created: 0,
   total_caps_earned: 0,
   total_explorations: 0,
@@ -51,68 +50,30 @@ const PROFILE = {
   deaths_by_incident: 0,
   deaths_by_exploration: 0,
   deaths_by_combat: 0,
-  created_at: '2026-01-15T10:30:00Z',
-  updated_at: '2026-02-01T08:00:00Z',
-}
+})
 
-const DEATH_STATISTICS: DeathStatistics = {
+const DEATH_STATISTICS = deathStatistics({
   total_dwellers_born: 0,
   total_dwellers_died: 0,
   deaths_by_cause: { health: 0, radiation: 0, incident: 0, exploration: 0, combat: 0 },
   revivable_count: 0,
   permanently_dead_count: 0,
-}
-
-async function mockApi(page: Page, user: TestUser | null): Promise<void> {
-  await page.route('**/api/v1/**', async (route) => {
-    const path = new URL(route.request().url()).pathname
-
-    if (path === '/api/v1/users/me') {
-      if (!user) return route.fulfill({ status: 401, json: { detail: 'Not authenticated' } })
-      return route.fulfill({ json: user })
-    }
-    if (path === '/api/v1/users/me/profile') return route.fulfill({ json: PROFILE })
-    if (path === '/api/v1/users/me/profile/statistics') {
-      return route.fulfill({ json: DEATH_STATISTICS })
-    }
-    if (path === '/api/v1/auth/oauth/providers') {
-      return route.fulfill({ json: { google: false, github: false } })
-    }
-    if (path === '/api/v1/auth/oauth/accounts') {
-      return route.fulfill({ json: { providers: [], has_password: true } })
-    }
-    if (path === '/api/v1/vaults/my') return route.fulfill({ json: [] })
-    if (path === '/api/v1/ai-settings/') return route.fulfill({ json: AI_SETTINGS })
-    if (path === '/api/v1/dwellers' || path.startsWith('/api/v1/dwellers/vault/')) {
-      return route.fulfill({ json: [] })
-    }
-    if (path === '/api/v1/notifications/unread-count') {
-      return route.fulfill({ json: { count: 0 } })
-    }
-    if (path === '/api/v1/notifications/') return route.fulfill({ json: [] })
-    if (path.startsWith('/api/v1/stream/')) {
-      return route.fulfill({ contentType: 'text/event-stream', body: ': connected\n\n' })
-    }
-
-    return route.fulfill({ json: {} })
-  })
-}
+})
 
 /** Stubs the API, seeds an optional session, and returns any uncaught page errors. */
-async function prepareAs(page: Page, user: TestUser | null): Promise<string[]> {
-  const errors: string[] = []
-  page.on('pageerror', (err) => errors.push(`PAGE ERROR: ${err.message}`))
-  await mockApi(page, user)
+async function prepareAs(page: Page, user: TestUser | null): Promise<ErrorLog> {
+  const errors = collectErrors(page)
+  await mockApi(page, [
+    { path: '/api/v1/users/me/profile', reply: json(PROFILE) },
+    { path: '/api/v1/users/me/profile/statistics', reply: json(DEATH_STATISTICS) },
+    { path: '/api/v1/auth/oauth/accounts', reply: json({ providers: [], has_password: true }) },
+    { path: AI_SETTINGS_URL, reply: json(AI_SETTINGS) },
+    { path: '/api/v1/dwellers', reply: json([]) },
+    { prefix: '/api/v1/dwellers/vault/', reply: json([]) },
+    ...standardApi({ user, vaults: [] }),
+  ])
   // `initialization` freezes at store creation, so a token added later misses the first guard pass.
-  if (user) {
-    await page.addInitScript(
-      ([token, user]) => {
-        localStorage.setItem('token', token)
-        localStorage.setItem('user', JSON.stringify(user))
-      },
-      [TOKEN, user] as const
-    )
-  }
+  if (user) await seedSessionBeforeLoad(page, { token: TOKEN, user })
   return errors
 }
 
@@ -124,8 +85,8 @@ function trackAiSettingsRequests(page: Page): string[] {
   return hits
 }
 
-async function expectNoCrash(page: Page, errors: string[]): Promise<void> {
-  expect(errors).toHaveLength(0)
+async function expectNoCrash(page: Page, errors: ErrorLog): Promise<void> {
+  expect(errors.page).toHaveLength(0)
   await expect(page.locator('#vite-error-overlay')).toHaveCount(0)
   await expect(page.locator('body')).not.toBeEmpty()
 }
@@ -179,7 +140,7 @@ test.describe('Auth guard — unauthenticated deep routes redirect to /login', (
 test.describe('Auth guard — public routes stay reachable without a session', () => {
   for (const [name, url] of PUBLIC_ROUTES) {
     test(`${name} stays on page without auth`, async ({ page }) => {
-      await mockApi(page, null)
+      await mockApi(page, standardApi({ user: null, vaults: [] }))
 
       await page.goto(url)
       await page.waitForLoadState('networkidle')

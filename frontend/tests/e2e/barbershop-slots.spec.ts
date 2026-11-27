@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { fileURLToPath } from 'node:url'
+import { serveStatic } from './support/api'
 
 for (const width of [390, 1280]) {
   test(`barbershop worker and client slots share one picker at ${width}px`, async ({
@@ -9,18 +9,10 @@ for (const width of [390, 1280]) {
     const assigned = new Set<string>()
     const moves: string[] = []
     let rejectWorker = true
-    await page.route('**/static/**', (route) =>
-      route.fulfill({
-        path: fileURLToPath(
-          new URL(
-            route.request().url().includes('room_images')
-              ? '../../../backend/app/static/room_images/FOS Barber 1.png'
-              : '../../../backend/app/static/dweller_images/base/FOS_Dw_Default_Human_Female.webp',
-            import.meta.url
-          )
-        ),
-      })
-    )
+    await serveStatic(page, {
+      map: { room_images: 'room_images/FOS Barber 1.png' },
+      fallback: 'dweller_images/base/FOS_Dw_Default_Human_Female.webp',
+    })
     await page.route('**/api/v1/**', async (route) => {
       const request = route.request()
       if (request.url().includes('/dwellers/vault/'))

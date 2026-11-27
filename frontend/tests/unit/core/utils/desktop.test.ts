@@ -27,6 +27,14 @@ it.each(['csp', 'devCsp'])('allows Iconify requests through the desktop %s', (po
   expect(sources).toContain('https://api.iconify.design')
 })
 
+it('keeps the native drop handler off so HTML5 drag and drop works on Windows', () => {
+  // With the handler on (the default), Tauri replaces WebView2's drop target
+  // and every in-page dragstart/drop is swallowed — only on Windows.
+  const config = JSON.parse(readFileSync('src-tauri/tauri.conf.json', 'utf8'))
+  expect(config.app.windows).not.toHaveLength(0)
+  for (const window of config.app.windows) expect(window.dragDropEnabled).toBe(false)
+})
+
 describe('desktop operating-system boundary', () => {
   const notification = { title: 'Training complete', message: 'Strength increased' }
 
@@ -103,6 +111,30 @@ describe('desktop operating-system boundary', () => {
     await expect(openExternalUrl('not a URL')).resolves.toBeUndefined()
     expect(openUrl).not.toHaveBeenCalled()
     expect(handleStoreError).toHaveBeenCalled()
+  })
+
+  it('refuses operating-system drops but keeps dweller drags droppable', async () => {
+    const listeners = vi.spyOn(document, 'addEventListener')
+    await initializeDesktop()
+
+    const dispatchDrag = (type: string, types: string[]) => {
+      const event = new Event(type, { bubbles: true, cancelable: true })
+      Object.defineProperty(event, 'dataTransfer', { value: { types } })
+      document.dispatchEvent(event)
+      return event
+    }
+
+    try {
+      expect(dispatchDrag('dragover', ['Files']).defaultPrevented).toBe(true)
+      expect(dispatchDrag('drop', ['Files']).defaultPrevented).toBe(true)
+      expect(dispatchDrag('dragover', ['application/json']).defaultPrevented).toBe(false)
+      expect(dispatchDrag('drop', ['application/json']).defaultPrevented).toBe(false)
+    } finally {
+      for (const [type, listener, options] of listeners.mock.calls) {
+        if (type === 'dragover' || type === 'drop')
+          document.removeEventListener(type, listener, options)
+      }
+    }
   })
 
   it('opens middle-clicked external links in the system browser', async () => {

@@ -308,6 +308,32 @@ class ArenaMode(CaseInsensitiveEnum):
     HUNT = "hunt"
 
 
+class CombatZoneStance(StrEnum):
+    """A party's command for the next Combat Zone micro-round."""
+
+    AGGRESSIVE = "aggressive"
+    DEFENSIVE = "defensive"
+    FOCUS = "focus"
+    RETREAT = "retreat"
+
+
+class CombatZonePartyStatus(StrEnum):
+    """Where a Combat Zone party is in the send → match → return lifecycle."""
+
+    TRAVELING = "traveling"
+    QUEUED = "queued"
+    IN_MATCH = "in_match"
+    RETURNING = "returning"
+    HOME = "home"
+
+
+class CombatZoneMatchStatus(StrEnum):
+    """A live match is resolved by the 2 s Combat Zone actor until terminal."""
+
+    ACTIVE = "active"
+    FINISHED = "finished"
+
+
 class WeaponTypeEnum(CaseInsensitiveEnum):
     MELEE = "melee"
     GUN = "gun"

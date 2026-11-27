@@ -1246,6 +1246,28 @@ class ExitConfig(BaseSettings):
     )
 
 
+class CombatZoneConfig(BaseSettings):
+    """Shared live PvP Combat Zone. Ships dark until the frontend lands (M3+)."""
+
+    model_config = SettingsConfigDict(env_prefix="COMBAT_ZONE_")
+
+    enabled: bool = Field(default=False, description="Global Combat Zone master switch")
+    tick_seconds: int = Field(default=2, ge=1, description="Match actor cadence; one micro-round per tick")
+    travel_seconds: int = Field(default=60, ge=0, description="Outbound and inbound travel time")
+    entry_fee_caps: int = Field(default=100, ge=0, description="Fixed caps escrowed by each sent party")
+    disconnect_grace_seconds: int = Field(
+        default=10, ge=1, description="Silence after which a party is treated as DEFENSIVE"
+    )
+    retreat_forfeit_seconds: int = Field(default=6, ge=1, description="RETREAT stands this long before forfeiting")
+    match_max_seconds: int = Field(default=120, ge=1, description="Hard cap; higher HP wins, tie is a draw")
+    return_health_pct: int = Field(
+        default=25, ge=1, le=100, description="Both contenders return at least this share of max HP"
+    )
+    auto_match_power_tolerance: float = Field(
+        default=0.20, ge=0, le=1, description="Relative combat-power band auto-pairing accepts"
+    )
+
+
 class VaultSlotConfig(BaseSettings):
     """Shared atlas slot grid: how many vaults can be placed and the grid width."""
 
@@ -1365,6 +1387,7 @@ class GameConfig(BaseSettings):
     exit_request: ExitConfig = Field(default_factory=ExitConfig)
     features: FeatureConfig = Field(default_factory=FeatureConfig)
     vault_slots: VaultSlotConfig = Field(default_factory=VaultSlotConfig)
+    combat_zone: CombatZoneConfig = Field(default_factory=CombatZoneConfig)
     storage: StorageConfig = Field(default_factory=StorageConfig)
     container: ContainerConfig = Field(default_factory=ContainerConfig)
     rush: RushConfig = Field(default_factory=RushConfig)

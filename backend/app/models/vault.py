@@ -55,6 +55,7 @@ class VaultBase(SQLModel):
 
     # Incident control (e.g. a test playground vault)
     incidents_disabled: bool = Field(default=False, description="Suppresses incident spawns and processing")
+
     continuous_training: bool = Field(
         default=False, description="Repeat training rounds until each dweller reaches their training goal (default 10)"
     )

@@ -45,6 +45,7 @@ class TestFeaturesEndpoint:
             "faction_mechanics": False,
             "world_events": False,
             "pvp_duels": False,
+            "combat_zone": False,
         }
 
     async def test_get_features_follows_switch_changes(self, async_client, monkeypatch) -> None:

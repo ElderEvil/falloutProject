@@ -11,14 +11,17 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Literal
 from uuid import UUID
 
+from app.core.combat_zone import COMBAT_ZONE_COORDS, COMBAT_ZONE_LOCATION_ID, COMBAT_ZONE_NAME
 from app.core.enums import LocationTypeEnum
 from app.core.game_config import game_config
+from app.crud.combat_zone import combat_zone_crud
 from app.crud.exploration import exploration as exploration_crud
 from app.crud.vault_slot import vault_slot as vault_slot_crud
 from app.crud.world_location import world_location as wl_crud
 from app.models.exploration import IN_PROGRESS_STATUSES
 from app.models.world_location import VaultLocationState, WorldLocation
 from app.schemas.wasteland_location import (
+    CombatZoneMarkerRead,
     DwellerRef,
     ExpeditionSiteMarkerRead,
     LocationCaravanStateRead,
@@ -348,6 +351,7 @@ async def get_vault_map(db_session: AsyncSession, vault: Vault, *, unlocked_only
     ]
 
     expedition_sites = await _expedition_site_markers(db_session, vault)
+    combat_zone_poi = await combat_zone_crud.get_poi(db_session)
     # Dark feature: the catalog and its progress are not advertised while collectibles are off.
     collectible_sets = (
         await collectible_service.set_progress(db_session, vault_id=vault.id)
@@ -363,6 +367,13 @@ async def get_vault_map(db_session: AsyncSession, vault: Vault, *, unlocked_only
         place_groups=[PlaceGroupRead(**group) for group in load_place_groups()],
         expedition_sites=expedition_sites,
         collectible_sets=collectible_sets,
+        combat_zone=CombatZoneMarkerRead(
+            id=str(combat_zone_poi.id if combat_zone_poi else COMBAT_ZONE_LOCATION_ID),
+            name=combat_zone_poi.name if combat_zone_poi else COMBAT_ZONE_NAME,
+            coord_x=round((combat_zone_poi.coord_x if combat_zone_poi else COMBAT_ZONE_COORDS[0]) * WORLD_SCALE, 1),
+            coord_y=round((combat_zone_poi.coord_y if combat_zone_poi else COMBAT_ZONE_COORDS[1]) * WORLD_SCALE, 1),
+            enabled=game_config.combat_zone.enabled,
+        ),
     )
 
 

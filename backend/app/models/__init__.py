@@ -4,6 +4,7 @@ from .arena_match_event import ArenaMatchEvent
 from .arena_state import ArenaState
 from .chat_message import ChatMessage, ChatMessageCreate, ChatMessageRead
 from .collectible import VaultCollectible
+from .combat_zone import CombatZoneEvent, CombatZoneMatch, CombatZoneParty
 from .conversation import Conversation
 from .crafting_order import CraftingOrder
 from .dweller import Dweller

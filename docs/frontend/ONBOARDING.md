@@ -30,10 +30,20 @@ rules apply to vaults created with a recorded opt-in.
 
 A first-session guide that shows one useful action at a time, then hands off to the Briefing.
 
-- **Four opening milestones with seven authored actions** (`frontend/src/modules/progression/models/onboardingSteps.ts`):
-  power bar → generator → SPECIAL staffing → housing → weapon → outfit → departure.
-  The field guide groups them as Take command → Welcome someone → Prepare equipment → First departure. This definition list is the
-  only source of **teaching** order.
+- **Four opening milestones with nine authored actions** (`frontend/src/modules/progression/models/onboardingSteps.ts`):
+  power bar → generator → SPECIAL staffing → housing → weapon → outfit → pick the explorer → drag the card
+  to The Wasteland → send. The field guide groups them as Take command → Welcome someone → Prepare
+  equipment → First departure. This definition list is the only source of **teaching** order.
+- **Departure is taught as the gesture it is.** The dweller cards inside the room grid and in the unassigned
+  tray are the drag sources (`dweller-drag-source`), but only a card that `canDepartToWasteland` allows —
+  mature, present, unharmed — carries the anchor, so the spotlight never lands on a child or a wounded dweller
+  the step tells you to avoid. The dashed “The Wasteland” panel on the vault home page is the drop target
+  (`wasteland`), and dropping opens the run panel (hours, stimpaks, radaways, heading, **Send to Wasteland**).
+  Every chapter 3 lesson anchors or routes to the vault home route, because the drop target and the draggable
+  cards exist nowhere else — the exploration page has no send affordance. The run panel is a blocking overlay,
+  so its fields are described in the drop lesson instead of highlighted.
+- **Chapter 3 retires with the departure objective.** Weapon, outfit and both drag lessons are skipped for a
+  vault that has acknowledged or completed `orientation.departure`, so existing cohorts are not re-taught.
 - **Local teaching progress is separate from server reward progress.** Teaching state is a
   per-vault ledger in `core/composables/useOnboardingState.ts`; reward order, completion
   targets and payouts stay server-side.

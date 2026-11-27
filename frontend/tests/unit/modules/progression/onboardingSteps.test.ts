@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vite-plus/test'
+import { canDepartToWasteland } from '@/modules/dwellers/models/dweller'
 import {
   ORIENTATION_STEPS,
   type OnboardingLesson,
@@ -68,6 +69,8 @@ describe('onboardingSteps', () => {
       'orientation.housing',
       'orientation.weapon',
       'orientation.outfit',
+      'orientation.departure.crew',
+      'orientation.departure.drag',
       'orientation.departure',
     ])
   })
@@ -86,6 +89,15 @@ describe('onboardingSteps', () => {
       HOUSING,
     ])
     expect(byId.get('orientation.departure')?.templateKeys).toEqual([`${DEPARTURE}#v3`, DEPARTURE])
+    // The drag steps share the departure objective, so a completed send retires them too.
+    expect(byId.get('orientation.departure.crew')?.templateKeys).toEqual([
+      `${DEPARTURE}#v3`,
+      DEPARTURE,
+    ])
+    expect(byId.get('orientation.departure.drag')?.templateKeys).toEqual([
+      `${DEPARTURE}#v3`,
+      DEPARTURE,
+    ])
   })
 
   it('anchors each lesson to a real data-onboarding target', () => {
@@ -93,9 +105,47 @@ describe('onboardingSteps', () => {
     expect(byId.get('orientation.generator')?.anchors).toContain('room-power')
     expect(byId.get('orientation.staffing')?.anchors).toContain('nav-dwellers')
     expect(byId.get('orientation.housing')?.anchors).toContain('build-living-room')
+    expect(byId.get('orientation.departure.crew')?.anchors).toEqual(['dweller-drag-source'])
+    expect(byId.get('orientation.departure.drag')?.anchors).toEqual(['wasteland'])
     expect(byId.get('orientation.departure')?.anchors).toEqual(
-      expect.arrayContaining(['wasteland', 'nav-exploration'])
+      expect.arrayContaining(['wasteland', 'dweller-departure'])
     )
+  })
+
+  it('walks the drag gesture on the vault floor before the send objective', () => {
+    const chapterThree = ORIENTATION_STEPS.filter((step) => step.chapter === 3)
+    expect(chapterThree.map((step) => step.id)).toEqual([
+      'orientation.departure.crew',
+      'orientation.departure.drag',
+      'orientation.departure',
+    ])
+    // The draggable cards and the Wasteland dropzone only exist on the vault home route,
+    // so no chapter 3 lesson may send the player to the exploration page.
+    for (const step of chapterThree) {
+      expect(step.route).toBe('')
+      expect(step.routeLabel).toBe('Open Vault')
+    }
+    expect(chapterThree[0]?.kind).toBe('tap')
+    expect(chapterThree[1]?.kind).toBe('tap')
+    expect(chapterThree[chapterThree.length - 1]?.kind).toBe('objective-explanation')
+  })
+
+  it('shares the roster departability predicate with the drag-source anchor', () => {
+    expect(canDepartToWasteland({ age_group: 'elder', status: 'idle', health: 1 })).toBe(true)
+    expect(canDepartToWasteland({ age_group: 'child', status: 'idle', health: 100 })).toBe(false)
+    expect(canDepartToWasteland({ age_group: 'adult', status: 'idle', health: 0 })).toBe(false)
+    expect(canDepartToWasteland({ age_group: 'adult', status: 'exploring', health: 100 })).toBe(
+      false
+    )
+    expect(canDepartToWasteland({ age_group: 'adult', status: 'dead', health: 100 })).toBe(false)
+
+    // A wounded adult blocks all three departure steps with the same remedy the cards obey.
+    const wounded = departureSnapshot([{ id: 'a', age_group: 'adult', status: 'idle', health: 0 }])
+    for (const step of ORIENTATION_STEPS.filter((lesson) => lesson.chapter === 3)) {
+      expect(step.eligibility(wounded)).toEqual({
+        blocked: 'Treat a wounded dweller before sending them out',
+      })
+    }
   })
 
   it('gives housing a fallback route back to construction', () => {

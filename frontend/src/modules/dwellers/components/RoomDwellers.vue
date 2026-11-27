@@ -4,6 +4,7 @@ import { Icon } from '@iconify/vue'
 import { PawPrint } from '@lucide/vue'
 import type { DwellerShort } from '../models/dweller'
 import {
+  canDepartToWasteland,
   getAbilityConfig,
   getDwellerDisplayName,
   isApprentice,
@@ -66,6 +67,9 @@ const handleDragEnd = () => {
         <div
           class="dweller-avatar"
           role="group"
+          v-bind="{
+            'data-onboarding': canDepartToWasteland(dweller) ? 'dweller-drag-source' : undefined,
+          }"
           :class="{ 'dweller-avatar--apprentice': isApprentice(dweller) }"
           draggable="true"
           tabindex="0"

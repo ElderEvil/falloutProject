@@ -357,15 +357,16 @@ describe('OnboardingSpotlight', () => {
     expect(document.body.querySelector('.onboarding-note')?.textContent).toContain(note)
   })
 
-  it('dims departure once a healthy mature dweller is available', async () => {
+  it('dims the drag source once a healthy mature dweller is available', async () => {
     useObjectivesStore().objectives = [objective('depart', { templateKey: DEPARTURE_KEY })]
     stores.dweller.filter.allDwellersLoadedVaultId = 'v1'
     stores.dweller.filter.allDwellers = [
       { id: 'a', age_group: 'adult', status: 'resting', health: 50 },
     ]
-    boundedAnchor('wasteland')
+    boundedAnchor('dweller-drag-source')
     await startFrom(...THROUGH_HOUSING)
     await vi.waitFor(() => expect(document.querySelector('.onboarding-cutout')).not.toBeNull())
+    expect(document.body.textContent).toContain('Pick your explorer')
   })
 
   it('does not dim a lesson whose required data is not loaded', async () => {
@@ -746,8 +747,11 @@ describe('field guide milestones', () => {
     )
     confirm?.click()
     await flushPromises()
-    expect(document.body.textContent).toContain('Send a dweller exploring')
+    expect(document.body.textContent).toContain('Pick your explorer')
     expect(useOnboardingState().teaching('v1').lessons['orientation.departure']).toBeUndefined()
+    await clickButton('Continue')
+    await flushPromises()
+    expect(document.body.textContent).toContain('Drag the card to The Wasteland')
   })
 
   it('shows the milestone roadmap and a useful destination before equipment is earned', async () => {
@@ -783,8 +787,15 @@ describe('field guide milestones', () => {
 
 describe('lesson destination handoff', () => {
   // Chamber lessons that happen on a dweller detail must anchor there, not bounce to the roster.
-  async function handoffOnDetail(anchor: string, lessonId: string, key: string, absent: string) {
+  async function handoffOnDetail(
+    anchor: string,
+    lessonId: string,
+    key: string,
+    absent: string,
+    extra: readonly string[] = []
+  ) {
     arriveAtFieldGuide()
+    acknowledgeLessons(...extra)
     route.path = '/vault/v1/dwellers/d1'
     boundedAnchor(anchor)
     useObjectivesStore().objectives = [objective(lessonId, { templateKey: key })]
@@ -797,11 +808,43 @@ describe('lesson destination handoff', () => {
   it('highlights the Equipment tab on a dweller detail', () =>
     handoffOnDetail('dweller-equipment-tab', 'weapon', 'starter:equip a weapon', 'Open Dwellers'))
 
+  it('points at the card the drag starts from on the vault floor', async () => {
+    arriveAtFieldGuide()
+    stores.dweller.filter.allDwellers = [
+      { id: 'd1', age_group: 'adult', status: 'idle', health: 100 },
+    ]
+    stores.dweller.filter.allDwellersLoadedVaultId = 'v1'
+    boundedAnchor('dweller-drag-source')
+    useObjectivesStore().objectives = [objective('departure', { templateKey: DEPARTURE_KEY })]
+    mountSpotlight()
+    await flushPromises()
+    expect(document.querySelector('.onboarding-cutout')).not.toBeNull()
+    expect(document.body.textContent).toContain('Pick your explorer')
+  })
+
+  it('points at the dropzone once the crew step is acknowledged', async () => {
+    arriveAtFieldGuide()
+    acknowledgeLessons('orientation.departure.crew')
+    stores.dweller.filter.allDwellers = [
+      { id: 'd1', age_group: 'adult', status: 'idle', health: 100 },
+    ]
+    stores.dweller.filter.allDwellersLoadedVaultId = 'v1'
+    boundedAnchor('wasteland')
+    useObjectivesStore().objectives = [objective('departure', { templateKey: DEPARTURE_KEY })]
+    mountSpotlight()
+    await flushPromises()
+    expect(document.querySelector('.onboarding-cutout')).not.toBeNull()
+    expect(document.body.textContent).toContain('Release to send!')
+  })
+
   it('points to the prepared dispatch action', () => {
     stores.dweller.filter.allDwellers = [
       { id: 'd1', age_group: 'adult', status: 'idle', health: 100 },
     ]
     stores.dweller.filter.allDwellersLoadedVaultId = 'v1'
-    return handoffOnDetail('dweller-departure', 'departure', DEPARTURE_KEY, 'Open Exploration')
+    return handoffOnDetail('dweller-departure', 'departure', DEPARTURE_KEY, 'Open Vault', [
+      'orientation.departure.crew',
+      'orientation.departure.drag',
+    ])
   })
 })

@@ -1,3 +1,4 @@
+import { canDepartToWasteland } from '@/modules/dwellers/models/dweller'
 import type { Objective } from './objective'
 
 /**
@@ -11,6 +12,8 @@ export type LessonId =
   | 'orientation.housing'
   | 'orientation.weapon'
   | 'orientation.outfit'
+  | 'orientation.departure.crew'
+  | 'orientation.departure.drag'
   | 'orientation.departure'
 
 /** How a lesson is presented and acknowledged. */
@@ -91,7 +94,6 @@ const OBJECTIVE_KEYS = {
 
 const MATURE_AGE_GROUPS = new Set(['adult', 'elder'])
 const AWAY_STATUSES = new Set(['exploring', 'questing'])
-const UNAVAILABLE_DEPARTURE_STATUSES = new Set(['exploring', 'questing', 'dead'])
 
 const alwaysEligible = (): TeachingEligibility => 'eligible'
 
@@ -107,8 +109,9 @@ const objectiveEligibility =
 
 const isMature = (dweller: SnapshotDweller): boolean => MATURE_AGE_GROUPS.has(dweller.age_group)
 
-const canDepart = (dweller: SnapshotDweller): boolean =>
-  isMature(dweller) && !UNAVAILABLE_DEPARTURE_STATUSES.has(dweller.status) && dweller.health > 0
+// Shared with the roster cards that carry the drag-source anchor, so the step the guide
+// asks for and the card it highlights agree.
+const canDepart = canDepartToWasteland
 
 // Mirrors backend get_room_build_price: catalog cost plus an increment per existing room
 // in the same category, so an already-built vault raises the next Living Quarters above base.
@@ -226,15 +229,39 @@ export const ORIENTATION_STEPS: readonly OnboardingLesson[] = [
     eligibility: objectiveEligibility(OBJECTIVE_KEYS.outfit),
   },
   {
+    id: 'orientation.departure.crew',
+    chapter: 3,
+    kind: 'tap',
+    title: 'Pick your explorer',
+    body: 'Back on the vault floor, every card inside a room can be picked up, and the tray below the rooms holds anyone unassigned. Choose a healthy adult now; that card is what you grab next.',
+    templateKeys: OBJECTIVE_KEYS.departure,
+    anchors: ['dweller-drag-source'],
+    route: '',
+    routeLabel: 'Open Vault',
+    eligibility: departureEligibility,
+  },
+  {
+    id: 'orientation.departure.drag',
+    chapter: 3,
+    kind: 'tap',
+    title: 'Drag the card to The Wasteland',
+    body: 'Hold the card and drag it onto the dashed “The Wasteland” panel below the rooms — it reads “Release to send!” while you hover. The panel that opens asks for hours, stimpaks, radaways and a heading; check them, then Send to Wasteland. The Wasteland button on a dweller card skips the drag.',
+    templateKeys: OBJECTIVE_KEYS.departure,
+    anchors: ['wasteland'],
+    route: '',
+    routeLabel: 'Open Vault',
+    eligibility: departureEligibility,
+  },
+  {
     id: 'orientation.departure',
     chapter: 3,
     kind: 'objective-explanation',
     title: 'Send a dweller exploring',
-    body: 'Your newcomer is an option if they are healthy and available. Review equipment, supplies and the run length before sending an adult out. Sending a worker leaves their production room short; the guide will suggest something useful to do while they are away.',
+    body: 'Sending a worker leaves their production room short, so choose someone whose room can spare them for the run; the guide will suggest something useful to do while they are away.',
     templateKeys: OBJECTIVE_KEYS.departure,
-    anchors: ['dweller-departure', 'wasteland', 'nav-exploration'],
-    route: 'exploration',
-    routeLabel: 'Open Exploration',
+    anchors: ['wasteland', 'dweller-departure'],
+    route: '',
+    routeLabel: 'Open Vault',
     eligibility: departureEligibility,
   },
 ]

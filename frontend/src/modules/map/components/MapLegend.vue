@@ -1,30 +1,18 @@
 <script setup lang="ts">
 import { Icon } from '@iconify/vue'
-import { MARKER_TYPES } from '../models/markerTypeMeta'
-import { DANGER_RAMP } from '../utils/dangerStyle'
-import {
-  FAMILY_LABELS,
-  FAMILY_MEANING,
-  GROUP_FAMILIES,
-  type GroupFamily,
-} from '../models/groupColors'
-
-withDefaults(defineProps<{ groupColors?: boolean }>(), {
-  groupColors: true,
-})
-
-const familyKeys = Object.keys(GROUP_FAMILIES) as GroupFamily[]
-
-const commonSymbols = [
-  { type: 'explorer', icon: 'mdi:walk', label: 'Explorers / parties' },
-  { type: 'cluster', icon: 'mdi:circle-multiple-outline', label: 'Grouped markers' },
-]
+import { PURPOSE_META } from '../models/purposeMeta'
 
 const states = [
-  { label: 'Unscouted', icon: 'mdi:map-marker-outline' },
-  { label: 'Cleared', icon: 'mdi:check' },
-  { label: 'Cooldown', icon: 'mdi:clock-outline' },
-  { label: 'Exploring', icon: 'mdi:circle-double' },
+  { label: 'Unscouted', hint: 'dashed', icon: 'mdi:map-marker-outline' },
+  { label: 'Cleared', hint: 'tick', icon: 'mdi:check' },
+  { label: 'Cooldown', hint: 'clock', icon: 'mdi:clock-outline' },
+  { label: 'Exploring', hint: 'pulse', icon: 'mdi:circle-double' },
+]
+
+const signals = [
+  { label: 'Vault signal', hint: 'not a target', icon: 'mdi:radioactive' },
+  { label: 'Expedition site', hint: 'party goal', icon: 'mdi:map-marker-star' },
+  { label: 'Party / cluster', hint: 'counted', icon: 'mdi:circle-multiple-outline' },
 ]
 </script>
 
@@ -34,76 +22,108 @@ const states = [
     role="region"
     aria-label="Map legend"
   >
-    <div class="grid grid-cols-2 gap-x-3 gap-y-2">
-      <span v-for="symbol in commonSymbols" :key="symbol.type" class="flex items-center gap-1.5">
-        <Icon :icon="symbol.icon" class="size-4 shrink-0" :ariaHidden="true" />
-        {{ symbol.label }}
-      </span>
-    </div>
-    <div class="legend-content mt-4 space-y-4">
-      <section>
-        <h3 class="mb-2 font-semibold">Marker symbols</h3>
-        <div class="grid grid-cols-2 gap-x-3 gap-y-2">
-          <span
-            v-for="symbol in MARKER_TYPES"
-            :key="symbol.type"
-            class="legend-item flex items-center gap-1.5"
-          >
-            <Icon :icon="symbol.icon" class="size-4 shrink-0" :ariaHidden="true" />
-            {{ symbol.label }}
-          </span>
-        </div>
-        <p class="mt-2 leading-relaxed text-theme-primary/65">
-          Place icons show type. Numbered markers group nearby places or parties. Vault signals are
-          distant vaults, not destinations; selecting one shows its owner. Exhibition duels are
-          arranged from your vault.
-        </p>
-      </section>
-      <section>
-        <h3 class="mb-2 font-semibold">Place status</h3>
-        <div class="grid grid-cols-2 gap-x-3 gap-y-2">
-          <span
-            v-for="state in states"
-            :key="state.label"
-            class="legend-item flex items-center gap-1.5"
-          >
-            <Icon :icon="state.icon" class="size-4 shrink-0" :ariaHidden="true" />
-            {{ state.label }}
-          </span>
-        </div>
-        <p class="mt-2 leading-relaxed text-theme-primary/65">
-          Ready to clear: clearable now, with no party already dispatched.
-        </p>
-      </section>
-      <section v-if="groupColors">
-        <h3 class="mb-2 font-semibold">Site families</h3>
-        <div class="space-y-1.5">
-          <span
-            v-for="family in familyKeys"
-            :key="family"
-            class="legend-item flex items-baseline gap-1.5"
-          >
-            <svg viewBox="0 0 10 10" class="size-3 shrink-0 self-center" aria-hidden="true">
-              <circle cx="5" cy="5" r="4.5" :style="{ fill: GROUP_FAMILIES[family] }" />
-            </svg>
-            <span class="font-medium">{{ FAMILY_LABELS[family] }}</span>
-            <span class="text-theme-primary/65">{{ FAMILY_MEANING[family] }}</span>
-          </span>
-        </div>
-        <p class="mt-2 leading-relaxed text-theme-primary/65">
-          Colour shows the site family; the glyph shows the exact type. Unscouted places keep their
-          family colour, dimmed and ringed.
-        </p>
-      </section>
-      <section>
-        <p class="leading-relaxed text-theme-primary/65">
-          Risk: {{ DANGER_RAMP.map((entry) => entry.label).join(' · ') }}.
-        </p>
-        <p class="mt-2 leading-relaxed text-theme-primary/65">
-          Fog marks unexplored terrain. Unscouted places wear a neutral pin and a dashed ring,
-          though their colour still hints at the family.
-        </p>
-      </section>
-    </div>
+    <section class="legend-block">
+      <h3>Purpose</h3>
+      <div class="legend-grid">
+        <span v-for="entry in PURPOSE_META" :key="entry.purpose" class="legend-item">
+          <svg viewBox="0 0 10 10" class="size-3.5 shrink-0" aria-hidden="true">
+            <circle v-if="entry.shape === 'circle'" cx="5" cy="5" r="4" class="legend-shape" />
+            <circle
+              v-else-if="entry.shape === 'ring'"
+              cx="5"
+              cy="5"
+              r="4"
+              class="legend-shape ring"
+            />
+            <path
+              v-else-if="entry.shape === 'diamond'"
+              d="M5 1 9 5 5 9 1 5Z"
+              class="legend-shape"
+            />
+            <rect v-else x="1.2" y="1.2" width="7.6" height="7.6" rx="1.4" class="legend-shape" />
+          </svg>
+          <span class="font-medium">{{ entry.label }}</span>
+          <span class="hint text-theme-primary/65">{{ entry.hint }}</span>
+        </span>
+      </div>
+    </section>
+
+    <section class="legend-block">
+      <h3>Status</h3>
+      <div class="legend-grid">
+        <span v-for="state in states" :key="state.label" class="legend-item">
+          <Icon :icon="state.icon" class="size-4 shrink-0" :ariaHidden="true" />
+          <span class="font-medium">{{ state.label }}</span>
+          <span class="hint text-theme-primary/65">{{ state.hint }}</span>
+        </span>
+      </div>
+    </section>
+
+    <section class="legend-block">
+      <h3>Signals</h3>
+      <div class="legend-grid">
+        <span v-for="signal in signals" :key="signal.label" class="legend-item">
+          <Icon :icon="signal.icon" class="size-4 shrink-0" :ariaHidden="true" />
+          <span class="font-medium">{{ signal.label }}</span>
+          <span class="hint text-theme-primary/65">{{ signal.hint }}</span>
+        </span>
+      </div>
+    </section>
+
+    <p class="mt-3 leading-relaxed text-theme-primary/65">
+      The glyph inside a marker names the site type; the body shape names what it is for.
+    </p>
   </section>
 </template>
+
+<style scoped>
+.legend-block + .legend-block {
+  margin-top: 0.75rem;
+}
+
+h3 {
+  margin-bottom: 0.375rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.75;
+}
+
+.legend-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.125rem 0.75rem;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  min-width: 0;
+}
+
+/* The hint is a trailing hint, not a sentence: one line, clipped rather than wrapped. */
+.legend-item .hint::before {
+  content: '· ';
+  opacity: 0.6;
+}
+
+.legend-item .hint {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.legend-shape {
+  fill: color-mix(in srgb, var(--color-terminal-background) 90%, transparent);
+  stroke: currentColor;
+  stroke-width: 1.1;
+}
+
+.legend-shape.ring {
+  fill: none;
+  stroke-width: 1.2;
+}
+</style>

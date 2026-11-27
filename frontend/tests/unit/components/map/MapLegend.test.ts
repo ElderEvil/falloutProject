@@ -1,70 +1,59 @@
-import { describe, it, expect, vi } from 'vite-plus/test'
+import { describe, it, expect } from 'vite-plus/test'
 import { mount } from '@vue/test-utils'
 import MapLegend from '@/modules/map/components/MapLegend.vue'
-import { MARKER_TYPES } from '@/modules/map/models/markerTypeMeta'
-import { FAMILY_LABELS, GROUP_FAMILIES } from '@/modules/map/models/groupColors'
+import { PURPOSE_META } from '@/modules/map/models/purposeMeta'
 
-const mountLegend = (props = {}) => mount(MapLegend, { props, global: { stubs: { Icon: true } } })
+const mountLegend = () => mount(MapLegend, { global: { stubs: { Icon: true } } })
 
 describe('MapLegend', () => {
-  it('retains symbolic states independently of place colors', () => {
-    const wrapper = mountLegend()
+  it('keys the four purposes the marker bodies encode', () => {
+    const text = mountLegend().text()
+    for (const entry of PURPOSE_META) {
+      expect(text).toContain(entry.label)
+      expect(text).toContain(entry.hint)
+    }
+  })
+
+  it('draws one distinct body shape per purpose', () => {
+    const shapes = mountLegend()
+      .findAll('svg .legend-shape')
+      .map((node) => node.element.tagName.toLowerCase())
+    expect(shapes).toEqual(['circle', 'path', 'circle', 'rect'])
+  })
+
+  it('retains symbolic states independently of place colours', () => {
+    const text = mountLegend().text()
     for (const state of ['Unscouted', 'Cleared', 'Cooldown', 'Exploring'])
-      expect(wrapper.text()).toContain(state)
+      expect(text).toContain(state)
   })
 
-  it('uses the canonical marker labels', () => {
+  it('names the three non-place signals', () => {
+    const text = mountLegend().text()
+    for (const signal of ['Vault signal', 'Expedition site', 'Party / cluster'])
+      expect(text).toContain(signal)
+  })
+
+  it('no longer keys the five site families', () => {
+    const text = mountLegend().text()
+    for (const family of ['Civil', 'Industry', 'Threat', 'Knowledge', 'Spectacle'])
+      expect(text).not.toContain(family)
+  })
+
+  it('keeps the legend to three blocks and one explanatory line', () => {
     const wrapper = mountLegend()
-    for (const symbol of MARKER_TYPES) expect(wrapper.text()).toContain(symbol.label)
-    expect(wrapper.text()).toContain('Grouped markers')
-  })
-
-  it('explains that vault signals are not travel destinations', () => {
-    expect(mountLegend().text()).toContain('Vault signals are distant vaults, not destinations')
+    expect(wrapper.findAll('h3').map((node) => node.text())).toEqual([
+      'Purpose',
+      'Status',
+      'Signals',
+    ])
+    expect(wrapper.findAll('p')).toHaveLength(1)
   })
 
   it('names the legend region for assistive technology', () => {
     expect(mountLegend().find('[role="region"]').attributes('aria-label')).toBe('Map legend')
   })
 
-  it('shows the full reference without a nested expand control', () => {
-    const wrapper = mountLegend()
-    expect(wrapper.text()).toContain('Marker symbols')
-    expect(wrapper.text()).toContain('Place status')
-    expect(wrapper.find('button').exists()).toBe(false)
-  })
-
-  it('keys the five site families instead of listing every place type', () => {
-    const wrapper = mountLegend()
-    expect(wrapper.text()).toContain('Site families')
-    for (const label of Object.values(FAMILY_LABELS)) expect(wrapper.text()).toContain(label)
-  })
-
-  it('swatches each family with its own colour and no duplicates', () => {
-    const swatches = mountLegend()
-      .findAll('circle')
-      .map((circle) => circle.attributes('style') ?? '')
-      .filter((style) => style.includes('--color-family-'))
-    expect(swatches).toHaveLength(5)
-    for (const color of Object.values(GROUP_FAMILIES))
-      expect(swatches.some((style) => style.includes(color))).toBe(true)
-  })
-
-  it('hides the family key when colouring is off', () => {
-    expect(mountLegend({ groupColors: false }).text()).not.toContain('Site families')
-  })
-
-  it.each([
-    ['reads', 'getItem', 'SecurityError', 'Unscouted'],
-    ['writes', 'setItem', 'QuotaExceededError', 'Cooldown'],
-  ])('works when storage %s are unavailable', (_, method, errorName, fallback) => {
-    vi.spyOn(Storage.prototype, method as 'getItem' | 'setItem').mockImplementation(() => {
-      throw new DOMException('denied', errorName)
-    })
-    try {
-      expect(mountLegend().text()).toContain(fallback)
-    } finally {
-      vi.restoreAllMocks()
-    }
+  it('shows the reference without a nested expand control', () => {
+    expect(mountLegend().find('button').exists()).toBe(false)
   })
 })

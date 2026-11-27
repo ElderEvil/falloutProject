@@ -92,6 +92,11 @@ const productionRoom = {
 
 const incident = { id: 'incident-1', room_id: 'room-123', type: 'FIRE', severity: 'medium' }
 
+/** An elevator shaft beside the diner the placement tests start from. */
+const elevatorShaft = { ...mockRoom, id: 'shaft', name: 'Elevator', coordinate_x: 6, size: 1 }
+
+const placingDiner = () => placing(dinerTemplate, [elevatorShaft])
+
 const render = (props: Record<string, unknown> = {}): VueWrapper =>
   mount(RoomGrid, {
     props: { incidents: [], ...props },
@@ -371,9 +376,7 @@ describe('RoomGrid', () => {
 
   describe('Room placement', () => {
     it('rejects a gap in both the preview and click handler', async () => {
-      const roomStore = placing(dinerTemplate, [
-        { ...mockRoom, id: 'shaft', name: 'Elevator', coordinate_x: 6, size: 1 },
-      ])
+      const roomStore = placingDiner()
       const build = vi.spyOn(roomStore, 'buildRoom')
       const wrapper = render()
       const cell = wrapper.get('[aria-label="Build room at row 1, column 11"]')
@@ -392,9 +395,7 @@ describe('RoomGrid', () => {
       ['extended', 'Diner extended!'],
     ])('shows the %s toast for a new room', async (result, message) => {
       useAuthStore().token = 'mock-token'
-      const roomStore = placing(dinerTemplate, [
-        { ...mockRoom, id: 'shaft', name: 'Elevator', coordinate_x: 6, size: 1 },
-      ])
+      const roomStore = placingDiner()
       vi.spyOn(roomStore, 'buildRoom').mockResolvedValue(result as never)
 
       const wrapper = render()
@@ -407,9 +408,7 @@ describe('RoomGrid', () => {
     })
 
     it('keeps the selected room active for repeated Shift-click builds', async () => {
-      const roomStore = placing(dinerTemplate, [
-        { ...mockRoom, id: 'shaft', name: 'Elevator', coordinate_x: 6, size: 1 },
-      ])
+      const roomStore = placingDiner()
 
       // The first build places a Diner at x=7, which makes the neighbouring
       // slot at x=10 a valid adjacent placement for the repeat build.
@@ -444,9 +443,7 @@ describe('RoomGrid', () => {
     })
 
     it('exits placement mode after a normal click build', async () => {
-      const roomStore = placing(dinerTemplate, [
-        { ...mockRoom, id: 'shaft', name: 'Elevator', coordinate_x: 6, size: 1 },
-      ])
+      const roomStore = placingDiner()
       vi.spyOn(roomStore, 'buildRoom').mockResolvedValue('built')
 
       const wrapper = render()
@@ -458,9 +455,7 @@ describe('RoomGrid', () => {
     })
 
     it('ignores a second click while a build is still in flight', async () => {
-      const roomStore = placing(dinerTemplate, [
-        { ...mockRoom, id: 'shaft', name: 'Elevator', coordinate_x: 6, size: 1 },
-      ])
+      const roomStore = placingDiner()
 
       let resolveBuild: ((result: 'built' | 'extended') => void) | undefined
       const build = vi.spyOn(roomStore, 'buildRoom').mockImplementation(

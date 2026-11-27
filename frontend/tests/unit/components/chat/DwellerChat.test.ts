@@ -203,6 +203,22 @@ const explorationReply = (overrides: Record<string, unknown> = {}) => ({
   ...overrides,
 })
 
+/** A reply payload; tests only read the fields they pass. */
+const wsReply = (
+  id: string,
+  response = 'Noted.',
+  suggestion: Record<string, unknown> | null = null
+) => ({
+  dweller_message_id: id,
+  response,
+  happiness_impact: null,
+  action_suggestion: suggestion,
+})
+
+/** Spy on the dweller management action behind the chat's confirm handlers. */
+const stubManagement = (method: 'assignDwellerToRoom' | 'unassignDwellerFromRoom') =>
+  vi.spyOn(useDwellerStore().management, method).mockResolvedValue({} as never)
+
 describe('DwellerChat', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -361,9 +377,7 @@ describe('DwellerChat', () => {
     )
 
     it('assigns the dweller and clears the card on confirm', async () => {
-      const assignSpy = vi
-        .spyOn(useDwellerStore().management, 'assignDwellerToRoom')
-        .mockResolvedValue({} as any)
+      const assignSpy = stubManagement('assignDwellerToRoom')
       const wrapper = await mounted()
       await send(wrapper, 'Work assignment', {
         response: 'I would love to work there!',
@@ -504,12 +518,7 @@ describe('DwellerChat', () => {
   })
 
   describe('WebSocket happiness and action updates', () => {
-    const reply = (id: string, response: string) => ({
-      dweller_message_id: id,
-      response,
-      happiness_impact: null,
-      action_suggestion: null,
-    })
+    const reply = (id: string, response: string) => wsReply(id, response)
 
     it('updates only the dweller message addressed by message_id', async () => {
       const wrapper = await mounted()
@@ -636,9 +645,7 @@ describe('DwellerChat', () => {
         )
       )
       seedDwellers(...fillers_, dweller({ room_id: dwellerRoom }))
-      const assignSpy = vi
-        .spyOn(useDwellerStore().management, 'assignDwellerToRoom')
-        .mockResolvedValue({} as any)
+      const assignSpy = stubManagement('assignDwellerToRoom')
       const wrapper = await mounted()
       await send(wrapper, 'Train me', trainReply)
 
@@ -660,9 +667,7 @@ describe('DwellerChat', () => {
         return Promise.resolve()
       })
       seedDwellers(dweller({ room_id: 'room-456' }))
-      const assignSpy = vi
-        .spyOn(useDwellerStore().management, 'assignDwellerToRoom')
-        .mockResolvedValue({} as any)
+      const assignSpy = stubManagement('assignDwellerToRoom')
       const wrapper = await mounted()
       await send(wrapper, 'Train', trainReply)
 
@@ -675,12 +680,7 @@ describe('DwellerChat', () => {
   })
 
   describe('Sticky latest suggestion', () => {
-    const reply = (id: string, suggestion: object | null) => ({
-      dweller_message_id: id,
-      response: 'Noted.',
-      happiness_impact: null,
-      action_suggestion: suggestion,
-    })
+    const reply = (id: string, suggestion: object | null) => wsReply(id, 'Noted.', suggestion)
 
     it('shows only the latest card when several messages carry suggestions', async () => {
       const wrapper = await mounted()
@@ -731,12 +731,7 @@ describe('DwellerChat', () => {
   })
 
   describe('WebSocket message id correlation', () => {
-    const reply = (id: string, response: string) => ({
-      dweller_message_id: id,
-      response,
-      happiness_impact: null,
-      action_suggestion: null,
-    })
+    const reply = (id: string, response: string) => wsReply(id, response)
 
     it.each([
       {
@@ -847,9 +842,7 @@ describe('DwellerChat', () => {
     })
 
     it('opens the prefilled modal and releases the room only on departure confirm', async () => {
-      const unassignSpy = vi
-        .spyOn(useDwellerStore().management, 'unassignDwellerFromRoom')
-        .mockResolvedValue({} as any)
+      const unassignSpy = stubManagement('unassignDwellerFromRoom')
       const wrapper = await prepare({ room_id: 'room-456' })
 
       // Opening presents the modal with the suggestion's plan; nothing is sent
@@ -910,9 +903,7 @@ describe('DwellerChat', () => {
           resolveDispatch = resolve
         })
       )
-      const unassignSpy = vi
-        .spyOn(useDwellerStore().management, 'unassignDwellerFromRoom')
-        .mockResolvedValue({} as any)
+      const unassignSpy = stubManagement('unassignDwellerFromRoom')
       seedDwellers(dweller({ room_id: 'room-456' }))
       vi.spyOn(useDwellerStore().filter, 'fetchDwellerDetails').mockResolvedValue({} as any)
       const wrapper = await mounted()
@@ -936,9 +927,7 @@ describe('DwellerChat', () => {
 
     it('reassigns the original room and keeps the card when the send fails', async () => {
       const management = useDwellerStore().management
-      const unassignSpy = vi
-        .spyOn(management, 'unassignDwellerFromRoom')
-        .mockResolvedValue({} as any)
+      const unassignSpy = stubManagement('unassignDwellerFromRoom')
       const assignSpy = vi.spyOn(management, 'assignDwellerToRoom').mockResolvedValue({} as any)
       seedDwellers(dweller({ room_id: 'room-456' }))
       vi.spyOn(useDwellerStore().filter, 'fetchDwellerDetails').mockResolvedValue({} as any)
@@ -1079,11 +1068,7 @@ describe('DwellerChat', () => {
       expect(wrapper.findAll('.message-wrapper')).toHaveLength(2)
       expect(wrapper.findAll('.message-wrapper')[1].text()).toContain('Hello')
 
-      mockWebSocketHandlers['done'][0]({
-        dweller_message_id: 'msg-stream-1',
-        happiness_impact: null,
-        action_suggestion: null,
-      })
+      mockWebSocketHandlers['done'][0](wsReply('msg-stream-1', ''))
       await wrapper.vm.$nextTick()
       expect(wrapper.find('.typing-indicator').exists()).toBe(false)
     })
@@ -1095,13 +1080,12 @@ describe('DwellerChat', () => {
       mockWebSocketHandlers['token'][0]({ text: 'Great!' })
       await wrapper.vm.$nextTick()
       mockWebSocketHandlers['done'][0]({
-        dweller_message_id: 'msg-stream-2',
-        happiness_impact: { delta: 5, reason_text: 'Positive conversation' },
-        action_suggestion: {
+        ...wsReply('msg-stream-2', '', {
           action_type: 'start_training',
           stat: 'strength',
           reason: 'Low strength',
-        },
+        }),
+        happiness_impact: { delta: 5, reason_text: 'Positive conversation' },
       })
       await wrapper.vm.$nextTick()
 

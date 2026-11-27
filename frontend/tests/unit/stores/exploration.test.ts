@@ -124,16 +124,18 @@ const toastShownFor = (message: string) =>
   useToast().toasts.value.some((toast) => toast.message === message)
 
 describe('Exploration Store', () => {
+  let store: ReturnType<typeof useExplorationStore>
+
   beforeEach(() => {
     setActivePinia(createPinia())
     vi.clearAllMocks()
     mockExploration = baseExploration()
     useToast().toasts.value = []
+    store = useExplorationStore()
   })
 
   describe('State Initialization', () => {
     it('should initialize with empty state', () => {
-      const store = useExplorationStore()
       expect(store.explorations).toEqual([])
       expect(store.activeExplorations).toEqual({})
       expect(store.lastRewards).toBeNull()
@@ -144,20 +146,17 @@ describe('Exploration Store', () => {
 
   describe('Getters', () => {
     it('getExplorationByDwellerId should return active exploration for dweller', () => {
-      const store = useExplorationStore()
       store.explorations = [mockExploration, run({ id: 'exploration-2', dweller_id: 'dweller-2' })]
       expect(store.getExplorationByDwellerId('dweller-1')).toEqual(mockExploration)
     })
 
     it('getExplorationByDwellerId should return undefined for a missing or completed run', () => {
-      const store = useExplorationStore()
       store.explorations = [run({ status: 'completed' })]
       expect(store.getExplorationByDwellerId('dweller-1')).toBeUndefined()
       expect(store.getExplorationByDwellerId('dweller-999')).toBeUndefined()
     })
 
     it('getActiveExplorationsForVault should filter by vault and active-ish status', () => {
-      const store = useExplorationStore()
       store.explorations = [
         mockExploration,
         run({ id: 'exploration-2', dweller_id: 'dweller-2' }),
@@ -173,7 +172,6 @@ describe('Exploration Store', () => {
     })
 
     it('treats the return leg as active and prefers an active run over a stale returning one', () => {
-      const store = useExplorationStore()
       store.explorations = [run({ status: 'returning' })]
 
       expect(store.getExplorationByDwellerId('dweller-1')?.status).toBe('returning')
@@ -195,7 +193,6 @@ describe('Exploration Store', () => {
 
   describe('sendDwellerToWasteland Action', () => {
     it('should send dweller successfully', async () => {
-      const store = useExplorationStore()
       vi.mocked(explorationApi.sendDwellerToWasteland).mockResolvedValueOnce(mockExploration)
 
       const result = await store.sendDwellerToWasteland('vault-1', 'dweller-1', 4)
@@ -213,7 +210,6 @@ describe('Exploration Store', () => {
     })
 
     it('should set loading state correctly', async () => {
-      const store = useExplorationStore()
       let loadingDuringRequest = false
 
       vi.mocked(explorationApi.sendDwellerToWasteland).mockImplementation(async () => {
@@ -226,7 +222,6 @@ describe('Exploration Store', () => {
     })
 
     it('sends heading_degrees with supplies and omits it for a free-roam send', async () => {
-      const store = useExplorationStore()
       vi.mocked(explorationApi.sendDwellerToWasteland).mockResolvedValue(mockExploration)
 
       await store.sendDwellerToWasteland('vault-1', 'dweller-1', 4, 2, 1, 90)
@@ -249,7 +244,6 @@ describe('Exploration Store', () => {
 
   describe('dispatchToLocation Action', () => {
     it('should dispatch a dweller to a location successfully', async () => {
-      const store = useExplorationStore()
       useAuthStore().token = 'test-token'
       vi.mocked(explorationApi.dispatchToLocation).mockResolvedValueOnce(mockExploration)
 
@@ -269,7 +263,6 @@ describe('Exploration Store', () => {
     })
 
     it('should upsert an existing exploration instead of duplicating it', async () => {
-      const store = useExplorationStore()
       useAuthStore().token = 'test-token'
       store.explorations = [mockExploration]
       store.activeExplorations = { 'exploration-1': mockExploration }
@@ -285,7 +278,6 @@ describe('Exploration Store', () => {
 
   describe('fetchExplorationsByVault Action', () => {
     it('should fetch active explorations successfully', async () => {
-      const store = useExplorationStore()
       const explorations = [mockExploration, run({ id: 'exploration-2' })]
       vi.mocked(explorationApi.getExplorationsByVault).mockResolvedValueOnce(explorations)
 
@@ -297,7 +289,6 @@ describe('Exploration Store', () => {
     })
 
     it('keeps the pack figures and activity the list payload now carries', async () => {
-      const store = useExplorationStore()
       vi.mocked(explorationApi.getExplorationsByVault).mockResolvedValueOnce([
         run({
           events: [explorationEvent('loot', 'Found a desk fan')],
@@ -314,7 +305,6 @@ describe('Exploration Store', () => {
     })
 
     it('should fetch all explorations and map only the active ones when activeOnly is false', async () => {
-      const store = useExplorationStore()
       const explorations = [mockExploration, run({ id: 'exploration-2', status: 'completed' })]
       vi.mocked(explorationApi.getExplorationsByVault).mockResolvedValueOnce(explorations)
 
@@ -325,7 +315,6 @@ describe('Exploration Store', () => {
     })
 
     it('should handle empty response', async () => {
-      const store = useExplorationStore()
       vi.mocked(explorationApi.getExplorationsByVault).mockResolvedValueOnce([])
       await store.fetchExplorationsByVault('vault-1')
       expect(store.explorations).toEqual([])
@@ -333,7 +322,6 @@ describe('Exploration Store', () => {
     })
 
     it('does not toggle loading for a silent background refresh', () => {
-      const store = useExplorationStore()
       vi.mocked(explorationApi.getExplorationsByVault).mockImplementationOnce(
         () => new Promise(() => undefined)
       )
@@ -343,7 +331,6 @@ describe('Exploration Store', () => {
     })
 
     it('keeps the previous error when a silent refresh fails and clears it on success', async () => {
-      const store = useExplorationStore()
       store.error = 'previous error'
       vi.mocked(explorationApi.getExplorationsByVault).mockRejectedValueOnce(
         new Error('Fetch failed')
@@ -403,7 +390,6 @@ describe('Exploration Store', () => {
     ] as [string, () => unknown, (store: never) => Promise<unknown>, string, string][])(
       '%s rejects, records the store error and clears loading',
       async (_, api, invoke, thrown, recorded) => {
-        const store = useExplorationStore()
         useAuthStore().token = 'test-token'
         vi.mocked(api).mockRejectedValueOnce(new Error(thrown))
 
@@ -415,7 +401,6 @@ describe('Exploration Store', () => {
     )
 
     it('propagates a progress failure without touching the shared error', async () => {
-      const store = useExplorationStore()
       vi.mocked(explorationApi.getExplorationProgress).mockRejectedValueOnce(
         new Error('Progress fetch failed')
       )
@@ -429,7 +414,6 @@ describe('Exploration Store', () => {
 
   describe('fetchExplorationDetails Action', () => {
     it('should fetch and update exploration details', async () => {
-      const store = useExplorationStore()
       store.explorations = [mockExploration]
       store.activeExplorations = { 'exploration-1': mockExploration }
       const updatedExploration = run({ total_distance: 50 })
@@ -443,7 +427,6 @@ describe('Exploration Store', () => {
     })
 
     it('drops a run from the active map once it completes but keeps it for the detail view', async () => {
-      const store = useExplorationStore()
       const completedExploration = run({ status: 'completed' })
       store.explorations = [mockExploration]
       store.activeExplorations = { 'exploration-1': mockExploration }
@@ -462,7 +445,6 @@ describe('Exploration Store', () => {
     })
 
     it('surfaces the failure to the caller', async () => {
-      const store = useExplorationStore()
       vi.mocked(explorationApi.getExploration).mockRejectedValueOnce(new Error('Fetch failed'))
       await expect(store.fetchExplorationDetails('exploration-1')).rejects.toThrow('Fetch failed')
     })
@@ -470,7 +452,6 @@ describe('Exploration Store', () => {
 
   describe('fetchExplorationProgress Action', () => {
     it('should fetch progress successfully', async () => {
-      const store = useExplorationStore()
       vi.mocked(explorationApi.getExplorationProgress).mockResolvedValueOnce(
         mockExplorationProgress
       )
@@ -483,7 +464,6 @@ describe('Exploration Store', () => {
 
   describe('recallDweller Action', () => {
     it('should recall dweller successfully', async () => {
-      const store = useExplorationStore()
       store.explorations = [mockExploration]
       store.activeExplorations = { 'exploration-1': mockExploration }
       const response = {
@@ -504,7 +484,6 @@ describe('Exploration Store', () => {
 
   describe('completeExploration Action', () => {
     it('should complete exploration successfully', async () => {
-      const store = useExplorationStore()
       store.explorations = [mockExploration]
       store.activeExplorations = { 'exploration-1': mockExploration }
       const response = {
@@ -525,7 +504,6 @@ describe('Exploration Store', () => {
 
   describe('clearError Action', () => {
     it('should clear error', () => {
-      const store = useExplorationStore()
       store.error = 'Some error'
       store.clearError()
       expect(store.error).toBeNull()
@@ -534,7 +512,6 @@ describe('Exploration Store', () => {
 
   describe('State Management', () => {
     it('keeps the explorations array and the active map in sync on fetch and detail update', async () => {
-      const store = useExplorationStore()
       vi.mocked(explorationApi.getExplorationsByVault).mockResolvedValueOnce([
         mockExploration,
         run({ id: 'exploration-2', dweller_id: 'dweller-2' }),
@@ -559,7 +536,6 @@ describe('Exploration Store', () => {
 
   describe('SSE Rewards Enqueuing', () => {
     it('should enqueue rewards via addPendingReport on completion SSE', async () => {
-      const store = useExplorationStore()
       store.startSseSubscription('vault-1', 'test-token')
 
       await emitSse({
@@ -578,7 +554,6 @@ describe('Exploration Store', () => {
     })
 
     it('should use fallback dweller name when dweller not found', async () => {
-      const store = useExplorationStore()
       store.startSseSubscription('vault-1', 'test-token')
 
       await emitSse({
@@ -597,7 +572,6 @@ describe('Exploration Store', () => {
     })
 
     it('should still set pendingSseRewards for live display', async () => {
-      const store = useExplorationStore()
       store.startSseSubscription('vault-1', 'test-token')
 
       await emitSse({
@@ -614,7 +588,6 @@ describe('Exploration Store', () => {
 
   describe('SSE Deleted Exploration', () => {
     it('closes the journey without queuing a reward report', async () => {
-      const store = useExplorationStore()
       const closed = run()
       store.explorations = [closed]
       store.activeExplorations = { 'exploration-1': closed }
@@ -635,7 +608,6 @@ describe('Exploration Store', () => {
 
   describe('SSE Live Event Log', () => {
     beforeEach(() => {
-      const store = useExplorationStore()
       store.explorations = [liveRun()]
       store.activeExplorations = { 'exploration-1': liveRun() }
       store.startSseSubscription('vault-1', 'test-token')
@@ -710,7 +682,6 @@ describe('Exploration Store', () => {
     }
 
     beforeEach(() => {
-      const store = useExplorationStore()
       store.explorations = [liveRun()]
       store.activeExplorations = { 'exploration-1': liveRun() }
       store.startSseSubscription('vault-1', 'test-token')
@@ -758,7 +729,6 @@ describe('Exploration Store', () => {
     })
 
     it('fetches the active list once and updates the active map', async () => {
-      const store = useExplorationStore()
       const explorations = [
         mockExploration,
         run({ id: 'exploration-2', dweller_id: 'dweller-2', status: 'returning' }),
@@ -775,7 +745,6 @@ describe('Exploration Store', () => {
     })
 
     it('fetches parties only when includeParties is requested', async () => {
-      const store = useExplorationStore()
       vi.mocked(explorationApi.getExplorationsByVault).mockResolvedValueOnce([mockExploration])
       vi.mocked(explorationApi.getExplorationParty).mockResolvedValueOnce([])
 
@@ -785,7 +754,6 @@ describe('Exploration Store', () => {
     })
 
     it('refreshes parties from the newly fetched active map', async () => {
-      const store = useExplorationStore()
       store.activeExplorations = { 'stale-exploration': run({ id: 'stale-exploration' }) }
       vi.mocked(explorationApi.getExplorationsByVault).mockResolvedValueOnce([
         run(),
@@ -804,7 +772,6 @@ describe('Exploration Store', () => {
     })
 
     it('surfaces loading and error state for an initial load', async () => {
-      const store = useExplorationStore()
       vi.mocked(explorationApi.getExplorationsByVault).mockImplementationOnce(
         () => new Promise(() => undefined)
       )
@@ -814,7 +781,6 @@ describe('Exploration Store', () => {
     })
 
     it('records the failure for an initial load and clears loading', async () => {
-      const store = useExplorationStore()
       vi.mocked(explorationApi.getExplorationsByVault).mockRejectedValueOnce(
         new Error('Fetch failed')
       )
@@ -825,7 +791,6 @@ describe('Exploration Store', () => {
     })
 
     it('stays silent for polling and skips parties on failure', async () => {
-      const store = useExplorationStore()
       store.error = 'previous error'
       vi.mocked(explorationApi.getExplorationsByVault).mockRejectedValueOnce(
         new Error('Fetch failed')
@@ -842,7 +807,6 @@ describe('Exploration Store', () => {
 
   describe('fetchPartiesForActiveExplorations Action', () => {
     it('collects one roster per active run and retains empty dispatch parties', async () => {
-      const store = useExplorationStore()
       store.activeExplorations = {
         'exploration-1': run(),
         'exploration-2': run({ id: 'exploration-2' }),
@@ -870,7 +834,6 @@ describe('Exploration Store', () => {
     })
 
     it('falls back to an empty roster when a party fetch fails', async () => {
-      const store = useExplorationStore()
       store.activeExplorations = { 'exploration-1': run() }
       vi.mocked(explorationApi.getExplorationParty).mockRejectedValueOnce(new Error('network'))
       await store.fetchPartiesForActiveExplorations('vault-1')

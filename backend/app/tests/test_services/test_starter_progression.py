@@ -17,6 +17,8 @@ from app.models.vault_objective import VaultObjectiveProgressLink
 from app.models.weapon import Weapon
 from app.schemas.room import RoomBuild
 from app.schemas.vault import VaultNumber
+from app.seeding.seed_objectives import seed_objectives_from_json
+from app.seeding.seed_quests import seed_quests_from_json
 from app.services import catalog_service as data_loader
 from app.services.dweller_service import dweller_service
 from app.services.exploration_service import exploration_service
@@ -35,8 +37,6 @@ from app.services.vault_service import vault_service
 from app.tests.factory.vaults import random_vault_number
 from app.utils.exceptions import ResourceConflictException
 from app.utils.item_factory import build_catalog_item
-from app.utils.seed_objectives import seed_objectives_from_json
-from app.utils.seed_quests import seed_quests_from_json
 
 
 @pytest.fixture

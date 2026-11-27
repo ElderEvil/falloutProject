@@ -148,7 +148,7 @@ class StaticGameData:
     def quests(self) -> list[QuestChainJSON]:
         """Load all quest chains from JSON files."""
         if self._quests is None:
-            from app.utils.load_quests import load_all_quest_chain_files
+            from app.seeding.load_quests import load_all_quest_chain_files
 
             try:
                 self._quests = load_all_quest_chain_files(quest_dir=DATA_DIR / "quests")

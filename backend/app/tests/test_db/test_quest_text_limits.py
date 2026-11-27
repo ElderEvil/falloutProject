@@ -7,8 +7,8 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.models.quest import Quest
 from app.schemas.quest import QuestRead
-from app.utils.load_quests import load_all_quest_chain_files
-from app.utils.seed_quests import seed_quests_from_json
+from app.seeding.load_quests import load_all_quest_chain_files
+from app.seeding.seed_quests import seed_quests_from_json
 
 pytest_plugins = ["app.tests.test_alembic._support"]
 

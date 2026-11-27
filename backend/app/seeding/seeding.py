@@ -46,8 +46,8 @@ async def _load_json_files[T: BaseModel](directory: Path, file_pattern: str, sch
 
 async def _get_existing_values[M](db_session: AsyncSession, model_class: type[M], unique_field: str) -> set:
     """Get existing unique field values from database."""
-    result = await db_session.execute(select(getattr(model_class, unique_field)))
-    return set(result.scalars().all())
+    result = await db_session.exec(select(getattr(model_class, unique_field)))
+    return set(result.all())
 
 
 def _seed_records[T: BaseModel, M](
@@ -99,8 +99,9 @@ async def seed_from_json[T: BaseModel, M](
     validate_fn: Callable[[T], list[str]] | None = None,
     file_pattern: str = "*.json",
 ) -> int:
-    """Generic seeding helper: load JSON files, validate with the Pydantic schema, dedupe on
-    unique_field, insert via transform_fn; returns the number seeded.
+    """Seed a table from JSON files, validating with the Pydantic schema.
+
+    Dedupes on ``unique_field`` and inserts via ``transform_fn``; returns the number seeded.
     """
     try:
         all_data = await _load_json_files(directory, file_pattern, schema_class)

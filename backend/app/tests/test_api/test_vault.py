@@ -18,10 +18,10 @@ from app.models.room import Room
 from app.schemas.dweller import DwellerCreate
 from app.schemas.room import RoomCreate
 from app.schemas.vault import VaultCreateWithUserID
+from app.seeding.seed_objectives import seed_objectives_from_json
 from app.services import catalog_service as data_loader
 from app.services.vault_service import vault_service
 from app.tests.factory.vaults import create_fake_vault
-from app.utils.seed_objectives import seed_objectives_from_json
 
 pytestmark = pytest.mark.asyncio(scope="module")
 

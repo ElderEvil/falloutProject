@@ -9,8 +9,8 @@ from app.core.enums import ObjectiveCategoryEnum
 from app.crud.objective import objective_crud
 from app.models.objective import Objective
 from app.schemas.objective import ObjectiveCreate
+from app.seeding.seeding import seed_from_json
 from app.utils.objective_constants import validate_target_entity
-from app.utils.seeding import seed_from_json
 from app.utils.static_data import DATA_DIR, StaticGameData
 
 logger = logging.getLogger(__name__)
@@ -43,9 +43,7 @@ def _validate_objective(objective_data: ObjectiveCreate) -> list[str]:
 
 
 async def seed_objectives_from_json(db_session: AsyncSession, objectives_dir: Path | None = None) -> int:
-    """Seed objectives from JSON files if they don't already exist (default dir
-    app/data/objectives); returns the number seeded.
-    """
+    """Seed objectives from JSON files (default dir app/data/objectives); returns the number seeded."""
     if objectives_dir is None:
         objectives_dir = DATA_DIR / "objectives"
 

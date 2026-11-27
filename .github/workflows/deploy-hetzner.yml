@@ -89,47 +89,18 @@ jobs:
             fi
           fi
 
-      - name: Setup SSH key
-        run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.HETZNER_SSH_KEY }}" > ~/.ssh/hetzner_key
-          chmod 600 ~/.ssh/hetzner_key
-          ssh-keyscan -H ${{ secrets.HETZNER_HOST }} >> ~/.ssh/known_hosts
-
-      # A runner that cannot reach the host used to fail inside a later step with a raw
-      # `ssh: connect ... timed out`, which says nothing about the cause. Probe first and
-      # name the usual suspects (see docs/DEPLOYMENT.md "Runner cannot reach the host").
-      # The host is redacted from output: this repository's Actions logs are public.
-      - name: Probe SSH connectivity
-        env:
-          DEPLOY_HOST: ${{ secrets.HETZNER_HOST }}
-          DEPLOY_USER: ${{ secrets.HETZNER_USER }}
-        run: |
-          set -uo pipefail
-          redact() { sed -e "s/${DEPLOY_HOST}/***/g"; }
-          echo "Host fingerprint: sha256:$(printf '%s' "$DEPLOY_HOST" | sha256sum | cut -c1-12)"
-          if getent hosts "$DEPLOY_HOST" >/dev/null 2>&1; then echo "DNS: resolves"; else echo "DNS: does NOT resolve"; fi
-          if timeout 10 bash -c "exec 3<>/dev/tcp/${DEPLOY_HOST}/22" 2>/dev/null; then
-            echo "TCP 22: open"
-          else
-            echo "TCP 22: unreachable (packets dropped before sshd, or nothing listening)"
-          fi
-          for attempt in 1 2 3; do
-            if ssh -v -o ConnectTimeout=15 -o ConnectionAttempts=3 -o BatchMode=yes \
-                 -i ~/.ssh/hetzner_key "${DEPLOY_USER}@${DEPLOY_HOST}" 'echo ssh-reachable' 2>&1 | redact; then
-              echo "✅ SSH reachable"
-              exit 0
-            fi
-            echo "Attempt $attempt/3 failed; retrying in 10s"
-            sleep 10
-          done
-          echo "::error::GitHub runners cannot reach the production host over SSH. Read the verbose output above: 'connect to host ... timed out' means packets never arrived (Hetzner Cloud Firewall, or a fail2ban DROP on that source), while a completed key exchange followed by 'Connection closed by remote host' after ~120s means authentication never finished - 120s is sshd's LoginGraceTime, and a ban landing mid-session drops the auth packets. fail2ban's sshd jail on this host runs mode=aggressive with maxretry=3, which bans shared CI addresses; check sudo fail2ban-client status sshd. See docs/DEPLOYMENT.md 'Runner cannot reach the host'."
-          exit 1
+      - name: Configure SSH access and probe
+        uses: ./.github/actions/hetzner-ssh
+        with:
+          host: ${{ secrets.HETZNER_HOST }}
+          user: ${{ secrets.HETZNER_USER }}
+          key: ${{ secrets.HETZNER_SSH_KEY }}
+          probe: diagnostic
 
       - name: Persist ingress client-IP configuration
         if: ${{ !inputs.preflight_only }}
         run: |
-          ssh -o ConnectTimeout=20 -o ServerAliveInterval=15 -o ServerAliveCountMax=3 -i ~/.ssh/hetzner_key ${{ secrets.HETZNER_USER }}@${{ secrets.HETZNER_HOST }} \
+          ssh -o BatchMode=yes hetzner-prod \
             'kubectl apply -f -' < deployment/k3s/traefik-config.yaml
 
       - name: Log in to Docker Hub
@@ -162,7 +133,7 @@ jobs:
       - name: Read production schema and capacity
         timeout-minutes: 2
         run: |
-          ssh -o ConnectTimeout=20 -o ServerAliveInterval=15 -o ServerAliveCountMax=3 -i ~/.ssh/hetzner_key ${{ secrets.HETZNER_USER }}@${{ secrets.HETZNER_HOST }} << 'SHELL'
+          ssh -o BatchMode=yes hetzner-prod << 'SHELL'
             set -euo pipefail
             kubectl -n fallout get pvc backend-logs-pvc
             kubectl -n fallout get deployment backend dramatiq-worker frontend \
@@ -253,28 +224,18 @@ jobs:
             --arg github_client_secret "${GITHUB_CLIENT_SECRET:-}" \
             --arg oauth_redirect_base "${OAUTH_REDIRECT_BASE:-https://fallout-api.evillab.tech}" \
             '{apiVersion: "v1", kind: "Secret", metadata: {name: "backend-env", namespace: "fallout"}, type: "Opaque", stringData: {PYDANTIC_AI_GATEWAY_API_KEY: $gateway_key, PYDANTIC_AI_GATEWAY_ROUTE: $gateway_route, PYDANTIC_AI_GATEWAY_BASE_URL: $gateway_base_url, LOGFIRE_TOKEN: $logfire_token, AI_PROVIDER: "openai", AI_MODEL: $ai_model, OPENAI_API_KEY: $openai_key, OPENROUTER_API_KEY: $openrouter_key, ELEVENLABS_API_KEY: $elevenlabs_key, TYPESAFE_API_KEY: $typesafe_key, JEV_ENABLED: $jev_enabled, FEATURE_COLLECTIBLES: "true", SMTP_HOST: $smtp_host, SMTP_PORT: $smtp_port, SMTP_USER: $smtp_user, SMTP_PASSWORD: $smtp_password, SMTP_TLS: $smtp_tls, SMTP_SSL: $smtp_ssl, EMAIL_FROM_ADDRESS: $email_from_address, EMAIL_FROM_NAME: $email_from_name, FRONTEND_URL: $frontend_url, GOOGLE_CLIENT_ID: $google_client_id, GOOGLE_CLIENT_SECRET: $google_client_secret, GITHUB_CLIENT_ID: $github_client_id, GITHUB_CLIENT_SECRET: $github_client_secret, OAUTH_REDIRECT_BASE: $oauth_redirect_base}}' \
-            | ssh -o ConnectTimeout=20 -o ServerAliveInterval=15 -o ServerAliveCountMax=3 -i ~/.ssh/hetzner_key ${{ secrets.HETZNER_USER }}@${{ secrets.HETZNER_HOST }} \
+            | ssh -o BatchMode=yes hetzner-prod \
               'kubectl apply -f - && kubectl -n fallout set env deployment/backend deployment/dramatiq-worker --from=secret/backend-env'
 
-      - name: Configure API security limits
+      - name: Apply persistent log volume
         if: ${{ !inputs.preflight_only }}
         run: |
-          ssh -o ConnectTimeout=20 -o ServerAliveInterval=15 -o ServerAliveCountMax=3 -i ~/.ssh/hetzner_key ${{ secrets.HETZNER_USER }}@${{ secrets.HETZNER_HOST }} <<'SHELL'
-            set -euo pipefail
-            kubectl -n fallout set env deployment/backend \
-              ENABLE_RATE_LIMITING=true \
-              RATE_LIMIT_REQUESTS=600 \
-              RATE_LIMIT_WINDOW=60 \
-              SECURITY_TRUSTED_PROXIES='["10.42.0.0/16"]' \
-              SECURITY_TRUSTED_PROXY_DEPTH=1 \
-              SECURITY_REDIS_FAIL_OPEN=true \
-              FEATURE_PVP_DUELS=true
-          SHELL
+          ssh -o BatchMode=yes hetzner-prod 'kubectl apply -n fallout -f -' < deployment/k3s/backend-logs-pvc.yaml
 
       - name: Prepare maintenance and database backup
         if: ${{ inputs.maintenance_mode && !inputs.preflight_only }}
         run: |
-          ssh -o ConnectTimeout=20 -o ServerAliveInterval=15 -o ServerAliveCountMax=3 -i ~/.ssh/hetzner_key ${{ secrets.HETZNER_USER }}@${{ secrets.HETZNER_HOST }} << 'SHELL'
+          ssh -o BatchMode=yes hetzner-prod << 'SHELL'
             set -euo pipefail
             test "${{ inputs.run_migrations }}" = "true"
             test "$(kubectl -n fallout get pvc backend-logs-pvc -o jsonpath='{.status.phase}')" = "Bound"
@@ -336,32 +297,20 @@ jobs:
     timeout-minutes: 15
 
     steps:
-      - name: Setup SSH key
-        run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.HETZNER_SSH_KEY }}" > ~/.ssh/hetzner_key
-          chmod 600 ~/.ssh/hetzner_key
-          ssh-keyscan -H ${{ secrets.HETZNER_HOST }} >> ~/.ssh/known_hosts
+      - name: Check out deployment actions
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
 
-      - name: Probe SSH connectivity
-        env:
-          DEPLOY_HOST: ${{ secrets.HETZNER_HOST }}
-          DEPLOY_USER: ${{ secrets.HETZNER_USER }}
-        run: |
-          set -uo pipefail
-          for attempt in 1 2 3; do
-            if ssh -o ConnectTimeout=15 -o BatchMode=yes -i ~/.ssh/hetzner_key "${DEPLOY_USER}@${DEPLOY_HOST}" 'echo ssh-reachable'; then
-              exit 0
-            fi
-            echo "Attempt $attempt/3 failed; retrying in 10s"
-            sleep 10
-          done
-          echo "::error::GitHub runners cannot reach the production host over SSH"
-          exit 1
+      - name: Configure SSH access and probe
+        uses: ./.github/actions/hetzner-ssh
+        with:
+          host: ${{ secrets.HETZNER_HOST }}
+          user: ${{ secrets.HETZNER_USER }}
+          key: ${{ secrets.HETZNER_SSH_KEY }}
+          probe: simple
 
       - name: Run migrations with the target image before rollout
         run: |
-          ssh -o ConnectTimeout=20 -o ServerAliveInterval=15 -o ServerAliveCountMax=3 -i ~/.ssh/hetzner_key ${{ secrets.HETZNER_USER }}@${{ secrets.HETZNER_HOST }} << 'SHELL'
+          ssh -o BatchMode=yes hetzner-prod << 'SHELL'
             set -euo pipefail
             touch "/tmp/fallout-deploy-${{ github.run_id }}-${{ github.run_attempt }}.migration-started"
             job="fallout-migrate-${{ github.run_id }}-${{ github.run_attempt }}"
@@ -402,28 +351,13 @@ jobs:
       - name: Check out deployment manifests
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
 
-      - name: Setup SSH key
-        run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.HETZNER_SSH_KEY }}" > ~/.ssh/hetzner_key
-          chmod 600 ~/.ssh/hetzner_key
-          ssh-keyscan -H ${{ secrets.HETZNER_HOST }} >> ~/.ssh/known_hosts
-
-      - name: Probe SSH connectivity
-        env:
-          DEPLOY_HOST: ${{ secrets.HETZNER_HOST }}
-          DEPLOY_USER: ${{ secrets.HETZNER_USER }}
-        run: |
-          set -uo pipefail
-          for attempt in 1 2 3; do
-            if ssh -o ConnectTimeout=15 -o BatchMode=yes -i ~/.ssh/hetzner_key "${DEPLOY_USER}@${DEPLOY_HOST}" 'echo ssh-reachable'; then
-              exit 0
-            fi
-            echo "Attempt $attempt/3 failed; retrying in 10s"
-            sleep 10
-          done
-          echo "::error::GitHub runners cannot reach the production host over SSH"
-          exit 1
+      - name: Configure SSH access and probe
+        uses: ./.github/actions/hetzner-ssh
+        with:
+          host: ${{ secrets.HETZNER_HOST }}
+          user: ${{ secrets.HETZNER_USER }}
+          key: ${{ secrets.HETZNER_SSH_KEY }}
+          probe: simple
 
       - name: Apply deployment manifests
         if: ${{ !inputs.preflight_only }}
@@ -455,31 +389,30 @@ jobs:
                 ;;
             esac
             echo "Applying deployment/k3s/$manifest"
-            ssh -o ConnectTimeout=20 -o ServerAliveInterval=15 -o ServerAliveCountMax=3 -i ~/.ssh/hetzner_key ${{ secrets.HETZNER_USER }}@${{ secrets.HETZNER_HOST }} \
+            ssh -o BatchMode=yes hetzner-prod \
               "set -euo pipefail; $render | kubectl apply -n fallout -f -" < "deployment/k3s/$manifest"
           done
 
-      - name: Update images
+      # Client-side apply preserves a live-only init container, so keep its image in sync.
+      - name: Update legacy migration init container
         if: ${{ !inputs.preflight_only }}
         run: |
-          ssh -o ConnectTimeout=20 -o ServerAliveInterval=15 -o ServerAliveCountMax=3 -i ~/.ssh/hetzner_key ${{ secrets.HETZNER_USER }}@${{ secrets.HETZNER_HOST }} << 'EOF'
-            set -e
-            kubectl set image deployment/backend -n fallout \
-              backend=${{ secrets.DOCKER_USERNAME }}/fo-shelter-be:${{ inputs.image_tag }}
-            if kubectl -n fallout get deployment backend -o jsonpath='{.spec.template.spec.initContainers[*].name}' | grep -qw run-migrations; then
+          ssh -o BatchMode=yes hetzner-prod << 'EOF'
+            set -eu
+            init_containers=$(kubectl -n fallout get deployment backend \
+              -o jsonpath='{.spec.template.spec.initContainers[*].name}')
+            if printf '%s\n' "$init_containers" | grep -qw run-migrations; then
               kubectl set image deployment/backend -n fallout \
                 run-migrations=${{ secrets.DOCKER_USERNAME }}/fo-shelter-be:${{ inputs.image_tag }}
+            else
+              echo "No run-migrations init container; nothing to update"
             fi
-            kubectl set image deployment/dramatiq-worker -n fallout \
-              dramatiq-worker=${{ secrets.DOCKER_USERNAME }}/fo-shelter-be:${{ inputs.image_tag }}
-            kubectl set image deployment/frontend -n fallout \
-              frontend=${{ secrets.DOCKER_USERNAME }}/fo-shelter-fe:${{ inputs.image_tag }}
           EOF
 
       - name: Restore maintenance replica counts
         if: ${{ inputs.maintenance_mode && !inputs.preflight_only }}
         run: |
-          ssh -o ConnectTimeout=20 -o ServerAliveInterval=15 -o ServerAliveCountMax=3 -i ~/.ssh/hetzner_key ${{ secrets.HETZNER_USER }}@${{ secrets.HETZNER_HOST }} << 'SHELL'
+          ssh -o BatchMode=yes hetzner-prod << 'SHELL'
             set -euo pipefail
             state="/tmp/fallout-deploy-${{ github.run_id }}-${{ github.run_attempt }}.replicas"
             while read -r workload replicas; do
@@ -487,28 +420,10 @@ jobs:
             done < "$state"
           SHELL
 
-      - name: Configure persistent application logs
-        if: ${{ !inputs.preflight_only }}
-        run: |
-          set -euo pipefail
-          ssh -o ConnectTimeout=20 -o ServerAliveInterval=15 -o ServerAliveCountMax=3 -i ~/.ssh/hetzner_key ${{ secrets.HETZNER_USER }}@${{ secrets.HETZNER_HOST }} \
-            'kubectl apply -n fallout -f -' < deployment/k3s/backend-logs-pvc.yaml
-
-          ssh -o ConnectTimeout=20 -o ServerAliveInterval=15 -o ServerAliveCountMax=3 -i ~/.ssh/hetzner_key ${{ secrets.HETZNER_USER }}@${{ secrets.HETZNER_HOST }} << 'SHELL'
-            set -euo pipefail
-
-            kubectl -n fallout set env deployment/backend \
-              ENVIRONMENT=production \
-              LOG_JSON_FORMAT=true \
-              LOG_FILE_PATH=/var/log/fallout_shelter/backend.log \
-              LOG_FILE_RETENTION_DAYS=14
-            kubectl -n fallout patch deployment/backend --type='strategic' -p='{"spec":{"template":{"spec":{"securityContext":{"fsGroup":1000},"containers":[{"name":"backend","volumeMounts":[{"name":"application-logs","mountPath":"/var/log/fallout_shelter"}]}],"volumes":[{"name":"application-logs","persistentVolumeClaim":{"claimName":"backend-logs-pvc"}}]}}}}'
-          SHELL
-
       - name: Restart deployments and wait for rollout
         if: ${{ !inputs.preflight_only }}
         run: |
-          ssh -o ConnectTimeout=20 -o ServerAliveInterval=15 -o ServerAliveCountMax=3 -i ~/.ssh/hetzner_key ${{ secrets.HETZNER_USER }}@${{ secrets.HETZNER_HOST }} << 'EOF'
+          ssh -o BatchMode=yes hetzner-prod << 'EOF'
             set -e
 
             for deployment in backend dramatiq-worker frontend; do
@@ -526,12 +441,12 @@ jobs:
 
       - name: Verify production environment
         run: |
-          ssh -o ConnectTimeout=20 -o ServerAliveInterval=15 -o ServerAliveCountMax=3 -i ~/.ssh/hetzner_key ${{ secrets.HETZNER_USER }}@${{ secrets.HETZNER_HOST }} \
+          ssh -o BatchMode=yes hetzner-prod \
             "kubectl exec deployment/backend -n fallout -- python3 -c \"from app.core.config import settings; assert settings.ENVIRONMENT == 'production', f'Expected ENVIRONMENT=production, got {settings.ENVIRONMENT!r}'\""
 
       - name: Health check
         run: |
-          ssh -o ConnectTimeout=20 -o ServerAliveInterval=15 -o ServerAliveCountMax=3 -i ~/.ssh/hetzner_key ${{ secrets.HETZNER_USER }}@${{ secrets.HETZNER_HOST }} << 'SHELL'
+          ssh -o BatchMode=yes hetzner-prod << 'SHELL'
             set -e
 
             echo "Checking backend health..."
@@ -558,7 +473,7 @@ jobs:
 
       - name: Verify persistent API logs
         run: |
-          ssh -o ConnectTimeout=20 -o ServerAliveInterval=15 -o ServerAliveCountMax=3 -i ~/.ssh/hetzner_key ${{ secrets.HETZNER_USER }}@${{ secrets.HETZNER_HOST }} << 'SHELL'
+          ssh -o BatchMode=yes hetzner-prod << 'SHELL'
             set -euo pipefail
 
             test "$(kubectl -n fallout get pvc backend-logs-pvc -o jsonpath='{.status.phase}')" = "Bound"
@@ -569,7 +484,7 @@ jobs:
       - name: Verify AI Gateway and Logfire
         if: ${{ !inputs.preflight_only }}
         run: |
-          ssh -o ConnectTimeout=20 -o ServerAliveInterval=15 -o ServerAliveCountMax=3 -i ~/.ssh/hetzner_key ${{ secrets.HETZNER_USER }}@${{ secrets.HETZNER_HOST }} << 'SHELL'
+          ssh -o BatchMode=yes hetzner-prod << 'SHELL'
             set -euo pipefail
             job=ai-gateway-smoke
 
@@ -633,20 +548,18 @@ jobs:
         if: ${{ !inputs.preflight_only }}
         run: |
           set -euo pipefail
-          SSH="ssh -o ConnectTimeout=20 -o ServerAliveInterval=15 -o ServerAliveCountMax=3 -i ~/.ssh/hetzner_key"
-          TARGET="${{ secrets.HETZNER_USER }}@${{ secrets.HETZNER_HOST }}"
 
-          $SSH "$TARGET" 'kubectl -n fallout delete job image-cleanup --ignore-not-found'
-          $SSH "$TARGET" 'kubectl apply -n fallout -f -' < deployment/k3s/image-cleanup-job.yaml
+          ssh -o BatchMode=yes hetzner-prod 'kubectl -n fallout delete job image-cleanup --ignore-not-found'
+          ssh -o BatchMode=yes hetzner-prod 'kubectl apply -n fallout -f -' < deployment/k3s/image-cleanup-job.yaml
 
-          if ! $SSH "$TARGET" 'kubectl -n fallout wait --for=condition=complete job/image-cleanup --timeout=650s'; then
-            $SSH "$TARGET" 'kubectl -n fallout logs job/image-cleanup --tail=200' || true
-            $SSH "$TARGET" 'kubectl -n fallout delete job image-cleanup --ignore-not-found'
+          if ! ssh -o BatchMode=yes hetzner-prod 'kubectl -n fallout wait --for=condition=complete job/image-cleanup --timeout=650s'; then
+            ssh -o BatchMode=yes hetzner-prod 'kubectl -n fallout logs job/image-cleanup --tail=200' || true
+            ssh -o BatchMode=yes hetzner-prod 'kubectl -n fallout delete job image-cleanup --ignore-not-found'
             exit 1
           fi
 
-          $SSH "$TARGET" 'kubectl -n fallout logs job/image-cleanup --tail=200'
-          $SSH "$TARGET" 'kubectl -n fallout delete job image-cleanup --ignore-not-found'
+          ssh -o BatchMode=yes hetzner-prod 'kubectl -n fallout logs job/image-cleanup --tail=200'
+          ssh -o BatchMode=yes hetzner-prod 'kubectl -n fallout delete job image-cleanup --ignore-not-found'
 
   cleanup:
     name: Restore writers after declined migration gate
@@ -659,39 +572,24 @@ jobs:
       - name: Check out deployment manifests
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
 
-      - name: Setup SSH key
-        run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.HETZNER_SSH_KEY }}" > ~/.ssh/hetzner_key
-          chmod 600 ~/.ssh/hetzner_key
-          ssh-keyscan -H ${{ secrets.HETZNER_HOST }} >> ~/.ssh/known_hosts
-
-      - name: Probe SSH connectivity
-        env:
-          DEPLOY_HOST: ${{ secrets.HETZNER_HOST }}
-          DEPLOY_USER: ${{ secrets.HETZNER_USER }}
-        run: |
-          set -uo pipefail
-          for attempt in 1 2 3; do
-            if ssh -o ConnectTimeout=15 -o BatchMode=yes -i ~/.ssh/hetzner_key "${DEPLOY_USER}@${DEPLOY_HOST}" 'echo ssh-reachable'; then
-              exit 0
-            fi
-            echo "Attempt $attempt/3 failed; retrying in 10s"
-            sleep 10
-          done
-          echo "::error::GitHub runners cannot reach the production host over SSH"
-          exit 1
+      - name: Configure SSH access and probe
+        uses: ./.github/actions/hetzner-ssh
+        with:
+          host: ${{ secrets.HETZNER_HOST }}
+          user: ${{ secrets.HETZNER_USER }}
+          key: ${{ secrets.HETZNER_SSH_KEY }}
+          probe: simple
 
       - name: Restore writers and public ingress
         run: |
           set -euo pipefail
           marker="/tmp/fallout-deploy-${{ github.run_id }}-${{ github.run_attempt }}.migration-started"
-          if ssh -o ConnectTimeout=20 -o ServerAliveInterval=15 -o ServerAliveCountMax=3 -i ~/.ssh/hetzner_key ${{ secrets.HETZNER_USER }}@${{ secrets.HETZNER_HOST }} \
+          if ssh -o BatchMode=yes hetzner-prod \
             "test -e '$marker'"; then
             echo "Migration started; leaving writers stopped and ingress closed for manual recovery"
             exit 0
           fi
-          ssh -o ConnectTimeout=20 -o ServerAliveInterval=15 -o ServerAliveCountMax=3 -i ~/.ssh/hetzner_key ${{ secrets.HETZNER_USER }}@${{ secrets.HETZNER_HOST }} << 'SHELL'
+          ssh -o BatchMode=yes hetzner-prod << 'SHELL'
             set -euo pipefail
             state="/tmp/fallout-deploy-${{ github.run_id }}-${{ github.run_attempt }}.replicas"
             test -s "$state"
@@ -700,6 +598,6 @@ jobs:
             done < "$state"
           SHELL
           if [ "${{ inputs.public_traffic_gate }}" = "true" ]; then
-            ssh -o ConnectTimeout=20 -o ServerAliveInterval=15 -o ServerAliveCountMax=3 -i ~/.ssh/hetzner_key ${{ secrets.HETZNER_USER }}@${{ secrets.HETZNER_HOST }} \
+            ssh -o BatchMode=yes hetzner-prod \
               'kubectl apply -n fallout -f -' < deployment/k3s/ingress.yaml
           fi

@@ -238,7 +238,7 @@ The Gateway-specific secret patch and API verification steps are documented in
 
 ### Runner cannot reach the host
 
-The workflow's **Probe SSH connectivity** step fails when GitHub-hosted runners cannot complete an SSH session to the
+The workflow's **Configure SSH access and probe** step fails when GitHub-hosted runners cannot complete an SSH session to the
 production host. Read its output before changing anything: it prints a host fingerprint, DNS resolution, raw TCP 22
 reachability, and verbose `ssh` output. `TCP 22: open` with a completed key exchange means the network path is fine
 and the problem is in authentication, not routing.

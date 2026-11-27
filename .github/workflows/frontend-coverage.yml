@@ -4,11 +4,6 @@ on:
   schedule:
     # Run nightly at 02:00 UTC
     - cron: '0 2 * * *'
-  push:
-    branches: [ master ]
-    paths:
-      - 'frontend/**'
-      - '.github/workflows/frontend-coverage.yml'
   workflow_dispatch:
 
 concurrency:
@@ -29,23 +24,8 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Install pnpm
-        uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115  # v6
-        with:
-          version: 11.9.0
-          run_install: false
-
-      - name: Set up Node.js
-        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1  # v7
-        with:
-          node-version: 26
-          check-latest: true
-          cache: 'pnpm'
-          cache-dependency-path: frontend/pnpm-lock.yaml
-
-      - name: Install dependencies
-        working-directory: frontend
-        run: pnpm install --frozen-lockfile
+      - name: Set up frontend
+        uses: ./.github/actions/frontend-setup
 
       - name: Run tests with coverage
         working-directory: frontend

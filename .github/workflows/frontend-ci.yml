@@ -6,10 +6,12 @@ on:
     paths:
       - 'frontend/**'
       - '.github/workflows/frontend-ci.yml'
+      - '.github/actions/frontend-setup/**'
   pull_request:
     paths:
       - 'frontend/**'
       - '.github/workflows/frontend-ci.yml'
+      - '.github/actions/frontend-setup/**'
 
 permissions:
   contents: read
@@ -57,24 +59,10 @@ jobs:
               - 'frontend/oxlint.json'
               - 'frontend/components.d.ts'
               - '.github/workflows/frontend-ci.yml'
+              - '.github/actions/frontend-setup/**'
 
-      - name: Install pnpm
-        uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115  # v6
-        with:
-          version: 11.9.0
-          run_install: false
-
-      - name: Set up Node.js
-        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1  # v7
-        with:
-          node-version: 26
-          check-latest: true
-          cache: 'pnpm'
-          cache-dependency-path: frontend/pnpm-lock.yaml
-
-      - name: Install dependencies
-        working-directory: frontend
-        run: pnpm install --frozen-lockfile
+      - name: Set up frontend
+        uses: ./.github/actions/frontend-setup
 
       - name: Run linter
         if: steps.filter.outputs.src == 'true'
@@ -127,21 +115,16 @@ jobs:
         working-directory: frontend
         run: pnpm exec playwright install --with-deps chromium
 
-      - name: Run accessibility checks
+      # Both specs mock their API and run against Vite alone (PW_SKIP_BACKEND); the guard
+      # spec must stay here or a router regression ships silently.
+      - name: Run browser checks
         if: steps.filter.outputs.src == 'true'
-        timeout-minutes: 10
+        timeout-minutes: 15
         working-directory: frontend
         env:
           PW_SKIP_BACKEND: '1'
-        run: pnpm exec playwright test tests/e2e/accessibility.spec.ts --project=chromium
-
-      # The guard spec mocks the API it needs, so it runs against Vite alone (same
-      # PW_SKIP_BACKEND contract as the accessibility step above). Without this step
-      # a router guard regression ships silently: the spec existed but never ran.
-      - name: Run auth guard checks
-        if: steps.filter.outputs.src == 'true'
-        timeout-minutes: 10
-        working-directory: frontend
-        env:
-          PW_SKIP_BACKEND: '1'
-        run: pnpm exec playwright test tests/e2e/auth-guard.spec.ts --project=chromium
+        run: >-
+          pnpm exec playwright test
+          tests/e2e/accessibility.spec.ts
+          tests/e2e/auth-guard.spec.ts
+          --project=chromium

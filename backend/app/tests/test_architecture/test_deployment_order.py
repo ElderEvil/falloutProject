@@ -16,10 +16,44 @@ WORKFLOW = Path(__file__).resolve().parents[4] / ".github/workflows/deploy-hetzn
 
 def test_migration_job_finishes_before_application_images_change() -> None:
     workflow = WORKFLOW.read_text()
-    image_update = workflow.index("kubectl set image deployment/backend")
+    image_update = workflow.index("kubectl set image --local")
     migration = workflow.index("uv run alembic")
     assert migration < image_update
     assert "--for=condition=complete" in workflow[migration:image_update]
+
+
+@pytest.mark.skipif(not shutil.which("bash"), reason="Requires bash")
+def test_legacy_init_container_lookup_failure_fails_the_deploy(tmp_path: Path) -> None:
+    jobs = yaml.safe_load(WORKFLOW.read_text())["jobs"]
+    step = next(step for step in jobs["deploy"]["steps"] if step["name"] == "Update legacy migration init container")
+    script = step["run"]
+    for expression, value in {
+        "secrets.DOCKER_USERNAME": "test-registry",
+        "inputs.image_tag": "v2.289.1",
+    }.items():
+        script = script.replace("${{ " + expression + " }}", value)
+
+    tools = tmp_path / "bin"
+    tools.mkdir()
+    ssh = tools / "ssh"
+    ssh.write_text(f"#!{sys.executable}\nimport os\nos.execv('/bin/bash', ['bash', '-s'])\n")
+    ssh.chmod(0o755)
+    kubectl = tools / "kubectl"
+    kubectl.write_text(f"#!{sys.executable}\nimport sys\nsys.exit(42)\n")
+    kubectl.chmod(0o755)
+
+    result = subprocess.run(  # ruff: ignore[subprocess-without-shell-equals-true] - checked-in workflow, isolated external-tool fakes
+        [shutil.which("bash") or "bash", "-s"],
+        input=script,
+        text=True,
+        capture_output=True,
+        timeout=5,
+        check=False,
+        env=os.environ | {"PATH": f"{tools}{os.pathsep}{os.environ['PATH']}"},
+    )
+
+    assert result.returncode != 0
+    assert "No run-migrations init container" not in result.stdout
 
 
 def test_migration_job_adopts_legacy_database_only_in_maintenance() -> None:

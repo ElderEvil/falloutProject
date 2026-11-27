@@ -22,7 +22,15 @@ const handleDragOver = (event: DragEvent) => {
   isDraggingOver.value = true
 }
 
-const handleDragLeave = () => {
+// Crossing onto a child fires dragleave here with that child as relatedTarget.
+// Treating that as "left the zone" strobed the highlight whenever the pointer
+// travelled along a child edge, so only a leave into an outside node counts.
+const handleDragLeave = (event: DragEvent) => {
+  if (
+    event.relatedTarget instanceof Node &&
+    (event.currentTarget as HTMLElement).contains(event.relatedTarget)
+  )
+    return
   isDraggingOver.value = false
 }
 
@@ -44,10 +52,10 @@ const handleDrop = (event: DragEvent) => {
   <!-- @vue-ignore -->
   <div
     data-onboarding="wasteland"
-    class="wasteland-dropzone flex min-h-20 cursor-pointer flex-col justify-start rounded-lg border-2 border-dashed border-[rgba(205,133,63,0.5)] bg-[rgba(139,69,19,0.2)] p-4 transition-all duration-300 hover:border-[rgba(205,133,63,0.8)] hover:bg-[rgba(139,69,19,0.3)]"
+    class="wasteland-dropzone flex min-h-20 cursor-pointer flex-col justify-start rounded-lg border-2 border-dashed border-[rgba(205,133,63,0.5)] bg-[rgba(139,69,19,0.2)] p-4 transition-colors duration-300 hover:border-[rgba(205,133,63,0.8)] hover:bg-[rgba(139,69,19,0.3)]"
     :class="
       isDraggingOver
-        ? 'drag-over scale-[1.02] border-solid !border-theme-primary !border-[3px] !bg-theme-glow shadow-[0_0_20px_var(--color-theme-glow)]'
+        ? 'drag-over border-solid !border-theme-primary !bg-theme-glow shadow-[0_0_20px_var(--color-theme-glow)]'
         : ''
     "
     @dragover="handleDragOver"
@@ -68,7 +76,13 @@ const handleDrop = (event: DragEvent) => {
           >
             The Wasteland
           </h3>
-          <p v-if="!isDraggingOver" class="font-mono text-xs text-[#cd853f]">
+          <!-- Stays in the flow while dragging: hiding this line shortened the
+               zone by one line, which moved the bottom border out from under a
+               cursor parked on the edge and re-triggered dragenter forever. -->
+          <p
+            class="drag-hint font-mono text-xs text-[#cd853f]"
+            :class="{ invisible: isDraggingOver }"
+          >
             Drag dwellers here to send them exploring
           </p>
         </div>

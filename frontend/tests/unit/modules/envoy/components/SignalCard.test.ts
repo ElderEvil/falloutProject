@@ -20,6 +20,10 @@ function signal(overrides: Partial<EnvoySignal> = {}): EnvoySignal {
   }
 }
 
+function inHours(hours: number): string {
+  return new Date(Date.now() + hours * 3_600_000).toISOString()
+}
+
 function button(wrapper: VueWrapper, label: string) {
   const match = wrapper.findAll('button').find((candidate) => candidate.text().includes(label))
   expect(match, `button containing ${label}`).toBeTruthy()
@@ -65,10 +69,28 @@ describe('SignalCard', () => {
 
   it('explains a locked line instead of offering an action', () => {
     const wrapper = mount(SignalCard, {
-      props: { signal: signal({ locked_until: '2026-01-02T00:00:00Z' }) },
+      props: { signal: signal({ locked_until: inHours(24) }) },
     })
 
     expect(wrapper.text()).toContain('LINE LOCKED')
     expect(wrapper.findAll('button')).toHaveLength(0)
+  })
+
+  it('offers TRANSMIT once a stale lock timestamp has lapsed', () => {
+    const wrapper = mount(SignalCard, {
+      props: { signal: signal({ can_hail: true, locked_until: inHours(-1) }) },
+    })
+
+    expect(wrapper.text()).not.toContain('LINE LOCKED')
+    expect(wrapper.text()).toContain('TRANSMIT')
+  })
+
+  it('shows LINE OPEN, not LINE LOCKED, on an idle vault whose lock lapsed', () => {
+    const wrapper = mount(SignalCard, {
+      props: { signal: signal({ status: 'CONTACT', locked_until: inHours(-1) }) },
+    })
+
+    expect(wrapper.text()).not.toContain('LINE LOCKED')
+    expect(wrapper.text()).toContain('LINE OPEN')
   })
 })

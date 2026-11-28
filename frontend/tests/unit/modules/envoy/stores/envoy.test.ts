@@ -261,6 +261,68 @@ describe('envoy store', () => {
     expect(polling.resume).not.toHaveBeenCalled()
   })
 
+  it('empties the book when the session ends', async () => {
+    const store = useEnvoyStore()
+    api.log.mockResolvedValue([filing({})])
+    await store.start('vault-1')
+    expect(store.filings).toHaveLength(1)
+
+    store.clearSession()
+
+    expect(store.stateVaultId).toBeNull()
+    expect(store.signals).toEqual([])
+    expect(store.filings).toEqual([])
+    expect(store.config).toBeNull()
+    expect(store.errorMessage).toBeNull()
+  })
+
+  it('discards a load that was in flight when the session ended', async () => {
+    const store = useEnvoyStore()
+    await store.start('vault-1')
+    const lateSignals = deferred<EnvoySignal[]>()
+    const lateLog = deferred<EnvoyFiling[]>()
+    api.signals.mockReturnValueOnce(lateSignals.promise)
+    api.log.mockReturnValueOnce(lateLog.promise)
+    const loading = store.start('vault-2')
+    expect(store.loading).toBe(true)
+
+    store.clearSession()
+    expect(store.loading).toBe(false)
+
+    lateSignals.resolve([signal({ vault_id: 'vault-9', number: 9 })])
+    lateLog.resolve([filing({ filing_id: 'late-filing' })])
+    await loading
+
+    expect(store.signals).toEqual([])
+    expect(store.filings).toEqual([])
+    expect(store.stateVaultId).toBeNull()
+    expect(store.loading).toBe(false)
+    // The dead start() must not restart the band for the next account.
+    expect(polling.resume).toHaveBeenCalledTimes(1)
+  })
+
+  it('discards a sweep that was in flight when the session ended', async () => {
+    const store = useEnvoyStore()
+    await store.start('vault-1')
+    const lateSignals = deferred<EnvoySignal[]>()
+    const lateLog = deferred<EnvoyFiling[]>()
+    api.signals.mockReturnValueOnce(lateSignals.promise)
+    api.log.mockReturnValueOnce(lateLog.promise)
+    const sweeping = store.refresh()
+    expect(store.refreshing).toBe(true)
+
+    store.clearSession()
+    expect(store.refreshing).toBe(false)
+
+    lateSignals.resolve([signal({ vault_id: 'vault-8', number: 8 })])
+    lateLog.resolve([filing({ filing_id: 'late-filing' })])
+    await sweeping
+
+    expect(store.signals).toEqual([])
+    expect(store.filings).toEqual([])
+    expect(store.stateVaultId).toBeNull()
+  })
+
   it('queues a fresh roster read when an answer lands during an in-flight sweep', async () => {
     const store = useEnvoyStore()
     await store.load('vault-1')

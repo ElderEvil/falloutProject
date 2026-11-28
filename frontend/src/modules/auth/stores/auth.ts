@@ -15,6 +15,7 @@ import { authService } from '../services/authService'
 import type { User } from '../types/user'
 import { useVaultStore } from '@/modules/vault/stores/vault'
 import { useProfileStore } from '@/modules/profile/stores/profile'
+import { useEnvoyStore } from '@/modules/envoy/stores/envoy'
 
 export const useAuthStore = defineStore('auth', () => {
   const toast = useToast()
@@ -72,6 +73,7 @@ export const useAuthStore = defineStore('auth', () => {
     useVaultStore().clearSession()
     useStorageStore().reset()
     useProfileStore().clearProfile()
+    useEnvoyStore().clearSession()
   }
 
   // Actions

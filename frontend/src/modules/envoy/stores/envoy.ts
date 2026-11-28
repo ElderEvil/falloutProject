@@ -234,6 +234,21 @@ export const useEnvoyStore = defineStore('envoy', () => {
     pausePolling()
   }
 
+  /**
+   * The session ended: the next account must never see this book.
+   * Both version bumps strand any in-flight load/sweep/action on its guard.
+   */
+  function clearSession(): void {
+    loadVersion += 1
+    logRevision += 1
+    stop()
+    sweepQueued = false
+    acting.value = false
+    loading.value = false
+    refreshing.value = false
+    clear()
+  }
+
   return {
     signals,
     filings,
@@ -260,5 +275,6 @@ export const useEnvoyStore = defineStore('envoy', () => {
     respond,
     start,
     stop,
+    clearSession,
   }
 })

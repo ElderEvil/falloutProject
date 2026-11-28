@@ -39,7 +39,11 @@ const distance = computed(() =>
     : `${props.signal.distance.toFixed(1)} U`
 )
 
-const lockedUntil = computed(() => props.signal.locked_until ?? null)
+// The server keeps returning a lapsed timestamp while it reopens can_hail; only a future one locks.
+const lockedUntil = computed(() => {
+  const locked = props.signal.locked_until ?? null
+  return locked && new Date(locked) > new Date() ? locked : null
+})
 
 const idleLabel = computed(() => {
   if (lockedUntil.value) return 'LINE LOCKED'

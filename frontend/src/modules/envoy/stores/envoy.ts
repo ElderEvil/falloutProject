@@ -39,6 +39,8 @@ export const useEnvoyStore = defineStore('envoy', () => {
   let logRevision = 0
   /** Bumped by stop(); a start() still awaiting its first load must not poll again. */
   let lifecycle = 0
+  /** Set when a sweep is asked for while another one runs; drained in its finally. */
+  let sweepQueued = false
 
   const sortedSignals = computed(() => [...signals.value].sort(compareSignals))
 
@@ -103,6 +105,7 @@ export const useEnvoyStore = defineStore('envoy', () => {
     const version = ++loadVersion
     // The previous action's guard is now stale, so only this reset can clear it.
     acting.value = false
+    sweepQueued = false
     loading.value = true
     errorMessage.value = null
     actionError.value = null
@@ -131,7 +134,12 @@ export const useEnvoyStore = defineStore('envoy', () => {
   /** Poll sweep: roster and log only; the knobs do not move between deploys. */
   async function refresh(): Promise<void> {
     const vaultId = stateVaultId.value
-    if (!vaultId || refreshing.value || loading.value) return
+    if (!vaultId) return
+    // A sweep already running would drop this call's read, so queue one instead of losing it.
+    if (refreshing.value || loading.value) {
+      sweepQueued = true
+      return
+    }
     const version = loadVersion
     const revision = logRevision
     refreshing.value = true
@@ -150,6 +158,10 @@ export const useEnvoyStore = defineStore('envoy', () => {
         errorMessage.value = handleStoreError(error, 'Failed to refresh the Envoy Terminal', false)
     } finally {
       refreshing.value = false
+      if (sweepQueued) {
+        sweepQueued = false
+        void refresh()
+      }
     }
   }
 

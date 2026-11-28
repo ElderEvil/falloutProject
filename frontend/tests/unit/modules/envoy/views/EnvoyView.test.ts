@@ -79,6 +79,14 @@ const pendingHail: EnvoyFiling = {
   responded_at: null,
 }
 
+function deferred<T>() {
+  let resolve!: (value: T) => void
+  const promise = new Promise<T>((settle) => {
+    resolve = settle
+  })
+  return { promise, resolve }
+}
+
 /** A real router: the vault switch has to move `route.params.id`, a plain mock cannot. */
 async function mountView(vault = 'vault-1') {
   const router = createRouter({
@@ -210,5 +218,19 @@ describe('EnvoyView', () => {
     expect(wrapper.findComponent(HailDialog).props('signal')).toBeNull()
     expect(wrapper.findComponent(TerminalConfirmation).props('open')).toBe(false)
     expect(api.signals).toHaveBeenCalledWith('vault-2')
+  })
+
+  it('does not start the terminal when the view unmounts while the flags load', async () => {
+    flags.loaded = false
+    const flagFetch = deferred<void>()
+    flags.fetchFlags.mockReturnValueOnce(flagFetch.promise)
+    const { wrapper } = await mountView()
+
+    wrapper.unmount()
+    flagFetch.resolve()
+    await flushPromises()
+
+    // A sweep that outlives the view must not re-arm the poller behind it.
+    expect(api.signals).not.toHaveBeenCalled()
   })
 })

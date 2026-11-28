@@ -38,10 +38,14 @@ const responseMessage = computed(() =>
     : 'Refusing locks the band for this pair until the refusal window lapses. The log keeps the refusal.'
 )
 
+/** Bumped by every sweep and by unmount, so a sweep awaiting flags cannot start a dead view. */
+let sweepToken = 0
+
 async function sweep(): Promise<void> {
+  const token = ++sweepToken
   // A failed first fetch leaves flags unloaded; without this retry the guard below sticks.
   if (!featureFlags.loaded) await featureFlags.fetchFlags()
-  if (!featureFlags.vaultDiplomacy) return
+  if (token !== sweepToken || !featureFlags.vaultDiplomacy) return
   await envoyStore.start(vaultId.value)
 }
 
@@ -87,7 +91,10 @@ onMounted(() => {
   void sweep()
 })
 
-onUnmounted(() => envoyStore.stop())
+onUnmounted(() => {
+  sweepToken += 1
+  envoyStore.stop()
+})
 
 watch(vaultId, async () => {
   envoyStore.stop()

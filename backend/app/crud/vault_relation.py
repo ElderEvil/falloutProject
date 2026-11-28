@@ -56,7 +56,9 @@ class CRUDVaultRelation:
                 db_session.add(relation)
                 await db_session.flush()
         except IntegrityError:
-            winner = await self.get_pair(db_session, vault_id=vault_id, other_vault_id=other_vault_id)
+            winner = await self.get_pair(
+                db_session, vault_id=vault_id, other_vault_id=other_vault_id, for_update=for_update
+            )
             if winner is None:
                 raise
             return winner

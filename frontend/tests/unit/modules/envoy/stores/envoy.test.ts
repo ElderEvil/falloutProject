@@ -260,4 +260,22 @@ describe('envoy store', () => {
 
     expect(polling.resume).not.toHaveBeenCalled()
   })
+
+  it('queues a fresh roster read when an answer lands during an in-flight sweep', async () => {
+    const store = useEnvoyStore()
+    await store.load('vault-1')
+    const slowSweep = deferred<EnvoySignal[]>()
+    api.signals.mockReturnValueOnce(slowSweep.promise)
+
+    const sweeping = store.refresh()
+    api.respond.mockResolvedValue(filing({ status: 'ACCEPTED' }))
+    await store.respond('filing-1', true)
+    slowSweep.resolve([signal({ status: 'CONTACT', standing: 5 })])
+    await sweeping
+    await flushPromises()
+
+    // load + the slow sweep + the sweep queued by the answer's own refresh.
+    expect(api.signals).toHaveBeenCalledTimes(3)
+    expect(store.refreshing).toBe(false)
+  })
 })

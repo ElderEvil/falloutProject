@@ -14,6 +14,8 @@ from app import crud
 from app.api.deps import get_current_active_user
 from app.core.enums import DwellerLocationRelationEnum, LocationTypeEnum, PlaceKindEnum
 from app.core.game_config import game_config
+from app.crud.vault_relation import ordered_pair
+from app.crud.vault_relation import vault_relation as relation_crud
 from app.crud.vault_slot import vault_slot
 from app.models.diplomatic_filing import DiplomaticFiling
 from app.models.dweller import Dweller
@@ -260,6 +262,33 @@ async def test_an_overdue_filing_expires_on_read_and_cannot_be_answered(
     assert late.json()["detail"] == "This filing has expired."
     log = await async_client.get(f"/vaults/{other.id}/envoy/log")
     assert log.json()[0]["status"] == "EXPIRED"
+
+
+async def test_the_insert_race_recovery_reads_the_winner_under_the_same_lock(
+    async_session, vault, user_with_vault, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A lost insert race must re-read the winning pair row with the lock the caller asked for."""
+    _other_user, other = user_with_vault
+    low, high = ordered_pair(vault.id, other.id)
+    real_get_pair = relation_crud.get_pair
+    locks: list[bool] = []
+
+    async def _racing_get_pair(db, *, vault_id, other_vault_id, for_update=False):
+        locks.append(for_update)
+        if len(locks) == 1:
+            # The other vault's hail wins the insert between our read and our flush.
+            db.add(VaultRelation(vault_a_id=low, vault_b_id=high))
+            await db.commit()
+            return None
+        return await real_get_pair(db, vault_id=vault_id, other_vault_id=other_vault_id)
+
+    monkeypatch.setattr(relation_crud, "get_pair", _racing_get_pair)
+    relation = await relation_crud.get_or_create(
+        async_session, vault_id=vault.id, other_vault_id=other.id, for_update=True
+    )
+
+    assert relation.vault_a_id == low
+    assert locks == [True, True]
 
 
 async def test_a_filing_that_fails_after_staging_leaves_no_orphan_relation(

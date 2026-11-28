@@ -17,13 +17,7 @@ from app.utils.types import UTCDateTime
 
 
 class DiplomaticFiling(BaseUUIDModel, TimeStampMixin, table=True):
-    """A hail, demand or treaty offer that waits for an answer until it expires.
-
-    Kind and status are VARCHAR-backed, so the StrEnums need no PostgreSQL type. ``terms``
-    holds the structured offer (reparations, clauses); free text is deliberately absent.
-    A reloaded row carries the plain string, not the enum member (SQLAlchemy does not run
-    pydantic on load), so compare with ``==`` or ``.value`` exactly as ``PvpDuel.status``.
-    """
+    """An offer that waits for an answer until it expires; no free text, only structured terms."""
 
     __tablename__ = "diplomaticfiling"
 

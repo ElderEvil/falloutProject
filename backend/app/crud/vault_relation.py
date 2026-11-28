@@ -6,6 +6,7 @@ from collections.abc import Sequence
 from uuid import UUID
 
 from sqlalchemy import or_
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -42,7 +43,7 @@ class CRUDVaultRelation:
         status: VaultRelationStatus = VaultRelationStatus.UNMET,
         for_update: bool = False,
     ) -> VaultRelation:
-        """Fetch the pair row, inserting one at ``status`` if none exists; the caller commits."""
+        """Fetch or insert the pair row; the insert runs in a savepoint so a lost race re-reads the winner."""
         existing = await self.get_pair(
             db_session, vault_id=vault_id, other_vault_id=other_vault_id, for_update=for_update
         )
@@ -50,8 +51,15 @@ class CRUDVaultRelation:
             return existing
         low, high = ordered_pair(vault_id, other_vault_id)
         relation = VaultRelation(vault_a_id=low, vault_b_id=high, status=status)
-        db_session.add(relation)
-        await db_session.flush()
+        try:
+            async with db_session.begin_nested():
+                db_session.add(relation)
+                await db_session.flush()
+        except IntegrityError:
+            winner = await self.get_pair(db_session, vault_id=vault_id, other_vault_id=other_vault_id)
+            if winner is None:
+                raise
+            return winner
         return relation
 
     async def list_for_vault(

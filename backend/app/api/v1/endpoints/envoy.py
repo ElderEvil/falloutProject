@@ -8,7 +8,6 @@ from app.api.deps import CurrentActiveUser, DBSession, get_user_vault_or_403
 from app.core.game_config import game_config
 from app.schemas.envoy import (
     EnvoyConfigRead,
-    EnvoyFilingCreate,
     EnvoyFilingRead,
     EnvoyFilingRespond,
     EnvoyHailCreate,
@@ -51,20 +50,6 @@ async def hail_vault(
     """File a hail at one vault in radio range."""
     await get_user_vault_or_403(vault_id, user, db_session)
     return await envoy_service.hail(db_session, vault_id, target_vault_id=body.target_vault_id)
-
-
-@router.post("/filings", response_model=EnvoyFilingRead, status_code=status.HTTP_201_CREATED)
-async def file_filing(
-    vault_id: UUID,
-    body: EnvoyFilingCreate,
-    user: CurrentActiveUser,
-    db_session: DBSession,
-) -> EnvoyFilingRead:
-    """File one offer; only a hail is accepted in this slice."""
-    await get_user_vault_or_403(vault_id, user, db_session)
-    return await envoy_service.file(
-        db_session, vault_id, to_vault_id=body.to_vault_id, kind=body.kind, terms=body.terms
-    )
 
 
 @router.post("/filings/{filing_id}/respond", response_model=EnvoyFilingRead)

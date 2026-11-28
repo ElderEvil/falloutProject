@@ -7,7 +7,7 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import or_
+from sqlalchemy import or_, update
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -102,18 +102,18 @@ class CRUDDiplomaticFiling:
         return (await db_session.execute(query)).scalars().all()
 
     async def expire_overdue(self, db_session: AsyncSession, *, vault_id: UUID, now: datetime) -> Sequence[UUID]:
-        """Stamp this vault's overdue PENDING filings EXPIRED; the caller commits."""
-        query = select(DiplomaticFiling).where(
-            or_(DiplomaticFiling.from_vault_id == vault_id, DiplomaticFiling.to_vault_id == vault_id),
-            DiplomaticFiling.status == DiplomaticFilingStatus.PENDING.value,
-            DiplomaticFiling.expires_at <= now,
+        """Expire overdue PENDING filings; the WHERE clause re-checks PENDING so an answer is never overwritten."""
+        statement = (
+            update(DiplomaticFiling)
+            .where(
+                or_(DiplomaticFiling.from_vault_id == vault_id, DiplomaticFiling.to_vault_id == vault_id),
+                DiplomaticFiling.status == DiplomaticFilingStatus.PENDING.value,
+                DiplomaticFiling.expires_at <= now,
+            )
+            .values(status=DiplomaticFilingStatus.EXPIRED.value)
+            .returning(DiplomaticFiling.id)
         )
-        filings = (await db_session.execute(query)).scalars().all()
-        for filing in filings:
-            filing.status = DiplomaticFilingStatus.EXPIRED
-        if filings:
-            await db_session.flush()
-        return [filing.id for filing in filings]
+        return list((await db_session.execute(statement)).scalars().all())
 
     async def resolve(
         self,

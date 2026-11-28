@@ -10,13 +10,18 @@ import pytest_asyncio
 from sqlalchemy import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from app import crud
 from app.api.deps import get_current_active_user
-from app.core.enums import LocationTypeEnum, PlaceKindEnum
+from app.core.enums import DwellerLocationRelationEnum, LocationTypeEnum, PlaceKindEnum
 from app.core.game_config import game_config
 from app.crud.vault_slot import vault_slot
 from app.models.diplomatic_filing import DiplomaticFiling
+from app.models.dweller import Dweller
 from app.models.user import User
-from app.models.world_location import VaultLocationState, WorldLocation
+from app.models.vault_relation import VaultRelation
+from app.models.world_location import DwellerLocation, VaultLocationState, WorldLocation
+from app.schemas.dweller import DwellerCreate
+from app.tests.factory.dwellers import create_rush_dweller_payload
 from app.utils.time import utcnow
 from app.utils.vault_slots import slot_coords
 from main import app
@@ -55,14 +60,30 @@ async def _claim(async_session: AsyncSession, *vaults) -> list[int]:
 
 
 async def _visit(async_session: AsyncSession, vault_id, coords: tuple[float, float]) -> None:
-    """Record a visited place at ``coords`` for a vault, the way a dweller's trip would."""
+    """Record a visited place the way a dweller's trip does: a dweller link, plus a fog state."""
     name = f"Relay {coords[0]}-{coords[1]}"
     place = WorldLocation(
         name=name, normalized_name=name.lower(), kind=PlaceKindEnum.PLACE, coord_x=coords[0], coord_y=coords[1]
     )
     async_session.add(place)
     await async_session.flush()
-    async_session.add(VaultLocationState(vault_id=vault_id, location_id=place.id, type=LocationTypeEnum.VISITED))
+    async_session.add(VaultLocationState(vault_id=vault_id, location_id=place.id, type=LocationTypeEnum.DISCOVERY))
+    dweller = (
+        await async_session.execute(select(Dweller).where(Dweller.vault_id == vault_id).limit(1))
+    ).scalar_one_or_none()
+    if dweller is None:
+        dweller = await crud.dweller.create(
+            db_session=async_session,
+            obj_in=DwellerCreate(**create_rush_dweller_payload(), vault_id=vault_id),
+        )
+    async_session.add(
+        DwellerLocation(
+            dweller_id=dweller.id,
+            location_id=place.id,
+            relation=DwellerLocationRelationEnum.VISITED,
+            is_unlocked=True,
+        )
+    )
     await async_session.commit()
 
 
@@ -80,12 +101,11 @@ async def test_flag_off_returns_404_on_all_six_routes(async_client, owner, vault
     responses = [
         await async_client.get(f"/vaults/{vault.id}/envoy/signals"),
         await async_client.post(f"/vaults/{vault.id}/envoy/hail", json={"target_vault_id": absent}),
-        await async_client.post(f"/vaults/{vault.id}/envoy/filings", json={"to_vault_id": absent}),
         await async_client.post(f"/vaults/{vault.id}/envoy/filings/{absent}/respond", json={"accept": True}),
         await async_client.get(f"/vaults/{vault.id}/envoy/log"),
         await async_client.get(f"/vaults/{vault.id}/envoy/config"),
     ]
-    assert [response.status_code for response in responses] == [404] * 6
+    assert [response.status_code for response in responses] == [404] * 5
 
 
 async def test_signals_gate_hailing_on_a_visited_place_in_range(
@@ -242,6 +262,28 @@ async def test_an_overdue_filing_expires_on_read_and_cannot_be_answered(
     assert log.json()[0]["status"] == "EXPIRED"
 
 
+async def test_a_filing_that_fails_after_staging_leaves_no_orphan_relation(
+    async_client, owner, vault, user_with_vault, async_session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Late failure: the pair row staged by the hail rolls back with the filing."""
+    _other_user, other = user_with_vault
+    _mine, theirs = await _claim(async_session, vault, other)
+    await _visit(async_session, vault.id, slot_coords(theirs))
+
+    async def _explode(*_args, **_kwargs):
+        raise RuntimeError("storage fell over")
+
+    monkeypatch.setattr("app.services.envoy_service.filing_crud.create", _explode)
+    with pytest.raises(RuntimeError):
+        await _hail(async_client, vault, other)
+    monkeypatch.undo()
+
+    # The failed request's transaction is discarded the way connection teardown discards it;
+    # only then does a surviving row mean the pair was actually committed.
+    await async_session.rollback()
+    assert (await async_session.execute(select(VaultRelation))).scalars().all() == []
+
+
 async def test_crossed_hails_share_one_relation_and_pay_standing_once(
     async_client, owner, vault, user_with_vault, async_session
 ) -> None:
@@ -266,17 +308,9 @@ async def test_crossed_hails_share_one_relation_and_pay_standing_once(
     assert signal["standing"] == 5
 
 
-async def test_only_a_hail_is_filable_and_config_reports_the_effective_knobs(
-    async_client, owner, vault, user_with_vault, async_session
-) -> None:
+async def test_config_reports_the_effective_knobs(async_client, owner, vault, user_with_vault, async_session) -> None:
     _other_user, other = user_with_vault
-    _mine, theirs = await _claim(async_session, vault, other)
-    await _visit(async_session, vault.id, slot_coords(theirs))
-
-    accord = await async_client.post(
-        f"/vaults/{vault.id}/envoy/filings", json={"to_vault_id": str(other.id), "kind": "ACCORD"}
-    )
-    assert accord.status_code == 400, accord.text
+    await _claim(async_session, vault, other)
 
     config = await async_client.get(f"/vaults/{vault.id}/envoy/config")
     assert config.status_code == 200, config.text

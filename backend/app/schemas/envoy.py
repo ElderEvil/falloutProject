@@ -47,14 +47,6 @@ class EnvoyHailCreate(BaseModel):
     target_vault_id: UUID
 
 
-class EnvoyFilingCreate(BaseModel):
-    """File one offer; only HAIL is accepted until a later slice."""
-
-    to_vault_id: UUID
-    kind: DiplomaticFilingKind = DiplomaticFilingKind.HAIL
-    terms: dict[str, Any] = Field(default_factory=dict)
-
-
 class EnvoyFilingRespond(BaseModel):
     """Answer a filing: accepted opens the standoff, refused locks the line."""
 

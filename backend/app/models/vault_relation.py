@@ -15,11 +15,7 @@ from app.utils.types import UTCDateTime
 
 
 class VaultRelation(BaseUUIDModel, TimeStampMixin, table=True):
-    """One row per vault pair, keyed by the ordered pair (``vault_a_id`` is the lower UUID).
-
-    Status is VARCHAR-backed so the StrEnum needs no PostgreSQL type and no enum migration.
-    ``locked_until`` is the wall-clock refusal lock; ``met_at`` records first contact.
-    """
+    """One row per vault pair, keyed by the ordered pair (lower UUID first); status is VARCHAR-backed."""
 
     __tablename__ = "vaultrelation"
 

@@ -5466,26 +5466,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/vaults/{vault_id}/envoy/filings": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * File Filing
-         * @description File one offer; only a hail is accepted in this slice.
-         */
-        post: operations["file_filing_api_v1_vaults__vault_id__envoy_filings_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/vaults/{vault_id}/envoy/filings/{filing_id}/respond": {
         parameters: {
             query?: never;
@@ -8457,23 +8437,6 @@ export interface components {
             stake_min: number;
             /** Stake Max */
             stake_max: number;
-        };
-        /**
-         * EnvoyFilingCreate
-         * @description File one offer; only HAIL is accepted until a later slice.
-         */
-        EnvoyFilingCreate: {
-            /**
-             * To Vault Id
-             * Format: uuid
-             */
-            to_vault_id: string;
-            /** @default HAIL */
-            kind: components["schemas"]["DiplomaticFilingKind"];
-            /** Terms */
-            terms?: {
-                [key: string]: unknown;
-            };
         };
         /**
          * EnvoyFilingRead
@@ -21952,41 +21915,6 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["EnvoyHailCreate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["EnvoyFilingRead"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    file_filing_api_v1_vaults__vault_id__envoy_filings_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                vault_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["EnvoyFilingCreate"];
             };
         };
         responses: {

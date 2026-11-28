@@ -306,14 +306,16 @@ class CRUDWorldLocation:
         return [(row[0], row[1]) for row in result.all()]
 
     async def list_visited_coords(self, db_session: AsyncSession, *, vault_id: UUID) -> list[tuple[float, float]]:
-        """Registry coordinates of every place this vault has a VISITED fog entry for."""
+        """Coordinates of places a dweller of this vault visited; the dweller link, not the fog state, is the record."""
         result = await db_session.execute(
             select(WorldLocation.coord_x, WorldLocation.coord_y)
-            .join(VaultLocationState, VaultLocationState.location_id == WorldLocation.id)
+            .join(DwellerLocation, DwellerLocation.location_id == WorldLocation.id)
+            .join(Dweller, Dweller.id == DwellerLocation.dweller_id)
             .where(
-                VaultLocationState.vault_id == vault_id,
-                VaultLocationState.type == LocationTypeEnum.VISITED,
+                Dweller.vault_id == vault_id,
+                DwellerLocation.relation == DwellerLocationRelationEnum.VISITED,
             )
+            .distinct()
         )
         return [(float(coord_x), float(coord_y)) for coord_x, coord_y in result.all()]
 

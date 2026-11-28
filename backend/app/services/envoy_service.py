@@ -1,8 +1,4 @@
-"""Envoy Terminal: the pair ledger, first-contact hails and the effective knobs.
-
-Slice 1 files hails only, and only a hail moves a pair off UNMET. Each entry point commits
-once, at the end, so a caller never reads a half-filed hail.
-"""
+"""Envoy Terminal: the pair ledger, first-contact hails and the effective knobs."""
 
 import logging
 from datetime import datetime, timedelta
@@ -103,55 +99,37 @@ class EnvoyService:
         return signals
 
     async def hail(self, db_session: AsyncSession, vault_id: UUID, *, target_vault_id: UUID) -> EnvoyFilingRead:
-        """File the terminal's only Slice 1 filing: a hail at one vault."""
-        return await self.file(
-            db_session, vault_id, to_vault_id=target_vault_id, kind=DiplomaticFilingKind.HAIL, terms={}
-        )
-
-    async def file(
-        self,
-        db_session: AsyncSession,
-        vault_id: UUID,
-        *,
-        to_vault_id: UUID,
-        kind: DiplomaticFilingKind,
-        terms: dict[str, Any] | None = None,
-    ) -> EnvoyFilingRead:
-        """File one HAIL; acknowledging a treaty is a later slice and is refused here."""
-        if kind != DiplomaticFilingKind.HAIL:
-            raise ValidationException("Only hails may be filed in this slice.")
+        """File a hail; the answer opens contact. Treaties arrive in a later slice."""
         now = utcnow()
         await self._expire_overdue(db_session, vault_id, now)
-        if to_vault_id == vault_id:
+        if target_vault_id == vault_id:
             raise ValidationException("A vault cannot hail itself.")
-        if await slot_crud.get_by_vault(db_session, to_vault_id) is None:
+        if await slot_crud.get_by_vault(db_session, target_vault_id) is None:
             raise NotFoundException("Vault not found.")
-        relation = await relation_crud.get_pair(db_session, vault_id=vault_id, other_vault_id=to_vault_id)
-        if relation is not None:
-            if _status(relation.status) != VaultRelationStatus.UNMET:
-                raise ResourceConflictException("You are already in contact with that vault.")
-            if relation.locked_until is not None and relation.locked_until > now:
-                raise ResourceConflictException("That vault refused your last filing; the line is locked.")
+        if not await self._in_hail_range(db_session, vault_id, target_vault_id):
+            raise ValidationException("No dweller of yours has been near that vault.")
+        # Lock (or create) the pair row before the pending check, so two hails cannot both pass it.
+        relation = await relation_crud.get_or_create(
+            db_session, vault_id=vault_id, other_vault_id=target_vault_id, for_update=True
+        )
+        if _status(relation.status) != VaultRelationStatus.UNMET:
+            raise ResourceConflictException("You are already in contact with that vault.")
+        if relation.locked_until is not None and relation.locked_until > now:
+            raise ResourceConflictException("That vault refused your last filing; the line is locked.")
         pending = await filing_crud.get_pending(
-            db_session, from_vault_id=vault_id, to_vault_id=to_vault_id, kind=DiplomaticFilingKind.HAIL
+            db_session, from_vault_id=vault_id, to_vault_id=target_vault_id, kind=DiplomaticFilingKind.HAIL
         )
         if pending is not None:
             raise ResourceConflictException("A hail is already waiting for an answer.")
-        if not await self._in_hail_range(db_session, vault_id, to_vault_id):
-            raise ValidationException("No dweller of yours has been near that vault.")
-        # The pair row is born with the first filing, not with the answer: two crossed hails then
-        # mutate one row instead of racing to insert the same unique pair at accept time.
-        await relation_crud.get_or_create(db_session, vault_id=vault_id, other_vault_id=to_vault_id)
         filing = await filing_crud.create(
             db_session,
             from_vault_id=vault_id,
-            to_vault_id=to_vault_id,
+            to_vault_id=target_vault_id,
             kind=DiplomaticFilingKind.HAIL,
-            terms=terms or {},
+            terms={},
             expires_at=now + timedelta(hours=game_config.diplomacy.filing_ttl_hours),
         )
         await db_session.commit()
-        logger.info("Vault %s hailed %s (filing %s)", vault_id, to_vault_id, filing.id)
         return _read(filing, vault_id=vault_id)
 
     async def respond(

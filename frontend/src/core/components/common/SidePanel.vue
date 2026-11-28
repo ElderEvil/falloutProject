@@ -97,13 +97,6 @@ const navItems = computed((): NavItem[] => {
       path: `/vault/${vaultId.value}/storage`,
       hotkey: '9',
     },
-    {
-      id: 'trading',
-      label: 'Trading Post',
-      icon: 'mdi:store',
-      path: `/vault/${vaultId.value}/trading`,
-      wip: true,
-    },
   ]
 
   if (featureFlags.worldEvents) {
@@ -112,6 +105,16 @@ const navItems = computed((): NavItem[] => {
       label: 'Relay',
       icon: 'mdi:radio-tower',
       path: `/vault/${vaultId.value}/world-event`,
+    })
+  }
+  // Envoy Terminal replaces the Trading Post entry (the post is its LABOUR tab) and
+  // follows the same gated pattern: no entry while vault diplomacy ships dark.
+  if (featureFlags.vaultDiplomacy) {
+    navItems.push({
+      id: 'envoy',
+      label: 'Envoy Terminal',
+      icon: 'mdi:radio-tower',
+      path: `/vault/${vaultId.value}/envoy`,
     })
   }
   // Debug affordance only, per the PvP surface ruling in issue 1474: the player entry

@@ -3,7 +3,7 @@ environment variables, e.g. INCIDENT_SPAWN_CHANCE=0.10.
 """
 
 import logging
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, Field, NonNegativeInt, ValidationInfo, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -1207,6 +1207,13 @@ class FeatureConfig(BaseSettings):
             "journal. Ships dark until play-tested; duels never touch dweller rows."
         ),
     )
+    vault_diplomacy: bool = Field(
+        default=False,
+        description=(
+            "Envoy Terminal: per-pair relations, hails and structured filings between vaults. Ships dark "
+            "until the hail-only slice is play-tested; the diplomacy knobs stay live without it."
+        ),
+    )
     collectibles: bool = Field(
         default=False,
         description=(
@@ -1275,6 +1282,40 @@ class VaultSlotConfig(BaseSettings):
 
     count: int = Field(default=100, description="Total vault slots on the shared atlas", ge=1)
     columns: int = Field(default=10, description="Slot grid columns (rows are derived)", ge=1)
+
+
+class DiplomacyConfig(BaseSettings):
+    """Envoy Terminal filings and treaties: every balance number is an env var.
+
+    Deliberately not a feature flag — ``features.vault_diplomacy`` is the dark ship switch;
+    these knobs outlive it and get tuned forever.
+    """
+
+    model_config = SettingsConfigDict(env_prefix="DIPLOMACY_")
+
+    trade_gate: Literal["standoff", "accord", "compact"] = Field(
+        default="standoff", description="Status that unlocks cross-vault purchases; a literal, not an enum"
+    )
+    hail_radius: float = Field(
+        default=2.0, ge=0.0, description="Map units a dweller must have visited near a slot to hail it"
+    )
+    filing_ttl_hours: int = Field(default=48, ge=1, description="Hours a filing waits for an answer")
+    refusal_lock_hours: int = Field(default=24, ge=0, description="Hours a refused filing kind stays locked")
+    repropose_hours: int = Field(default=72, ge=1, description="Hours before a refused filing is free to propose again")
+    ceasefire_days: int = Field(default=7, ge=1, description="Ceasefire length before it lapses to standoff")
+    war_upkeep_per_level: int = Field(
+        default=40, ge=0, description="Daily caps drained per belligerent per vault level"
+    )
+    footing_penalty_pct: int = Field(default=10, ge=0, le=100, description="Income penalty per refused ceasefire")
+    fatigue_start_days: int = Field(default=7, ge=1, description="War day on which a ceasefire filing becomes free")
+    fatigue_ramp_days: int = Field(default=7, ge=1, description="Days between war-upkeep ramp steps")
+    arbitration_day: int = Field(default=21, ge=1, description="War day the broker files a ceasefire offer")
+    accord_upkeep: int = Field(default=25, ge=0, description="Daily caps a standing ACCORD costs")
+    compact_upkeep: int = Field(default=75, ge=0, description="Daily caps a standing COMPACT costs")
+    unjust_war_multiplier: int = Field(default=3, ge=1, description="Declaration surcharge with no live grievance")
+    stake_pct: int = Field(default=1, ge=0, le=100, description="Share of caps each side escrows in a stake duel")
+    stake_min: int = Field(default=100, ge=0, description="Stake duel escrow floor in caps")
+    stake_max: int = Field(default=2000, ge=1, description="Stake duel escrow ceiling in caps")
 
 
 class StorageConfig(BaseSettings):
@@ -1387,6 +1428,7 @@ class GameConfig(BaseSettings):
     exit_request: ExitConfig = Field(default_factory=ExitConfig)
     features: FeatureConfig = Field(default_factory=FeatureConfig)
     vault_slots: VaultSlotConfig = Field(default_factory=VaultSlotConfig)
+    diplomacy: DiplomacyConfig = Field(default_factory=DiplomacyConfig)
     combat_zone: CombatZoneConfig = Field(default_factory=CombatZoneConfig)
     storage: StorageConfig = Field(default_factory=StorageConfig)
     container: ContainerConfig = Field(default_factory=ContainerConfig)

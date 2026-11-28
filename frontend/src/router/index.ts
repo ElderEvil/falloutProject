@@ -13,7 +13,7 @@ import { socialRoutes } from '@/modules/social/routes'
 import { dwellersRoutes } from '@/modules/dwellers/routes'
 import { storageRoutes } from '@/modules/storage/routes'
 import { aiSettingsRoutes } from '@/modules/ai-settings/routes'
-import { tradingRoutes } from '@/modules/trading/routes'
+import { envoyRoutes } from '@/modules/envoy/routes'
 import { contaminationTeamRoutes } from '@/modules/contamination-team/routes'
 import { worldEventRoutes } from '@/modules/world-event/routes'
 import { pvpRoutes } from '@/modules/pvp/routes'
@@ -33,8 +33,8 @@ const router = createRouter({
     ...mapRoutes,
     // Storage module routes
     ...storageRoutes,
-    // Trading Post module routes
-    ...tradingRoutes,
+    // Envoy Terminal module routes (the old Trading Post path redirects here)
+    ...envoyRoutes,
     // Contamination team module routes
     ...contaminationTeamRoutes,
     ...worldEventRoutes,

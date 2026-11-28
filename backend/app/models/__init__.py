@@ -7,6 +7,7 @@ from .collectible import VaultCollectible
 from .combat_zone import CombatZoneEvent, CombatZoneMatch, CombatZoneParty
 from .conversation import Conversation
 from .crafting_order import CraftingOrder
+from .diplomatic_filing import DiplomaticFiling
 from .dweller import Dweller
 from .dweller_memory import DwellerMemory
 from .exploration import ExpeditionRun, Exploration
@@ -36,6 +37,7 @@ from .user import User
 from .user_profile import UserProfile
 from .vault import Vault
 from .vault_recipe_unlock import VaultRecipeUnlock
+from .vault_relation import VaultRelation
 from .vault_slot import VaultSlot
 from .vault_theme import VaultTheme
 from .weapon import Weapon

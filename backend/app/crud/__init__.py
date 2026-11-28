@@ -7,6 +7,7 @@ from .arena_state import arena_state_crud
 from .chat_message import chat_message
 from .conversation import conversation
 from .crafting_order import crafting_order
+from .diplomatic_filing import diplomatic_filing
 from .dweller import dweller
 from .expedition_run import expedition_run
 from .exploration import exploration
@@ -28,6 +29,7 @@ from .team import team_crud
 from .user import user
 from .vault import vault
 from .vault_recipe_unlock import vault_recipe_unlock
+from .vault_relation import vault_relation
 from .vault_theme import vault_theme
 from .weapon import weapon
 from .world_event import world_event

@@ -7,9 +7,16 @@ import SidePanel from '@/core/components/common/SidePanel.vue'
 
 vi.mock('@iconify/vue', () => createIconifyMock())
 
-// The panel reads the world-event flag for its "Relay" entry; keep it off here.
+// The panel reads the world-event flag for its "Relay" entry; keep it off here while
+// leaving the gated Envoy Terminal entry on, so the base navigation stays complete.
 vi.mock('@/core/stores/featureFlags', () => ({
-  useFeatureFlagsStore: () => ({ worldEvents: false, loaded: true, fetchFlags: vi.fn() }),
+  useFeatureFlagsStore: () => ({
+    worldEvents: false,
+    pvpDuels: false,
+    vaultDiplomacy: true,
+    loaded: true,
+    fetchFlags: vi.fn(),
+  }),
 }))
 
 // Keep the real module surface (`reactiveOmit` etc. are used by the shadcn
@@ -34,7 +41,7 @@ const VAULT_PARAM_ROUTES = [
   '/vault/:id/training',
   '/vault/:id/map',
   '/vault/:id/storage',
-  '/vault/:id/trading',
+  '/vault/:id/envoy',
 ]
 
 // jsdom ships no working matchMedia; this stub records VueUse's `change`
@@ -120,7 +127,7 @@ describe('SidePanel', () => {
       for (const link of links) expect(link.attributes('aria-label')).toBeUndefined()
       expect(linkByLabel(links, 'Overview').attributes('href')).toBe('/vault/vault-1')
       expect(linkByLabel(links, 'Dwellers').attributes('href')).toBe('/vault/vault-1/dwellers')
-      expect(linkByLabel(links, 'Trading Post').attributes('href')).toBe('/vault/vault-1/trading')
+      expect(linkByLabel(links, 'Envoy Terminal').attributes('href')).toBe('/vault/vault-1/envoy')
     })
 
     it('keeps the collapse toggle a button', () => {
@@ -244,7 +251,6 @@ describe('SidePanel', () => {
       await toggle.trigger('click')
 
       expect(wrapper.findAll('a.nav-item .nav-label')).toHaveLength(10)
-      expect(wrapper.find('.wip-badge').exists()).toBe(true)
       expect(wrapper.find('.hotkey-badge').exists()).toBe(true)
 
       media.setMatches(false)

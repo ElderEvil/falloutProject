@@ -5426,6 +5426,126 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/vaults/{vault_id}/envoy/signals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Envoy Signals
+         * @description List every live vault with this vault's relation and radio range.
+         */
+        get: operations["list_envoy_signals_api_v1_vaults__vault_id__envoy_signals_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/vaults/{vault_id}/envoy/hail": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Hail Vault
+         * @description File a hail at one vault in radio range.
+         */
+        post: operations["hail_vault_api_v1_vaults__vault_id__envoy_hail_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/vaults/{vault_id}/envoy/filings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * File Filing
+         * @description File one offer; only a hail is accepted in this slice.
+         */
+        post: operations["file_filing_api_v1_vaults__vault_id__envoy_filings_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/vaults/{vault_id}/envoy/filings/{filing_id}/respond": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Respond To Filing
+         * @description Accept or refuse one filing addressed to this vault.
+         */
+        post: operations["respond_to_filing_api_v1_vaults__vault_id__envoy_filings__filing_id__respond_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/vaults/{vault_id}/envoy/log": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Filing Log
+         * @description List this vault's filings in both directions, newest first.
+         */
+        get: operations["list_filing_log_api_v1_vaults__vault_id__envoy_log_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/vaults/{vault_id}/envoy/config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Envoy Config
+         * @description Read the effective diplomacy knobs.
+         */
+        get: operations["get_envoy_config_api_v1_vaults__vault_id__envoy_config_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -7054,6 +7174,18 @@ export interface components {
             message: string;
         };
         /**
+         * DiplomaticFilingKind
+         * @description The filings the Envoy Terminal accepts, one active per pair per direction.
+         * @enum {string}
+         */
+        DiplomaticFilingKind: "HAIL" | "CEASEFIRE" | "ACCORD" | "COMPACT" | "DEMAND" | "EMBARGO" | "DECLARATION";
+        /**
+         * DiplomaticFilingStatus
+         * @description Lifecycle of a filing: it waits, is answered, or lapses unfiled.
+         * @enum {string}
+         */
+        DiplomaticFilingStatus: "PENDING" | "ACCEPTED" | "REFUSED" | "VOID" | "EXPIRED";
+        /**
          * DiscoveryRoutePoint
          * @description One journey point in map coordinates; location_id is None for spatial-run
          *     trail points (legacy runs contribute discovery events with a location).
@@ -8282,6 +8414,165 @@ export interface components {
             rarity: string;
         };
         /**
+         * EnvoyConfigRead
+         * @description The effective diplomacy knobs, so the terminal renders the server's actual rule.
+         */
+        EnvoyConfigRead: {
+            /** Enabled */
+            enabled: boolean;
+            /**
+             * Trade Gate
+             * @enum {string}
+             */
+            trade_gate: "standoff" | "accord" | "compact";
+            /** Hail Radius */
+            hail_radius: number;
+            /** Filing Ttl Hours */
+            filing_ttl_hours: number;
+            /** Refusal Lock Hours */
+            refusal_lock_hours: number;
+            /** Repropose Hours */
+            repropose_hours: number;
+            /** Ceasefire Days */
+            ceasefire_days: number;
+            /** War Upkeep Per Level */
+            war_upkeep_per_level: number;
+            /** Footing Penalty Pct */
+            footing_penalty_pct: number;
+            /** Fatigue Start Days */
+            fatigue_start_days: number;
+            /** Fatigue Ramp Days */
+            fatigue_ramp_days: number;
+            /** Arbitration Day */
+            arbitration_day: number;
+            /** Accord Upkeep */
+            accord_upkeep: number;
+            /** Compact Upkeep */
+            compact_upkeep: number;
+            /** Unjust War Multiplier */
+            unjust_war_multiplier: number;
+            /** Stake Pct */
+            stake_pct: number;
+            /** Stake Min */
+            stake_min: number;
+            /** Stake Max */
+            stake_max: number;
+        };
+        /**
+         * EnvoyFilingCreate
+         * @description File one offer; only HAIL is accepted until a later slice.
+         */
+        EnvoyFilingCreate: {
+            /**
+             * To Vault Id
+             * Format: uuid
+             */
+            to_vault_id: string;
+            /** @default HAIL */
+            kind: components["schemas"]["DiplomaticFilingKind"];
+            /** Terms */
+            terms?: {
+                [key: string]: unknown;
+            };
+        };
+        /**
+         * EnvoyFilingRead
+         * @description One filing with its terms and answer.
+         */
+        EnvoyFilingRead: {
+            /**
+             * Filing Id
+             * Format: uuid
+             */
+            filing_id: string;
+            kind: components["schemas"]["DiplomaticFilingKind"];
+            status: components["schemas"]["DiplomaticFilingStatus"];
+            /**
+             * From Vault Id
+             * Format: uuid
+             */
+            from_vault_id: string;
+            /**
+             * To Vault Id
+             * Format: uuid
+             */
+            to_vault_id: string;
+            /** Terms */
+            terms: {
+                [key: string]: unknown;
+            };
+            /**
+             * Incoming
+             * @description True when this vault is the recipient
+             */
+            incoming: boolean;
+            /** Created At */
+            created_at?: string | null;
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+            /** Responded At */
+            responded_at?: string | null;
+        };
+        /**
+         * EnvoyFilingRespond
+         * @description Answer a filing: accepted opens the standoff, refused locks the line.
+         */
+        EnvoyFilingRespond: {
+            /** Accept */
+            accept: boolean;
+        };
+        /**
+         * EnvoyHailCreate
+         * @description Open a line to one vault in radio range.
+         */
+        EnvoyHailCreate: {
+            /**
+             * Target Vault Id
+             * Format: uuid
+             */
+            target_vault_id: string;
+        };
+        /**
+         * EnvoySignalRead
+         * @description One live vault on the atlas with this vault's relation to it.
+         */
+        EnvoySignalRead: {
+            /**
+             * Vault Id
+             * Format: uuid
+             */
+            vault_id: string;
+            /** Number */
+            number: number;
+            /** Owner Username */
+            owner_username: string;
+            status: components["schemas"]["VaultRelationStatus"];
+            /** Standing */
+            standing: number;
+            /**
+             * Distance
+             * @description Registry units between vault slots; null when this vault has no slot
+             */
+            distance?: number | null;
+            /**
+             * Can Hail
+             * @description In radio range, not locked, and still unmet
+             */
+            can_hail: boolean;
+            /**
+             * Incoming Hail
+             * @description A hail from that vault is waiting for an answer
+             */
+            incoming_hail: boolean;
+            /** Met At */
+            met_at?: string | null;
+            /** Locked Until */
+            locked_until?: string | null;
+        };
+        /**
          * ExitDecisionResponse
          * @description Outcome of granting or refusing one exit request.
          */
@@ -8767,6 +9058,8 @@ export interface components {
             world_events: boolean;
             /** Pvp Duels */
             pvp_duels: boolean;
+            /** Vault Diplomacy */
+            vault_diplomacy: boolean;
             /** Combat Zone */
             combat_zone: boolean;
         };
@@ -12772,6 +13065,14 @@ export interface components {
              */
             user_id: string;
         };
+        /**
+         * VaultRelationStatus
+         * @description A vault pair's diplomatic state; stored as VARCHAR, not a PG enum.
+         *
+         *     EMBARGO is a modifier on the pair, not a rung on this ladder.
+         * @enum {string}
+         */
+        VaultRelationStatus: "UNMET" | "CONTACT" | "CEASEFIRE" | "ACCORD" | "COMPACT" | "WAR";
         /**
          * VaultRelationshipRead
          * @description Relationship with its current bond pace and the factors behind it.
@@ -21595,6 +21896,205 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PvpDuelRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_envoy_signals_api_v1_vaults__vault_id__envoy_signals_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                vault_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvoySignalRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    hail_vault_api_v1_vaults__vault_id__envoy_hail_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                vault_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EnvoyHailCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvoyFilingRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    file_filing_api_v1_vaults__vault_id__envoy_filings_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                vault_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EnvoyFilingCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvoyFilingRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    respond_to_filing_api_v1_vaults__vault_id__envoy_filings__filing_id__respond_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                vault_id: string;
+                filing_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EnvoyFilingRespond"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvoyFilingRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_filing_log_api_v1_vaults__vault_id__envoy_log_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                vault_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvoyFilingRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_envoy_config_api_v1_vaults__vault_id__envoy_config_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                vault_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvoyConfigRead"];
                 };
             };
             /** @description Validation Error */

@@ -15,6 +15,7 @@ from dramatiq.middleware import CurrentMessage
 from redis.asyncio import Redis
 
 import app.api.arena_tasks  # ruff: ignore[unused-import] - registers the arena_tick watchdog cron
+import app.api.combat_zone_tasks  # ruff: ignore[unused-import] - registers the combat_zone_tick cron
 import app.api.world_event_tasks  # ruff: ignore[unused-import] - registers the advance_world_event cron
 import app.core.dramatiq  # ruff: ignore[unused-import] — ensures broker is configured when dramatiq CLI imports this module
 from app.core.async_runtime import run_async

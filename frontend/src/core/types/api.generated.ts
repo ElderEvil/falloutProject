@@ -3413,6 +3413,154 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/combat-zone/lobby": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Lobby
+         * @description The shared board: queued parties and live matches across every vault.
+         */
+        get: operations["get_lobby_api_v1_combat_zone_lobby_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/combat-zone/vault/{vault_id}/party": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Party
+         * @description This vault's party, or null before its first send.
+         */
+        get: operations["get_party_api_v1_combat_zone_vault__vault_id__party_get"];
+        put?: never;
+        /**
+         * Send Party
+         * @description Send one dweller to the Zone, escrowing the entry fee.
+         */
+        post: operations["send_party_api_v1_combat_zone_vault__vault_id__party_post"];
+        /**
+         * Recall Party
+         * @description Recall the party. A queued fee is refunded; an in-match recall retreats.
+         */
+        delete: operations["recall_party_api_v1_combat_zone_vault__vault_id__party_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/combat-zone/vault/{vault_id}/stance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Set Stance
+         * @description Set the party's stance; it applies from the next micro-round.
+         */
+        post: operations["set_stance_api_v1_combat_zone_vault__vault_id__stance_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/combat-zone/vault/{vault_id}/challenge/{target_party_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Challenge Party
+         * @description Challenge a queued party directly, ignoring the auto-pair power band.
+         */
+        post: operations["challenge_party_api_v1_combat_zone_vault__vault_id__challenge__target_party_id__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/combat-zone/matches": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Match History
+         * @description Bounded recent finished bouts for one vault.
+         */
+        get: operations["list_match_history_api_v1_combat_zone_matches_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/combat-zone/matches/{match_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Match
+         * @description Spectate a live match or replay a finished one as a participant.
+         */
+        get: operations["get_match_api_v1_combat_zone_matches__match_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/combat-zone/matches/{match_id}/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Match Events
+         * @description Poll the journal after the last sequence already seen.
+         */
+        get: operations["get_match_events_api_v1_combat_zone_matches__match_id__events_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/radio/vault/{vault_id}/stats": {
         parameters: {
             query?: never;
@@ -6247,6 +6395,276 @@ export interface components {
             image_url?: string | null;
         };
         /**
+         * CombatZoneCursor
+         * @description Authoritative snapshot position for polling and terminal resync.
+         */
+        CombatZoneCursor: {
+            /** Sequence */
+            sequence: number;
+            /** Round Seq */
+            round_seq: number;
+            /** Status */
+            status: string;
+        };
+        /**
+         * CombatZoneEventRead
+         * @description One journal line with its replay payload.
+         */
+        CombatZoneEventRead: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Sequence */
+            sequence: number;
+            /** Round Seq */
+            round_seq: number;
+            /** Kind */
+            kind: string;
+            /** Message */
+            message: string;
+            action?: components["schemas"]["CombatAction"] | null;
+            /** Created At */
+            created_at?: string | null;
+        };
+        /**
+         * CombatZoneHistoryEntry
+         * @description A finished bout for the viewing vault; journal stays on the detail read.
+         */
+        CombatZoneHistoryEntry: {
+            /**
+             * Match Id
+             * Format: uuid
+             */
+            match_id: string;
+            /** Finish Reason */
+            finish_reason?: string | null;
+            /** Pot Caps */
+            pot_caps: number;
+            /** Round Seq */
+            round_seq: number;
+            /** Winner Party Id */
+            winner_party_id?: string | null;
+            party_a: components["schemas"]["CombatZoneMatchPartyRead"];
+            party_b: components["schemas"]["CombatZoneMatchPartyRead"];
+            /** Started At */
+            started_at?: string | null;
+            /** Finished At */
+            finished_at?: string | null;
+        };
+        /**
+         * CombatZoneLobbyParty
+         * @description A queued party as seen on the shared board.
+         */
+        CombatZoneLobbyParty: {
+            /**
+             * Party Id
+             * Format: uuid
+             */
+            party_id: string;
+            /** Vault Number */
+            vault_number: number;
+            /** Dweller Name */
+            dweller_name: string;
+            /** Level */
+            level: number;
+            /** Power */
+            power: number;
+            stance: components["schemas"]["CombatZoneStance"];
+            /** Queued Seconds */
+            queued_seconds: number;
+        };
+        /**
+         * CombatZoneLobbyRead
+         * @description The open board: who is waiting and what is being fought right now.
+         */
+        CombatZoneLobbyRead: {
+            /** Enabled */
+            enabled: boolean;
+            /**
+             * Server Time
+             * Format: date-time
+             */
+            server_time: string;
+            /** Entry Fee Caps */
+            entry_fee_caps: number;
+            /** Travel Seconds */
+            travel_seconds: number;
+            /** Queued */
+            queued: components["schemas"]["CombatZoneLobbyParty"][];
+            /** Active Matches */
+            active_matches: components["schemas"]["CombatZoneMatchSummary"][];
+        };
+        /**
+         * CombatZoneMarkerRead
+         * @description The shared Combat Zone POI, returned to every vault.
+         */
+        CombatZoneMarkerRead: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Coord X */
+            coord_x: number;
+            /** Coord Y */
+            coord_y: number;
+            /** Enabled */
+            enabled: boolean;
+        };
+        /**
+         * CombatZoneMatchPartyRead
+         * @description One side of a match: the canonical fighter plus Combat Zone identity and stance.
+         */
+        CombatZoneMatchPartyRead: {
+            fighter: components["schemas"]["ArenaFighter"];
+            /**
+             * Party Id
+             * Format: uuid
+             */
+            party_id: string;
+            /**
+             * Vault Id
+             * Format: uuid
+             */
+            vault_id: string;
+            /** Vault Number */
+            vault_number: number;
+            /** Dweller Id */
+            dweller_id: string | null;
+            stance: components["schemas"]["CombatZoneStance"];
+            /**
+             * Is Winner
+             * @default false
+             */
+            is_winner: boolean;
+            /** Credited Caps */
+            credited_caps?: number | null;
+        };
+        /**
+         * CombatZoneMatchRead
+         * @description Full spectate payload for one match.
+         */
+        CombatZoneMatchRead: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Status */
+            status: string;
+            /** Round Seq */
+            round_seq: number;
+            /** Next Attack Party */
+            next_attack_party: string;
+            /** Pot Caps */
+            pot_caps: number;
+            /** Finish Reason */
+            finish_reason?: string | null;
+            /** Started At */
+            started_at?: string | null;
+            /** Finished At */
+            finished_at?: string | null;
+            /** Max Ends At */
+            max_ends_at?: string | null;
+            party_a: components["schemas"]["CombatZoneMatchPartyRead"];
+            party_b: components["schemas"]["CombatZoneMatchPartyRead"];
+            /** Events */
+            events?: components["schemas"]["CombatZoneEventRead"][];
+            cursor: components["schemas"]["CombatZoneCursor"];
+        };
+        /**
+         * CombatZoneMatchSummary
+         * @description One live match on the shared board.
+         */
+        CombatZoneMatchSummary: {
+            /**
+             * Match Id
+             * Format: uuid
+             */
+            match_id: string;
+            /** Vault A Number */
+            vault_a_number: number;
+            /** Vault B Number */
+            vault_b_number: number;
+            /** Dweller A Name */
+            dweller_a_name: string;
+            /** Dweller B Name */
+            dweller_b_name: string;
+            /** Pot Caps */
+            pot_caps: number;
+            /** Round Seq */
+            round_seq: number;
+            /** Started At */
+            started_at?: string | null;
+        };
+        /**
+         * CombatZonePartyRead
+         * @description A vault's party as shown on its own dashboard.
+         */
+        CombatZonePartyRead: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Vault Id
+             * Format: uuid
+             */
+            vault_id: string;
+            /** Vault Number */
+            vault_number: number;
+            /** Dweller Id */
+            dweller_id: string | null;
+            /** Dweller Name */
+            dweller_name: string;
+            /** Level */
+            level: number;
+            /** Health */
+            health: number;
+            /** Max Health */
+            max_health: number;
+            /** Power */
+            power: number;
+            status: components["schemas"]["CombatZonePartyStatus"];
+            stance: components["schemas"]["CombatZoneStance"];
+            /** Arrives At */
+            arrives_at?: string | null;
+            /** Escrow Caps */
+            escrow_caps: number;
+        };
+        /**
+         * CombatZonePartyStatus
+         * @description Where a Combat Zone party is in the send → match → return lifecycle.
+         * @enum {string}
+         */
+        CombatZonePartyStatus: "traveling" | "queued" | "in_match" | "returning" | "home";
+        /**
+         * CombatZoneSendRequest
+         * @description Send one dweller to the Zone.
+         */
+        CombatZoneSendRequest: {
+            /**
+             * Dweller Id
+             * Format: uuid
+             */
+            dweller_id: string;
+        };
+        /**
+         * CombatZoneStance
+         * @description A party's command for the next Combat Zone micro-round.
+         * @enum {string}
+         */
+        CombatZoneStance: "aggressive" | "defensive" | "focus" | "retreat";
+        /**
+         * CombatZoneStanceRequest
+         * @description Change the party's command; applies from the next micro-round.
+         */
+        CombatZoneStanceRequest: {
+            stance: components["schemas"]["CombatZoneStance"];
+        };
+        /**
          * CompatibilityScore
          * @description Compatibility score between two dwellers.
          */
@@ -8349,6 +8767,8 @@ export interface components {
             world_events: boolean;
             /** Pvp Duels */
             pvp_duels: boolean;
+            /** Combat Zone */
+            combat_zone: boolean;
         };
         /**
          * GameBalanceResponse
@@ -11946,6 +12366,7 @@ export interface components {
              * @default []
              */
             collectible_sets: components["schemas"]["CollectibleSetProgressRead"][];
+            combat_zone?: components["schemas"]["CombatZoneMarkerRead"] | null;
         };
         /**
          * VaultMarkerRead
@@ -18009,6 +18430,286 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ArenaSkillQueued"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_lobby_api_v1_combat_zone_lobby_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CombatZoneLobbyRead"];
+                };
+            };
+        };
+    };
+    get_party_api_v1_combat_zone_vault__vault_id__party_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                vault_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CombatZonePartyRead"] | null;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    send_party_api_v1_combat_zone_vault__vault_id__party_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                vault_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CombatZoneSendRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CombatZonePartyRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    recall_party_api_v1_combat_zone_vault__vault_id__party_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                vault_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CombatZonePartyRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    set_stance_api_v1_combat_zone_vault__vault_id__stance_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                vault_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CombatZoneStanceRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CombatZonePartyRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    challenge_party_api_v1_combat_zone_vault__vault_id__challenge__target_party_id__post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                vault_id: string;
+                target_party_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CombatZoneMatchRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_match_history_api_v1_combat_zone_matches_get: {
+        parameters: {
+            query: {
+                vault_id: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CombatZoneHistoryEntry"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_match_api_v1_combat_zone_matches__match_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                match_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CombatZoneMatchRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_match_events_api_v1_combat_zone_matches__match_id__events_get: {
+        parameters: {
+            query?: {
+                after_sequence?: number | null;
+            };
+            header?: never;
+            path: {
+                match_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CombatZoneEventRead"][];
                 };
             };
             /** @description Validation Error */

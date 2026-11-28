@@ -20,6 +20,7 @@ from app.core.enums import (
 from app.core.event_bus import GameEvent, event_bus
 from app.core.game_config import game_config
 from app.crud import training as training_crud
+from app.crud.combat_zone import combat_zone_crud
 from app.crud.dweller import determine_status_for_room
 from app.crud.storage import storage as storage_crud
 from app.models.dweller import Dweller
@@ -152,6 +153,10 @@ class DwellerService:
 
         dweller = await crud.dweller.get_for_update(db_session, dweller_id, include_deleted=True)
         dweller = ensure_found(dweller, Dweller, dweller_id)
+        if not soft and await combat_zone_crud.get_party_by_dweller(db_session, dweller_id) is not None:
+            raise ResourceConflictException(
+                "This dweller is in the Combat Zone party and must be replaced before permanent deletion."
+            )
 
         for exploration in explorations:
             exploration.abandon()

@@ -76,4 +76,5 @@ async def get_features() -> FeaturesResponse:
         faction_mechanics=game_config.features.faction_mechanics,
         world_events=game_config.features.world_events,
         pvp_duels=game_config.features.pvp_duels,
+        combat_zone=game_config.combat_zone.enabled,
     )

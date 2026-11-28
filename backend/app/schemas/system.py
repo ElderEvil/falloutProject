@@ -75,6 +75,7 @@ class FeaturesResponse(BaseModel):
     faction_mechanics: bool
     world_events: bool
     pvp_duels: bool
+    combat_zone: bool
 
 
 class ChangeEntry(BaseModel):

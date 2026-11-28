@@ -12,36 +12,22 @@ import periodiq
 
 import app.core.dramatiq  # ruff: ignore[unused-import] — broker must be set before the actor registers
 from app.core.async_runtime import run_async
+from app.core.chained_tick import run_chained_tick
 from app.core.game_config import game_config
-from app.core.tick_chain import claim_tick_chain
-from app.db.session import task_session
 
 logger = logging.getLogger(__name__)
 ARENA_TICK_CHAIN_KEY: Final = "fallout:arena-tick:chain"
 
 
 async def _run_arena_tick(chain_token: str | None) -> tuple[str | None, dict | None]:
-    """Claim the chain and run one fight round across all arena rooms.
-
-    Returns (next_token, stats), or (None, None) if the lease was lost
-    (the periodiq watchdog re-seeds it).
-    """
-    from redis.asyncio import Redis
-
-    from app.core.config import settings
+    """Claim the chain and run one fight round across all arena rooms."""
     from app.services.combat.arena_service import arena_service
 
-    redis = Redis.from_url(settings.redis_url, decode_responses=True)
-    try:
-        claimed_token = await claim_tick_chain(redis, ARENA_TICK_CHAIN_KEY, chain_token)
-        if claimed_token is None:
-            return None, None
-
-        async with task_session() as session:
-            stats = await arena_service.process_arena_ticks(session, game_config.game_loop.arena_tick_seconds)
-        return claimed_token, stats
-    finally:
-        await redis.close()
+    return await run_chained_tick(
+        ARENA_TICK_CHAIN_KEY,
+        chain_token,
+        lambda session: arena_service.process_arena_ticks(session, game_config.game_loop.arena_tick_seconds),
+    )
 
 
 @dramatiq.actor(actor_name="arena_tick", max_retries=0)

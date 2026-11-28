@@ -40,6 +40,7 @@ def resolve_attacks(
     *,
     cap_fraction_per_second: float = 0.05,
     scale_cap_with_skill: bool = True,
+    damage_multiplier: float = 1.0,
 ) -> list[ResolvedAttack]:
     """Resolve one team's turn; consume queued skills only when that fighter attacks."""
     attacks: list[ResolvedAttack] = []
@@ -57,7 +58,7 @@ def resolve_attacks(
                 break
             multiplier = attack_skill.multiplier if attack_skill else 1.0
             targets = living if attack_skill and attack_skill.area else [chosen if chosen.health > 0 else living[0]]
-            damage = attacker.power / 5 * max(0, seconds_passed) * multiplier
+            damage = attacker.power / 5 * max(0, seconds_passed) * multiplier * damage_multiplier
             impacts: list[CombatImpact] = []
             messages: list[str] = []
             for target in targets:

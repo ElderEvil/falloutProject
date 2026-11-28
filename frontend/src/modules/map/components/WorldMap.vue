@@ -604,11 +604,13 @@ function handleTouchEnd(event: TouchEvent) {
           :type="loc.type"
           :shape="shapeFor(loc)"
           :icon="locationMarkerIcon(loc.type, loc.group_key, groupIconByKey)"
+          :archetype="locationGroup(loc)?.label"
           :is_unlocked="loc.is_unlocked"
           :unseen="mapStore.isUnseenDiscovery(loc)"
           :selected="selectedMarkerId === `loc-${loc.id}`"
           :color="groupColors ? groupColor(loc.group_key) : null"
           :cleared="loc.clear_state?.cleared ?? false"
+          :salvage="loc.action === 'salvage'"
           :cooldown="
             Boolean(loc.clear_state?.cleared && loc.clear_state.time_remaining_seconds > 0)
           "
@@ -633,7 +635,7 @@ function handleTouchEnd(event: TouchEvent) {
         />
 
         <!-- Your vaults (identity shown). The Home shape belongs to the vault you
-             are standing in, not to every vault you happen to own: a square for
+             are standing in, not to every vault you happen to own: a home marker for
              each alt vault buries the one that matters. -->
         <MapMarker
           :scale="markerScale"

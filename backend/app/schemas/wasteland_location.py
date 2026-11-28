@@ -70,6 +70,9 @@ class WastelandLocationRead(SQLModel):
     created_at: OptionalUTCDateTimeJSON
     clear_state: LocationClearStateRead | None = None
     caravan: LocationCaravanStateRead | None = None
+    # Static marker purpose the silhouette draws, from the place archetype and row type only —
+    # never from action, unlock or dispatch state, so scouting/clearing never redraws it.
+    purpose: Literal["clear", "trade", "look", "home"] = "look"
     # What the map offers here: a clearable site, a salvage point, trade, or nothing.
     action: Literal["clear", "salvage", "trade", "none"] = "none"
 

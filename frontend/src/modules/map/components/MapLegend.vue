@@ -25,7 +25,12 @@ const signals = [
     <section class="legend-block">
       <h3>Purpose</h3>
       <div class="legend-grid">
-        <span v-for="entry in PURPOSE_META" :key="entry.purpose" class="legend-item">
+        <span
+          v-for="entry in PURPOSE_META"
+          :key="entry.purpose"
+          class="legend-item"
+          :class="{ 'legend-item-look': entry.purpose === 'look' }"
+        >
           <svg viewBox="0 0 10 10" class="size-3.5 shrink-0" aria-hidden="true">
             <circle v-if="entry.shape === 'circle'" cx="5" cy="5" r="4" class="legend-shape" />
             <path
@@ -36,7 +41,7 @@ const signals = [
             <path
               v-else-if="entry.shape === 'hexagon'"
               d="M5 1 8.5 3 8.5 7 5 9 1.5 7 1.5 3Z"
-              class="legend-shape ring"
+              class="legend-shape"
             />
             <rect v-else x="1.2" y="1.2" width="7.6" height="7.6" rx="1.4" class="legend-shape" />
           </svg>
@@ -120,7 +125,7 @@ h3 {
   stroke-width: 1.1;
 }
 
-.legend-shape.ring {
+.legend-item-look .legend-shape {
   fill: none;
   stroke-width: 1.2;
 }

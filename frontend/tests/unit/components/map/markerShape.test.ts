@@ -4,36 +4,35 @@ import { shapeFor, shapeMeta, PURPOSE_META } from '@/modules/map/models/markerSh
 type Source = Parameters<typeof shapeFor>[0]
 
 const place = (overrides: Partial<NonNullable<Source>>): NonNullable<Source> =>
-  ({ type: 'visited', action: 'none', group_key: null, ...overrides }) as NonNullable<Source>
+  ({ type: 'visited', group_key: 'power', ...overrides }) as NonNullable<Source>
 
 describe('shapeFor', () => {
-  it('gives the home vault the square', () => {
-    expect(shapeFor(place({ type: 'home_vault' }))).toBe('square')
-  })
-
   it.each([
     ['clear', 'circle'],
-    ['salvage', 'circle'],
-  ])('folds %s into the circle', (action, expected) => {
-    expect(shapeFor(place({ action }))).toBe(expected as 'circle')
+    ['trade', 'diamond'],
+    ['look', 'square'],
+  ])('maps purpose %s to %s', (purpose, shape) => {
+    expect(shapeFor(place({ purpose }))).toBe(shape)
   })
 
-  it('gives a trade action the diamond', () => {
-    expect(shapeFor(place({ action: 'trade', group_key: 'city' }))).toBe('diamond')
+  it('gives the home vault the hexagon, even against a conflicting purpose', () => {
+    expect(shapeFor({ type: 'home_vault', group_key: null })).toBe('hexagon')
+    expect(shapeFor(place({ type: 'home_vault', purpose: 'clear' }))).toBe('hexagon')
   })
 
-  it('gives an actionless place the hexagon', () => {
-    expect(shapeFor(place({ action: 'none', group_key: 'landmark' }))).toBe('hexagon')
+  it('ignores action, so scouting or dispatch cannot redraw the body', () => {
+    expect(shapeFor({ ...place({ purpose: 'clear' }), action: 'none' })).toBe('circle')
   })
 
   it.each([['settlement'], ['city']])('falls back to the diamond for the %s group', (group_key) => {
     expect(shapeFor({ type: 'visited', group_key })).toBe('diamond')
   })
 
-  it('falls back to the hexagon when neither action nor group say otherwise', () => {
-    expect(shapeFor({ type: 'origin', group_key: 'factory' })).toBe('hexagon')
-    expect(shapeFor(null)).toBe('hexagon')
-    expect(shapeFor(undefined)).toBe('hexagon')
+  it('falls back to the Look square, never Home, for an unknown purpose', () => {
+    expect(shapeFor(place({ purpose: 'bogus' }))).toBe('square')
+    expect(shapeFor(place({ group_key: 'settlement', purpose: 'bogus' }))).toBe('diamond')
+    expect(shapeFor(null)).toBe('square')
+    expect(shapeFor(undefined)).toBe('square')
   })
 })
 
@@ -44,9 +43,9 @@ describe('marker shapes', () => {
     expect(shapes.filter((shape) => shape === 'circle')).toHaveLength(1)
   })
 
-  it('defaults an unknown shape to the Look hexagon, never to a raid circle', () => {
+  it('defaults an unknown shape to the Look square, never to a raid circle', () => {
     expect(shapeMeta(null).purpose).toBe('look')
-    expect(shapeMeta(null).shape).toBe('hexagon')
+    expect(shapeMeta(null).shape).toBe('square')
   })
 
   it('maps each shape back to the legend entry that names it', () => {

@@ -21,8 +21,10 @@ interface Props {
   artSrc?: string | null
   color?: string | null
   label?: string
+  archetype?: string
   cooldown?: boolean
   cleared?: boolean
+  salvage?: boolean
   exploring?: boolean
   pulse?: boolean
   status?: string
@@ -48,6 +50,7 @@ const props = withDefaults(defineProps<Props>(), {
   unseen: false,
   cooldown: false,
   cleared: false,
+  salvage: false,
   exploring: false,
   pulse: false,
   interactive: true,
@@ -78,10 +81,7 @@ const isDiscovery = computed(() => props.type === 'discovery')
 const isVault = computed(() => props.type === 'vault')
 
 const isLocked = computed(() => isHintLocation(props))
-// Identity is the place's archetype, never its discovery state: an unscouted
-// pin shows the same glyph dimmed inside a dashed ring, so the map never spends
-// a marker on a "?" glyph that says nothing about the place.
-const displayIcon = computed(() => icon.value)
+const displayIcon = computed(() => (isLocked.value ? 'mdi:map-marker-question' : icon.value))
 const displayLabel = computed(() => (isLocked.value ? 'Unknown Location' : props.name))
 const shouldPulse = computed(
   () => props.pulse || (isDiscovery.value && !isLocked.value && props.unseen)
@@ -107,11 +107,17 @@ const labelY = computed(() => -body(3.4))
 const labelStyle = computed<CSSProperties>(() => ({ fontSize: `${body(2.4)}px` }))
 const portraitClipId = useId()
 
-// Body silhouette carries purpose: circle = clear, diamond = trade, open hexagon
-// = look, square = your vault. A marker without a shape keeps the plain disc, so
-// signals and parties read exactly as they always have.
-const bodyShape = computed<MarkerShape>(() => props.shape ?? 'circle')
+// An omitted shape keeps the plain disc for signals; an invalid one resolves to Look.
+const bodyShape = computed<MarkerShape>(() =>
+  props.shape ? shapeMeta(props.shape).shape : 'circle'
+)
 const purposeLabel = computed(() => (props.shape ? shapeMeta(props.shape).label : null))
+const badgeKind = computed(() => {
+  if (isLocked.value) return null
+  if (props.cooldown) return 'cooldown'
+  if (props.cleared) return 'cleared'
+  return props.salvage ? 'salvage' : null
+})
 const bodyPath = computed(() => {
   const r = discRadius.value
   if (bodyShape.value === 'diamond') return `M 0 ${-r} L ${r} 0 L 0 ${r} L ${-r} 0 Z`
@@ -146,14 +152,21 @@ const glyphStyle = computed<CSSProperties>(() => ({
 }))
 
 const tooltipText = computed(() => {
-  const base = `${displayLabel.value} (${label.value})`
-  const details = [
-    purposeLabel.value,
-    isLocked.value ? null : riskLabel(props.risk, props.baseDifficulty),
+  const risk = isLocked.value ? null : riskLabel(props.risk, props.baseDifficulty)
+  const states = [
     props.cooldown ? 'Cooldown' : props.cleared ? 'Cleared' : null,
+    props.salvage ? 'Salvage available' : null,
     props.status,
   ].filter(Boolean)
-  return details.length ? `${base} — ${details.join(' · ')}` : base
+  if (!props.shape) {
+    const base = `${displayLabel.value} (${label.value})`
+    const details = [risk, ...states].filter(Boolean)
+    return details.length ? `${base} — ${details.join(' · ')}` : base
+  }
+  if (isLocked.value) return `Unscouted · ${purposeLabel.value} site · risk unknown`
+  return [purposeLabel.value, props.archetype ?? displayLabel.value, risk, ...states]
+    .filter(Boolean)
+    .join(' · ')
 })
 </script>
 
@@ -179,18 +192,17 @@ const tooltipText = computed(() => {
     <circle class="marker-hit-area" r="6" fill="transparent" />
     <title>{{ tooltipText }}</title>
     <!-- Dark knockout body: keeps the glyph and rings legible over any terrain.
-         Its silhouette encodes purpose — circle clear, diamond trade, open hexagon
-         look, square home — while signals keep the plain disc. -->
+         Its silhouette encodes purpose — circle clear, diamond trade, hollow square
+         look, hexagon home — while signals keep the plain disc. -->
     <circle v-if="bodyShape === 'circle'" class="marker-backing" :r="discRadius" />
     <path
       v-else-if="bodyShape === 'diamond' || bodyShape === 'hexagon'"
       class="marker-backing"
-      :class="{ 'marker-backing-open': bodyShape === 'hexagon' }"
       :d="bodyPath"
     />
     <rect
       v-else
-      class="marker-backing"
+      class="marker-backing marker-backing-open"
       :x="-discRadius"
       :y="-discRadius"
       :width="discRadius * 2"
@@ -230,18 +242,27 @@ const tooltipText = computed(() => {
       <Icon :icon="displayIcon" :width="glyphSizeCss" :height="glyphSizeCss" />
     </g>
 
-    <!-- Cleared badge: small shield-check pinned to the marker's top-right -->
     <g
-      v-if="!isLocked && (cleared || cooldown)"
-      :class="cooldown ? 'marker-cooldown-badge' : 'marker-cleared-badge'"
+      v-if="badgeKind"
+      :class="`marker-${badgeKind}-badge`"
       :transform="`scale(${bodyScale})`"
       aria-hidden="true"
     >
-      <circle cx="2.7" cy="-2.7" r="1.6" class="marker-cleared-badge-bg" />
+      <circle cx="2.7" cy="-2.7" r="1.6" class="marker-badge-bg" />
       <path
-        :d="cooldown ? 'M 2.7 -3.65 V -2.7 L 3.35 -2.25' : 'M 2.05 -2.7 L 2.5 -2.25 L 3.35 -3.15'"
-        class="marker-cleared-badge-check"
+        v-if="badgeKind === 'cooldown'"
+        d="M 2.7 -3.65 V -2.7 L 3.35 -2.25"
+        class="marker-badge-mark"
       />
+      <path
+        v-else-if="badgeKind === 'cleared'"
+        d="M 2.05 -2.7 L 2.5 -2.25 L 3.35 -3.15"
+        class="marker-badge-mark"
+      />
+      <g v-else class="marker-badge-mark">
+        <rect x="2.05" y="-3.35" width="1.3" height="1.3" rx="0.18" />
+        <path d="M2.05 -2.9 H3.35" />
+      </g>
     </g>
     <!-- Label: hidden by default, shown on hover/focus/selected via CSS -->
     <text
@@ -278,8 +299,6 @@ const tooltipText = computed(() => {
   stroke-width: 0.35;
 }
 
-/* Unscouted places keep their archetype glyph but wear a dashed ring, so the
-   state still reads at a glance without spending the marker on a "?" glyph. */
 .marker-locked .marker-backing {
   stroke-dasharray: 0.9 0.7;
   opacity: 0.75;
@@ -329,21 +348,20 @@ const tooltipText = computed(() => {
   pointer-events: none;
   transform-box: fill-box;
   transform-origin: center;
-  animation: select-ping 600ms ease-out 1;
+  animation: select-ping 2.4s ease-out infinite;
 }
 
-/* Cleared points: dimmed marker + shield-check badge in the top-right corner */
 .marker-cleared {
   opacity: 0.45;
 }
 
-.marker-cleared-badge-bg {
+.marker-badge-bg {
   fill: var(--color-surface);
   stroke: var(--color-theme-primary);
   stroke-width: 0.3;
 }
 
-.marker-cleared-badge-check {
+.marker-badge-mark {
   fill: none;
   stroke: var(--color-theme-primary);
   stroke-width: 0.45;

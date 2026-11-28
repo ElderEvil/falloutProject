@@ -182,6 +182,30 @@ def _action_for(
     return "none"
 
 
+# Trade is a property of the archetype, not of caravan availability: these two groups are the
+# market destinations, so their markers keep the trade shape whether or not a caravan is present.
+_TRADE_PURPOSE_GROUPS = frozenset({"settlement", "city"})
+
+
+def _purpose_for(state_type: LocationTypeEnum, location: WorldLocation) -> Literal["clear", "trade", "look", "home"]:
+    """Static marker purpose for a place.
+
+    Derived only from the vault's classification of the row (home vault vs a place) and the
+    place's catalog archetype — never from ``action``, unlock or dispatch state, so scouting,
+    dispatching and clearing leave the silhouette unchanged.
+    """
+    if state_type == LocationTypeEnum.HOME_VAULT:
+        return "home"
+    group = effective_place_group(location.group_key, location.kind)
+    if group is None:
+        return "look"
+    if group["key"] in _TRADE_PURPOSE_GROUPS:
+        return "trade"
+    if group.get("clearable"):
+        return "clear"
+    return "look"
+
+
 def _group_key_for(location: WorldLocation) -> str | None:
     """Effective archetype key for the wire.
 
@@ -248,6 +272,7 @@ async def get_location_detail(
         dispatch_in_progress=busy,
         clear_state=_clear_state_for(state, location),
         caravan=caravan,
+        purpose=_purpose_for(state.type, location),
         action=_action_for(state, location, unlocked=location_unlocked, busy=busy, caravan=caravan),
     )
 
@@ -317,6 +342,7 @@ async def get_vault_map(db_session: AsyncSession, vault: Vault, *, unlocked_only
                 dispatch_in_progress=busy,
                 clear_state=_clear_state_for(state, location),
                 caravan=caravan,
+                purpose=_purpose_for(state.type, location),
                 action=_action_for(state, location, unlocked=location_unlocked, busy=busy, caravan=caravan),
             )
         )

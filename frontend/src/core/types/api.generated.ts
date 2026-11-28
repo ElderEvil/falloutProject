@@ -12937,6 +12937,12 @@ export interface components {
             clear_state?: components["schemas"]["LocationClearStateRead"] | null;
             caravan?: components["schemas"]["LocationCaravanStateRead"] | null;
             /**
+             * Purpose
+             * @default look
+             * @enum {string}
+             */
+            purpose: "clear" | "trade" | "look" | "home";
+            /**
              * Action
              * @default none
              * @enum {string}

@@ -218,6 +218,44 @@ describe('Combat Zone panel', () => {
     wrapper.unmount()
   })
 
+  it('ignores a roster rejection after the same vault is reopened', async () => {
+    let rejectFirst!: (error: Error) => void
+    const first = new Promise<void>((_, reject) => {
+      rejectFirst = reject
+    })
+    const filter = useDwellerStore().filter
+    vi.mocked(filter.fetchAllDwellers).mockReturnValueOnce(first).mockResolvedValueOnce(undefined)
+
+    const wrapper = mountPanel('vault-a')
+    await flushPromises()
+    await wrapper.setProps({ open: false })
+    await wrapper.setProps({ open: true })
+    await flushPromises()
+    rejectFirst(new Error(DWELLER_LIST_CHANGED_MESSAGE))
+    await flushPromises()
+
+    expect(wrapper.text()).not.toContain('Roster for vault vault-a')
+    wrapper.unmount()
+  })
+
+  it('ignores a roster rejection after the account session changes', async () => {
+    let rejectFirst!: (error: Error) => void
+    const first = new Promise<void>((_, reject) => {
+      rejectFirst = reject
+    })
+    const filter = useDwellerStore().filter
+    vi.mocked(filter.fetchAllDwellers).mockReturnValueOnce(first)
+
+    const wrapper = mountPanel('vault-a')
+    await flushPromises()
+    useAuthStore().sessionGeneration++
+    rejectFirst(new Error(DWELLER_LIST_CHANGED_MESSAGE))
+    await flushPromises()
+
+    expect(wrapper.text()).not.toContain('Roster for vault vault-a')
+    wrapper.unmount()
+  })
+
   it('surfaces a generic roster load failure for the current vault', async () => {
     const filter = useDwellerStore().filter
     vi.mocked(filter.fetchAllDwellers).mockRejectedValueOnce(new Error('network down'))

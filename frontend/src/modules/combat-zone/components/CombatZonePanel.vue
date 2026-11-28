@@ -39,6 +39,7 @@ const tab = ref<'overview' | 'board'>('overview')
 const selectedDwellerId = ref<string | null>(null)
 const replaying = ref(false)
 const rosterError = ref<string | null>(null)
+let loadGeneration = 0
 const now = useNow(1000)
 
 const party = computed(() => combatZone.party)
@@ -107,23 +108,35 @@ function defaultSelection(): void {
 }
 
 async function load(): Promise<void> {
+  const generation = ++loadGeneration
+  const session = authStore.sessionGeneration
   const token = authStore.token
   const requestedVaultId = props.vaultId
   if (!open.value || !token) return
   rosterError.value = null
   await combatZone.open(requestedVaultId, token)
+  if (!isCurrentLoad(generation, session, requestedVaultId)) return
   try {
     await dwellerStore.fetchAllDwellers(requestedVaultId, true)
   } catch (err) {
-    if (!open.value || requestedVaultId !== props.vaultId) return
+    if (!isCurrentLoad(generation, session, requestedVaultId)) return
     rosterError.value =
       err instanceof Error && err.message === DWELLER_LIST_CHANGED_MESSAGE
         ? `Roster for vault ${requestedVaultId} changed while loading. Retry.`
         : `Roster for vault ${requestedVaultId} failed to load. Retry.`
   }
-  if (!open.value || requestedVaultId !== props.vaultId) return
+  if (!isCurrentLoad(generation, session, requestedVaultId)) return
   if (props.initialMatchId) await combatZone.watchMatch(props.initialMatchId)
   defaultSelection()
+}
+
+function isCurrentLoad(generation: number, session: number, vaultId: string): boolean {
+  return (
+    generation === loadGeneration &&
+    session === authStore.sessionGeneration &&
+    open.value &&
+    vaultId === props.vaultId
+  )
 }
 
 watch(
@@ -132,6 +145,7 @@ watch(
     if (isOpen) {
       void load()
     } else {
+      loadGeneration++
       replaying.value = false
       rosterError.value = null
       etaRefreshSent = false
@@ -147,6 +161,7 @@ watch(
   () => props.vaultId,
   (next, previous) => {
     if (next === previous) return
+    loadGeneration++
     replaying.value = false
     rosterError.value = null
     etaRefreshSent = false
@@ -176,7 +191,10 @@ watch(
 
 watch(eligibleDwellers, () => defaultSelection())
 
-onBeforeUnmount(() => combatZone.close())
+onBeforeUnmount(() => {
+  loadGeneration++
+  combatZone.close()
+})
 
 async function send(): Promise<void> {
   if (!selectedDwellerId.value) return

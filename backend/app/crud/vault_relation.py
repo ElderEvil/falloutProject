@@ -19,10 +19,18 @@ def ordered_pair(first_vault_id: UUID, second_vault_id: UUID) -> tuple[UUID, UUI
 
 
 class CRUDVaultRelation:
-    async def get_pair(self, db_session: AsyncSession, *, vault_id: UUID, other_vault_id: UUID) -> VaultRelation | None:
+    async def get_pair(
+        self,
+        db_session: AsyncSession,
+        *,
+        vault_id: UUID,
+        other_vault_id: UUID,
+        for_update: bool = False,
+    ) -> VaultRelation | None:
         """The pair's relation row, whichever direction the caller names the two vaults."""
         low, high = ordered_pair(vault_id, other_vault_id)
         query = select(VaultRelation).where(VaultRelation.vault_a_id == low, VaultRelation.vault_b_id == high)
+        query = query.with_for_update() if for_update else query
         return (await db_session.execute(query)).scalar_one_or_none()
 
     async def get_or_create(
@@ -32,9 +40,13 @@ class CRUDVaultRelation:
         vault_id: UUID,
         other_vault_id: UUID,
         status: VaultRelationStatus = VaultRelationStatus.UNMET,
+        for_update: bool = False,
     ) -> VaultRelation:
         """Fetch the pair row, inserting one at ``status`` if none exists; the caller commits."""
-        if (existing := await self.get_pair(db_session, vault_id=vault_id, other_vault_id=other_vault_id)) is not None:
+        existing = await self.get_pair(
+            db_session, vault_id=vault_id, other_vault_id=other_vault_id, for_update=for_update
+        )
+        if existing is not None:
             return existing
         low, high = ordered_pair(vault_id, other_vault_id)
         relation = VaultRelation(vault_a_id=low, vault_b_id=high, status=status)

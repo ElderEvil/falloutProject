@@ -139,6 +139,9 @@ class EnvoyService:
             raise ResourceConflictException("A hail is already waiting for an answer.")
         if not await self._in_hail_range(db_session, vault_id, to_vault_id):
             raise ValidationException("No dweller of yours has been near that vault.")
+        # The pair row is born with the first filing, not with the answer: two crossed hails then
+        # mutate one row instead of racing to insert the same unique pair at accept time.
+        await relation_crud.get_or_create(db_session, vault_id=vault_id, other_vault_id=to_vault_id)
         filing = await filing_crud.create(
             db_session,
             from_vault_id=vault_id,
@@ -156,7 +159,7 @@ class EnvoyService:
     ) -> EnvoyFilingRead:
         """Answer a filing: accepting opens contact (+5 standing), refusing locks the pair."""
         now = utcnow()
-        filing = await filing_crud.get(db_session, filing_id)
+        filing = await filing_crud.get(db_session, filing_id, for_update=True)
         if filing is None or filing.to_vault_id != vault_id:
             raise NotFoundException("Filing not found.")
         if DiplomaticFilingStatus(filing.status) != DiplomaticFilingStatus.PENDING:
@@ -165,7 +168,9 @@ class EnvoyService:
             await filing_crud.resolve(db_session, filing, status=DiplomaticFilingStatus.EXPIRED, responded_at=now)
             await db_session.commit()
             raise ValidationException("This filing has expired.")
-        relation = await relation_crud.get_or_create(db_session, vault_id=vault_id, other_vault_id=filing.from_vault_id)
+        relation = await relation_crud.get_or_create(
+            db_session, vault_id=vault_id, other_vault_id=filing.from_vault_id, for_update=True
+        )
         if accept:
             await filing_crud.resolve(db_session, filing, status=DiplomaticFilingStatus.ACCEPTED, responded_at=now)
             # Only the first answered contact pays: a crossed pair of hails pays once.

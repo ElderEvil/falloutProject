@@ -38,10 +38,13 @@ class CRUDDiplomaticFiling:
         await db_session.flush()
         return filing
 
-    async def get(self, db_session: AsyncSession, filing_id: UUID) -> DiplomaticFiling | None:
-        return (
-            await db_session.execute(select(DiplomaticFiling).where(DiplomaticFiling.id == filing_id))
-        ).scalar_one_or_none()
+    async def get(
+        self, db_session: AsyncSession, filing_id: UUID, *, for_update: bool = False
+    ) -> DiplomaticFiling | None:
+        """One filing; ``for_update`` serialises two answers arriving at the same instant."""
+        query = select(DiplomaticFiling).where(DiplomaticFiling.id == filing_id)
+        query = query.with_for_update() if for_update else query
+        return (await db_session.execute(query)).scalar_one_or_none()
 
     async def get_pending(
         self,

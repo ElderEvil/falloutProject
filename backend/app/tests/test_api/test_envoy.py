@@ -242,6 +242,30 @@ async def test_an_overdue_filing_expires_on_read_and_cannot_be_answered(
     assert log.json()[0]["status"] == "EXPIRED"
 
 
+async def test_crossed_hails_share_one_relation_and_pay_standing_once(
+    async_client, owner, vault, user_with_vault, async_session
+) -> None:
+    other_user, other = user_with_vault
+    mine, theirs = await _claim(async_session, vault, other)
+    await _visit(async_session, vault.id, slot_coords(theirs))
+    await _visit(async_session, other.id, slot_coords(mine))
+
+    my_filing = (await _hail(async_client, vault, other)).json()["filing_id"]
+    app.dependency_overrides[get_current_active_user] = lambda: other_user
+    their_filing = (await _hail(async_client, other, vault)).json()["filing_id"]
+
+    first = await async_client.post(f"/vaults/{other.id}/envoy/filings/{my_filing}/respond", json={"accept": True})
+    assert first.status_code == 200, first.text
+
+    app.dependency_overrides[get_current_active_user] = lambda: owner
+    second = await async_client.post(f"/vaults/{vault.id}/envoy/filings/{their_filing}/respond", json={"accept": True})
+    assert second.status_code == 200, second.text
+
+    signal = _signal((await async_client.get(f"/vaults/{vault.id}/envoy/signals")).json(), other)
+    assert signal["status"] == "CONTACT"
+    assert signal["standing"] == 5
+
+
 async def test_only_a_hail_is_filable_and_config_reports_the_effective_knobs(
     async_client, owner, vault, user_with_vault, async_session
 ) -> None:

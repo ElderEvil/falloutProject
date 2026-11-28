@@ -24,6 +24,7 @@ interface Props {
   cooldown?: boolean
   cleared?: boolean
   exploring?: boolean
+  pulse?: boolean
   status?: string
   risk?: string | null
   baseDifficulty?: number | null
@@ -48,6 +49,7 @@ const props = withDefaults(defineProps<Props>(), {
   cooldown: false,
   cleared: false,
   exploring: false,
+  pulse: false,
   interactive: true,
   scale: 1,
   iconScale: 1,
@@ -81,7 +83,9 @@ const isLocked = computed(() => isHintLocation(props))
 // a marker on a "?" glyph that says nothing about the place.
 const displayIcon = computed(() => icon.value)
 const displayLabel = computed(() => (isLocked.value ? 'Unknown Location' : props.name))
-const shouldPulse = computed(() => isDiscovery.value && !isLocked.value && props.unseen)
+const shouldPulse = computed(
+  () => props.pulse || (isDiscovery.value && !isLocked.value && props.unseen)
+)
 
 // Glyph size in marker user units. It follows the body scale, so the glyph keeps
 // the same share of the body whether the marker is a full-size signal or a

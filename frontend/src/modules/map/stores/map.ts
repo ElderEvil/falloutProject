@@ -5,6 +5,7 @@ import { usePolling } from '@/core/composables/usePolling'
 import type {
   CollectibleSetProgressRead,
   DiscoveryRouteRead,
+  CombatZoneMarkerRead,
   ExpeditionSiteMarkerRead,
   PlaceGroup,
   PlayerVaultMarkerRead,
@@ -29,6 +30,7 @@ export const useMapStore = defineStore('map', () => {
   const playerVaults = ref<PlayerVaultMarkerRead[]>([])
   const discoveryRoutes = ref<DiscoveryRouteRead[]>([])
   const expeditionSites = ref<ExpeditionSiteMarkerRead[]>([])
+  const combatZone = ref<CombatZoneMarkerRead | null>(null)
   const placeGroups = ref<PlaceGroup[]>([])
   // The vault whose rows the state above currently holds. A load for another vault clears
   // it first, so a slow or failed switch cannot render the previous vault's map under the
@@ -131,6 +133,7 @@ export const useMapStore = defineStore('map', () => {
     playerVaults.value = data.player_vaults ?? []
     discoveryRoutes.value = data.discovery_routes ?? []
     expeditionSites.value = data.expedition_sites ?? []
+    combatZone.value = data.combat_zone ?? null
     placeGroups.value = data.place_groups ?? []
     collectibleSets.value = data.collectible_sets ?? []
   }
@@ -255,6 +258,7 @@ export const useMapStore = defineStore('map', () => {
     playerVaults,
     discoveryRoutes,
     expeditionSites,
+    combatZone,
     placeGroups,
     placeGroupByKey,
     collectibleSets,

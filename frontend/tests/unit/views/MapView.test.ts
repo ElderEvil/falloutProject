@@ -200,6 +200,12 @@ describe('MapView', () => {
             props: ['open', 'vault', 'marker', 'loading'],
             emits: ['update:open'],
           },
+          CombatZonePanel: {
+            name: 'CombatZonePanel',
+            template: '<button class="combat-zone-close" @click="$emit(\'update:open\', false)" />',
+            props: ['open', 'vaultId', 'marker', 'initialMatchId'],
+            emits: ['update:open'],
+          },
           teleport: true,
         },
       },
@@ -1075,6 +1081,17 @@ describe('MapView', () => {
       expect(tracks[0].partyNames).toEqual(['Stephanie Boyd'])
       wrapper.unmount()
     })
+  })
+
+  it('clears the combat-zone match query when the result panel closes', async () => {
+    mockRoute.query = { combatZoneMatch: 'cz-1' }
+    const wrapper = await mountReady()
+
+    await wrapper.find('.combat-zone-close').trigger('click')
+    await flushPromises()
+
+    expect(mockReplace).toHaveBeenCalledWith({ query: {} })
+    wrapper.unmount()
   })
 
   describe('header help', () => {

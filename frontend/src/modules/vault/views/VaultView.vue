@@ -19,6 +19,7 @@ import GameControlPanel from '@/modules/vault/components/shell/GameControlPanel.
 import RadioNewsWidget from '@/modules/radio-news/components/RadioNewsWidget.vue'
 import WorldEventBanner from '@/modules/world-event/components/WorldEventBanner.vue'
 import RaidBanner from '@/modules/pvp/components/RaidBanner.vue'
+import CombatZoneBanner from '@/modules/combat-zone/components/CombatZoneBanner.vue'
 import { getOverseerAttentionCount } from '@/modules/vault/models/overseerBriefing'
 import UnassignedDwellers from '@/modules/dwellers/components/UnassignedDwellers.vue'
 import WastelandPanel from '@/modules/exploration/components/WastelandPanel.vue'
@@ -339,6 +340,8 @@ const reviewActiveIncidents = () => {
           <WorldEventBanner v-if="vaultId" :vault-id="vaultId" class="w-full mb-4" />
 
           <RaidBanner v-if="vaultId" :vault-id="vaultId" class="w-full mb-4" />
+
+          <CombatZoneBanner v-if="vaultId" :vault-id="vaultId" class="w-full mb-4" />
 
           <!-- Incident Alert Banner -->
           <div v-if="activeIncidents.length > 0" class="w-full mb-4">

@@ -144,6 +144,9 @@ export function getNotificationRoute(notification: NotificationNavigationContext
     case 'combat_victory':
     case 'combat_defeat':
     case 'arena_morale_boost': {
+      const combatZoneMatchId = metadataString(notification, 'combat_zone_match_id')
+      if (combatZoneMatchId)
+        return `${vaultPath}/map?combatZoneMatch=${encodeURIComponent(combatZoneMatchId)}`
       const duelId = metadataString(notification, 'duel_id')
       if (duelId) return `${vaultPath}/pvp?duel=${encodeURIComponent(duelId)}`
       const roomId = metadataString(notification, 'room_id')

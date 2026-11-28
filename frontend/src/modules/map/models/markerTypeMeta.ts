@@ -4,6 +4,7 @@ export type MarkerType =
   | WastelandLocationWithDwellers['type']
   | 'vault'
   | 'expedition_site'
+  | 'combat_zone'
   | 'explorer'
 
 export interface MarkerTypeMeta {
@@ -36,6 +37,7 @@ export const MARKER_TYPES: readonly MarkerTypeMeta[] = [
   { type: 'discovery', icon: 'mdi:map-marker-question', label: 'Discovery' },
   { type: 'vault', icon: 'mdi:radioactive', label: 'Vault Signal' },
   { type: 'expedition_site', icon: EXPEDITION_SITE_ICON, label: 'Expedition Sites' },
+  { type: 'combat_zone', icon: 'mdi:sword-cross', label: 'Combat Zone' },
 ]
 
 const BY_TYPE = new Map<string, MarkerTypeMeta>(MARKER_TYPES.map((meta) => [meta.type, meta]))

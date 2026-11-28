@@ -56,6 +56,11 @@ describe('getNotificationRoute', () => {
       '/vault/vault-1/pvp?duel=duel-1',
     ],
     [
+      'a settled Combat Zone bout from its combat notification',
+      { notification_type: 'combat_victory', meta_data: { combat_zone_match_id: 'cz-1' } },
+      '/vault/vault-1/map?combatZoneMatch=cz-1',
+    ],
+    [
       'the map for a cleared location',
       { notification_type: 'location_cleared' },
       '/vault/vault-1/map',

@@ -193,6 +193,26 @@ async def test_being_hailed_waives_range_for_the_answer(
     assert reach_back.status_code == 201, reach_back.text
 
 
+async def test_a_vault_without_a_slot_can_still_hail(
+    async_client, owner, vault, user_with_vault, async_session
+) -> None:
+    """The radius is measured from our dwellers' feet, so our own atlas slot is not a precondition."""
+    _other_user, other = user_with_vault
+    _mine, theirs = await _claim(async_session, vault, other)
+    await _visit(async_session, vault.id, slot_coords(theirs))
+
+    own_slot = await vault_slot.get_by_vault(async_session, vault.id)
+    assert own_slot is not None
+    await async_session.delete(own_slot)
+    await async_session.commit()
+
+    signals = await async_client.get(f"/vaults/{vault.id}/envoy/signals")
+    assert signals.status_code == 200, signals.text
+    assert _signal(signals.json(), other)["can_hail"] is True
+    filed = await _hail(async_client, vault, other)
+    assert filed.status_code == 201, filed.text
+
+
 async def test_accepting_a_hail_opens_contact_and_pays_standing_once(
     async_client, owner, vault, user_with_vault, async_session
 ) -> None:

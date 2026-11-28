@@ -3,7 +3,6 @@
 import logging
 from datetime import datetime, timedelta
 from math import hypot
-from typing import Any
 from uuid import UUID
 
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -42,11 +41,6 @@ def _read(filing: DiplomaticFiling, *, vault_id: UUID) -> EnvoyFilingRead:
     )
 
 
-def _status(relation_status: Any) -> VaultRelationStatus:
-    """Coerce a loaded string (or a fresh enum default) to the ladder member."""
-    return VaultRelationStatus(relation_status)
-
-
 class EnvoyService:
     """Signals, hails and filings for one vault's terminal."""
 
@@ -71,7 +65,7 @@ class EnvoyService:
             if other_id == vault_id:
                 continue
             relation = relations.get(other_id)
-            status = _status(relation.status) if relation is not None else VaultRelationStatus.UNMET
+            status = VaultRelationStatus(relation.status) if relation is not None else VaultRelationStatus.UNMET
             target = slot_coords(slot_index)
             near = any(hypot(coord_x - target[0], coord_y - target[1]) <= radius for coord_x, coord_y in visited)
             locked_until = relation.locked_until if relation is not None else None
@@ -112,7 +106,7 @@ class EnvoyService:
         relation = await relation_crud.get_or_create(
             db_session, vault_id=vault_id, other_vault_id=target_vault_id, for_update=True
         )
-        if _status(relation.status) != VaultRelationStatus.UNMET:
+        if VaultRelationStatus(relation.status) != VaultRelationStatus.UNMET:
             raise ResourceConflictException("You are already in contact with that vault.")
         if relation.locked_until is not None and relation.locked_until > now:
             raise ResourceConflictException("That vault refused your last filing; the line is locked.")
@@ -152,7 +146,7 @@ class EnvoyService:
         if accept:
             await filing_crud.resolve(db_session, filing, status=DiplomaticFilingStatus.ACCEPTED, responded_at=now)
             # Only the first answered contact pays: a crossed pair of hails pays once.
-            if _status(relation.status) == VaultRelationStatus.UNMET:
+            if VaultRelationStatus(relation.status) == VaultRelationStatus.UNMET:
                 relation.status = VaultRelationStatus.CONTACT
                 relation.standing = min(MAX_STANDING, relation.standing + HAIL_STANDING)
                 relation.met_at = now
@@ -213,9 +207,9 @@ class EnvoyService:
         )
         if answering is not None:
             return True
-        own_slot = await slot_crud.get_by_vault(db_session, vault_id)
+        # Only the target's slot matters: the radius is measured from our dwellers' feet.
         other_slot = await slot_crud.get_by_vault(db_session, other_vault_id)
-        if own_slot is None or other_slot is None:
+        if other_slot is None:
             return False
         target = slot_coords(other_slot.slot_index)
         radius = game_config.diplomacy.hail_radius

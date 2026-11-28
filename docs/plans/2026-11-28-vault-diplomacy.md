@@ -14,6 +14,12 @@ Humankind) and cut down to what an asynchronous, single-vault, tick-driven game 
 Messaging is not the feature. Every status change is a structured filing with terms, a recipient, an
 expiry and a price. Free text is a later, optional layer.
 
+**The market is retired, not hidden behind a flag.** The Trading Post screen does not survive as a
+fallback: `/vault/:id/trading` redirects to the terminal unconditionally, and while `vault_diplomacy`
+is dark that URL lands on the vault page with no market at all. Owner's decision — the market moves
+into the terminal's LABOUR tab, and a half-shipped diplomacy screen with a working shop underneath
+would be the wrong first impression. Do not reinstate a flag-off trading route.
+
 ## What Amplitude actually does (measured, not remembered)
 
 | Game | States | War entry | War exit | Currency |

@@ -64,22 +64,13 @@ class CRUDVaultRelation:
             return winner
         return relation
 
-    async def list_for_vault(
-        self, db_session: AsyncSession, *, vault_id: UUID, statuses: Sequence[VaultRelationStatus] | None = None
-    ) -> Sequence[VaultRelation]:
-        """Every relation this vault is part of, newest first, optionally filtered by status."""
+    async def list_for_vault(self, db_session: AsyncSession, *, vault_id: UUID) -> Sequence[VaultRelation]:
+        """Every relation this vault is part of, newest first."""
         query = (
             select(VaultRelation)
             .where(or_(VaultRelation.vault_a_id == vault_id, VaultRelation.vault_b_id == vault_id))
             .order_by(VaultRelation.created_at.desc())
         )
-        if statuses is not None:
-            query = query.where(VaultRelation.status.in_([status.value for status in statuses]))
-        return (await db_session.execute(query)).scalars().all()
-
-    async def list_by_status(self, db_session: AsyncSession, *, status: VaultRelationStatus) -> Sequence[VaultRelation]:
-        """Every relation currently at ``status``, for the tick pass that ages a ladder rung."""
-        query = select(VaultRelation).where(VaultRelation.status == status.value)
         return (await db_session.execute(query)).scalars().all()
 
 

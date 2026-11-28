@@ -45,6 +45,7 @@ class TestFeaturesEndpoint:
             "faction_mechanics": False,
             "world_events": False,
             "pvp_duels": False,
+            "vault_diplomacy": False,
             "combat_zone": False,
         }
 

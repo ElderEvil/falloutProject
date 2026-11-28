@@ -11,6 +11,7 @@ from app.api.v1.endpoints import (
     crafting,
     dweller,
     email,
+    envoy,
     exploration,
     game_control,
     hazard_team,
@@ -76,4 +77,5 @@ api_router.include_router(vault.router)
 api_router.include_router(weapon.router)
 api_router.include_router(world_event.router)
 api_router.include_router(pvp_duel.router)
+api_router.include_router(envoy.router)
 api_router.include_router(websocket.router, tags=["WebSocket"])

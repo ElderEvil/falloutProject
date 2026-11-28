@@ -44,6 +44,7 @@ from app.services.exploration.site_offers import (
 )
 from app.services.map import bio_registration, discovery
 from app.utils.collectibles import collectible_for_location, salvage_ready
+from app.utils.encounter import profile_for
 from app.utils.place_groups import effective_place_group, load_place_groups, location_xp_for, trade_entry, trade_terms
 from app.utils.place_loot import loot_table
 from app.utils.places import WORLD_SCALE
@@ -78,12 +79,17 @@ def _clear_state_for(state: VaultLocationState, location: WorldLocation) -> Loca
         return None
     now = utcnow()
     tier = min(state.clear_count, game_config.exploration.dispatch.escalation_cap)
+    profile = profile_for(min(5, (group.get("base_difficulty") or 1) + tier))
     return LocationClearStateRead(
         clearable=True,
         cleared=state.is_cleared(now),
         clear_count=state.clear_count,
         tier=tier,
         time_remaining_seconds=state.time_remaining_seconds(now),
+        danger=profile.danger,
+        min_party=profile.min_party,
+        required_power=profile.required_power,
+        complete_power=profile.complete_power,
         loot_table=group.get("loot_table"),
         xp_per_survivor=location_xp_for(group, tier),
         loot_preview=_loot_preview(group.get("loot_table")),

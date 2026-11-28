@@ -37,6 +37,10 @@ class LocationClearStateRead(SQLModel):
     clear_count: int
     tier: int
     time_remaining_seconds: int
+    danger: int
+    min_party: int
+    required_power: float
+    complete_power: float
     loot_table: str | None = None
     xp_per_survivor: int = 0
     loot_preview: list[LocationLootEntryRead] = []

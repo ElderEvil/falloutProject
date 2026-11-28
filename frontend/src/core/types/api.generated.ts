@@ -9549,6 +9549,14 @@ export interface components {
             tier: number;
             /** Time Remaining Seconds */
             time_remaining_seconds: number;
+            /** Danger */
+            danger: number;
+            /** Min Party */
+            min_party: number;
+            /** Required Power */
+            required_power: number;
+            /** Complete Power */
+            complete_power: number;
             /** Loot Table */
             loot_table?: string | null;
             /**

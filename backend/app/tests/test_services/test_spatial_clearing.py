@@ -71,6 +71,9 @@ class TestSpatialClearing:
         self, async_session: AsyncSession, vault: Vault, dweller: Dweller
     ) -> None:
         location, state, origin = await _nearby_clearable(async_session, vault, dweller)
+        for key, value in STRONG_STATS.items():
+            setattr(dweller, key, value)
+        await _save(async_session, dweller)
         exploration = await exploration_service.dispatch(async_session, vault.id, [dweller.id], location.id)
         assert (exploration.target_location_id, exploration.origin_x, exploration.origin_y) == (location.id, *origin)
         assert (exploration.pos_x, exploration.pos_y) == origin
@@ -78,9 +81,6 @@ class TestSpatialClearing:
         assert exploration.heading_degrees == pytest.approx(expected, abs=1e-6)
         assert (exploration.world_version is not None, len(exploration.trail)) == (True, 1)
 
-        for key, value in STRONG_STATS.items():
-            setattr(dweller, key, value)
-        await _save(async_session, dweller)
         distance = math.dist(origin, (location.coord_x, location.coord_y))
         exploration.start_time = utcnow() - timedelta(hours=distance / 10 + 0.05)
         await _save(async_session, exploration)

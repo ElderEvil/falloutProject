@@ -952,6 +952,13 @@ class VaultStartConfig(BaseSettings):
     )
 
 
+class DangerProfileConfig(BaseModel):
+    """One danger row: the reference party that calibrates the budget."""
+
+    min_party: int = Field(ge=1, le=3)
+    ref_level: int = Field(ge=1)
+
+
 class DispatchConfig(BaseSettings):
     """Expedition dispatch tuning for clearable map points."""
 
@@ -972,6 +979,34 @@ class DispatchConfig(BaseSettings):
     # Tier at/above which a member reduced to 0 health dies instead of being clamped at 1 (below it, dispatch losses
     # are non-lethal).
     lethal_tier: int = Field(default=2, ge=0, description="Tier at which dispatch damage can kill")
+    complete_mult: float = Field(default=1.3, gt=1.0, description="CLEAN threshold over the reference budget")
+    band_damage_pct: dict[str, float] = Field(
+        default_factory=lambda: {"clean": 0.0, "costly": 0.25, "repelled": 0.40},
+        description="Per-band damage as a fraction of each member's max HP",
+    )
+    danger_profiles: dict[int, DangerProfileConfig] = Field(
+        default_factory=lambda: {
+            1: DangerProfileConfig(min_party=1, ref_level=1),
+            2: DangerProfileConfig(min_party=1, ref_level=3),
+            3: DangerProfileConfig(min_party=2, ref_level=5),
+            4: DangerProfileConfig(min_party=2, ref_level=7),
+            5: DangerProfileConfig(min_party=3, ref_level=9),
+        },
+        description="Danger profiles keyed by effective difficulty (1-5)",
+    )
+
+    @field_validator("band_damage_pct")
+    @classmethod
+    def _validate_band_damage(cls, value: dict[str, float]) -> dict[str, float]:
+        if set(value) != {"clean", "costly", "repelled"}:
+            raise ValueError("band_damage_pct must define exactly clean, costly and repelled")
+        if value["clean"] != 0:
+            raise ValueError("clean band damage must be 0")
+        if value["costly"] <= 0 or value["repelled"] <= 0:
+            raise ValueError("costly and repelled band damage must be positive")
+        if any(fraction > 1 for fraction in value.values()):
+            raise ValueError("band damage is a fraction of max HP, at most 1")
+        return value
 
 
 class CaravanConfig(BaseSettings):

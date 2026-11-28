@@ -13,7 +13,7 @@ from uuid import UUID
 
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.core.enums import ExplorationPurpose, NotificationPriority, NotificationType
+from app.core.enums import EncounterBand, ExplorationPurpose, NotificationPriority, NotificationType
 from app.core.event_bus import GameEvent, event_bus
 from app.core.game_config import game_config
 from app.crud import dweller as dweller_crud
@@ -59,16 +59,23 @@ async def resolve_dispatch_arrival(db_session: AsyncSession, exploration_id: UUI
         await exploration_coordinator.start_return(db_session, exploration_id, arrived=arrived)
         return
     location, state = pair
+    snapshot = exploration.encounter_snapshot
     group = effective_place_group(location.group_key, location.kind)
-    if group is None:
-        await exploration_coordinator.start_return(db_session, exploration_id, arrived=arrived)
-        return
     if exploration.purpose == ExplorationPurpose.TRADE:
+        if group is None:
+            await exploration_coordinator.start_return(db_session, exploration_id, arrived=arrived)
+            return
         await _resolve_trade(db_session, exploration, location, state, group, arrived)
         return
-    if not group.get("clearable"):
-        await _resolve_salvage(db_session, exploration, location, state, arrived)
-        return
+    # A snapshotted clearance is routed by its departure contract, not by today's feature-gated
+    # archetype lookup: toggling emergent_sites mid-run must not strand the saved encounter.
+    if snapshot is None:
+        if group is None:
+            await exploration_coordinator.start_return(db_session, exploration_id, arrived=arrived)
+            return
+        if not group.get("clearable"):
+            await _resolve_salvage(db_session, exploration, location, state, arrived)
+            return
     now = utcnow()
     if not state.is_dispatchable(now):
         await exploration_coordinator.start_return(db_session, exploration_id, arrived=arrived)
@@ -80,8 +87,6 @@ async def resolve_dispatch_arrival(db_session: AsyncSession, exploration_id: UUI
         if exploration.clear_tier is not None
         else min(state.clear_count, game_config.exploration.dispatch.escalation_cap)
     )
-    difficulty = min(5, group["base_difficulty"] + tier)
-
     if exploration.team_id is not None:
         members = await team_crud.get_exploration_team_dwellers(db_session, exploration.id)
     else:
@@ -92,10 +97,31 @@ async def resolve_dispatch_arrival(db_session: AsyncSession, exploration_id: UUI
         return
     party_size = len(members)
 
-    victory, total_damage = resolve_party_combat(members, difficulty)
-    caps, loot_rolls = _roll_dispatch_loot(members, exploration, group, tier) if victory else (0, [])
-    shares = distribute_damage(total_damage, party_size)
-    lethal = tier >= game_config.exploration.dispatch.lethal_tier
+    if snapshot is not None:
+        band = EncounterBand(snapshot["band"])
+        victory = band in (EncounterBand.CLEAN, EncounterBand.COSTLY)
+        lethal = snapshot["lethal"]
+        damage_by_id = snapshot["damage"]
+        shares = [int(damage_by_id[str(member.id)]) for member in members]
+        total_damage = sum(shares)
+        loot_table_key = snapshot["loot_table"]
+        reclear_hours = snapshot["reclear_hours"]
+        xp_reward = snapshot["location_xp"]
+        band_value = snapshot["band"]
+    else:
+        if group is None:
+            await exploration_coordinator.start_return(db_session, exploration_id, arrived=arrived)
+            return
+        difficulty = min(5, (group.get("base_difficulty") or 1) + tier)
+        victory, total_damage = resolve_party_combat(members, difficulty)
+        shares = distribute_damage(total_damage, party_size)
+        lethal = tier >= game_config.exploration.dispatch.lethal_tier
+        loot_table_key = group.get("loot_table")
+        reclear_hours = group.get("reclear_hours")
+        xp_reward = location_xp_for(group, tier)
+        band_value = None
+
+    caps, loot_rolls = _roll_dispatch_loot(members, exploration, loot_table_key, tier) if victory else (0, [])
     delete_held = party_size == 1
     for member, share in zip(members, shares, strict=True):
         await apply_exploration_damage(
@@ -138,11 +164,12 @@ async def resolve_dispatch_arrival(db_session: AsyncSession, exploration_id: UUI
         # clear: the point stays uncleared and the loot rolls are dropped below.
         if deaths < party_size:
             state.cleared_at = now
-            state.reclear_available_at = now + timedelta(hours=group["reclear_hours"])
+            if reclear_hours is not None:
+                state.reclear_available_at = now + timedelta(hours=reclear_hours)
             state.clear_count += 1
             db_session.add(state)
             # 0 is a real outcome (a clear with no XP reward); NULL stays reserved for "no clear".
-            exploration.location_xp = location_xp_for(group, tier)
+            exploration.location_xp = xp_reward
 
             vault = await vault_crud.get_or_none(db_session, exploration.vault_id)
             if vault is not None:
@@ -168,7 +195,8 @@ async def resolve_dispatch_arrival(db_session: AsyncSession, exploration_id: UUI
         # The haul the run keeps: what the party carried back after the casualties took their share.
         retained_caps = exploration.total_caps_found - caps_before
         haul = [entry["item_name"] for entry in exploration.loot_collected[loot_before:]]
-        summary = f"Cleared {location.name}: +{retained_caps} caps"
+        band_suffix = f" [{band_value}]" if band_value else ""
+        summary = f"Cleared {location.name}{band_suffix}: +{retained_caps} caps"
         if haul:
             summary += f" and {len(haul)} item(s)"
         if deaths:
@@ -187,6 +215,7 @@ async def resolve_dispatch_arrival(db_session: AsyncSession, exploration_id: UUI
             caps=retained_caps,
             items=haul,
             damage=total_damage,
+            band=band_value,
         )
     elif victory:
         log_arrival_event(
@@ -195,6 +224,7 @@ async def resolve_dispatch_arrival(db_session: AsyncSession, exploration_id: UUI
             outcome="wiped",
             description=f"Wiped at {location.name}; the point stays uncleared.",
             damage=total_damage,
+            band=band_value,
         )
     else:
         log_arrival_event(
@@ -203,6 +233,7 @@ async def resolve_dispatch_arrival(db_session: AsyncSession, exploration_id: UUI
             outcome="repelled",
             description=f"Repelled at {location.name}; no loot taken.",
             damage=total_damage,
+            band=band_value,
         )
 
     db_session.add(exploration)
@@ -222,10 +253,10 @@ async def resolve_dispatch_arrival(db_session: AsyncSession, exploration_id: UUI
 
 
 def _roll_dispatch_loot(
-    members: list, exploration: Exploration, group: dict, tier: int
+    members: list, exploration: Exploration, loot_table_key: str | None, tier: int
 ) -> tuple[int, list[tuple[LootItemSchema, str]]]:
     """Roll the whole haul before combat writes stage, so a bad entry cannot leave a half-resolution."""
-    table = loot_table(group["loot_table"])
+    table = loot_table(loot_table_key)
     if table is None:
         return 0, []
     caps = random.randint(table["caps"]["min"], table["caps"]["max"])
@@ -256,6 +287,7 @@ def log_arrival_event(
     caps: int = 0,
     items: list[str] | None = None,
     damage: int = 0,
+    band: str | None = None,
 ) -> None:
     """Record one dispatch arrival in the journey log.
 
@@ -266,7 +298,7 @@ def log_arrival_event(
     exploration.add_event(
         event_type="dispatch",
         description=description,
-        loot={"outcome": outcome, "caps": caps, "items": items or []},
+        loot={"outcome": outcome, "caps": caps, "items": items or [], "band": band},
         location_name=location.name,
         location_id=location.id,
         coord_x=location.coord_x,

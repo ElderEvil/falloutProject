@@ -558,6 +558,14 @@ class RequirementType(StrEnum):
     STAT = "stat"
 
 
+class EncounterBand(StrEnum):
+    """Danger-band outcome for map clearance."""
+
+    CLEAN = "clean"
+    COSTLY = "costly"
+    REPELLED = "repelled"
+
+
 class RewardType(StrEnum):
     CAPS = "caps"
     ITEM = "item"

@@ -32,8 +32,9 @@ from app.services.game_tick.dwellers_tick import process_explorations
 from app.services.map_service import map_service
 from app.services.notification_service import NotificationService
 from app.services.world_snapshot_service import world_snapshot_service
+from app.utils.encounter import profile_for
 from app.utils.exceptions import ResourceNotFoundException, ValidationException
-from app.utils.place_groups import get_place_group
+from app.utils.place_groups import get_place_group, location_xp_for
 from app.utils.place_loot import loot_table
 from app.utils.time import utcnow
 
@@ -129,6 +130,37 @@ async def _expired(
 
 async def _reloaded(async_session: AsyncSession, dwellers: list[Dweller]) -> list[Dweller]:
     return [await crud.dweller.get_with_equipment(async_session, dweller.id) for dweller in dwellers]
+
+
+async def _force_band(
+    async_session: AsyncSession,
+    exploration: Exploration,
+    members: list[Dweller],
+    *,
+    band: str,
+    damage: int,
+    lethal: bool,
+    loot_table: str | None = None,
+    reclear_hours: int | None = None,
+    location_xp: int = 0,
+) -> None:
+    """Pin the departure snapshot so a resolution test does not depend on the tuning numbers."""
+    exploration.encounter_snapshot = {
+        "rules_version": 1,
+        "danger": 1,
+        "min_party": 1,
+        "ref_level": 1,
+        "required_power": 0.0,
+        "complete_power": 0.0,
+        "party_power": 0.0,
+        "band": band,
+        "lethal": lethal,
+        "damage": {str(member.id): damage for member in members},
+        "loot_table": loot_table,
+        "reclear_hours": reclear_hours,
+        "location_xp": location_xp,
+    }
+    await _commit(async_session, exploration)
 
 
 async def _cleared_notifications(async_session: AsyncSession) -> list[Notification]:
@@ -285,7 +317,7 @@ async def test_dispatch_zero_reward_clear_stores_zero_not_null(
     location, _state = await _settled(async_session, vault, dweller)
     zero_reward_group = {**get_place_group("gas_station"), "xp_reward": 0}
     monkeypatch.setattr(
-        "app.services.exploration.dispatch_resolution.effective_place_group",
+        "app.services.exploration_service.effective_place_group",
         lambda group_key, kind: zero_reward_group,
     )
     exploration = await _expired(async_session, vault, dweller, location.id)
@@ -468,14 +500,27 @@ async def test_dispatch_arrival_bobblehead_follows_the_outcome(
     async_session: AsyncSession,
     vault: Vault,
     dweller: Dweller,
+    dweller_data: dict,
     monkeypatch: pytest.MonkeyPatch,
     stats: dict,
     clear_count: int | None,
     bonus: dict | None,
 ) -> None:
     monkeypatch.setattr(game_config.features, "collectibles", True)
+    tier = min(clear_count or 0, game_config.exploration.dispatch.escalation_cap)
+    danger = min(5, (get_place_group("power").get("base_difficulty") or 1) + tier)
+    fillers: list[Dweller] = [
+        await _make_dweller(async_session, vault, dweller_data, **WEAK_STATS)
+        for _ in range(max(0, profile_for(danger).min_party - 1))
+    ]
     _location, _state, _exploration = await _arrived(
-        async_session, vault, dweller, name="Poseidon Energy", stats=stats, clear_count=clear_count
+        async_session,
+        vault,
+        dweller,
+        party=tuple(fillers),
+        name="Poseidon Energy",
+        stats=stats,
+        clear_count=clear_count,
     )
     claim = await collectible_crud.get_by_vault_and_key(async_session, vault.id, "strength")
     if bonus is None:
@@ -488,19 +533,22 @@ async def test_dispatch_arrival_bobblehead_follows_the_outcome(
 
 @pytest.mark.usefixtures("default_world_snapshot")
 async def test_dispatch_arrival_loss_no_clear_no_loot_no_notification(
-    async_session: AsyncSession, vault: Vault, dweller: Dweller
+    async_session: AsyncSession, vault: Vault, dweller: Dweller, dweller_data: dict
 ) -> None:
-    _location, state, exploration = await _arrived(async_session, vault, dweller, stats=WEAK_STATS, clear_count=5)
+    location, state = await _settled(async_session, vault, dweller, clear_count=2)
+    partner = await _make_dweller(async_session, vault, dweller_data)
+    exploration = await _expired(async_session, vault, [dweller, partner], location.id)
+    await _force_band(async_session, exploration, [dweller, partner], band="repelled", damage=40, lethal=False)
+    await resolve_dispatch_arrival(async_session, exploration.id)
+    for obj in (state, exploration, dweller, partner):
+        await async_session.refresh(obj)
     assert exploration.status == ExplorationStatus.RETURNING
     assert state.cleared_at is None
-    assert state.clear_count == 5
+    assert state.clear_count == 2
     assert exploration.loot_collected == []
     assert exploration.total_caps_found == 0
     assert exploration.location_xp is None
-    difficulty = min(5, 2 + game_config.exploration.dispatch.escalation_cap)
-    members = await crud.team_crud.get_exploration_team_dwellers(async_session, exploration.id)
-    _outcome, expected_damage = resolve_party_combat(members, difficulty)
-    assert dweller.health == 100 - expected_damage
+    assert dweller.health == 60
     assert await _cleared_notifications(async_session) == []
 
     # A repelled party still records the journey: the player is told what happened and where.
@@ -510,7 +558,7 @@ async def test_dispatch_arrival_loss_no_clear_no_loot_no_notification(
     assert event["loot"]["outcome"] == "repelled"
     assert event["loot"]["caps"] == 0
     assert "Repelled at Red Rocket" in event["description"]
-    assert event["health_loss"] == expected_damage
+    assert event["health_loss"] == 80
 
 
 @pytest.mark.usefixtures("default_world_snapshot")
@@ -530,7 +578,8 @@ async def test_dispatch_escalation_tier_and_caps(
     state.cleared_at = None
     state.reclear_available_at = None
     await _commit(async_session, state)
-    exploration2 = await _expired(async_session, vault, dweller2, location.id)
+    fillers: list[Dweller] = [await _make_dweller(async_session, vault, dweller_data, **STRONG_STATS) for _ in range(2)]
+    exploration2 = await _expired(async_session, vault, [dweller2, *fillers], location.id)
     assert exploration2.clear_tier == game_config.exploration.dispatch.escalation_cap
     random.seed(42)
     await resolve_dispatch_arrival(async_session, exploration2.id)
@@ -679,6 +728,17 @@ async def test_dispatch_arrival_death_trims_haul(
     location, state = await _settled(async_session, vault, dweller, clear_count=2)  # tier 2: lethal
     fragile = await _make_dweller(async_session, vault, dweller_data, **{**WEAK_STATS, "health": 1})
     exploration = await _expired(async_session, vault, [dweller, fragile], location.id)
+    await _force_band(
+        async_session,
+        exploration,
+        [dweller, fragile],
+        band="costly",
+        damage=25,
+        lethal=True,
+        loot_table=get_place_group(location.group_key)["loot_table"],
+        reclear_hours=get_place_group(location.group_key)["reclear_hours"],
+        location_xp=location_xp_for(get_place_group(location.group_key), 2),
+    )
     with patch("random.randint", return_value=100):
         await resolve_dispatch_arrival(async_session, exploration.id)
     await async_session.refresh(exploration)
@@ -713,12 +773,16 @@ async def test_dispatch_arrival_party_wipe_survives_finalize(
     async_session: AsyncSession, vault: Vault, dweller: Dweller, dweller_data: dict
 ) -> None:
     partner = await _make_dweller(async_session, vault, dweller_data, **{**WEAK_STATS, "health": 1})
-    _location, state, exploration = await _arrived(
-        async_session, vault, dweller, party=(partner,), stats={**WEAK_STATS, "health": 1}, clear_count=5
-    )
+    location, state = await _settled(async_session, vault, dweller, stats=None, clear_count=2)
+    await _boost(async_session, dweller, **{**WEAK_STATS, "health": 1})
+    exploration = await _expired(async_session, vault, [dweller, partner], location.id)
+    await _force_band(async_session, exploration, [dweller, partner], band="repelled", damage=40, lethal=True)
+    await resolve_dispatch_arrival(async_session, exploration.id)
+    for obj in (state, exploration, dweller, partner):
+        await async_session.refresh(obj)
     assert exploration.status == ExplorationStatus.RETURNING
     assert state.cleared_at is None
-    assert state.clear_count == 5
+    assert state.clear_count == 2
     assert exploration.loot_collected == []
     assert exploration.total_caps_found == 0
     assert dweller.is_dead
@@ -745,8 +809,15 @@ async def test_dispatch_arrival_winning_party_wiped_leaves_point_uncleared(
     location, state = await _settled(async_session, vault, dweller, stats={**STRONG_STATS, "health": 1}, clear_count=2)
     partner = await _make_dweller(async_session, vault, dweller_data, **{**STRONG_STATS, "health": 1})
     exploration = await _expired(async_session, vault, [dweller, partner], location.id)
-    difficulty = min(5, 2 + 2)  # gas_station base_difficulty 2 + tier 2
-    assert resolve_party_combat(await _reloaded(async_session, [dweller, partner]), difficulty)[0] is True
+    await _force_band(
+        async_session,
+        exploration,
+        [dweller, partner],
+        band="costly",
+        damage=25,
+        lethal=True,
+        loot_table=get_place_group(location.group_key)["loot_table"],
+    )
     await resolve_dispatch_arrival(async_session, exploration.id)
     await async_session.refresh(exploration)
     await async_session.refresh(state)
@@ -941,3 +1012,110 @@ async def test_dispatch_revalidates_supplies_after_snapshot_commit(
     assert storage.radaway == 0
     runs = (await async_session.execute(select(Exploration).where(Exploration.vault_id == vault.id))).scalars().all()
     assert runs == []
+
+
+@pytest.mark.usefixtures("default_world_snapshot")
+async def test_dispatch_rejects_a_party_below_the_danger_minimum(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller
+) -> None:
+    location, _state = await _settled(async_session, vault, dweller, name="Poseidon Energy", stats=None)
+    with pytest.raises(ValidationException, match="at least 2 dwellers"):
+        await exploration_service.dispatch(async_session, vault.id, [dweller.id], location.id)
+
+
+@pytest.mark.usefixtures("default_world_snapshot")
+async def test_dispatch_snapshots_the_danger_band(async_session: AsyncSession, vault: Vault, dweller: Dweller) -> None:
+    location, _state = await _settled(async_session, vault, dweller, name="Red Rocket", stats=None)
+    await _boost(
+        async_session,
+        dweller,
+        **{**dict.fromkeys(SPECIAL, 5), "level": 3, "max_health": 100, "health": 100, "radiation": 0},
+    )
+    exploration = await exploration_service.dispatch(async_session, vault.id, [dweller.id], location.id)
+    snapshot = exploration.encounter_snapshot
+    assert snapshot is not None
+    assert (snapshot["danger"], snapshot["min_party"], snapshot["band"]) == (2, 1, "costly")
+    assert snapshot["required_power"] == pytest.approx(10.0)
+    assert snapshot["complete_power"] == pytest.approx(13.0)
+    assert snapshot["damage"][str(dweller.id)] == 25
+
+
+@pytest.mark.usefixtures("default_world_snapshot")
+async def test_legacy_run_without_a_snapshot_resolves_under_the_old_rule(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller
+) -> None:
+    location, state = await _settled(async_session, vault, dweller)
+    exploration = await _expired(async_session, vault, dweller, location.id)
+    exploration.encounter_snapshot = None
+    await _commit(async_session, exploration)
+    await resolve_dispatch_arrival(async_session, exploration.id)
+    await async_session.refresh(state)
+    assert state.clear_count == 1
+
+
+@pytest.mark.usefixtures("default_world_snapshot")
+async def test_snapshot_arrival_failure_rolls_back_damage_clear_and_delivery(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    location, state = await _settled(async_session, vault, dweller)
+    exploration = await _expired(async_session, vault, dweller, location.id)
+    group = get_place_group(location.group_key)
+    await _force_band(
+        async_session,
+        exploration,
+        [dweller],
+        band="costly",
+        damage=25,
+        lethal=False,
+        loot_table=group["loot_table"],
+        reclear_hours=group["reclear_hours"],
+        location_xp=10,
+    )
+    monkeypatch.setattr(
+        "app.services.exploration.dispatch_resolution.notification_service.create_and_send",
+        AsyncMock(side_effect=RuntimeError("late failure")),
+    )
+    with pytest.raises(RuntimeError):
+        await resolve_dispatch_arrival(async_session, exploration.id)
+    await async_session.rollback()
+    for obj in (dweller, state, exploration):
+        await async_session.refresh(obj)
+    assert dweller.health == 100
+    assert state.clear_count == 0
+    assert exploration.status == ExplorationStatus.ACTIVE
+    assert await _cleared_notifications(async_session) == []
+
+
+@pytest.mark.usefixtures("default_world_snapshot")
+async def test_snapshotted_clear_resolves_without_a_live_archetype(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    location, state = await _settled(async_session, vault, dweller)
+    exploration = await _expired(async_session, vault, dweller, location.id)
+    monkeypatch.setattr(
+        "app.services.exploration.dispatch_resolution.effective_place_group",
+        lambda group_key, kind: None,
+    )
+    await resolve_dispatch_arrival(async_session, exploration.id)
+    await async_session.refresh(state)
+    await async_session.refresh(exploration)
+    assert state.clear_count == 1
+    assert exploration.events[-1]["loot"]["band"] == "clean"
+
+
+@pytest.mark.usefixtures("default_world_snapshot")
+async def test_resolving_an_arrival_twice_changes_nothing(
+    async_session: AsyncSession, vault: Vault, dweller: Dweller
+) -> None:
+    location, state = await _settled(async_session, vault, dweller)
+    exploration = await _expired(async_session, vault, dweller, location.id)
+    await resolve_dispatch_arrival(async_session, exploration.id)
+    for obj in (state, exploration, dweller):
+        await async_session.refresh(obj)
+    before = (state.clear_count, exploration.total_caps_found, dweller.health)
+
+    await resolve_dispatch_arrival(async_session, exploration.id)
+    for obj in (state, exploration, dweller):
+        await async_session.refresh(obj)
+
+    assert (state.clear_count, exploration.total_caps_found, dweller.health) == before

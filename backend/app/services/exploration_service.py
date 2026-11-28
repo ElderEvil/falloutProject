@@ -45,9 +45,11 @@ from app.services.user_service import user_service
 from app.services.world_snapshot_service import world_snapshot_service
 from app.utils import world_terrain
 from app.utils.collectibles import collectible_for_location, salvage_ready
+from app.utils.combat import total_combat_power
 from app.utils.dweller_availability import DwellerAction, availability_error
+from app.utils.encounter import band_damage, profile_for
 from app.utils.exceptions import ResourceNotFoundException, ValidationException, ensure_found
-from app.utils.place_groups import effective_place_group, trade_entry, trade_terms
+from app.utils.place_groups import effective_place_group, location_xp_for, trade_entry, trade_terms
 from app.utils.place_loot import loot_table
 from app.utils.serialize import serialize_naive_utc_datetime, serialize_optional_utc_datetime
 from app.utils.time import utcnow
@@ -399,7 +401,9 @@ class ExplorationService:
 
         dwellers: list[Dweller] = []
         for dweller_id in dweller_ids:
-            dweller = await dweller_crud.get(db_session, dweller_id)
+            dweller = await dweller_crud.get_with_equipment(db_session, dweller_id)
+            if dweller is None:
+                raise ValidationException("Dweller not found")
             if dweller.vault_id != vault_id:
                 raise ValidationException("Dweller does not belong to this vault")
             reason = availability_error(dweller, action=DwellerAction.EXPLORE, require_healthy=True)
@@ -442,6 +446,12 @@ class ExplorationService:
         distance = math.dist(origin, (location.coord_x, location.coord_y))
         duration = dispatch_travel_hours(distance)
         tier = min(state.clear_count, game_config.exploration.dispatch.escalation_cap)
+        difficulty: int | None = None
+        if purpose == ExplorationPurpose.CLEAR and group is not None and group.get("clearable"):
+            difficulty = min(5, (group.get("base_difficulty") or 1) + tier)
+            required = profile_for(difficulty).min_party
+            if len(dweller_ids) < required:
+                raise ValidationException(f"This site needs at least {required} dwellers")
         if stimpaks < 0 or radaways < 0:
             raise ValidationException("Supplies cannot be negative")
         storage = await crud_storage.get_by_vault(db_session, vault_id)
@@ -462,6 +472,37 @@ class ExplorationService:
             await db_session.refresh(storage)
         self._require_supplies(storage, stimpaks, radaways)
         self._deduct_storage_supplies(db_session, storage, stimpaks, radaways)
+        encounter_snapshot: dict | None = None
+        if difficulty is not None and group is not None:
+            locked = await dweller_crud.get_many_for_update(db_session, dweller_ids)
+            if len(locked) != len(dweller_ids):
+                raise ValidationException("A selected dweller is no longer available")
+            by_id = {member.id: member for member in locked}
+            dwellers = []
+            for dweller_id in dweller_ids:
+                member = by_id[dweller_id]
+                reason = availability_error(member, action=DwellerAction.EXPLORE, require_healthy=True)
+                if reason is not None:
+                    raise ValidationException(reason)
+                dwellers.append(member)
+            profile = profile_for(difficulty)
+            party_power = total_combat_power(dwellers)
+            band = profile.band(party_power)
+            encounter_snapshot = {
+                "rules_version": 1,
+                "danger": profile.danger,
+                "min_party": profile.min_party,
+                "ref_level": profile.ref_level,
+                "required_power": profile.required_power,
+                "complete_power": profile.complete_power,
+                "party_power": party_power,
+                "band": band.value,
+                "lethal": tier >= game_config.exploration.dispatch.lethal_tier,
+                "damage": {str(d.id): band_damage(d.max_health, band) for d in dwellers},
+                "loot_table": group.get("loot_table"),
+                "reclear_hours": group.get("reclear_hours"),
+                "location_xp": location_xp_for(group, tier),
+            }
         anchor = dwellers[0]
 
         exploration = Exploration(
@@ -473,6 +514,7 @@ class ExplorationService:
             target_location_id=location_id,
             purpose=purpose,
             clear_tier=tier if purpose == ExplorationPurpose.CLEAR else None,
+            encounter_snapshot=encounter_snapshot,
             start_time=utcnow(),
             status=ExplorationStatus.ACTIVE,
         )

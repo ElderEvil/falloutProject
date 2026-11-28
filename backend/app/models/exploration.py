@@ -117,6 +117,9 @@ class Exploration(BaseUUIDModel, ExplorationBase, TimeStampMixin, table=True):
     )
     # Escalation tier this run faced, snapshotted for deterministic rewards/display.
     clear_tier: int | None = Field(default=None, ge=0)
+    # Danger snapshot taken at departure (profile, thresholds, band, per-member damage, lethal). NULL
+    # on legacy runs, which resolve under the old binary rule.
+    encounter_snapshot: dict | None = Field(default=None, sa_column=sa.Column(JSONB, nullable=True))
     # Base XP per survivor promised by a successful clear, snapshotted at resolution (tier-scaled, before
     # survival/luck/pet bonuses). NULL means the run cleared nothing (wipe, retreat, salvage).
     location_xp: int | None = Field(default=None, ge=0)

@@ -30,13 +30,15 @@ export const useEnvoyStore = defineStore('envoy', () => {
   const loading = ref(false)
   const refreshing = ref(false)
   const acting = ref(false)
-  /** Load/poll failure, rendered as the terminal's error line. */
   const errorMessage = ref<string | null>(null)
-  /** Last action failure (400/404/409), rendered inside the hail dialog. */
   const actionError = ref<string | null>(null)
   /** Vault the state above belongs to; guards delayed reads after a switch. */
   const stateVaultId = ref<string | null>(null)
   let loadVersion = 0
+  /** Bumped by every committed hail/answer; a sweep that started earlier loses. */
+  let logRevision = 0
+  /** Bumped by stop(); a start() still awaiting its first load must not poll again. */
+  let lifecycle = 0
 
   const sortedSignals = computed(() => [...signals.value].sort(compareSignals))
 
@@ -46,7 +48,6 @@ export const useEnvoyStore = defineStore('envoy', () => {
 
   const pendingIncomingCount = computed(() => pendingIncoming.value.length)
 
-  /** Targets with our hail still unanswered, so their card reads AWAITING REPLY. */
   const awaitingTargets = computed(
     () =>
       new Set(
@@ -64,13 +65,11 @@ export const useEnvoyStore = defineStore('envoy', () => {
     return numbers
   })
 
-  /** `VAULT 12` when the roster knows the number, otherwise the raw id's head. */
   function vaultLabel(vaultId: string): string {
     const number = vaultNumbers.value[vaultId]
     return number ? `VAULT ${number}` : `VAULT ${vaultId.slice(0, 8).toUpperCase()}`
   }
 
-  /** The pending hail a roster card's ACCEPT/REFUSE answers. */
   function pendingFilingFrom(vaultId: string): EnvoyFiling | null {
     return (
       filings.value.find(
@@ -102,6 +101,8 @@ export const useEnvoyStore = defineStore('envoy', () => {
 
   async function load(vaultId: string): Promise<boolean> {
     const version = ++loadVersion
+    // The previous action's guard is now stale, so only this reset can clear it.
+    acting.value = false
     loading.value = true
     errorMessage.value = null
     actionError.value = null
@@ -132,13 +133,14 @@ export const useEnvoyStore = defineStore('envoy', () => {
     const vaultId = stateVaultId.value
     if (!vaultId || refreshing.value || loading.value) return
     const version = loadVersion
+    const revision = logRevision
     refreshing.value = true
     try {
       const [nextSignals, nextFilings] = await Promise.all([
         envoyService.signals(vaultId),
         envoyService.log(vaultId),
       ])
-      if (version !== loadVersion) return
+      if (version !== loadVersion || revision !== logRevision) return
       signals.value = nextSignals
       filings.value = nextFilings
       errorMessage.value = null
@@ -160,6 +162,7 @@ export const useEnvoyStore = defineStore('envoy', () => {
     try {
       const filing = await envoyService.hail(vaultId, targetVaultId)
       if (version !== loadVersion) return false
+      logRevision += 1
       filings.value = [
         filing,
         ...filings.value.filter((existing) => existing.filing_id !== filing.filing_id),
@@ -183,12 +186,14 @@ export const useEnvoyStore = defineStore('envoy', () => {
     try {
       const answered = await envoyService.respond(vaultId, filingId, accept)
       if (version !== loadVersion) return false
+      logRevision += 1
       filings.value = filings.value.map((filing) =>
         filing.filing_id === answered.filing_id ? answered : filing
       )
       // Accepting opens a relation, refusing locks it: the roster owns both flags.
       await refresh()
-      return true
+      // The re-sweep outlives the answer: a switch during it makes the toast a lie.
+      return version === loadVersion
     } catch (error) {
       if (version === loadVersion)
         actionError.value = handleStoreError(error, 'Failed to answer the filing', false)
@@ -204,14 +209,16 @@ export const useEnvoyStore = defineStore('envoy', () => {
   })
   pausePolling()
 
-  /** View mount: load the vault once, then hand the band to the poller. */
   async function start(vaultId: string): Promise<void> {
+    const token = ++lifecycle
     await (stateVaultId.value === vaultId ? refresh() : load(vaultId))
+    // stop() ran while that first load was in flight: an unmounted view stays silent.
+    if (token !== lifecycle) return
     resumePolling()
   }
 
-  /** View unmount: the poller stops with the terminal, not with the store module. */
   function stop(): void {
+    lifecycle += 1
     pausePolling()
   }
 

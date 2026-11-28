@@ -18,7 +18,6 @@ withDefaults(
   { loading: false, refreshing: false }
 )
 
-/** The filing lifecycle in the terminal's own stamps. */
 const STAMP: Record<DiplomaticFilingStatus, string> = {
   PENDING: 'FILED',
   ACCEPTED: 'ACCEPTED',

@@ -32,7 +32,6 @@ const hailTarget = ref<EnvoySignal | null>(null)
 const responseTarget = ref<{ filing: EnvoyFiling; accept: boolean } | null>(null)
 
 const featureOff = computed(() => featureFlags.loaded && !featureFlags.vaultDiplomacy)
-const ttlHours = computed(() => envoyStore.config?.filing_ttl_hours ?? 48)
 const responseMessage = computed(() =>
   responseTarget.value?.accept
     ? 'Accepting opens the line and pays the first contact. Both vaults see the answer in their logs.'
@@ -40,6 +39,8 @@ const responseMessage = computed(() =>
 )
 
 async function sweep(): Promise<void> {
+  // A failed first fetch leaves flags unloaded; without this retry the guard below sticks.
+  if (!featureFlags.loaded) await featureFlags.fetchFlags()
   if (!featureFlags.vaultDiplomacy) return
   await envoyStore.start(vaultId.value)
 }
@@ -58,7 +59,6 @@ function openResponse(filing: EnvoyFiling, accept: boolean): void {
   responseTarget.value = { filing, accept }
 }
 
-/** A roster card answers by vault; the store owns which pending hail that is. */
 function respondFromRoster(signal: EnvoySignal, accept: boolean): void {
   const filing = envoyStore.pendingFilingFrom(signal.vault_id)
   if (filing) openResponse(filing, accept)
@@ -77,20 +77,23 @@ async function confirmResponse(): Promise<void> {
   const pending = responseTarget.value
   if (!pending) return
   const answered = await envoyStore.respond(pending.filing.filing_id, pending.accept)
-  responseTarget.value = null
+  // A refusal keeps the dialog open so the store's reason stays on screen.
   if (!answered) return
+  responseTarget.value = null
   toast.success(pending.accept ? 'Line opened' : 'Hail refused — the band is locked')
 }
 
-onMounted(async () => {
-  if (!featureFlags.loaded) await featureFlags.fetchFlags()
-  await sweep()
+onMounted(() => {
+  void sweep()
 })
 
 onUnmounted(() => envoyStore.stop())
 
 watch(vaultId, async () => {
   envoyStore.stop()
+  // The previous vault's dialogs must not answer for the new one.
+  hailTarget.value = null
+  responseTarget.value = null
   await sweep()
 })
 </script>
@@ -221,7 +224,7 @@ watch(vaultId, async () => {
     <HailDialog
       :open="hailTarget !== null"
       :signal="hailTarget"
-      :ttl-hours="ttlHours"
+      :ttl-hours="envoyStore.config?.filing_ttl_hours ?? 48"
       :busy="envoyStore.acting"
       :error="envoyStore.actionError"
       @update:open="closeHail"
@@ -233,6 +236,7 @@ watch(vaultId, async () => {
       :title="responseTarget?.accept ? 'OPEN THE LINE' : 'REFUSE THE HAIL'"
       :message="responseMessage"
       :confirm-label="responseTarget?.accept ? 'ACCEPT' : 'REFUSE'"
+      :error="envoyStore.actionError"
       @confirm="confirmResponse"
       @cancel="responseTarget = null"
     />

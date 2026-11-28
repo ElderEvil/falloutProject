@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## 3.38.0 (2026-11-28)
+
+### Features
+
+* **map:** derive marker shape from static purpose, not action 1bb6ffa
+* **map:** derive marker shape from static purpose, not action ([#1601](https://github.com/ElderEvil/falloutProject/issues/1601)) 4118a38
+
 ## 3.37.0 (2026-11-28)
 
 ### Features

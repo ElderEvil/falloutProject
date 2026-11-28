@@ -86,9 +86,10 @@ async def test_timestamp_inventory_matches_migrated_schema(utc_connection: Async
     # Pinned totals: the world-event, pvpduel, collectible and caravan migrations add their columns
     # here; the magazine migration adds only the JSONB boon, which is not a UTC producer.
     # ``worldevent.finished_at`` is the newest UTC column before the Combat Zone tables, which add
-    # their own travel, strike and journal timestamps.
-    assert len(expected) == 157
-    assert len({table for table, _ in expected}) == 48
+    # their own travel, strike and journal timestamps. The diplomacy migration adds two tables
+    # (vaultrelation, diplomaticfiling) with four UTC columns each.
+    assert len(expected) == 165
+    assert len({table for table, _ in expected}) == 50
     rows = await utc_connection.execute(
         text(
             "SELECT table_name, column_name, data_type FROM information_schema.columns "

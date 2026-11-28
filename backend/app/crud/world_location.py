@@ -305,6 +305,18 @@ class CRUDWorldLocation:
         )
         return [(row[0], row[1]) for row in result.all()]
 
+    async def list_visited_coords(self, db_session: AsyncSession, *, vault_id: UUID) -> list[tuple[float, float]]:
+        """Registry coordinates of every place this vault has a VISITED fog entry for."""
+        result = await db_session.execute(
+            select(WorldLocation.coord_x, WorldLocation.coord_y)
+            .join(VaultLocationState, VaultLocationState.location_id == WorldLocation.id)
+            .where(
+                VaultLocationState.vault_id == vault_id,
+                VaultLocationState.type == LocationTypeEnum.VISITED,
+            )
+        )
+        return [(float(coord_x), float(coord_y)) for coord_x, coord_y in result.all()]
+
     async def get_elapsed_reclears(
         self, db_session: AsyncSession, now: datetime
     ) -> list[tuple[WorldLocation, VaultLocationState]]:

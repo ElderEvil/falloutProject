@@ -154,6 +154,42 @@ class PvpDuelStatus(StrEnum):
     EXPIRED = "EXPIRED"
 
 
+class VaultRelationStatus(StrEnum):
+    """A vault pair's diplomatic state; stored as VARCHAR, not a PG enum.
+
+    EMBARGO is a modifier on the pair, not a rung on this ladder.
+    """
+
+    UNMET = "UNMET"
+    CONTACT = "CONTACT"
+    CEASEFIRE = "CEASEFIRE"
+    ACCORD = "ACCORD"
+    COMPACT = "COMPACT"
+    WAR = "WAR"
+
+
+class DiplomaticFilingKind(StrEnum):
+    """The filings the Envoy Terminal accepts, one active per pair per direction."""
+
+    HAIL = "HAIL"
+    CEASEFIRE = "CEASEFIRE"
+    ACCORD = "ACCORD"
+    COMPACT = "COMPACT"
+    DEMAND = "DEMAND"
+    EMBARGO = "EMBARGO"
+    DECLARATION = "DECLARATION"
+
+
+class DiplomaticFilingStatus(StrEnum):
+    """Lifecycle of a filing: it waits, is answered, or lapses unfiled."""
+
+    PENDING = "PENDING"
+    ACCEPTED = "ACCEPTED"
+    REFUSED = "REFUSED"
+    VOID = "VOID"
+    EXPIRED = "EXPIRED"
+
+
 class SPECIALEnum(CaseInsensitiveEnum):
     STRENGTH = "strength"
     PERCEPTION = "perception"

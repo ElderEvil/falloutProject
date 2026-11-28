@@ -120,10 +120,20 @@ describe('MapMarker', () => {
     }
   })
 
-  it('emits a single ping element on the click transition', () => {
+  it('keeps one ping ring alive while selected, so a selected site keeps pulsing', () => {
     expect(
       mountMarker({ type: 'visited', selected: true }).findAll('.marker-select-ping')
     ).toHaveLength(1)
+  })
+
+  it('never swaps the silhouette to signal selection, it only adds the ping', () => {
+    const resting = mountMarker({ shape: 'triangle' }).find('path.marker-backing')
+    const selected = mountMarker({ shape: 'triangle', selected: true }).find(
+      'path.marker-backing'
+    )
+    // Same silhouette, same geometry: the ring is the only thing that changed.
+    expect(selected.attributes('d')).toBe(resting.attributes('d'))
+    expect(selected.classes()).toEqual(resting.classes())
   })
 
   describe('Expedition site markers', () => {
@@ -364,7 +374,7 @@ describe('MapMarker zoom compensation', () => {
     it.each([
       ['circle', 'circle'],
       ['diamond', 'path'],
-      ['hexagon', 'path'],
+      ['triangle', 'path'],
       ['square', 'rect'],
     ])('draws %s as a %s body', (shape, tag) => {
       const wrapper = mountMarker({ shape })
@@ -375,7 +385,7 @@ describe('MapMarker zoom compensation', () => {
     })
 
     it('opens the body for Look places so they never read as a raid target', () => {
-      expect(mountMarker({ shape: 'hexagon' }).find('.marker-backing-open').exists()).toBe(true)
+      expect(mountMarker({ shape: 'triangle' }).find('.marker-backing-open').exists()).toBe(true)
       expect(mountMarker({ shape: 'circle' }).find('.marker-backing-open').exists()).toBe(false)
       expect(mountMarker({ shape: 'diamond' }).find('.marker-backing-open').exists()).toBe(false)
     })
@@ -385,13 +395,13 @@ describe('MapMarker zoom compensation', () => {
       expect(d).toBe('M 0 -4.2 L 4.2 0 L 0 4.2 L -4.2 0 Z')
     })
 
-    it('draws the look hexagon to the disc footprint', () => {
-      const d = mountMarker({ shape: 'hexagon' }).find('path.marker-backing').attributes('d') ?? ''
-      // Six points, apex up, 1.1x radius: a hexagon holds ~83% of a disc's area at
-      // equal circumradius, so 1.1x restores the footprint, and every vertex still
-      // sits inside the r=6 hit area.
-      expect(d).toBe('M 0 -4.62 L 4.001 -2.31 L 4.001 2.31 L 0 4.62 L -4.001 2.31 L -4.001 -2.31 Z')
-      expect(d.trim().endsWith('Z')).toBe(true)
+    it('draws the look triangle larger than a disc of the same circumradius', () => {
+      const d = mountMarker({ shape: 'triangle' }).find('path.marker-backing').attributes('d') ?? ''
+      // Three points, apex up, 1.4x radius: a triangle of equal circumradius reads
+      // as a small badge, and its corners still sit inside the r=6 hit area.
+      expect(d).toBe('M 0 -5.88 L 5.092 2.94 L -5.092 2.94 Z')
+      const apexY = Number(d.split(' ')[2])
+      expect(Math.abs(apexY)).toBeLessThan(6)
       const ys = [...d.matchAll(/[ML] (-?[\d.]+) (-?[\d.]+)/g)].flatMap((m) => [
         Math.abs(Number(m[2])),
       ])
@@ -402,12 +412,12 @@ describe('MapMarker zoom compensation', () => {
     it('names the purpose in the accessible label', () => {
       expect(mountMarker({ shape: 'diamond' }).attributes('aria-label')).toContain('Trade')
       expect(mountMarker({ shape: 'circle' }).attributes('aria-label')).toContain('Clear')
-      expect(mountMarker({ shape: 'hexagon' }).attributes('aria-label')).toContain('Look')
+      expect(mountMarker({ shape: 'triangle' }).attributes('aria-label')).toContain('Look')
       expect(mountMarker({ shape: 'square' }).attributes('aria-label')).toContain('Home')
     })
 
     it('leaves the hit area the same size whatever the shape', () => {
-      for (const shape of ['circle', 'diamond', 'hexagon', 'square'])
+      for (const shape of ['circle', 'diamond', 'triangle', 'square'])
         expect(mountMarker({ shape }).find('circle.marker-hit-area').attributes('r')).toBe('6')
     })
   })

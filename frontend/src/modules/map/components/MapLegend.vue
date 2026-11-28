@@ -34,8 +34,8 @@ const signals = [
               class="legend-shape"
             />
             <path
-              v-else-if="entry.shape === 'hexagon'"
-              d="M5 1 8.5 3 8.5 7 5 9 1.5 7 1.5 3Z"
+              v-else-if="entry.shape === 'triangle'"
+              d="M5 1.2 9 8.4 1 8.4Z"
               class="legend-shape ring"
             />
             <rect v-else x="1.2" y="1.2" width="7.6" height="7.6" rx="1.4" class="legend-shape" />

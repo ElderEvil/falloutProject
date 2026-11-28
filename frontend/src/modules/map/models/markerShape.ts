@@ -10,11 +10,15 @@ export type PlacePurpose = 'clear' | 'trade' | 'look' | 'home'
 /**
  * The silhouettes a marker body can take. Four purposes need four shapes the eye
  * can tell apart both at 4.2 user units and at the legend's 12px swatch: a filled
- * circle, a diamond, a hollow hexagon and a rounded square. The Look shape stays
- * hollow — the fill is what separates it from the circle at swatch size, not the
- * edge count, so six sides read fine as long as it is never filled in.
+ * circle, a diamond, a hollow triangle and a rounded square. The Look shape stays
+ * hollow — the fill is what separates it from the circle at swatch size, so the
+ * silhouette must never be filled in.
+ *
+ * A shape means purpose and nothing else. It is never swapped to signal state:
+ * approached, selected and exploring markers keep their silhouette and announce
+ * themselves with an animated ring (see `marker-select-ping`).
  */
-export type MarkerShape = 'circle' | 'diamond' | 'hexagon' | 'square'
+export type MarkerShape = 'circle' | 'diamond' | 'triangle' | 'square'
 
 export interface PurposeMeta {
   purpose: PlacePurpose
@@ -27,7 +31,7 @@ export interface PurposeMeta {
 export const PURPOSE_META: readonly PurposeMeta[] = [
   { purpose: 'clear', shape: 'circle', label: 'Clear', hint: 'raid · salvage' },
   { purpose: 'trade', shape: 'diamond', label: 'Trade', hint: 'caravan' },
-  { purpose: 'look', shape: 'hexagon', label: 'Look', hint: 'landmark' },
+  { purpose: 'look', shape: 'triangle', label: 'Look', hint: 'landmark' },
   { purpose: 'home', shape: 'square', label: 'Home', hint: 'your vault' },
 ]
 
@@ -35,7 +39,7 @@ const BY_SHAPE = new Map<MarkerShape, PurposeMeta>(PURPOSE_META.map((meta) => [m
 
 /** Legend metadata for a body shape; an unknown shape reads as Look, never a raid. */
 export function shapeMeta(shape: MarkerShape | null | undefined): PurposeMeta {
-  return BY_SHAPE.get(shape ?? 'hexagon') ?? BY_SHAPE.get('hexagon')!
+  return BY_SHAPE.get(shape ?? 'triangle') ?? BY_SHAPE.get('triangle')!
 }
 
 /** Groups that trade but are not clearable; the API's `action` already says so. */
@@ -52,7 +56,7 @@ type ShapeSource = Pick<WastelandLocationWithDwellers, 'type' | 'action'> & {
  * it is the same trip shape, only the copy differs.
  */
 export function shapeFor(location: ShapeSource | null | undefined): MarkerShape {
-  if (!location) return 'hexagon'
+  if (!location) return 'triangle'
   if (location.type === 'home_vault') return 'square'
 
   switch (location.action) {
@@ -62,9 +66,9 @@ export function shapeFor(location: ShapeSource | null | undefined): MarkerShape 
     case 'trade':
       return 'diamond'
     case 'none':
-      return 'hexagon'
+      return 'triangle'
   }
 
   if (location.group_key && TRADE_GROUPS.has(location.group_key)) return 'diamond'
-  return 'hexagon'
+  return 'triangle'
 }

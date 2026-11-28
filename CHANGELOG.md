@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## 3.37.0 (2026-11-28)
+
+### Features
+
+* **combat-zone:** add async combat zone backend ([#1590](https://github.com/ElderEvil/falloutProject/issues/1590)) 27c9ca5
+* **combat-zone:** add playable combat zone UI ([#1591](https://github.com/ElderEvil/falloutProject/issues/1591)) 2560e96
+
 ## 3.36.1 (2026-11-27)
 
 ### Bug Fixes

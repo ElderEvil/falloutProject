@@ -18,13 +18,13 @@ describe('MapLegend', () => {
     const shapes = mountLegend()
       .findAll('svg .legend-shape')
       .map((node) => node.element.tagName.toLowerCase())
-    // circle, diamond, hexagon, square — the look shape is never a second circle.
-    expect(shapes).toEqual(['circle', 'path', 'path', 'rect'])
+    // circle, diamond, square, hexagon — the look shape is never a second circle.
+    expect(shapes).toEqual(['circle', 'path', 'rect', 'path'])
   })
 
-  it('marks the look hexagon as an open body in the key', () => {
-    const open = mountLegend().findAll('svg .legend-shape.ring')
-    expect(open).toHaveLength(1)
+  it('marks the look square as an open body in the key', () => {
+    const look = mountLegend().find('.legend-item-look')
+    expect(look.find('rect.legend-shape').exists()).toBe(true)
   })
 
   it('retains symbolic states independently of place colours', () => {

@@ -375,9 +375,16 @@ describe('MapMarker zoom compensation', () => {
     })
 
     it('opens the body for Look places so they never read as a raid target', () => {
-      expect(mountMarker({ shape: 'hexagon' }).find('.marker-backing-open').exists()).toBe(true)
+      expect(mountMarker({ shape: 'square' }).find('.marker-backing-open').exists()).toBe(true)
       expect(mountMarker({ shape: 'circle' }).find('.marker-backing-open').exists()).toBe(false)
       expect(mountMarker({ shape: 'diamond' }).find('.marker-backing-open').exists()).toBe(false)
+      expect(mountMarker({ shape: 'hexagon' }).find('.marker-backing-open').exists()).toBe(false)
+    })
+
+    it('resolves an invalid shape to Look, never a filled circle', () => {
+      const wrapper = mountMarker({ shape: 'bogus' })
+      expect(wrapper.find('rect.marker-backing.marker-backing-open').exists()).toBe(true)
+      expect(wrapper.attributes('aria-label')).toContain('Look')
     })
 
     it('keeps the diamond body inside the disc footprint', () => {
@@ -385,7 +392,7 @@ describe('MapMarker zoom compensation', () => {
       expect(d).toBe('M 0 -4.2 L 4.2 0 L 0 4.2 L -4.2 0 Z')
     })
 
-    it('draws the look hexagon to the disc footprint', () => {
+    it('draws the home hexagon to the disc footprint', () => {
       const d = mountMarker({ shape: 'hexagon' }).find('path.marker-backing').attributes('d') ?? ''
       // Six points, apex up, 1.1x radius: a hexagon holds ~83% of a disc's area at
       // equal circumradius, so 1.1x restores the footprint, and every vertex still
@@ -402,13 +409,65 @@ describe('MapMarker zoom compensation', () => {
     it('names the purpose in the accessible label', () => {
       expect(mountMarker({ shape: 'diamond' }).attributes('aria-label')).toContain('Trade')
       expect(mountMarker({ shape: 'circle' }).attributes('aria-label')).toContain('Clear')
-      expect(mountMarker({ shape: 'hexagon' }).attributes('aria-label')).toContain('Look')
-      expect(mountMarker({ shape: 'square' }).attributes('aria-label')).toContain('Home')
+      expect(mountMarker({ shape: 'hexagon' }).attributes('aria-label')).toContain('Home')
+      expect(mountMarker({ shape: 'square' }).attributes('aria-label')).toContain('Look')
     })
 
     it('leaves the hit area the same size whatever the shape', () => {
       for (const shape of ['circle', 'diamond', 'hexagon', 'square'])
         expect(mountMarker({ shape }).find('circle.marker-hit-area').attributes('r')).toBe('6')
     })
+  })
+})
+
+describe('MapMarker purpose-first state', () => {
+  const factory = { name: 'Factory', type: 'visited', shape: 'square', icon: 'mdi:factory' }
+
+  it('keeps the body path identical when selection toggles', () => {
+    const plain = mountMarker(factory)
+    const selected = mountMarker({ ...factory, selected: true })
+    expect(selected.find('.marker-backing').attributes()).toEqual(
+      plain.find('.marker-backing').attributes()
+    )
+  })
+
+  it('withholds the archetype glyph behind ? until scouted', () => {
+    const wrapper = mountMarker({ ...factory, is_unlocked: false, risk: 'medium' })
+    expect(wrapper.findComponent(Icon).props('icon')).toBe('mdi:map-marker-question')
+    expect(wrapper.attributes('aria-label')).toBe('Unscouted · Look site · risk unknown')
+  })
+
+  it('reads purpose, archetype, risk and state once revealed', () => {
+    const wrapper = mountMarker({
+      ...factory,
+      name: 'Corvega Assembly Plant',
+      archetype: 'Factory',
+      risk: 'medium',
+      status: 'Party en route',
+    })
+    expect(wrapper.attributes('aria-label')).toBe('Look · Factory · Medium risk · Party en route')
+  })
+
+  it('shows a salvage crate badge without redrawing the body', () => {
+    const salvage = mountMarker({ ...factory, salvage: true })
+    expect(salvage.find('.marker-salvage-badge').exists()).toBe(true)
+    expect(salvage.find('.marker-backing').attributes()).toEqual(
+      mountMarker(factory).find('.marker-backing').attributes()
+    )
+  })
+
+  it('announces salvage and keeps status alongside a cleared state', () => {
+    expect(
+      mountMarker({ ...factory, salvage: true, status: 'Party en route' }).attributes('aria-label')
+    ).toContain('Salvage available')
+
+    const cleared = mountMarker({
+      name: 'Red Rocket',
+      type: 'expedition_site',
+      cleared: true,
+      status: 'READY · LVL 5 · 3 ROOMS',
+    })
+    expect(cleared.attributes('aria-label')).toContain('Cleared')
+    expect(cleared.attributes('aria-label')).toContain('READY · LVL 5 · 3 ROOMS')
   })
 })

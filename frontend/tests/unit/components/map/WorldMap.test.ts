@@ -770,7 +770,7 @@ describe('WorldMap', () => {
 
       // The Home shape marks the vault you are standing in. An alt vault you own
       // keeps the plain disc, so owning many never buries the one that matters.
-      expect(markers.find((m) => m.props('name') === 'Vault 765')!.props('shape')).toBe('square')
+      expect(markers.find((m) => m.props('name') === 'Vault 765')!.props('shape')).toBe('hexagon')
       expect(markers.find((m) => m.props('name') === 'Vault 777')!.props('shape')).toBeNull()
 
       // The surviving marker is the home-vault location; clicking it must open
